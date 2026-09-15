@@ -294,7 +294,7 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
         {group.name}
       </h2>
       <p className="text-slate-700">
-        Selected group. Role: <strong>{group.role}</strong>. Version:{' '}
+        Selected group shell. Role: <strong>{group.role}</strong>. Version:{' '}
         <strong>{group.version}</strong>.
       </p>
       <nav className="flex flex-wrap gap-4" aria-label="Group">
