@@ -193,7 +193,7 @@ Validation/concurrency → no partial write; client reload; no server auto-retry
 
 | Concern | Rule |
 | ------- | ---- |
-| Metadata | Resource row in Postgres (purpose, note, contentType, size, objectKey, ArrangementId) |
+| Metadata | Resource row in Postgres (ArrangementId, purpose incl. `practice`, required Label, optional Part, note, Kind file\|link, contentType, size, objectKey / Url as applicable — ADR-0024) |
 | Bytes | Object store via `IBlobStore` port |
 | Key | `groups/{groupId}/arrangements/{arrangementId}/{resourceId}/{safeFileName}` |
 | Upload | Owner; authenticated; size/type limits (limits OPEN numeric — assume sensible defaults e.g. 50MB audio, 10MB docs until product sets) |

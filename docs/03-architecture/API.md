@@ -48,24 +48,35 @@ Convention: JSON; Problem Details ([`TECHNICAL-SPEC.md`](TECHNICAL-SPEC.md) §8)
 
 ## Repertoire
 
+**Authoritative Phase 3.2 contract:** [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md) (API DTOs, AuthZ, concurrency, tickets). Summary below.
+
+**Backend status:** T-3.2.01–05 **COMPLETE** (`Song → Arrangement → Link Resource`). File Resource **DEFERRED** (T-3.2.06). Next: T-3.2.07 React shell (explicit authorization required).
+
+All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (GET → **404**). No list pagination/search in MVP.
+
+**PATCH (Song / Arrangement / Resource):** omitted or JSON `null` → keep; non-null → apply; optional whitespace-only text → store `null`. JSON `null` does **not** clear. Arrangement `defaultBpm` (1–400) cannot be cleared via PATCH in current MVP.
+
 | Use case | Method | Route | AuthZ | Notes | Success | Failures |
 | -------- | ------ | ----- | ----- | ----- | ------- | -------- |
-| List Songs | GET | `.../songs` | Member | Exclude soft-deleted | 200 | 404 |
-| Create Song | POST | `.../songs` | Owner | Creates Default Arrangement (assumption) | 201 | 403, 400 |
-| Get Song | GET | `.../songs/{songId}` | Member | | 200 | 404 |
-| Update Song | PATCH | `.../songs/{songId}` | Owner | Identity fields | 200 | 403, 404, 409 |
-| Soft-delete Song | DELETE | `.../songs/{songId}` | Owner | Soft | 204 | 403, 404 |
-| List Arrangements | GET | `.../songs/{songId}/arrangements` or `.../arrangements` | Member | | 200 | 404 |
-| Create Arrangement | POST | `.../songs/{songId}/arrangements` | Owner | | 201 | 403, 400 |
-| Get Arrangement | GET | `.../arrangements/{arrangementId}` | Member | Includes resources metadata | 200 | 404 |
-| Update Arrangement | PATCH | `.../arrangements/{arrangementId}` | Owner | Musical body | 200 | 403, 404, 409 |
-| Soft-delete Arrangement | DELETE | `.../arrangements/{arrangementId}` | Owner | Allow last (0017) | 204 | 403, 404, 409 |
-| Set default | POST | `.../arrangements/{arrangementId}/default` | Owner | Tx | 204 | 409 |
-| Add Resource | POST | `.../arrangements/{arrangementId}/resources` | Owner | multipart or init+upload | 201 | 403, 400 |
-| Delete Resource | DELETE | `.../resources/{resourceId}` | Owner | Hard | 204 | 403, 404 |
-| Download Resource | GET | `.../resources/{resourceId}/content` | Member | Redirect signed URL or stream | 200/302 | 403, 404 |
+| List Songs | GET | `.../songs` | Member | Order by Title, Id | 200 | 401, 404 |
+| Create Song | POST | `.../songs` | Owner | Song only; zero Arrangements ALLOWED | 201 | 401, 403, 404, 400 |
+| Get Song | GET | `.../songs/{songId}` | Member | | 200 | 401, 404 |
+| Update Song | PATCH | `.../songs/{songId}` | Owner | `expectedVersion` required | 200 | 401, 403, 404, 400, 409 |
+| Soft-delete Song | DELETE | `.../songs/{songId}` | Owner | Body `{ expectedVersion }`; cascade live Arrs (ADR-0025 §8a) | 204 | 401, 403, 404, 400, 409 |
+| List Arrangements | GET | `.../songs/{songId}/arrangements` | Member | Live only; order CreatedAt | 200 | 401, 404 |
+| Create Arrangement | POST | `.../songs/{songId}/arrangements` | Owner | Label required; no IsDefault | 201 | 401, 403, 404, 400 |
+| Get Arrangement | GET | `.../arrangements/{arrangementId}` | Member | Includes resource summaries | 200 | 401, 404 |
+| Update Arrangement | PATCH | `.../arrangements/{arrangementId}` | Owner | `expectedVersion` required | 200 | 401, 403, 404, 400, 409 |
+| Soft-delete Arrangement | DELETE | `.../arrangements/{arrangementId}` | Owner | Body `{ expectedVersion }`; Resources left | 204 | 401, 403, 404, 400, 409 |
+| List Resources | GET | `.../arrangements/{arrangementId}/resources` | Member | Link Resources | 200 | 401, 404 |
+| Create Resource | POST | `.../arrangements/{arrangementId}/resources` | Owner | **Link only** (`kind=link`); `url` required; reject `file` | 201 | 401, 403, 404, 400 |
+| Get Resource | GET | `.../arrangements/{arrangementId}/resources/{resourceId}` | Member | Includes `url`; nested route only | 200 | 401, 404 |
+| Update Resource | PATCH | `.../arrangements/{arrangementId}/resources/{resourceId}` | Owner | purpose/label/part/note; `kind`/`url` immutable; **no** expectedVersion | 200 | 401, 403, 404, 400 |
+| Delete Resource | DELETE | `.../arrangements/{arrangementId}/resources/{resourceId}` | Owner | Hard-delete; nested route only | 204 | 401, 403, 404 |
 
-All `...` = `/api/groups/{groupId}`.
+**Not supported:** flat `.../resources/{resourceId}` get/patch/delete.
+
+**Deferred (T-3.2.06):** file Resource create/upload; nested `.../resources/{id}/content`; `IBlobStore`. See [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md).
 
 ---
 

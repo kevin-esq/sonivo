@@ -76,4 +76,43 @@ public class EfModelFoundationTests
             Assert.True(version.IsConcurrencyToken);
         }
     }
+
+    [Fact]
+    public void Repertoire_model_matches_adr_0024_and_0025()
+    {
+        var options = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseInMemoryDatabase($"sonivo-repertoire-{Guid.NewGuid()}")
+            .Options;
+
+        using var db = new SonivoDbContext(options);
+
+        var song = db.Model.FindEntityType(typeof(Song))!;
+        Assert.NotNull(song.FindProperty(nameof(Song.OriginKind)));
+        Assert.Null(song.FindProperty("IsOriginal"));
+        Assert.True(song.FindProperty(nameof(Song.Version))!.IsConcurrencyToken);
+        Assert.NotNull(song.GetQueryFilter());
+
+        var arrangement = db.Model.FindEntityType(typeof(Arrangement))!;
+        Assert.Null(arrangement.FindProperty("IsDefault"));
+        Assert.Equal(typeof(int?), arrangement.FindProperty(nameof(Arrangement.DefaultBpm))!.ClrType);
+        Assert.True(arrangement.FindProperty(nameof(Arrangement.Version))!.IsConcurrencyToken);
+        Assert.NotNull(arrangement.GetQueryFilter());
+
+        var resource = db.Model.FindEntityType(typeof(Resource))!;
+        Assert.NotNull(resource.FindProperty(nameof(Resource.Kind)));
+        Assert.NotNull(resource.FindProperty(nameof(Resource.Label)));
+        Assert.NotNull(resource.FindProperty(nameof(Resource.Part)));
+        Assert.NotNull(resource.FindProperty(nameof(Resource.Url)));
+        Assert.Null(resource.FindProperty("Version"));
+        Assert.Null(resource.FindProperty("DeletedAt"));
+        Assert.Null(resource.FindProperty("GroupId"));
+        Assert.True(resource.FindProperty(nameof(Resource.ContentType))!.IsNullable);
+        Assert.True(resource.FindProperty(nameof(Resource.ObjectKey))!.IsNullable);
+        Assert.True(resource.FindProperty(nameof(Resource.ByteSize))!.IsNullable);
+        Assert.Null(resource.GetQueryFilter());
+
+        var resourceFk = resource.GetForeignKeys()
+            .Single(fk => fk.PrincipalEntityType.ClrType == typeof(Arrangement));
+        Assert.Equal(DeleteBehavior.Restrict, resourceFk.DeleteBehavior);
+    }
 }

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Sonivo.Application;
+using Sonivo.Application.Repertoire;
 using Sonivo.Application.Tenancy;
 
 namespace Sonivo.Application.Tests;
@@ -7,7 +8,7 @@ namespace Sonivo.Application.Tests;
 public class ApplicationCompositionTests
 {
     [Fact]
-    public void AddApplication_registers_group_handlers()
+    public void AddApplication_registers_group_and_song_handlers()
     {
         var services = new ServiceCollection();
         services.AddApplication();
@@ -15,5 +16,15 @@ public class ApplicationCompositionTests
         Assert.Contains(services, d => d.ServiceType == typeof(CreateGroupHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(GroupAccessService));
         Assert.Contains(services, d => d.ServiceType == typeof(ListMyGroupsHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(CreateSongHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(ListSongsHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(GetSongHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(UpdateSongHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(SoftDeleteSongHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(CreateArrangementHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(ListArrangementsHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(SoftDeleteArrangementHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(CreateLinkResourceHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(DeleteResourceHandler));
     }
 }

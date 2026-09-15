@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Sonivo.Application;
 using Sonivo.Application.Abstractions;
+using Sonivo.Application.Repertoire;
 using Sonivo.Application.Tenancy;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Identity;
@@ -367,6 +368,412 @@ app.MapDelete("/api/groups/{groupId:guid}", async (
 .RequireAuthorization()
 .DisableAntiforgery();
 
+app.MapGet("/api/groups/{groupId:guid}/songs", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListSongsHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var songs = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
+    return Results.Ok(songs.Select(ToSongListResponse));
+})
+.WithName("ListSongs")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/songs", async (
+    Guid groupId,
+    CreateSongRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    CreateSongHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var created = await handler.HandleAsync(
+        new CreateSongCommand(
+            userId.Value,
+            groupId,
+            request.Title ?? string.Empty,
+            request.Attribution,
+            request.OriginKind ?? string.Empty,
+            request.RightsNotes),
+        cancellationToken);
+
+    return Results.Created($"/api/groups/{groupId}/songs/{created.Id}", ToSongDetailResponse(created));
+})
+.WithName("CreateSong")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
+    Guid groupId,
+    Guid songId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetSongHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var song = await handler.HandleAsync(userId.Value, groupId, songId, cancellationToken);
+    return Results.Ok(ToSongDetailResponse(song));
+})
+.WithName("GetSong")
+.RequireAuthorization();
+
+app.MapPatch("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
+    Guid groupId,
+    Guid songId,
+    UpdateSongRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    UpdateSongHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var updated = await handler.HandleAsync(
+        new UpdateSongCommand(
+            userId.Value,
+            groupId,
+            songId,
+            request.Title,
+            request.Attribution,
+            request.OriginKind,
+            request.RightsNotes,
+            request.ExpectedVersion),
+        cancellationToken);
+
+    return Results.Ok(ToSongDetailResponse(updated));
+})
+.WithName("UpdateSong")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapDelete("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
+    Guid groupId,
+    Guid songId,
+    [FromBody] SoftDeleteSongRequest? request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SoftDeleteSongHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(
+        new SoftDeleteSongCommand(
+            userId.Value,
+            groupId,
+            songId,
+            request?.ExpectedVersion ?? 0),
+        cancellationToken);
+
+    return Results.NoContent();
+})
+.WithName("SoftDeleteSong")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/songs/{songId:guid}/arrangements", async (
+    Guid groupId,
+    Guid songId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListArrangementsHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var arrangements = await handler.HandleAsync(userId.Value, groupId, songId, cancellationToken);
+    return Results.Ok(arrangements.Select(ToArrangementListResponse));
+})
+.WithName("ListArrangements")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/songs/{songId:guid}/arrangements", async (
+    Guid groupId,
+    Guid songId,
+    CreateArrangementRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    CreateArrangementHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var created = await handler.HandleAsync(
+        new CreateArrangementCommand(
+            userId.Value,
+            groupId,
+            songId,
+            request.Label ?? string.Empty,
+            request.DefaultKey,
+            request.DefaultBpm,
+            request.Lyrics,
+            request.Chords,
+            request.Structure,
+            request.Notes),
+        cancellationToken);
+
+    return Results.Created(
+        $"/api/groups/{groupId}/arrangements/{created.Id}",
+        ToArrangementDetailResponse(created));
+})
+.WithName("CreateArrangement")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", async (
+    Guid groupId,
+    Guid arrangementId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetArrangementHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var arrangement = await handler.HandleAsync(userId.Value, groupId, arrangementId, cancellationToken);
+    return Results.Ok(ToArrangementDetailResponse(arrangement));
+})
+.WithName("GetArrangement")
+.RequireAuthorization();
+
+app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", async (
+    Guid groupId,
+    Guid arrangementId,
+    UpdateArrangementRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    UpdateArrangementHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var updated = await handler.HandleAsync(
+        new UpdateArrangementCommand(
+            userId.Value,
+            groupId,
+            arrangementId,
+            request.Label,
+            request.DefaultKey,
+            request.DefaultBpm,
+            request.Lyrics,
+            request.Chords,
+            request.Structure,
+            request.Notes,
+            request.ExpectedVersion),
+        cancellationToken);
+
+    return Results.Ok(ToArrangementDetailResponse(updated));
+})
+.WithName("UpdateArrangement")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", async (
+    Guid groupId,
+    Guid arrangementId,
+    [FromBody] SoftDeleteArrangementRequest? request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SoftDeleteArrangementHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(
+        new SoftDeleteArrangementCommand(
+            userId.Value,
+            groupId,
+            arrangementId,
+            request?.ExpectedVersion ?? 0),
+        cancellationToken);
+
+    return Results.NoContent();
+})
+.WithName("SoftDeleteArrangement")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources", async (
+    Guid groupId,
+    Guid arrangementId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListResourcesHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var resources = await handler.HandleAsync(userId.Value, groupId, arrangementId, cancellationToken);
+    return Results.Ok(resources.Select(ToResourceSummaryResponse));
+})
+.WithName("ListResources")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources", async (
+    Guid groupId,
+    Guid arrangementId,
+    CreateLinkResourceRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    CreateLinkResourceHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var created = await handler.HandleAsync(
+        new CreateLinkResourceCommand(
+            userId.Value,
+            groupId,
+            arrangementId,
+            request.Kind,
+            request.Purpose ?? string.Empty,
+            request.Label ?? string.Empty,
+            request.Part,
+            request.Note,
+            request.Url ?? string.Empty),
+        cancellationToken);
+
+    return Results.Created(
+        $"/api/groups/{groupId}/arrangements/{arrangementId}/resources/{created.Id}",
+        ToResourceDetailResponse(created));
+})
+.WithName("CreateLinkResource")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources/{resourceId:guid}", async (
+    Guid groupId,
+    Guid arrangementId,
+    Guid resourceId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetResourceHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var resource = await handler.HandleAsync(userId.Value, groupId, arrangementId, resourceId, cancellationToken);
+    return Results.Ok(ToResourceDetailResponse(resource));
+})
+.WithName("GetResource")
+.RequireAuthorization();
+
+app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources/{resourceId:guid}", async (
+    Guid groupId,
+    Guid arrangementId,
+    Guid resourceId,
+    UpdateLinkResourceRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    UpdateLinkResourceHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var updated = await handler.HandleAsync(
+        new UpdateLinkResourceCommand(
+            userId.Value,
+            groupId,
+            arrangementId,
+            resourceId,
+            request.Purpose,
+            request.Label,
+            request.Part,
+            request.Note),
+        cancellationToken);
+
+    return Results.Ok(ToResourceDetailResponse(updated));
+})
+.WithName("UpdateLinkResource")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources/{resourceId:guid}", async (
+    Guid groupId,
+    Guid arrangementId,
+    Guid resourceId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    DeleteResourceHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(userId.Value, groupId, arrangementId, resourceId, cancellationToken);
+    return Results.NoContent();
+})
+.WithName("DeleteResource")
+.RequireAuthorization()
+.DisableAntiforgery();
+
 app.Run();
 
 static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users)
@@ -399,11 +806,143 @@ static object ToGroupListResponse(GroupListItem item) => new
     createdAt = item.CreatedAt
 };
 
+static object ToSongListResponse(SongListItemDto song) => new
+{
+    id = song.Id,
+    title = song.Title,
+    attribution = song.Attribution,
+    originKind = song.OriginKind,
+    version = song.Version,
+    createdAt = song.CreatedAt,
+    updatedAt = song.UpdatedAt
+};
+
+static object ToSongDetailResponse(SongDetailDto song) => new
+{
+    id = song.Id,
+    title = song.Title,
+    attribution = song.Attribution,
+    originKind = song.OriginKind,
+    rightsNotes = song.RightsNotes,
+    version = song.Version,
+    createdAt = song.CreatedAt,
+    updatedAt = song.UpdatedAt,
+    arrangementCount = song.ArrangementCount
+};
+
+static object ToArrangementListResponse(ArrangementListItemDto arrangement) => new
+{
+    id = arrangement.Id,
+    songId = arrangement.SongId,
+    label = arrangement.Label,
+    defaultKey = arrangement.DefaultKey,
+    defaultBpm = arrangement.DefaultBpm,
+    version = arrangement.Version,
+    createdAt = arrangement.CreatedAt,
+    updatedAt = arrangement.UpdatedAt
+};
+
+static object ToArrangementDetailResponse(ArrangementDetailDto arrangement) => new
+{
+    id = arrangement.Id,
+    songId = arrangement.SongId,
+    label = arrangement.Label,
+    defaultKey = arrangement.DefaultKey,
+    defaultBpm = arrangement.DefaultBpm,
+    lyrics = arrangement.Lyrics,
+    chords = arrangement.Chords,
+    structure = arrangement.Structure,
+    notes = arrangement.Notes,
+    version = arrangement.Version,
+    createdAt = arrangement.CreatedAt,
+    updatedAt = arrangement.UpdatedAt,
+    resources = arrangement.Resources.Select(r => new
+    {
+        id = r.Id,
+        arrangementId = r.ArrangementId,
+        kind = r.Kind,
+        purpose = r.Purpose,
+        label = r.Label,
+        part = r.Part,
+        note = r.Note,
+        url = r.Url,
+        createdAt = r.CreatedAt
+    })
+};
+
+static object ToResourceSummaryResponse(ResourceSummaryDto resource) => new
+{
+    id = resource.Id,
+    arrangementId = resource.ArrangementId,
+    kind = resource.Kind,
+    purpose = resource.Purpose,
+    label = resource.Label,
+    part = resource.Part,
+    note = resource.Note,
+    url = resource.Url,
+    createdAt = resource.CreatedAt
+};
+
+static object ToResourceDetailResponse(ResourceDetailDto resource) => new
+{
+    id = resource.Id,
+    arrangementId = resource.ArrangementId,
+    kind = resource.Kind,
+    purpose = resource.Purpose,
+    label = resource.Label,
+    part = resource.Part,
+    note = resource.Note,
+    url = resource.Url,
+    createdAt = resource.CreatedAt
+};
+
 internal sealed record RegisterRequest(string? Email, string? Password, string? DisplayName);
 internal sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
 internal sealed record CreateGroupRequest(string? Name);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);
 internal sealed record SoftDeleteGroupRequest(int ExpectedVersion);
+internal sealed record CreateSongRequest(
+    string? Title,
+    string? Attribution,
+    string? OriginKind,
+    string? RightsNotes);
+internal sealed record UpdateSongRequest(
+    string? Title,
+    string? Attribution,
+    string? OriginKind,
+    string? RightsNotes,
+    int ExpectedVersion);
+internal sealed record SoftDeleteSongRequest(int ExpectedVersion);
+internal sealed record CreateArrangementRequest(
+    string? Label,
+    string? DefaultKey,
+    int? DefaultBpm,
+    string? Lyrics,
+    string? Chords,
+    string? Structure,
+    string? Notes);
+internal sealed record UpdateArrangementRequest(
+    string? Label,
+    string? DefaultKey,
+    int? DefaultBpm,
+    string? Lyrics,
+    string? Chords,
+    string? Structure,
+    string? Notes,
+    int ExpectedVersion);
+internal sealed record SoftDeleteArrangementRequest(int ExpectedVersion);
+internal sealed record CreateLinkResourceRequest(
+    string? Kind,
+    string? Purpose,
+    string? Label,
+    string? Part,
+    string? Note,
+    string? Url);
+internal sealed record UpdateLinkResourceRequest(
+    string? Purpose,
+    string? Label,
+    string? Part,
+    string? Note);
 
 public sealed class AppExceptionHandler : IExceptionHandler
 {

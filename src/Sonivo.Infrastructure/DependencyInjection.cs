@@ -53,6 +53,10 @@ public static class DependencyInjection
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<IGroupStore, EfGroupStore>();
+        services.AddScoped<ISongStore, EfSongStore>();
+        services.AddScoped<IArrangementStore, EfArrangementStore>();
+        services.AddScoped<IResourceStore, EfResourceStore>();
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
         return services;
     }
