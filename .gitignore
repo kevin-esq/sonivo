@@ -1,0 +1,41 @@
+# Secrets / env
+.env
+.env.*
+!.env.example
+**/appsettings.*.local.json
+
+# Agent scratch (keep README + installs log; ignore ephemeral notes)
+.scratch/notes/*
+!.scratch/notes/.gitkeep
+.scratch/**/*.local.md
+.scratch/tmp/*
+!.scratch/tmp/.gitkeep
+
+# Impeccable engine binaries (reinstalled by `npx impeccable install`)
+**/impeccable/scripts/bin/
+
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+
+# Node / frontend
+**/node_modules/
+**/dist/
+*.tsbuildinfo
+
+# Playwright
+**/test-results/
+**/playwright-report/
+**/blob-report/
+**/playwright/.cache/
+.playwright-mcp/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+*.log

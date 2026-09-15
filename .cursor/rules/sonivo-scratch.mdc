@@ -1,0 +1,18 @@
+---
+description: Keep Sonivo agent work organized via .scratch and docs hierarchy
+alwaysApply: true
+---
+
+# Sonivo agent organization
+
+Before inventing product scope, read `docs/00-context/CONTEXT.md`.
+
+Use `.scratch/` for ephemeral session state:
+
+- `.scratch/NOW.md` — current focus / next steps
+- `.scratch/installs/LOG.md` — tooling install provenance
+- `.scratch/notes/` — throwaways (gitignored)
+
+Durable truth belongs in `docs/` or ACCEPTED ADRs — never only in chat or `.scratch`.
+
+Do not install packages, skills, or scaffold the app unless the user explicitly approves.

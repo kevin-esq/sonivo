@@ -1,0 +1,26 @@
+# Sonivo local development — PostgreSQL only.
+# Defaults match src/Sonivo.Api/appsettings.Development.json
+# Optional overrides: copy .env.example → .env
+
+services:
+  postgres:
+    image: postgres:16.6
+    container_name: sonivo-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sonivo_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-sonivo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sonivo}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - sonivo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  sonivo_pgdata:

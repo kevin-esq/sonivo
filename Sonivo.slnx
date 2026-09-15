@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sonivo.Api/Sonivo.Api.csproj" />
+    <Project Path="src/Sonivo.Application/Sonivo.Application.csproj" />
+    <Project Path="src/Sonivo.Domain/Sonivo.Domain.csproj" />
+    <Project Path="src/Sonivo.Infrastructure/Sonivo.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sonivo.Api.Tests/Sonivo.Api.Tests.csproj" />
+    <Project Path="tests/Sonivo.Application.Tests/Sonivo.Application.Tests.csproj" />
+    <Project Path="tests/Sonivo.Domain.Tests/Sonivo.Domain.Tests.csproj" />
+    <Project Path="tests/Sonivo.Integration.Tests/Sonivo.Integration.Tests.csproj" />
+  </Folder>
+</Solution>

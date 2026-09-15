@@ -1,0 +1,59 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Sonivo.Application.Abstractions;
+using Sonivo.Infrastructure.Identity;
+using Sonivo.Infrastructure.Persistence;
+
+namespace Sonivo.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString("Default")
+            ?? throw new InvalidOperationException("Connection string 'Default' is not configured.");
+
+        var useInMemory = configuration.GetValue("UseInMemoryDatabase", false);
+
+        services.AddDbContext<SonivoDbContext>(options =>
+        {
+            if (useInMemory)
+            {
+                options.UseInMemoryDatabase(
+                    configuration["InMemoryDatabaseName"] ?? "sonivo-inmemory");
+            }
+            else
+            {
+                options.UseNpgsql(connectionString);
+            }
+        });
+
+        services
+            .AddIdentityCore<ApplicationUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                options.Password.RequiredLength = 8;
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = false;
+                options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                options.SignIn.RequireConfirmedEmail = false;
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<SonivoDbContext>()
+            .AddSignInManager()
+            .AddDefaultTokenProviders();
+
+        services.AddSingleton<IClock, SystemClock>();
+        services.AddScoped<IGroupStore, EfGroupStore>();
+
+        return services;
+    }
+}
