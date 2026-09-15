@@ -2,7 +2,7 @@
 
 Product definition. Complements `docs/00-context/CONTEXT.md`.
 
-**Status:** ACCEPTED ADRs 0001, 0005–0023. Phase 1–2.3 foundation **CLOSED**. Product features not started.
+**Status:** ACCEPTED ADRs 0001, 0005–0025. Phase 1–2.3 + 3.0–3.1 **CLOSED**. Song/Arrangement/Resource code not started (requires explicit implementation authorization).
 **Visual direction:** Not finalized.
 
 Personas → [`PERSONAS.md`](PERSONAS.md) · Jobs → [`JTBD.md`](JTBD.md) · Sequencing → [`ROADMAP.md`](ROADMAP.md)
@@ -77,8 +77,8 @@ Members get first-class **read/use** UX. Members do **not** mutate core musical 
 ### CORE
 
 - Group tenancy; Membership Owner \| Member  
-- Song + Arrangement (playable unit; Song may have zero Arrangements — ADR-0017)  
-- Resources (`file`\|`link`) with **minimal** purpose enum: chart, lyrics, audio, click, reference, other  
+- Song + Arrangement (playable unit; Song may have zero Arrangements — ADR-0017; field model **ADR-0025**)  
+- Resources (`file`\|`link`) with purpose enum: chart, lyrics, audio, click, reference, **practice**, other; required **Label**; optional free-text **Part** (ADR-0017 + **0024**)  
 - Event + EventSetlistItems (copied plan) + Member view + RSVP  
 - Identity + cookie session; server AuthZ  
 
@@ -90,11 +90,11 @@ Members get first-class **read/use** UX. Members do **not** mutate core musical 
 
 ### FUTURE
 
-Organization · Guest · Event resources · Member edits · Arrangement status · duration/transitions · Resource soft-delete undo · Q8–Q11 · releases · account deletion · forensic chart/file history  
+Organization · Guest · Event resources · Member edits · Arrangement status · duration/transitions · Resource soft-delete undo · Member→Part assignment · in-app practice player (tempo/loop) · Arrangement duplicate/version history · transposition · ChordPro · Q8–Q11 · releases · account deletion · forensic chart/file history  
 
 ### OUT OF SCOPE (MVP)
 
-DAM/versioning · chat/PM/CRM/payments · DAW/distribution/social · church CMS · ACL engines · microservices/CQRS/ES · live Event↔template join that rewrites history  
+DAM/versioning · chat/PM/CRM/payments · DAW/distribution/social · church CMS · ACL engines · microservices/CQRS/ES · live Event↔template join that rewrites history · stem mixer · polymorphic asset platform · first-class Part entity · PracticeMaterial/VocalGuide aggregates · Event→Resource snapshots · global song catalog  
 
 ---
 

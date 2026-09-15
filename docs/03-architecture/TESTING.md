@@ -69,4 +69,17 @@ GitHub Actions (`.github/workflows/ci.yml`) starts PostgreSQL, applies migration
 
 ## Priority for later vertical slices
 
-When Song / Event / RSVP land, extend Playwright with one critical journey per workflow (Member opens Event materials, Owner applies setlist, etc.) — not an exhaustive matrix.
+### Phase 3.2 — Song / Arrangement / Link Resource (backend COMPLETE; UI next)
+
+Authoritative matrix: [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md) §11–§14. Nested Resource routes are the MVP contract.
+
+| Layer | Focus |
+| ----- | ----- |
+| Domain | Song/Arr/Resource invariants (OriginKind, BPM, Label, Kind) |
+| Application | AuthZ, Song cascade §8a, Resource ownership via Arr |
+| API | 401/403/404/409/400 + CSRF; nested Resource get/patch/delete |
+| Postgres | Composite FKs, filters, cascade tx, Kind nullability |
+| Playwright | One library journey after UI (T-3.2.08; Owner Song→Arr→**link** Resource; Member view) |
+
+
+When Event / RSVP land later, extend Playwright with one critical journey per workflow — not an exhaustive matrix.

@@ -2,9 +2,9 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-15 (Phase 2.3 scaffold CLOSED)  
-**Phase:** Phase 0–2.3 **CLOSED**. Foundation runnable; product features not started.  
-**Repo:** Modular monolith scaffold + docs
+**Last updated:** 2026-09-15 (Phase 3.2 backend T-3.2.01–05 COMPLETE; docs synced)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2 backend link-Resource slice **COMPLETE**. Next: T-3.2.07 (explicit auth required).  
+**Repo:** Modular monolith + Group + repertoire API + docs
 
 ---
 
@@ -50,8 +50,9 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 9. Roles **Owner** \| **Member** only (ADR-0012).  
 10. Multi-owner lifecycle; soft-delete Group (ADR-0013).  
 11. Song = identity; Arrangement = playable aggregate; Resources on Arrangement (ADR-0007, 0008, 0014).  
-12. Song may have zero Arrangements (ADR-0017).  
-13. Resource purpose: `chart`\|`lyrics`\|`audio`\|`click`\|`reference`\|`other` (+ optional note) (ADR-0017).  
+12. Song may have zero Arrangements (ADR-0017). Song create does **not** require an Arrangement (**ADR-0025 ACCEPTED**).  
+13. Resource purpose: `chart`\|`lyrics`\|`audio`\|`click`\|`reference`\|`practice`\|`other`; required Label; optional free-text Part (ADR-0017 revised by **ADR-0024 ACCEPTED**).  
+13a. Song Title duplicates ALLOWED; Attribution free text; OriginKind `original`\|`cover`\|`other`; Arrangement Label required; no `IsDefault`; Key free text; BPM optional int 1–400; lyrics/chords/structure/notes plain text; Song soft-delete cascades live Arr soft-delete with Song `expectedVersion` / one tx / 409 on conflict (**ADR-0025 ACCEPTED**).  
 14. Setlist = reusable template; apply = copy to EventSetlistItems; `sourceSetlistId` provenance only (ADR-0016, 0017).  
 15. Duplicate Arrangement appearances ALLOWED (ADR-0016).  
 16. Event types: `rehearsal`\|`performance`\|`other`; cancel + soft-hide (ADR-0016).  
@@ -63,11 +64,15 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 20. Stack/auth/session per ADR-0009–0011; modular monolith; no microservices/CQRS/ES.  
 21. Tooling ADR-0002 ACCEPTED; Phase 0 CLOSED.  
-22. Application **foundation** scaffolded (Phase 2.3). Product feature implementation still requires **explicit** user approval.  
+22. Application foundation (Phase 2.3) + Group slice + repertoire backend (Phase 3.2 T-3.2.01–05) exist. Further product features (UI, Setlist/Event, file Resource) still require **explicit** user approval.  
 23. Phase 2 technical docs under `docs/03-architecture/` (ARCHITECTURE, TECHNICAL-SPEC, API, SECURITY, TESTING, PERSISTENCE).  
 24. ADR-0019–0021 **ACCEPTED** — Phase 2.1.  
 25. ADR-0022–0023 **ACCEPTED** — Phase 2.2; integer `Version` concurrency ACCEPTED.  
-26. Phase 2.3 foundation: `Sonivo.slnx`, Domain/Application/Infrastructure/Api, React web shell, initial EF migration `InitialFoundation`.
+26. Phase 2.3 foundation: `Sonivo.slnx`, Domain/Application/Infrastructure/Api, React web shell, initial EF migration `InitialFoundation`.  
+27. Phase 3.0–3.0.2.1 CLOSED (Group slice; Compose Postgres; CI/Playwright; public repo audit).  
+28. Phase 3.0.3 **CLOSED** — ADR-0024 **ACCEPTED** (practice Resources / Part metadata).  
+29. Phase 3.1 **CLOSED** — ADR-0025 **ACCEPTED**.  
+30. Phase 3.2 backend **COMPLETE** (T-3.2.01–05): Song / Arrangement / **Link** Resource with **nested** Resource routes; migration `AlignRepertoireToAdr0024And0025`. File Resource **DEFERRED** (T-3.2.06). Next ticket: **T-3.2.07** React library shell (not started).
 
 ---
 
@@ -75,9 +80,10 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 1. Responsive web; organizer desktop-first; member mobile-usable.  
 2. English-first UI.  
-3. Creating a Song creates a Default Arrangement.  
-4. Progressive UI may hide Arrangement until a second exists.  
-5. Soft-delete + later blob GC acceptable.
+3. Song create does not require an Arrangement (ADR-0025); optional convenience “Song + initial Arrangement” use-case only.  
+4. Progressive UI may hide Arrangement chrome when only one Arrangement exists (**count-based**, not `IsDefault` — ADR-0025).  
+5. Soft-delete + later blob GC acceptable.  
+6. Soft-deleting a Song soft-deletes its **live** Arrangements in the same Application transaction (ADR-0025); SetlistItems remain; Event history uses copied labels.
 
 ---
 
@@ -100,7 +106,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 2. Implement/scaffold/install without explicit approval.  
 3. Workspace/Organization; Recording/Performance aggregates in MVP.  
 4. Organizer/Guest roles; ACL engines; JWT web; BFF; Supabase Auth.  
-5. Silently reopen ACCEPTED ADRs 0001–0023 without a superseding ADR.  
+5. Silently reopen ACCEPTED ADRs 0001–0025 without a superseding ADR.  
 6. Content versioning / DAM / Event body snapshots in MVP.  
 7. Unauthorized user-global tooling as Sonivo dependency.
 

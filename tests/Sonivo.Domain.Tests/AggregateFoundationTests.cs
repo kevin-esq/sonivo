@@ -13,8 +13,16 @@ public class AggregateFoundationTests
         IVersionedEntity[] roots =
         [
             Group.Create("Band", now),
-            new Domain.Repertoire.Song { Title = "Song" },
-            new Domain.Repertoire.Arrangement { Label = "Default" },
+            Domain.Repertoire.Song.Create(
+                Guid.NewGuid(),
+                "Song",
+                Domain.Repertoire.SongOriginKinds.Original,
+                now),
+            Domain.Repertoire.Arrangement.Create(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                "Acoustic",
+                now),
             new Setlist { Name = "Template" },
             new Event { Type = EventTypes.Rehearsal, Title = "Thu", Status = EventStatuses.Scheduled }
         ];
