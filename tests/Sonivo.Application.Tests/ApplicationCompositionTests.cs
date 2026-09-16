@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Sonivo.Application;
 using Sonivo.Application.Repertoire;
+using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
 
 namespace Sonivo.Application.Tests;
@@ -26,5 +27,10 @@ public class ApplicationCompositionTests
         Assert.Contains(services, d => d.ServiceType == typeof(SoftDeleteArrangementHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(CreateLinkResourceHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(DeleteResourceHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(CreateSetlistHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(ListSetlistsHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(GetSetlistHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(UpdateSetlistHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(ReplaceSetlistItemsHandler));
     }
 }

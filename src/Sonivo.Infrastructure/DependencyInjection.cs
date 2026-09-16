@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<ISongStore, EfSongStore>();
         services.AddScoped<IArrangementStore, EfArrangementStore>();
         services.AddScoped<IResourceStore, EfResourceStore>();
+        services.AddScoped<ISetlistStore, EfSetlistStore>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
         return services;

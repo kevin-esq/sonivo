@@ -23,7 +23,7 @@ public class AggregateFoundationTests
                 Guid.NewGuid(),
                 "Acoustic",
                 now),
-            new Setlist { Name = "Template" },
+            Setlist.Create(Guid.NewGuid(), "Template", now),
             new Event { Type = EventTypes.Rehearsal, Title = "Thu", Status = EventStatuses.Scheduled }
         ];
 
