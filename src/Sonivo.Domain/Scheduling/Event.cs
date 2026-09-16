@@ -7,6 +7,9 @@ public static class EventTypes
     public const string Rehearsal = "rehearsal";
     public const string Performance = "performance";
     public const string Other = "other";
+
+    public static bool IsValid(string? value)
+        => value is Rehearsal or Performance or Other;
 }
 
 public static class EventStatuses
@@ -17,23 +20,95 @@ public static class EventStatuses
 
 public sealed class Event : IVersionedEntity
 {
-    public Guid Id { get; set; }
-    public Guid GroupId { get; set; }
-    public required string Type { get; set; }
-    public required string Title { get; set; }
-    public DateTimeOffset StartsAt { get; set; }
-    public string? Location { get; set; }
-    public string? Notes { get; set; }
-    public required string Status { get; set; } = EventStatuses.Scheduled;
-    public DateTimeOffset? CancelledAt { get; set; }
-    public bool IsHidden { get; set; }
-    public Guid? SourceSetlistId { get; set; }
-    public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
-    public int Version { get; set; } = 1;
+    public const int MaxTitleLength = 200;
 
-    public ICollection<EventSetlistItem> Items { get; set; } = new List<EventSetlistItem>();
-    public ICollection<Rsvp> Rsvps { get; set; } = new List<Rsvp>();
+    public Guid Id { get; private set; }
+    public Guid GroupId { get; private set; }
+    public string Type { get; private set; } = EventTypes.Rehearsal;
+    public string Title { get; private set; } = string.Empty;
+    public DateTimeOffset StartsAt { get; private set; }
+    public string? Location { get; private set; }
+    public string? Notes { get; private set; }
+    public string Status { get; private set; } = EventStatuses.Scheduled;
+    public DateTimeOffset? CancelledAt { get; private set; }
+    public bool IsHidden { get; private set; }
+    public Guid? SourceSetlistId { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset UpdatedAt { get; private set; }
+    public int Version { get; private set; } = 1;
+
+    public ICollection<EventSetlistItem> Items { get; private set; } = new List<EventSetlistItem>();
+    public ICollection<Rsvp> Rsvps { get; private set; } = new List<Rsvp>();
+
+    private Event()
+    {
+    }
+
+    public static Event Create(
+        Guid groupId,
+        string title,
+        string type,
+        DateTimeOffset startsAt,
+        DateTimeOffset now,
+        Guid? id = null)
+    {
+        if (groupId == Guid.Empty)
+        {
+            throw new ArgumentException("Group id is required.", nameof(groupId));
+        }
+
+        return new Event
+        {
+            Id = id ?? Guid.NewGuid(),
+            GroupId = groupId,
+            Title = NormalizeTitle(title),
+            Type = NormalizeType(type),
+            StartsAt = startsAt,
+            Status = EventStatuses.Scheduled,
+            IsHidden = false,
+            CreatedAt = now,
+            UpdatedAt = now,
+            Version = 1,
+            Items = new List<EventSetlistItem>(),
+            Rsvps = new List<Rsvp>()
+        };
+    }
+
+    private static string NormalizeTitle(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new ArgumentException("Event title is required.", nameof(title));
+        }
+
+        var trimmed = title.Trim();
+        if (trimmed.Length > MaxTitleLength)
+        {
+            throw new ArgumentException(
+                $"Event title must be {MaxTitleLength} characters or fewer.",
+                nameof(title));
+        }
+
+        return trimmed;
+    }
+
+    private static string NormalizeType(string type)
+    {
+        if (string.IsNullOrWhiteSpace(type))
+        {
+            throw new ArgumentException("Event type is required.", nameof(type));
+        }
+
+        var trimmed = type.Trim();
+        if (!EventTypes.IsValid(trimmed))
+        {
+            throw new ArgumentException(
+                "Event type must be rehearsal, performance, or other.",
+                nameof(type));
+        }
+
+        return trimmed;
+    }
 }
 
 public sealed class EventSetlistItem

@@ -35,6 +35,9 @@ public static class DependencyInjection
         services.AddScoped<GetSetlistHandler>();
         services.AddScoped<UpdateSetlistHandler>();
         services.AddScoped<ReplaceSetlistItemsHandler>();
+        services.AddScoped<CreateEventHandler>();
+        services.AddScoped<ListEventsHandler>();
+        services.AddScoped<GetEventHandler>();
         return services;
     }
 }

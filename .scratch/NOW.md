@@ -5,16 +5,16 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-3.3.01)
-Human approval: APPROVED (Kevin Esquivel)
-Git checkpoint: COMMITTED
+Implementation: COMPLETE (T-3.3.02)
+Human approval: APPROVED (T-3.3.01 + T-3.3.02 — Kevin Esquivel)
+Git checkpoint: COMMITTED (01 @ 184518d · 02 @ PENDING)
 Remote: NOT PUSHED
 CI: NOT RUN
 ```
 
-**Current ticket:** T-3.3.01 Setlist Application + API  
+**Current ticket:** T-3.3.02 Event Application + API (checkpoint)  
 **Branch:** `feature/phase-3.3-setlist-api`  
-**Base:** `origin/develop` @ `53e9ca19f22b8ceb6366f1c000a488dd84994966`
+**Base / T-3.3.01 commit:** `origin/develop` @ `53e9ca1` · local `184518da81b8bf9700f4feffe4d3469bfad38709`
 
 ## Phase status
 
@@ -23,18 +23,18 @@ CI: NOT RUN
 | 3.2 approved repertoire scope | **COMPLETED** on develop |
 | T-3.2.06 file/blob | **DEFERRED** |
 | T-3.3.01 Setlist Application + API | **APPROVED — COMMITTED (local only)** |
-| T-3.3.02–05 | **NOT STARTED** |
+| T-3.3.02 Event Application + API | **APPROVED — COMMITTED (local only)** |
+| T-3.3.03–05 | **NOT STARTED** |
 
-## T-3.3.01 delivered
+## T-3.3.02 delivered
 
-- Setlist domain Create/Rename/BeginReplaceItems + SetlistItem.Create
-- Application handlers + `ISetlistStore` / `EfSetlistStore`
-- API: list/create/get/patch/put-items under `/api/groups/{groupId}/setlists`
-- Tests: Domain, Application, API
-- Spec: `docs/03-architecture/PHASE-3.3-THIN-SPEC.md`
-- **No migration** · **No Event / Apply / UI / Playwright**
+- Event domain `Create` (title/type/startsAt → scheduled)
+- Application create/list/get + `IEventStore` / `EfEventStore`
+- API: POST/GET list/GET detail under `/api/groups/{groupId}/events`
+- Plan items from copied labels only (empty until Apply)
+- **No Apply / PATCH / cancel / RSVP / UI / migration**
 
 ## Firewall
 
-- Do **not** implement T-3.3.02+ until authorized
-- Do **not** push / PR / merge unless separately authorized
+- Do **not** implement T-3.3.03+ until authorized
+- Do **not** push / PR unless separately authorized

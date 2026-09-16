@@ -902,6 +902,74 @@ app.MapPut("/api/groups/{groupId:guid}/setlists/{setlistId:guid}/items", async (
 .RequireAuthorization()
 .DisableAntiforgery();
 
+app.MapGet("/api/groups/{groupId:guid}/events", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListEventsHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var events = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
+    return Results.Ok(events.Select(ToEventListResponse));
+})
+.WithName("ListEvents")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/events", async (
+    Guid groupId,
+    CreateEventRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    CreateEventHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var created = await handler.HandleAsync(
+        new CreateEventCommand(
+            userId.Value,
+            groupId,
+            request.Title ?? string.Empty,
+            request.Type ?? string.Empty,
+            request.StartsAt),
+        cancellationToken);
+
+    return Results.Created($"/api/groups/{groupId}/events/{created.Id}", ToEventDetailResponse(created));
+})
+.WithName("CreateEvent")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
+    Guid groupId,
+    Guid eventId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetEventHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var musicalEvent = await handler.HandleAsync(userId.Value, groupId, eventId, cancellationToken);
+    return Results.Ok(ToEventDetailResponse(musicalEvent));
+})
+.WithName("GetEvent")
+.RequireAuthorization();
+
 app.Run();
 
 static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users)
@@ -1051,6 +1119,39 @@ static object ToSetlistDetailResponse(SetlistDetailDto setlist) => new
     })
 };
 
+static object ToEventListResponse(EventListItemDto musicalEvent) => new
+{
+    id = musicalEvent.Id,
+    title = musicalEvent.Title,
+    type = musicalEvent.Type,
+    startsAt = musicalEvent.StartsAt,
+    status = musicalEvent.Status,
+    version = musicalEvent.Version,
+    createdAt = musicalEvent.CreatedAt,
+    updatedAt = musicalEvent.UpdatedAt
+};
+
+static object ToEventDetailResponse(EventDetailDto musicalEvent) => new
+{
+    id = musicalEvent.Id,
+    title = musicalEvent.Title,
+    type = musicalEvent.Type,
+    startsAt = musicalEvent.StartsAt,
+    status = musicalEvent.Status,
+    version = musicalEvent.Version,
+    createdAt = musicalEvent.CreatedAt,
+    updatedAt = musicalEvent.UpdatedAt,
+    sourceSetlistId = musicalEvent.SourceSetlistId,
+    items = musicalEvent.Items.Select(i => new
+    {
+        id = i.Id,
+        arrangementId = i.ArrangementId,
+        sortOrder = i.SortOrder,
+        displaySongTitle = i.DisplaySongTitle,
+        displayArrangementLabel = i.DisplayArrangementLabel
+    })
+};
+
 internal sealed record RegisterRequest(string? Email, string? Password, string? DisplayName);
 internal sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
 internal sealed record CreateGroupRequest(string? Name);
@@ -1104,6 +1205,7 @@ internal sealed record ReplaceSetlistItemsRequest(
     int ExpectedVersion,
     IReadOnlyList<ReplaceSetlistItemRequest>? Items);
 internal sealed record ReplaceSetlistItemRequest(Guid ArrangementId, int SortOrder);
+internal sealed record CreateEventRequest(string? Title, string? Type, DateTimeOffset StartsAt);
 
 public sealed class AppExceptionHandler : IExceptionHandler
 {
