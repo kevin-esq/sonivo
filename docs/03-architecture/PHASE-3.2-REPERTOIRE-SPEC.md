@@ -1,14 +1,16 @@
 # PHASE-3.2 — Song / Arrangement / Resource technical specification
 
-**Status:** Backend first slice **COMPLETE** (T-3.2.01–05). Docs synced to implemented contract.  
-**Next implementation ticket:** T-3.2.07 React library shell (not authorized until explicitly approved).  
-**Date:** 2026-09-15  
+**Status:** Approved Phase 3.2 scope **COMPLETED** (T-3.2.01–05, 07, 08) — backend + React Library Shell + sparse Playwright.  
+**Deferred:** T-3.2.06 file Resource / blob / content (not automatic next).  
+**Next:** requires human decision / authorization; may include already-documented deferred or later items.  
+**Date:** 2026-09-16  
 **Depends on:** ADR-0024, ADR-0025, ADR-0019–0023, ADR-0007/0008/0014  
 
 **Implemented MVP slice:**
 
 ```text
 Song → Arrangement → Link Resource
+(+ React Library Shell + sparse Playwright E2E)
 ```
 
 **Deferred:** File Resource / blob storage / `IBlobStore` / upload / content download (ticket T-3.2.06).
@@ -452,19 +454,18 @@ No ticket in the first slice depends on a later first-slice ticket. **T-3.2.06 i
 - **Objective (future):** `IBlobStore`, file create, `GET .../content`, blob delete compensation  
 - **Out of current MVP:** all of the above — **do not** implement local FS “just because”  
 
-#### T-3.2.07 — React library shell (Song / Arrangement / link Resource) — **NEXT (not started)**
+#### T-3.2.07 — React library shell (Song / Arrangement / link Resource) — **COMPLETE**
 
 - **Depends:** T-3.2.02, T-3.2.03, T-3.2.04, T-3.2.05 + docs contract sync  
 - **Objective:** Minimal Owner/Member UI after backend stable.  
+- **Shipped:** `/groups/:groupId/library` Song CRUD UI; Arrangement CRUD UI; Link Resource UI; Owner mutate / Member read gating; expectedVersion conflict UX; no file/blob UI.  
 - **Out:** File upload UI; polish/search  
-- **Do not implement** until explicitly authorized.
 
-#### T-3.2.08 — Playwright critical library journey — **LATER**
+#### T-3.2.08 — Playwright critical library journey — **COMPLETE**
 
 - **Depends:** T-3.2.07 + CI stack  
-- **Objective:** One E2E: Owner Song→Arr→link Resource; Member views (opens `url` as needed).  
-- **Out:** Exhaustive matrix; file flows  
-
+- **Shipped:** **TC-LIB-01** Owner Song→Arr→link Resource; **TC-LIB-02** Owner Song soft-delete from library; **TC-LIB-03** non-member denied library by URL; full Playwright suite green on `develop` CI.  
+- **Deferred (explicit):** Member browser E2E; 409 conflict E2E; file Resource flows; exhaustive matrix.
 ---
 
 ## 15. Unresolved decisions (human)
@@ -483,8 +484,11 @@ No new ADR proposed.
 
 | Item | Status |
 | ---- | ------ |
-| Spec + backend T-3.2.01–05 | **COMPLETE** |
+| Spec + backend T-3.2.01–05 | **COMPLETE** (integrated on `develop`) |
 | Docs synced to nested Resource routes + PATCH semantics | **COMPLETE** |
-| T-3.2.06 file/blob/content | **DEFERRED** |
-| T-3.2.07 React library shell | **NEXT** — requires explicit authorization |
-| T-3.2.08 Playwright library journey | After T-3.2.07 |
+| T-3.2.07 React library shell | **COMPLETE** (integrated on `develop`) |
+| T-3.2.08 Playwright library journey (TC-LIB-01/02/03) | **COMPLETE** (integrated on `develop`; CI green) |
+| Member browser E2E / 409 E2E | **DEFERRED** (explicit; not part of T-3.2.08 ship) |
+| T-3.2.06 file/blob/content (`IBlobStore`, upload, download) | **DEFERRED** (not automatic next) |
+| Approved Phase 3.2 scope (`Song → Arrangement → Link Resource` + React + sparse E2E) | **COMPLETED** |
+| Next implementation | Requires **human decision / authorization** (may include deferred T-3.2.06 or later Event/Setlist/RSVP — none authorized yet) |

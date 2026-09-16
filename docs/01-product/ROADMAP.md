@@ -3,8 +3,9 @@
 Product sequencing.
 
 **Phase 0–3.1 CLOSED.**  
-**Phase 3.2 backend** (`Song → Arrangement → Link Resource`, T-3.2.01–05) — **COMPLETE**. Docs synced to nested Resource routes.  
-**Next:** T-3.2.07 React library shell (requires explicit authorization). T-3.2.06 file Resource **DEFERRED**. T-3.2.08 Playwright after T-3.2.07.
+**Phase 3.2 approved scope COMPLETED** — `Song → Arrangement → Link Resource` + React Library Shell + sparse Playwright E2E (T-3.2.01–05, 07, 08) on `develop`.  
+**Deferred:** T-3.2.06 file Resource / blob / content (not next by default).  
+**Next:** requires human decision / authorization; may include already-documented deferred or later items (file Resource, Event / Setlist / RSVP). Nothing beyond the closed Phase 3.2 slice is authorized for implementation yet.
 
 Product/code features beyond authorized tickets require **explicit** human approval.
 
@@ -16,7 +17,9 @@ Product/code features beyond authorized tickets require **explicit** human appro
 
 - [x] ADRs 0001–0025; Group slice; Compose; CI/Playwright; Resource domain (0024); Song/Arrangement domain (0025)
 
-### Phase 3.2 — Repertoire (backend COMPLETE; UI next)
+### Phase 3.2 — Repertoire (approved scope COMPLETED)
+
+Approved slice: **Song → Arrangement → Link Resource** (backend + React library + sparse E2E). Not the full repertoire roadmap (file Resource, Event/Setlist/RSVP remain outside this closed scope).
 
 - [x] Spec [`PHASE-3.2-REPERTOIRE-SPEC.md`](../03-architecture/PHASE-3.2-REPERTOIRE-SPEC.md) + docs sync (nested Resource routes, PATCH semantics)
 - [x] T-3.2.01 Schema alignment migration
@@ -24,9 +27,9 @@ Product/code features beyond authorized tickets require **explicit** human appro
 - [x] T-3.2.04 Arrangement CRUD
 - [x] T-3.2.03 Song soft-delete cascade
 - [x] T-3.2.05 Link Resource CRUD (nested routes)
-- [ ] **T-3.2.07** React library shell — next implementation ticket
-- [ ] T-3.2.08 Playwright library journey (after T-3.2.07)
-- [ ] T-3.2.06 File Resource / blob / content — **DEFERRED** (Q-R1/Q-R2)
+- [x] T-3.2.07 React library shell (Song / Arrangement / Link Resource UI; Owner/Member gating; expectedVersion conflict UX; no file/blob)
+- [x] T-3.2.08 Playwright library journey (TC-LIB-01/02/03; Member browser E2E and 409 E2E deferred)
+- [ ] T-3.2.06 File Resource / blob / content — **DEFERRED** (Q-R1/Q-R2); not automatic next
 - [ ] Optional: confirm Q-R3 max lengths
 
 ### Later (only when authorized)

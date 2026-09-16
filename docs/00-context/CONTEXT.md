@@ -2,9 +2,9 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-15 (Phase 3.2 backend T-3.2.01–05 COMPLETE; docs synced)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2 backend link-Resource slice **COMPLETE**. Next: T-3.2.07 (explicit auth required).  
-**Repo:** Modular monolith + Group + repertoire API + docs
+**Last updated:** 2026-09-16 (Phase 3.2 approved scope COMPLETED; docs synced)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2 approved scope **COMPLETED** (`Song → Arrangement → Link Resource` + React Library + sparse E2E). T-3.2.06 file Resource **DEFERRED**. Next work requires human decision / authorization.  
+**Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
 
@@ -64,7 +64,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 20. Stack/auth/session per ADR-0009–0011; modular monolith; no microservices/CQRS/ES.  
 21. Tooling ADR-0002 ACCEPTED; Phase 0 CLOSED.  
-22. Application foundation (Phase 2.3) + Group slice + repertoire backend (Phase 3.2 T-3.2.01–05) exist. Further product features (UI, Setlist/Event, file Resource) still require **explicit** user approval.  
+22. Application foundation (Phase 2.3) + Group slice + Phase 3.2 approved repertoire slice (backend + React library + sparse Playwright) exist. Further product features (Setlist/Event/RSVP, file Resource, invite mechanics) still require **explicit** user approval.  
 23. Phase 2 technical docs under `docs/03-architecture/` (ARCHITECTURE, TECHNICAL-SPEC, API, SECURITY, TESTING, PERSISTENCE).  
 24. ADR-0019–0021 **ACCEPTED** — Phase 2.1.  
 25. ADR-0022–0023 **ACCEPTED** — Phase 2.2; integer `Version` concurrency ACCEPTED.  
@@ -72,7 +72,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 27. Phase 3.0–3.0.2.1 CLOSED (Group slice; Compose Postgres; CI/Playwright; public repo audit).  
 28. Phase 3.0.3 **CLOSED** — ADR-0024 **ACCEPTED** (practice Resources / Part metadata).  
 29. Phase 3.1 **CLOSED** — ADR-0025 **ACCEPTED**.  
-30. Phase 3.2 backend **COMPLETE** (T-3.2.01–05): Song / Arrangement / **Link** Resource with **nested** Resource routes; migration `AlignRepertoireToAdr0024And0025`. File Resource **DEFERRED** (T-3.2.06). Next ticket: **T-3.2.07** React library shell (not started).
+30. Phase 3.2 approved scope **COMPLETED** (T-3.2.01–05, 07, 08): Song / Arrangement / **Link** Resource with **nested** Resource routes; migration `AlignRepertoireToAdr0024And0025`; React Library Shell (Owner mutate / Member read UX, expectedVersion conflict UX); sparse Playwright TC-LIB-01/02/03 (Member browser E2E and 409 E2E deferred). File Resource / blob / `IBlobStore` / upload / content (**T-3.2.06**) remains **DEFERRED**. Next implementation requires human decision / authorization (not automatically Event/Setlist/RSVP or T-3.2.06).
 
 ---
 

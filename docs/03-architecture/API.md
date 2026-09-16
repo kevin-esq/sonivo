@@ -50,7 +50,7 @@ Convention: JSON; Problem Details ([`TECHNICAL-SPEC.md`](TECHNICAL-SPEC.md) §8)
 
 **Authoritative Phase 3.2 contract:** [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md) (API DTOs, AuthZ, concurrency, tickets). Summary below.
 
-**Backend status:** T-3.2.01–05 **COMPLETE** (`Song → Arrangement → Link Resource`). File Resource **DEFERRED** (T-3.2.06). Next: T-3.2.07 React shell (explicit authorization required).
+**Phase 3.2 status:** approved scope **COMPLETED** — T-3.2.01–05 (API), T-3.2.07 (React Library Shell), T-3.2.08 (sparse Playwright). File Resource **DEFERRED** (T-3.2.06: upload/`IBlobStore`/`content`). Next work requires human decision / authorization.
 
 All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (GET → **404**). No list pagination/search in MVP.
 

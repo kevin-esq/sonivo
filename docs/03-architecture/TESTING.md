@@ -69,9 +69,9 @@ GitHub Actions (`.github/workflows/ci.yml`) starts PostgreSQL, applies migration
 
 ## Priority for later vertical slices
 
-### Phase 3.2 — Song / Arrangement / Link Resource (backend COMPLETE; UI next)
+### Phase 3.2 — Song / Arrangement / Link Resource (approved scope COMPLETED)
 
-Authoritative matrix: [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md) §11–§14. Nested Resource routes are the MVP contract.
+Authoritative matrix: [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md) §11–§14. Nested Resource routes are the MVP contract. T-3.2.08 shipped sparse library E2E on `develop` (CI Playwright green).
 
 | Layer | Focus |
 | ----- | ----- |
@@ -79,7 +79,6 @@ Authoritative matrix: [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC
 | Application | AuthZ, Song cascade §8a, Resource ownership via Arr |
 | API | 401/403/404/409/400 + CSRF; nested Resource get/patch/delete |
 | Postgres | Composite FKs, filters, cascade tx, Kind nullability |
-| Playwright | One library journey after UI (T-3.2.08; Owner Song→Arr→**link** Resource; Member view) |
+| Playwright (T-3.2.08 **COMPLETE**) | **TC-LIB-01** Owner Song→Arr→**link** Resource; **TC-LIB-02** Owner Song soft-delete; **TC-LIB-03** non-member denied library URL. **Deferred:** Member browser E2E; 409 conflict E2E; file Resource flows |
 
-
-When Event / RSVP land later, extend Playwright with one critical journey per workflow — not an exhaustive matrix.
+When Event / RSVP land later (only if authorized), extend Playwright with one critical journey per workflow — not an exhaustive matrix.
