@@ -1,26 +1,41 @@
 # NOW — agent focus
 
-**Updated:** 2026-09-15
+**Updated:** 2026-09-16
 
 ## Checkpoint state (required)
 
 ```text
 Implementation: COMPLETE
-Human approval: APPROVED
-Git checkpoint: COMMITTED
-Remote: NOT PUSHED
-CI: NOT RUN
+Human approval: PENDING (documentation sync only — awaiting human review)
+Git checkpoint: N/A (docs-only sync; no Git checkpoint pending for this work)
+Remote: N/A
+CI: PASSING (develop tip)
 ```
 
-**Current ticket:** T-3.2.07 React Library Shell  
-**Local commit:** `feat(repertoire): implement React library shell` (this checkpoint)  
-**Branch:** `feature/phase-3.2-repertoire`  
-**Phase 3.2 backend on develop:** squash merge of PR #2 (`45110d2`)
+**Work type:** Phase 3.2 documentation sync only (no code).  
+**Local checkout may remain:** `feature/phase-3.2-e2e` (do not change branch as part of this sync).  
+**origin/develop:** `2022ce0e875e4f575c005b43a5cb0932bd7fa091`  
+**origin/main:** `50adc009f1ca7c4a043bfc6f637a40251e1f205d` (unchanged)
 
-**Included in this checkpoint:**
+## Phase 3.2 — approved scope CLOSED
 
-- T-3.2.07 React Library Shell (Song / Arrangement / Link Resource UI)
-- Review findings accepted as non-blocking (no fix cycle)
+Integrated on `develop` (`2022ce0`):
+
+| Ticket | Status |
+| ------ | ------ |
+| T-3.2.01 Schema alignment | **COMPLETE** |
+| T-3.2.02 Song CRUD | **COMPLETE** |
+| T-3.2.03 Song soft-delete cascade | **COMPLETE** |
+| T-3.2.04 Arrangement CRUD | **COMPLETE** |
+| T-3.2.05 Link Resource CRUD | **COMPLETE** |
+| T-3.2.07 React Library Shell | **COMPLETE** |
+| T-3.2.08 Playwright (TC-LIB-01/02/03) | **COMPLETE** |
+| T-3.2.06 File / blob / content | **DEFERRED** |
+
+**Slice:** Song → Arrangement → Link Resource + React Library + sparse E2E.  
+**Not in closed scope:** file Resource / `IBlobStore` / upload / download; Event / Setlist / RSVP product delivery.
+
+**CI on develop:** Backend SUCCESS · Frontend SUCCESS · Playwright SUCCESS.
 
 ## Phase status
 
@@ -33,18 +48,18 @@ CI: NOT RUN
 | 3.0 Group & Membership vertical slice | **CLOSED** |
 | 3.0.1 Development infrastructure (Compose PostgreSQL) | **CLOSED** |
 | 3.0.2 Engineering workflow & CI/CD foundation | **CLOSED** |
-| 3.2 backend T-3.2.01–05 | **COMPLETE** (merged to `develop`) |
+| 3.2 approved repertoire scope | **COMPLETED** |
 | T-3.2.06 file/blob | **DEFERRED** |
-| T-3.2.07 React library shell | **APPROVED — local Git checkpoint COMPLETE** |
-| T-3.2.08 Playwright library journey | **NOT STARTED** (do not implement until authorized) |
 
 ## Authoritative contract
 
 - Spec: `docs/03-architecture/PHASE-3.2-REPERTOIRE-SPEC.md`
 - Nested Resource routes under Arrangement only
-- T-3.2.07: `/groups/:groupId/library` + Song / Arrangement / Link Resource UI
+- Library UI: `/groups/:groupId/library` (Song / Arrangement / Link Resource)
 
-## Firewall
+## Firewall / next action
 
-- Do **not** implement T-3.2.08 / file Resource / Setlist / Event without authorization
-- Do **not** push / create PR / merge unless separately and explicitly authorized
+- **Next action requires HUMAN DECISION / AUTHORIZATION** (do not pick or implement a next ticket).
+- Documented candidates when authorized later may include: T-3.2.06 (file/blob), Event / Setlist / RSVP, optional Q-R3 — none are authorized now.
+- Do **not** commit / push / PR / merge this docs sync unless separately and explicitly authorized.
+- Do **not** implement code, Setlist, Event, RSVP, invites, or file Resource without approval.

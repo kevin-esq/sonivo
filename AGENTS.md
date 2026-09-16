@@ -18,12 +18,12 @@ This file is **not** the product requirements document. Product truth lives unde
 **Phase 3.1 Song & Arrangement domain specification is CLOSED** (ADR-0025 HUMAN-ACCEPTED).
 
 ADRs **0001–0025** are **ACCEPTED** (including tooling ADR-0002).  
-**Phase 3.2 backend slice:** **COMPLETE** (T-3.2.01–05) — `Song → Arrangement → Link Resource` ([`PHASE-3.2-REPERTOIRE-SPEC.md`](docs/03-architecture/PHASE-3.2-REPERTOIRE-SPEC.md)). Nested Resource routes are authoritative. File Resource / blob / `content` (**T-3.2.06**) remains **DEFERRED**.  
-**Next:** T-3.2.07 React library shell — **do not implement** until the user explicitly authorizes it. T-3.2.08 Playwright follows T-3.2.07.
+**Phase 3.2 approved scope:** **COMPLETED** (T-3.2.01–05, 07, 08) — `Song → Arrangement → Link Resource` + React Library Shell + sparse Playwright ([`PHASE-3.2-REPERTOIRE-SPEC.md`](docs/03-architecture/PHASE-3.2-REPERTOIRE-SPEC.md)). Nested Resource routes are authoritative. File Resource / blob / `content` (**T-3.2.06**) remains **DEFERRED** (not automatic next).  
+**Next:** requires **human decision / authorization**. Do not treat Event / Setlist / RSVP / invites / file Resource as authorized unless the user explicitly approves them.
 
 Until the user explicitly authorizes the **next** implementation ticket:
 
-- Do **not** implement T-3.2.07 / T-3.2.08 / Setlist / Event / RSVP / invites / file Resource without approval
+- Do **not** implement Setlist / Event / RSVP / invites / file Resource (T-3.2.06) without approval
 - Do **not** install skills or non-stack tooling without approval
 - Do **not** push / create GitHub remotes / change branch protection unless explicitly authorized
 - Foundation + Group/Membership + repertoire maintenance within the accepted Phase 3.2 contract is allowed
