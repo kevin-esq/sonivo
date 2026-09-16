@@ -166,8 +166,277 @@ export async function getGroup(groupId: string): Promise<GroupDetail> {
 
 export function problemDetail(error: unknown): string {
   if (error instanceof ApiError) {
-    const body = error.body as { detail?: string; title?: string } | undefined
+    const body = error.body as
+      | { detail?: string; title?: string; errors?: Record<string, string[] | string> }
+      | undefined
+    if (body?.errors && typeof body.errors === 'object') {
+      const parts = Object.entries(body.errors).flatMap(([key, value]) => {
+        if (Array.isArray(value)) {
+          return value.map((item) => `${key}: ${item}`)
+        }
+        return [`${key}: ${value}`]
+      })
+      if (parts.length > 0) {
+        return parts.join(' ')
+      }
+    }
     return body?.detail ?? body?.title ?? error.message
   }
   return 'Unexpected error'
+}
+
+export function isConflictError(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409
+}
+
+export type SongOriginKind = 'original' | 'cover' | 'other'
+
+export type SongListItem = {
+  id: string
+  title: string
+  attribution: string | null
+  originKind: SongOriginKind
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type SongDetail = SongListItem & {
+  rightsNotes: string | null
+  arrangementCount: number
+}
+
+export type ResourcePurpose =
+  | 'chart'
+  | 'lyrics'
+  | 'audio'
+  | 'click'
+  | 'reference'
+  | 'practice'
+  | 'other'
+
+export type ResourceSummary = {
+  id: string
+  arrangementId: string
+  kind: string
+  purpose: ResourcePurpose | string
+  label: string
+  part: string | null
+  note: string | null
+  url: string | null
+  createdAt: string
+}
+
+export type ArrangementListItem = {
+  id: string
+  songId: string
+  label: string
+  defaultKey: string | null
+  defaultBpm: number | null
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type ArrangementDetail = ArrangementListItem & {
+  lyrics: string | null
+  chords: string | null
+  structure: string | null
+  notes: string | null
+  resources: ResourceSummary[]
+}
+
+export type ResourceDetail = ResourceSummary
+
+export async function listSongs(groupId: string): Promise<SongListItem[]> {
+  return apiRequest<SongListItem[]>(`/api/groups/${groupId}/songs`)
+}
+
+export async function createSong(
+  groupId: string,
+  input: {
+    title: string
+    originKind: SongOriginKind
+    attribution?: string | null
+    rightsNotes?: string | null
+  },
+): Promise<SongDetail> {
+  return apiRequest<SongDetail>(`/api/groups/${groupId}/songs`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function getSong(groupId: string, songId: string): Promise<SongDetail> {
+  return apiRequest<SongDetail>(`/api/groups/${groupId}/songs/${songId}`)
+}
+
+export async function updateSong(
+  groupId: string,
+  songId: string,
+  input: {
+    expectedVersion: number
+    title?: string | null
+    originKind?: SongOriginKind | null
+    attribution?: string | null
+    rightsNotes?: string | null
+  },
+): Promise<SongDetail> {
+  return apiRequest<SongDetail>(`/api/groups/${groupId}/songs/${songId}`, {
+    method: 'PATCH',
+    body: input,
+  })
+}
+
+export async function deleteSong(
+  groupId: string,
+  songId: string,
+  expectedVersion: number,
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/songs/${songId}`, {
+    method: 'DELETE',
+    body: { expectedVersion },
+  })
+}
+
+export async function listArrangements(
+  groupId: string,
+  songId: string,
+): Promise<ArrangementListItem[]> {
+  return apiRequest<ArrangementListItem[]>(
+    `/api/groups/${groupId}/songs/${songId}/arrangements`,
+  )
+}
+
+export async function createArrangement(
+  groupId: string,
+  songId: string,
+  input: {
+    label: string
+    defaultKey?: string | null
+    defaultBpm?: number | null
+    lyrics?: string | null
+    chords?: string | null
+    structure?: string | null
+    notes?: string | null
+  },
+): Promise<ArrangementDetail> {
+  return apiRequest<ArrangementDetail>(
+    `/api/groups/${groupId}/songs/${songId}/arrangements`,
+    { method: 'POST', body: input },
+  )
+}
+
+export async function getArrangement(
+  groupId: string,
+  arrangementId: string,
+): Promise<ArrangementDetail> {
+  return apiRequest<ArrangementDetail>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}`,
+  )
+}
+
+export async function updateArrangement(
+  groupId: string,
+  arrangementId: string,
+  input: {
+    expectedVersion: number
+    label?: string | null
+    defaultKey?: string | null
+    defaultBpm?: number | null
+    lyrics?: string | null
+    chords?: string | null
+    structure?: string | null
+    notes?: string | null
+  },
+): Promise<ArrangementDetail> {
+  return apiRequest<ArrangementDetail>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}`,
+    { method: 'PATCH', body: input },
+  )
+}
+
+export async function deleteArrangement(
+  groupId: string,
+  arrangementId: string,
+  expectedVersion: number,
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/arrangements/${arrangementId}`, {
+    method: 'DELETE',
+    body: { expectedVersion },
+  })
+}
+
+export async function listResources(
+  groupId: string,
+  arrangementId: string,
+): Promise<ResourceSummary[]> {
+  return apiRequest<ResourceSummary[]>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/resources`,
+  )
+}
+
+export async function createLinkResource(
+  groupId: string,
+  arrangementId: string,
+  input: {
+    purpose: ResourcePurpose
+    label: string
+    url: string
+    part?: string | null
+    note?: string | null
+  },
+): Promise<ResourceDetail> {
+  return apiRequest<ResourceDetail>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/resources`,
+    {
+      method: 'POST',
+      body: {
+        kind: 'link',
+        purpose: input.purpose,
+        label: input.label,
+        url: input.url,
+        part: input.part,
+        note: input.note,
+      },
+    },
+  )
+}
+
+export async function getResource(
+  groupId: string,
+  arrangementId: string,
+  resourceId: string,
+): Promise<ResourceDetail> {
+  return apiRequest<ResourceDetail>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/resources/${resourceId}`,
+  )
+}
+
+export async function updateLinkResource(
+  groupId: string,
+  arrangementId: string,
+  resourceId: string,
+  input: {
+    purpose?: ResourcePurpose | null
+    label?: string | null
+    part?: string | null
+    note?: string | null
+  },
+): Promise<ResourceDetail> {
+  return apiRequest<ResourceDetail>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/resources/${resourceId}`,
+    { method: 'PATCH', body: input },
+  )
+}
+
+export async function deleteResource(
+  groupId: string,
+  arrangementId: string,
+  resourceId: string,
+): Promise<void> {
+  await apiRequest<void>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/resources/${resourceId}`,
+    { method: 'DELETE' },
+  )
 }

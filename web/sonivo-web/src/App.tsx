@@ -15,6 +15,9 @@ import {
   type GroupDetail,
   type GroupSummary,
 } from './api/client'
+import { ArrangementDetailPage } from './repertoire/ArrangementDetailPage'
+import { LibraryPage } from './repertoire/LibraryPage'
+import { SongDetailPage } from './repertoire/SongDetailPage'
 
 function Shell({
   user,
@@ -31,7 +34,7 @@ function Shell({
         <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Sonivo</p>
         <h1 className="mt-2 text-3xl font-semibold">Groups</h1>
         <p className="mt-2 text-slate-600">
-          Create and select a musical group. Later features stay out of this slice.
+          Create and select a musical group. Open the library from a group to manage songs.
         </p>
         <nav className="mt-4 flex flex-wrap items-center gap-4 text-sm" aria-label="Primary">
           <Link className="underline" to="/">
@@ -294,12 +297,14 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
         Selected group shell. Role: <strong>{group.role}</strong>. Version:{' '}
         <strong>{group.version}</strong>.
       </p>
-      <p className="text-slate-600">
-        Repertoire, setlists, and events are not part of this phase.
-      </p>
-      <Link className="underline" to="/">
-        Back to my groups
-      </Link>
+      <nav className="flex flex-wrap gap-4" aria-label="Group">
+        <Link className="underline" to={`/groups/${group.id}/library`}>
+          Song library
+        </Link>
+        <Link className="underline" to="/">
+          Back to my groups
+        </Link>
+      </nav>
     </section>
   )
 }
@@ -357,6 +362,30 @@ export default function App() {
           element={
             <RequireAuth user={user}>
               <GroupShellPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/library"
+          element={
+            <RequireAuth user={user}>
+              <LibraryPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/songs/:songId"
+          element={
+            <RequireAuth user={user}>
+              <SongDetailPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/arrangements/:arrangementId"
+          element={
+            <RequireAuth user={user}>
+              <ArrangementDetailPage user={user!} />
             </RequireAuth>
           }
         />
