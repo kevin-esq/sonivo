@@ -36,3 +36,57 @@ export async function createGroup(page: Page, name: string) {
   await expect(page.getByRole('heading', { name })).toBeVisible()
   await expect(page.getByText('Owner', { exact: true })).toBeVisible()
 }
+
+export async function openLibrary(page: Page) {
+  await page.getByRole('link', { name: 'Song library' }).click()
+  await expect(page.getByRole('heading', { name: 'Song library' })).toBeVisible()
+}
+
+export async function createSong(page: Page, title: string) {
+  await page.getByRole('button', { name: 'Add song' }).click()
+  await expect(page.getByRole('heading', { name: 'Create song' })).toBeVisible()
+  await page.getByLabel('Title').fill(title)
+  await page.getByLabel('Origin').selectOption('original')
+  await page.getByRole('button', { name: 'Create song' }).click()
+  await expect(page.getByRole('link', { name: title })).toBeVisible()
+}
+
+export async function openSong(page: Page, title: string) {
+  await page.getByRole('link', { name: title }).click()
+  await expect(page.getByRole('heading', { name: title })).toBeVisible()
+}
+
+export async function createArrangement(page: Page, label: string) {
+  await page.getByRole('button', { name: 'Add arrangement' }).click()
+  await expect(page.getByRole('heading', { name: 'Create arrangement' })).toBeVisible()
+  await page.getByLabel('Label', { exact: true }).fill(label)
+  await page.getByRole('button', { name: 'Create arrangement' }).click()
+  // Create navigates to the new arrangement detail.
+  await expect(page.getByRole('heading', { name: label })).toBeVisible()
+}
+
+export async function createLinkResource(
+  page: Page,
+  input: { label: string; url: string; purpose?: string },
+) {
+  await page.getByRole('button', { name: 'Add link resource' }).click()
+  await expect(page.getByRole('heading', { name: 'Add link resource' })).toBeVisible()
+  await page.getByLabel('Purpose').selectOption(input.purpose ?? 'practice')
+  await page.getByLabel('Label', { exact: true }).fill(input.label)
+  await page.getByLabel('URL').fill(input.url)
+  await page.getByRole('button', { name: 'Create link' }).click()
+  await expect(page.getByText(input.label, { exact: true })).toBeVisible()
+  const link = page.getByRole('link', { name: input.url })
+  await expect(link).toBeVisible()
+  await expect(link).toHaveAttribute('href', input.url)
+  await expect(link).toHaveAttribute('target', '_blank')
+}
+
+export async function deleteSong(page: Page, title: string) {
+  await page.getByRole('button', { name: 'Delete song' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Delete song?' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: 'Delete song' }).click()
+  await expect(page.getByRole('heading', { name: 'Song library' })).toBeVisible()
+  await expect(page.getByRole('link', { name: title })).toHaveCount(0)
+}
