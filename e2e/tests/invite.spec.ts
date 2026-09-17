@@ -12,6 +12,7 @@ import {
   logout,
   openEvents,
   openLibrary,
+  openPeople,
   openSetlists,
   openSong,
   register,
@@ -82,5 +83,28 @@ test.describe('Invite journeys', () => {
     await openLibrary(page)
     await expect(page.getByRole('button', { name: 'Add song' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Invite member' })).toHaveCount(0)
+  })
+
+  test('TC-INV-02 owner revokes outstanding invite; old join link fails', async ({ page }) => {
+    const ownerEmail = uniqueEmail('hyg-owner')
+    const memberEmail = uniqueEmail('hyg-member')
+    const groupName = `Hygiene Band ${Date.now()}`
+
+    await register(page, ownerEmail)
+    await createGroup(page, groupName)
+    const inviteUrl = await inviteMemberAndReadLink(page)
+
+    await openPeople(page)
+    await expect(page.getByRole('heading', { name: 'Outstanding invites' })).toBeVisible()
+    await expect(page.getByText('No outstanding invites.')).toHaveCount(0)
+    await page.getByRole('button', { name: /Revoke/ }).click()
+    await expect(page.getByText('No outstanding invites.')).toBeVisible()
+
+    await logout(page)
+    await register(page, memberEmail)
+    await page.goto(inviteUrl)
+    await expect(page.getByRole('heading', { name: 'Join this group' })).toBeVisible()
+    await page.getByRole('button', { name: 'Accept invite' }).click()
+    await expect(page.getByRole('alert')).toContainText('This invite is invalid or expired.')
   })
 })
