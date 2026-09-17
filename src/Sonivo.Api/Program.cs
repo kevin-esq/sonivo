@@ -369,6 +369,54 @@ app.MapDelete("/api/groups/{groupId:guid}", async (
 .RequireAuthorization()
 .DisableAntiforgery();
 
+app.MapPost("/api/groups/{groupId:guid}/invitations", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    CreateInvitationHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var created = await handler.HandleAsync(
+        new CreateInvitationCommand(userId.Value, groupId),
+        cancellationToken);
+
+    return Results.Created(
+        $"/api/groups/{groupId}/invitations/{created.Id}",
+        ToInvitationCreatedResponse(created));
+})
+.WithName("CreateInvitation")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapPost("/api/invitations/{token}/accept", async (
+    string token,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    AcceptInvitationHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var accepted = await handler.HandleAsync(
+        new AcceptInvitationCommand(userId.Value, token),
+        cancellationToken);
+
+    return Results.Ok(ToInvitationAcceptedResponse(accepted));
+})
+.WithName("AcceptInvitation")
+.RequireAuthorization()
+.DisableAntiforgery();
+
 app.MapGet("/api/groups/{groupId:guid}/songs", async (
     Guid groupId,
     ClaimsPrincipal principal,
@@ -1031,6 +1079,19 @@ static object ToGroupListResponse(GroupListItem item) => new
     role = item.Role,
     version = item.Version,
     createdAt = item.CreatedAt
+};
+
+static object ToInvitationCreatedResponse(InvitationCreatedDto invitation) => new
+{
+    id = invitation.Id,
+    token = invitation.Token,
+    expiresAt = invitation.ExpiresAt
+};
+
+static object ToInvitationAcceptedResponse(InvitationAcceptedDto accepted) => new
+{
+    groupId = accepted.GroupId,
+    role = accepted.Role
 };
 
 static object ToSongListResponse(SongListItemDto song) => new

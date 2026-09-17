@@ -5,17 +5,17 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (docs-sync 3.3 + 3.4 spec)
-Human approval: APPROVED (Kevin Esquivel)
-Git checkpoint: PENDING this commit
+Implementation: COMPLETE (T-3.4.01)
+Human approval: APPROVED (T-3.4.01 — Kevin Esquivel)
+Git checkpoint: COMMITTED (this commit)
 Remote: NOT PUSHED
 CI: NOT RUN
 ```
 
-**Branch:** `docs/phase-3.3-closed`  
-**Next after merge:** T-3.4.01 Invitation Application + API
+**Branch:** `feature/phase-3.4-invites`  
+**Next:** T-3.4.02 React invite + join UI
 
 ## Firewall
 
-- No RSVP / SMTP / T-3.2.06 / Event cancel-PATCH
-- Exclude `.cursor/rules` and PHASE-3.3 scratch discovery from this commit
+- No T-3.4.02 in this commit
+- No RSVP / SMTP / T-3.2.06

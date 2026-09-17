@@ -287,6 +287,12 @@ public class SoftDeleteSongUseCaseTests
         public Task<Membership?> GetMembershipAsync(Guid groupId, Guid userId, CancellationToken cancellationToken)
             => Task.FromResult(Memberships.FirstOrDefault(m => m.GroupId == groupId && m.UserId == userId));
 
+        public Task AddMembershipAsync(Membership membership, CancellationToken cancellationToken)
+        {
+            Memberships.Add(membership);
+            return Task.CompletedTask;
+        }
+
         public Task UpdateAsync(Group group, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
