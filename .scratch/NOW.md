@@ -5,10 +5,10 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-GATE-B-02)
+Implementation: COMPLETE (T-GATE-B-03)
 Human approval: PENDING
-Git checkpoint: COMMITTED
-Remote: PUSHED
+Git checkpoint: COMMITTED (local; push/PR in progress)
+Remote: NOT PUSHED
 CI: NOT RUN
 ```
 
@@ -17,12 +17,13 @@ CI: NOT RUN
 
 ## Proof
 
-- T-GATE-B-01 PR #22 merged (`1a74344`)
-- T-GATE-B-02 Library / Song / Arrangement chrome on `feature/t-gate-b-02-library`
+- T-GATE-B-01 PR #22 + nav order #23
+- T-GATE-B-02 PR #24 merged (`e87887a`); CI Playwright 15/15
+- T-GATE-B-03: setlist list/detail chrome + Spanish Playwright helpers
 
 ## Next
 
-Human review of T-GATE-B-02 PR. Then T-GATE-B-03 Setlists.
+Human review of T-GATE-B-03 PR. Then T-GATE-B-04 Events.
 
 ## Firewall
 
