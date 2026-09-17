@@ -11,9 +11,9 @@ Product sequencing.
 **Phase 3.7 thin People COMPLETED** — T-3.7.01–03. Spec: [`PHASE-3.7-PEOPLE-SPEC.md`](../03-architecture/PHASE-3.7-PEOPLE-SPEC.md).  
 **Phase 3.8 thin invite hygiene COMPLETED** — T-3.8.01–03. Spec: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md).  
 **Phase 3.9 thin invite email COMPLETED** — T-3.9.01–04 (Gmail API HTTPS). Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md).  
-**Deferred:** T-3.2.06 file Resource / blob / content. Do not merge to `main`.  
-**System close:** [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md) — Gate A (functional loop on `develop`) then Gate B (UI redesign → `main`).  
-**Next:** Gate B UI redesign ([`PHASE-GATE-B-UI-SPEC.md`](../03-architecture/PHASE-GATE-B-UI-SPEC.md)). Do not merge `main` until that cut.
+**Deferred:** T-3.2.06 file Resource / blob / content.  
+**System close:** [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md) — Gate A **CLOSED**; Gate B **ACCEPTED / CLOSED**.  
+**Next:** merge `develop` → `main`; then T-OPS-MAIL + T-UX-COPY/polish.
 
 Product/code features beyond authorized tickets require **explicit** human approval.
 
@@ -110,10 +110,10 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 - [x] Phase 3.9 — optional Gmail API HTTPS invite email
 - [x] T-OPS-02 Render GitHub app access (Kevin)
 
-### Gate B — product close (AUTHORIZED)
+### Gate B — product close (ACCEPTED / CLOSED)
 
-- [ ] Frontend redesign of shipped surfaces (T-GATE-B-01–05)
-- [ ] Merge `develop` → `main`
+- [x] Frontend redesign of shipped surfaces (T-GATE-B-01–05; PRs #22–#27)
+- [ ] Merge `develop` → `main` (authorized)
 - [ ] Public prod cut
 
 ### Later (only when authorized)

@@ -1,6 +1,6 @@
 # SONIVO — Gate B UI/UX design brief
 
-**Status:** **AUTHORIZED** 2026-09-17 (Kevin Esquivel).  
+**Status:** **ACCEPTED / CLOSED** 2026-09-17 (Kevin Esquivel). Implemented as T-GATE-B-01–05 on `develop`.  
 **Binding visual board:** [`assets/gate-b-ui-reference.jpg`](assets/gate-b-ui-reference.jpg)  
 **Implementation contract (ADRs + tickets):** [`../03-architecture/PHASE-GATE-B-UI-SPEC.md`](../03-architecture/PHASE-GATE-B-UI-SPEC.md)
 
