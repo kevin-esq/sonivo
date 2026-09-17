@@ -23,8 +23,13 @@ public class AggregateFoundationTests
                 Guid.NewGuid(),
                 "Acoustic",
                 now),
-            new Setlist { Name = "Template" },
-            new Event { Type = EventTypes.Rehearsal, Title = "Thu", Status = EventStatuses.Scheduled }
+            Setlist.Create(Guid.NewGuid(), "Template", now),
+            Event.Create(
+                Guid.NewGuid(),
+                "Thu",
+                EventTypes.Rehearsal,
+                now.AddDays(1),
+                now)
         ];
 
         Assert.All(roots, r => Assert.Equal(1, r.Version));

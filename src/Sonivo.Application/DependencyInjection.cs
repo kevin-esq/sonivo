@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Sonivo.Application.Repertoire;
+using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
 
 namespace Sonivo.Application;
@@ -29,6 +30,15 @@ public static class DependencyInjection
         services.AddScoped<GetResourceHandler>();
         services.AddScoped<UpdateLinkResourceHandler>();
         services.AddScoped<DeleteResourceHandler>();
+        services.AddScoped<CreateSetlistHandler>();
+        services.AddScoped<ListSetlistsHandler>();
+        services.AddScoped<GetSetlistHandler>();
+        services.AddScoped<UpdateSetlistHandler>();
+        services.AddScoped<ReplaceSetlistItemsHandler>();
+        services.AddScoped<CreateEventHandler>();
+        services.AddScoped<ListEventsHandler>();
+        services.AddScoped<GetEventHandler>();
+        services.AddScoped<ReplaceEventPlanFromSetlistHandler>();
         return services;
     }
 }

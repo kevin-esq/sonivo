@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Sonivo.Application;
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Repertoire;
+using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Identity;
@@ -774,6 +775,232 @@ app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/reso
 .RequireAuthorization()
 .DisableAntiforgery();
 
+app.MapGet("/api/groups/{groupId:guid}/setlists", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListSetlistsHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var setlists = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
+    return Results.Ok(setlists.Select(ToSetlistListResponse));
+})
+.WithName("ListSetlists")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/setlists", async (
+    Guid groupId,
+    CreateSetlistRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    CreateSetlistHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var created = await handler.HandleAsync(
+        new CreateSetlistCommand(userId.Value, groupId, request.Name ?? string.Empty),
+        cancellationToken);
+
+    return Results.Created($"/api/groups/{groupId}/setlists/{created.Id}", ToSetlistDetailResponse(created));
+})
+.WithName("CreateSetlist")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/setlists/{setlistId:guid}", async (
+    Guid groupId,
+    Guid setlistId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetSetlistHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var setlist = await handler.HandleAsync(userId.Value, groupId, setlistId, cancellationToken);
+    return Results.Ok(ToSetlistDetailResponse(setlist));
+})
+.WithName("GetSetlist")
+.RequireAuthorization();
+
+app.MapPatch("/api/groups/{groupId:guid}/setlists/{setlistId:guid}", async (
+    Guid groupId,
+    Guid setlistId,
+    UpdateSetlistRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    UpdateSetlistHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var updated = await handler.HandleAsync(
+        new UpdateSetlistCommand(
+            userId.Value,
+            groupId,
+            setlistId,
+            request.Name ?? string.Empty,
+            request.ExpectedVersion),
+        cancellationToken);
+
+    return Results.Ok(ToSetlistDetailResponse(updated));
+})
+.WithName("UpdateSetlist")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapPut("/api/groups/{groupId:guid}/setlists/{setlistId:guid}/items", async (
+    Guid groupId,
+    Guid setlistId,
+    ReplaceSetlistItemsRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ReplaceSetlistItemsHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var items = (request.Items ?? [])
+        .Select(i => new SetlistItemReplaceDto(i.ArrangementId, i.SortOrder))
+        .ToList();
+
+    var updated = await handler.HandleAsync(
+        new ReplaceSetlistItemsCommand(
+            userId.Value,
+            groupId,
+            setlistId,
+            request.ExpectedVersion,
+            items),
+        cancellationToken);
+
+    return Results.Ok(ToSetlistDetailResponse(updated));
+})
+.WithName("ReplaceSetlistItems")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/events", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListEventsHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var events = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
+    return Results.Ok(events.Select(ToEventListResponse));
+})
+.WithName("ListEvents")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/events", async (
+    Guid groupId,
+    CreateEventRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    CreateEventHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var created = await handler.HandleAsync(
+        new CreateEventCommand(
+            userId.Value,
+            groupId,
+            request.Title ?? string.Empty,
+            request.Type ?? string.Empty,
+            request.StartsAt),
+        cancellationToken);
+
+    return Results.Created($"/api/groups/{groupId}/events/{created.Id}", ToEventDetailResponse(created));
+})
+.WithName("CreateEvent")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
+    Guid groupId,
+    Guid eventId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetEventHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var musicalEvent = await handler.HandleAsync(userId.Value, groupId, eventId, cancellationToken);
+    return Results.Ok(ToEventDetailResponse(musicalEvent));
+})
+.WithName("GetEvent")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/apply-setlist", async (
+    Guid groupId,
+    Guid eventId,
+    ApplySetlistRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ReplaceEventPlanFromSetlistHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var musicalEvent = await handler.HandleAsync(
+        new ReplaceEventPlanFromSetlistCommand(
+            userId.Value,
+            groupId,
+            eventId,
+            request.SetlistId,
+            request.ExpectedVersion,
+            request.ConfirmReplace),
+        cancellationToken);
+
+    return Results.Ok(ToEventDetailResponse(musicalEvent));
+})
+.WithName("ApplySetlistToEvent")
+.RequireAuthorization()
+.DisableAntiforgery();
+
 app.Run();
 
 static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users)
@@ -896,6 +1123,66 @@ static object ToResourceDetailResponse(ResourceDetailDto resource) => new
     createdAt = resource.CreatedAt
 };
 
+static object ToSetlistListResponse(SetlistListItemDto setlist) => new
+{
+    id = setlist.Id,
+    name = setlist.Name,
+    version = setlist.Version,
+    itemCount = setlist.ItemCount,
+    createdAt = setlist.CreatedAt,
+    updatedAt = setlist.UpdatedAt
+};
+
+static object ToSetlistDetailResponse(SetlistDetailDto setlist) => new
+{
+    id = setlist.Id,
+    name = setlist.Name,
+    version = setlist.Version,
+    createdAt = setlist.CreatedAt,
+    updatedAt = setlist.UpdatedAt,
+    items = setlist.Items.Select(i => new
+    {
+        id = i.Id,
+        arrangementId = i.ArrangementId,
+        sortOrder = i.SortOrder,
+        songTitle = i.SongTitle,
+        arrangementLabel = i.ArrangementLabel
+    })
+};
+
+static object ToEventListResponse(EventListItemDto musicalEvent) => new
+{
+    id = musicalEvent.Id,
+    title = musicalEvent.Title,
+    type = musicalEvent.Type,
+    startsAt = musicalEvent.StartsAt,
+    status = musicalEvent.Status,
+    version = musicalEvent.Version,
+    createdAt = musicalEvent.CreatedAt,
+    updatedAt = musicalEvent.UpdatedAt
+};
+
+static object ToEventDetailResponse(EventDetailDto musicalEvent) => new
+{
+    id = musicalEvent.Id,
+    title = musicalEvent.Title,
+    type = musicalEvent.Type,
+    startsAt = musicalEvent.StartsAt,
+    status = musicalEvent.Status,
+    version = musicalEvent.Version,
+    createdAt = musicalEvent.CreatedAt,
+    updatedAt = musicalEvent.UpdatedAt,
+    sourceSetlistId = musicalEvent.SourceSetlistId,
+    items = musicalEvent.Items.Select(i => new
+    {
+        id = i.Id,
+        arrangementId = i.ArrangementId,
+        sortOrder = i.SortOrder,
+        displaySongTitle = i.DisplaySongTitle,
+        displayArrangementLabel = i.DisplayArrangementLabel
+    })
+};
+
 internal sealed record RegisterRequest(string? Email, string? Password, string? DisplayName);
 internal sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
 internal sealed record CreateGroupRequest(string? Name);
@@ -943,6 +1230,14 @@ internal sealed record UpdateLinkResourceRequest(
     string? Label,
     string? Part,
     string? Note);
+internal sealed record CreateSetlistRequest(string? Name);
+internal sealed record UpdateSetlistRequest(string? Name, int ExpectedVersion);
+internal sealed record ReplaceSetlistItemsRequest(
+    int ExpectedVersion,
+    IReadOnlyList<ReplaceSetlistItemRequest>? Items);
+internal sealed record ReplaceSetlistItemRequest(Guid ArrangementId, int SortOrder);
+internal sealed record CreateEventRequest(string? Title, string? Type, DateTimeOffset StartsAt);
+internal sealed record ApplySetlistRequest(Guid SetlistId, int ExpectedVersion, bool ConfirmReplace = false);
 
 public sealed class AppExceptionHandler : IExceptionHandler
 {
