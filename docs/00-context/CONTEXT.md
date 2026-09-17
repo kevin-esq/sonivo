@@ -2,8 +2,8 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-16 (Phase 3.2 approved scope COMPLETED; docs synced)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2 approved scope **COMPLETED** (`Song → Arrangement → Link Resource` + React Library + sparse E2E). T-3.2.06 file Resource **DEFERRED**. Next work requires human decision / authorization.  
+**Last updated:** 2026-09-17 (Phase 3.2 COMPLETED; Phase 3.3 thin S2 COMPLETED on develop)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2 approved scope **COMPLETED**. Phase 3.3 thin S2 **COMPLETED** on `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6), merge `80f5f63`). T-3.2.06 file Resource **DEFERRED**. RSVP **DEFERRED**. Phase 3.4 thin invites **authorized** (not started).  
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
@@ -64,7 +64,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 20. Stack/auth/session per ADR-0009–0011; modular monolith; no microservices/CQRS/ES.  
 21. Tooling ADR-0002 ACCEPTED; Phase 0 CLOSED.  
-22. Application foundation (Phase 2.3) + Group slice + Phase 3.2 approved repertoire slice (backend + React library + sparse Playwright) exist. Further product features (Setlist/Event/RSVP, file Resource, invite mechanics) still require **explicit** user approval.  
+22. Application foundation (Phase 2.3) + Group slice + Phase 3.2 approved repertoire slice + Phase 3.3 thin S2 (Setlist → Event apply + UI + E2E) exist on `develop`. RSVP and file Resource (T-3.2.06) remain **DEFERRED**. Thin invite mechanics (link token, no email) are **authorized** as Phase 3.4 per [`PHASE-3.4-INVITE-SPEC.md`](../03-architecture/PHASE-3.4-INVITE-SPEC.md) — not started.  
 23. Phase 2 technical docs under `docs/03-architecture/` (ARCHITECTURE, TECHNICAL-SPEC, API, SECURITY, TESTING, PERSISTENCE).  
 24. ADR-0019–0021 **ACCEPTED** — Phase 2.1.  
 25. ADR-0022–0023 **ACCEPTED** — Phase 2.2; integer `Version` concurrency ACCEPTED.  
@@ -72,7 +72,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 27. Phase 3.0–3.0.2.1 CLOSED (Group slice; Compose Postgres; CI/Playwright; public repo audit).  
 28. Phase 3.0.3 **CLOSED** — ADR-0024 **ACCEPTED** (practice Resources / Part metadata).  
 29. Phase 3.1 **CLOSED** — ADR-0025 **ACCEPTED**.  
-30. Phase 3.2 approved scope **COMPLETED** (T-3.2.01–05, 07, 08): Song / Arrangement / **Link** Resource with **nested** Resource routes; migration `AlignRepertoireToAdr0024And0025`; React Library Shell (Owner mutate / Member read UX, expectedVersion conflict UX); sparse Playwright TC-LIB-01/02/03 (Member browser E2E and 409 E2E deferred). File Resource / blob / `IBlobStore` / upload / content (**T-3.2.06**) remains **DEFERRED**. Next implementation requires human decision / authorization (not automatically Event/Setlist/RSVP or T-3.2.06).
+30. Phase 3.2 approved scope **COMPLETED** (T-3.2.01–05, 07, 08): Song / Arrangement / **Link** Resource with **nested** Resource routes; migration `AlignRepertoireToAdr0024And0025`; React Library Shell (Owner mutate / Member read UX, expectedVersion conflict UX); sparse Playwright TC-LIB-01/02/03 (Member browser E2E and 409 E2E deferred). File Resource / blob / `IBlobStore` / upload / content (**T-3.2.06**) remains **DEFERRED**. Phase 3.3 thin S2 **COMPLETED** on `develop` (T-3.3.01–05, PR #6 / `80f5f63`): Setlist → Event apply → React UI → Playwright (TC-EVT-01/02). RSVP still deferred. Next authorized implementation: Phase 3.4 thin invites (T-3.4.01–03).
 
 ---
 
@@ -95,7 +95,8 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 | **Q9** | Realtime (lean no) |
 | **Q10** | Billing |
 | **Q11** | Native mobile / PWA |
-| — | Hosting · account-deletion product · invite mechanics |
+| — | Hosting · account-deletion product |
+| — | Invite mechanics: thin 3.4 freeze **Q-I1–I8** ([`PHASE-3.4-INVITE-SPEC.md`](../03-architecture/PHASE-3.4-INVITE-SPEC.md)); email invites remain **FUTURE** |
 | — | Blob vendor · exact session TTLs · upload size caps |
 
 ---
@@ -114,7 +115,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 ## FUTURE
 
-Organization · Event resources · Member edits · albums · live tools · social login · mobile bearer · blob GC · account deletion · ChordPro · realtime · billing · duration/transitions · Arrangement status · Resource soft-delete undo
+Organization · Event resources · Member edits · albums · live tools · social login · mobile bearer · blob GC · account deletion · email invites · ChordPro · realtime · billing · duration/transitions · Arrangement status · Resource soft-delete undo
 
 ---
 
