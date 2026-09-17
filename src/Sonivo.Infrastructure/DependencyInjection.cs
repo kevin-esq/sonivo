@@ -68,7 +68,7 @@ public static class DependencyInjection
         services.AddScoped<IUserDirectory, EfUserDirectory>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddSingleton<IPublicOrigin, ConfigurationPublicOrigin>();
-        services.AddHttpClient<IEmailSender, ResendEmailSender>();
+        services.AddHttpClient<IEmailSender, GmailEmailSender>();
 
         return services;
     }

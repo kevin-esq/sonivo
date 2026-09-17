@@ -10,7 +10,7 @@ Product sequencing.
 **Phase 3.6 thin Event PATCH/cancel COMPLETED** — T-3.6.01–03. Spec: [`PHASE-3.6-EVENT-SPEC.md`](../03-architecture/PHASE-3.6-EVENT-SPEC.md).  
 **Phase 3.7 thin People COMPLETED** — T-3.7.01–03. Spec: [`PHASE-3.7-PEOPLE-SPEC.md`](../03-architecture/PHASE-3.7-PEOPLE-SPEC.md).  
 **Phase 3.8 thin invite hygiene COMPLETED** — T-3.8.01–03. Spec: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md).  
-**Phase 3.9 thin invite email COMPLETED** — T-3.9.01–03. Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md).  
+**Phase 3.9 thin invite email COMPLETED** — T-3.9.01–04 (Gmail API HTTPS). Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md).  
 **Deferred:** T-3.2.06 file Resource / blob / content. Do not merge to `main`.  
 **System close:** [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md) — Gate A (functional loop on `develop`) then Gate B (UI redesign → `main`).  
 **Next:** T-OPS-02 Render GitHub app (manual). Gate B after that.
@@ -93,11 +93,12 @@ Owner lists outstanding unused invites and revokes a token. Spec: [`PHASE-3.8-IN
 
 ### Phase 3.9 — Thin invite email (COMPLETED)
 
-Optional Resend outbound of the existing join link. Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md).
+Optional Gmail API HTTPS outbound of the existing join link (not Resend; not generic SMTP). Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md) Q-M2/Q-M3.
 
-- [x] T-3.9.01 IEmailSender + Resend + create-invite `email`/`emailed`
+- [x] T-3.9.01 IEmailSender + create-invite `email`/`emailed`
 - [x] T-3.9.02 React optional invite email + warning
-- [x] T-3.9.03 Playwright without Resend (including TC-INV-03)
+- [x] T-3.9.03 Playwright without Gmail OAuth (including TC-INV-03)
+- [x] T-3.9.04 Live sender = Gmail API HTTPS (`Gmail:ClientId` / `ClientSecret` / `RefreshToken` / `From` + `PublicOrigin`)
 
 ### Gate A — close the functional system
 
@@ -106,7 +107,7 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 - [x] Phase 3.7 thin People + Group lifecycle (list/remove/role/leave + rename/soft-delete UI)
 - [x] Phase 3.8 thin invite list/revoke
 - [x] T-OPS-01 DataProtection keys on Render (re-login after deploy)
-- [x] Phase 3.9 SMTP — optional Resend invite email
+- [x] Phase 3.9 — optional Gmail API HTTPS invite email
 - [ ] T-OPS-02 Render GitHub app access (Kevin)
 
 ### Gate B — product close (after Gate A)

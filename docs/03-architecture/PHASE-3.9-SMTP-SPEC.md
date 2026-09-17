@@ -1,6 +1,6 @@
-# Phase 3.9 Thin invite email (Resend) specification
+# Phase 3.9 Thin invite email specification
 
-**Status:** **COMPLETED** (T-3.9.01–03 on `feature/phase-3.9-smtp`). Authorized 2026-09-17 (Kevin Esquivel) — optional Gate A slice of [`SYSTEM-CLOSE-PLAN.md`](../01-product/SYSTEM-CLOSE-PLAN.md).  
+**Status:** **COMPLETED** (T-3.9.01–03) + **T-3.9.04 Gmail HTTPS** AUTHORIZED 2026-09-17 (Kevin Esquivel).  
 **Product bet:** The shareable link still does the join. Email is how the Owner **tells** a person about that link.  
 **Date:** 2026-09-17  
 **Depends on:** Phase 3.4 (Q-I1–I8), Phase 3.8; ADR-0012, 0019–0020.
@@ -11,7 +11,7 @@ Accepted ADRs remain authoritative. This spec **does not reopen** Q-I1: the join
 
 ## Product Goal
 
-An Owner can optionally type an email when creating an invite. If Resend is configured, Sonivo sends the join URL. If it is not configured, or send fails, the invite still exists and the Owner still gets the copyable link.
+An Owner can optionally type an email when creating an invite. If Gmail is configured, Sonivo sends the join URL from that Gmail inbox over HTTPS. If it is not configured, or send fails, the invite still exists and the Owner still gets the copyable link.
 
 ---
 
@@ -20,14 +20,14 @@ An Owner can optionally type an email when creating an invite. If Resend is conf
 | ID | Decision for thin 3.9 |
 | -- | --------------------- |
 | Q-M1 | Link + accept contract **unchanged** (3.4/3.8). Token still shown once. |
-| Q-M2 | Provider: **Resend HTTP API**. Not a generic SMTP server. Not WhatsApp. |
-| Q-M3 | Config: `Resend:ApiKey`, `Resend:From`, `PublicOrigin`. All three required to send. Missing any → treat as not configured. |
+| Q-M2 | Provider: **Gmail API HTTPS** (`users.messages.send`). Not Resend. Not a generic SMTP server (Render Free blocks 25/465/587). Not WhatsApp. From is the linked Gmail address. |
+| Q-M3 | Config: `Gmail:ClientId`, `Gmail:ClientSecret`, `Gmail:RefreshToken`, `Gmail:From`, `PublicOrigin`. Missing any → treat as not configured. |
 | Q-M4 | `POST .../invitations` body `{ email?: string }`. Omit/blank → no send (today’s e2e). |
 | Q-M5 | Invalid email format → **400** (invite **not** created). |
 | Q-M6 | Invite row is always created when AuthZ/email-format pass. Send is **best-effort**. Success body adds `emailed: boolean`. Send failure or not configured → **201** `emailed: false`. |
 | Q-M7 | Do not persist the invitee email. Do not add RSVP/Event notification mail. |
 | Q-M8 | UI: optional email on Invite member; always show the link after create. If they typed email and `emailed` is false, show a non-blocking warning. |
-| Q-M9 | CI/local: no real Resend. Tests use a fake sender. Existing Playwright stays green without an API key. |
+| Q-M9 | CI/local: no real Gmail. Tests use a fake sender. Playwright stays green without OAuth secrets. |
 
 This freeze is a **thin product default**, not a new ADR.
 
@@ -38,7 +38,7 @@ This freeze is a **thin product default**, not a new ADR.
 | Area | In |
 | ---- | -- |
 | API | Optional `email` on create; `emailed` on 201 |
-| Infra | Resend HTTP sender behind `IEmailSender` |
+| Infra | Gmail HTTPS sender behind `IEmailSender` |
 | UI | Optional email field on Group shell invite |
 | Tests | Application + API with fake sender |
 
@@ -46,7 +46,7 @@ This freeze is a **thin product default**, not a new ADR.
 
 ## Explicit Non-Scope
 
-WhatsApp · digest · Event/RSVP mail · invite-as-Owner · Guest · T-3.2.06 · merge `main` · UI redesign · real Resend in CI
+WhatsApp · digest · Event/RSVP mail · invite-as-Owner · Guest · T-3.2.06 · merge `main` · UI redesign · real Gmail OAuth in CI · generic SMTP
 
 ---
 
@@ -54,9 +54,10 @@ WhatsApp · digest · Event/RSVP mail · invite-as-Owner · Guest · T-3.2.06 ·
 
 | ID | Work |
 | -- | ---- |
-| T-3.9.01 | `IEmailSender` + Resend + create-invite `email`/`emailed` + tests — **DONE** |
+| T-3.9.01 | `IEmailSender` + create-invite `email`/`emailed` + tests — **DONE** |
 | T-3.9.02 | React optional invite email + warning — **DONE** |
-| T-3.9.03 | Playwright without Resend (existing journeys + **TC-INV-03**) — **DONE** |
+| T-3.9.03 | Playwright without a live mail key (existing journeys + **TC-INV-03**) — **DONE** |
+| T-3.9.04 | Swap live provider to Gmail API HTTPS (no owned domain; Render Free cannot SMTP) |
 
 ---
 

@@ -5,7 +5,7 @@
 **Live:** https://sonivo.onrender.com (Free Render + Neon; branch `develop`)  
 **Depends on:** ADR-0005–0006, 0012–0013, 0015–0021; Phases 3.2–3.6 **COMPLETED** on `develop`.
 
-This plan does **not** reopen ACCEPTED ADRs. It does **not** authorize T-3.2.06 or merge to `main`. SMTP (3.9) stays optional and separate.
+This plan does **not** reopen ACCEPTED ADRs. It does **not** authorize T-3.2.06 or merge to `main`. Invite email (3.9, Gmail API HTTPS) stays optional and separate.
 
 ---
 
@@ -87,7 +87,7 @@ Owner can list outstanding invites and revoke a unused token. 3.4 froze create+a
 
 ### Phase 3.9 — SMTP (optional for Gate A; COMPLETED)
 
-Link invites already work. Email is “tell the team” from the origin job. Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md). T-3.9.01–03 shipped (optional `email` on create; Resend best-effort; UI warning when `emailed` is false). Event/RSVP mail remains out.
+Link invites already work. Email is “tell the team” from the origin job. Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md). T-3.9.01–04 shipped (optional `email` on create; Gmail API HTTPS best-effort via `Gmail:ClientId` / `ClientSecret` / `RefreshToken` / `From` + `PublicOrigin`; UI warning when `emailed` is false). Event/RSVP mail remains out. Generic SMTP is out (Render Free blocks 25/465/587).
 
 ### Ops (Gate A, does not wait on People)
 

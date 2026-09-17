@@ -115,4 +115,4 @@ Authoritative matrix: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](PHASE-3.8-INVITE-HYGI
 
 ### Phase 3.9 — Thin invite email (COMPLETED)
 
-Authoritative matrix: [`PHASE-3.9-SMTP-SPEC.md`](PHASE-3.9-SMTP-SPEC.md). Existing invite journeys stay green without a Resend key. **TC-INV-03 COMPLETE:** Owner types an optional invitee email; invite is created; warning shows that email was not sent (local/CI has no Resend).
+Authoritative matrix: [`PHASE-3.9-SMTP-SPEC.md`](PHASE-3.9-SMTP-SPEC.md). Existing invite journeys stay green without Gmail OAuth secrets. **TC-INV-03 COMPLETE:** Owner types an optional invitee email; invite is created; warning shows that email was not sent (local/CI has no `Gmail:*` / `PublicOrigin`).
