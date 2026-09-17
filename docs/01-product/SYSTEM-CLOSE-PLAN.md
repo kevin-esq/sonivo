@@ -1,6 +1,6 @@
 # System-close plan — Sonivo
 
-**Status:** Gate A **AUTHORIZED** 2026-09-17 (Kevin Esquivel). Phase 3.7, 3.8, and T-OPS-01 **COMPLETED**.  
+**Status:** Gate A **AUTHORIZED** 2026-09-17 (Kevin Esquivel). Phase 3.7–3.9 and T-OPS-01 **COMPLETED** on `develop`. Remaining Gate A ops: **T-OPS-02**. Do **not** start Gate B.  
 **Date:** 2026-09-17  
 **Live:** https://sonivo.onrender.com (Free Render + Neon; branch `develop`)  
 **Depends on:** ADR-0005–0006, 0012–0013, 0015–0021; Phases 3.2–3.6 **COMPLETED** on `develop`.

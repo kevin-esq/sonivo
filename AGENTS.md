@@ -26,7 +26,7 @@ ADRs **0001–0025** are **ACCEPTED** (including tooling ADR-0002).
 **Phase 3.7 thin People:** **CLOSED** / **COMPLETED** (T-3.7.01–03) — members list/remove/role/leave + People UI + Group rename/soft-delete ([`PHASE-3.7-PEOPLE-SPEC.md`](docs/03-architecture/PHASE-3.7-PEOPLE-SPEC.md)). Merged to `develop` (PR [#15](https://github.com/kevin-esq/sonivo/pull/15), `0e0de72`).  
 **Phase 3.8 thin invite hygiene:** **CLOSED** / **COMPLETED** (T-3.8.01–03) — list/revoke outstanding invites ([`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](docs/03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md)). Merged to `develop` (PR [#16](https://github.com/kevin-esq/sonivo/pull/16)).  
 **T-OPS-01:** **COMPLETED** — ASP.NET DataProtection keys persist in Postgres (`DataProtectionKeys`).  
-**Phase 3.9 thin invite email:** **CLOSED** / **COMPLETED** (T-3.9.01–03) + **T-3.9.04 Gmail HTTPS** (no owned domain; Render Free cannot SMTP) ([`PHASE-3.9-SMTP-SPEC.md`](docs/03-architecture/PHASE-3.9-SMTP-SPEC.md)).  
+**Phase 3.9 thin invite email:** **CLOSED** / **COMPLETED** (T-3.9.01–04 Gmail HTTPS) on `develop` (PR [#19](https://github.com/kevin-esq/sonivo/pull/19), `468517c`) ([`PHASE-3.9-SMTP-SPEC.md`](docs/03-architecture/PHASE-3.9-SMTP-SPEC.md)).  
 **System close plan:** [`docs/01-product/SYSTEM-CLOSE-PLAN.md`](docs/01-product/SYSTEM-CLOSE-PLAN.md) — Gate A (functional) then Gate B (UI redesign → `main`).  
 **Next:** T-OPS-02 Render GitHub app (Kevin). Gate B UI redesign after that. File Resource (**T-3.2.06**) remains **DEFERRED**. Do not merge to `main` until Gate B.
 
