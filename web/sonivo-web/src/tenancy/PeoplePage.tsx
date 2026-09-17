@@ -3,10 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   changeMemberRole,
   leaveGroup,
+  listInvitations,
   listMembers,
   removeMember,
+  revokeInvitation,
   type CurrentUser,
   type MemberListItem,
+  type OutstandingInvitation,
 } from '../api/client'
 import {
   dangerButtonClass,
@@ -28,6 +31,9 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
   const [actionError, setActionError] = useState<string | null>(null)
   const [pendingUserId, setPendingUserId] = useState<string | null>(null)
   const [leaving, setLeaving] = useState(false)
+  const [invites, setInvites] = useState<OutstandingInvitation[] | null>(null)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [revokingId, setRevokingId] = useState<string | null>(null)
 
   const isOwner = isOwnerRole(group?.role)
 
@@ -44,6 +50,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
 
   useEffect(() => {
     if (!groupId || !group) return
+    const ownerView = isOwnerRole(group.role)
     let cancelled = false
     async function load() {
       setMembers(null)
@@ -58,7 +65,24 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         setListError(mutationErrorMessage(err))
       }
     }
+    async function loadInvites() {
+      if (!ownerView) {
+        setInvites([])
+        return
+      }
+      setInvites(null)
+      setInviteError(null)
+      try {
+        const result = await listInvitations(groupId!)
+        if (!cancelled) setInvites(result)
+      } catch (err) {
+        if (cancelled) return
+        setInvites([])
+        setInviteError(mutationErrorMessage(err))
+      }
+    }
     void load()
+    void loadInvites()
     return () => {
       cancelled = true
     }
@@ -89,6 +113,20 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       setActionError(mutationErrorMessage(err))
     } finally {
       setPendingUserId(null)
+    }
+  }
+
+  async function onRevoke(invitationId: string) {
+    if (!groupId) return
+    setRevokingId(invitationId)
+    setInviteError(null)
+    try {
+      await revokeInvitation(groupId, invitationId)
+      setInvites(await listInvitations(groupId))
+    } catch (err) {
+      setInviteError(mutationErrorMessage(err))
+    } finally {
+      setRevokingId(null)
     }
   }
 
@@ -130,6 +168,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       <GroupSectionNav groupId={group.id} />
       <ProblemAlert message={listError} />
       <ProblemAlert message={actionError} />
+      <ProblemAlert message={inviteError} />
 
       {members === null ? (
         <p aria-live="polite">Loading members…</p>
@@ -185,6 +224,38 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
           })}
         </ul>
       )}
+
+      {isOwner ? (
+        <section className="space-y-3" aria-labelledby="invites-heading">
+          <h3 id="invites-heading" className="font-medium">
+            Outstanding invites
+          </h3>
+          {invites === null ? (
+            <p aria-live="polite">Loading invites…</p>
+          ) : invites.length === 0 ? (
+            <p>No outstanding invites.</p>
+          ) : (
+            <ul className="space-y-3">
+              {invites.map((invite) => (
+                <li key={invite.id} className="flex flex-wrap items-center gap-3 border border-slate-300 p-3">
+                  <p className="text-sm text-slate-700">
+                    Expires {new Date(invite.expiresAt).toLocaleString()}
+                  </p>
+                  <button
+                    type="button"
+                    className={dangerButtonClass}
+                    disabled={revokingId === invite.id}
+                    aria-label={`Revoke invite expiring ${invite.expiresAt}`}
+                    onClick={() => void onRevoke(invite.id)}
+                  >
+                    Revoke
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
 
       {isOwner ? null : (
         <button

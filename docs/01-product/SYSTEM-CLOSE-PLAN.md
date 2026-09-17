@@ -1,6 +1,6 @@
 # System-close plan — Sonivo
 
-**Status:** Gate A **AUTHORIZED** 2026-09-17 (Kevin Esquivel). Phase 3.7 **COMPLETED**.  
+**Status:** Gate A **AUTHORIZED** 2026-09-17 (Kevin Esquivel). Phase 3.7 and 3.8 **COMPLETED**.  
 **Date:** 2026-09-17  
 **Live:** https://sonivo.onrender.com (Free Render + Neon; branch `develop`)  
 **Depends on:** ADR-0005–0006, 0012–0013, 0015–0021; Phases 3.2–3.6 **COMPLETED** on `develop`.
@@ -73,7 +73,9 @@ Group `PATCH` / `DELETE` already exist on the API; SPA has **create/list only**.
 
 **Non-scope for 3.7:** SMTP · invite list/revoke · Guest · roster-on-item · T-3.2.06 · Event location · merge `main`.
 
-### Phase 3.8 — Thin invite hygiene
+### Phase 3.8 — Thin invite hygiene (COMPLETED)
+
+Owner can list outstanding invites and revoke an unused token. Spec: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md).
 
 Owner can list outstanding invites and revoke a unused token. 3.4 froze create+accept only.
 
@@ -123,4 +125,4 @@ Until Gate B: `main` stays the pre-product workflow commit (revert PR [#14](http
 
 ## How to start
 
-Phase 3.7 is **done**. Next Gate A slice is **Phase 3.8** (thin invite list/revoke) after a spec freeze. Do not start Gate B.
+Phase 3.7 and 3.8 are **done**. Next Gate A slice is **T-OPS-01** (DataProtection keys), then optional **Phase 3.9** SMTP. Do not start Gate B.

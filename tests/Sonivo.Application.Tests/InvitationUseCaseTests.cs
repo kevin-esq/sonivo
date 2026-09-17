@@ -137,6 +137,66 @@ public class InvitationUseCaseTests
         Assert.DoesNotContain(groups.Memberships, m => m.Role == MembershipRoles.Member);
     }
 
+    [Fact]
+    public async Task List_outstanding_omits_token_and_accepted()
+    {
+        var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
+        var created = await new CreateInvitationHandler(
+                new GroupAccessService(groups), invitations, new FixedClock(Now))
+            .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
+        invitations.Invitations[0].Accept(Guid.NewGuid(), Now.AddHours(1));
+        var second = await new CreateInvitationHandler(
+                new GroupAccessService(groups), invitations, new FixedClock(Now.AddMinutes(1)))
+            .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
+
+        var list = await new ListInvitationsHandler(
+                new GroupAccessService(groups), invitations, new FixedClock(Now.AddMinutes(2)))
+            .HandleAsync(new ListInvitationsQuery(owner, groupId), CancellationToken.None);
+
+        Assert.Single(list.Items);
+        Assert.Equal(second.Id, list.Items[0].Id);
+        Assert.Equal(second.ExpiresAt, list.Items[0].ExpiresAt);
+    }
+
+    [Fact]
+    public async Task Member_list_throws_forbidden()
+    {
+        var (groups, invitations, _, groupId, member) = await SeedOwnerAndMemberAsync();
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            new ListInvitationsHandler(new GroupAccessService(groups), invitations, new FixedClock(Now))
+                .HandleAsync(new ListInvitationsQuery(member, groupId), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Revoke_unused_removes_row()
+    {
+        var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
+        var created = await new CreateInvitationHandler(
+                new GroupAccessService(groups), invitations, new FixedClock(Now))
+            .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
+
+        await new RevokeInvitationHandler(
+                new GroupAccessService(groups), invitations, new FixedClock(Now.AddMinutes(1)))
+            .HandleAsync(new RevokeInvitationCommand(owner, groupId, created.Id), CancellationToken.None);
+
+        Assert.Empty(invitations.Invitations);
+    }
+
+    [Fact]
+    public async Task Revoke_accepted_throws_conflict()
+    {
+        var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
+        var created = await new CreateInvitationHandler(
+                new GroupAccessService(groups), invitations, new FixedClock(Now))
+            .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
+        invitations.Invitations[0].Accept(Guid.NewGuid(), Now.AddHours(1));
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            new RevokeInvitationHandler(new GroupAccessService(groups), invitations, new FixedClock(Now.AddHours(2)))
+                .HandleAsync(new RevokeInvitationCommand(owner, groupId, created.Id), CancellationToken.None));
+        Assert.Single(invitations.Invitations);
+    }
+
     private static string Sha256Hex(string plaintext)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(plaintext));
@@ -199,6 +259,18 @@ public class InvitationUseCaseTests
 
         public Task<Invitation?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken)
             => Task.FromResult(Invitations.FirstOrDefault(i => i.TokenHash == tokenHash));
+
+        public Task<IReadOnlyList<Invitation>> ListByGroupAsync(Guid groupId, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<Invitation>>(Invitations.Where(i => i.GroupId == groupId).ToList());
+
+        public Task<Invitation?> GetForUpdateAsync(Guid groupId, Guid invitationId, CancellationToken cancellationToken)
+            => Task.FromResult(Invitations.FirstOrDefault(i => i.GroupId == groupId && i.Id == invitationId));
+
+        public Task RemoveAsync(Invitation invitation, CancellationToken cancellationToken)
+        {
+            Invitations.Remove(invitation);
+            return Task.CompletedTask;
+        }
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
