@@ -39,10 +39,10 @@ Convention: JSON; Problem Details ([`TECHNICAL-SPEC.md`](TECHNICAL-SPEC.md) §8)
 | List my Groups | GET | `/api/groups` | Yes | — | Memberships | 200 | 401 |
 | Invite (MVP) | POST | `/api/groups/{groupId}/invitations` | Yes | Owner | Thin 3.4: [`PHASE-3.4-INVITE-SPEC.md`](PHASE-3.4-INVITE-SPEC.md) (link token, no email) | 201 `{ id, token, expiresAt }` | 403, 400, 404 |
 | Accept invite | POST | `/api/invitations/{token}/accept` | Yes | Authenticated | **200** `{ groupId, role }` (spec Q-I8; not 204) | 200 | 400, 409 |
-| List members | GET | `/api/groups/{groupId}/members` | Yes | Member | | 200 | 404 |
-| Remove member | DELETE | `/api/groups/{groupId}/members/{userId}` | Yes | Owner | Owner rules ADR-0013 | 204 | 403, 409 |
-| Promote/demote | POST | `/api/groups/{groupId}/members/{userId}/role` | Yes | Owner | body role | 204 | 403, 409 |
-| Leave | POST | `/api/groups/{groupId}/leave` | Yes | Member/Owner | Last Owner blocked | 204 | 409 |
+| List members | GET | `/api/groups/{groupId}/members` | Yes | Member | Thin 3.7: [`PHASE-3.7-PEOPLE-SPEC.md`](PHASE-3.7-PEOPLE-SPEC.md) | 200 `{ items }` | 401, 404 |
+| Remove member | DELETE | `/api/groups/{groupId}/members/{userId}` | Yes | Owner | ADR-0013; self-remove **400** (use Leave) | 204 | 400, 403, 404, 409 |
+| Promote/demote | POST | `/api/groups/{groupId}/members/{userId}/role` | Yes | Owner | body `{ role: Owner\|Member }` | 204 | 400, 403, 404, 409 |
+| Leave | POST | `/api/groups/{groupId}/leave` | Yes | Member/Owner | Last Owner **409** | 204 | 401, 404, 409 |
 
 ---
 

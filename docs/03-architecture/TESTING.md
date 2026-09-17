@@ -104,3 +104,7 @@ Authoritative matrix: [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md). Shippe
 ### Phase 3.6 — Thin Event PATCH + cancel (COMPLETED)
 
 Authoritative matrix: [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md). **TC-EVT-03 COMPLETE:** Owner PATCH Event title; Cancel event; Event absent from default list.
+
+### Phase 3.7 — Thin People + Group lifecycle (COMPLETED)
+
+Authoritative matrix: [`PHASE-3.7-PEOPLE-SPEC.md`](PHASE-3.7-PEOPLE-SPEC.md). **TC-PPL-01 COMPLETE:** Owner invites; second user accepts; Owner opens People, sees both names; Owner removes Member; Member visiting the Group URL sees not-found.
