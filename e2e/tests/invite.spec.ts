@@ -81,7 +81,7 @@ test.describe('Invite journeys', () => {
     await expect(page.getByRole('button', { name: 'Add setlist' })).toHaveCount(0)
 
     await openLibrary(page)
-    await expect(page.getByRole('button', { name: 'Add song' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Agregar canción' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Invite member' })).toHaveCount(0)
   })
 

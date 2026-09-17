@@ -7,6 +7,8 @@ export function ConfirmDialog({
   title,
   children,
   confirmLabel,
+  cancelLabel = 'Cancel',
+  pendingLabel = 'Working…',
   pending,
   onConfirm,
   onCancel,
@@ -15,6 +17,8 @@ export function ConfirmDialog({
   title: string
   children: ReactNode
   confirmLabel: string
+  cancelLabel?: string
+  pendingLabel?: string
   pending?: boolean
   onConfirm: () => void
   onCancel: () => void
@@ -52,10 +56,10 @@ export function ConfirmDialog({
         <div className="space-y-2 text-slate-600">{children}</div>
         <div className="flex flex-wrap gap-3">
           <Button variant="danger" disabled={pending} onClick={onConfirm}>
-            {pending ? 'Working…' : confirmLabel}
+            {pending ? pendingLabel : confirmLabel}
           </Button>
           <Button variant="secondary" disabled={pending} onClick={onCancel}>
-            Cancel
+            {cancelLabel}
           </Button>
         </div>
       </div>
