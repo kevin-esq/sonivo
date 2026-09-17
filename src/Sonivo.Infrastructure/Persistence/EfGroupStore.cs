@@ -20,6 +20,9 @@ public sealed class EfGroupStore : IGroupStore
         await _db.Memberships.AddAsync(ownerMembership, cancellationToken);
     }
 
+    public Task AddMembershipAsync(Membership membership, CancellationToken cancellationToken)
+        => _db.Memberships.AddAsync(membership, cancellationToken).AsTask();
+
     public async Task<IReadOnlyList<GroupListItem>> ListForUserAsync(Guid userId, CancellationToken cancellationToken)
     {
         return await _db.Memberships

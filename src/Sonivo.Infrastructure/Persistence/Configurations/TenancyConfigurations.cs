@@ -40,3 +40,27 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
             $"\"Role\" IN ('{MembershipRoles.Owner}', '{MembershipRoles.Member}')"));
     }
 }
+
+public sealed class InvitationConfiguration : IEntityTypeConfiguration<Invitation>
+{
+    public void Configure(EntityTypeBuilder<Invitation> builder)
+    {
+        builder.ToTable("Invitations");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.TokenHash).IsRequired().HasMaxLength(64);
+        builder.HasIndex(x => x.TokenHash).IsUnique();
+        builder.HasIndex(x => x.GroupId);
+        builder.HasOne<Group>()
+            .WithMany()
+            .HasForeignKey(x => x.GroupId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(x => x.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(x => x.AcceptedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}

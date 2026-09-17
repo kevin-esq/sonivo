@@ -43,6 +43,7 @@ docs/*        # documentation
 - Do not land feature work directly on `main`.
 - Commits: [Conventional Commits](https://www.conventionalcommits.org/) (e.g. `feat(groups): …`, `fix(auth): …`, `test(e2e): …`, `chore(ci): …`).
 - PRs use `.github/pull_request_template.md` and must pass CI (build, tests, Playwright).
+- **Agent Git authority / checkpoints:** ticket completion ≠ commit/push. After human approval, a Git checkpoint is required before treating work as durably closed. Full policy: [`AGENTS.md`](AGENTS.md) (Git section). Session state: [`.scratch/NOW.md`](.scratch/NOW.md).
 
 ## Local PostgreSQL (Docker)
 

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ApiError,
   createGroup,
+  createInvitation,
   fetchCurrentUser,
   getGroup,
   listMyGroups,
@@ -15,6 +16,23 @@ import {
   type GroupDetail,
   type GroupSummary,
 } from './api/client'
+import { ArrangementDetailPage } from './repertoire/ArrangementDetailPage'
+import { LibraryPage } from './repertoire/LibraryPage'
+import { SongDetailPage } from './repertoire/SongDetailPage'
+import {
+  fieldClass,
+  isOwnerRole,
+  mutationErrorMessage,
+  primaryButtonClass,
+  ProblemAlert,
+  secondaryButtonClass,
+} from './repertoire/ui'
+import { EventDetailPage } from './scheduling/EventDetailPage'
+import { EventListPage } from './scheduling/EventListPage'
+import { GroupSectionNav } from './scheduling/GroupSectionNav'
+import { SetlistDetailPage } from './scheduling/SetlistDetailPage'
+import { SetlistListPage } from './scheduling/SetlistListPage'
+import { JoinPage, safeJoinNextPath } from './tenancy/JoinPage'
 
 function Shell({
   user,
@@ -25,13 +43,18 @@ function Shell({
   onLogout: () => void
   children: React.ReactNode
 }) {
+  const [searchParams] = useSearchParams()
+  const next = safeJoinNextPath(searchParams.get('next'))
+  const loginTo = next ? `/login?next=${encodeURIComponent(next)}` : '/login'
+  const registerTo = next ? `/register?next=${encodeURIComponent(next)}` : '/register'
+
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-6 py-10">
       <header className="border-b border-slate-300 pb-4">
         <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Sonivo</p>
         <h1 className="mt-2 text-3xl font-semibold">Groups</h1>
         <p className="mt-2 text-slate-600">
-          Create and select a musical group. Later features stay out of this slice.
+          Create and select a musical group. Open the library from a group to manage songs.
         </p>
         <nav className="mt-4 flex flex-wrap items-center gap-4 text-sm" aria-label="Primary">
           <Link className="underline" to="/">
@@ -46,10 +69,10 @@ function Shell({
             </>
           ) : (
             <>
-              <Link className="underline" to="/login">
+              <Link className="underline" to={loginTo}>
                 Log in
               </Link>
-              <Link className="underline" to="/register">
+              <Link className="underline" to={registerTo}>
                 Register
               </Link>
             </>
@@ -74,6 +97,16 @@ function AuthForm({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const next = safeJoinNextPath(searchParams.get('next'))
+  const otherModeTo =
+    mode === 'login'
+      ? next
+        ? `/register?next=${encodeURIComponent(next)}`
+        : '/register'
+      : next
+        ? `/login?next=${encodeURIComponent(next)}`
+        : '/login'
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -88,7 +121,7 @@ function AuthForm({
         const user = await loginUser({ email, password })
         onSuccess(user)
       }
-      navigate('/')
+      navigate(next ?? '/')
     } catch (err) {
       setError(problemDetail(err))
     } finally {
@@ -145,8 +178,36 @@ function AuthForm({
       >
         {pending ? 'Working…' : mode === 'login' ? 'Log in' : 'Register'}
       </button>
+      <p>
+        {mode === 'login' ? (
+          <Link className="underline" to={otherModeTo}>
+            Register
+          </Link>
+        ) : (
+          <Link className="underline" to={otherModeTo}>
+            Log in
+          </Link>
+        )}
+      </p>
     </form>
   )
+}
+
+function GuestAuthRoute({
+  user,
+  mode,
+  onSuccess,
+}: {
+  user: CurrentUser | null | undefined
+  mode: 'login' | 'register'
+  onSuccess: (user: CurrentUser) => void
+}) {
+  const [searchParams] = useSearchParams()
+  const next = safeJoinNextPath(searchParams.get('next'))
+  if (user) {
+    return <Navigate to={next ?? '/'} replace />
+  }
+  return <AuthForm mode={mode} onSuccess={onSuccess} />
 }
 
 function GroupsPage({ user }: { user: CurrentUser }) {
@@ -242,6 +303,10 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [inviting, setInviting] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -249,6 +314,9 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
       if (!groupId) return
       setGroup(undefined)
       setError(null)
+      setInviteUrl(null)
+      setInviteError(null)
+      setCopied(false)
       try {
         const result = await getGroup(groupId)
         if (!cancelled) setGroup(result)
@@ -267,6 +335,33 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
       cancelled = true
     }
   }, [groupId, user.id])
+
+  const isOwner = isOwnerRole(group?.role)
+
+  async function onInviteMember() {
+    if (!group) return
+    setInviting(true)
+    setInviteError(null)
+    setCopied(false)
+    try {
+      const created = await createInvitation(group.id)
+      setInviteUrl(`${window.location.origin}/join/${created.token}`)
+    } catch (err) {
+      setInviteError(mutationErrorMessage(err))
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  async function onCopyInviteLink() {
+    if (!inviteUrl) return
+    try {
+      await navigator.clipboard.writeText(inviteUrl)
+      setCopied(true)
+    } catch {
+      setCopied(false)
+    }
+  }
 
   if (group === undefined) {
     return <p aria-live="polite">Loading group…</p>
@@ -294,12 +389,45 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
         Selected group shell. Role: <strong>{group.role}</strong>. Version:{' '}
         <strong>{group.version}</strong>.
       </p>
-      <p className="text-slate-600">
-        Repertoire, setlists, and events are not part of this phase.
-      </p>
-      <Link className="underline" to="/">
-        Back to my groups
-      </Link>
+      <GroupSectionNav groupId={group.id} />
+      {isOwner ? (
+        <div className="space-y-3">
+          <button
+            type="button"
+            className={primaryButtonClass}
+            disabled={inviting}
+            onClick={() => void onInviteMember()}
+          >
+            {inviting ? 'Working…' : 'Invite member'}
+          </button>
+          <ProblemAlert message={inviteError} />
+          {inviteUrl ? (
+            <div className="max-w-md space-y-2">
+              <label className="block space-y-1">
+                <span className="text-sm text-slate-700">Invite link</span>
+                <input className={fieldClass} readOnly value={inviteUrl} />
+              </label>
+              <button
+                type="button"
+                className={secondaryButtonClass}
+                onClick={() => void onCopyInviteLink()}
+              >
+                Copy invite link
+              </button>
+              {copied ? (
+                <p aria-live="polite" className="text-sm text-slate-600">
+                  Copied
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      <nav className="flex flex-wrap gap-4" aria-label="Account">
+        <Link className="underline" to="/">
+          Back to my groups
+        </Link>
+      </nav>
     </section>
   )
 }
@@ -361,24 +489,69 @@ export default function App() {
           }
         />
         <Route
-          path="/login"
+          path="/groups/:groupId/library"
           element={
-            user ? (
-              <Navigate to="/" replace />
-            ) : (
-              <AuthForm mode="login" onSuccess={setUser} />
-            )
+            <RequireAuth user={user}>
+              <LibraryPage user={user!} />
+            </RequireAuth>
           }
         />
         <Route
-          path="/register"
+          path="/groups/:groupId/setlists"
           element={
-            user ? (
-              <Navigate to="/" replace />
-            ) : (
-              <AuthForm mode="register" onSuccess={setUser} />
-            )
+            <RequireAuth user={user}>
+              <SetlistListPage user={user!} />
+            </RequireAuth>
           }
+        />
+        <Route
+          path="/groups/:groupId/setlists/:setlistId"
+          element={
+            <RequireAuth user={user}>
+              <SetlistDetailPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/events"
+          element={
+            <RequireAuth user={user}>
+              <EventListPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/events/:eventId"
+          element={
+            <RequireAuth user={user}>
+              <EventDetailPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/songs/:songId"
+          element={
+            <RequireAuth user={user}>
+              <SongDetailPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/arrangements/:arrangementId"
+          element={
+            <RequireAuth user={user}>
+              <ArrangementDetailPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route path="/join/:token" element={<JoinPage user={user} />} />
+        <Route
+          path="/login"
+          element={<GuestAuthRoute user={user} mode="login" onSuccess={setUser} />}
+        />
+        <Route
+          path="/register"
+          element={<GuestAuthRoute user={user} mode="register" onSuccess={setUser} />}
         />
       </Routes>
     </Shell>

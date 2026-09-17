@@ -13,10 +13,23 @@ public class AggregateFoundationTests
         IVersionedEntity[] roots =
         [
             Group.Create("Band", now),
-            new Domain.Repertoire.Song { Title = "Song" },
-            new Domain.Repertoire.Arrangement { Label = "Default" },
-            new Setlist { Name = "Template" },
-            new Event { Type = EventTypes.Rehearsal, Title = "Thu", Status = EventStatuses.Scheduled }
+            Domain.Repertoire.Song.Create(
+                Guid.NewGuid(),
+                "Song",
+                Domain.Repertoire.SongOriginKinds.Original,
+                now),
+            Domain.Repertoire.Arrangement.Create(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                "Acoustic",
+                now),
+            Setlist.Create(Guid.NewGuid(), "Template", now),
+            Event.Create(
+                Guid.NewGuid(),
+                "Thu",
+                EventTypes.Rehearsal,
+                now.AddDays(1),
+                now)
         ];
 
         Assert.All(roots, r => Assert.Equal(1, r.Version));

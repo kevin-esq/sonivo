@@ -164,10 +164,491 @@ export async function getGroup(groupId: string): Promise<GroupDetail> {
   return apiRequest<GroupDetail>(`/api/groups/${groupId}`)
 }
 
+export type InvitationCreated = {
+  id: string
+  token: string
+  expiresAt: string
+}
+
+export type InvitationAccepted = {
+  groupId: string
+  role: string
+}
+
+export async function createInvitation(groupId: string): Promise<InvitationCreated> {
+  return apiRequest<InvitationCreated>(`/api/groups/${groupId}/invitations`, {
+    method: 'POST',
+    body: {},
+  })
+}
+
+export async function acceptInvitation(token: string): Promise<InvitationAccepted> {
+  return apiRequest<InvitationAccepted>(
+    `/api/invitations/${encodeURIComponent(token)}/accept`,
+    { method: 'POST' },
+  )
+}
+
 export function problemDetail(error: unknown): string {
   if (error instanceof ApiError) {
-    const body = error.body as { detail?: string; title?: string } | undefined
+    const body = error.body as
+      | { detail?: string; title?: string; errors?: Record<string, string[] | string> }
+      | undefined
+    if (body?.errors && typeof body.errors === 'object') {
+      const parts = Object.entries(body.errors).flatMap(([key, value]) => {
+        if (Array.isArray(value)) {
+          return value.map((item) => `${key}: ${item}`)
+        }
+        return [`${key}: ${value}`]
+      })
+      if (parts.length > 0) {
+        return parts.join(' ')
+      }
+    }
     return body?.detail ?? body?.title ?? error.message
   }
   return 'Unexpected error'
+}
+
+export function isConflictError(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409
+}
+
+export type SongOriginKind = 'original' | 'cover' | 'other'
+
+export type SongListItem = {
+  id: string
+  title: string
+  attribution: string | null
+  originKind: SongOriginKind
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type SongDetail = SongListItem & {
+  rightsNotes: string | null
+  arrangementCount: number
+}
+
+export type ResourcePurpose =
+  | 'chart'
+  | 'lyrics'
+  | 'audio'
+  | 'click'
+  | 'reference'
+  | 'practice'
+  | 'other'
+
+export type ResourceSummary = {
+  id: string
+  arrangementId: string
+  kind: string
+  purpose: ResourcePurpose | string
+  label: string
+  part: string | null
+  note: string | null
+  url: string | null
+  createdAt: string
+}
+
+export type ArrangementListItem = {
+  id: string
+  songId: string
+  label: string
+  defaultKey: string | null
+  defaultBpm: number | null
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type ArrangementDetail = ArrangementListItem & {
+  lyrics: string | null
+  chords: string | null
+  structure: string | null
+  notes: string | null
+  resources: ResourceSummary[]
+}
+
+export type ResourceDetail = ResourceSummary
+
+export async function listSongs(groupId: string): Promise<SongListItem[]> {
+  return apiRequest<SongListItem[]>(`/api/groups/${groupId}/songs`)
+}
+
+export async function createSong(
+  groupId: string,
+  input: {
+    title: string
+    originKind: SongOriginKind
+    attribution?: string | null
+    rightsNotes?: string | null
+  },
+): Promise<SongDetail> {
+  return apiRequest<SongDetail>(`/api/groups/${groupId}/songs`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function getSong(groupId: string, songId: string): Promise<SongDetail> {
+  return apiRequest<SongDetail>(`/api/groups/${groupId}/songs/${songId}`)
+}
+
+export async function updateSong(
+  groupId: string,
+  songId: string,
+  input: {
+    expectedVersion: number
+    title?: string | null
+    originKind?: SongOriginKind | null
+    attribution?: string | null
+    rightsNotes?: string | null
+  },
+): Promise<SongDetail> {
+  return apiRequest<SongDetail>(`/api/groups/${groupId}/songs/${songId}`, {
+    method: 'PATCH',
+    body: input,
+  })
+}
+
+export async function deleteSong(
+  groupId: string,
+  songId: string,
+  expectedVersion: number,
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/songs/${songId}`, {
+    method: 'DELETE',
+    body: { expectedVersion },
+  })
+}
+
+export async function listArrangements(
+  groupId: string,
+  songId: string,
+): Promise<ArrangementListItem[]> {
+  return apiRequest<ArrangementListItem[]>(
+    `/api/groups/${groupId}/songs/${songId}/arrangements`,
+  )
+}
+
+export async function createArrangement(
+  groupId: string,
+  songId: string,
+  input: {
+    label: string
+    defaultKey?: string | null
+    defaultBpm?: number | null
+    lyrics?: string | null
+    chords?: string | null
+    structure?: string | null
+    notes?: string | null
+  },
+): Promise<ArrangementDetail> {
+  return apiRequest<ArrangementDetail>(
+    `/api/groups/${groupId}/songs/${songId}/arrangements`,
+    { method: 'POST', body: input },
+  )
+}
+
+export async function getArrangement(
+  groupId: string,
+  arrangementId: string,
+): Promise<ArrangementDetail> {
+  return apiRequest<ArrangementDetail>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}`,
+  )
+}
+
+export async function updateArrangement(
+  groupId: string,
+  arrangementId: string,
+  input: {
+    expectedVersion: number
+    label?: string | null
+    defaultKey?: string | null
+    defaultBpm?: number | null
+    lyrics?: string | null
+    chords?: string | null
+    structure?: string | null
+    notes?: string | null
+  },
+): Promise<ArrangementDetail> {
+  return apiRequest<ArrangementDetail>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}`,
+    { method: 'PATCH', body: input },
+  )
+}
+
+export async function deleteArrangement(
+  groupId: string,
+  arrangementId: string,
+  expectedVersion: number,
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/arrangements/${arrangementId}`, {
+    method: 'DELETE',
+    body: { expectedVersion },
+  })
+}
+
+export async function listResources(
+  groupId: string,
+  arrangementId: string,
+): Promise<ResourceSummary[]> {
+  return apiRequest<ResourceSummary[]>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/resources`,
+  )
+}
+
+export async function createLinkResource(
+  groupId: string,
+  arrangementId: string,
+  input: {
+    purpose: ResourcePurpose
+    label: string
+    url: string
+    part?: string | null
+    note?: string | null
+  },
+): Promise<ResourceDetail> {
+  return apiRequest<ResourceDetail>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/resources`,
+    {
+      method: 'POST',
+      body: {
+        kind: 'link',
+        purpose: input.purpose,
+        label: input.label,
+        url: input.url,
+        part: input.part,
+        note: input.note,
+      },
+    },
+  )
+}
+
+export async function getResource(
+  groupId: string,
+  arrangementId: string,
+  resourceId: string,
+): Promise<ResourceDetail> {
+  return apiRequest<ResourceDetail>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/resources/${resourceId}`,
+  )
+}
+
+export async function updateLinkResource(
+  groupId: string,
+  arrangementId: string,
+  resourceId: string,
+  input: {
+    purpose?: ResourcePurpose | null
+    label?: string | null
+    part?: string | null
+    note?: string | null
+  },
+): Promise<ResourceDetail> {
+  return apiRequest<ResourceDetail>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/resources/${resourceId}`,
+    { method: 'PATCH', body: input },
+  )
+}
+
+export type SetlistListItem = {
+  id: string
+  name: string
+  version: number
+  itemCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type SetlistItem = {
+  id: string
+  arrangementId: string
+  sortOrder: number
+  songTitle: string | null
+  arrangementLabel: string | null
+}
+
+export type SetlistDetail = {
+  id: string
+  name: string
+  version: number
+  createdAt: string
+  updatedAt: string
+  items: SetlistItem[]
+}
+
+export type EventType = 'rehearsal' | 'performance' | 'other'
+
+export type EventListItem = {
+  id: string
+  title: string
+  type: EventType | string
+  startsAt: string
+  status: string
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type EventPlanItem = {
+  id: string
+  arrangementId: string
+  sortOrder: number
+  displaySongTitle: string
+  displayArrangementLabel: string
+}
+
+export type EventDetail = {
+  id: string
+  title: string
+  type: EventType | string
+  startsAt: string
+  status: string
+  version: number
+  createdAt: string
+  updatedAt: string
+  sourceSetlistId: string | null
+  items: EventPlanItem[]
+}
+
+export async function listSetlists(groupId: string): Promise<SetlistListItem[]> {
+  return apiRequest<SetlistListItem[]>(`/api/groups/${groupId}/setlists`)
+}
+
+export async function createSetlist(groupId: string, name: string): Promise<SetlistDetail> {
+  return apiRequest<SetlistDetail>(`/api/groups/${groupId}/setlists`, {
+    method: 'POST',
+    body: { name },
+  })
+}
+
+export async function getSetlist(groupId: string, setlistId: string): Promise<SetlistDetail> {
+  return apiRequest<SetlistDetail>(`/api/groups/${groupId}/setlists/${setlistId}`)
+}
+
+export async function renameSetlist(
+  groupId: string,
+  setlistId: string,
+  expectedVersion: number,
+  name: string,
+): Promise<SetlistDetail> {
+  return apiRequest<SetlistDetail>(`/api/groups/${groupId}/setlists/${setlistId}`, {
+    method: 'PATCH',
+    body: { expectedVersion, name },
+  })
+}
+
+export async function replaceSetlistItems(
+  groupId: string,
+  setlistId: string,
+  expectedVersion: number,
+  items: { arrangementId: string; sortOrder: number }[],
+): Promise<SetlistDetail> {
+  return apiRequest<SetlistDetail>(`/api/groups/${groupId}/setlists/${setlistId}/items`, {
+    method: 'PUT',
+    body: { expectedVersion, items },
+  })
+}
+
+export async function listEvents(groupId: string): Promise<EventListItem[]> {
+  return apiRequest<EventListItem[]>(`/api/groups/${groupId}/events`)
+}
+
+export async function createEvent(
+  groupId: string,
+  input: { title: string; type: EventType; startsAt: string },
+): Promise<EventDetail> {
+  return apiRequest<EventDetail>(`/api/groups/${groupId}/events`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function getEvent(groupId: string, eventId: string): Promise<EventDetail> {
+  return apiRequest<EventDetail>(`/api/groups/${groupId}/events/${eventId}`)
+}
+
+export async function patchEvent(
+  groupId: string,
+  eventId: string,
+  input: { expectedVersion: number; title?: string; type?: EventType; startsAt?: string },
+): Promise<EventDetail> {
+  return apiRequest<EventDetail>(`/api/groups/${groupId}/events/${eventId}`, {
+    method: 'PATCH',
+    body: input,
+  })
+}
+
+export async function cancelEvent(
+  groupId: string,
+  eventId: string,
+  expectedVersion: number,
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/events/${eventId}/cancel`, {
+    method: 'POST',
+    body: { expectedVersion },
+  })
+}
+
+export async function applySetlistToEvent(
+  groupId: string,
+  eventId: string,
+  input: { setlistId: string; expectedVersion: number; confirmReplace?: boolean },
+): Promise<EventDetail> {
+  return apiRequest<EventDetail>(
+    `/api/groups/${groupId}/events/${eventId}/apply-setlist`,
+    { method: 'POST', body: input },
+  )
+}
+
+export type EventRsvpResponse = 'yes' | 'no' | 'maybe'
+
+export type EventRsvpItem = {
+  userId: string
+  displayName: string
+  response: EventRsvpResponse | string
+  updatedAt: string
+}
+
+export type EventRsvpList = {
+  items: EventRsvpItem[]
+}
+
+export type EventRsvpUpsertResult = {
+  userId: string
+  response: EventRsvpResponse | string
+  updatedAt: string
+}
+
+export async function upsertEventRsvp(
+  groupId: string,
+  eventId: string,
+  response: EventRsvpResponse,
+): Promise<EventRsvpUpsertResult> {
+  return apiRequest<EventRsvpUpsertResult>(
+    `/api/groups/${groupId}/events/${eventId}/rsvp`,
+    { method: 'PUT', body: { response } },
+  )
+}
+
+export async function listEventRsvps(
+  groupId: string,
+  eventId: string,
+): Promise<EventRsvpList> {
+  return apiRequest<EventRsvpList>(`/api/groups/${groupId}/events/${eventId}/rsvps`)
+}
+
+export async function deleteResource(
+  groupId: string,
+  arrangementId: string,
+  resourceId: string,
+): Promise<void> {
+  await apiRequest<void>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/resources/${resourceId}`,
+    { method: 'DELETE' },
+  )
 }
