@@ -2,8 +2,8 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-17 (T-OPS-01 DataProtection keys COMPLETED; 3.8 merged PR #16)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.8 **COMPLETED** on `develop`. T-OPS-01 DataProtection keys persist in Postgres. Live host pack on `develop` (https://sonivo.onrender.com). T-3.2.06 file Resource **DEFERRED**. SMTP **DEFERRED**. **Do not merge `main` until Gate B** ([`SYSTEM-CLOSE-PLAN.md`](../01-product/SYSTEM-CLOSE-PLAN.md)): Gate A remaining = optional SMTP + T-OPS-02; Gate B = UI redesign then `main`.  
+**Last updated:** 2026-09-17 (Phase 3.9 invite email COMPLETED; T-OPS-01 DataProtection keys COMPLETED)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** (3.9 pending merge to `develop` in this slice). T-OPS-01 DataProtection keys persist in Postgres. Live host pack on `develop` (https://sonivo.onrender.com). T-3.2.06 file Resource **DEFERRED**. **Do not merge `main` until Gate B** ([`SYSTEM-CLOSE-PLAN.md`](../01-product/SYSTEM-CLOSE-PLAN.md)): Gate A remaining = T-OPS-02; Gate B = UI redesign then `main`.  
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
@@ -64,7 +64,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 20. Stack/auth/session per ADR-0009–0011; modular monolith; no microservices/CQRS/ES.  
 21. Tooling ADR-0002 ACCEPTED; Phase 0 CLOSED.  
-22. Application foundation (Phase 2.3) + Group slice + Phase 3.2 approved repertoire slice + Phase 3.3 thin S2 (Setlist → Event apply + UI + E2E) + Phase 3.4 thin invites (link token, no email; PR [#8](https://github.com/kevin-esq/sonivo/pull/8), merge `8db0714`) + Phase 3.5 thin RSVP (T-3.5.01–03; PR [#10](https://github.com/kevin-esq/sonivo/pull/10), merge `cbc8824`) + Phase 3.6 Event PATCH/cancel (T-3.6.01–03) + Phase 3.7 People (T-3.7.01–03, PR [#15](https://github.com/kevin-esq/sonivo/pull/15), merge `0e0de72`) + Phase 3.8 invite hygiene (T-3.8.01–03) exist. File Resource (T-3.2.06) remains **DEFERRED**. SMTP remains **DEFERRED**.  
+22. Application foundation (Phase 2.3) + Group slice + Phase 3.2 approved repertoire slice + Phase 3.3 thin S2 (Setlist → Event apply + UI + E2E) + Phase 3.4 thin invites (link token; PR [#8](https://github.com/kevin-esq/sonivo/pull/8), merge `8db0714`) + Phase 3.5 thin RSVP (T-3.5.01–03; PR [#10](https://github.com/kevin-esq/sonivo/pull/10), merge `cbc8824`) + Phase 3.6 Event PATCH/cancel (T-3.6.01–03) + Phase 3.7 People (T-3.7.01–03, PR [#15](https://github.com/kevin-esq/sonivo/pull/15), merge `0e0de72`) + Phase 3.8 invite hygiene (T-3.8.01–03) + Phase 3.9 optional invite email (T-3.9.01–03; link still canonical; Resend best-effort) exist. File Resource (T-3.2.06) remains **DEFERRED**. Event/RSVP notification mail remains **DEFERRED**.  
 23. Phase 2 technical docs under `docs/03-architecture/` (ARCHITECTURE, TECHNICAL-SPEC, API, SECURITY, TESTING, PERSISTENCE).  
 24. ADR-0019–0021 **ACCEPTED** — Phase 2.1.  
 25. ADR-0022–0023 **ACCEPTED** — Phase 2.2; integer `Version` concurrency ACCEPTED.  
@@ -72,7 +72,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 27. Phase 3.0–3.0.2.1 CLOSED (Group slice; Compose Postgres; CI/Playwright; public repo audit).  
 28. Phase 3.0.3 **CLOSED** — ADR-0024 **ACCEPTED** (practice Resources / Part metadata).  
 29. Phase 3.1 **CLOSED** — ADR-0025 **ACCEPTED**.  
-30. Phase 3.2 approved scope **COMPLETED** (T-3.2.01–05, 07, 08): Song / Arrangement / **Link** Resource with **nested** Resource routes; migration `AlignRepertoireToAdr0024And0025`; React Library Shell (Owner mutate / Member read UX, expectedVersion conflict UX); sparse Playwright TC-LIB-01/02/03 (Member browser E2E and 409 E2E deferred). File Resource / blob / `IBlobStore` / upload / content (**T-3.2.06**) remains **DEFERRED**. Phase 3.3 thin S2 **COMPLETED** on `develop` (T-3.3.01–05, PR #6 / `80f5f63`): Setlist → Event apply → React UI → Playwright (TC-EVT-01/02). Phase 3.4 thin invites **COMPLETED** on `develop` (T-3.4.01–03, PR #8 / `8db0714`): link token, no email. Phase 3.5 thin RSVP **COMPLETED** on `develop` (T-3.5.01–03, PR [#10](https://github.com/kevin-esq/sonivo/pull/10) / `cbc8824`) per [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md): Event `yes`/`no`/`maybe` upsert + Attendance UI + TC-RSVP-01. Phase 3.6 thin Event PATCH/cancel **COMPLETED** (T-3.6.01–03) per [`PHASE-3.6-EVENT-SPEC.md`](../03-architecture/PHASE-3.6-EVENT-SPEC.md): Owner title/type/startsAt PATCH + cancel/soft-hide + TC-EVT-03. Phase 3.7 thin People **COMPLETED** (T-3.7.01–03) per [`PHASE-3.7-PEOPLE-SPEC.md`](../03-architecture/PHASE-3.7-PEOPLE-SPEC.md): members list/remove/role/leave + People UI + Group rename/soft-delete + TC-PPL-01. Phase 3.8 thin invite hygiene **COMPLETED** (T-3.8.01–03) per [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md): outstanding invite list/revoke + TC-INV-02. SMTP remains **DEFERRED**. No merge to `main`.
+30. Phase 3.2 approved scope **COMPLETED** (T-3.2.01–05, 07, 08): Song / Arrangement / **Link** Resource with **nested** Resource routes; migration `AlignRepertoireToAdr0024And0025`; React Library Shell (Owner mutate / Member read UX, expectedVersion conflict UX); sparse Playwright TC-LIB-01/02/03 (Member browser E2E and 409 E2E deferred). File Resource / blob / `IBlobStore` / upload / content (**T-3.2.06**) remains **DEFERRED**. Phase 3.3 thin S2 **COMPLETED** on `develop` (T-3.3.01–05, PR #6 / `80f5f63`): Setlist → Event apply → React UI → Playwright (TC-EVT-01/02). Phase 3.4 thin invites **COMPLETED** on `develop` (T-3.4.01–03, PR #8 / `8db0714`): link token, no email. Phase 3.5 thin RSVP **COMPLETED** on `develop` (T-3.5.01–03, PR [#10](https://github.com/kevin-esq/sonivo/pull/10) / `cbc8824`) per [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md): Event `yes`/`no`/`maybe` upsert + Attendance UI + TC-RSVP-01. Phase 3.6 thin Event PATCH/cancel **COMPLETED** (T-3.6.01–03) per [`PHASE-3.6-EVENT-SPEC.md`](../03-architecture/PHASE-3.6-EVENT-SPEC.md): Owner title/type/startsAt PATCH + cancel/soft-hide + TC-EVT-03. Phase 3.7 thin People **COMPLETED** (T-3.7.01–03) per [`PHASE-3.7-PEOPLE-SPEC.md`](../03-architecture/PHASE-3.7-PEOPLE-SPEC.md): members list/remove/role/leave + People UI + Group rename/soft-delete + TC-PPL-01. Phase 3.8 thin invite hygiene **COMPLETED** (T-3.8.01–03) per [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md): outstanding invite list/revoke + TC-INV-02. Phase 3.9 optional invite email **COMPLETED** (T-3.9.01–03) per [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md): Resend outbound of the join URL; `emailed` best-effort; TC-INV-03. Event/RSVP mail remains **DEFERRED**. No merge to `main`.
 
 ---
 
@@ -96,7 +96,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 | **Q10** | Billing |
 | **Q11** | Native mobile / PWA |
 | — | Hosting · account-deletion product |
-| — | Invite mechanics: thin 3.4 freeze **Q-I1–I8** ([`PHASE-3.4-INVITE-SPEC.md`](../03-architecture/PHASE-3.4-INVITE-SPEC.md)); email invites remain **FUTURE** |
+| — | Invite mechanics: thin 3.4 freeze **Q-I1–I8** (link canonical); thin 3.9 optional Resend outbound ([`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md)); Event/RSVP mail remains **FUTURE** |
 | — | Blob vendor · exact session TTLs · upload size caps |
 
 ---
@@ -115,7 +115,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 ## FUTURE
 
-Organization · Event resources · Member edits · albums · live tools · social login · mobile bearer · blob GC · account deletion · email invites · ChordPro · realtime · billing · duration/transitions · Arrangement status · Resource soft-delete undo
+Organization · Event resources · Member edits · albums · live tools · social login · mobile bearer · blob GC · account deletion · Event/RSVP notification mail · ChordPro · realtime · billing · duration/transitions · Arrangement status · Resource soft-delete undo
 
 ---
 

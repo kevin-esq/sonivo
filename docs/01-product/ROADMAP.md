@@ -10,9 +10,10 @@ Product sequencing.
 **Phase 3.6 thin Event PATCH/cancel COMPLETED** — T-3.6.01–03. Spec: [`PHASE-3.6-EVENT-SPEC.md`](../03-architecture/PHASE-3.6-EVENT-SPEC.md).  
 **Phase 3.7 thin People COMPLETED** — T-3.7.01–03. Spec: [`PHASE-3.7-PEOPLE-SPEC.md`](../03-architecture/PHASE-3.7-PEOPLE-SPEC.md).  
 **Phase 3.8 thin invite hygiene COMPLETED** — T-3.8.01–03. Spec: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md).  
-**Deferred:** T-3.2.06 file Resource / blob / content; SMTP. Do not merge to `main`.  
+**Phase 3.9 thin invite email COMPLETED** — T-3.9.01–03. Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md).  
+**Deferred:** T-3.2.06 file Resource / blob / content. Do not merge to `main`.  
 **System close:** [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md) — Gate A (functional loop on `develop`) then Gate B (UI redesign → `main`).  
-**Next:** Phase 3.9 SMTP optional; T-OPS-02 Render GitHub app (manual).
+**Next:** T-OPS-02 Render GitHub app (manual). Gate B after that.
 
 Product/code features beyond authorized tickets require **explicit** human approval.
 
@@ -90,6 +91,14 @@ Owner lists outstanding unused invites and revokes a token. Spec: [`PHASE-3.8-IN
 - [x] T-3.8.02 React on People
 - [x] T-3.8.03 Sparse Playwright (TC-INV-02)
 
+### Phase 3.9 — Thin invite email (COMPLETED)
+
+Optional Resend outbound of the existing join link. Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md).
+
+- [x] T-3.9.01 IEmailSender + Resend + create-invite `email`/`emailed`
+- [x] T-3.9.02 React optional invite email + warning
+- [x] T-3.9.03 Playwright without Resend (including TC-INV-03)
+
 ### Gate A — close the functional system
 
 Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redesign is **Gate B**, after this.
@@ -97,7 +106,8 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 - [x] Phase 3.7 thin People + Group lifecycle (list/remove/role/leave + rename/soft-delete UI)
 - [x] Phase 3.8 thin invite list/revoke
 - [x] T-OPS-01 DataProtection keys on Render (re-login after deploy)
-- [ ] Phase 3.9 SMTP — optional; separate auth; after 3.7
+- [x] Phase 3.9 SMTP — optional Resend invite email
+- [ ] T-OPS-02 Render GitHub app access (Kevin)
 
 ### Gate B — product close (after Gate A)
 
@@ -108,7 +118,7 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 ### Later (only when authorized)
 
 - File Resource / blob storage (T-3.2.06)  
-- Email invites (if not taken as 3.9)  
+- Event/RSVP notification mail  
 
 ---
 
@@ -120,4 +130,4 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 
 ## Remaining OPEN
 
-Q8 chart format · Q9 realtime · Q10 billing · Q11 mobile/PWA · account deletion · hosting · invite mechanics thin freeze **Q-I1–I8** (email invites **FUTURE**) · blob vendor · session TTLs · **Q-R1/Q-R2 file Resource (deferred)** · **Q-R3 max lengths** (provisional OK for link slice)
+Q8 chart format · Q9 realtime · Q10 billing · Q11 mobile/PWA · account deletion · hosting · invite mechanics thin freeze **Q-I1–I8** + **Q-M1–M9** (Event/RSVP mail **FUTURE**) · blob vendor · session TTLs · **Q-R1/Q-R2 file Resource (deferred)** · **Q-R3 max lengths** (provisional OK for link slice)

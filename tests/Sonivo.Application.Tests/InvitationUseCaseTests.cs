@@ -14,8 +14,7 @@ public class InvitationUseCaseTests
     public async Task Owner_create_stores_hash_not_plaintext()
     {
         var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
-        var handler = new CreateInvitationHandler(
-            new GroupAccessService(groups), invitations, new FixedClock(Now));
+        var handler = InviteHandler(groups, invitations);
 
         var created = await handler.HandleAsync(
             new CreateInvitationCommand(owner, groupId),
@@ -23,6 +22,7 @@ public class InvitationUseCaseTests
 
         Assert.NotEqual(Guid.Empty, created.Id);
         Assert.False(string.IsNullOrWhiteSpace(created.Token));
+        Assert.False(created.Emailed);
         Assert.True(Convert.FromHexString(created.Token).Length >= 16);
         Assert.Equal(Now.AddDays(7), created.ExpiresAt);
         Assert.Single(invitations.Invitations);
@@ -39,8 +39,7 @@ public class InvitationUseCaseTests
     public async Task Member_create_throws_forbidden()
     {
         var (groups, invitations, _, groupId, member) = await SeedOwnerAndMemberAsync();
-        var handler = new CreateInvitationHandler(
-            new GroupAccessService(groups), invitations, new FixedClock(Now));
+        var handler = InviteHandler(groups, invitations);
 
         await Assert.ThrowsAsync<ForbiddenException>(() =>
             handler.HandleAsync(new CreateInvitationCommand(member, groupId), CancellationToken.None));
@@ -51,8 +50,7 @@ public class InvitationUseCaseTests
     public async Task Non_member_create_throws_not_found()
     {
         var (groups, invitations, _, groupId) = await SeedOwnerAsync();
-        var handler = new CreateInvitationHandler(
-            new GroupAccessService(groups), invitations, new FixedClock(Now));
+        var handler = InviteHandler(groups, invitations);
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
             handler.HandleAsync(
@@ -65,8 +63,7 @@ public class InvitationUseCaseTests
     public async Task Accept_success_creates_member_in_one_save()
     {
         var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
-        var created = await new CreateInvitationHandler(
-                new GroupAccessService(groups), invitations, new FixedClock(Now))
+        var created = await InviteHandler(groups, invitations)
             .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
 
         var invitee = Guid.NewGuid();
@@ -89,8 +86,7 @@ public class InvitationUseCaseTests
     public async Task Accept_replay_throws_validation()
     {
         var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
-        var created = await new CreateInvitationHandler(
-                new GroupAccessService(groups), invitations, new FixedClock(Now))
+        var created = await InviteHandler(groups, invitations)
             .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
 
         var invitee = Guid.NewGuid();
@@ -109,8 +105,7 @@ public class InvitationUseCaseTests
     public async Task Accept_already_member_throws_conflict()
     {
         var (groups, invitations, owner, groupId, member) = await SeedOwnerAndMemberAsync();
-        var created = await new CreateInvitationHandler(
-                new GroupAccessService(groups), invitations, new FixedClock(Now))
+        var created = await InviteHandler(groups, invitations)
             .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
 
         var unitOfWork = new FakeUnitOfWork();
@@ -125,8 +120,7 @@ public class InvitationUseCaseTests
     public async Task Accept_expired_throws_validation()
     {
         var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
-        var created = await new CreateInvitationHandler(
-                new GroupAccessService(groups), invitations, new FixedClock(Now))
+        var created = await InviteHandler(groups, invitations)
             .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
 
         var unitOfWork = new FakeUnitOfWork();
@@ -141,12 +135,10 @@ public class InvitationUseCaseTests
     public async Task List_outstanding_omits_token_and_accepted()
     {
         var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
-        var created = await new CreateInvitationHandler(
-                new GroupAccessService(groups), invitations, new FixedClock(Now))
+        var created = await InviteHandler(groups, invitations)
             .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
         invitations.Invitations[0].Accept(Guid.NewGuid(), Now.AddHours(1));
-        var second = await new CreateInvitationHandler(
-                new GroupAccessService(groups), invitations, new FixedClock(Now.AddMinutes(1)))
+        var second = await InviteHandler(groups, invitations, Now.AddMinutes(1))
             .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
 
         var list = await new ListInvitationsHandler(
@@ -171,8 +163,7 @@ public class InvitationUseCaseTests
     public async Task Revoke_unused_removes_row()
     {
         var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
-        var created = await new CreateInvitationHandler(
-                new GroupAccessService(groups), invitations, new FixedClock(Now))
+        var created = await InviteHandler(groups, invitations)
             .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
 
         await new RevokeInvitationHandler(
@@ -186,8 +177,7 @@ public class InvitationUseCaseTests
     public async Task Revoke_accepted_throws_conflict()
     {
         var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
-        var created = await new CreateInvitationHandler(
-                new GroupAccessService(groups), invitations, new FixedClock(Now))
+        var created = await InviteHandler(groups, invitations)
             .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
         invitations.Invitations[0].Accept(Guid.NewGuid(), Now.AddHours(1));
 
@@ -196,6 +186,96 @@ public class InvitationUseCaseTests
                 .HandleAsync(new RevokeInvitationCommand(owner, groupId, created.Id), CancellationToken.None));
         Assert.Single(invitations.Invitations);
     }
+
+    [Fact]
+    public async Task Member_create_with_invalid_email_still_throws_forbidden()
+    {
+        var (groups, invitations, _, groupId, member) = await SeedOwnerAndMemberAsync();
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            InviteHandler(groups, invitations)
+                .HandleAsync(new CreateInvitationCommand(member, groupId, "not-an-email"), CancellationToken.None));
+        Assert.Empty(invitations.Invitations);
+    }
+
+    [Fact]
+    public async Task Create_without_email_does_not_send()
+    {
+        var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
+        var sender = new CapturingEmailSender();
+        var created = await InviteHandler(groups, invitations, email: sender)
+            .HandleAsync(new CreateInvitationCommand(owner, groupId), CancellationToken.None);
+
+        Assert.False(created.Emailed);
+        Assert.Empty(sender.Sent);
+        Assert.Single(invitations.Invitations);
+    }
+
+    [Fact]
+    public async Task Create_with_email_sends_join_link_when_configured()
+    {
+        var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
+        var sender = new CapturingEmailSender();
+        var created = await InviteHandler(groups, invitations, email: sender)
+            .HandleAsync(
+                new CreateInvitationCommand(owner, groupId, "singer@example.com"),
+                CancellationToken.None);
+
+        Assert.True(created.Emailed);
+        Assert.Single(sender.Sent);
+        Assert.Equal("singer@example.com", sender.Sent[0].To);
+        Assert.Contains(created.Token, sender.Sent[0].TextBody, StringComparison.Ordinal);
+        Assert.Contains("/join/", sender.Sent[0].TextBody, StringComparison.Ordinal);
+        Assert.Contains("Band", sender.Sent[0].Subject, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Create_with_email_when_not_configured_still_creates_invite()
+    {
+        var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
+        var created = await InviteHandler(groups, invitations)
+            .HandleAsync(
+                new CreateInvitationCommand(owner, groupId, "singer@example.com"),
+                CancellationToken.None);
+
+        Assert.False(created.Emailed);
+        Assert.Single(invitations.Invitations);
+    }
+
+    [Fact]
+    public async Task Create_with_email_when_send_fails_still_creates_invite()
+    {
+        var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
+        var created = await InviteHandler(groups, invitations, email: new FailingEmailSender())
+            .HandleAsync(
+                new CreateInvitationCommand(owner, groupId, "singer@example.com"),
+                CancellationToken.None);
+
+        Assert.False(created.Emailed);
+        Assert.Single(invitations.Invitations);
+    }
+
+    [Fact]
+    public async Task Create_with_invalid_email_throws_validation_and_does_not_persist()
+    {
+        var (groups, invitations, owner, groupId) = await SeedOwnerAsync();
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            InviteHandler(groups, invitations)
+                .HandleAsync(new CreateInvitationCommand(owner, groupId, "not-an-email"), CancellationToken.None));
+        Assert.Empty(invitations.Invitations);
+    }
+
+    private static CreateInvitationHandler InviteHandler(
+        FakeGroupStore groups,
+        FakeInvitationStore invitations,
+        DateTimeOffset? now = null,
+        IEmailSender? email = null)
+        => new(
+            new GroupAccessService(groups),
+            invitations,
+            new FixedClock(now ?? Now),
+            groups,
+            email ?? new NoopEmailSender(),
+            new FixedOrigin("http://localhost:5173"));
 
     private static string Sha256Hex(string plaintext)
     {
@@ -305,5 +385,40 @@ public class InvitationUseCaseTests
         public Task UpdateAsync(Group group, CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class NoopEmailSender : IEmailSender
+    {
+        public bool IsConfigured => false;
+
+        public Task<bool> TrySendAsync(OutboundEmail email, CancellationToken cancellationToken)
+            => Task.FromResult(false);
+    }
+
+    private sealed class CapturingEmailSender : IEmailSender
+    {
+        public bool IsConfigured => true;
+        public List<OutboundEmail> Sent { get; } = [];
+
+        public Task<bool> TrySendAsync(OutboundEmail email, CancellationToken cancellationToken)
+        {
+            Sent.Add(email);
+            return Task.FromResult(true);
+        }
+    }
+
+    private sealed class FailingEmailSender : IEmailSender
+    {
+        public bool IsConfigured => true;
+
+        public Task<bool> TrySendAsync(OutboundEmail email, CancellationToken cancellationToken)
+            => Task.FromResult(false);
+    }
+
+    private sealed class FixedOrigin : IPublicOrigin
+    {
+        private readonly string _origin;
+        public FixedOrigin(string origin) => _origin = origin;
+        public string? GetOrigin() => _origin;
     }
 }

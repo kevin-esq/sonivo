@@ -5,9 +5,9 @@ using Sonivo.Domain.Tenancy;
 
 namespace Sonivo.Application.Tenancy;
 
-public sealed record CreateInvitationCommand(Guid UserId, Guid GroupId);
+public sealed record CreateInvitationCommand(Guid UserId, Guid GroupId, string? Email = null);
 
-public sealed record InvitationCreatedDto(Guid Id, string Token, DateTimeOffset ExpiresAt);
+public sealed record InvitationCreatedDto(Guid Id, string Token, DateTimeOffset ExpiresAt, bool Emailed);
 
 public sealed class CreateInvitationHandler
 {
@@ -17,12 +17,24 @@ public sealed class CreateInvitationHandler
     private readonly GroupAccessService _access;
     private readonly IInvitationStore _invitations;
     private readonly IClock _clock;
+    private readonly IGroupStore _groups;
+    private readonly IEmailSender _email;
+    private readonly IPublicOrigin _origin;
 
-    public CreateInvitationHandler(GroupAccessService access, IInvitationStore invitations, IClock clock)
+    public CreateInvitationHandler(
+        GroupAccessService access,
+        IInvitationStore invitations,
+        IClock clock,
+        IGroupStore groups,
+        IEmailSender email,
+        IPublicOrigin origin)
     {
         _access = access;
         _invitations = invitations;
         _clock = clock;
+        _groups = groups;
+        _email = email;
+        _origin = origin;
     }
 
     public async Task<InvitationCreatedDto> HandleAsync(
@@ -30,6 +42,7 @@ public sealed class CreateInvitationHandler
         CancellationToken cancellationToken)
     {
         await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        var inviteeEmail = NormalizeInviteEmail(command.Email);
 
         var now = _clock.UtcNow;
         var token = GenerateToken();
@@ -43,7 +56,41 @@ public sealed class CreateInvitationHandler
         await _invitations.AddAsync(invitation, cancellationToken);
         await _invitations.SaveChangesAsync(cancellationToken);
 
-        return new InvitationCreatedDto(invitation.Id, token, invitation.ExpiresAt);
+        var emailed = false;
+        if (inviteeEmail is not null)
+        {
+            var origin = _origin.GetOrigin();
+            if (_email.IsConfigured && !string.IsNullOrWhiteSpace(origin))
+            {
+                var group = await _groups.GetByIdAsync(command.GroupId, cancellationToken);
+                var groupName = group?.Name ?? "a group";
+                emailed = await _email.TrySendAsync(
+                    new OutboundEmail(
+                        inviteeEmail,
+                        $"Join {groupName} on Sonivo",
+                        $"You're invited to join {groupName} on Sonivo.\n\n{origin}/join/{token}\n\nThis link expires in 7 days."),
+                    cancellationToken);
+            }
+        }
+
+        return new InvitationCreatedDto(invitation.Id, token, invitation.ExpiresAt, emailed);
+    }
+
+    internal static string? NormalizeInviteEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        var trimmed = email.Trim();
+        var at = trimmed.IndexOf('@');
+        if (at <= 0 || at >= trimmed.Length - 1 || trimmed.Contains(' ', StringComparison.Ordinal))
+        {
+            throw new ValidationException("Email is invalid.");
+        }
+
+        return trimmed;
     }
 
     internal static string GenerateToken()

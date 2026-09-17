@@ -112,3 +112,7 @@ Authoritative matrix: [`PHASE-3.7-PEOPLE-SPEC.md`](PHASE-3.7-PEOPLE-SPEC.md). **
 ### Phase 3.8 — Thin invite hygiene (COMPLETED)
 
 Authoritative matrix: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](PHASE-3.8-INVITE-HYGIENE-SPEC.md). **TC-INV-02 COMPLETE:** Owner creates invite; People shows outstanding; Owner revokes; second user opening the old join URL sees invalid/expired.
+
+### Phase 3.9 — Thin invite email (COMPLETED)
+
+Authoritative matrix: [`PHASE-3.9-SMTP-SPEC.md`](PHASE-3.9-SMTP-SPEC.md). Existing invite journeys stay green without a Resend key. **TC-INV-03 COMPLETE:** Owner types an optional invitee email; invite is created; warning shows that email was not sent (local/CI has no Resend).

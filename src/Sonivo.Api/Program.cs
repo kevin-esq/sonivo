@@ -506,6 +506,7 @@ app.MapPost("/api/groups/{groupId:guid}/leave", async (
 
 app.MapPost("/api/groups/{groupId:guid}/invitations", async (
     Guid groupId,
+    CreateInvitationRequest? request,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     CreateInvitationHandler handler,
@@ -518,7 +519,7 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
     }
 
     var created = await handler.HandleAsync(
-        new CreateInvitationCommand(userId.Value, groupId),
+        new CreateInvitationCommand(userId.Value, groupId, request?.Email),
         cancellationToken);
 
     return Results.Created(
@@ -1391,7 +1392,8 @@ static object ToInvitationCreatedResponse(InvitationCreatedDto invitation) => ne
 {
     id = invitation.Id,
     token = invitation.Token,
-    expiresAt = invitation.ExpiresAt
+    expiresAt = invitation.ExpiresAt,
+    emailed = invitation.Emailed
 };
 
 static object ToInvitationAcceptedResponse(InvitationAcceptedDto accepted) => new
@@ -1553,6 +1555,7 @@ static object ToEventDetailResponse(EventDetailDto musicalEvent) => new
 internal sealed record RegisterRequest(string? Email, string? Password, string? DisplayName);
 internal sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
 internal sealed record CreateGroupRequest(string? Name);
+internal sealed record CreateInvitationRequest(string? Email);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);
 internal sealed record ChangeMemberRoleRequest(string? Role);
 internal sealed record SoftDeleteGroupRequest(int ExpectedVersion);
