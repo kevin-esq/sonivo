@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IResourceStore, EfResourceStore>();
         services.AddScoped<ISetlistStore, EfSetlistStore>();
         services.AddScoped<IEventStore, EfEventStore>();
+        services.AddScoped<IUserDirectory, EfUserDirectory>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
         return services;

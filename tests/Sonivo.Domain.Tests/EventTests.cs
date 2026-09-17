@@ -72,6 +72,54 @@ public class EventTests
     }
 
     [Fact]
+    public void SetRsvp_inserts_without_bumping_event_version_or_updated_at()
+    {
+        var userId = Guid.NewGuid();
+        var ev = Event.Create(Guid.NewGuid(), "Gig", EventTypes.Performance, Starts, Now);
+
+        ev.SetRsvp(userId, RsvpResponses.Yes, Now.AddMinutes(10));
+
+        var rsvp = Assert.Single(ev.Rsvps);
+        Assert.Equal(userId, rsvp.UserId);
+        Assert.Equal(ev.Id, rsvp.EventId);
+        Assert.Equal(RsvpResponses.Yes, rsvp.Response);
+        Assert.Equal(Now.AddMinutes(10), rsvp.UpdatedAt);
+        Assert.NotEqual(Guid.Empty, rsvp.Id);
+        Assert.Equal(1, ev.Version);
+        Assert.Equal(Now, ev.UpdatedAt);
+    }
+
+    [Fact]
+    public void SetRsvp_updates_same_row_when_response_changes()
+    {
+        var userId = Guid.NewGuid();
+        var ev = Event.Create(Guid.NewGuid(), "Gig", EventTypes.Performance, Starts, Now);
+        ev.SetRsvp(userId, RsvpResponses.Yes, Now);
+        var existingId = ev.Rsvps.Single().Id;
+
+        ev.SetRsvp(userId, RsvpResponses.No, Now.AddMinutes(3));
+
+        var rsvp = Assert.Single(ev.Rsvps);
+        Assert.Equal(existingId, rsvp.Id);
+        Assert.Equal(RsvpResponses.No, rsvp.Response);
+        Assert.Equal(Now.AddMinutes(3), rsvp.UpdatedAt);
+        Assert.Equal(1, ev.Version);
+        Assert.Equal(Now, ev.UpdatedAt);
+    }
+
+    [Fact]
+    public void SetRsvp_rejects_invalid_response()
+    {
+        var ev = Event.Create(Guid.NewGuid(), "Gig", EventTypes.Performance, Starts, Now);
+
+        Assert.Throws<ArgumentException>(() =>
+            ev.SetRsvp(Guid.NewGuid(), "going", Now));
+        Assert.Empty(ev.Rsvps);
+        Assert.Equal(1, ev.Version);
+        Assert.Equal(Now, ev.UpdatedAt);
+    }
+
+    [Fact]
     public void EventSetlistItem_Create_copies_display_labels()
     {
         var item = EventSetlistItem.Create(

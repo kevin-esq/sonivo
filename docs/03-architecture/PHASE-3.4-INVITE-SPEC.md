@@ -180,4 +180,4 @@ Serial. Do not start 02 before 01; 03 before 02.
 ## Exit
 
 - Thin invites **COMPLETED** on `develop` (PR #8, merge `8db0714`). Tickets T-3.4.01–03 closed.
-- Next authorized implementation: Phase 3.5 thin RSVP ([`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md)). T-3.2.06 and Event cancel-PATCH remain deferred. No SMTP.
+- Phase 3.5 thin RSVP **shipped** (T-3.5.01–03). T-3.2.06 and Event cancel-PATCH remain deferred. No SMTP.

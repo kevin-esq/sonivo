@@ -34,6 +34,14 @@ public sealed class EfEventStore : IEventStore
             .Include(e => e.Items)
             .FirstOrDefaultAsync(e => e.GroupId == groupId && e.Id == eventId, cancellationToken);
 
+    public Task<Event?> GetByIdWithRsvpsAsync(Guid groupId, Guid eventId, CancellationToken cancellationToken)
+        => _db.Events
+            .Include(e => e.Rsvps)
+            .FirstOrDefaultAsync(e => e.GroupId == groupId && e.Id == eventId, cancellationToken);
+
+    public Task AddRsvpAsync(Rsvp rsvp, CancellationToken cancellationToken)
+        => _db.Rsvps.AddAsync(rsvp, cancellationToken).AsTask();
+
     public Task RemoveItemsAsync(IEnumerable<EventSetlistItem> items, CancellationToken cancellationToken)
     {
         _db.EventSetlistItems.RemoveRange(items);

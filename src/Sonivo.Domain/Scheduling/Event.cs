@@ -75,6 +75,37 @@ public sealed class Event : IVersionedEntity
     }
 
     /// <summary>
+    /// Upserts the caller's attendance signal. Does not change Event Version or UpdatedAt.
+    /// </summary>
+    public Rsvp SetRsvp(Guid userId, string response, DateTimeOffset now)
+    {
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("User id is required.", nameof(userId));
+        }
+
+        var normalized = NormalizeRsvpResponse(response);
+        var existing = Rsvps.FirstOrDefault(r => r.UserId == userId);
+        if (existing is not null)
+        {
+            existing.Response = normalized;
+            existing.UpdatedAt = now;
+            return existing;
+        }
+
+        var rsvp = new Rsvp
+        {
+            Id = Guid.NewGuid(),
+            EventId = Id,
+            UserId = userId,
+            Response = normalized,
+            UpdatedAt = now
+        };
+        Rsvps.Add(rsvp);
+        return rsvp;
+    }
+
+    /// <summary>
     /// Starts Replace Event Plan from Setlist (ADR-0021).
     /// Caller validates Arrangements, confirmReplace, and persists item delete/insert.
     /// </summary>
@@ -141,6 +172,26 @@ public sealed class Event : IVersionedEntity
             throw new ArgumentException(
                 "Event type must be rehearsal, performance, or other.",
                 nameof(type));
+        }
+
+        return trimmed;
+    }
+
+    private static string NormalizeRsvpResponse(string response)
+    {
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            throw new ArgumentException(
+                "RSVP response must be yes, no, or maybe.",
+                nameof(response));
+        }
+
+        var trimmed = response.Trim();
+        if (!RsvpResponses.IsValid(trimmed))
+        {
+            throw new ArgumentException(
+                "RSVP response must be yes, no, or maybe.",
+                nameof(response));
         }
 
         return trimmed;
@@ -216,6 +267,9 @@ public static class RsvpResponses
     public const string Yes = "yes";
     public const string No = "no";
     public const string Maybe = "maybe";
+
+    public static bool IsValid(string? value)
+        => value is Yes or No or Maybe;
 }
 
 public sealed class Rsvp

@@ -227,6 +227,12 @@ public class EventUseCaseTests
         public Task<Event?> GetByIdWithItemsAsync(Guid groupId, Guid eventId, CancellationToken cancellationToken)
             => Task.FromResult(Events.FirstOrDefault(e => e.GroupId == groupId && e.Id == eventId));
 
+        public Task<Event?> GetByIdWithRsvpsAsync(Guid groupId, Guid eventId, CancellationToken cancellationToken)
+            => GetByIdWithItemsAsync(groupId, eventId, cancellationToken);
+
+        public Task AddRsvpAsync(Rsvp rsvp, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
         public Task RemoveItemsAsync(IEnumerable<EventSetlistItem> items, CancellationToken cancellationToken)
             => Task.CompletedTask;
 

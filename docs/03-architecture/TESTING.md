@@ -97,6 +97,6 @@ Authoritative matrix: [`PHASE-3.3-THIN-SPEC.md`](PHASE-3.3-THIN-SPEC.md). Shippe
 
 Authoritative matrix: [`PHASE-3.4-INVITE-SPEC.md`](PHASE-3.4-INVITE-SPEC.md). Shipped on `develop` (PR #8). **TC-INV-01 COMPLETE:** Owner invite → second user accept → Member sees Event plan, no mutate chrome.
 
-### Phase 3.5 — Thin RSVP (authorized, not started)
+### Phase 3.5 — Thin RSVP (COMPLETED)
 
-Authoritative matrix: [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md). **TC-RSVP-01** (coming): Owner Event with plan; invite Member; Member sets Yes; Owner sees that Member’s display name and Yes.
+Authoritative matrix: [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md). **TC-RSVP-01 COMPLETE:** Owner Event with plan; invite Member; Member sets Yes; Owner sees that Member’s display name and Yes.

@@ -2,8 +2,8 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-17 (Phase 3.4 thin invites COMPLETED on develop)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2 approved scope **COMPLETED**. Phase 3.3 thin S2 **COMPLETED** on `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6), merge `80f5f63`). Phase 3.4 thin invites **COMPLETED** on `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8), merge `8db0714`). T-3.2.06 file Resource **DEFERRED**. RSVP is **authorized** as Phase 3.5 per [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md) (not started in this docs ticket).  
+**Last updated:** 2026-09-17 (Phase 3.5 thin RSVP COMPLETED)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2 approved scope **COMPLETED**. Phase 3.3 thin S2 **COMPLETED** on `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6), merge `80f5f63`). Phase 3.4 thin invites **COMPLETED** on `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8), merge `8db0714`). Phase 3.5 thin RSVP **COMPLETED** (T-3.5.01–03) per [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md). T-3.2.06 file Resource **DEFERRED**. Event cancel-PATCH **DEFERRED**.  
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
@@ -64,7 +64,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 20. Stack/auth/session per ADR-0009–0011; modular monolith; no microservices/CQRS/ES.  
 21. Tooling ADR-0002 ACCEPTED; Phase 0 CLOSED.  
-22. Application foundation (Phase 2.3) + Group slice + Phase 3.2 approved repertoire slice + Phase 3.3 thin S2 (Setlist → Event apply + UI + E2E) + Phase 3.4 thin invites (link token, no email; PR [#8](https://github.com/kevin-esq/sonivo/pull/8), merge `8db0714`) exist on `develop`. File Resource (T-3.2.06) remains **DEFERRED**. Thin RSVP is **authorized** as Phase 3.5 per [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md) — not started in this docs ticket.  
+22. Application foundation (Phase 2.3) + Group slice + Phase 3.2 approved repertoire slice + Phase 3.3 thin S2 (Setlist → Event apply + UI + E2E) + Phase 3.4 thin invites (link token, no email; PR [#8](https://github.com/kevin-esq/sonivo/pull/8), merge `8db0714`) + Phase 3.5 thin RSVP (T-3.5.01–03) exist on `develop`. File Resource (T-3.2.06) remains **DEFERRED**. Event cancel-PATCH remains **DEFERRED**.  
 23. Phase 2 technical docs under `docs/03-architecture/` (ARCHITECTURE, TECHNICAL-SPEC, API, SECURITY, TESTING, PERSISTENCE).  
 24. ADR-0019–0021 **ACCEPTED** — Phase 2.1.  
 25. ADR-0022–0023 **ACCEPTED** — Phase 2.2; integer `Version` concurrency ACCEPTED.  
@@ -72,7 +72,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 27. Phase 3.0–3.0.2.1 CLOSED (Group slice; Compose Postgres; CI/Playwright; public repo audit).  
 28. Phase 3.0.3 **CLOSED** — ADR-0024 **ACCEPTED** (practice Resources / Part metadata).  
 29. Phase 3.1 **CLOSED** — ADR-0025 **ACCEPTED**.  
-30. Phase 3.2 approved scope **COMPLETED** (T-3.2.01–05, 07, 08): Song / Arrangement / **Link** Resource with **nested** Resource routes; migration `AlignRepertoireToAdr0024And0025`; React Library Shell (Owner mutate / Member read UX, expectedVersion conflict UX); sparse Playwright TC-LIB-01/02/03 (Member browser E2E and 409 E2E deferred). File Resource / blob / `IBlobStore` / upload / content (**T-3.2.06**) remains **DEFERRED**. Phase 3.3 thin S2 **COMPLETED** on `develop` (T-3.3.01–05, PR #6 / `80f5f63`): Setlist → Event apply → React UI → Playwright (TC-EVT-01/02). Phase 3.4 thin invites **COMPLETED** on `develop` (T-3.4.01–03, PR #8 / `8db0714`): link token, no email. Next authorized implementation: Phase 3.5 thin RSVP (T-3.5.01–03) per [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md) — not started in this docs ticket.
+30. Phase 3.2 approved scope **COMPLETED** (T-3.2.01–05, 07, 08): Song / Arrangement / **Link** Resource with **nested** Resource routes; migration `AlignRepertoireToAdr0024And0025`; React Library Shell (Owner mutate / Member read UX, expectedVersion conflict UX); sparse Playwright TC-LIB-01/02/03 (Member browser E2E and 409 E2E deferred). File Resource / blob / `IBlobStore` / upload / content (**T-3.2.06**) remains **DEFERRED**. Phase 3.3 thin S2 **COMPLETED** on `develop` (T-3.3.01–05, PR #6 / `80f5f63`): Setlist → Event apply → React UI → Playwright (TC-EVT-01/02). Phase 3.4 thin invites **COMPLETED** on `develop` (T-3.4.01–03, PR #8 / `8db0714`): link token, no email. Phase 3.5 thin RSVP **COMPLETED** (T-3.5.01–03) per [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md): Event `yes`/`no`/`maybe` upsert + Attendance UI + TC-RSVP-01. Next work requires human decision / authorization.
 
 ---
 

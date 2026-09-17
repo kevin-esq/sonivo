@@ -1,6 +1,6 @@
 # Phase 3.5 Thin RSVP specification
 
-**Status:** TICKETIZED — **authorized** 2026-09-17 (Kevin Esquivel).  
+**Status:** **COMPLETED** (T-3.5.01–03 shipped on `feature/phase-3.5-rsvp`). Authorized 2026-09-17 (Kevin Esquivel).  
 **Product bet:** After a second person can join (Phase 3.4), Members (and Owners) can signal **yes / no / maybe** on a dated Event so the organizer knows who is coming.  
 **Develop reference:** `8db0714e03f302dff1e32ed644b794f595a99175` (PR #8 merged).  
 **Date:** 2026-09-17  
@@ -202,4 +202,5 @@ Serial. Do not start 02 before 01; 03 before 02.
 
 ## Exit
 
-Planning + authorization artifact. Implementation starts at T-3.5.01 when a builder is assigned. No Event cancel, no T-3.2.06, no merge to `main`.
+- Thin RSVP **COMPLETED** (T-3.5.01–03). Tickets closed on `feature/phase-3.5-rsvp`.
+- Next work requires human decision / authorization. T-3.2.06 and Event cancel-PATCH remain deferred. No SMTP. No merge to `main` from this slice.

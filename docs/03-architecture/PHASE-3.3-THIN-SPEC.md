@@ -343,4 +343,4 @@ No ADR-blocking contradictions. Invite/Member E2E remains deferred by product ch
 ## Exit
 
 - Thin S2 **COMPLETED** on `develop` (PR #6, merge `80f5f63`). Tickets T-3.3.01–05 closed.
-- Phase 3.4 thin invites **shipped** (PR #8, merge `8db0714`). Next authorized: Phase 3.5 thin RSVP ([`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md)). T-3.2.06 remains deferred.
+- Phase 3.4 thin invites **shipped** (PR #8, merge `8db0714`). Phase 3.5 thin RSVP **shipped** (T-3.5.01–03). T-3.2.06 remains deferred.
