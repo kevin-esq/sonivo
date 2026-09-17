@@ -5,30 +5,27 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-3.9.04 on develop)
-Human approval: APPROVED (Kevin Esquivel, merge #19)
-Git checkpoint: COMMITTED / MERGED (468517c) + docs checkpoint IN PROGRESS
-Remote: PUSHED
-CI: PASSING (PR #19)
-Live image: STALE until Manual Deploy of 468517c or T-OPS-02
+Implementation: IN PROGRESS (Gate B T-GATE-B-01)
+Human approval: AUTHORIZED (Kevin Esquivel — Gate B brief + board)
+Git checkpoint: PENDING (docs contract then feature PRs)
+Remote: NOT PUSHED (this slice)
+CI: NOT RUN
 ```
 
 **Live:** https://sonivo.onrender.com  
-**main:** do not merge until Gate B (still `61de8bb`)
+**main:** do not merge until Gate B accepted (`61de8bb`)
 
-## Local proof
+## Proof
 
-Playwright `e2e` chromium **15/15** (2026-09-17) against API 5171 + Vite 5173 + Postgres 5433.
+- T-OPS-02 verified: Render GitHub App `92085443` includes `kevin-esq/sonivo`
+- Gate B contract: `docs/03-architecture/PHASE-GATE-B-UI-SPEC.md` + brief + board image
 
-## Sequence
+## Next
 
-1. Docs checkpoint PR → CI → merge `develop` → delete branch
-2. Manual Deploy `468517c` (Free) so live matches Gmail sender
-3. T-OPS-02 Render GitHub app — Kevin only
-4. Gate B UI redesign **after** T-OPS-02 — not started
+Auditor: version docs PR, then delegate T-GATE-B-01 (shell/tokens/auth) to a builder. Merge `develop` only. Never `main`.
 
 ## Firewall
 
-- Do **not** implement T-3.2.06 / merge `main` / Gate B UI
+- Do **not** implement T-3.2.06 / Google OAuth / Event notes
 - Do **not** commit OAuth secrets
 - Do **not** start Google billing / Render paid
