@@ -1,11 +1,11 @@
 # System-close plan — Sonivo
 
-**Status:** Gate A **CLOSED** 2026-09-17 (Kevin Esquivel). Phase 3.7–3.9, T-OPS-01, and **T-OPS-02** (Render GitHub app on `kevin-esq/sonivo`) **COMPLETED**. Gate B UI redesign **AUTHORIZED** — [`PHASE-GATE-B-UI-SPEC.md`](../03-architecture/PHASE-GATE-B-UI-SPEC.md). Do **not** merge `main` until Gate B is accepted.  
+**Status:** Gate A **CLOSED** 2026-09-17. Gate B UI redesign **ACCEPTED / CLOSED** 2026-09-17 (Kevin Esquivel) — T-GATE-B-01–05 on `develop` (PRs #22–#27); Playwright 15/15 green. Merge `develop` → `main` **authorized**.  
 **Date:** 2026-09-17  
-**Live:** https://sonivo.onrender.com (Free Render + Neon; branch `develop`)  
-**Depends on:** ADR-0005–0006, 0012–0013, 0015–0021; Phases 3.2–3.6 **COMPLETED** on `develop`.
+**Live:** https://sonivo.onrender.com (Free Render + Neon)  
+**Depends on:** ADR-0005–0006, 0012–0013, 0015–0021; Phases 3.2–3.9 **COMPLETED** on `develop`.
 
-This plan does **not** reopen ACCEPTED ADRs. It does **not** authorize T-3.2.06 or merge to `main`. Invite email (3.9, Gmail API HTTPS) stays optional and separate.
+This plan does **not** reopen ACCEPTED ADRs. It does **not** authorize T-3.2.06. Invite email (3.9, Gmail API HTTPS) stays optional and separate (ops follow-up: T-OPS-MAIL).
 
 ---
 
@@ -16,7 +16,7 @@ This plan does **not** reopen ACCEPTED ADRs. It does **not** authorize T-3.2.06 
 | **A** | **Sistema funcional** | The MVP loop works end-to-end with the **current** UI: an Owner can prepare the next event; a Member can join, read the plan, and RSVP; people can be listed and removed. | **This plan.** Stay on `develop`. |
 | **B** | **Cierre de producto** | Gate A **plus** frontend redesign **plus** merge to `main` **plus** treat the public URL as the product. | **After** Gate A. Not before. |
 
-**FACT:** Gate B is explicitly **later**. The system is not “closed completely” until the UI is redesigned — but that redesign **must not** start until Gate A is complete and functional.
+**FACT:** Gate A and Gate B are **closed**. Product close completes when `develop` merges to `main` and the live URL is treated as prod.
 
 ```text
 Gate A (People + invite hygiene + ops that keep live usable)
@@ -113,16 +113,14 @@ Free-instance spin-down (~50s cold start) is **accepted** until a paid instance.
 
 ---
 
-## Gate B (AUTHORIZED — in progress)
+## Gate B (ACCEPTED / CLOSED)
 
-1. **Frontend redesign** of the shipped surfaces (Groups, Library, Setlist, Event, People, Invite, RSVP). Behavior stays; chrome changes. Spec: [`PHASE-GATE-B-UI-SPEC.md`](../03-architecture/PHASE-GATE-B-UI-SPEC.md). Brief + board: [`GATE-B-DESIGN-BRIEF.md`](GATE-B-DESIGN-BRIEF.md).
-2. Merge `develop` → `main` only after that cut is accepted.
-3. Treat https://sonivo.onrender.com (or a custom domain) as the public product.
-
-Until Gate B is accepted: `main` stays the pre-product workflow commit (revert PR [#14](https://github.com/kevin-esq/sonivo/pull/14) restored that). Integration is `develop`.
+1. **Frontend redesign** of the shipped surfaces — **done** (T-GATE-B-01–05). Spec: [`PHASE-GATE-B-UI-SPEC.md`](../03-architecture/PHASE-GATE-B-UI-SPEC.md). Brief + board: [`GATE-B-DESIGN-BRIEF.md`](GATE-B-DESIGN-BRIEF.md).
+2. Merge `develop` → `main` — **authorized** (ops next).
+3. Treat https://sonivo.onrender.com (or a custom domain) as the public product after `main` cut.
 
 ---
 
 ## How to start
 
-Phase 3.7–3.9, T-OPS-01, and T-OPS-02 are **done**. Gate B is **AUTHORIZED**. Do not merge `main` until the redesign cut is accepted.
+Gate A and Gate B are **closed**. Next: merge `develop` → `main`, then polish (T-OPS-MAIL invite email live; T-UX-COPY human Spanish + skeletons). T-3.2.06 / Google OAuth / karaoke remain out until separately authorized.

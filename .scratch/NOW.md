@@ -5,29 +5,25 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-GATE-B-05)
-Human approval: PENDING
-Git checkpoint: COMMITTED (pending push/PR)
-Remote: NOT PUSHED
-CI: NOT RUN
+Implementation: COMPLETE (Gate B ACCEPTED; docs checkpoint on docs/gate-b-accepted)
+Human approval: APPROVED (Kevin Esquivel — Gate B accept + proceed plan)
+Git checkpoint: PENDING (docs PR then develop→main)
+Remote: NOT PUSHED (docs branch)
+CI: NOT RUN (docs PR)
 ```
 
-**Live:** https://sonivo.onrender.com  
-**main:** do not merge until Gate B accepted (`61de8bb`)
+**Local Playwright:** 15/15 PASS on `d9ed61b`  
+**Live:** https://sonivo.onrender.com
 
-## Proof
+## Auditor agenda
 
-- T-GATE-B-01–04 on rewritten `origin/develop` (`6e316ef`)
-- T-GATE-B-05: People / invite / join Spanish + Inicio compose; Playwright **15/15**
-
-## Next
-
-PR `--base develop` → human review. Gate B cut — do not merge `main`.
+1. ~~Playwright~~ PASS
+2. Docs Gate B accept → PR → CI → merge → delete branch
+3. Merge develop → main
+4. T-OPS-MAIL
+5. T-UX-COPY + polish
 
 ## Firewall
 
-- Do **not** implement T-3.2.06 / Google OAuth / Event notes/location
-- Do **not** commit OAuth secrets
-- Do **not** start Google billing / Render paid
-- Do **not** merge `main`
-- Do **not** add Cursor / AI co-author trailers in commits or PRs
+- No T-3.2.06 / Google OAuth / karaoke without ADR
+- No Cursor co-author trailers

@@ -1,7 +1,8 @@
 # Gate B — UI redesign (thin spec)
 
-**Status:** **AUTHORIZED** 2026-09-17 (Kevin Esquivel). Visual direction: [`GATE-B-DESIGN-BRIEF.md`](../01-product/GATE-B-DESIGN-BRIEF.md) + [`assets/gate-b-ui-reference.jpg`](../01-product/assets/gate-b-ui-reference.jpg).  
-**Live:** stay on `develop` until this cut is accepted. **Do not merge `main` in this spec.**  
+**Status:** **ACCEPTED / CLOSED** 2026-09-17 (Kevin Esquivel). Visual direction: [`GATE-B-DESIGN-BRIEF.md`](../01-product/GATE-B-DESIGN-BRIEF.md) + [`assets/gate-b-ui-reference.jpg`](../01-product/assets/gate-b-ui-reference.jpg).  
+**Tickets:** T-GATE-B-01–05 **COMPLETED** (PRs [#22](https://github.com/kevin-esq/sonivo/pull/22)–[#27](https://github.com/kevin-esq/sonivo/pull/27) on `develop`). Local Playwright **15/15** green (2026-09-17).  
+**Next ops:** merge `develop` → `main` (authorized). Treat https://sonivo.onrender.com as the public product after that cut.  
 **Depends on:** Gate A closed (3.7–3.9, T-OPS-01, T-OPS-02). ADR-0001, 0006, 0010, 0012, 0015–0021, 0024–0025.
 
 This spec does **not** reopen ACCEPTED ADRs. Chrome changes; product behavior stays.
@@ -83,14 +84,14 @@ Stack remains React / Vite / TS / Tailwind (ADR-0010).
 | **T-GATE-B-04** | Event list/create/detail; Event Plan as copied repertoire; apply/replace confirm; RSVP/attendance/cancel chrome. Playwright event + rsvp. | 01 |
 | **T-GATE-B-05** | People + invite/revoke + join; Inicio compose from existing APIs. Playwright people + invite. Full suite green. | 01 |
 
-Each ticket: branch `feature/t-gate-b-0N-…` from `develop`, PR `--base develop`, CI green, merge, delete branch. **Never merge `main`.**
+Each ticket: branch `feature/t-gate-b-0N-…` from `develop`, PR `--base develop`, CI green, merge, delete branch. All five tickets are merged.
 
 ---
 
 ## Done when
 
-1. Shipped surfaces match the board’s identity (dark, violet, sidebar/bottom nav, Spanish copy).
-2. No Google OAuth, no Event notes, no T-3.2.06.
-3. Local Playwright critical journeys green (update helpers in-ticket).
-4. Member vs Owner chrome still correct.
-5. Kevin accepts the cut. **Then** a separate authorization merges `develop` → `main`.
+1. Shipped surfaces match the board’s identity (dark, violet, sidebar/bottom nav, Spanish copy). — **met**
+2. No Google OAuth, no Event notes, no T-3.2.06. — **met**
+3. Local Playwright critical journeys green (update helpers in-ticket). — **15/15** (2026-09-17)
+4. Member vs Owner chrome still correct. — **met**
+5. Kevin accepts the cut. — **ACCEPTED** 2026-09-17. Merge `develop` → `main` is **authorized**.

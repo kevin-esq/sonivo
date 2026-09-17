@@ -2,8 +2,8 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-17 (Gate A closed including T-OPS-02; Gate B UI redesign AUTHORIZED)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** on `develop`. T-OPS-01 DataProtection keys persist in Postgres. T-OPS-02 Render GitHub app granted on `kevin-esq/sonivo`. Live: https://sonivo.onrender.com. T-3.2.06 file Resource **DEFERRED**. Gate B **AUTHORIZED** ([`PHASE-GATE-B-UI-SPEC.md`](../03-architecture/PHASE-GATE-B-UI-SPEC.md)). **Do not merge `main` until Gate B is accepted.**  
+**Last updated:** 2026-09-17 (Gate B UI redesign ACCEPTED / CLOSED; main merge authorized)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** on `develop`. T-OPS-01 DataProtection keys persist in Postgres. T-OPS-02 Render GitHub app granted on `kevin-esq/sonivo`. Live: https://sonivo.onrender.com. T-3.2.06 file Resource **DEFERRED**. Gate B **ACCEPTED / CLOSED** ([`PHASE-GATE-B-UI-SPEC.md`](../03-architecture/PHASE-GATE-B-UI-SPEC.md); T-GATE-B-01–05). Merge `develop` → `main` **authorized**.  
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
