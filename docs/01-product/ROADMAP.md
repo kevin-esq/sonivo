@@ -12,7 +12,7 @@ Product sequencing.
 **Phase 3.8 thin invite hygiene COMPLETED** — T-3.8.01–03. Spec: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md).  
 **Deferred:** T-3.2.06 file Resource / blob / content; SMTP. Do not merge to `main`.  
 **System close:** [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md) — Gate A (functional loop on `develop`) then Gate B (UI redesign → `main`).  
-**Next:** T-OPS-01 DataProtection keys; Phase 3.9 SMTP optional.
+**Next:** Phase 3.9 SMTP optional; T-OPS-02 Render GitHub app (manual).
 
 Product/code features beyond authorized tickets require **explicit** human approval.
 
@@ -96,7 +96,7 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 
 - [x] Phase 3.7 thin People + Group lifecycle (list/remove/role/leave + rename/soft-delete UI)
 - [x] Phase 3.8 thin invite list/revoke
-- [ ] T-OPS-01 DataProtection keys on Render (re-login after deploy)
+- [x] T-OPS-01 DataProtection keys on Render (re-login after deploy)
 - [ ] Phase 3.9 SMTP — optional; separate auth; after 3.7
 
 ### Gate B — product close (after Gate A)

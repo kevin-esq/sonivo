@@ -2,8 +2,8 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-17 (Phase 3.8 invite hygiene COMPLETED; Gate A remaining: ops keys + optional SMTP)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.8 **COMPLETED** (3.8 pending merge on `feature/phase-3.8-invite-hygiene`). Live host pack on `develop` (https://sonivo.onrender.com). T-3.2.06 file Resource **DEFERRED**. SMTP **DEFERRED**. **Do not merge `main` until Gate B** ([`SYSTEM-CLOSE-PLAN.md`](../01-product/SYSTEM-CLOSE-PLAN.md)): Gate A = functional loop (ops/SMTP next); Gate B = UI redesign then `main`.  
+**Last updated:** 2026-09-17 (T-OPS-01 DataProtection keys COMPLETED; 3.8 merged PR #16)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.8 **COMPLETED** on `develop`. T-OPS-01 DataProtection keys persist in Postgres. Live host pack on `develop` (https://sonivo.onrender.com). T-3.2.06 file Resource **DEFERRED**. SMTP **DEFERRED**. **Do not merge `main` until Gate B** ([`SYSTEM-CLOSE-PLAN.md`](../01-product/SYSTEM-CLOSE-PLAN.md)): Gate A remaining = optional SMTP + T-OPS-02; Gate B = UI redesign then `main`.  
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
