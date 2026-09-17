@@ -13,8 +13,23 @@ export {
 export const CONFLICT_MESSAGE =
   'Otra persona cambió este elemento. Recarga para ver la versión más reciente.'
 
+export const ACCESS_DENIED_MESSAGE =
+  'No encontramos este grupo o no tienes acceso.'
+
 export function isOwnerRole(role: string | undefined): boolean {
   return role === 'Owner'
+}
+
+/** API role → Spanish label for musicians (values stay Owner|Member on the wire). */
+export function formatMembershipRole(role: string | undefined): string {
+  switch (role) {
+    case 'Owner':
+      return 'Organizador'
+    case 'Member':
+      return 'Miembro'
+    default:
+      return role ?? ''
+  }
 }
 
 export function formatOriginKind(kind: string): string {
@@ -82,7 +97,7 @@ export function useGroupContext(groupId: string | undefined, userId: string) {
     } catch (err) {
       setGroup(null)
       if (err instanceof ApiError && err.status === 404) {
-        setError('Group not found or you do not have access.')
+        setError(ACCESS_DENIED_MESSAGE)
       } else {
         setError(problemDetail(err))
       }
@@ -102,7 +117,7 @@ export function useGroupContext(groupId: string | undefined, userId: string) {
         if (cancelled) return
         setGroup(null)
         if (err instanceof ApiError && err.status === 404) {
-          setError('Group not found or you do not have access.')
+          setError(ACCESS_DENIED_MESSAGE)
         } else {
           setError(problemDetail(err))
         }

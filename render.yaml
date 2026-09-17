@@ -14,3 +14,13 @@ services:
         value: "true"
       - key: ConnectionStrings__Default
         sync: false
+      - key: PublicOrigin
+        value: https://sonivo.onrender.com
+      - key: Gmail__ClientId
+        sync: false
+      - key: Gmail__ClientSecret
+        sync: false
+      - key: Gmail__RefreshToken
+        sync: false
+      - key: Gmail__From
+        sync: false

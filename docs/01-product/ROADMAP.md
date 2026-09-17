@@ -13,7 +13,7 @@ Product sequencing.
 **Phase 3.9 thin invite email COMPLETED** — T-3.9.01–04 (Gmail API HTTPS). Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md).  
 **Deferred:** T-3.2.06 file Resource / blob / content.  
 **System close:** [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md) — Gate A **CLOSED**; Gate B **ACCEPTED / CLOSED**.  
-**Next:** merge `develop` → `main`; then T-OPS-MAIL + T-UX-COPY/polish.
+**Next:** T-UX-COPY/polish (human Spanish + skeletons) on `develop`; T-OPS-MAIL live invite email **verified** 2026-09-17 (`emailed=true`).
 
 Product/code features beyond authorized tickets require **explicit** human approval.
 
@@ -113,8 +113,8 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 ### Gate B — product close (ACCEPTED / CLOSED)
 
 - [x] Frontend redesign of shipped surfaces (T-GATE-B-01–05; PRs #22–#27)
-- [ ] Merge `develop` → `main` (authorized)
-- [ ] Public prod cut
+- [x] Merge `develop` → `main` (PR [#30](https://github.com/kevin-esq/sonivo/pull/30))
+- [x] Public prod cut (live continues on Render; `main` now holds Gate B)
 
 ### Later (only when authorized)
 

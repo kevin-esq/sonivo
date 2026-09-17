@@ -3,6 +3,7 @@ import { Link, NavLink, useParams } from 'react-router-dom'
 import { LogOut, Menu, X } from 'lucide-react'
 import { ApiError, getGroup, problemDetail, type CurrentUser, type GroupDetail } from '../api/client'
 import { BrandLockup, SonivoMark } from '../brand/SonivoMark'
+import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { Button } from '../ui/button'
 import { groupNavItems, mobileTabItems } from './nav'
@@ -36,7 +37,7 @@ export function GroupWorkspace({
         if (cancelled) return
         setGroup(null)
         if (err instanceof ApiError && err.status === 404) {
-          setError('Group not found or you do not have access.')
+          setError(ACCESS_DENIED_MESSAGE)
         } else {
           setError(problemDetail(err))
         }
@@ -91,14 +92,20 @@ export function GroupWorkspace({
           </nav>
         ) : (
           <div className="flex-1 px-5 text-sm text-slate-400">
-            {group === undefined ? <p aria-live="polite">Cargando grupo…</p> : null}
+            {group === undefined ? (
+              <div className="space-y-2" role="status" aria-live="polite" aria-label="Cargando grupo">
+                <span className="sr-only">Cargando grupo…</span>
+                <div className="h-3 w-28 animate-pulse rounded bg-white/10" />
+                <div className="h-3 w-20 animate-pulse rounded bg-white/10" />
+              </div>
+            ) : null}
           </div>
         )}
         <div className="mt-auto space-y-3 border-t border-white/10 px-5 py-4">
           {group ? (
             <div>
               <p className="truncate text-sm font-semibold text-white">{group.name}</p>
-              <p className="text-xs text-slate-400">{group.role}</p>
+              <p className="text-xs text-slate-400">{formatMembershipRole(group.role)}</p>
             </div>
           ) : null}
           <Link
@@ -214,7 +221,7 @@ export function GroupWorkspace({
             {group ? (
               <div className="mb-4">
                 <p className="font-semibold">{group.name}</p>
-                <p className="text-sm text-slate-400">{group.role}</p>
+                <p className="text-sm text-slate-400">{formatMembershipRole(group.role)}</p>
               </div>
             ) : null}
             {group ? (

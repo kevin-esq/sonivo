@@ -72,7 +72,7 @@ test.describe('RSVP journeys', () => {
     await acceptInvite(page)
 
     await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
-    await expect(page.getByRole('strong').filter({ hasText: 'Member' })).toBeVisible()
+    await expect(page.getByRole('strong').filter({ hasText: 'Miembro' })).toBeVisible()
 
     await openEvents(page)
     await page.getByRole('link', { name: eventTitle }).click()
