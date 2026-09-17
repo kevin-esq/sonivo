@@ -50,6 +50,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
 
   useEffect(() => {
     if (!groupId || !group) return
+    const ownerView = isOwnerRole(group.role)
     let cancelled = false
     async function load() {
       setMembers(null)
@@ -64,9 +65,8 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         setListError(mutationErrorMessage(err))
       }
     }
-    void load()
     async function loadInvites() {
-      if (!isOwnerRole(group.role)) {
+      if (!ownerView) {
         setInvites([])
         return
       }
@@ -81,6 +81,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         setInviteError(mutationErrorMessage(err))
       }
     }
+    void load()
     void loadInvites()
     return () => {
       cancelled = true
