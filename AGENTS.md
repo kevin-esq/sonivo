@@ -19,14 +19,16 @@ This file is **not** the product requirements document. Product truth lives unde
 
 ADRs **0001–0025** are **ACCEPTED** (including tooling ADR-0002).  
 **Phase 3.2 approved scope:** **COMPLETED** (T-3.2.01–05, 07, 08) — `Song → Arrangement → Link Resource` + React Library Shell + sparse Playwright ([`PHASE-3.2-REPERTOIRE-SPEC.md`](docs/03-architecture/PHASE-3.2-REPERTOIRE-SPEC.md)). Nested Resource routes are authoritative. File Resource / blob / `content` (**T-3.2.06**) remains **DEFERRED** (not automatic next).  
-**Next:** requires **human decision / authorization**. Do not treat Event / Setlist / RSVP / invites / file Resource as authorized unless the user explicitly approves them.
+**Phase 3.3 thin S2:** **CLOSED** (T-3.3.01–05) — Setlist → Event apply → React UI → Playwright ([`PHASE-3.3-THIN-SPEC.md`](docs/03-architecture/PHASE-3.3-THIN-SPEC.md)). Merged to `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6), `80f5f63`).  
+**Next authorized:** T-3.4.01–03 thin invites (link token, no email) per [`PHASE-3.4-INVITE-SPEC.md`](docs/03-architecture/PHASE-3.4-INVITE-SPEC.md). Not started in the docs-sync ticket.
 
-Until the user explicitly authorizes the **next** implementation ticket:
+Until the user explicitly authorizes additional work:
 
-- Do **not** implement Setlist / Event / RSVP / invites / file Resource (T-3.2.06) without approval
+- Do **not** implement RSVP / file Resource (T-3.2.06) / Event cancel-PATCH unless separately approved
+- Do **not** implement invites beyond the authorized thin 3.4 spec without further approval
 - Do **not** install skills or non-stack tooling without approval
 - Do **not** push / create GitHub remotes / change branch protection unless explicitly authorized
-- Foundation + Group/Membership + repertoire maintenance within the accepted Phase 3.2 contract is allowed
+- Foundation + Group/Membership + repertoire + Phase 3.3 scheduling maintenance within the accepted contracts is allowed
 - Local PostgreSQL: repository `compose.yaml` (host port **5433**)
 
 ---

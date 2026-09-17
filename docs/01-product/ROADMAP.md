@@ -4,8 +4,9 @@ Product sequencing.
 
 **Phase 0–3.1 CLOSED.**  
 **Phase 3.2 approved scope COMPLETED** — `Song → Arrangement → Link Resource` + React Library Shell + sparse Playwright E2E (T-3.2.01–05, 07, 08) on `develop`.  
-**Deferred:** T-3.2.06 file Resource / blob / content (not next by default).  
-**Next:** requires human decision / authorization; may include already-documented deferred or later items (file Resource, Event / Setlist / RSVP). Nothing beyond the closed Phase 3.2 slice is authorized for implementation yet.
+**Phase 3.3 thin S2 COMPLETED** — Setlist → Event apply → React UI → Playwright (T-3.3.01–05) on `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6)).  
+**Deferred:** T-3.2.06 file Resource / blob / content; RSVP; Event cancel-PATCH (not next by default).  
+**Next authorized:** Phase 3.4 thin invites (T-3.4.01–03) — link token, no email. Spec: [`PHASE-3.4-INVITE-SPEC.md`](../03-architecture/PHASE-3.4-INVITE-SPEC.md). Not started.
 
 Product/code features beyond authorized tickets require **explicit** human approval.
 
@@ -32,10 +33,31 @@ Approved slice: **Song → Arrangement → Link Resource** (backend + React libr
 - [ ] T-3.2.06 File Resource / blob / content — **DEFERRED** (Q-R1/Q-R2); not automatic next
 - [ ] Optional: confirm Q-R3 max lengths
 
+### Phase 3.3 — Thin S2 scheduling (COMPLETED)
+
+Setlist → Event apply → copied Event Plan + React UI + sparse Playwright. RSVP / Event cancel remain outside this closed scope.
+
+- [x] Spec [`PHASE-3.3-THIN-SPEC.md`](../03-architecture/PHASE-3.3-THIN-SPEC.md)
+- [x] T-3.3.01 Setlist Application + API
+- [x] T-3.3.02 Event Application + API
+- [x] T-3.3.03 Apply Setlist → Event Plan
+- [x] T-3.3.04 React Setlist + Event + Apply UI
+- [x] T-3.3.05 Sparse Playwright (TC-EVT-01/02)
+
+### Phase 3.4 — Thin invites (authorized, not started)
+
+Link token, no email. Spec: [`PHASE-3.4-INVITE-SPEC.md`](../03-architecture/PHASE-3.4-INVITE-SPEC.md).
+
+- [ ] T-3.4.01 Invitation Application + API + migration
+- [ ] T-3.4.02 React invite + join UI
+- [ ] T-3.4.03 Sparse Playwright Member join + read plan (TC-INV-01)
+
 ### Later (only when authorized)
 
 - File Resource / blob storage (T-3.2.06)  
-- Event / Setlist / RSVP spine continuation  
+- RSVP  
+- Event cancel / PATCH (not in 3.3 thin)  
+- Email invites  
 
 ---
 
@@ -47,4 +69,4 @@ Approved slice: **Song → Arrangement → Link Resource** (backend + React libr
 
 ## Remaining OPEN
 
-Q8 chart format · Q9 realtime · Q10 billing · Q11 mobile/PWA · account deletion · hosting · invite mechanics · blob vendor · session TTLs · **Q-R1/Q-R2 file Resource (deferred)** · **Q-R3 max lengths** (provisional OK for link slice)
+Q8 chart format · Q9 realtime · Q10 billing · Q11 mobile/PWA · account deletion · hosting · invite mechanics thin freeze **Q-I1–I8** (email invites **FUTURE**) · blob vendor · session TTLs · **Q-R1/Q-R2 file Resource (deferred)** · **Q-R3 max lengths** (provisional OK for link slice)

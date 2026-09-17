@@ -1,9 +1,9 @@
 # Phase 3.3 Thin S2 Specification
 
-**Status:** TICKETIZED — **not** an implementation authorization.  
+**Status:** **COMPLETED** on `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6), merge `80f5f63`). T-3.3.01–05 shipped.  
 **Product bet:** S2 — Setlist → Event apply → copied Event Plan.  
 **Scope source:** [`.scratch/PHASE-3.3-THIN-SCOPE.md`](../../.scratch/PHASE-3.3-THIN-SCOPE.md)  
-**Develop reference:** `53e9ca19f22b8ceb6366f1c000a488dd84994966`  
+**Develop reference:** `80f5f63e9b3e86f4ade3bfa2a4fffd6eb9ec4e23`  
 **Date:** 2026-09-16  
 **Depends on:** ADR-0016–0018, ADR-0021–0023, ADR-0019–0020; Phase 3.2 Library (Song → Arrangement → Link Resource)
 
@@ -69,7 +69,7 @@ RSVP · invitations · email · notifications · file/blob Resources · upload/`
 | `SourceSetlistId` SET NULL | Present | **Set on apply** |
 | `Version` concurrency tokens | Present | **Wire expectedVersion** |
 | `Rsvp` table | Present | **Ignore** |
-| Application handlers / API / UI for Scheduling | **Missing** | **Build** |
+| Application handlers / API / UI for Scheduling | **Shipped** (T-3.3.01–05) | **Done** |
 | Library Song/Arrangement APIs + UI | Shipped | **Reuse** as Arr source |
 
 **Foundation vs ADR:** No conflict found. Persistence matches ADR-0018/0021–0023. No new ADR required.
@@ -342,5 +342,5 @@ No ADR-blocking contradictions. Invite/Member E2E remains deferred by product ch
 
 ## Exit
 
-- Planning artifact only — **no implementation authorized**.
-- Next human step: authorize implementation starting at T-3.3.01 (and optionally parallel T-3.3.02).
+- Thin S2 **COMPLETED** on `develop` (PR #6, merge `80f5f63`). Tickets T-3.3.01–05 closed.
+- Next authorized implementation: Phase 3.4 thin invites ([`PHASE-3.4-INVITE-SPEC.md`](PHASE-3.4-INVITE-SPEC.md)). RSVP and T-3.2.06 remain deferred.
