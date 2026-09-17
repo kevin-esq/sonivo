@@ -212,6 +212,23 @@ export async function leaveGroup(groupId: string): Promise<void> {
   await apiRequest<void>(`/api/groups/${groupId}/leave`, { method: 'POST' })
 }
 
+export type OutstandingInvitation = {
+  id: string
+  createdAt: string
+  expiresAt: string
+}
+
+export async function listInvitations(groupId: string): Promise<OutstandingInvitation[]> {
+  const payload = await apiRequest<{ items: OutstandingInvitation[] }>(
+    `/api/groups/${groupId}/invitations`,
+  )
+  return payload.items
+}
+
+export async function revokeInvitation(groupId: string, invitationId: string): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/invitations/${invitationId}`, { method: 'DELETE' })
+}
+
 export type InvitationCreated = {
   id: string
   token: string
