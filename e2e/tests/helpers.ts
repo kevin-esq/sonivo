@@ -150,3 +150,14 @@ export async function acceptInvite(page: Page) {
   await expect(page.getByRole('heading', { name: 'Join this group' })).toBeVisible()
   await page.getByRole('button', { name: 'Accept invite' }).click()
 }
+
+export function attendanceRegion(page: Page) {
+  return page.getByRole('region', { name: 'Attendance' })
+}
+
+export async function setRsvpYes(page: Page) {
+  const attendance = attendanceRegion(page)
+  await expect(attendance).toBeVisible()
+  await attendance.getByRole('button', { name: 'Yes' }).click()
+  await expect(attendance.getByRole('button', { name: 'Yes' })).toHaveAttribute('aria-pressed', 'true')
+}
