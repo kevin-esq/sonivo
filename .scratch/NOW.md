@@ -5,7 +5,7 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-3.5.01–03 thin RSVP)
+Implementation: COMPLETE (T-3.5.01–03 + docs close)
 Human approval: APPROVED (Kevin Esquivel)
 Git checkpoint: PENDING
 Remote: NOT PUSHED
@@ -20,7 +20,7 @@ CI: NOT RUN
 | Phase | Status |
 | ----- | ------ |
 | 3.4 thin invites | **MERGED** (PR #8) + docs **CLOSED** (PR #9) |
-| 3.5 thin RSVP | T-3.5.01–03 APPROVED — git checkpoint next |
+| 3.5 thin RSVP | T-3.5.01–03 APPROVED — PR next |
 | T-3.2.06 file/blob | **DEFERRED** |
 
 ## Firewall
