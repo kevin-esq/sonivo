@@ -250,5 +250,10 @@ public sealed class SonivoApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("UseInMemoryDatabase", "true");
         builder.UseSetting("InMemoryDatabaseName", _dbName);
         builder.UseSetting("ConnectionStrings:Default", "Host=unused;Database=unused;Username=unused;Password=unused");
+        builder.UseSetting("Gmail:ClientId", "");
+        builder.UseSetting("Gmail:ClientSecret", "");
+        builder.UseSetting("Gmail:RefreshToken", "");
+        builder.UseSetting("Gmail:From", "");
+        builder.UseSetting("PublicOrigin", "");
     }
 }

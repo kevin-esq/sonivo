@@ -22,6 +22,16 @@ public sealed class Membership
 
     public bool IsOwner => Role == MembershipRoles.Owner;
 
+    public void AssignRole(string role)
+    {
+        if (role is not (MembershipRoles.Owner or MembershipRoles.Member))
+        {
+            throw new ArgumentException("Role must be Owner or Member.", nameof(role));
+        }
+
+        Role = role;
+    }
+
     private static Membership Create(
         Guid groupId,
         Guid userId,

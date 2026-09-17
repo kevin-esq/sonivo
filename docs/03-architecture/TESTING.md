@@ -69,4 +69,50 @@ GitHub Actions (`.github/workflows/ci.yml`) starts PostgreSQL, applies migration
 
 ## Priority for later vertical slices
 
-When Song / Event / RSVP land, extend Playwright with one critical journey per workflow (Member opens Event materials, Owner applies setlist, etc.) — not an exhaustive matrix.
+### Phase 3.2 — Song / Arrangement / Link Resource (approved scope COMPLETED)
+
+Authoritative matrix: [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md) §11–§14. Nested Resource routes are the MVP contract. T-3.2.08 shipped sparse library E2E on `develop` (CI Playwright green).
+
+| Layer | Focus |
+| ----- | ----- |
+| Domain | Song/Arr/Resource invariants (OriginKind, BPM, Label, Kind) |
+| Application | AuthZ, Song cascade §8a, Resource ownership via Arr |
+| API | 401/403/404/409/400 + CSRF; nested Resource get/patch/delete |
+| Postgres | Composite FKs, filters, cascade tx, Kind nullability |
+| Playwright (T-3.2.08 **COMPLETE**) | **TC-LIB-01** Owner Song→Arr→**link** Resource; **TC-LIB-02** Owner Song soft-delete; **TC-LIB-03** non-member denied library URL. **Deferred:** Member browser E2E; 409 conflict E2E; file Resource flows |
+
+RSVP Playwright is Phase 3.5 (**TC-RSVP-01**), not this closed 3.2 slice.
+
+### Phase 3.3 — Setlist / Event apply (thin S2 COMPLETED)
+
+Authoritative matrix: [`PHASE-3.3-THIN-SPEC.md`](PHASE-3.3-THIN-SPEC.md). Shipped on `develop` (PR #6).
+
+| Layer | Focus |
+| ----- | ----- |
+| Application | AuthZ; item replace; Apply label copy; confirmReplace / expectedVersion 409; empty Setlist Apply 400 |
+| API | HTTP contracts + CSRF on mutating verbs |
+| Playwright (T-3.3.05 **COMPLETE**) | **TC-EVT-01** Owner Setlist compose → Event create → Apply → plan labels visible. **TC-EVT-02** Setlist edit does not change Event plan until re-apply. **Deferred:** Member browser E2E (needs invite seed); 409 E2E matrix |
+
+### Phase 3.4 — Thin invites (COMPLETED)
+
+Authoritative matrix: [`PHASE-3.4-INVITE-SPEC.md`](PHASE-3.4-INVITE-SPEC.md). Shipped on `develop` (PR #8). **TC-INV-01 COMPLETE:** Owner invite → second user accept → Member sees Event plan, no mutate chrome.
+
+### Phase 3.5 — Thin RSVP (COMPLETED)
+
+Authoritative matrix: [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md). Shipped on `develop` (PR #10). **TC-RSVP-01 COMPLETE:** Owner Event with plan; invite Member; Member sets Yes; Owner sees that Member’s display name and Yes.
+
+### Phase 3.6 — Thin Event PATCH + cancel (COMPLETED)
+
+Authoritative matrix: [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md). **TC-EVT-03 COMPLETE:** Owner PATCH Event title; Cancel event; Event absent from default list.
+
+### Phase 3.7 — Thin People + Group lifecycle (COMPLETED)
+
+Authoritative matrix: [`PHASE-3.7-PEOPLE-SPEC.md`](PHASE-3.7-PEOPLE-SPEC.md). **TC-PPL-01 COMPLETE:** Owner invites; second user accepts; Owner opens People, sees both names; Owner removes Member; Member visiting the Group URL sees not-found.
+
+### Phase 3.8 — Thin invite hygiene (COMPLETED)
+
+Authoritative matrix: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](PHASE-3.8-INVITE-HYGIENE-SPEC.md). **TC-INV-02 COMPLETE:** Owner creates invite; People shows outstanding; Owner revokes; second user opening the old join URL sees invalid/expired.
+
+### Phase 3.9 — Thin invite email (COMPLETED)
+
+Authoritative matrix: [`PHASE-3.9-SMTP-SPEC.md`](PHASE-3.9-SMTP-SPEC.md). Existing invite journeys stay green without Gmail OAuth secrets. **TC-INV-03 COMPLETE:** Owner types an optional invitee email; invite is created; warning shows that email was not sent (local/CI has no `Gmail:*` / `PublicOrigin`).

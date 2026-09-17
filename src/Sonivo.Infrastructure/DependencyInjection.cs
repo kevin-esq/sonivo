@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -32,6 +33,10 @@ public static class DependencyInjection
             }
         });
 
+        services.AddDataProtection()
+            .SetApplicationName("Sonivo")
+            .PersistKeysToDbContext<SonivoDbContext>();
+
         services
             .AddIdentityCore<ApplicationUser>(options =>
             {
@@ -53,6 +58,17 @@ public static class DependencyInjection
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<IGroupStore, EfGroupStore>();
+        services.AddScoped<IMembershipStore, EfMembershipStore>();
+        services.AddScoped<IInvitationStore, EfInvitationStore>();
+        services.AddScoped<ISongStore, EfSongStore>();
+        services.AddScoped<IArrangementStore, EfArrangementStore>();
+        services.AddScoped<IResourceStore, EfResourceStore>();
+        services.AddScoped<ISetlistStore, EfSetlistStore>();
+        services.AddScoped<IEventStore, EfEventStore>();
+        services.AddScoped<IUserDirectory, EfUserDirectory>();
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddSingleton<IPublicOrigin, ConfigurationPublicOrigin>();
+        services.AddHttpClient<IEmailSender, GmailEmailSender>();
 
         return services;
     }
