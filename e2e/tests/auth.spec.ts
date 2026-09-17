@@ -5,8 +5,8 @@ test.describe('Authentication journeys', () => {
   test('register creates an authenticated session', async ({ page }) => {
     const email = uniqueEmail('reg')
     await register(page, email)
-    await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible()
-    await expect(page.getByText('No groups yet')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible()
+    await expect(page.getByText('Aún no tienes grupos')).toBeVisible()
   })
 
   test('login restores session; logout clears it', async ({ page }) => {

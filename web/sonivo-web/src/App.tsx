@@ -1,579 +1,20 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
-import { Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import {
-  ApiError,
-  createGroup,
-  createInvitation,
-  deleteGroup,
-  fetchCurrentUser,
-  getGroup,
-  listMyGroups,
-  loginUser,
-  logoutUser,
-  problemDetail,
-  registerUser,
-  updateGroup,
-  type CurrentUser,
-  type GroupDetail,
-  type GroupSummary,
-} from './api/client'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { fetchCurrentUser, logoutUser, type CurrentUser } from './api/client'
+import { GroupsPage } from './groups/GroupsPage'
+import { GroupHomePage } from './groups/GroupHomePage'
 import { ArrangementDetailPage } from './repertoire/ArrangementDetailPage'
 import { LibraryPage } from './repertoire/LibraryPage'
 import { SongDetailPage } from './repertoire/SongDetailPage'
-import {
-  ConfirmDialog,
-  CONFLICT_MESSAGE,
-  ConflictAlert,
-  dangerButtonClass,
-  fieldClass,
-  isOwnerRole,
-  mutationErrorMessage,
-  primaryButtonClass,
-  ProblemAlert,
-  secondaryButtonClass,
-} from './repertoire/ui'
 import { EventDetailPage } from './scheduling/EventDetailPage'
 import { EventListPage } from './scheduling/EventListPage'
-import { GroupSectionNav } from './scheduling/GroupSectionNav'
 import { SetlistDetailPage } from './scheduling/SetlistDetailPage'
 import { SetlistListPage } from './scheduling/SetlistListPage'
-import { JoinPage, safeJoinNextPath } from './tenancy/JoinPage'
+import { GuestAuthRoute } from './shell/AuthScreen'
+import { GroupsChrome, PublicChrome, SessionScreen } from './shell/GroupsChrome'
+import { GroupWorkspace } from './shell/GroupWorkspace'
+import { JoinPage } from './tenancy/JoinPage'
 import { PeoplePage } from './tenancy/PeoplePage'
-
-function Shell({
-  user,
-  onLogout,
-  children,
-}: {
-  user: CurrentUser | null
-  onLogout: () => void
-  children: React.ReactNode
-}) {
-  const [searchParams] = useSearchParams()
-  const next = safeJoinNextPath(searchParams.get('next'))
-  const loginTo = next ? `/login?next=${encodeURIComponent(next)}` : '/login'
-  const registerTo = next ? `/register?next=${encodeURIComponent(next)}` : '/register'
-
-  return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-6 py-10">
-      <header className="border-b border-slate-300 pb-4">
-        <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Sonivo</p>
-        <h1 className="mt-2 text-3xl font-semibold">Groups</h1>
-        <p className="mt-2 text-slate-600">
-          Create and select a musical group. Open the library from a group to manage songs.
-        </p>
-        <nav className="mt-4 flex flex-wrap items-center gap-4 text-sm" aria-label="Primary">
-          <Link className="underline" to="/">
-            My groups
-          </Link>
-          {user ? (
-            <>
-              <span className="text-slate-600">{user.email}</span>
-              <button type="button" className="underline" onClick={onLogout}>
-                Log out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link className="underline" to={loginTo}>
-                Log in
-              </Link>
-              <Link className="underline" to={registerTo}>
-                Register
-              </Link>
-            </>
-          )}
-        </nav>
-      </header>
-      <main>{children}</main>
-    </div>
-  )
-}
-
-function AuthForm({
-  mode,
-  onSuccess,
-}: {
-  mode: 'login' | 'register'
-  onSuccess: (user: CurrentUser) => void
-}) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [displayName, setDisplayName] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const next = safeJoinNextPath(searchParams.get('next'))
-  const otherModeTo =
-    mode === 'login'
-      ? next
-        ? `/register?next=${encodeURIComponent(next)}`
-        : '/register'
-      : next
-        ? `/login?next=${encodeURIComponent(next)}`
-        : '/login'
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    setPending(true)
-    setError(null)
-    try {
-      if (mode === 'register') {
-        await registerUser({ email, password, displayName: displayName || undefined })
-        const user = await loginUser({ email, password })
-        onSuccess(user)
-      } else {
-        const user = await loginUser({ email, password })
-        onSuccess(user)
-      }
-      navigate(next ?? '/')
-    } catch (err) {
-      setError(problemDetail(err))
-    } finally {
-      setPending(false)
-    }
-  }
-
-  return (
-    <form className="max-w-md space-y-4" onSubmit={onSubmit} noValidate>
-      <h2 className="text-xl font-medium">{mode === 'login' ? 'Log in' : 'Create account'}</h2>
-      {error ? (
-        <p role="alert" className="text-red-700">
-          {error}
-        </p>
-      ) : null}
-      {mode === 'register' ? (
-        <label className="block space-y-1">
-          <span className="text-sm text-slate-700">Display name</span>
-          <input
-            className="w-full border border-slate-400 px-3 py-2"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            autoComplete="nickname"
-          />
-        </label>
-      ) : null}
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Email</span>
-        <input
-          className="w-full border border-slate-400 px-3 py-2"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-        />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Password</span>
-        <input
-          className="w-full border border-slate-400 px-3 py-2"
-          type="password"
-          required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-        />
-      </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="border border-slate-800 bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
-      >
-        {pending ? 'Working…' : mode === 'login' ? 'Log in' : 'Register'}
-      </button>
-      <p>
-        {mode === 'login' ? (
-          <Link className="underline" to={otherModeTo}>
-            Register
-          </Link>
-        ) : (
-          <Link className="underline" to={otherModeTo}>
-            Log in
-          </Link>
-        )}
-      </p>
-    </form>
-  )
-}
-
-function GuestAuthRoute({
-  user,
-  mode,
-  onSuccess,
-}: {
-  user: CurrentUser | null | undefined
-  mode: 'login' | 'register'
-  onSuccess: (user: CurrentUser) => void
-}) {
-  const [searchParams] = useSearchParams()
-  const next = safeJoinNextPath(searchParams.get('next'))
-  if (user) {
-    return <Navigate to={next ?? '/'} replace />
-  }
-  return <AuthForm mode={mode} onSuccess={onSuccess} />
-}
-
-function GroupsPage({ user }: { user: CurrentUser }) {
-  const [groups, setGroups] = useState<GroupSummary[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [name, setName] = useState('')
-  const [creating, setCreating] = useState(false)
-  const navigate = useNavigate()
-
-  async function reload() {
-    setError(null)
-    try {
-      setGroups(await listMyGroups())
-    } catch (err) {
-      setError(problemDetail(err))
-      setGroups([])
-    }
-  }
-
-  useEffect(() => {
-    void reload()
-  }, [user.id])
-
-  async function onCreate(event: FormEvent) {
-    event.preventDefault()
-    setCreating(true)
-    setError(null)
-    try {
-      const created = await createGroup(name)
-      setName('')
-      navigate(`/groups/${created.id}`)
-    } catch (err) {
-      setError(problemDetail(err))
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  return (
-    <section className="space-y-6" aria-labelledby="groups-heading">
-      <h2 id="groups-heading" className="text-xl font-medium">
-        My groups
-      </h2>
-
-      {error ? (
-        <p role="alert" className="text-red-700">
-          {error}
-        </p>
-      ) : null}
-
-      {groups === null ? (
-        <p aria-live="polite">Loading groups…</p>
-      ) : groups.length === 0 ? (
-        <p>No groups yet. Create one to get started.</p>
-      ) : (
-        <ul className="space-y-2">
-          {groups.map((group) => (
-            <li key={group.id}>
-              <Link className="underline" to={`/groups/${group.id}`}>
-                {group.name}
-              </Link>
-              <span className="ml-2 text-sm text-slate-600">({group.role})</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <form className="max-w-md space-y-3 border-t border-slate-300 pt-6" onSubmit={onCreate}>
-        <h3 className="font-medium">Create group</h3>
-        <label className="block space-y-1">
-          <span className="text-sm text-slate-700">Name</span>
-          <input
-            className="w-full border border-slate-400 px-3 py-2"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={200}
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={creating}
-          className="border border-slate-800 bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
-        >
-          {creating ? 'Creating…' : 'Create group'}
-        </button>
-      </form>
-    </section>
-  )
-}
-
-function GroupShellPage({ user }: { user: CurrentUser }) {
-  const { groupId } = useParams()
-  const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
-  const [error, setError] = useState<string | null>(null)
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null)
-  const [inviteError, setInviteError] = useState<string | null>(null)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteEmailWarning, setInviteEmailWarning] = useState<string | null>(null)
-  const [inviting, setInviting] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [renameName, setRenameName] = useState('')
-  const [renaming, setRenaming] = useState(false)
-  const [renameError, setRenameError] = useState<string | null>(null)
-  const [renameConflict, setRenameConflict] = useState<string | null>(null)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      if (!groupId) return
-      setGroup(undefined)
-      setError(null)
-      setInviteUrl(null)
-      setInviteError(null)
-      setInviteEmail('')
-      setInviteEmailWarning(null)
-      setCopied(false)
-      try {
-        const result = await getGroup(groupId)
-        if (!cancelled) {
-          setGroup(result)
-          setRenameName(result.name)
-        }
-      } catch (err) {
-        if (cancelled) return
-        setGroup(null)
-        if (err instanceof ApiError && err.status === 404) {
-          setError('Group not found or you do not have access.')
-        } else {
-          setError(problemDetail(err))
-        }
-      }
-    }
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [groupId, user.id])
-
-  const isOwner = isOwnerRole(group?.role)
-
-  async function onInviteMember() {
-    if (!group) return
-    setInviting(true)
-    setInviteError(null)
-    setInviteEmailWarning(null)
-    setCopied(false)
-    try {
-      const created = await createInvitation(group.id, inviteEmail)
-      setInviteUrl(`${window.location.origin}/join/${created.token}`)
-      if (inviteEmail.trim() && !created.emailed) {
-        setInviteEmailWarning(
-          'Invite created, but the email was not sent. Copy the link and share it yourself.',
-        )
-      }
-    } catch (err) {
-      setInviteError(mutationErrorMessage(err))
-    } finally {
-      setInviting(false)
-    }
-  }
-
-  async function onRename(event: FormEvent) {
-    event.preventDefault()
-    if (!group) return
-    setRenaming(true)
-    setRenameError(null)
-    setRenameConflict(null)
-    try {
-      const updated = await updateGroup(group.id, {
-        name: renameName,
-        expectedVersion: group.version,
-      })
-      setGroup(updated)
-      setRenameName(updated.name)
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setRenameConflict(CONFLICT_MESSAGE)
-        try {
-          const latest = await getGroup(group.id)
-          setGroup(latest)
-          setRenameName(latest.name)
-        } catch (reloadErr) {
-          setRenameError(mutationErrorMessage(reloadErr))
-        }
-      } else {
-        setRenameError(mutationErrorMessage(err))
-      }
-    } finally {
-      setRenaming(false)
-    }
-  }
-
-  async function onConfirmDelete() {
-    if (!group) return
-    setDeleting(true)
-    setDeleteError(null)
-    try {
-      await deleteGroup(group.id, group.version)
-      setDeleteOpen(false)
-      navigate('/')
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setDeleteError(CONFLICT_MESSAGE)
-        try {
-          const latest = await getGroup(group.id)
-          setGroup(latest)
-          setRenameName(latest.name)
-        } catch (reloadErr) {
-          setDeleteError(mutationErrorMessage(reloadErr))
-        }
-      } else {
-        setDeleteError(mutationErrorMessage(err))
-      }
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  async function onCopyInviteLink() {
-    if (!inviteUrl) return
-    try {
-      await navigator.clipboard.writeText(inviteUrl)
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
-  }
-
-  if (group === undefined) {
-    return <p aria-live="polite">Loading group…</p>
-  }
-
-  if (group === null) {
-    return (
-      <div className="space-y-3">
-        <p role="alert" className="text-red-700">
-          {error}
-        </p>
-        <Link className="underline" to="/">
-          Back to my groups
-        </Link>
-      </div>
-    )
-  }
-
-  return (
-    <section className="space-y-4" aria-labelledby="group-heading">
-      <h2 id="group-heading" className="text-xl font-medium">
-        {group.name}
-      </h2>
-      <p className="text-slate-700">
-        Selected group shell. Role: <strong>{group.role}</strong>. Version:{' '}
-        <strong>{group.version}</strong>.
-      </p>
-      <GroupSectionNav groupId={group.id} />
-      {isOwner ? (
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <label className="block max-w-md space-y-1">
-              <span className="text-sm text-slate-700">Invitee email (optional)</span>
-              <input
-                className={fieldClass}
-                type="email"
-                autoComplete="off"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              className={primaryButtonClass}
-              disabled={inviting}
-              onClick={() => void onInviteMember()}
-            >
-              {inviting ? 'Working…' : 'Invite member'}
-            </button>
-            <ProblemAlert message={inviteError} />
-            {inviteEmailWarning ? (
-              <p role="status" className="text-sm text-amber-800">
-                {inviteEmailWarning}
-              </p>
-            ) : null}
-            {inviteUrl ? (
-              <div className="max-w-md space-y-2">
-                <label className="block space-y-1">
-                  <span className="text-sm text-slate-700">Invite link</span>
-                  <input className={fieldClass} readOnly value={inviteUrl} />
-                </label>
-                <button
-                  type="button"
-                  className={secondaryButtonClass}
-                  onClick={() => void onCopyInviteLink()}
-                >
-                  Copy invite link
-                </button>
-                {copied ? (
-                  <p aria-live="polite" className="text-sm text-slate-600">
-                    Copied
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-          <form className="max-w-md space-y-3 border-t border-slate-300 pt-6" onSubmit={onRename}>
-            <h3 className="font-medium">Rename group</h3>
-            <ConflictAlert message={renameConflict} />
-            <ProblemAlert message={renameError} />
-            <label className="block space-y-1">
-              <span className="text-sm text-slate-700">Name</span>
-              <input
-                className={fieldClass}
-                required
-                value={renameName}
-                onChange={(e) => setRenameName(e.target.value)}
-                maxLength={200}
-              />
-            </label>
-            <button type="submit" className={secondaryButtonClass} disabled={renaming}>
-              {renaming ? 'Working…' : 'Save name'}
-            </button>
-          </form>
-          <div className="space-y-3 border-t border-slate-300 pt-6">
-            <h3 className="font-medium">Delete group</h3>
-            <ProblemAlert message={deleteError} />
-            <button
-              type="button"
-              className={dangerButtonClass}
-              onClick={() => setDeleteOpen(true)}
-            >
-              Delete group
-            </button>
-            <ConfirmDialog
-              open={deleteOpen}
-              title="Delete group?"
-              confirmLabel="Delete group"
-              pending={deleting}
-              onConfirm={() => void onConfirmDelete()}
-              onCancel={() => {
-                if (!deleting) setDeleteOpen(false)
-              }}
-            >
-              <p>This hides the group for everyone in it. You cannot undo from this screen.</p>
-            </ConfirmDialog>
-          </div>
-        </div>
-      ) : null}
-      <nav className="flex flex-wrap gap-4" aria-label="Account">
-        <Link className="underline" to="/">
-          Back to my groups
-        </Link>
-      </nav>
-    </section>
-  )
-}
 
 function RequireAuth({
   user,
@@ -583,12 +24,28 @@ function RequireAuth({
   children: React.ReactNode
 }) {
   if (user === undefined) {
-    return <p aria-live="polite">Checking session…</p>
+    return <SessionScreen message="Comprobando sesión…" />
   }
   if (!user) {
     return <Navigate to="/login" replace />
   }
   return children
+}
+
+function GroupRoute({
+  user,
+  onLogout,
+  children,
+}: {
+  user: CurrentUser
+  onLogout: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <GroupWorkspace user={user} onLogout={onLogout}>
+      {children}
+    </GroupWorkspace>
+  )
 }
 
 export default function App() {
@@ -612,99 +69,126 @@ export default function App() {
     }
   }
 
+  const onLogout = () => void handleLogout()
+
   return (
-    <Shell user={user ?? null} onLogout={() => void handleLogout()}>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <RequireAuth user={user}>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <RequireAuth user={user}>
+            <GroupsChrome user={user!} onLogout={onLogout}>
               <GroupsPage user={user!} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/groups/:groupId"
-          element={
-            <RequireAuth user={user}>
-              <GroupShellPage user={user!} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/groups/:groupId/library"
-          element={
-            <RequireAuth user={user}>
+            </GroupsChrome>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/groups/:groupId"
+        element={
+          <RequireAuth user={user}>
+            <GroupRoute user={user!} onLogout={onLogout}>
+              <GroupHomePage user={user!} />
+            </GroupRoute>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/groups/:groupId/library"
+        element={
+          <RequireAuth user={user}>
+            <GroupRoute user={user!} onLogout={onLogout}>
               <LibraryPage user={user!} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/groups/:groupId/setlists"
-          element={
-            <RequireAuth user={user}>
+            </GroupRoute>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/groups/:groupId/setlists"
+        element={
+          <RequireAuth user={user}>
+            <GroupRoute user={user!} onLogout={onLogout}>
               <SetlistListPage user={user!} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/groups/:groupId/setlists/:setlistId"
-          element={
-            <RequireAuth user={user}>
+            </GroupRoute>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/groups/:groupId/setlists/:setlistId"
+        element={
+          <RequireAuth user={user}>
+            <GroupRoute user={user!} onLogout={onLogout}>
               <SetlistDetailPage user={user!} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/groups/:groupId/events"
-          element={
-            <RequireAuth user={user}>
+            </GroupRoute>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/groups/:groupId/events"
+        element={
+          <RequireAuth user={user}>
+            <GroupRoute user={user!} onLogout={onLogout}>
               <EventListPage user={user!} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/groups/:groupId/people"
-          element={
-            <RequireAuth user={user}>
+            </GroupRoute>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/groups/:groupId/people"
+        element={
+          <RequireAuth user={user}>
+            <GroupRoute user={user!} onLogout={onLogout}>
               <PeoplePage user={user!} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/groups/:groupId/events/:eventId"
-          element={
-            <RequireAuth user={user}>
+            </GroupRoute>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/groups/:groupId/events/:eventId"
+        element={
+          <RequireAuth user={user}>
+            <GroupRoute user={user!} onLogout={onLogout}>
               <EventDetailPage user={user!} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/groups/:groupId/songs/:songId"
-          element={
-            <RequireAuth user={user}>
+            </GroupRoute>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/groups/:groupId/songs/:songId"
+        element={
+          <RequireAuth user={user}>
+            <GroupRoute user={user!} onLogout={onLogout}>
               <SongDetailPage user={user!} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/groups/:groupId/arrangements/:arrangementId"
-          element={
-            <RequireAuth user={user}>
+            </GroupRoute>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/groups/:groupId/arrangements/:arrangementId"
+        element={
+          <RequireAuth user={user}>
+            <GroupRoute user={user!} onLogout={onLogout}>
               <ArrangementDetailPage user={user!} />
-            </RequireAuth>
-          }
-        />
-        <Route path="/join/:token" element={<JoinPage user={user} />} />
-        <Route
-          path="/login"
-          element={<GuestAuthRoute user={user} mode="login" onSuccess={setUser} />}
-        />
-        <Route
-          path="/register"
-          element={<GuestAuthRoute user={user} mode="register" onSuccess={setUser} />}
-        />
-      </Routes>
-    </Shell>
+            </GroupRoute>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/join/:token"
+        element={
+          <PublicChrome user={user ?? null}>
+            <JoinPage user={user} />
+          </PublicChrome>
+        }
+      />
+      <Route
+        path="/login"
+        element={<GuestAuthRoute user={user} mode="login" onSuccess={setUser} />}
+      />
+      <Route
+        path="/register"
+        element={<GuestAuthRoute user={user} mode="register" onSuccess={setUser} />}
+      />
+    </Routes>
   )
 }

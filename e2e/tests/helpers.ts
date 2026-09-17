@@ -9,36 +9,36 @@ export const testPassword = 'TestPass1a'
 
 export async function register(page: Page, email: string, password = testPassword) {
   await page.goto('/register')
-  await page.getByLabel('Display name').fill(email.split('@')[0] ?? 'e2e')
-  await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill(password)
-  await page.getByRole('button', { name: 'Register' }).click()
-  await expect(page.getByRole('heading', { name: 'My groups' })).toBeVisible()
+  await page.getByLabel('Nombre').fill(email.split('@')[0] ?? 'e2e')
+  await page.getByLabel('Correo electrónico').fill(email)
+  await page.getByLabel('Contraseña').fill(password)
+  await page.getByRole('button', { name: 'Registrarse' }).click()
+  await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
   await expect(page.getByText(email)).toBeVisible()
 }
 
 export async function login(page: Page, email: string, password = testPassword) {
   await page.goto('/login')
-  await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill(password)
-  await page.getByRole('button', { name: 'Log in' }).click()
-  await expect(page.getByRole('heading', { name: 'My groups' })).toBeVisible()
+  await page.getByLabel('Correo electrónico').fill(email)
+  await page.getByLabel('Contraseña').fill(password)
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+  await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
 }
 
 export async function logout(page: Page) {
-  await page.getByRole('button', { name: 'Log out' }).click()
-  await expect(page.getByRole('link', { name: 'Log in' })).toBeVisible()
+  await page.getByRole('button', { name: 'Cerrar sesión' }).click()
+  await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
 }
 
 export async function createGroup(page: Page, name: string) {
-  await page.getByLabel('Name').fill(name)
-  await page.getByRole('button', { name: 'Create group' }).click()
+  await page.getByLabel('Nombre').fill(name)
+  await page.getByRole('button', { name: 'Crear grupo' }).click()
   await expect(page.getByRole('heading', { name })).toBeVisible()
-  await expect(page.getByText('Owner', { exact: true })).toBeVisible()
+  await expect(page.getByRole('complementary').getByText('Owner', { exact: true })).toBeVisible()
 }
 
 export async function openLibrary(page: Page) {
-  await page.getByRole('link', { name: 'Song library' }).click()
+  await page.getByRole('link', { name: 'Biblioteca' }).click()
   await expect(page.getByRole('heading', { name: 'Song library' })).toBeVisible()
 }
 
@@ -116,7 +116,7 @@ export async function saveSetlistOrder(page: Page) {
 }
 
 export async function openEvents(page: Page) {
-  await page.getByRole('link', { name: 'Events' }).first().click()
+  await page.getByRole('link', { name: 'Eventos' }).first().click()
   await expect(page.getByRole('heading', { name: 'Events' })).toBeVisible()
 }
 
@@ -152,7 +152,7 @@ export async function acceptInvite(page: Page) {
 }
 
 export async function openPeople(page: Page) {
-  await page.getByRole('link', { name: 'People' }).click()
+  await page.getByRole('link', { name: 'Miembros' }).click()
   await expect(page.getByRole('heading', { name: 'People' })).toBeVisible()
 }
 
