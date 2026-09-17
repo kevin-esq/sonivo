@@ -107,4 +107,18 @@ test.describe('Invite journeys', () => {
     await page.getByRole('button', { name: 'Accept invite' }).click()
     await expect(page.getByRole('alert')).toContainText('This invite is invalid or expired.')
   })
+
+  test('TC-INV-03 owner types email; invite still created; warning when mail not sent', async ({
+    page,
+  }) => {
+    const ownerEmail = uniqueEmail('smtp-owner')
+    const groupName = `Smtp Band ${Date.now()}`
+
+    await register(page, ownerEmail)
+    await createGroup(page, groupName)
+    await page.getByLabel('Invitee email (optional)').fill(uniqueEmail('invitee'))
+    const inviteUrl = await inviteMemberAndReadLink(page)
+    expect(inviteUrl).toContain('/join/')
+    await expect(page.getByRole('status')).toContainText('email was not sent')
+  })
 })

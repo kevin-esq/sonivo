@@ -233,6 +233,7 @@ export type InvitationCreated = {
   id: string
   token: string
   expiresAt: string
+  emailed: boolean
 }
 
 export type InvitationAccepted = {
@@ -240,10 +241,14 @@ export type InvitationAccepted = {
   role: string
 }
 
-export async function createInvitation(groupId: string): Promise<InvitationCreated> {
+export async function createInvitation(
+  groupId: string,
+  email?: string,
+): Promise<InvitationCreated> {
+  const trimmed = email?.trim()
   return apiRequest<InvitationCreated>(`/api/groups/${groupId}/invitations`, {
     method: 'POST',
-    body: {},
+    body: trimmed ? { email: trimmed } : {},
   })
 }
 

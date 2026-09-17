@@ -312,6 +312,8 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
   const [error, setError] = useState<string | null>(null)
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
   const [inviteError, setInviteError] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteEmailWarning, setInviteEmailWarning] = useState<string | null>(null)
   const [inviting, setInviting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [renameName, setRenameName] = useState('')
@@ -331,6 +333,8 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
       setError(null)
       setInviteUrl(null)
       setInviteError(null)
+      setInviteEmail('')
+      setInviteEmailWarning(null)
       setCopied(false)
       try {
         const result = await getGroup(groupId)
@@ -360,10 +364,16 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
     if (!group) return
     setInviting(true)
     setInviteError(null)
+    setInviteEmailWarning(null)
     setCopied(false)
     try {
-      const created = await createInvitation(group.id)
+      const created = await createInvitation(group.id, inviteEmail)
       setInviteUrl(`${window.location.origin}/join/${created.token}`)
+      if (inviteEmail.trim() && !created.emailed) {
+        setInviteEmailWarning(
+          'Invite created, but the email was not sent. Copy the link and share it yourself.',
+        )
+      }
     } catch (err) {
       setInviteError(mutationErrorMessage(err))
     } finally {
@@ -468,6 +478,16 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
       {isOwner ? (
         <div className="space-y-6">
           <div className="space-y-3">
+            <label className="block max-w-md space-y-1">
+              <span className="text-sm text-slate-700">Invitee email (optional)</span>
+              <input
+                className={fieldClass}
+                type="email"
+                autoComplete="off"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </label>
             <button
               type="button"
               className={primaryButtonClass}
@@ -477,6 +497,11 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
               {inviting ? 'Working…' : 'Invite member'}
             </button>
             <ProblemAlert message={inviteError} />
+            {inviteEmailWarning ? (
+              <p role="status" className="text-sm text-amber-800">
+                {inviteEmailWarning}
+              </p>
+            ) : null}
             {inviteUrl ? (
               <div className="max-w-md space-y-2">
                 <label className="block space-y-1">

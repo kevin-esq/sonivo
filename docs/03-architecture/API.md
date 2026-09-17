@@ -37,7 +37,7 @@ Convention: JSON; Problem Details ([`TECHNICAL-SPEC.md`](TECHNICAL-SPEC.md) §8)
 | Rename / settings | PATCH | `/api/groups/{groupId}` | Yes | Owner | | 200 | 403, 404, 409 |
 | Soft-delete Group | DELETE | `/api/groups/{groupId}` | Yes | Owner | Soft | 204 | 403, 404 |
 | List my Groups | GET | `/api/groups` | Yes | — | Memberships | 200 | 401 |
-| Invite (MVP) | POST | `/api/groups/{groupId}/invitations` | Yes | Owner | Thin 3.4: [`PHASE-3.4-INVITE-SPEC.md`](PHASE-3.4-INVITE-SPEC.md) (link token, no email) | 201 `{ id, token, expiresAt }` | 403, 400, 404 |
+| Invite (MVP) | POST | `/api/groups/{groupId}/invitations` | Yes | Owner | Thin 3.4 + 3.9: [`PHASE-3.9-SMTP-SPEC.md`](PHASE-3.9-SMTP-SPEC.md); optional `{ email }`; link still canonical | 201 `{ id, token, expiresAt, emailed }` | 403, 400, 404 |
 | List outstanding invites | GET | `/api/groups/{groupId}/invitations` | Yes | Owner | Thin 3.8: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](PHASE-3.8-INVITE-HYGIENE-SPEC.md); no token | 200 `{ items }` | 401, 403, 404 |
 | Revoke invite | DELETE | `/api/groups/{groupId}/invitations/{invitationId}` | Yes | Owner | Unused row hard-deleted | 204 | 401, 403, 404, 409 |
 | Accept invite | POST | `/api/invitations/{token}/accept` | Yes | Authenticated | **200** `{ groupId, role }` (spec Q-I8; not 204) | 200 | 400, 409 |

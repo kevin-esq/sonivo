@@ -46,8 +46,42 @@ public class InvitationApiTests : IClassFixture<SonivoApiFactory>
         Assert.NotNull(created);
         Assert.NotEqual(Guid.Empty, created.Id);
         Assert.False(string.IsNullOrWhiteSpace(created.Token));
+        Assert.False(created.Emailed);
         Assert.True(created.ExpiresAt > DateTimeOffset.UtcNow);
         Assert.True(created.ExpiresAt <= DateTimeOffset.UtcNow.AddDays(7).AddMinutes(1));
+    }
+
+    [Fact]
+    public async Task Owner_create_with_email_when_unconfigured_returns_201_emailed_false()
+    {
+        var client = await CreateAuthenticatedClientAsync("invite-email-owner@example.com");
+        var group = await CreateGroupAsync(client, "Email Band");
+
+        var create = await client.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/invitations",
+            new { email = "singer@example.com" });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var created = await create.Content.ReadFromJsonAsync<InvitationCreatedResponse>(JsonOptions);
+        Assert.NotNull(created);
+        Assert.False(string.IsNullOrWhiteSpace(created.Token));
+        Assert.False(created.Emailed);
+    }
+
+    [Fact]
+    public async Task Owner_create_with_invalid_email_returns_400()
+    {
+        var client = await CreateAuthenticatedClientAsync("invite-bad-email@example.com");
+        var group = await CreateGroupAsync(client, "Bad Email Band");
+
+        var create = await client.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/invitations",
+            new { email = "not-an-email" });
+        Assert.Equal(HttpStatusCode.BadRequest, create.StatusCode);
+
+        var list = await client.GetAsync($"/api/groups/{group.Id}/invitations");
+        var payload = await list.Content.ReadFromJsonAsync<InvitationListResponse>(JsonOptions);
+        Assert.NotNull(payload);
+        Assert.Empty(payload.Items);
     }
 
     [Fact]
@@ -242,7 +276,7 @@ public class InvitationApiTests : IClassFixture<SonivoApiFactory>
 
     private sealed record CsrfResponse(string Token);
     private sealed record GroupResponse(Guid Id, string Name, int Version);
-    private sealed record InvitationCreatedResponse(Guid Id, string Token, DateTimeOffset ExpiresAt);
+    private sealed record InvitationCreatedResponse(Guid Id, string Token, DateTimeOffset ExpiresAt, bool Emailed);
     private sealed record InvitationAcceptedResponse(Guid GroupId, string Role);
     private sealed record InvitationListResponse(List<InvitationListItem> Items);
     private sealed record InvitationListItem(Guid Id, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt);

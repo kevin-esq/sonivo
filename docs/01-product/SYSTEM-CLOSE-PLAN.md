@@ -42,7 +42,7 @@ An organizer can, **without SQL**, on local and on the live URL:
 
 **Not required for Gate A:** file uploads, email, Event location/notes, roster-on-item, billing, native app, ChordPro, merge `main`.
 
-**Already true after 3.8 + T-OPS-01:** 1–8 except optional SMTP (3.9). Invite list/revoke and DataProtection keys are in.
+**Already true after 3.8 + T-OPS-01 + 3.9:** 1–8 plus optional invite email. Invite list/revoke and DataProtection keys are in.
 
 ---
 
@@ -85,9 +85,9 @@ Owner can list outstanding invites and revoke a unused token. 3.4 froze create+a
 | T-3.8.02 | React on People/Invite surface |
 | T-3.8.03 | Sparse Playwright |
 
-### Phase 3.9 — SMTP (optional for Gate A; separate auth)
+### Phase 3.9 — SMTP (optional for Gate A; COMPLETED)
 
-Link invites already work. Email is “tell the team” from the origin job, **not** required to call the loop functional. Do **not** start until 3.7 is merged. Resend account already exists; do not wire until authorized.
+Link invites already work. Email is “tell the team” from the origin job. Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md). T-3.9.01–03 shipped (optional `email` on create; Resend best-effort; UI warning when `emailed` is false). Event/RSVP mail remains out.
 
 ### Ops (Gate A, does not wait on People)
 
@@ -125,4 +125,4 @@ Until Gate B: `main` stays the pre-product workflow commit (revert PR [#14](http
 
 ## How to start
 
-Phase 3.7, 3.8, and T-OPS-01 are **done**. Next optional Gate A slice is **Phase 3.9** SMTP (Resend). T-OPS-02 is a GitHub setting Kevin must grant (Render app access). Do not start Gate B.
+Phase 3.7, 3.8, 3.9, and T-OPS-01 are **done**. Remaining Gate A ops: **T-OPS-02** (Kevin grants Render GitHub app access). Do not start Gate B.
