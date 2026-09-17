@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { ChevronDown, ChevronUp, ListMusic, Music2, Trash2 } from 'lucide-react'
 import {
   getSetlist,
   isConflictError,
@@ -10,18 +11,17 @@ import {
   type SetlistDetail,
   type SetlistItem,
 } from '../api/client'
+import { Button } from '../ui/button'
+import { fieldClass } from '../ui/field'
+import { EmptyPanel, Field, FormActions, PageBreadcrumb } from '../repertoire/chrome'
 import {
   CONFLICT_MESSAGE,
   ConflictAlert,
-  fieldClass,
   isOwnerRole,
   mutationErrorMessage,
-  primaryButtonClass,
   ProblemAlert,
-  secondaryButtonClass,
   useGroupContext,
 } from '../repertoire/ui'
-import { GroupSectionNav } from './GroupSectionNav'
 import {
   formatArrangementOption,
   loadLiveArrangementOptions,
@@ -43,9 +43,21 @@ function toDraft(items: SetlistItem[]): DraftItem[] {
       key: item.id,
       arrangementId: item.arrangementId,
       sortOrder: index + 1,
-      songTitle: item.songTitle ?? 'Unknown song',
-      arrangementLabel: item.arrangementLabel ?? 'Unknown arrangement',
+      songTitle: item.songTitle ?? 'Canción desconocida',
+      arrangementLabel: item.arrangementLabel ?? 'Arreglo desconocido',
     }))
+}
+
+function formatSongCount(count: number): string {
+  return count === 1 ? '1 canción' : `${count} canciones`
+}
+
+function SetlistNumber({ n }: { n: number }) {
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-light font-mono text-sm font-semibold text-slate-600">
+      {String(n).padStart(2, '0')}
+    </span>
+  )
 }
 
 export function SetlistDetailPage({ user }: { user: CurrentUser }) {
@@ -59,6 +71,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   const [renaming, setRenaming] = useState(false)
   const [saving, setSaving] = useState(false)
   const [selectedArrangementId, setSelectedArrangementId] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
 
   const isOwner = isOwnerRole(group?.role)
 
@@ -131,6 +144,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
         arrangementLabel: option.arrangementLabel,
       },
     ])
+    setShowAdd(true)
   }
 
   function removeItem(key: string) {
@@ -173,187 +187,253 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">Loading setlist…</p>
+    return <p aria-live="polite">Cargando setlist…</p>
   }
 
   if (group === null) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="underline" to="/">
-          Back to my groups
+        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+          Mis grupos
         </Link>
       </div>
     )
   }
 
   if (setlist === undefined) {
-    return <p aria-live="polite">Loading setlist…</p>
+    return <p aria-live="polite">Cargando setlist…</p>
   }
 
   if (setlist === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? 'Setlist not found or you do not have access.'} />
-        <Link className="underline" to={`/groups/${group.id}/setlists`}>
-          Back to setlists
+        <ProblemAlert message={error ?? 'No se encontró el setlist o no tienes acceso.'} />
+        <Link
+          className="font-semibold text-primary no-underline hover:underline"
+          to={`/groups/${group.id}/setlists`}
+        >
+          Setlists
         </Link>
       </div>
     )
   }
 
+  const addPanelOpen = isOwner && (showAdd || draft.length === 0)
+
   return (
     <section className="space-y-6" aria-labelledby="setlist-heading">
-      <div className="space-y-2">
-        <p className="text-sm text-slate-600">
-          <Link className="underline" to={`/groups/${group.id}`}>
-            {group.name}
-          </Link>
-          <span aria-hidden="true"> / </span>
-          <Link className="underline" to={`/groups/${group.id}/setlists`}>
-            Setlists
-          </Link>
-          <span aria-hidden="true"> / </span>
-          Setlist
-        </p>
-        <h2 id="setlist-heading" className="text-xl font-medium">
-          {setlist.name}
-        </h2>
-        <p className="text-slate-600">
-          Role: <strong>{group.role}</strong>
-          {!isOwner ? <span> (read-only)</span> : null}
-          <span className="mx-2" aria-hidden="true">
-            ·
-          </span>
-          Version: <strong>{setlist.version}</strong>
-        </p>
-        <GroupSectionNav groupId={group.id} />
+      <div className="space-y-3">
+        <PageBreadcrumb
+          items={[
+            { to: `/groups/${group.id}`, label: group.name },
+            { to: `/groups/${group.id}/setlists`, label: 'Setlists' },
+            { label: setlist.name },
+          ]}
+        />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
+            <span
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
+              aria-hidden="true"
+            >
+              <ListMusic className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 space-y-1">
+              <h1 id="setlist-heading" className="text-2xl font-bold tracking-tight">
+                {setlist.name}
+              </h1>
+              <p className="text-sm text-slate-500">
+                {formatSongCount(draft.length)} · v{setlist.version}
+                {!isOwner ? <span> · Solo lectura</span> : null}
+              </p>
+            </div>
+          </div>
+          {isOwner ? (
+            <Button disabled={saving} onClick={() => void saveItems()}>
+              {saving ? 'Guardando…' : 'Guardar orden'}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <ProblemAlert message={error} />
       <ConflictAlert message={conflict} />
 
-      {renaming && isOwner ? (
-        <RenameSetlistForm
-          groupId={group.id}
-          setlist={setlist}
-          onCancel={() => setRenaming(false)}
-          onSaved={(next) => {
-            setSetlist(next)
-            setRenaming(false)
-            setConflict(null)
-          }}
-          onConflict={async () => {
-            setConflict(CONFLICT_MESSAGE)
-            setRenaming(false)
-            try {
-              await reload()
-            } catch (err) {
-              setError(mutationErrorMessage(err))
-            }
-          }}
-        />
-      ) : isOwner ? (
-        <button type="button" className={secondaryButtonClass} onClick={() => setRenaming(true)}>
-          Rename setlist
-        </button>
-      ) : null}
-
-      <section className="space-y-4 border-t border-slate-300 pt-6" aria-labelledby="items-heading">
-        <h3 id="items-heading" className="font-medium">
-          Arrangements
-        </h3>
-        <p className="text-sm text-slate-600">
-          Duplicate arrangements are allowed. Save replaces the full ordered list.
-        </p>
-
-        {draft.length === 0 ? (
-          <p>No arrangements yet.{isOwner ? ' Add live arrangements from the library.' : ''}</p>
-        ) : (
-          <ol className="space-y-3">
-            {draft.map((item, index) => (
-              <li key={item.key} className="border border-slate-200 p-3">
-                <p>
-                  <span className="mr-2 text-sm text-slate-500">{item.sortOrder}.</span>
-                  {item.songTitle} — {item.arrangementLabel}
-                </p>
-                {isOwner ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className={secondaryButtonClass}
-                      disabled={index === 0}
-                      aria-label={`Move item ${item.sortOrder} up`}
-                      onClick={() => moveItem(index, -1)}
-                    >
-                      Move up
-                    </button>
-                    <button
-                      type="button"
-                      className={secondaryButtonClass}
-                      disabled={index === draft.length - 1}
-                      aria-label={`Move item ${item.sortOrder} down`}
-                      onClick={() => moveItem(index, 1)}
-                    >
-                      Move down
-                    </button>
-                    <button
-                      type="button"
-                      className={secondaryButtonClass}
-                      aria-label={`Remove item ${item.sortOrder}`}
-                      onClick={() => removeItem(item.key)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ol>
-        )}
-
-        {isOwner ? (
-          <div className="max-w-md space-y-3">
-            {options === null ? (
-              <p aria-live="polite">Loading arrangements…</p>
-            ) : options.length === 0 ? (
-              <p>No live arrangements. Add one in the library first.</p>
-            ) : (
-              <div className="space-y-3">
-                <label className="block space-y-1">
-                  <span className="text-sm text-slate-700">Live arrangement</span>
-                  <select
-                    className={fieldClass}
-                    value={selectedArrangementId}
-                    onChange={(e) => setSelectedArrangementId(e.target.value)}
-                  >
-                    {options.map((option) => (
-                      <option key={option.arrangementId} value={option.arrangementId}>
-                        {formatArrangementOption(option)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  className={secondaryButtonClass}
-                  onClick={addSelectedArrangement}
-                >
-                  Add to setlist
-                </button>
-              </div>
-            )}
-            <button
-              type="button"
-              className={primaryButtonClass}
-              disabled={saving}
-              onClick={() => void saveItems()}
-            >
-              {saving ? 'Saving…' : 'Save order'}
-            </button>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <section className="space-y-4" aria-labelledby="composition-heading">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="composition-heading" className="text-lg font-semibold">
+              Composición
+            </h2>
+            {isOwner && draft.length > 0 && !showAdd ? (
+              <Button variant="ghost" onClick={() => setShowAdd(true)}>
+                Agregar a setlist
+              </Button>
+            ) : null}
           </div>
-        ) : null}
-      </section>
+          <p className="text-sm text-slate-500">
+            Ordena los arreglos que se tocan. Se permiten duplicados. Guardar reemplaza la lista
+            completa.
+          </p>
+
+          {draft.length === 0 ? (
+            <EmptyPanel
+              title="Este setlist está vacío"
+              description={
+                isOwner
+                  ? 'Agrega arreglos vivos de la biblioteca para preparar el repertorio del evento.'
+                  : 'Aún no hay arreglos en este setlist.'
+              }
+            />
+          ) : (
+            <ol className="space-y-2">
+              {draft.map((item, index) => (
+                <li
+                  key={item.key}
+                  className="library-enter flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3"
+                  style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+                >
+                  <SetlistNumber n={item.sortOrder} />
+                  <span
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent"
+                    aria-hidden="true"
+                  >
+                    <Music2 className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold text-neutral-dark">{item.songTitle}</span>
+                    <span className="text-sm text-slate-500">{item.arrangementLabel}</span>
+                  </span>
+                  {isOwner ? (
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={index === 0}
+                        aria-label={`Subir ítem ${item.sortOrder}`}
+                        onClick={() => moveItem(index, -1)}
+                      >
+                        <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                        <span className="sr-only">Subir</span>
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={index === draft.length - 1}
+                        aria-label={`Bajar ítem ${item.sortOrder}`}
+                        onClick={() => moveItem(index, 1)}
+                      >
+                        <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                        <span className="sr-only">Bajar</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Quitar ítem ${item.sortOrder}`}
+                        onClick={() => removeItem(item.key)}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        <span className="sr-only">Quitar</span>
+                      </Button>
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {addPanelOpen ? (
+            <div className="max-w-md space-y-3 rounded-2xl border border-slate-100 bg-neutral-light p-4">
+              {options === null ? (
+                <p aria-live="polite">Cargando arreglos…</p>
+              ) : options.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  No hay arreglos vivos. Agrega uno en la biblioteca primero.
+                </p>
+              ) : (
+                <>
+                  <Field label="Arreglo">
+                    <select
+                      className={fieldClass}
+                      value={selectedArrangementId}
+                      onChange={(e) => setSelectedArrangementId(e.target.value)}
+                    >
+                      {options.map((option) => (
+                        <option key={option.arrangementId} value={option.arrangementId}>
+                          {formatArrangementOption(option)}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <FormActions>
+                    <Button onClick={addSelectedArrangement}>Agregar a setlist</Button>
+                    {draft.length > 0 ? (
+                      <Button variant="secondary" onClick={() => setShowAdd(false)}>
+                        Cancelar
+                      </Button>
+                    ) : null}
+                  </FormActions>
+                </>
+              )}
+            </div>
+          ) : null}
+        </section>
+
+        <aside className="space-y-4 rounded-2xl bg-neutral-light p-5">
+          <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
+            Detalles
+          </h2>
+          {renaming && isOwner ? (
+            <RenameSetlistForm
+              groupId={group.id}
+              setlist={setlist}
+              onCancel={() => setRenaming(false)}
+              onSaved={(next) => {
+                setSetlist(next)
+                setRenaming(false)
+                setConflict(null)
+              }}
+              onConflict={async () => {
+                setConflict(CONFLICT_MESSAGE)
+                setRenaming(false)
+                try {
+                  await reload()
+                } catch (err) {
+                  setError(mutationErrorMessage(err))
+                }
+              }}
+            />
+          ) : (
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-slate-500">Nombre</dt>
+                <dd className="font-medium text-neutral-dark">{setlist.name}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Versión</dt>
+                <dd className="font-medium text-neutral-dark">v{setlist.version}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Canciones</dt>
+                <dd className="font-medium text-neutral-dark">{formatSongCount(draft.length)}</dd>
+              </div>
+            </dl>
+          )}
+
+          {!renaming ? (
+            <p className="text-xs text-slate-500">
+              Un setlist se puede aplicar a eventos cuando esté listo.
+            </p>
+          ) : null}
+
+          {isOwner && !renaming ? (
+            <Button variant="secondary" onClick={() => setRenaming(true)}>
+              Renombrar setlist
+            </Button>
+          ) : null}
+        </aside>
+      </div>
     </section>
   )
 }
@@ -394,12 +474,10 @@ function RenameSetlistForm({
   }
 
   return (
-    <form className="max-w-md space-y-3" onSubmit={onSubmit} noValidate>
-      <h3 className="font-medium">Rename setlist</h3>
-      <p className="text-sm text-slate-600">Editing version {setlist.version}</p>
+    <form className="space-y-3" onSubmit={onSubmit} noValidate>
+      <p className="text-xs text-slate-500">Editando versión {setlist.version}</p>
       <ProblemAlert message={error} />
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Name</span>
+      <Field label="Nombre">
         <input
           className={fieldClass}
           required
@@ -407,20 +485,15 @@ function RenameSetlistForm({
           onChange={(e) => setName(e.target.value)}
           maxLength={200}
         />
-      </label>
-      <div className="flex flex-wrap gap-3">
-        <button type="submit" disabled={pending} className={primaryButtonClass}>
-          {pending ? 'Saving…' : 'Save name'}
-        </button>
-        <button
-          type="button"
-          className={secondaryButtonClass}
-          disabled={pending}
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-      </div>
+      </Field>
+      <FormActions>
+        <Button type="submit" disabled={pending} size="sm">
+          {pending ? 'Guardando…' : 'Guardar nombre'}
+        </Button>
+        <Button variant="secondary" size="sm" disabled={pending} onClick={onCancel}>
+          Cancelar
+        </Button>
+      </FormActions>
     </form>
   )
 }
