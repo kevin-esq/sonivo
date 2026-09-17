@@ -7,6 +7,7 @@ import {
   createGroup,
   createSetlist,
   createSong,
+  eventPlanItem,
   openEvents,
   openLibrary,
   openSetlists,
@@ -51,12 +52,12 @@ test.describe('Scheduling journeys', () => {
 
     await openEvents(page)
     await createEvent(page, { title: eventTitle, startsAt: '2026-10-01T19:00' })
-    await expect(page.getByText('No plan yet')).toBeVisible()
+    await expect(page.getByText('Aún no hay plan')).toBeVisible()
 
     await applySetlist(page)
-    await expect(page.getByRole('heading', { name: 'Event plan' })).toBeVisible()
-    await expect(page.getByRole('listitem').filter({ hasText: planLine })).toBeVisible()
-    await expect(page.getByText('No plan yet')).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Plan del evento' })).toBeVisible()
+    await expect(eventPlanItem(page, songTitle, arrangementLabel)).toBeVisible()
+    await expect(page.getByText('Aún no hay plan')).toHaveCount(0)
   })
 
   test('TC-EVT-02 setlist edit does not change Event plan until re-apply', async ({ page }) => {
@@ -80,7 +81,7 @@ test.describe('Scheduling journeys', () => {
     await openEvents(page)
     await createEvent(page, { title: eventTitle, startsAt: '2026-11-07T18:00' })
     await applySetlist(page)
-    await expect(page.getByRole('listitem').filter({ hasText: planLine })).toHaveCount(1)
+    await expect(eventPlanItem(page, songTitle, arrangementLabel)).toHaveCount(1)
 
     await openSetlists(page)
     await page.getByRole('link', { name: setlistName }).click()
@@ -92,6 +93,6 @@ test.describe('Scheduling journeys', () => {
     await openEvents(page)
     await page.getByRole('link', { name: eventTitle }).click()
     await expect(page.getByRole('heading', { name: eventTitle })).toBeVisible()
-    await expect(page.getByRole('listitem').filter({ hasText: planLine })).toHaveCount(1)
+    await expect(eventPlanItem(page, songTitle, arrangementLabel)).toHaveCount(1)
   })
 })
