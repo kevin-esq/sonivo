@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,8 +13,15 @@ using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Identity;
+using Sonivo.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var listenPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(listenPort))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{listenPort}");
+}
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
@@ -23,7 +31,9 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = "sonivo.auth";
     options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.SlidingExpiration = true;
     options.ExpireTimeSpan = TimeSpan.FromDays(14);
@@ -46,8 +56,20 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.Name = "sonivo.csrf";
     options.Cookie.HttpOnly = false;
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
 });
+
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
 
 builder.Services.AddProblemDetails(options =>
 {
@@ -63,6 +85,18 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseForwardedHeaders();
+}
+
+if (app.Configuration.GetValue("SONIVO_MIGRATE_ON_START", false))
+{
+    using var migrateScope = app.Services.CreateScope();
+    var db = migrateScope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+    db.Database.Migrate();
+}
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
@@ -107,6 +141,12 @@ app.Use(async (context, next) =>
 
     await next();
 });
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health")
@@ -1164,6 +1204,11 @@ app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}/rsvps", async (
 })
 .WithName("ListEventRsvps")
 .RequireAuthorization();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.MapFallbackToFile("index.html");
+}
 
 app.Run();
 
