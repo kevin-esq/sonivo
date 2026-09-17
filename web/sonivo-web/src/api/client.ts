@@ -164,6 +164,54 @@ export async function getGroup(groupId: string): Promise<GroupDetail> {
   return apiRequest<GroupDetail>(`/api/groups/${groupId}`)
 }
 
+export async function updateGroup(
+  groupId: string,
+  input: { name: string; expectedVersion: number },
+): Promise<GroupDetail> {
+  return apiRequest<GroupDetail>(`/api/groups/${groupId}`, {
+    method: 'PATCH',
+    body: input,
+  })
+}
+
+export async function deleteGroup(groupId: string, expectedVersion: number): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}`, {
+    method: 'DELETE',
+    body: { expectedVersion },
+  })
+}
+
+export type MemberListItem = {
+  userId: string
+  displayName: string
+  role: string
+  createdAt: string
+}
+
+export async function listMembers(groupId: string): Promise<MemberListItem[]> {
+  const payload = await apiRequest<{ items: MemberListItem[] }>(`/api/groups/${groupId}/members`)
+  return payload.items
+}
+
+export async function removeMember(groupId: string, userId: string): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/members/${userId}`, { method: 'DELETE' })
+}
+
+export async function changeMemberRole(
+  groupId: string,
+  userId: string,
+  role: 'Owner' | 'Member',
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/members/${userId}/role`, {
+    method: 'POST',
+    body: { role },
+  })
+}
+
+export async function leaveGroup(groupId: string): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/leave`, { method: 'POST' })
+}
+
 export type InvitationCreated = {
   id: string
   token: string

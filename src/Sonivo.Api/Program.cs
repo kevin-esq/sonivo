@@ -409,6 +409,101 @@ app.MapDelete("/api/groups/{groupId:guid}", async (
 .RequireAuthorization()
 .DisableAntiforgery();
 
+app.MapGet("/api/groups/{groupId:guid}/members", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListMembersHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var list = await handler.HandleAsync(new ListMembersQuery(userId.Value, groupId), cancellationToken);
+    return Results.Ok(new
+    {
+        items = list.Items.Select(i => new
+        {
+            userId = i.UserId,
+            displayName = i.DisplayName,
+            role = i.Role,
+            createdAt = i.CreatedAt
+        })
+    });
+})
+.WithName("ListGroupMembers")
+.RequireAuthorization();
+
+app.MapDelete("/api/groups/{groupId:guid}/members/{targetUserId:guid}", async (
+    Guid groupId,
+    Guid targetUserId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    RemoveMemberHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(
+        new RemoveMemberCommand(userId.Value, groupId, targetUserId),
+        cancellationToken);
+    return Results.NoContent();
+})
+.WithName("RemoveGroupMember")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async (
+    Guid groupId,
+    Guid targetUserId,
+    ChangeMemberRoleRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ChangeMemberRoleHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(
+        new ChangeMemberRoleCommand(userId.Value, groupId, targetUserId, request.Role),
+        cancellationToken);
+    return Results.NoContent();
+})
+.WithName("ChangeGroupMemberRole")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapPost("/api/groups/{groupId:guid}/leave", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    LeaveGroupHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(new LeaveGroupCommand(userId.Value, groupId), cancellationToken);
+    return Results.NoContent();
+})
+.WithName("LeaveGroup")
+.RequireAuthorization()
+.DisableAntiforgery();
+
 app.MapPost("/api/groups/{groupId:guid}/invitations", async (
     Guid groupId,
     ClaimsPrincipal principal,
@@ -1409,6 +1504,7 @@ internal sealed record RegisterRequest(string? Email, string? Password, string? 
 internal sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
 internal sealed record CreateGroupRequest(string? Name);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);
+internal sealed record ChangeMemberRoleRequest(string? Role);
 internal sealed record SoftDeleteGroupRequest(int ExpectedVersion);
 internal sealed record CreateSongRequest(
     string? Title,
