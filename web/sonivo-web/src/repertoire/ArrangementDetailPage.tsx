@@ -6,6 +6,7 @@ import {
   deleteArrangement,
   deleteResource,
   getArrangement,
+  getSong,
   isConflictError,
   updateArrangement,
   updateLinkResource,
@@ -14,36 +15,34 @@ import {
   type ResourcePurpose,
   type ResourceSummary,
 } from '../api/client'
+import { Button } from '../ui/button'
+import { fieldClass } from '../ui/field'
+import {
+  EmptyPanel,
+  Field,
+  FormActions,
+  PageBreadcrumb,
+  PurposeHeading,
+  RESOURCE_PURPOSE_ORDER,
+  groupResourcesByPurpose,
+} from './chrome'
 import {
   CONFLICT_MESSAGE,
   ConfirmDialog,
   ConflictAlert,
-  dangerButtonClass,
-  fieldClass,
   formatPurpose,
   isOwnerRole,
   mutationErrorMessage,
-  primaryButtonClass,
   ProblemAlert,
-  secondaryButtonClass,
   useGroupContext,
 } from './ui'
-
-const RESOURCE_PURPOSES: ResourcePurpose[] = [
-  'chart',
-  'lyrics',
-  'audio',
-  'click',
-  'reference',
-  'practice',
-  'other',
-]
 
 export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const { groupId, arrangementId } = useParams()
   const navigate = useNavigate()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
+  const [songTitle, setSongTitle] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [conflict, setConflict] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -58,7 +57,14 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
 
   async function reloadArrangement() {
     if (!groupId || !arrangementId) return
-    setArrangement(await getArrangement(groupId, arrangementId))
+    const result = await getArrangement(groupId, arrangementId)
+    setArrangement(result)
+    try {
+      const song = await getSong(groupId, result.songId)
+      setSongTitle(song.title)
+    } catch {
+      setSongTitle(null)
+    }
   }
 
   useEffect(() => {
@@ -66,11 +72,19 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
     let cancelled = false
     async function load() {
       setArrangement(undefined)
+      setSongTitle(null)
       setError(null)
       setConflict(null)
       try {
         const result = await getArrangement(groupId!, arrangementId!)
-        if (!cancelled) setArrangement(result)
+        if (cancelled) return
+        setArrangement(result)
+        try {
+          const song = await getSong(groupId!, result.songId)
+          if (!cancelled) setSongTitle(song.title)
+        } catch {
+          if (!cancelled) setSongTitle(null)
+        }
       } catch (err) {
         if (cancelled) return
         setArrangement(null)
@@ -127,170 +141,130 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">Loading arrangement…</p>
+    return <p aria-live="polite">Cargando arreglo…</p>
   }
 
   if (group === null) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="underline" to="/">
-          Back to my groups
+        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+          Mis grupos
         </Link>
       </div>
     )
   }
 
   if (arrangement === undefined) {
-    return <p aria-live="polite">Loading arrangement…</p>
+    return <p aria-live="polite">Cargando arreglo…</p>
   }
 
   if (arrangement === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? 'Arrangement not found or you do not have access.'} />
-        <Link className="underline" to={`/groups/${group.id}/library`}>
-          Back to library
+        <ProblemAlert message={error ?? 'No se encontró el arreglo o no tienes acceso.'} />
+        <Link
+          className="font-semibold text-primary no-underline hover:underline"
+          to={`/groups/${group.id}/library`}
+        >
+          Biblioteca
         </Link>
       </div>
     )
   }
 
+  const grouped = groupResourcesByPurpose(arrangement.resources)
+  const showAddResource = isOwner && !creatingResource
+  const songHref = `/groups/${group.id}/songs/${arrangement.songId}`
+
   return (
     <section className="space-y-6" aria-labelledby="arrangement-heading">
-      <div className="space-y-2">
-        <p className="text-sm text-slate-600">
-          <Link className="underline" to={`/groups/${group.id}`}>
-            {group.name}
-          </Link>
-          <span aria-hidden="true"> / </span>
-          <Link className="underline" to={`/groups/${group.id}/library`}>
-            Library
-          </Link>
-          <span aria-hidden="true"> / </span>
-          <Link className="underline" to={`/groups/${group.id}/songs/${arrangement.songId}`}>
-            Song
-          </Link>
-          <span aria-hidden="true"> / </span>
-          Arrangement
-        </p>
-        <h2 id="arrangement-heading" className="text-xl font-medium">
-          {arrangement.label}
-        </h2>
-        <p className="text-slate-600">
-          Role: <strong>{group.role}</strong>
-          {!isOwner ? <span> (read-only)</span> : null}
-          <span className="mx-2" aria-hidden="true">
-            ·
-          </span>
-          Version: <strong>{arrangement.version}</strong>
-        </p>
+      <div className="space-y-3">
+        <PageBreadcrumb
+          items={[
+            { to: `/groups/${group.id}`, label: group.name },
+            { to: `/groups/${group.id}/library`, label: 'Biblioteca' },
+            { to: songHref, label: songTitle ?? 'Canción' },
+            { label: arrangement.label },
+          ]}
+        />
+        <div className="space-y-2">
+          <h1 id="arrangement-heading" className="text-2xl font-bold tracking-tight">
+            {arrangement.label}
+          </h1>
+          <p className="text-sm text-slate-500">
+            Arreglo de {songTitle ? <Link className="font-medium text-primary no-underline hover:underline" to={songHref}>{songTitle}</Link> : 'esta canción'}
+            {arrangement.defaultKey ? ` · ${arrangement.defaultKey}` : ''}
+            {arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm} BPM` : ''}
+            {!isOwner ? ' · Solo lectura' : ''}
+          </p>
+        </div>
       </div>
 
       <ProblemAlert message={error} />
       <ConflictAlert message={conflict} />
 
-      {editing && isOwner ? (
-        <ArrangementEditForm
-          arrangement={arrangement}
-          groupId={group.id}
-          onCancel={() => setEditing(false)}
-          onSaved={async (next) => {
-            setArrangement(next)
-            setEditing(false)
-            setConflict(null)
-          }}
-          onConflict={async () => {
-            setConflict(CONFLICT_MESSAGE)
-            setEditing(false)
-            try {
-              await reloadArrangement()
-            } catch (err) {
-              setError(mutationErrorMessage(err))
-            }
-          }}
-        />
-      ) : (
-        <dl className="space-y-3">
-          <div>
-            <dt className="text-sm text-slate-600">Default key</dt>
-            <dd>{arrangement.defaultKey ?? '—'}</dd>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <section className="space-y-4" aria-labelledby="resources-heading">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="resources-heading" className="text-lg font-semibold">
+              Recursos
+            </h2>
+            {showAddResource && arrangement.resources.length > 0 ? (
+              <Button onClick={() => setCreatingResource(true)}>Agregar recurso enlace</Button>
+            ) : null}
           </div>
-          <div>
-            <dt className="text-sm text-slate-600">Default BPM</dt>
-            <dd>{arrangement.defaultBpm ?? '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-slate-600">Lyrics</dt>
-            <dd className="whitespace-pre-wrap">{arrangement.lyrics ?? '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-slate-600">Chords</dt>
-            <dd className="whitespace-pre-wrap">{arrangement.chords ?? '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-slate-600">Structure</dt>
-            <dd className="whitespace-pre-wrap">{arrangement.structure ?? '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-slate-600">Notes</dt>
-            <dd className="whitespace-pre-wrap">{arrangement.notes ?? '—'}</dd>
-          </div>
-        </dl>
-      )}
+          <p className="text-sm text-slate-500">
+            Materiales de este arreglo, agrupados por propósito. Solo enlaces; no hay archivos en esta
+            versión.
+          </p>
 
-      {isOwner && !editing ? (
-        <div className="flex flex-wrap gap-3">
-          <button type="button" className={secondaryButtonClass} onClick={() => setEditing(true)}>
-            Edit arrangement
-          </button>
-          <button
-            type="button"
-            className={dangerButtonClass}
-            onClick={() => setConfirmDeleteArrangement(true)}
-          >
-            Delete arrangement
-          </button>
-        </div>
-      ) : null}
+          {arrangement.resources.length === 0 && !creatingResource ? (
+            <EmptyPanel
+              title="Aún no hay recursos"
+              description="Enlaza partituras, letra, audio, click u otro material de ensayo para este arreglo."
+              action={
+                showAddResource ? (
+                  <Button onClick={() => setCreatingResource(true)}>Agregar recurso enlace</Button>
+                ) : null
+              }
+            />
+          ) : (
+            <div className="space-y-6">
+              {grouped.map((groupItem) => (
+                <section key={groupItem.purpose} className="space-y-2" aria-label={formatPurpose(groupItem.purpose)}>
+                  <PurposeHeading purpose={groupItem.purpose} />
+                  <ul className="divide-y divide-slate-100">
+                    {groupItem.resources.map((resource) => (
+                      <li key={resource.id} className="py-3">
+                        {editingResourceId === resource.id && isOwner ? (
+                          <ResourceEditForm
+                            groupId={group.id}
+                            arrangementId={arrangement.id}
+                            resource={resource}
+                            onCancel={() => setEditingResourceId(null)}
+                            onSaved={async () => {
+                              setEditingResourceId(null)
+                              await reloadArrangement()
+                            }}
+                          />
+                        ) : (
+                          <ResourceRow
+                            resource={resource}
+                            isOwner={isOwner}
+                            onEdit={() => setEditingResourceId(resource.id)}
+                            onDelete={() => setResourceToDelete(resource)}
+                          />
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
 
-      <section className="space-y-4 border-t border-slate-300 pt-6" aria-labelledby="resources-heading">
-        <h3 id="resources-heading" className="font-medium">
-          Link resources
-        </h3>
-
-        {arrangement.resources.length === 0 ? (
-          <p>No link resources yet.</p>
-        ) : (
-          <ul className="space-y-4">
-            {arrangement.resources.map((resource) => (
-              <li key={resource.id} className="border-b border-slate-200 pb-4">
-                {editingResourceId === resource.id && isOwner ? (
-                  <ResourceEditForm
-                    groupId={group.id}
-                    arrangementId={arrangement.id}
-                    resource={resource}
-                    onCancel={() => setEditingResourceId(null)}
-                    onSaved={async () => {
-                      setEditingResourceId(null)
-                      await reloadArrangement()
-                    }}
-                  />
-                ) : (
-                  <ResourceRow
-                    resource={resource}
-                    isOwner={isOwner}
-                    onEdit={() => setEditingResourceId(resource.id)}
-                    onDelete={() => setResourceToDelete(resource)}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {isOwner ? (
-          creatingResource ? (
+          {isOwner && creatingResource ? (
             <ResourceCreateForm
               groupId={group.id}
               arrangementId={arrangement.id}
@@ -300,43 +274,101 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
                 await reloadArrangement()
               }}
             />
+          ) : null}
+        </section>
+
+        <aside className="space-y-4 rounded-2xl bg-neutral-light p-5">
+          {editing && isOwner ? (
+            <ArrangementEditForm
+              arrangement={arrangement}
+              groupId={group.id}
+              onCancel={() => setEditing(false)}
+              onSaved={async (next) => {
+                setArrangement(next)
+                setEditing(false)
+                setConflict(null)
+              }}
+              onConflict={async () => {
+                setConflict(CONFLICT_MESSAGE)
+                setEditing(false)
+                try {
+                  await reloadArrangement()
+                } catch (err) {
+                  setError(mutationErrorMessage(err))
+                }
+              }}
+            />
           ) : (
-            <button
-              type="button"
-              className={primaryButtonClass}
-              onClick={() => setCreatingResource(true)}
-            >
-              Add link resource
-            </button>
-          )
-        ) : null}
-      </section>
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-slate-500">Tonalidad</dt>
+                <dd className="font-medium">{arrangement.defaultKey ?? '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">BPM</dt>
+                <dd className="font-medium">{arrangement.defaultBpm ?? '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Letra</dt>
+                <dd className="whitespace-pre-wrap font-medium">{arrangement.lyrics ?? '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Acordes</dt>
+                <dd className="whitespace-pre-wrap font-medium">{arrangement.chords ?? '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Estructura</dt>
+                <dd className="whitespace-pre-wrap font-medium">{arrangement.structure ?? '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Notas</dt>
+                <dd className="whitespace-pre-wrap font-medium">{arrangement.notes ?? '—'}</dd>
+              </div>
+            </dl>
+          )}
+
+          {isOwner && !editing ? (
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button variant="secondary" onClick={() => setEditing(true)}>
+                Editar arreglo
+              </Button>
+              <Button variant="danger" onClick={() => setConfirmDeleteArrangement(true)}>
+                Eliminar arreglo
+              </Button>
+            </div>
+          ) : null}
+        </aside>
+      </div>
 
       <ConfirmDialog
         open={confirmDeleteArrangement}
-        title="Delete arrangement?"
-        confirmLabel="Delete arrangement"
+        title="¿Eliminar arreglo?"
+        confirmLabel="Eliminar arreglo"
+        cancelLabel="Cancelar"
+        pendingLabel="Eliminando…"
         pending={deletingArrangement}
         onCancel={() => setConfirmDeleteArrangement(false)}
         onConfirm={() => void handleDeleteArrangement()}
       >
         <p>
-          This removes the arrangement from normal live views. Linked resources are preserved by the
-          server.
+          Esto oculta el arreglo de las vistas activas. Los recursos enlazados se conservan en el
+          servidor.
         </p>
       </ConfirmDialog>
 
       <ConfirmDialog
         open={resourceToDelete != null}
-        title="Delete link resource?"
-        confirmLabel="Delete resource"
+        title="¿Eliminar recurso enlace?"
+        confirmLabel="Eliminar recurso"
+        cancelLabel="Cancelar"
+        pendingLabel="Eliminando…"
         pending={deletingResource}
         onCancel={() => setResourceToDelete(null)}
         onConfirm={() => void handleDeleteResource()}
       >
         <p>
-          This permanently deletes the link resource
-          {resourceToDelete ? ` “${resourceToDelete.label}”` : ''}. This cannot be undone.
+          Esto elimina de forma permanente el recurso
+          {resourceToDelete ? ` “${resourceToDelete.label}”` : ''}. No se puede deshacer.
         </p>
       </ConfirmDialog>
     </section>
@@ -356,16 +388,13 @@ function ResourceRow({
 }) {
   return (
     <div className="space-y-2">
-      <p className="font-medium">{resource.label}</p>
-      <p className="text-sm text-slate-600">
-        {formatPurpose(resource.purpose)}
-        {resource.part ? ` · Part: ${resource.part}` : ''}
-      </p>
-      {resource.note ? <p className="text-sm text-slate-700">{resource.note}</p> : null}
+      <p className="font-semibold text-neutral-dark">{resource.label}</p>
+      {resource.part ? <p className="text-sm text-slate-500">Parte: {resource.part}</p> : null}
+      {resource.note ? <p className="text-sm text-slate-600">{resource.note}</p> : null}
       {resource.url ? (
         <p>
           <a
-            className="underline break-all"
+            className="break-all font-medium text-primary no-underline hover:underline"
             href={resource.url}
             target="_blank"
             rel="noopener noreferrer"
@@ -376,12 +405,12 @@ function ResourceRow({
       ) : null}
       {isOwner ? (
         <div className="flex flex-wrap gap-3">
-          <button type="button" className={secondaryButtonClass} onClick={onEdit}>
-            Edit metadata
-          </button>
-          <button type="button" className={dangerButtonClass} onClick={onDelete}>
-            Delete
-          </button>
+          <Button variant="secondary" size="sm" onClick={onEdit}>
+            Editar metadatos
+          </Button>
+          <Button variant="danger" size="sm" onClick={onDelete}>
+            Eliminar
+          </Button>
         </div>
       ) : null}
     </div>
@@ -428,11 +457,10 @@ function ArrangementEditForm({
       notes,
     }
 
-    // Empty BPM field: omit so existing BPM is preserved (cannot clear via null).
     if (defaultBpm.trim()) {
       const parsed = Number(defaultBpm)
       if (!Number.isInteger(parsed) || parsed < 1 || parsed > 400) {
-        setError('Default BPM must be an integer from 1 to 400.')
+        setError('El BPM debe ser un entero entre 1 y 400.')
         setPending(false)
         return
       }
@@ -454,12 +482,10 @@ function ArrangementEditForm({
   }
 
   return (
-    <form className="max-w-md space-y-3" onSubmit={onSubmit} noValidate>
-      <h3 className="font-medium">Edit arrangement</h3>
-      <p className="text-sm text-slate-600">Editing version {arrangement.version}</p>
+    <form className="space-y-4" onSubmit={onSubmit} noValidate>
+      <h3 className="font-semibold">Editar arreglo</h3>
       <ProblemAlert message={error} />
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Label</span>
+      <Field label="Etiqueta">
         <input
           className={fieldClass}
           required
@@ -467,19 +493,19 @@ function ArrangementEditForm({
           onChange={(e) => setLabel(e.target.value)}
           maxLength={200}
         />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Default key (optional)</span>
+      </Field>
+      <Field label="Tonalidad (opcional)" hint="Vacía el campo para quitar la tonalidad.">
         <input
           className={fieldClass}
           value={defaultKey}
           onChange={(e) => setDefaultKey(e.target.value)}
           maxLength={32}
         />
-        <span className="text-xs text-slate-500">Clear the field to remove the default key.</span>
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Default BPM (optional, 1–400)</span>
+      </Field>
+      <Field
+        label="BPM (opcional, 1–400)"
+        hint="Déjalo en blanco para conservar el BPM actual. La API no permite borrarlo."
+      >
         <input
           className={fieldClass}
           type="number"
@@ -489,44 +515,32 @@ function ArrangementEditForm({
           value={defaultBpm}
           onChange={(e) => setDefaultBpm(e.target.value)}
         />
-        <span className="text-xs text-slate-500">
-          Leave blank to keep the current BPM. Clearing BPM is not supported by the API.
-        </span>
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Lyrics (optional)</span>
+      </Field>
+      <Field label="Letra (opcional)">
         <textarea className={fieldClass} rows={3} value={lyrics} onChange={(e) => setLyrics(e.target.value)} />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Chords (optional)</span>
+      </Field>
+      <Field label="Acordes (opcional)">
         <textarea className={fieldClass} rows={3} value={chords} onChange={(e) => setChords(e.target.value)} />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Structure (optional)</span>
+      </Field>
+      <Field label="Estructura (opcional)">
         <textarea
           className={fieldClass}
           rows={2}
           value={structure}
           onChange={(e) => setStructure(e.target.value)}
         />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Notes (optional)</span>
+      </Field>
+      <Field label="Notas (opcional)">
         <textarea className={fieldClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-      </label>
-      <div className="flex flex-wrap gap-3">
-        <button type="submit" disabled={pending} className={primaryButtonClass}>
-          {pending ? 'Saving…' : 'Save changes'}
-        </button>
-        <button
-          type="button"
-          className={secondaryButtonClass}
-          disabled={pending}
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-      </div>
+      </Field>
+      <FormActions>
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Guardando…' : 'Guardar cambios'}
+        </Button>
+        <Button variant="secondary" disabled={pending} onClick={onCancel}>
+          Cancelar
+        </Button>
+      </FormActions>
     </form>
   )
 }
@@ -571,26 +585,24 @@ function ResourceCreateForm({
   }
 
   return (
-    <form className="max-w-md space-y-3 border-t border-slate-200 pt-4" onSubmit={onSubmit} noValidate>
-      <h4 className="font-medium">Add link resource</h4>
+    <form className="space-y-4 border-t border-slate-200 pt-4" onSubmit={onSubmit} noValidate>
+      <h3 className="font-semibold">Agregar recurso enlace</h3>
       <ProblemAlert message={error} />
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Purpose</span>
+      <Field label="Propósito">
         <select
           className={fieldClass}
           required
           value={purpose}
           onChange={(e) => setPurpose(e.target.value as ResourcePurpose)}
         >
-          {RESOURCE_PURPOSES.map((value) => (
+          {RESOURCE_PURPOSE_ORDER.map((value) => (
             <option key={value} value={value}>
               {formatPurpose(value)}
             </option>
           ))}
         </select>
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Label</span>
+      </Field>
+      <Field label="Etiqueta">
         <input
           className={fieldClass}
           required
@@ -598,9 +610,8 @@ function ResourceCreateForm({
           onChange={(e) => setLabel(e.target.value)}
           maxLength={200}
         />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">URL</span>
+      </Field>
+      <Field label="URL">
         <input
           className={fieldClass}
           type="url"
@@ -609,28 +620,21 @@ function ResourceCreateForm({
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://"
         />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Part (optional)</span>
+      </Field>
+      <Field label="Parte (opcional)">
         <input className={fieldClass} value={part} onChange={(e) => setPart(e.target.value)} maxLength={100} />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Note (optional)</span>
+      </Field>
+      <Field label="Nota (opcional)">
         <textarea className={fieldClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
-      </label>
-      <div className="flex flex-wrap gap-3">
-        <button type="submit" disabled={pending} className={primaryButtonClass}>
-          {pending ? 'Creating…' : 'Create link'}
-        </button>
-        <button
-          type="button"
-          className={secondaryButtonClass}
-          disabled={pending}
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-      </div>
+      </Field>
+      <FormActions>
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Creando…' : 'Crear enlace'}
+        </Button>
+        <Button variant="secondary" disabled={pending} onClick={onCancel}>
+          Cancelar
+        </Button>
+      </FormActions>
     </form>
   )
 }
@@ -649,7 +653,7 @@ function ResourceEditForm({
   onSaved: () => Promise<void>
 }) {
   const [purpose, setPurpose] = useState<ResourcePurpose>(
-    (RESOURCE_PURPOSES.includes(resource.purpose as ResourcePurpose)
+    (RESOURCE_PURPOSE_ORDER.includes(resource.purpose as ResourcePurpose)
       ? resource.purpose
       : 'other') as ResourcePurpose,
   )
@@ -679,13 +683,13 @@ function ResourceEditForm({
   }
 
   return (
-    <form className="max-w-md space-y-3" onSubmit={onSubmit} noValidate>
-      <h4 className="font-medium">Edit resource metadata</h4>
+    <form className="space-y-4" onSubmit={onSubmit} noValidate>
+      <h4 className="font-semibold">Editar metadatos del recurso</h4>
       {resource.url ? (
-        <p className="text-sm text-slate-600">
-          URL (immutable):{' '}
+        <p className="text-sm text-slate-500">
+          URL (no se puede cambiar):{' '}
           <a
-            className="underline break-all"
+            className="break-all font-medium text-primary no-underline hover:underline"
             href={resource.url}
             target="_blank"
             rel="noopener noreferrer"
@@ -695,23 +699,21 @@ function ResourceEditForm({
         </p>
       ) : null}
       <ProblemAlert message={error} />
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Purpose</span>
+      <Field label="Propósito">
         <select
           className={fieldClass}
           required
           value={purpose}
           onChange={(e) => setPurpose(e.target.value as ResourcePurpose)}
         >
-          {RESOURCE_PURPOSES.map((value) => (
+          {RESOURCE_PURPOSE_ORDER.map((value) => (
             <option key={value} value={value}>
               {formatPurpose(value)}
             </option>
           ))}
         </select>
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Label</span>
+      </Field>
+      <Field label="Etiqueta">
         <input
           className={fieldClass}
           required
@@ -719,30 +721,21 @@ function ResourceEditForm({
           onChange={(e) => setLabel(e.target.value)}
           maxLength={200}
         />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Part (optional)</span>
+      </Field>
+      <Field label="Parte (opcional)" hint="Vacía el campo para quitar la parte.">
         <input className={fieldClass} value={part} onChange={(e) => setPart(e.target.value)} maxLength={100} />
-        <span className="text-xs text-slate-500">Clear the field to remove part.</span>
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Note (optional)</span>
+      </Field>
+      <Field label="Nota (opcional)" hint="Vacía el campo para quitar la nota.">
         <textarea className={fieldClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
-        <span className="text-xs text-slate-500">Clear the field to remove note.</span>
-      </label>
-      <div className="flex flex-wrap gap-3">
-        <button type="submit" disabled={pending} className={primaryButtonClass}>
-          {pending ? 'Saving…' : 'Save metadata'}
-        </button>
-        <button
-          type="button"
-          className={secondaryButtonClass}
-          disabled={pending}
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-      </div>
+      </Field>
+      <FormActions>
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Guardando…' : 'Guardar metadatos'}
+        </Button>
+        <Button variant="secondary" disabled={pending} onClick={onCancel}>
+          Cancelar
+        </Button>
+      </FormActions>
     </form>
   )
 }

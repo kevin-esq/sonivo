@@ -11,7 +11,7 @@ export {
 } from '../ui/button'
 
 export const CONFLICT_MESSAGE =
-  'Someone else changed this item. Reload to get the latest version.'
+  'Otra persona cambió este elemento. Recarga para ver la versión más reciente.'
 
 export function isOwnerRole(role: string | undefined): boolean {
   return role === 'Owner'
@@ -24,23 +24,44 @@ export function formatOriginKind(kind: string): string {
     case 'cover':
       return 'Cover'
     case 'other':
-      return 'Other'
+      return 'Otro'
     default:
       return kind
   }
 }
 
 export function formatPurpose(purpose: string): string {
-  return purpose.charAt(0).toUpperCase() + purpose.slice(1)
+  switch (purpose) {
+    case 'chart':
+      return 'Partitura'
+    case 'lyrics':
+      return 'Letra'
+    case 'audio':
+      return 'Audio'
+    case 'click':
+      return 'Click'
+    case 'practice':
+      return 'Ensayo'
+    case 'reference':
+      return 'Referencia'
+    case 'other':
+      return 'Otro'
+    default:
+      return purpose.charAt(0).toUpperCase() + purpose.slice(1)
+  }
+}
+
+export function formatArrangementCount(count: number): string {
+  return count === 1 ? '1 arreglo' : `${count} arreglos`
 }
 
 export function authzErrorMessage(error: unknown): string | null {
   if (!(error instanceof ApiError)) return null
   if (error.status === 403) {
-    return 'You do not have permission to change this item.'
+    return 'No tienes permiso para cambiar este elemento.'
   }
   if (error.status === 401) {
-    return 'Your session has expired. Please log in again.'
+    return 'Tu sesión expiró. Inicia sesión de nuevo.'
   }
   return null
 }

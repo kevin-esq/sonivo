@@ -8,14 +8,21 @@ import {
   type SongListItem,
   type SongOriginKind,
 } from '../api/client'
+import { Button } from '../ui/button'
+import { fieldClass } from '../ui/field'
 import {
-  fieldClass,
-  formatOriginKind,
+  AddSongButton,
+  EmptyPanel,
+  Field,
+  FormActions,
+  OriginBadge,
+  OriginMark,
+  PageBreadcrumb,
+} from './chrome'
+import {
   isOwnerRole,
   mutationErrorMessage,
-  primaryButtonClass,
   ProblemAlert,
-  secondaryButtonClass,
   useGroupContext,
 } from './ui'
 
@@ -61,83 +68,88 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
   }, [groupId, group])
 
   if (group === undefined) {
-    return <p aria-live="polite">Loading library…</p>
+    return <p aria-live="polite">Cargando biblioteca…</p>
   }
 
   if (group === null) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="underline" to="/">
-          Back to my groups
+        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+          Mis grupos
         </Link>
       </div>
     )
   }
 
+  const showHeaderAdd = isOwner && !showCreate
+
   return (
     <section className="space-y-6" aria-labelledby="library-heading">
-      <div className="space-y-2">
-        <p className="text-sm text-slate-600">
-          <Link className="underline" to={`/groups/${group.id}`}>
-            {group.name}
-          </Link>
-          <span aria-hidden="true"> / </span>
-          Library
-        </p>
-        <h2 id="library-heading" className="text-xl font-medium">
-          Song library
-        </h2>
-        <p className="text-slate-600">
-          Role: <strong>{group.role}</strong>
-          {!isOwner ? <span> (read-only)</span> : null}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <PageBreadcrumb items={[{ to: `/groups/${group.id}`, label: group.name }, { label: 'Biblioteca' }]} />
+          <h1 id="library-heading" className="text-2xl font-bold tracking-tight">
+            Biblioteca
+          </h1>
+          <p className="text-sm text-slate-500">
+            El repertorio del grupo: canciones para ensayar, arreglar y llevar a un evento.
+          </p>
+          {!isOwner ? <p className="text-sm text-slate-500">Solo lectura</p> : null}
+        </div>
+        {showHeaderAdd ? <AddSongButton onClick={() => setShowCreate(true)} /> : null}
       </div>
 
       <ProblemAlert message={listError} />
 
       {songs === null ? (
-        <p aria-live="polite">Loading songs…</p>
+        <p aria-live="polite">Cargando canciones…</p>
       ) : songs.length === 0 ? (
-        <p>No songs yet.{isOwner ? ' Create one to start the repertoire.' : ''}</p>
+        showCreate ? null : (
+        <EmptyPanel
+          title="La biblioteca está vacía"
+          description={
+            isOwner
+              ? 'Usa Agregar canción para empezar el repertorio y poder ensayar y armar setlists.'
+              : 'Aún no hay canciones en el repertorio.'
+          }
+        />
+        )
       ) : (
-        <ul className="space-y-3">
-          {songs.map((song) => (
-            <li key={song.id} className="border-b border-slate-200 pb-3">
+        <ul className="divide-y divide-slate-100">
+          {songs.map((song, index) => (
+            <li
+              key={song.id}
+              className="library-enter"
+              style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+            >
               <Link
-                className="text-lg font-medium underline"
+                className="flex items-center gap-3 rounded-xl px-2 py-3 no-underline transition duration-150 hover:bg-neutral-light"
                 to={`/groups/${group.id}/songs/${song.id}`}
               >
-                {song.title}
+                <OriginMark kind={song.originKind} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold text-neutral-dark">{song.title}</span>
+                  <span className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                    <OriginBadge kind={song.originKind} />
+                    {song.attribution ? <span>{song.attribution}</span> : null}
+                  </span>
+                </span>
               </Link>
-              <p className="text-sm text-slate-600">
-                {formatOriginKind(song.originKind)}
-                {song.attribution ? ` · ${song.attribution}` : ''}
-              </p>
             </li>
           ))}
         </ul>
       )}
 
-      {isOwner ? (
-        showCreate ? (
-          <SongCreateForm
-            groupId={group.id}
-            onCancel={() => setShowCreate(false)}
-            onCreated={async () => {
-              setShowCreate(false)
-              await reloadSongs()
-            }}
-          />
-        ) : (
-          <button
-            type="button"
-            className={primaryButtonClass}
-            onClick={() => setShowCreate(true)}
-          >
-            Add song
-          </button>
-        )
+      {isOwner && showCreate ? (
+        <SongCreateForm
+          groupId={group.id}
+          onCancel={() => setShowCreate(false)}
+          onCreated={async () => {
+            setShowCreate(false)
+            await reloadSongs()
+          }}
+        />
       ) : null}
     </section>
   )
@@ -179,15 +191,10 @@ function SongCreateForm({
   }
 
   return (
-    <form
-      className="max-w-md space-y-3 border-t border-slate-300 pt-6"
-      onSubmit={onSubmit}
-      noValidate
-    >
-      <h3 className="font-medium">Create song</h3>
+    <form className="max-w-lg space-y-4 border-t border-slate-200 pt-6" onSubmit={onSubmit} noValidate>
+      <h2 className="text-lg font-semibold">Crear canción</h2>
       <ProblemAlert message={error} />
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Title</span>
+      <Field label="Título">
         <input
           className={fieldClass}
           required
@@ -195,9 +202,8 @@ function SongCreateForm({
           onChange={(e) => setTitle(e.target.value)}
           maxLength={200}
         />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Origin</span>
+      </Field>
+      <Field label="Origen">
         <select
           className={fieldClass}
           required
@@ -206,20 +212,18 @@ function SongCreateForm({
         >
           <option value="original">Original</option>
           <option value="cover">Cover</option>
-          <option value="other">Other</option>
+          <option value="other">Otro</option>
         </select>
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Attribution (optional)</span>
+      </Field>
+      <Field label="Atribución (opcional)">
         <input
           className={fieldClass}
           value={attribution}
           onChange={(e) => setAttribution(e.target.value)}
           maxLength={500}
         />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-sm text-slate-700">Rights notes (optional)</span>
+      </Field>
+      <Field label="Notas de derechos (opcional)">
         <textarea
           className={fieldClass}
           rows={3}
@@ -227,20 +231,15 @@ function SongCreateForm({
           onChange={(e) => setRightsNotes(e.target.value)}
           maxLength={2000}
         />
-      </label>
-      <div className="flex flex-wrap gap-3">
-        <button type="submit" disabled={pending} className={primaryButtonClass}>
-          {pending ? 'Creating…' : 'Create song'}
-        </button>
-        <button
-          type="button"
-          className={secondaryButtonClass}
-          disabled={pending}
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-      </div>
+      </Field>
+      <FormActions>
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Creando…' : 'Crear canción'}
+        </Button>
+        <Button variant="secondary" disabled={pending} onClick={onCancel}>
+          Cancelar
+        </Button>
+      </FormActions>
     </form>
   )
 }

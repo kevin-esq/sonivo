@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: IN PROGRESS (T-GATE-B-02; T-GATE-B-01 HOLD nav order fix)
-Human approval: APPROVED T-GATE-B-01 with follow-up nav reorder
-Git checkpoint: PENDING (nav order follow-up)
-Remote: PUSHED (PR #22 merged)
-CI: PASSING (#22)
+Implementation: COMPLETE (T-GATE-B-02)
+Human approval: PENDING
+Git checkpoint: COMMITTED
+Remote: PUSHED
+CI: NOT RUN
 ```
 
 **Live:** https://sonivo.onrender.com  
@@ -17,12 +17,12 @@ CI: PASSING (#22)
 
 ## Proof
 
-- T-OPS-02 verified; Gate B contract PR #21
-- T-GATE-B-01 PR #22 merged (`1a74344`); CI Playwright 15/15
+- T-GATE-B-01 PR #22 merged (`1a74344`)
+- T-GATE-B-02 Library / Song / Arrangement chrome on `feature/t-gate-b-02-library`
 
 ## Next
 
-T-GATE-B-02 Library / Song / Arrangement / link Resource chrome.
+Human review of T-GATE-B-02 PR. Then T-GATE-B-03 Setlists.
 
 ## Firewall
 

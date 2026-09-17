@@ -48,7 +48,7 @@ test.describe('Library journeys', () => {
     await openSong(page, songTitle)
 
     await deleteSong(page, songTitle)
-    await expect(page.getByText('No songs yet')).toBeVisible()
+    await expect(page.getByText('La biblioteca está vacía')).toBeVisible()
   })
 
   test('TC-LIB-03 non-member cannot open library by URL', async ({ page }) => {
