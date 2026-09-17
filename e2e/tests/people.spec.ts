@@ -20,11 +20,11 @@ test.describe('People journeys', () => {
     const groupName = `People Band ${stamp}`
 
     await page.goto('/register')
-    await page.getByLabel('Display name').fill(ownerName)
-    await page.getByLabel('Email').fill(ownerEmail)
-    await page.getByLabel('Password').fill('TestPass1a')
-    await page.getByRole('button', { name: 'Register' }).click()
-    await expect(page.getByRole('heading', { name: 'My groups' })).toBeVisible()
+    await page.getByLabel('Nombre').fill(ownerName)
+    await page.getByLabel('Correo electrónico').fill(ownerEmail)
+    await page.getByLabel('Contraseña').fill('TestPass1a')
+    await page.getByRole('button', { name: 'Registrarse' }).click()
+    await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
 
     await createGroup(page, groupName)
     const groupUrl = page.url()
@@ -34,11 +34,11 @@ test.describe('People journeys', () => {
 
     await logout(page)
     await page.goto('/register')
-    await page.getByLabel('Display name').fill(memberName)
-    await page.getByLabel('Email').fill(memberEmail)
-    await page.getByLabel('Password').fill('TestPass1a')
-    await page.getByRole('button', { name: 'Register' }).click()
-    await expect(page.getByRole('heading', { name: 'My groups' })).toBeVisible()
+    await page.getByLabel('Nombre').fill(memberName)
+    await page.getByLabel('Correo electrónico').fill(memberEmail)
+    await page.getByLabel('Contraseña').fill('TestPass1a')
+    await page.getByRole('button', { name: 'Registrarse' }).click()
+    await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
 
     await page.goto(inviteUrl)
     await acceptInvite(page)
@@ -46,10 +46,10 @@ test.describe('People journeys', () => {
 
     await logout(page)
     await page.goto('/login')
-    await page.getByLabel('Email').fill(ownerEmail)
-    await page.getByLabel('Password').fill('TestPass1a')
-    await page.getByRole('button', { name: 'Log in' }).click()
-    await expect(page.getByRole('heading', { name: 'My groups' })).toBeVisible()
+    await page.getByLabel('Correo electrónico').fill(ownerEmail)
+    await page.getByLabel('Contraseña').fill('TestPass1a')
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+    await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
     await page.getByRole('link', { name: groupName }).click()
     await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
 
@@ -62,10 +62,10 @@ test.describe('People journeys', () => {
 
     await logout(page)
     await page.goto('/login')
-    await page.getByLabel('Email').fill(memberEmail)
-    await page.getByLabel('Password').fill('TestPass1a')
-    await page.getByRole('button', { name: 'Log in' }).click()
-    await expect(page.getByRole('heading', { name: 'My groups' })).toBeVisible()
+    await page.getByLabel('Correo electrónico').fill(memberEmail)
+    await page.getByLabel('Contraseña').fill('TestPass1a')
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+    await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
     await expect(page.getByRole('link', { name: groupName })).toHaveCount(0)
 
     await page.goto(groupUrl)

@@ -8,13 +8,12 @@ test.describe('Group journeys', () => {
     await register(page, email)
 
     await createGroup(page, groupName)
-    await expect(page.getByText('Selected group shell')).toBeVisible()
-    await expect(page.getByText('Role:')).toBeVisible()
-    await expect(page.getByRole('strong').filter({ hasText: 'Owner' })).toBeVisible()
+    await expect(page.getByText('Rol:')).toBeVisible()
+    await expect(page.getByRole('region').getByText('Owner', { exact: true })).toBeVisible()
     await expect(page.getByRole('strong').filter({ hasText: '1' })).toBeVisible()
 
-    await page.getByRole('link', { name: 'Back to my groups' }).click()
-    await expect(page.getByRole('heading', { name: 'My groups' })).toBeVisible()
+    await page.getByRole('link', { name: 'Mis grupos' }).click()
+    await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
     await expect(page.getByRole('link', { name: groupName })).toBeVisible()
     await expect(page.getByText('(Owner)')).toBeVisible()
 
