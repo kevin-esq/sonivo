@@ -1,6 +1,6 @@
 # Phase 3.9 Thin invite email specification
 
-**Status:** **COMPLETED** (T-3.9.01–03) + **T-3.9.04 Gmail HTTPS** AUTHORIZED 2026-09-17 (Kevin Esquivel).  
+**Status:** **COMPLETED** (T-3.9.01–04). T-3.9.04 Gmail HTTPS on `develop` (PR [#19](https://github.com/kevin-esq/sonivo/pull/19), `468517c`). Live Render image may still be PR #18 until Manual Deploy or T-OPS-02.  
 **Product bet:** The shareable link still does the join. Email is how the Owner **tells** a person about that link.  
 **Date:** 2026-09-17  
 **Depends on:** Phase 3.4 (Q-I1–I8), Phase 3.8; ADR-0012, 0019–0020.
@@ -57,7 +57,7 @@ WhatsApp · digest · Event/RSVP mail · invite-as-Owner · Guest · T-3.2.06 ·
 | T-3.9.01 | `IEmailSender` + create-invite `email`/`emailed` + tests — **DONE** |
 | T-3.9.02 | React optional invite email + warning — **DONE** |
 | T-3.9.03 | Playwright without a live mail key (existing journeys + **TC-INV-03**) — **DONE** |
-| T-3.9.04 | Swap live provider to Gmail API HTTPS (no owned domain; Render Free cannot SMTP) |
+| T-3.9.04 | Swap live provider to Gmail API HTTPS (no owned domain; Render Free cannot SMTP) — **DONE** on `develop` |
 
 ---
 
