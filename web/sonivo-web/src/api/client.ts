@@ -430,6 +430,134 @@ export async function updateLinkResource(
   )
 }
 
+export type SetlistListItem = {
+  id: string
+  name: string
+  version: number
+  itemCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type SetlistItem = {
+  id: string
+  arrangementId: string
+  sortOrder: number
+  songTitle: string | null
+  arrangementLabel: string | null
+}
+
+export type SetlistDetail = {
+  id: string
+  name: string
+  version: number
+  createdAt: string
+  updatedAt: string
+  items: SetlistItem[]
+}
+
+export type EventType = 'rehearsal' | 'performance' | 'other'
+
+export type EventListItem = {
+  id: string
+  title: string
+  type: EventType | string
+  startsAt: string
+  status: string
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type EventPlanItem = {
+  id: string
+  arrangementId: string
+  sortOrder: number
+  displaySongTitle: string
+  displayArrangementLabel: string
+}
+
+export type EventDetail = {
+  id: string
+  title: string
+  type: EventType | string
+  startsAt: string
+  status: string
+  version: number
+  createdAt: string
+  updatedAt: string
+  sourceSetlistId: string | null
+  items: EventPlanItem[]
+}
+
+export async function listSetlists(groupId: string): Promise<SetlistListItem[]> {
+  return apiRequest<SetlistListItem[]>(`/api/groups/${groupId}/setlists`)
+}
+
+export async function createSetlist(groupId: string, name: string): Promise<SetlistDetail> {
+  return apiRequest<SetlistDetail>(`/api/groups/${groupId}/setlists`, {
+    method: 'POST',
+    body: { name },
+  })
+}
+
+export async function getSetlist(groupId: string, setlistId: string): Promise<SetlistDetail> {
+  return apiRequest<SetlistDetail>(`/api/groups/${groupId}/setlists/${setlistId}`)
+}
+
+export async function renameSetlist(
+  groupId: string,
+  setlistId: string,
+  expectedVersion: number,
+  name: string,
+): Promise<SetlistDetail> {
+  return apiRequest<SetlistDetail>(`/api/groups/${groupId}/setlists/${setlistId}`, {
+    method: 'PATCH',
+    body: { expectedVersion, name },
+  })
+}
+
+export async function replaceSetlistItems(
+  groupId: string,
+  setlistId: string,
+  expectedVersion: number,
+  items: { arrangementId: string; sortOrder: number }[],
+): Promise<SetlistDetail> {
+  return apiRequest<SetlistDetail>(`/api/groups/${groupId}/setlists/${setlistId}/items`, {
+    method: 'PUT',
+    body: { expectedVersion, items },
+  })
+}
+
+export async function listEvents(groupId: string): Promise<EventListItem[]> {
+  return apiRequest<EventListItem[]>(`/api/groups/${groupId}/events`)
+}
+
+export async function createEvent(
+  groupId: string,
+  input: { title: string; type: EventType; startsAt: string },
+): Promise<EventDetail> {
+  return apiRequest<EventDetail>(`/api/groups/${groupId}/events`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function getEvent(groupId: string, eventId: string): Promise<EventDetail> {
+  return apiRequest<EventDetail>(`/api/groups/${groupId}/events/${eventId}`)
+}
+
+export async function applySetlistToEvent(
+  groupId: string,
+  eventId: string,
+  input: { setlistId: string; expectedVersion: number; confirmReplace?: boolean },
+): Promise<EventDetail> {
+  return apiRequest<EventDetail>(
+    `/api/groups/${groupId}/events/${eventId}/apply-setlist`,
+    { method: 'POST', body: input },
+  )
+}
+
 export async function deleteResource(
   groupId: string,
   arrangementId: string,

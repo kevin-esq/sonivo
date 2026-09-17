@@ -18,6 +18,11 @@ import {
 import { ArrangementDetailPage } from './repertoire/ArrangementDetailPage'
 import { LibraryPage } from './repertoire/LibraryPage'
 import { SongDetailPage } from './repertoire/SongDetailPage'
+import { EventDetailPage } from './scheduling/EventDetailPage'
+import { EventListPage } from './scheduling/EventListPage'
+import { GroupSectionNav } from './scheduling/GroupSectionNav'
+import { SetlistDetailPage } from './scheduling/SetlistDetailPage'
+import { SetlistListPage } from './scheduling/SetlistListPage'
 
 function Shell({
   user,
@@ -297,10 +302,8 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
         Selected group shell. Role: <strong>{group.role}</strong>. Version:{' '}
         <strong>{group.version}</strong>.
       </p>
-      <nav className="flex flex-wrap gap-4" aria-label="Group">
-        <Link className="underline" to={`/groups/${group.id}/library`}>
-          Song library
-        </Link>
+      <GroupSectionNav groupId={group.id} />
+      <nav className="flex flex-wrap gap-4" aria-label="Account">
         <Link className="underline" to="/">
           Back to my groups
         </Link>
@@ -370,6 +373,38 @@ export default function App() {
           element={
             <RequireAuth user={user}>
               <LibraryPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/setlists"
+          element={
+            <RequireAuth user={user}>
+              <SetlistListPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/setlists/:setlistId"
+          element={
+            <RequireAuth user={user}>
+              <SetlistDetailPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/events"
+          element={
+            <RequireAuth user={user}>
+              <EventListPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/events/:eventId"
+          element={
+            <RequireAuth user={user}>
+              <EventDetailPage user={user!} />
             </RequireAuth>
           }
         />
