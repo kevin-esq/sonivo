@@ -82,7 +82,7 @@ All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (G
 
 ## Setlists
 
-**Phase 3.3 scheduling status:** thin S2 **COMPLETED** (T-3.3.01–05) on `develop` (PR #6) — Setlist → Event apply → React UI → Playwright. Authoritative thin contract: [`PHASE-3.3-THIN-SPEC.md`](PHASE-3.3-THIN-SPEC.md). Conceptual rows below remain the broader surface; RSVP, Event cancel/PATCH, and hand-built plans are **not** in the shipped slice.
+**Phase 3.3 scheduling status:** thin S2 **COMPLETED** (T-3.3.01–05) on `develop` (PR #6) — Setlist → Event apply → React UI → Playwright. Authoritative thin contract: [`PHASE-3.3-THIN-SPEC.md`](PHASE-3.3-THIN-SPEC.md). Invites **shipped** in Phase 3.4 (PR #8). Thin RSVP is **authorized** in Phase 3.5 ([`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md)) — not shipped yet. Conceptual rows below remain the broader surface; Event cancel/PATCH and hand-built plans are **not** in the shipped slice.
 
 | Use case | Method | Route | AuthZ | Notes | Success | Failures |
 | -------- | ------ | ----- | ----- | ----- | ------- | -------- |
@@ -110,7 +110,7 @@ All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (G
 | Replace Event Plan from Setlist | POST | `.../events/{eventId}/apply-setlist` | Owner | body: setlistId, **expectedVersion**, **confirmReplace** if items exist; full replace (ADR-0021) | 200 | 400, 409 |
 | Replace items manually | PUT | `.../events/{eventId}/items` | Owner | Hand-built plan | 200 | 400 |
 | Patch item | PATCH | `.../events/{eventId}/items/{itemId}` | Owner | Overrides | 200 | 404 |
-| RSVP | PUT | `.../events/{eventId}/rsvp` | Member | body status | 200 | 400, 404 |
+| RSVP | PUT | `.../events/{eventId}/rsvp` | Member (any membership: Owner + Member) | body field **`response`** (`yes`\|`no`\|`maybe`); thin contract [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md) | 200 | 400, 404 |
 | List RSVPs | GET | `.../events/{eventId}/rsvps` | Member | | 200 | 404 |
 
 ---
