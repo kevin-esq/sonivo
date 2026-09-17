@@ -5,25 +5,21 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-3.5.01–03 + docs close)
+Implementation: COMPLETE (docs stamp Phase 3.5 on develop + ticketize 3.6)
 Human approval: APPROVED (Kevin Esquivel)
 Git checkpoint: PENDING
 Remote: NOT PUSHED
 CI: NOT RUN
 ```
 
-**Branch:** `feature/phase-3.5-rsvp`  
-**Not authorized:** Event PATCH/cancel · T-3.2.06 · SMTP · merge to `main`
-
-## Phase status
-
-| Phase | Status |
-| ----- | ------ |
-| 3.4 thin invites | **MERGED** (PR #8) + docs **CLOSED** (PR #9) |
-| 3.5 thin RSVP | T-3.5.01–03 APPROVED — PR next |
-| T-3.2.06 file/blob | **DEFERRED** |
+**Branch:** `docs/phase-3.5-closed` from `origin/develop` @ `cbc8824`  
+**Verified:** headed Playwright 11/11 already passed (not re-run; no code touched)  
+**Done this ticket:** stamp PR #10 / `cbc8824` on Phase 3.5; ticketize Phase 3.6 T-3.6.01–03 as next authorized  
+**Not started:** T-3.6.01 implementation  
+**Not authorized:** T-3.2.06 · SMTP · merge to `main`
 
 ## Firewall
 
-- Do **not** implement Event cancel-PATCH / SMTP / T-3.2.06 / merge `main`
+- Do **not** start T-3.2.06 / SMTP / merge `main`
 - Do **not** commit `.cursor/rules/decision-auditor.mdc` or `.scratch/PHASE-3.3-*.md`
+- Do **not** invent location/notes or includeCancelled

@@ -82,7 +82,7 @@ All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (G
 
 ## Setlists
 
-**Phase 3.3 scheduling status:** thin S2 **COMPLETED** (T-3.3.01–05) on `develop` (PR #6) — Setlist → Event apply → React UI → Playwright. Authoritative thin contract: [`PHASE-3.3-THIN-SPEC.md`](PHASE-3.3-THIN-SPEC.md). Invites **shipped** in Phase 3.4 (PR #8). Thin RSVP **shipped** in Phase 3.5 ([`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md)). Conceptual rows below remain the broader surface; Event cancel/PATCH and hand-built plans are **not** in the shipped slice.
+**Phase 3.3 scheduling status:** thin S2 **COMPLETED** (T-3.3.01–05) on `develop` (PR #6) — Setlist → Event apply → React UI → Playwright. Authoritative thin contract: [`PHASE-3.3-THIN-SPEC.md`](PHASE-3.3-THIN-SPEC.md). Invites **shipped** in Phase 3.4 (PR #8). Thin RSVP **shipped** in Phase 3.5 (PR #10; [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md)). Event PATCH/cancel is **authorized** as Phase 3.6 (not started); thin contract: [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md). Conceptual rows below remain the broader surface; hand-built plans are **not** in 3.6.
 
 | Use case | Method | Route | AuthZ | Notes | Success | Failures |
 | -------- | ------ | ----- | ----- | ----- | ------- | -------- |
@@ -105,8 +105,8 @@ All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (G
 | List | GET | `.../events` | Member | Active; optional includeCancelled for Owner | 200 | 404 |
 | Create | POST | `.../events` | Owner | type, time, location?, notes? | 201 | 400 |
 | Get | GET | `.../events/{eventId}` | Member | Items + tombstones | 200 | 404 |
-| Update | PATCH | `.../events/{eventId}` | Owner | Metadata | 200 | 409 |
-| Cancel / soft-hide | POST | `.../events/{eventId}/cancel` | Owner | | 204 | 403 |
+| Update | PATCH | `.../events/{eventId}` | Owner | body `expectedVersion` + title/type/startsAt; thin contract [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md) | 200 | 400, 403, 404, 409 |
+| Cancel / soft-hide | POST | `.../events/{eventId}/cancel` | Owner | body `expectedVersion` → 204; thin contract [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md) | 204 | 400, 403, 404, 409 |
 | Replace Event Plan from Setlist | POST | `.../events/{eventId}/apply-setlist` | Owner | body: setlistId, **expectedVersion**, **confirmReplace** if items exist; full replace (ADR-0021) | 200 | 400, 409 |
 | Replace items manually | PUT | `.../events/{eventId}/items` | Owner | Hand-built plan | 200 | 400 |
 | Patch item | PATCH | `.../events/{eventId}/items/{itemId}` | Owner | Overrides | 200 | 404 |

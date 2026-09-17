@@ -1,8 +1,8 @@
 # Phase 3.5 Thin RSVP specification
 
-**Status:** **COMPLETED** (T-3.5.01–03 shipped on `feature/phase-3.5-rsvp`). Authorized 2026-09-17 (Kevin Esquivel).  
+**Status:** **COMPLETED** on `develop` (PR [#10](https://github.com/kevin-esq/sonivo/pull/10), merge `cbc8824`). T-3.5.01–03 shipped. Authorized 2026-09-17 (Kevin Esquivel).  
 **Product bet:** After a second person can join (Phase 3.4), Members (and Owners) can signal **yes / no / maybe** on a dated Event so the organizer knows who is coming.  
-**Develop reference:** `8db0714e03f302dff1e32ed644b794f595a99175` (PR #8 merged).  
+**Develop reference:** `cbc88243c69d9676c672734a7846350395b178fe` (PR #10 merged).  
 **Date:** 2026-09-17  
 **Depends on:** ADR-0006, 0012, 0016–0018, 0019–0020; Phase 3.3 Event plan; Phase 3.4 thin invites.
 
@@ -202,5 +202,5 @@ Serial. Do not start 02 before 01; 03 before 02.
 
 ## Exit
 
-- Thin RSVP **COMPLETED** (T-3.5.01–03). Tickets closed on `feature/phase-3.5-rsvp`.
-- Next work requires human decision / authorization. T-3.2.06 and Event cancel-PATCH remain deferred. No SMTP. No merge to `main` from this slice.
+- Thin RSVP **COMPLETED** on `develop` (PR #10, merge `cbc8824`). Tickets T-3.5.01–03 closed.
+- Next is Phase 3.6 thin Event PATCH/cancel (T-3.6.01–03) per [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md). T-3.2.06 and SMTP remain deferred. No merge to `main`.
