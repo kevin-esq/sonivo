@@ -1,0 +1,16 @@
+# Render Blueprint (free web). Create the Neon DB first, then paste ConnectionStrings__Default
+# in the Render dashboard (sync: false below). Do not put secrets in this file.
+
+services:
+  - type: web
+    name: sonivo
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: SONIVO_MIGRATE_ON_START
+        value: "true"
+      - key: ConnectionStrings__Default
+        sync: false
