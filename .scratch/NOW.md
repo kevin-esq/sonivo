@@ -5,10 +5,10 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: IN PROGRESS (Gate B T-GATE-B-01)
-Human approval: AUTHORIZED (Kevin Esquivel — Gate B brief + board)
-Git checkpoint: PENDING (docs contract then feature PRs)
-Remote: NOT PUSHED (this slice)
+Implementation: COMPLETE (T-GATE-B-01 shell/tokens/auth)
+Human approval: PENDING (auditor)
+Git checkpoint: PENDING
+Remote: NOT PUSHED
 CI: NOT RUN
 ```
 
@@ -17,12 +17,12 @@ CI: NOT RUN
 
 ## Proof
 
-- T-OPS-02 verified: Render GitHub App `92085443` includes `kevin-esq/sonivo`
-- Gate B contract: `docs/03-architecture/PHASE-GATE-B-UI-SPEC.md` + brief + board image
+- T-GATE-B-01 implemented on `feature/t-gate-b-01-shell`
+- Frontend `npm run build` passed; Playwright full suite 15 passed
 
 ## Next
 
-Auditor: version docs PR, then delegate T-GATE-B-01 (shell/tokens/auth) to a builder. Merge `develop` only. Never `main`.
+Auditor review of T-GATE-B-01. Do not merge `main`. Do not start T-GATE-B-02 until this PR is accepted.
 
 ## Firewall
 

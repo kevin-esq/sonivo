@@ -1,23 +1,5 @@
-import { Link } from 'react-router-dom'
-
+/** Group navigation lives in the workspace shell (T-GATE-B-01). */
 export function GroupSectionNav({ groupId }: { groupId: string }) {
-  return (
-    <nav className="flex flex-wrap gap-4" aria-label="Group">
-      <Link className="underline" to={`/groups/${groupId}`}>
-        Group
-      </Link>
-      <Link className="underline" to={`/groups/${groupId}/library`}>
-        Song library
-      </Link>
-      <Link className="underline" to={`/groups/${groupId}/setlists`}>
-        Setlists
-      </Link>
-      <Link className="underline" to={`/groups/${groupId}/events`}>
-        Events
-      </Link>
-      <Link className="underline" to={`/groups/${groupId}/people`}>
-        People
-      </Link>
-    </nav>
-  )
+  void groupId
+  return null
 }
