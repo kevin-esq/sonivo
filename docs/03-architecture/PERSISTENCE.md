@@ -80,19 +80,16 @@ Indexes: none beyond PK for MVP (list via Membership).
 | ------ | ---- | ---- | ----- |
 | Id | uuid | N | PK |
 | GroupId | uuid | N | FK → Groups; tenant |
-| Title | text | N | Required non-blank; **no** UNIQUE(GroupId, Title) — duplicates ALLOWED (ADR-0025) |
-| Attribution | text | Y | Free-text credit (ADR-0025) |
-| OriginKind | text | N | CHECK IN original\|cover\|other (ADR-0025; replaces IsOriginal boolean) |
-| RightsNotes | text | Y | Free-text usage notes — not licensing workflow |
+| Title | text | N | |
+| Attribution | text | Y | Artist/writer attribution |
+| IsOriginal | boolean | N | original vs cover (default true) |
+| RightsNotes | text | Y | |
 | CreatedAt / UpdatedAt | timestamptz | N | |
 | DeletedAt | timestamptz | Y | Soft-delete |
 | Version | int | N | Concurrency |
 
 **Unique (GroupId, Id)** — **required** alternate key for composite FKs from Arrangements. Redundant with global Id uniqueness but required by PostgreSQL for composite FK targets; cost is one extra unique index — accepted.  
-**Index:** `(GroupId)` WHERE `DeletedAt IS NULL`.  
-**No** `UNIQUE (GroupId, Title)`.
-
-> **Note:** OriginKind / duplicate-title / no-IsDefault / integer BPM are **ACCEPTED** (ADR-0025). Schema alignment migration `AlignRepertoireToAdr0024And0025` (T-3.2.01) is applied.
+**Index:** `(GroupId)` WHERE `DeletedAt IS NULL`.
 
 ### 1.5 Arrangements
 
@@ -101,13 +98,14 @@ Indexes: none beyond PK for MVP (list via Membership).
 | Id | uuid | N | PK |
 | GroupId | uuid | N | Denormalized tenant; must match Song.GroupId |
 | SongId | uuid | N | FK → Songs |
-| Label | text | N | Required non-blank; **not** unique per Song (ADR-0025) |
+| Label | text | N | e.g. Default / acoustic |
 | Lyrics | text | Y | Plain text; Q8 may later specialize charts |
-| Chords | text | Y | Plain text |
-| Structure | text | Y | Plain text (e.g. “Intro / Verse / Chorus”) |
-| DefaultKey | text | Y | Free text (e.g. Bb, F#m) |
-| DefaultBpm | int | Y | Nullable int; when set 1–400 (ADR-0025) |
-| Notes | text | Y | Free text |
+| Chords | text | Y | |
+| Structure | text | Y | |
+| DefaultKey | text | Y | |
+| DefaultBpm | numeric(6,2) | Y | |
+| Notes | text | Y | |
+| IsDefault | boolean | N | At most one default per Song — **Application** enforced |
 | CreatedAt / UpdatedAt | timestamptz | N | |
 | DeletedAt | timestamptz | Y | |
 | Version | int | N | Concurrency |
@@ -115,35 +113,29 @@ Indexes: none beyond PK for MVP (list via Membership).
 **Unique:** `(GroupId, Id)` — **required** alternate key for SetlistItem/EventSetlistItem composite FKs.  
 **FK Song:** composite `(GroupId, SongId)` → `Songs(GroupId, Id)` **ON DELETE RESTRICT**.  
 **Index:** `(GroupId)`, `(SongId)`, `(GroupId, SongId)` WHERE `DeletedAt IS NULL`.  
-**No** `IsDefault` column in MVP (ADR-0025).  
-**No** JSON blob for body fields in MVP unless Q8 forces a typed chart document later (separate ADR).  
-**No** Arrangement version/history table.
+**No** JSON blob for body fields in MVP unless Q8 forces a typed chart document later (separate ADR).
 
-> **Note:** Label required + integer BPM + no IsDefault are **ACCEPTED** (ADR-0025). Schema alignment migration `AlignRepertoireToAdr0024And0025` (T-3.2.01) is applied.
 ### 1.6 Resources
 
 | Column | Type | Null | Notes |
 | ------ | ---- | ---- | ----- |
 | Id | uuid | N | PK |
-| ArrangementId | uuid | N | FK → Arrangements RESTRICT |
-| Purpose | text | N | CHECK IN chart\|lyrics\|audio\|click\|reference\|practice\|other (ADR-0024) |
-| Label | text | N | Required; max length see Phase 3.2 §7 |
-| Part | text | Y | Optional free-text; **no** Purpose↔Part CHECK |
+| ArrangementId | uuid | N | FK → Arrangements |
+| Purpose | text | N | CHECK IN chart\|lyrics\|audio\|click\|reference\|other |
 | Note | text | Y | |
-| Kind | text | N | CHECK `file` \| `link` |
-| Url | text | Y | **Required when Kind=link**; NULL when file |
-| OriginalFileName | text | Y | Files only |
-| ContentType | text | Y | **Required when Kind=file**; NULL when link |
-| ByteSize | bigint | Y | **Required when Kind=file**; NULL when link |
-| ObjectKey | text | Y | **Required when Kind=file**; NULL when link |
+| OriginalFileName | text | Y | Display; not security boundary |
+| ContentType | text | N | |
+| ByteSize | bigint | N | |
+| ObjectKey | text | N | `groups/{groupId}/arrangements/{arrangementId}/...` |
 | CreatedAt | timestamptz | N | |
 
-> **Authoritative Kind nullability + API:** [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md). Link Resource CRUD shipped (T-3.2.05); nested Arrangement-scoped routes. File Kind / blob **DEFERRED** (T-3.2.06).
-
-**No** GroupId · **No** Version · **No** soft-delete · **No** Part table.  
+**No** GroupId column (scope via Arrangement).  
+**No** binary in Postgres.  
+**No** soft-delete; row hard-deleted.  
 **Index:** `(ArrangementId)`.  
-**Not client-controlled:** `ObjectKey`, `ByteSize` (server-set after upload).  
-Kind-specific nullability enforced in Application (optional DB CHECK).
+**Uniqueness:** none on Purpose (multiple `audio` ALLOW).
+
+**Not client-controlled:** `ObjectKey`, `ByteSize` (server-set after upload), `ContentType` validated server-side.
 
 ### 1.7 Setlists
 
@@ -361,7 +353,6 @@ See §2.1 matrix. Application remains canonical (ADR-0019). Composite FKs are th
 | -------- | ------------------- |
 | PATCH Group / Song / Arrangement / Setlist / Event metadata | Yes |
 | Soft-delete Group / Song / Arrangement | Yes |
-| Soft-delete Song (cascade) | Yes — Song Version + each **live** Arrangement Version (see below); client sends **Song** `expectedVersion` only |
 | Cancel Event (status/hide) | Yes |
 | Replace Event Plan (`apply-setlist`) | Yes (Event) |
 | Setlist item add/update/remove/reorder/replace that persists Setlist | Yes (Setlist) |
@@ -378,16 +369,6 @@ See §2.1 matrix. Application remains canonical (ADR-0019). Composite FKs are th
 | Success response | Includes the **new** `version` after increment |
 | Stale `expectedVersion` | **409** Problem Details (`concurrency`); no partial write |
 | Server overwrite | **Forbidden** |
-
-### Soft-delete Song concurrency (ADR-0025 §8a; aligns with Group DELETE)
-
-`DELETE /api/groups/{groupId}/songs/{songId}` body: `{ "expectedVersion": <Song.Version> }`.
-
-1. Compare Song `expectedVersion`; mismatch → **409**, abort.  
-2. In **one transaction**: soft-delete Song (bump Song.Version); soft-delete each Arrangement with `DeletedAt IS NULL` (bump each Arr.Version). Already-deleted Arrs untouched.  
-3. Client does **not** send per-Arrangement expected versions — Song delete retires live Arrs.  
-4. Arrangement rows still use `Version` as concurrency token: if any live Arr changed after load, SaveChanges/token conflict → **409**, **full rollback** (no silent overwrite, no partial cascade).  
-5. Same 409 Problem Details shape as Group soft-delete / other Version conflicts.
 
 ---
 
@@ -455,7 +436,7 @@ Signed URL residual risk: short TTL (unchanged). Explicit Resource DELETE still 
 
 | Action | Behavior |
 | ------ | -------- |
-| Soft-delete Song | Set Song.DeletedAt (+ Version); soft-delete all Arrangements of Song **where DeletedAt IS NULL** (+ each Version); already-deleted Arrs unchanged; **leave** Resources; leave SetlistItems & EventSetlistItems |
+| Soft-delete Song | Set Song.DeletedAt; soft-delete all its Arrangements; **leave** Resources |
 | Soft-delete Arrangement | Set DeletedAt; **leave** Resources + blobs; leave SetlistItems & EventSetlistItems |
 | Hard-delete Setlist | Delete Setlist (Cascade items); DB SetNull Event.SourceSetlistId |
 | Cancel Event | Status=cancelled; IsHidden=true; CancelledAt=now; keep items + RSVPs |
@@ -467,9 +448,8 @@ Signed URL residual risk: short TTL (unchanged). Explicit Resource DELETE still 
 ## 9. Song / Arrangement persistence notes
 
 - Flat columns for lyrics/chords/structure/key/BPM/notes — **no** version table.  
-- **No** `IsDefault` in MVP (ADR-0025). Prefer list-by-Label / CreatedAt for UX.  
+- `IsDefault`: Application ensures ≤1 per Song (`IsDefault=true`); optional partial unique index `(SongId) WHERE IsDefault` (PostgreSQL partial unique) — **recommended**.  
 - Song may have **zero** Arrangements: no DB check requiring ≥1.  
-- Song soft-delete cascade (live Arrs only) is Application transactional — not DB ON DELETE CASCADE.  
 - Q8 chart format: keep opaque text until decided; do not add JSONB “just in case.”
 
 ---
@@ -596,7 +576,7 @@ No index on every text column.
 | RSVP (Event, User) | **Yes** | Domain |
 | SortOrder per parent | **No** | Reorder simplicity; ORDER BY SortOrder, Id |
 | (Parent, ArrangementId) on items | **No** | Duplicates ALLOW |
-| Arrangement IsDefault per Song | **No (MVP)** | ADR-0025 removes IsDefault |
+| Arrangement IsDefault per Song | **Yes (partial)** | Recommended |
 
 ---
 
@@ -604,8 +584,7 @@ No index on every text column.
 
 | Use-case | Single DB transaction must include |
 | -------- | ----------------------------------- |
-| Create Arrangement | Insert Arr |
-| Soft-delete Song | Song DeletedAt + Version; soft-delete all live Arrangements of Song (+ Versions) |
+| Create Arrangement | Insert Arr; optional unset previous default |
 | Add Resource | Insert metadata after successful blob put **or** put-after-insert with compensating delete — prefer insert row Pending then confirm; MVP: blob then insert in tx around DB only if blob is idempotent key |
 | Modify Setlist items | Update Setlist Version + replace/reorder items |
 | Modify Event metadata | Event Version |
@@ -661,13 +640,13 @@ Correctness > micro-optimization.
 4. Local dev may reset DB; **production may not**.  
 5. Do not hand-edit prod schema outside migrations.
 
-**Do not create migrations in Phase 2.2.** (Phase 2.3 `InitialFoundation` and Phase 3.2 `AlignRepertoireToAdr0024And0025` already exist.)
+**Do not create migrations in Phase 2.2.**
 
 ---
 
 ## 24. Persistence test strategy (specify only)
 
-Integration tests (Testcontainers Postgres where available) must prove:
+When implementation is approved, integration tests (Testcontainers Postgres) must prove:
 
 1. Membership tenancy: foreign GroupId → no rows / 404 path.  
 2. Composite FK rejects SetlistItem / EventSetlistItem with wrong Group Arrangement.  
@@ -728,4 +707,4 @@ Integration tests (Testcontainers Postgres where available) must prove:
 
 - EF Core alternate-key + composite FK mapping for Npgsql  
 - Confirm required-nav + query filter does **not** appear on Event configurations (regression test)  
-- ~~Partial unique index for Arrangement `IsDefault`~~ — removed from MVP (ADR-0025)
+- Partial unique index for Arrangement `IsDefault`

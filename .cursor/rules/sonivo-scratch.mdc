@@ -9,11 +9,10 @@ Before inventing product scope, read `docs/00-context/CONTEXT.md`.
 
 Use `.scratch/` for ephemeral session state:
 
-- `.scratch/NOW.md` — current focus / next steps **and** Git checkpoint state (`Implementation` / `Human approval` / `Git checkpoint` / `Remote` / `CI` per `AGENTS.md`)
+- `.scratch/NOW.md` — current focus / next steps
 - `.scratch/installs/LOG.md` — tooling install provenance
 - `.scratch/notes/` — throwaways (gitignored)
 
 Durable truth belongs in `docs/` or ACCEPTED ADRs — never only in chat or `.scratch`.
 
 Do not install packages, skills, or scaffold the app unless the user explicitly approves.
-Do not commit or push unless the current task explicitly authorizes it (`AGENTS.md` Git policy).
