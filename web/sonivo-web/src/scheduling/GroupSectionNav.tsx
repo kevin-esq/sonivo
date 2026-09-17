@@ -15,6 +15,9 @@ export function GroupSectionNav({ groupId }: { groupId: string }) {
       <Link className="underline" to={`/groups/${groupId}/events`}>
         Events
       </Link>
+      <Link className="underline" to={`/groups/${groupId}/people`}>
+        People
+      </Link>
     </nav>
   )
 }

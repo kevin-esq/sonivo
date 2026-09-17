@@ -5,6 +5,7 @@ import {
   ApiError,
   createGroup,
   createInvitation,
+  deleteGroup,
   fetchCurrentUser,
   getGroup,
   listMyGroups,
@@ -12,6 +13,7 @@ import {
   logoutUser,
   problemDetail,
   registerUser,
+  updateGroup,
   type CurrentUser,
   type GroupDetail,
   type GroupSummary,
@@ -20,6 +22,10 @@ import { ArrangementDetailPage } from './repertoire/ArrangementDetailPage'
 import { LibraryPage } from './repertoire/LibraryPage'
 import { SongDetailPage } from './repertoire/SongDetailPage'
 import {
+  ConfirmDialog,
+  CONFLICT_MESSAGE,
+  ConflictAlert,
+  dangerButtonClass,
   fieldClass,
   isOwnerRole,
   mutationErrorMessage,
@@ -33,6 +39,7 @@ import { GroupSectionNav } from './scheduling/GroupSectionNav'
 import { SetlistDetailPage } from './scheduling/SetlistDetailPage'
 import { SetlistListPage } from './scheduling/SetlistListPage'
 import { JoinPage, safeJoinNextPath } from './tenancy/JoinPage'
+import { PeoplePage } from './tenancy/PeoplePage'
 
 function Shell({
   user,
@@ -307,6 +314,14 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviting, setInviting] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [renameName, setRenameName] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [renameError, setRenameError] = useState<string | null>(null)
+  const [renameConflict, setRenameConflict] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     let cancelled = false
@@ -319,7 +334,10 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
       setCopied(false)
       try {
         const result = await getGroup(groupId)
-        if (!cancelled) setGroup(result)
+        if (!cancelled) {
+          setGroup(result)
+          setRenameName(result.name)
+        }
       } catch (err) {
         if (cancelled) return
         setGroup(null)
@@ -350,6 +368,63 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
       setInviteError(mutationErrorMessage(err))
     } finally {
       setInviting(false)
+    }
+  }
+
+  async function onRename(event: FormEvent) {
+    event.preventDefault()
+    if (!group) return
+    setRenaming(true)
+    setRenameError(null)
+    setRenameConflict(null)
+    try {
+      const updated = await updateGroup(group.id, {
+        name: renameName,
+        expectedVersion: group.version,
+      })
+      setGroup(updated)
+      setRenameName(updated.name)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setRenameConflict(CONFLICT_MESSAGE)
+        try {
+          const latest = await getGroup(group.id)
+          setGroup(latest)
+          setRenameName(latest.name)
+        } catch (reloadErr) {
+          setRenameError(mutationErrorMessage(reloadErr))
+        }
+      } else {
+        setRenameError(mutationErrorMessage(err))
+      }
+    } finally {
+      setRenaming(false)
+    }
+  }
+
+  async function onConfirmDelete() {
+    if (!group) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteGroup(group.id, group.version)
+      setDeleteOpen(false)
+      navigate('/')
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setDeleteError(CONFLICT_MESSAGE)
+        try {
+          const latest = await getGroup(group.id)
+          setGroup(latest)
+          setRenameName(latest.name)
+        } catch (reloadErr) {
+          setDeleteError(mutationErrorMessage(reloadErr))
+        }
+      } else {
+        setDeleteError(mutationErrorMessage(err))
+      }
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -391,36 +466,79 @@ function GroupShellPage({ user }: { user: CurrentUser }) {
       </p>
       <GroupSectionNav groupId={group.id} />
       {isOwner ? (
-        <div className="space-y-3">
-          <button
-            type="button"
-            className={primaryButtonClass}
-            disabled={inviting}
-            onClick={() => void onInviteMember()}
-          >
-            {inviting ? 'Working…' : 'Invite member'}
-          </button>
-          <ProblemAlert message={inviteError} />
-          {inviteUrl ? (
-            <div className="max-w-md space-y-2">
-              <label className="block space-y-1">
-                <span className="text-sm text-slate-700">Invite link</span>
-                <input className={fieldClass} readOnly value={inviteUrl} />
-              </label>
-              <button
-                type="button"
-                className={secondaryButtonClass}
-                onClick={() => void onCopyInviteLink()}
-              >
-                Copy invite link
-              </button>
-              {copied ? (
-                <p aria-live="polite" className="text-sm text-slate-600">
-                  Copied
-                </p>
-              ) : null}
-            </div>
-          ) : null}
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <button
+              type="button"
+              className={primaryButtonClass}
+              disabled={inviting}
+              onClick={() => void onInviteMember()}
+            >
+              {inviting ? 'Working…' : 'Invite member'}
+            </button>
+            <ProblemAlert message={inviteError} />
+            {inviteUrl ? (
+              <div className="max-w-md space-y-2">
+                <label className="block space-y-1">
+                  <span className="text-sm text-slate-700">Invite link</span>
+                  <input className={fieldClass} readOnly value={inviteUrl} />
+                </label>
+                <button
+                  type="button"
+                  className={secondaryButtonClass}
+                  onClick={() => void onCopyInviteLink()}
+                >
+                  Copy invite link
+                </button>
+                {copied ? (
+                  <p aria-live="polite" className="text-sm text-slate-600">
+                    Copied
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          <form className="max-w-md space-y-3 border-t border-slate-300 pt-6" onSubmit={onRename}>
+            <h3 className="font-medium">Rename group</h3>
+            <ConflictAlert message={renameConflict} />
+            <ProblemAlert message={renameError} />
+            <label className="block space-y-1">
+              <span className="text-sm text-slate-700">Name</span>
+              <input
+                className={fieldClass}
+                required
+                value={renameName}
+                onChange={(e) => setRenameName(e.target.value)}
+                maxLength={200}
+              />
+            </label>
+            <button type="submit" className={secondaryButtonClass} disabled={renaming}>
+              {renaming ? 'Working…' : 'Save name'}
+            </button>
+          </form>
+          <div className="space-y-3 border-t border-slate-300 pt-6">
+            <h3 className="font-medium">Delete group</h3>
+            <ProblemAlert message={deleteError} />
+            <button
+              type="button"
+              className={dangerButtonClass}
+              onClick={() => setDeleteOpen(true)}
+            >
+              Delete group
+            </button>
+            <ConfirmDialog
+              open={deleteOpen}
+              title="Delete group?"
+              confirmLabel="Delete group"
+              pending={deleting}
+              onConfirm={() => void onConfirmDelete()}
+              onCancel={() => {
+                if (!deleting) setDeleteOpen(false)
+              }}
+            >
+              <p>This hides the group for everyone in it. You cannot undo from this screen.</p>
+            </ConfirmDialog>
+          </div>
         </div>
       ) : null}
       <nav className="flex flex-wrap gap-4" aria-label="Account">
@@ -517,6 +635,14 @@ export default function App() {
           element={
             <RequireAuth user={user}>
               <EventListPage user={user!} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/groups/:groupId/people"
+          element={
+            <RequireAuth user={user}>
+              <PeoplePage user={user!} />
             </RequireAuth>
           }
         />
