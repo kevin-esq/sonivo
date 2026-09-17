@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-GATE-B-01 shell/tokens/auth)
-Human approval: PENDING (auditor)
-Git checkpoint: PENDING
-Remote: NOT PUSHED
-CI: NOT RUN
+Implementation: IN PROGRESS (T-GATE-B-02; T-GATE-B-01 HOLD nav order fix)
+Human approval: APPROVED T-GATE-B-01 with follow-up nav reorder
+Git checkpoint: PENDING (nav order follow-up)
+Remote: PUSHED (PR #22 merged)
+CI: PASSING (#22)
 ```
 
 **Live:** https://sonivo.onrender.com  
@@ -17,15 +17,16 @@ CI: NOT RUN
 
 ## Proof
 
-- T-GATE-B-01 implemented on `feature/t-gate-b-01-shell`
-- Frontend `npm run build` passed; Playwright full suite 15 passed
+- T-OPS-02 verified; Gate B contract PR #21
+- T-GATE-B-01 PR #22 merged (`1a74344`); CI Playwright 15/15
 
 ## Next
 
-Auditor review of T-GATE-B-01. Do not merge `main`. Do not start T-GATE-B-02 until this PR is accepted.
+T-GATE-B-02 Library / Song / Arrangement / link Resource chrome.
 
 ## Firewall
 
 - Do **not** implement T-3.2.06 / Google OAuth / Event notes
 - Do **not** commit OAuth secrets
 - Do **not** start Google billing / Render paid
+- Do **not** merge `main`

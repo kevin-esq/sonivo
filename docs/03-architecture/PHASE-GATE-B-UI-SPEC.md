@@ -31,8 +31,8 @@ The user should open the app and immediately see: **what we play, when, which ar
 
 - Wordmark **Sonivo** + tagline **Plan. Play. Together.**
 - Logo: waveform / pulse mark — **not** a generic music-note glyph as the primary mark.
-- Desktop: left sidebar + top context/search row + content.
-- Mobile: compact header + bottom nav (Inicio, Setlists, Eventos, Biblioteca). **Do not** shrink the desktop sidebar into a 320px column.
+- Desktop: left sidebar + top context/search row + content. Sidebar order matches the board: **Inicio, Setlists, Eventos, Biblioteca**, then **Miembros** (desktop). The long brief’s “Biblioteca second” list loses to the board.
+- Mobile: compact header + bottom nav (**Inicio, Setlists, Eventos, Biblioteca**). **Do not** shrink the desktop sidebar into a 320px column.
 - shadcn/ui as **primitive layer only**, restyled to this board. Lucide for icons. Motion for purposeful reorder/layout. Morphicons only where state morphs (menu↔close, etc.).
 - **Do not** add Aceternity / Magic UI / Eldora / Rare / 21st.dev / Anime.js as project dependencies.
 - `prefers-reduced-motion` respected. Playwright locators updated in the same ticket as copy/chrome changes.
