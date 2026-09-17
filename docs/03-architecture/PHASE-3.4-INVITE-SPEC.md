@@ -1,8 +1,8 @@
 # Phase 3.4 Thin invites specification
 
-**Status:** TICKETIZED — **authorized** 2026-09-17 (Kevin Esquivel).  
+**Status:** **COMPLETED** on `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8), merge `8db0714`). T-3.4.01–03 shipped.  
 **Product bet:** Owner can add a Member via a shareable invite link so that Member can **read** the live Library + copied Event Plan (ADR-0006).  
-**Develop reference:** `80f5f63e9b3e86f4ade3bfa2a4fffd6eb9ec4e23` (PR #6 merged).  
+**Develop reference:** `8db0714e03f302dff1e32ed644b794f595a99175` (PR #8 merged).  
 **Date:** 2026-09-17  
 **Depends on:** ADR-0005, 0006, 0012, 0013, 0019–0020; Phase 3.3 thin S2 (Setlist → Event apply).
 
@@ -179,4 +179,5 @@ Serial. Do not start 02 before 01; 03 before 02.
 
 ## Exit
 
-Planning + authorization artifact. Implementation starts at T-3.4.01 when a builder is assigned. No RSVP, no T-3.2.06.
+- Thin invites **COMPLETED** on `develop` (PR #8, merge `8db0714`). Tickets T-3.4.01–03 closed.
+- Next authorized implementation: Phase 3.5 thin RSVP ([`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md)). T-3.2.06 and Event cancel-PATCH remain deferred. No SMTP.

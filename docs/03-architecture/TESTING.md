@@ -81,7 +81,7 @@ Authoritative matrix: [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC
 | Postgres | Composite FKs, filters, cascade tx, Kind nullability |
 | Playwright (T-3.2.08 **COMPLETE**) | **TC-LIB-01** Owner Song→Arr→**link** Resource; **TC-LIB-02** Owner Song soft-delete; **TC-LIB-03** non-member denied library URL. **Deferred:** Member browser E2E; 409 conflict E2E; file Resource flows |
 
-When RSVP lands later (only if authorized), extend Playwright with one critical journey per workflow — not an exhaustive matrix.
+RSVP Playwright is Phase 3.5 (**TC-RSVP-01**), not this closed 3.2 slice.
 
 ### Phase 3.3 — Setlist / Event apply (thin S2 COMPLETED)
 
@@ -93,6 +93,10 @@ Authoritative matrix: [`PHASE-3.3-THIN-SPEC.md`](PHASE-3.3-THIN-SPEC.md). Shippe
 | API | HTTP contracts + CSRF on mutating verbs |
 | Playwright (T-3.3.05 **COMPLETE**) | **TC-EVT-01** Owner Setlist compose → Event create → Apply → plan labels visible. **TC-EVT-02** Setlist edit does not change Event plan until re-apply. **Deferred:** Member browser E2E (needs invite seed); 409 E2E matrix |
 
-### Phase 3.4 — Thin invites (authorized, not started)
+### Phase 3.4 — Thin invites (COMPLETED)
 
-Authoritative matrix: [`PHASE-3.4-INVITE-SPEC.md`](PHASE-3.4-INVITE-SPEC.md). **TC-INV-01** (coming): Owner invite → second user accept → Member sees Event plan, no mutate chrome.
+Authoritative matrix: [`PHASE-3.4-INVITE-SPEC.md`](PHASE-3.4-INVITE-SPEC.md). Shipped on `develop` (PR #8). **TC-INV-01 COMPLETE:** Owner invite → second user accept → Member sees Event plan, no mutate chrome.
+
+### Phase 3.5 — Thin RSVP (authorized, not started)
+
+Authoritative matrix: [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md). **TC-RSVP-01** (coming): Owner Event with plan; invite Member; Member sets Yes; Owner sees that Member’s display name and Yes.

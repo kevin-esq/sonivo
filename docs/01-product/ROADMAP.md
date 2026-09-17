@@ -5,8 +5,9 @@ Product sequencing.
 **Phase 0–3.1 CLOSED.**  
 **Phase 3.2 approved scope COMPLETED** — `Song → Arrangement → Link Resource` + React Library Shell + sparse Playwright E2E (T-3.2.01–05, 07, 08) on `develop`.  
 **Phase 3.3 thin S2 COMPLETED** — Setlist → Event apply → React UI → Playwright (T-3.3.01–05) on `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6)).  
-**Deferred:** T-3.2.06 file Resource / blob / content; RSVP; Event cancel-PATCH (not next by default).  
-**Next authorized:** Phase 3.4 thin invites (T-3.4.01–03) — link token, no email. Spec: [`PHASE-3.4-INVITE-SPEC.md`](../03-architecture/PHASE-3.4-INVITE-SPEC.md). Not started.
+**Phase 3.4 thin invites COMPLETED** — T-3.4.01–03 on `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8)).  
+**Deferred:** T-3.2.06 file Resource / blob / content; Event cancel-PATCH (not next by default).  
+**Next authorized:** Phase 3.5 thin RSVP (T-3.5.01–03). Spec: [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md). Not started.
 
 Product/code features beyond authorized tickets require **explicit** human approval.
 
@@ -44,18 +45,25 @@ Setlist → Event apply → copied Event Plan + React UI + sparse Playwright. RS
 - [x] T-3.3.04 React Setlist + Event + Apply UI
 - [x] T-3.3.05 Sparse Playwright (TC-EVT-01/02)
 
-### Phase 3.4 — Thin invites (authorized, not started)
+### Phase 3.4 — Thin invites (COMPLETED)
 
-Link token, no email. Spec: [`PHASE-3.4-INVITE-SPEC.md`](../03-architecture/PHASE-3.4-INVITE-SPEC.md).
+Link token, no email. Spec: [`PHASE-3.4-INVITE-SPEC.md`](../03-architecture/PHASE-3.4-INVITE-SPEC.md). Shipped on `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8)).
 
-- [ ] T-3.4.01 Invitation Application + API + migration
-- [ ] T-3.4.02 React invite + join UI
-- [ ] T-3.4.03 Sparse Playwright Member join + read plan (TC-INV-01)
+- [x] T-3.4.01 Invitation Application + API + migration
+- [x] T-3.4.02 React invite + join UI
+- [x] T-3.4.03 Sparse Playwright Member join + read plan (TC-INV-01)
+
+### Phase 3.5 — Thin RSVP (authorized, not started)
+
+Yes / no / maybe on a dated Event. Spec: [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md).
+
+- [ ] T-3.5.01 RSVP Application + API
+- [ ] T-3.5.02 React Event Attendance UI
+- [ ] T-3.5.03 Sparse Playwright Member RSVP (TC-RSVP-01)
 
 ### Later (only when authorized)
 
 - File Resource / blob storage (T-3.2.06)  
-- RSVP  
 - Event cancel / PATCH (not in 3.3 thin)  
 - Email invites  
 
