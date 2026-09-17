@@ -2,8 +2,8 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-17 (Phase 3.9 invite email COMPLETED including T-3.9.04 Gmail API HTTPS; T-OPS-01 DataProtection keys COMPLETED)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** on `develop` (T-3.9.04 Gmail API HTTPS, PR [#19](https://github.com/kevin-esq/sonivo/pull/19), merge `468517c`). T-OPS-01 DataProtection keys persist in Postgres. Live host pack on `develop` (https://sonivo.onrender.com); Render image may lag until Manual Deploy or T-OPS-02. T-3.2.06 file Resource **DEFERRED**. **Do not merge `main` until Gate B** ([`SYSTEM-CLOSE-PLAN.md`](../01-product/SYSTEM-CLOSE-PLAN.md)): Gate A remaining = T-OPS-02; Gate B = UI redesign then `main`.  
+**Last updated:** 2026-09-17 (Gate A closed including T-OPS-02; Gate B UI redesign AUTHORIZED)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** on `develop`. T-OPS-01 DataProtection keys persist in Postgres. T-OPS-02 Render GitHub app granted on `kevin-esq/sonivo`. Live: https://sonivo.onrender.com. T-3.2.06 file Resource **DEFERRED**. Gate B **AUTHORIZED** ([`PHASE-GATE-B-UI-SPEC.md`](../03-architecture/PHASE-GATE-B-UI-SPEC.md)). **Do not merge `main` until Gate B is accepted.**  
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---

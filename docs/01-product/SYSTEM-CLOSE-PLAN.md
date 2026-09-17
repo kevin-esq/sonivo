@@ -1,6 +1,6 @@
 # System-close plan — Sonivo
 
-**Status:** Gate A **AUTHORIZED** 2026-09-17 (Kevin Esquivel). Phase 3.7–3.9 and T-OPS-01 **COMPLETED** on `develop`. Remaining Gate A ops: **T-OPS-02**. Do **not** start Gate B.  
+**Status:** Gate A **CLOSED** 2026-09-17 (Kevin Esquivel). Phase 3.7–3.9, T-OPS-01, and **T-OPS-02** (Render GitHub app on `kevin-esq/sonivo`) **COMPLETED**. Gate B UI redesign **AUTHORIZED** — [`PHASE-GATE-B-UI-SPEC.md`](../03-architecture/PHASE-GATE-B-UI-SPEC.md). Do **not** merge `main` until Gate B is accepted.  
 **Date:** 2026-09-17  
 **Live:** https://sonivo.onrender.com (Free Render + Neon; branch `develop`)  
 **Depends on:** ADR-0005–0006, 0012–0013, 0015–0021; Phases 3.2–3.6 **COMPLETED** on `develop`.
@@ -96,7 +96,7 @@ Live is usable but two issues bite real users. Ticket when authorized; not a pro
 | ID | Work |
 | -- | ---- |
 | T-OPS-01 | Persist ASP.NET DataProtection keys in Postgres (`DataProtectionKeys`) so cookies survive Render deploys — **COMPLETED** |
-| T-OPS-02 | Grant Render GitHub app access to `kevin-esq/sonivo` (clone warning; auto-deploy) |
+| T-OPS-02 | Grant Render GitHub app access to `kevin-esq/sonivo` (clone warning; auto-deploy) — **COMPLETED** 2026-09-17 (installation `92085443`; repo selected; Auto-Deploy On Commit) |
 
 Free-instance spin-down (~50s cold start) is **accepted** until a paid instance. Not a Gate A blocker.
 
@@ -113,16 +113,16 @@ Free-instance spin-down (~50s cold start) is **accepted** until a paid instance.
 
 ---
 
-## Gate B (after Gate A — do not start now)
+## Gate B (AUTHORIZED — in progress)
 
-1. **Frontend redesign** of the shipped surfaces (Groups, Library, Setlist, Event, People, Invite, RSVP). Behavior stays; chrome changes.
-2. Merge `develop` → `main` only after that cut.
+1. **Frontend redesign** of the shipped surfaces (Groups, Library, Setlist, Event, People, Invite, RSVP). Behavior stays; chrome changes. Spec: [`PHASE-GATE-B-UI-SPEC.md`](../03-architecture/PHASE-GATE-B-UI-SPEC.md). Brief + board: [`GATE-B-DESIGN-BRIEF.md`](GATE-B-DESIGN-BRIEF.md).
+2. Merge `develop` → `main` only after that cut is accepted.
 3. Treat https://sonivo.onrender.com (or a custom domain) as the public product.
 
-Until Gate B: `main` stays the pre-product workflow commit (revert PR [#14](https://github.com/kevin-esq/sonivo/pull/14) restored that). Integration is `develop`.
+Until Gate B is accepted: `main` stays the pre-product workflow commit (revert PR [#14](https://github.com/kevin-esq/sonivo/pull/14) restored that). Integration is `develop`.
 
 ---
 
 ## How to start
 
-Phase 3.7, 3.8, 3.9, and T-OPS-01 are **done**. Remaining Gate A ops: **T-OPS-02** (Kevin grants Render GitHub app access). Do not start Gate B.
+Phase 3.7–3.9, T-OPS-01, and T-OPS-02 are **done**. Gate B is **AUTHORIZED**. Do not merge `main` until the redesign cut is accepted.

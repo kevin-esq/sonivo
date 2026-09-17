@@ -27,8 +27,8 @@ ADRs **0001–0025** are **ACCEPTED** (including tooling ADR-0002).
 **Phase 3.8 thin invite hygiene:** **CLOSED** / **COMPLETED** (T-3.8.01–03) — list/revoke outstanding invites ([`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](docs/03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md)). Merged to `develop` (PR [#16](https://github.com/kevin-esq/sonivo/pull/16)).  
 **T-OPS-01:** **COMPLETED** — ASP.NET DataProtection keys persist in Postgres (`DataProtectionKeys`).  
 **Phase 3.9 thin invite email:** **CLOSED** / **COMPLETED** (T-3.9.01–04 Gmail HTTPS) on `develop` (PR [#19](https://github.com/kevin-esq/sonivo/pull/19), `468517c`) ([`PHASE-3.9-SMTP-SPEC.md`](docs/03-architecture/PHASE-3.9-SMTP-SPEC.md)).  
-**System close plan:** [`docs/01-product/SYSTEM-CLOSE-PLAN.md`](docs/01-product/SYSTEM-CLOSE-PLAN.md) — Gate A (functional) then Gate B (UI redesign → `main`).  
-**Next:** T-OPS-02 Render GitHub app (Kevin). Gate B UI redesign after that. File Resource (**T-3.2.06**) remains **DEFERRED**. Do not merge to `main` until Gate B.
+**System close plan:** [`docs/01-product/SYSTEM-CLOSE-PLAN.md`](docs/01-product/SYSTEM-CLOSE-PLAN.md) — Gate A **CLOSED**. Gate B UI redesign **AUTHORIZED** ([`PHASE-GATE-B-UI-SPEC.md`](docs/03-architecture/PHASE-GATE-B-UI-SPEC.md)).  
+**Next:** T-GATE-B-01–05 on `develop`. File Resource (**T-3.2.06**) remains **DEFERRED**. Do not merge to `main` until Gate B is accepted.
 
 Until the user explicitly authorizes additional work:
 
@@ -36,9 +36,9 @@ Until the user explicitly authorizes additional work:
 - Do **not** expand SMTP beyond the closed thin 3.9 spec (Gmail API HTTPS only; no Event/RSVP mail, no generic SMTP server)
 - Do **not** expand Event PATCH/cancel beyond the closed thin 3.6 spec (no location/notes, no includeCancelled)
 - Do **not** expand RSVP beyond the closed thin 3.5 spec without further approval
-- Do **not** install skills or non-stack tooling without approval
+- Do **not** install skills or non-stack tooling without approval (Gate B npm: lucide / shadcn primitives / motion / optional morphicons only — see Gate B spec)
 - Do **not** push / create GitHub remotes / change branch protection unless explicitly authorized
-- Foundation + Group/Membership + repertoire + Phase 3.3 scheduling + Phase 3.4 invite + Phase 3.5 RSVP + Phase 3.6 Event lifecycle + Phase 3.7 People + Phase 3.8 invite hygiene + Phase 3.9 optional invite email within the accepted contracts is allowed
+- Foundation + Group/Membership + repertoire + Phase 3.3–3.9 + Gate B UI chrome (T-GATE-B-01–05) within the accepted contracts is allowed. Do **not** merge `main` until Gate B is accepted.
 - Local PostgreSQL: repository `compose.yaml` (host port **5433**)
 
 ---
