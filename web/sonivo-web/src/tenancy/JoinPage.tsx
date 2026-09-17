@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { acceptInvitation, ApiError, type CurrentUser } from '../api/client'
-import { mutationErrorMessage, primaryButtonClass, ProblemAlert } from '../repertoire/ui'
+import { mutationErrorMessage, ProblemAlert } from '../repertoire/ui'
+import { Button } from '../ui/button'
 
 const JOIN_NEXT_PATH = /^\/join\/[A-Za-z0-9._~-]+$/
 
@@ -19,7 +20,7 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
   const [alreadyMember, setAlreadyMember] = useState(false)
 
   if (user === undefined) {
-    return <p aria-live="polite">Checking session…</p>
+    return <p aria-live="polite">Comprobando sesión…</p>
   }
 
   if (!user) {
@@ -40,7 +41,7 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
       navigate(`/groups/${accepted.groupId}`)
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
-        setError('This invite is invalid or expired.')
+        setError('Esta invitación no es válida o ha caducado.')
       } else if (err instanceof ApiError && err.status === 409) {
         setAlreadyMember(true)
       } else {
@@ -53,26 +54,26 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
 
   return (
     <section className="space-y-4" aria-labelledby="join-heading">
-      <h2 id="join-heading" className="text-xl font-medium">
-        Join this group
-      </h2>
+      <div className="space-y-2">
+        <h1 id="join-heading" className="text-2xl font-bold tracking-tight">
+          Unirte a este grupo
+        </h1>
+        <p className="text-sm text-slate-500">
+          Acepta la invitación para unirte y preparar setlists y eventos con el grupo.
+        </p>
+      </div>
       <ProblemAlert message={error} />
       {alreadyMember ? (
         <div className="space-y-2" role="alert">
-          <p>You are already a member of this group.</p>
-          <Link className="underline" to="/">
-            Home
+          <p>Ya eres miembro de este grupo.</p>
+          <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+            Inicio
           </Link>
         </div>
       ) : (
-        <button
-          type="button"
-          className={primaryButtonClass}
-          disabled={pending || !token}
-          onClick={() => void onAccept()}
-        >
-          {pending ? 'Working…' : 'Accept invite'}
-        </button>
+        <Button disabled={pending || !token} onClick={() => void onAccept()}>
+          {pending ? 'Trabajando…' : 'Aceptar invitación'}
+        </Button>
       )}
     </section>
   )

@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-GATE-B-04)
+Implementation: COMPLETE (T-GATE-B-05)
 Human approval: PENDING
-Git checkpoint: COMMITTED (2470d33)
-Remote: PUSHED (PR #26 → develop)
-CI: NOT RUN (await GitHub)
+Git checkpoint: COMMITTED (pending push/PR)
+Remote: NOT PUSHED
+CI: NOT RUN
 ```
 
 **Live:** https://sonivo.onrender.com  
@@ -17,13 +17,12 @@ CI: NOT RUN (await GitHub)
 
 ## Proof
 
-- T-GATE-B-01–03 merged on `develop` (through #25)
-- T-GATE-B-04: https://github.com/kevin-esq/sonivo/pull/26
-- Local: `npm run build` OK; Playwright 15/15
+- T-GATE-B-01–04 on rewritten `origin/develop` (`6e316ef`)
+- T-GATE-B-05: People / invite / join Spanish + Inicio compose; Playwright **15/15**
 
 ## Next
 
-Auditor / human review of T-GATE-B-04. Then T-GATE-B-05 (People + Inicio).
+PR `--base develop` → human review. Gate B cut — do not merge `main`.
 
 ## Firewall
 
@@ -31,3 +30,4 @@ Auditor / human review of T-GATE-B-04. Then T-GATE-B-05 (People + Inicio).
 - Do **not** commit OAuth secrets
 - Do **not** start Google billing / Render paid
 - Do **not** merge `main`
+- Do **not** add Cursor / AI co-author trailers in commits or PRs

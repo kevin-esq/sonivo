@@ -38,7 +38,7 @@ export async function createGroup(page: Page, name: string) {
 }
 
 export async function openLibrary(page: Page) {
-  await page.getByRole('link', { name: 'Biblioteca' }).click()
+  await page.getByRole('link', { name: 'Biblioteca', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Biblioteca' })).toBeVisible()
 }
 
@@ -164,8 +164,8 @@ export function eventPlanItem(page: Page, songTitle: string, arrangementLabel: s
 }
 
 export async function inviteMemberAndReadLink(page: Page): Promise<string> {
-  await page.getByRole('button', { name: 'Invite member' }).click()
-  const inviteLink = page.getByLabel('Invite link')
+  await page.getByRole('button', { name: 'Invitar miembro' }).click()
+  const inviteLink = page.getByLabel('Enlace de invitación')
   await expect(inviteLink).toBeVisible()
   const url = await inviteLink.inputValue()
   expect(url).toContain('/join/')
@@ -173,13 +173,13 @@ export async function inviteMemberAndReadLink(page: Page): Promise<string> {
 }
 
 export async function acceptInvite(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Join this group' })).toBeVisible()
-  await page.getByRole('button', { name: 'Accept invite' }).click()
+  await expect(page.getByRole('heading', { name: 'Unirte a este grupo' })).toBeVisible()
+  await page.getByRole('button', { name: 'Aceptar invitación' }).click()
 }
 
 export async function openPeople(page: Page) {
   await page.getByRole('link', { name: 'Miembros' }).click()
-  await expect(page.getByRole('heading', { name: 'People' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Miembros' })).toBeVisible()
 }
 
 export function attendanceRegion(page: Page) {

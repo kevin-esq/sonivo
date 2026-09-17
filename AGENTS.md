@@ -113,6 +113,7 @@ Do **not** infer commit/push/PR authorization from: “ticket complete”, “ap
 - Intended branch; approved scope only; Conventional Commits; concise meaningful message.  
 - No secrets, `.env`, generated junk, or unrelated files.  
 - Run relevant local build/tests before commit; never claim they passed if not run.
+- **PROHIBITION:** Never add `Co-authored-by: Cursor`, `Made with Cursor`, `cursoragent`, or any AI/tool co-author trailer or credit in commits, squash messages, or PR bodies. Commits are authored as **Kevin Esquivel** only. If the IDE injects a trailer, remove it before push.
 
 ### Push / PR / CI (when authorized)
 

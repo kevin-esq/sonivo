@@ -57,7 +57,7 @@ test.describe('People journeys', () => {
     await expect(page.getByText(ownerName, { exact: true })).toBeVisible()
     await expect(page.getByText(memberName, { exact: true })).toBeVisible()
 
-    await page.getByRole('button', { name: `Remove ${memberName}` }).click()
+    await page.getByRole('button', { name: `Eliminar ${memberName}` }).click()
     await expect(page.getByText(memberName, { exact: true })).toHaveCount(0)
 
     await logout(page)

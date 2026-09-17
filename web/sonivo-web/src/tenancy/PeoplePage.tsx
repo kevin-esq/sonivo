@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { UserRound, Users } from 'lucide-react'
 import {
   changeMemberRole,
   leaveGroup,
@@ -11,16 +12,27 @@ import {
   type MemberListItem,
   type OutstandingInvitation,
 } from '../api/client'
+import { EmptyPanel, PageBreadcrumb } from '../repertoire/chrome'
 import {
-  dangerButtonClass,
-  fieldClass,
   isOwnerRole,
   mutationErrorMessage,
   ProblemAlert,
-  secondaryButtonClass,
   useGroupContext,
 } from '../repertoire/ui'
-import { GroupSectionNav } from '../scheduling/GroupSectionNav'
+import { Button } from '../ui/button'
+import { cn } from '../ui/cn'
+import { fieldClass } from '../ui/field'
+
+function formatRole(role: string): string {
+  switch (role) {
+    case 'Owner':
+      return 'Owner'
+    case 'Member':
+      return 'Member'
+    default:
+      return role
+  }
+}
 
 export function PeoplePage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
@@ -145,15 +157,15 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">Loading people…</p>
+    return <p aria-live="polite">Cargando miembros…</p>
   }
 
   if (group === null) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="underline" to="/">
-          Back to my groups
+        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+          Mis grupos
         </Link>
       </div>
     )
@@ -161,38 +173,73 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
 
   return (
     <section className="space-y-6" aria-labelledby="people-heading">
-      <h2 id="people-heading" className="text-xl font-medium">
-        People
-      </h2>
-      <p className="text-slate-700">{group.name}</p>
-      <GroupSectionNav groupId={group.id} />
+      <div className="space-y-2">
+        <PageBreadcrumb
+          items={[{ to: `/groups/${group.id}`, label: group.name }, { label: 'Miembros' }]}
+        />
+        <h1 id="people-heading" className="text-2xl font-bold tracking-tight">
+          Miembros
+        </h1>
+        <p className="text-sm text-slate-500">
+          Quién forma el grupo, roles y invitaciones pendientes.
+        </p>
+      </div>
+
       <ProblemAlert message={listError} />
       <ProblemAlert message={actionError} />
       <ProblemAlert message={inviteError} />
 
       {members === null ? (
-        <p aria-live="polite">Loading members…</p>
+        <p aria-live="polite">Cargando miembros…</p>
       ) : members.length === 0 ? (
-        <p>No members.</p>
+        <EmptyPanel
+          title="No hay miembros"
+          description="Cuando haya personas en el grupo, aparecerán aquí."
+        />
       ) : (
-        <ul className="space-y-3">
-          {members.map((member) => {
+        <ul className="space-y-2">
+          {members.map((member, index) => {
             const isSelf = member.userId === user.id
             const busy = pendingUserId === member.userId
             return (
-              <li key={member.userId} className="space-y-2 border border-slate-300 p-3">
-                <p>
-                  <span className="font-medium">{member.displayName}</span>
-                  <span className="ml-2 text-sm text-slate-600">({member.role})</span>
-                  {isSelf ? <span className="ml-2 text-sm text-slate-500">you</span> : null}
-                </p>
+              <li
+                key={member.userId}
+                className="library-enter space-y-3 rounded-2xl border border-slate-100 bg-white px-4 py-3"
+                style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
+                      member.role === 'Owner'
+                        ? 'bg-primary/15 text-primary'
+                        : 'bg-neutral-light text-slate-600',
+                    )}
+                    aria-hidden="true"
+                  >
+                    {member.role === 'Owner' ? (
+                      <Users className="h-5 w-5" />
+                    ) : (
+                      <UserRound className="h-5 w-5" />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-neutral-dark">
+                      {member.displayName}
+                      {isSelf ? (
+                        <span className="ml-2 text-sm font-normal text-slate-500">(tú)</span>
+                      ) : null}
+                    </p>
+                    <p className="text-sm text-slate-500">({formatRole(member.role)})</p>
+                  </div>
+                </div>
                 {isOwner ? (
-                  <div className="flex flex-wrap items-end gap-3">
-                    <label className="block space-y-1">
-                      <span className="text-sm text-slate-700">Role</span>
+                  <div className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-3">
+                    <label className="block space-y-1.5">
+                      <span className="text-sm font-medium text-slate-700">Rol</span>
                       <select
                         className={fieldClass}
-                        aria-label={`Role for ${member.displayName}`}
+                        aria-label={`Rol de ${member.displayName}`}
                         value={member.role}
                         disabled={busy}
                         onChange={(event) => {
@@ -207,15 +254,14 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                       </select>
                     </label>
                     {isSelf ? null : (
-                      <button
-                        type="button"
-                        className={dangerButtonClass}
+                      <Button
+                        variant="danger"
                         disabled={busy}
-                        aria-label={`Remove ${member.displayName}`}
+                        aria-label={`Eliminar ${member.displayName}`}
                         onClick={() => void onRemove(member.userId)}
                       >
-                        Remove
-                      </button>
+                        Eliminar
+                      </Button>
                     )}
                   </div>
                 ) : null}
@@ -227,29 +273,32 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
 
       {isOwner ? (
         <section className="space-y-3" aria-labelledby="invites-heading">
-          <h3 id="invites-heading" className="font-medium">
-            Outstanding invites
-          </h3>
+          <h2 id="invites-heading" className="text-lg font-semibold">
+            Invitaciones pendientes
+          </h2>
           {invites === null ? (
-            <p aria-live="polite">Loading invites…</p>
+            <p aria-live="polite">Cargando invitaciones…</p>
           ) : invites.length === 0 ? (
-            <p>No outstanding invites.</p>
+            <p className="text-sm text-slate-500">No hay invitaciones pendientes.</p>
           ) : (
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {invites.map((invite) => (
-                <li key={invite.id} className="flex flex-wrap items-center gap-3 border border-slate-300 p-3">
-                  <p className="text-sm text-slate-700">
-                    Expires {new Date(invite.expiresAt).toLocaleString()}
+                <li
+                  key={invite.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3"
+                >
+                  <p className="text-sm text-slate-600">
+                    Caduca {new Date(invite.expiresAt).toLocaleString('es')}
                   </p>
-                  <button
-                    type="button"
-                    className={dangerButtonClass}
+                  <Button
+                    variant="danger"
+                    size="sm"
                     disabled={revokingId === invite.id}
-                    aria-label={`Revoke invite expiring ${invite.expiresAt}`}
+                    aria-label={`Revocar invitación que caduca ${invite.expiresAt}`}
                     onClick={() => void onRevoke(invite.id)}
                   >
-                    Revoke
-                  </button>
+                    Revocar
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -258,14 +307,9 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       ) : null}
 
       {isOwner ? null : (
-        <button
-          type="button"
-          className={secondaryButtonClass}
-          disabled={leaving}
-          onClick={() => void onLeave()}
-        >
-          {leaving ? 'Working…' : 'Leave group'}
-        </button>
+        <Button variant="secondary" disabled={leaving} onClick={() => void onLeave()}>
+          {leaving ? 'Trabajando…' : 'Salir del grupo'}
+        </Button>
       )}
     </section>
   )
