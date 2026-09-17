@@ -5,9 +5,13 @@ import {
   applySetlistToEvent,
   getEvent,
   isConflictError,
+  listEventRsvps,
   listSetlists,
+  upsertEventRsvp,
   type CurrentUser,
   type EventDetail,
+  type EventRsvpItem,
+  type EventRsvpResponse,
   type SetlistListItem,
 } from '../api/client'
 import {
@@ -19,37 +23,75 @@ import {
   mutationErrorMessage,
   primaryButtonClass,
   ProblemAlert,
+  secondaryButtonClass,
   useGroupContext,
 } from '../repertoire/ui'
 import { formatEventType, formatStartsAt } from './datetime'
 import { GroupSectionNav } from './GroupSectionNav'
+
+const RSVP_CHOICES: { value: EventRsvpResponse; label: string }[] = [
+  { value: 'yes', label: 'Yes' },
+  { value: 'no', label: 'No' },
+  { value: 'maybe', label: 'Maybe' },
+]
+
+function formatRsvpResponse(response: string): string {
+  return RSVP_CHOICES.find((choice) => choice.value === response)?.label ?? response
+}
+
+type RsvpLoad =
+  | { ok: true; items: EventRsvpItem[] }
+  | { ok: false; error: unknown }
+
+async function loadEventRsvps(groupId: string, eventId: string): Promise<RsvpLoad> {
+  try {
+    const list = await listEventRsvps(groupId, eventId)
+    return { ok: true, items: list.items }
+  } catch (error) {
+    return { ok: false, error }
+  }
+}
 
 export function EventDetailPage({ user }: { user: CurrentUser }) {
   const { groupId, eventId } = useParams()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const [musicalEvent, setMusicalEvent] = useState<EventDetail | null | undefined>(undefined)
   const [setlists, setSetlists] = useState<SetlistListItem[] | null>(null)
+  const [rsvps, setRsvps] = useState<EventRsvpItem[] | null>(null)
   const [selectedSetlistId, setSelectedSetlistId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [conflict, setConflict] = useState<string | null>(null)
   const [confirmReplace, setConfirmReplace] = useState(false)
   const [applying, setApplying] = useState(false)
+  const [savingRsvp, setSavingRsvp] = useState(false)
 
   const isOwner = isOwnerRole(group?.role)
   const plan = musicalEvent?.items ?? []
   const hasPlan = plan.length >= 1
+  const myResponse = rsvps?.find((item) => item.userId === user.id)?.response ?? null
+
+  function applyRsvpLoad(result: RsvpLoad) {
+    if (result.ok) {
+      setRsvps(result.items)
+      return
+    }
+    setRsvps(null)
+    setError(mutationErrorMessage(result.error))
+  }
 
   async function reload() {
     if (!groupId || !eventId) return
-    const [nextEvent, nextSetlists] = await Promise.all([
+    const [nextEvent, nextSetlists, rsvpLoad] = await Promise.all([
       getEvent(groupId, eventId),
       listSetlists(groupId),
+      loadEventRsvps(groupId, eventId),
     ])
     setMusicalEvent(nextEvent)
     setSetlists(nextSetlists)
     if (!selectedSetlistId && nextSetlists[0]) {
       setSelectedSetlistId(nextSetlists[0].id)
     }
+    applyRsvpLoad(rsvpLoad)
   }
 
   useEffect(() => {
@@ -57,21 +99,25 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
     let cancelled = false
     async function load() {
       setMusicalEvent(undefined)
+      setRsvps(null)
       setError(null)
       setConflict(null)
       try {
-        const [nextEvent, nextSetlists] = await Promise.all([
+        const [nextEvent, nextSetlists, rsvpLoad] = await Promise.all([
           getEvent(groupId!, eventId!),
           listSetlists(groupId!),
+          loadEventRsvps(groupId!, eventId!),
         ])
         if (cancelled) return
         setMusicalEvent(nextEvent)
         setSetlists(nextSetlists)
         setSelectedSetlistId(nextSetlists[0]?.id ?? '')
+        applyRsvpLoad(rsvpLoad)
       } catch (err) {
         if (cancelled) return
         setMusicalEvent(null)
         setSetlists([])
+        setRsvps(null)
         setError(mutationErrorMessage(err))
       }
     }
@@ -80,6 +126,20 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       cancelled = true
     }
   }, [groupId, eventId, group])
+
+  async function setOwnRsvp(response: EventRsvpResponse) {
+    if (!groupId || !eventId) return
+    setSavingRsvp(true)
+    setError(null)
+    try {
+      await upsertEventRsvp(groupId, eventId, response)
+      applyRsvpLoad(await loadEventRsvps(groupId, eventId))
+    } catch (err) {
+      setError(mutationErrorMessage(err))
+    } finally {
+      setSavingRsvp(false)
+    }
+  }
 
   async function apply(replaceConfirmed: boolean) {
     if (!groupId || !eventId || !musicalEvent || !selectedSetlistId) return
@@ -218,6 +278,40 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               </li>
             ))}
           </ol>
+        )}
+      </section>
+
+      <section className="space-y-4 border-t border-slate-300 pt-6" aria-labelledby="attendance-heading">
+        <h3 id="attendance-heading" className="font-medium">
+          Attendance
+        </h3>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Your response">
+          {RSVP_CHOICES.map((choice) => {
+            const selected = myResponse === choice.value
+            return (
+              <button
+                key={choice.value}
+                type="button"
+                className={selected ? primaryButtonClass : secondaryButtonClass}
+                aria-pressed={selected}
+                disabled={savingRsvp}
+                onClick={() => void setOwnRsvp(choice.value)}
+              >
+                {choice.label}
+              </button>
+            )
+          })}
+        </div>
+        {rsvps === null ? null : rsvps.length === 0 ? (
+          <p>No responses yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {rsvps.map((item) => (
+              <li key={item.userId}>
+                {item.displayName} — {formatRsvpResponse(item.response)}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

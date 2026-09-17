@@ -583,6 +583,43 @@ export async function applySetlistToEvent(
   )
 }
 
+export type EventRsvpResponse = 'yes' | 'no' | 'maybe'
+
+export type EventRsvpItem = {
+  userId: string
+  displayName: string
+  response: EventRsvpResponse | string
+  updatedAt: string
+}
+
+export type EventRsvpList = {
+  items: EventRsvpItem[]
+}
+
+export type EventRsvpUpsertResult = {
+  userId: string
+  response: EventRsvpResponse | string
+  updatedAt: string
+}
+
+export async function upsertEventRsvp(
+  groupId: string,
+  eventId: string,
+  response: EventRsvpResponse,
+): Promise<EventRsvpUpsertResult> {
+  return apiRequest<EventRsvpUpsertResult>(
+    `/api/groups/${groupId}/events/${eventId}/rsvp`,
+    { method: 'PUT', body: { response } },
+  )
+}
+
+export async function listEventRsvps(
+  groupId: string,
+  eventId: string,
+): Promise<EventRsvpList> {
+  return apiRequest<EventRsvpList>(`/api/groups/${groupId}/events/${eventId}/rsvps`)
+}
+
 export async function deleteResource(
   groupId: string,
   arrangementId: string,
