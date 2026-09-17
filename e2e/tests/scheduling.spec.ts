@@ -13,6 +13,7 @@ import {
   openSong,
   register,
   saveSetlistOrder,
+  setlistItem,
   uniqueEmail,
 } from './helpers'
 
@@ -86,7 +87,7 @@ test.describe('Scheduling journeys', () => {
     await expect(page.getByRole('heading', { name: setlistName })).toBeVisible()
     await addArrangementToSetlist(page, planLine)
     await saveSetlistOrder(page)
-    await expect(page.getByRole('listitem').filter({ hasText: planLine })).toHaveCount(2)
+    await expect(setlistItem(page, songTitle, arrangementLabel)).toHaveCount(2)
 
     await openEvents(page)
     await page.getByRole('link', { name: eventTitle }).click()

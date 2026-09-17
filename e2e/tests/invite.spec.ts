@@ -78,7 +78,7 @@ test.describe('Invite journeys', () => {
     await expect(page.getByRole('heading', { name: 'Apply setlist' })).toHaveCount(0)
 
     await openSetlists(page)
-    await expect(page.getByRole('button', { name: 'Add setlist' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Nuevo setlist' })).toHaveCount(0)
 
     await openLibrary(page)
     await expect(page.getByRole('button', { name: 'Agregar canción' })).toHaveCount(0)

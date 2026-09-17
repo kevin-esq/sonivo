@@ -97,22 +97,40 @@ export async function openSetlists(page: Page) {
 }
 
 export async function createSetlist(page: Page, name: string) {
-  await page.getByRole('button', { name: 'Add setlist' }).click()
-  await expect(page.getByRole('heading', { name: 'Create setlist' })).toBeVisible()
-  await page.getByLabel('Name').fill(name)
-  await page.getByRole('button', { name: 'Create setlist' }).click()
+  await page.getByRole('button', { name: 'Nuevo setlist' }).click()
+  await expect(page.getByRole('heading', { name: 'Crear setlist' })).toBeVisible()
+  await page.getByLabel('Nombre').fill(name)
+  await page.getByRole('button', { name: 'Crear setlist' }).click()
   await expect(page.getByRole('heading', { name })).toBeVisible()
 }
 
+/** optionLabel is `songTitle — arrangementLabel` from the live-arrangement select. */
 export async function addArrangementToSetlist(page: Page, optionLabel: string) {
-  await page.getByLabel('Live arrangement').selectOption({ label: optionLabel })
-  await page.getByRole('button', { name: 'Add to setlist' }).click()
-  await expect(page.getByRole('listitem').filter({ hasText: optionLabel }).last()).toBeVisible()
+  const select = page.getByLabel('Arreglo')
+  if (!(await select.isVisible())) {
+    await page.getByRole('button', { name: 'Agregar a setlist' }).click()
+  }
+  await select.selectOption({ label: optionLabel })
+  await page.getByRole('button', { name: 'Agregar a setlist' }).click()
+  const [songTitle, arrangementLabel] = optionLabel.split(' — ')
+  let item = page.getByRole('listitem').filter({ hasText: songTitle ?? optionLabel })
+  if (arrangementLabel) {
+    item = item.filter({ hasText: arrangementLabel })
+  }
+  await expect(item.last()).toBeVisible()
 }
 
 export async function saveSetlistOrder(page: Page) {
-  await page.getByRole('button', { name: 'Save order' }).click()
-  await expect(page.getByRole('button', { name: 'Save order' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Guardar orden' }).click()
+  await expect(page.getByRole('button', { name: 'Guardar orden' })).toBeEnabled()
+}
+
+/** Setlist composition rows show song title and arrangement label on separate lines. */
+export function setlistItem(page: Page, songTitle: string, arrangementLabel: string) {
+  return page
+    .getByRole('listitem')
+    .filter({ hasText: songTitle })
+    .filter({ hasText: arrangementLabel })
 }
 
 export async function openEvents(page: Page) {
