@@ -135,24 +135,32 @@ export function setlistItem(page: Page, songTitle: string, arrangementLabel: str
 
 export async function openEvents(page: Page) {
   await page.getByRole('link', { name: 'Eventos' }).first().click()
-  await expect(page.getByRole('heading', { name: 'Events' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Eventos' })).toBeVisible()
 }
 
 export async function createEvent(
   page: Page,
   input: { title: string; type?: 'rehearsal' | 'performance' | 'other'; startsAt: string },
 ) {
-  await page.getByRole('button', { name: 'Add event' }).click()
-  await expect(page.getByRole('heading', { name: 'Create event' })).toBeVisible()
-  await page.getByLabel('Title').fill(input.title)
-  await page.getByLabel('Type').selectOption(input.type ?? 'rehearsal')
-  await page.getByLabel('Starts at').fill(input.startsAt)
-  await page.getByRole('button', { name: 'Create event' }).click()
+  await page.getByRole('button', { name: 'Nuevo evento' }).click()
+  await expect(page.getByRole('heading', { name: 'Crear evento' })).toBeVisible()
+  await page.getByLabel('Título').fill(input.title)
+  await page.getByLabel('Tipo').selectOption(input.type ?? 'rehearsal')
+  await page.getByLabel('Fecha y hora').fill(input.startsAt)
+  await page.getByRole('button', { name: 'Crear evento' }).click()
   await expect(page.getByRole('heading', { name: input.title })).toBeVisible()
 }
 
 export async function applySetlist(page: Page) {
-  await page.getByRole('button', { name: 'Apply setlist' }).click()
+  await page.getByRole('button', { name: 'Aplicar setlist' }).click()
+}
+
+/** Event plan rows show song title and arrangement label on separate lines. */
+export function eventPlanItem(page: Page, songTitle: string, arrangementLabel: string) {
+  return page
+    .getByRole('listitem')
+    .filter({ hasText: songTitle })
+    .filter({ hasText: arrangementLabel })
 }
 
 export async function inviteMemberAndReadLink(page: Page): Promise<string> {
@@ -175,12 +183,12 @@ export async function openPeople(page: Page) {
 }
 
 export function attendanceRegion(page: Page) {
-  return page.getByRole('region', { name: 'Attendance' })
+  return page.getByRole('region', { name: 'Asistencia' })
 }
 
 export async function setRsvpYes(page: Page) {
   const attendance = attendanceRegion(page)
   await expect(attendance).toBeVisible()
-  await attendance.getByRole('button', { name: 'Yes' }).click()
-  await expect(attendance.getByRole('button', { name: 'Yes' })).toHaveAttribute('aria-pressed', 'true')
+  await attendance.getByRole('button', { name: 'Sí' }).click()
+  await expect(attendance.getByRole('button', { name: 'Sí' })).toHaveAttribute('aria-pressed', 'true')
 }

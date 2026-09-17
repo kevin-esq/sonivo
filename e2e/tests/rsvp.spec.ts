@@ -9,6 +9,7 @@ import {
   createGroup,
   createSetlist,
   createSong,
+  eventPlanItem,
   inviteMemberAndReadLink,
   login,
   logout,
@@ -34,7 +35,11 @@ test.describe('RSVP journeys', () => {
     const setlistName = `Rsvp set ${stamp}`
     const eventTitle = `Sunday gather ${stamp}`
     const planLine = `${songTitle} — ${arrangementLabel}`
-    const memberYesLine = `${memberDisplayName} — Yes`
+    const memberYesRow = () =>
+      page
+        .getByRole('listitem')
+        .filter({ hasText: memberDisplayName })
+        .filter({ hasText: 'Sí' })
 
     await register(page, ownerEmail)
     await createGroup(page, groupName)
@@ -53,8 +58,8 @@ test.describe('RSVP journeys', () => {
     await openEvents(page)
     await createEvent(page, { title: eventTitle, startsAt: '2026-12-06T10:00' })
     await applySetlist(page)
-    await expect(page.getByRole('heading', { name: 'Event plan' })).toBeVisible()
-    await expect(page.getByRole('listitem').filter({ hasText: planLine })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Plan del evento' })).toBeVisible()
+    await expect(eventPlanItem(page, songTitle, arrangementLabel)).toBeVisible()
 
     await page.getByRole('link', { name: groupName, exact: true }).click()
     await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
@@ -72,12 +77,12 @@ test.describe('RSVP journeys', () => {
     await openEvents(page)
     await page.getByRole('link', { name: eventTitle }).click()
     await expect(page.getByRole('heading', { name: eventTitle })).toBeVisible()
-    await expect(page.getByRole('listitem').filter({ hasText: planLine })).toBeVisible()
+    await expect(eventPlanItem(page, songTitle, arrangementLabel)).toBeVisible()
 
     await setRsvpYes(page)
-    await expect(page.getByRole('listitem').filter({ hasText: memberYesLine })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Apply setlist' })).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'Apply setlist' })).toHaveCount(0)
+    await expect(memberYesRow()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Aplicar setlist' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Aplicar setlist' })).toHaveCount(0)
 
     await logout(page)
     await login(page, ownerEmail)
@@ -87,6 +92,6 @@ test.describe('RSVP journeys', () => {
     await page.getByRole('link', { name: eventTitle }).click()
     await expect(page.getByRole('heading', { name: eventTitle })).toBeVisible()
     await expect(attendanceRegion(page)).toBeVisible()
-    await expect(page.getByRole('listitem').filter({ hasText: memberYesLine })).toBeVisible()
+    await expect(memberYesRow()).toBeVisible()
   })
 })

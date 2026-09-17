@@ -16,10 +16,10 @@ test.describe('Event lifecycle journeys', () => {
     await openEvents(page)
     await createEvent(page, { title: originalTitle, startsAt: '2026-12-13T19:00' })
 
-    await page.getByRole('button', { name: 'Edit event' }).click()
-    await expect(page.getByRole('heading', { name: 'Edit event' })).toBeVisible()
-    await page.getByLabel('Title').fill(updatedTitle)
-    await page.getByRole('button', { name: 'Save changes' }).click()
+    await page.getByRole('button', { name: 'Editar evento' }).click()
+    await expect(page.getByRole('heading', { name: 'Editar evento' })).toBeVisible()
+    await page.getByLabel('Título').fill(updatedTitle)
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await expect(page.getByRole('heading', { name: updatedTitle })).toBeVisible()
 
     await openEvents(page)
@@ -29,14 +29,14 @@ test.describe('Event lifecycle journeys', () => {
     await page.getByRole('link', { name: updatedTitle }).click()
     await expect(page.getByRole('heading', { name: updatedTitle })).toBeVisible()
 
-    await page.getByRole('button', { name: 'Cancel event' }).click()
+    await page.getByRole('button', { name: 'Cancelar evento' }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
-    await dialog.getByRole('button', { name: 'Cancel event' }).click()
+    await dialog.getByRole('button', { name: 'Cancelar evento' }).click()
 
-    await expect(page.getByRole('heading', { name: 'Events' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Eventos' })).toBeVisible()
     await expect(page.getByRole('link', { name: updatedTitle })).toHaveCount(0)
     await expect(page.getByRole('link', { name: originalTitle })).toHaveCount(0)
-    await expect(page.getByText(/No events yet/)).toBeVisible()
+    await expect(page.getByText(/Aún no hay eventos/)).toBeVisible()
   })
 })

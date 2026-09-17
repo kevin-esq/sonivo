@@ -8,6 +8,7 @@ import {
   createGroup,
   createSetlist,
   createSong,
+  eventPlanItem,
   inviteMemberAndReadLink,
   logout,
   openEvents,
@@ -51,8 +52,8 @@ test.describe('Invite journeys', () => {
     await openEvents(page)
     await createEvent(page, { title: eventTitle, startsAt: '2026-12-06T10:00' })
     await applySetlist(page)
-    await expect(page.getByRole('heading', { name: 'Event plan' })).toBeVisible()
-    await expect(page.getByRole('listitem').filter({ hasText: planLine })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Plan del evento' })).toBeVisible()
+    await expect(eventPlanItem(page, songTitle, arrangementLabel)).toBeVisible()
 
     await page.getByRole('link', { name: groupName, exact: true }).click()
     await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
@@ -70,12 +71,12 @@ test.describe('Invite journeys', () => {
     await expect(page.getByRole('button', { name: 'Invite member' })).toHaveCount(0)
 
     await openEvents(page)
-    await expect(page.getByText('(read-only)')).toBeVisible()
+    await expect(page.getByText('Solo lectura')).toBeVisible()
     await page.getByRole('link', { name: eventTitle }).click()
     await expect(page.getByRole('heading', { name: eventTitle })).toBeVisible()
-    await expect(page.getByRole('listitem').filter({ hasText: planLine })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Apply setlist' })).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'Apply setlist' })).toHaveCount(0)
+    await expect(eventPlanItem(page, songTitle, arrangementLabel)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Aplicar setlist' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Aplicar setlist' })).toHaveCount(0)
 
     await openSetlists(page)
     await expect(page.getByRole('button', { name: 'Nuevo setlist' })).toHaveCount(0)

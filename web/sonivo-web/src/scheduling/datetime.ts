@@ -14,18 +14,36 @@ export function toDatetimeLocalValue(iso: string): string {
 export function formatStartsAt(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleString()
+  try {
+    return new Intl.DateTimeFormat('es', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(date)
+  } catch {
+    return date.toLocaleString()
+  }
 }
 
 export function formatEventType(type: string): string {
   switch (type) {
     case 'rehearsal':
-      return 'Rehearsal'
+      return 'Ensayo'
     case 'performance':
-      return 'Performance'
+      return 'Concierto'
     case 'other':
-      return 'Other'
+      return 'Otro'
     default:
       return type
+  }
+}
+
+export function formatEventStatus(status: string): string {
+  switch (status) {
+    case 'scheduled':
+      return 'Programado'
+    case 'cancelled':
+      return 'Cancelado'
+    default:
+      return status
   }
 }
