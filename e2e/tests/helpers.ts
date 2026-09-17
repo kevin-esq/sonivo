@@ -90,3 +90,49 @@ export async function deleteSong(page: Page, title: string) {
   await expect(page.getByRole('heading', { name: 'Song library' })).toBeVisible()
   await expect(page.getByRole('link', { name: title })).toHaveCount(0)
 }
+
+export async function openSetlists(page: Page) {
+  await page.getByRole('link', { name: 'Setlists' }).first().click()
+  await expect(page.getByRole('heading', { name: 'Setlists' })).toBeVisible()
+}
+
+export async function createSetlist(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Add setlist' }).click()
+  await expect(page.getByRole('heading', { name: 'Create setlist' })).toBeVisible()
+  await page.getByLabel('Name').fill(name)
+  await page.getByRole('button', { name: 'Create setlist' }).click()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+}
+
+export async function addArrangementToSetlist(page: Page, optionLabel: string) {
+  await page.getByLabel('Live arrangement').selectOption({ label: optionLabel })
+  await page.getByRole('button', { name: 'Add to setlist' }).click()
+  await expect(page.getByRole('listitem').filter({ hasText: optionLabel }).last()).toBeVisible()
+}
+
+export async function saveSetlistOrder(page: Page) {
+  await page.getByRole('button', { name: 'Save order' }).click()
+  await expect(page.getByRole('button', { name: 'Save order' })).toBeEnabled()
+}
+
+export async function openEvents(page: Page) {
+  await page.getByRole('link', { name: 'Events' }).first().click()
+  await expect(page.getByRole('heading', { name: 'Events' })).toBeVisible()
+}
+
+export async function createEvent(
+  page: Page,
+  input: { title: string; type?: 'rehearsal' | 'performance' | 'other'; startsAt: string },
+) {
+  await page.getByRole('button', { name: 'Add event' }).click()
+  await expect(page.getByRole('heading', { name: 'Create event' })).toBeVisible()
+  await page.getByLabel('Title').fill(input.title)
+  await page.getByLabel('Type').selectOption(input.type ?? 'rehearsal')
+  await page.getByLabel('Starts at').fill(input.startsAt)
+  await page.getByRole('button', { name: 'Create event' }).click()
+  await expect(page.getByRole('heading', { name: input.title })).toBeVisible()
+}
+
+export async function applySetlist(page: Page) {
+  await page.getByRole('button', { name: 'Apply setlist' }).click()
+}

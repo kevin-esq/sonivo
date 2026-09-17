@@ -321,7 +321,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
             ) : (
               <div className="space-y-3">
                 <label className="block space-y-1">
-                  <span className="text-sm text-slate-700">Arrangement</span>
+                  <span className="text-sm text-slate-700">Live arrangement</span>
                   <select
                     className={fieldClass}
                     value={selectedArrangementId}
