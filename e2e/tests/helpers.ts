@@ -34,7 +34,7 @@ export async function createGroup(page: Page, name: string) {
   await page.getByLabel('Nombre').fill(name)
   await page.getByRole('button', { name: 'Crear grupo' }).click()
   await expect(page.getByRole('heading', { name })).toBeVisible()
-  await expect(page.getByRole('complementary').getByText('Owner', { exact: true })).toBeVisible()
+  await expect(page.getByRole('complementary').getByText('Organizador', { exact: true })).toBeVisible()
 }
 
 export async function openLibrary(page: Page) {

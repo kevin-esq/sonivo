@@ -1,6 +1,6 @@
 # Phase 3.9 Thin invite email specification
 
-**Status:** **COMPLETED** (T-3.9.01–04). T-3.9.04 Gmail HTTPS on `develop` (PR [#19](https://github.com/kevin-esq/sonivo/pull/19), `468517c`). Live Render image may still be PR #18 until Manual Deploy or T-OPS-02.  
+**Status:** **COMPLETED** (T-3.9.01–04). T-3.9.04 Gmail HTTPS on `develop`/`main` (PR [#19](https://github.com/kevin-esq/sonivo/pull/19)). **Live probe 2026-09-17:** invite create returned `emailed=true` on https://sonivo.onrender.com (Gmail HTTPS env set on Render).  
 **Product bet:** The shareable link still does the join. Email is how the Owner **tells** a person about that link.  
 **Date:** 2026-09-17  
 **Depends on:** Phase 3.4 (Q-I1–I8), Phase 3.8; ADR-0012, 0019–0020.

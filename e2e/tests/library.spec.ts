@@ -68,7 +68,7 @@ test.describe('Library journeys', () => {
     await page.goto(`/groups/${groupId}/library`)
 
     await expect(page.getByRole('alert')).toContainText(
-      'Group not found or you do not have access.',
+      'No encontramos este grupo o no tienes acceso.',
     )
   })
 })

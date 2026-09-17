@@ -10,6 +10,7 @@ import {
 } from '../api/client'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
+import { ListSkeleton, PageSkeleton } from '../ui/skeleton'
 import {
   AddSongButton,
   EmptyPanel,
@@ -68,7 +69,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
   }, [groupId, group])
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando biblioteca…</p>
+    return <PageSkeleton label="Cargando biblioteca…" />
   }
 
   if (group === null) {
@@ -103,7 +104,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
       <ProblemAlert message={listError} />
 
       {songs === null ? (
-        <p aria-live="polite">Cargando canciones…</p>
+        <ListSkeleton rows={4} label="Cargando canciones…" />
       ) : songs.length === 0 ? (
         showCreate ? null : (
         <EmptyPanel

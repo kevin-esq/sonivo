@@ -22,12 +22,14 @@ import {
   CONFLICT_MESSAGE,
   ConflictAlert,
   fieldClass,
+  formatMembershipRole,
   isOwnerRole,
   mutationErrorMessage,
   ProblemAlert,
 } from '../repertoire/ui'
 import { Button, primaryButtonClass } from '../ui/button'
 import { cn } from '../ui/cn'
+import { Skeleton } from '../ui/skeleton'
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
 
 const RECENT_SETLIST_LIMIT = 5
@@ -294,7 +296,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           Aquí tienes un resumen de tu música y próximos eventos.
         </p>
         <p className="text-sm text-slate-500">
-          Rol: <strong>{group.role}</strong>. Versión: <strong>{group.version}</strong>.
+          Tu rol en este grupo: <strong>{formatMembershipRole(group.role)}</strong>.
         </p>
       </div>
 
@@ -304,19 +306,19 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
         <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
           <p className="text-sm text-slate-500">Setlists</p>
           <p className="mt-1 text-2xl font-bold text-neutral-dark">
-            {setlists === null ? '…' : setlists.length}
+            {setlists === null ? <Skeleton className="mt-2 h-8 w-10" /> : setlists.length}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
           <p className="text-sm text-slate-500">Eventos</p>
           <p className="mt-1 text-2xl font-bold text-neutral-dark">
-            {scheduledCount === null ? '…' : scheduledCount}
+            {scheduledCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : scheduledCount}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
           <p className="text-sm text-slate-500">Canciones</p>
           <p className="mt-1 text-2xl font-bold text-neutral-dark">
-            {songCount === null ? '…' : songCount}
+            {songCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : songCount}
           </p>
           {songCount !== null ? (
             <p className="mt-0.5 text-xs text-slate-400">{formatSongCount(songCount)}</p>
@@ -456,6 +458,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                 className={fieldClass}
                 type="email"
                 autoComplete="off"
+                aria-label="Correo del invitado (opcional)"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
               />
@@ -476,7 +479,12 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               <div className="max-w-md space-y-2">
                 <label className="block space-y-1.5">
                   <span className="text-sm font-medium text-slate-700">Enlace de invitación</span>
-                  <input className={fieldClass} readOnly value={inviteUrl} />
+                  <input
+                    className={fieldClass}
+                    readOnly
+                    aria-label="Enlace de invitación"
+                    value={inviteUrl}
+                  />
                 </label>
                 <Button variant="secondary" onClick={() => void onCopyInviteLink()}>
                   Copiar enlace
