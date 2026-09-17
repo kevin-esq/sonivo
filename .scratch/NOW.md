@@ -5,17 +5,12 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-3.4.01)
-Human approval: APPROVED (T-3.4.01 — Kevin Esquivel)
-Git checkpoint: COMMITTED (this commit)
+Implementation: COMPLETE (T-3.4.02)
+Human approval: APPROVED (T-3.4.01–02 — Kevin Esquivel)
+Git checkpoint: COMMITTED (01 @ 9fdeec7 · 02 this commit)
 Remote: NOT PUSHED
 CI: NOT RUN
 ```
 
 **Branch:** `feature/phase-3.4-invites`  
-**Next:** T-3.4.02 React invite + join UI
-
-## Firewall
-
-- No T-3.4.02 in this commit
-- No RSVP / SMTP / T-3.2.06
+**Next:** T-3.4.03 Playwright (not started in this commit)
