@@ -164,6 +164,31 @@ export async function getGroup(groupId: string): Promise<GroupDetail> {
   return apiRequest<GroupDetail>(`/api/groups/${groupId}`)
 }
 
+export type InvitationCreated = {
+  id: string
+  token: string
+  expiresAt: string
+}
+
+export type InvitationAccepted = {
+  groupId: string
+  role: string
+}
+
+export async function createInvitation(groupId: string): Promise<InvitationCreated> {
+  return apiRequest<InvitationCreated>(`/api/groups/${groupId}/invitations`, {
+    method: 'POST',
+    body: {},
+  })
+}
+
+export async function acceptInvitation(token: string): Promise<InvitationAccepted> {
+  return apiRequest<InvitationAccepted>(
+    `/api/invitations/${encodeURIComponent(token)}/accept`,
+    { method: 'POST' },
+  )
+}
+
 export function problemDetail(error: unknown): string {
   if (error instanceof ApiError) {
     const body = error.body as
