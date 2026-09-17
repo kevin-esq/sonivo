@@ -151,6 +151,11 @@ export async function acceptInvite(page: Page) {
   await page.getByRole('button', { name: 'Accept invite' }).click()
 }
 
+export async function openPeople(page: Page) {
+  await page.getByRole('link', { name: 'People' }).click()
+  await expect(page.getByRole('heading', { name: 'People' })).toBeVisible()
+}
+
 export function attendanceRegion(page: Page) {
   return page.getByRole('region', { name: 'Attendance' })
 }
