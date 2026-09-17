@@ -163,6 +163,209 @@ public class EventUseCaseTests
                 .HandleAsync(Guid.NewGuid(), groupId, created.Id, CancellationToken.None));
     }
 
+    [Fact]
+    public async Task Owner_patch_title_bumps_version_and_keeps_omitted_fields()
+    {
+        var (groups, events, owner, groupId) = await SeedOwnerAsync();
+        var access = new GroupAccessService(groups);
+        var created = await new CreateEventHandler(access, events, new FixedClock(Now))
+            .HandleAsync(
+                new CreateEventCommand(owner, groupId, "Sunday rehearsal", EventTypes.Rehearsal, Starts),
+                CancellationToken.None);
+
+        var updated = await new UpdateEventHandler(access, events, new FixedClock(Now.AddMinutes(2)))
+            .HandleAsync(
+                new UpdateEventCommand(owner, groupId, created.Id, " Sunday live ", null, null, 1),
+                CancellationToken.None);
+
+        Assert.Equal("Sunday live", updated.Title);
+        Assert.Equal(EventTypes.Rehearsal, updated.Type);
+        Assert.Equal(Starts, updated.StartsAt);
+        Assert.Equal(2, updated.Version);
+        Assert.Equal(EventStatuses.Scheduled, updated.Status);
+    }
+
+    [Fact]
+    public async Task Member_cannot_patch_event()
+    {
+        var (groups, events, owner, groupId, member) = await SeedOwnerAndMemberAsync();
+        var access = new GroupAccessService(groups);
+        var created = await new CreateEventHandler(access, events, new FixedClock(Now))
+            .HandleAsync(
+                new CreateEventCommand(owner, groupId, "Show", EventTypes.Performance, Starts),
+                CancellationToken.None);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            new UpdateEventHandler(access, events, new FixedClock(Now))
+                .HandleAsync(
+                    new UpdateEventCommand(member, groupId, created.Id, "Hacked", null, null, 1),
+                    CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Non_member_patch_throws_not_found()
+    {
+        var (groups, events, owner, groupId) = await SeedOwnerAsync();
+        var access = new GroupAccessService(groups);
+        var created = await new CreateEventHandler(access, events, new FixedClock(Now))
+            .HandleAsync(
+                new CreateEventCommand(owner, groupId, "Show", EventTypes.Performance, Starts),
+                CancellationToken.None);
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            new UpdateEventHandler(access, events, new FixedClock(Now))
+                .HandleAsync(
+                    new UpdateEventCommand(Guid.NewGuid(), groupId, created.Id, "Nope", null, null, 1),
+                    CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Patch_stale_version_throws_conflict()
+    {
+        var (groups, events, owner, groupId) = await SeedOwnerAsync();
+        var access = new GroupAccessService(groups);
+        var created = await new CreateEventHandler(access, events, new FixedClock(Now))
+            .HandleAsync(
+                new CreateEventCommand(owner, groupId, "Show", EventTypes.Performance, Starts),
+                CancellationToken.None);
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            new UpdateEventHandler(access, events, new FixedClock(Now))
+                .HandleAsync(
+                    new UpdateEventCommand(owner, groupId, created.Id, "Nope", null, null, 99),
+                    CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Patch_cancelled_event_throws_validation()
+    {
+        var (groups, events, owner, groupId) = await SeedOwnerAsync();
+        var access = new GroupAccessService(groups);
+        var created = await new CreateEventHandler(access, events, new FixedClock(Now))
+            .HandleAsync(
+                new CreateEventCommand(owner, groupId, "Show", EventTypes.Performance, Starts),
+                CancellationToken.None);
+        await new CancelEventHandler(access, events, new FixedClock(Now.AddMinutes(1)))
+            .HandleAsync(new CancelEventCommand(owner, groupId, created.Id, 1), CancellationToken.None);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            new UpdateEventHandler(access, events, new FixedClock(Now.AddMinutes(2)))
+                .HandleAsync(
+                    new UpdateEventCommand(owner, groupId, created.Id, "Nope", null, null, 2),
+                    CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Owner_cancel_hides_from_list_and_keeps_plan()
+    {
+        var (groups, events, owner, groupId, member) = await SeedOwnerAndMemberAsync();
+        var access = new GroupAccessService(groups);
+        var created = await new CreateEventHandler(access, events, new FixedClock(Now))
+            .HandleAsync(
+                new CreateEventCommand(owner, groupId, "Show", EventTypes.Performance, Starts),
+                CancellationToken.None);
+        var stored = events.Events.Single(e => e.Id == created.Id);
+        stored.Items.Add(EventSetlistItem.Create(
+            stored.Id, groupId, Guid.NewGuid(), "Copied Song", "Copied Arr", 1, Now));
+
+        await new CancelEventHandler(access, events, new FixedClock(Now.AddMinutes(3)))
+            .HandleAsync(new CancelEventCommand(owner, groupId, created.Id, 1), CancellationToken.None);
+
+        var list = await new ListEventsHandler(access, events)
+            .HandleAsync(member, groupId, CancellationToken.None);
+        Assert.Empty(list);
+
+        var cancelled = events.Events.Single(e => e.Id == created.Id);
+        Assert.Equal(EventStatuses.Cancelled, cancelled.Status);
+        Assert.True(cancelled.IsHidden);
+        Assert.Equal(Now.AddMinutes(3), cancelled.CancelledAt);
+        Assert.Equal(2, cancelled.Version);
+        Assert.Single(cancelled.Items);
+    }
+
+    [Fact]
+    public async Task Cancel_already_cancelled_throws_validation()
+    {
+        var (groups, events, owner, groupId) = await SeedOwnerAsync();
+        var access = new GroupAccessService(groups);
+        var created = await new CreateEventHandler(access, events, new FixedClock(Now))
+            .HandleAsync(
+                new CreateEventCommand(owner, groupId, "Show", EventTypes.Performance, Starts),
+                CancellationToken.None);
+        await new CancelEventHandler(access, events, new FixedClock(Now.AddMinutes(1)))
+            .HandleAsync(new CancelEventCommand(owner, groupId, created.Id, 1), CancellationToken.None);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            new CancelEventHandler(access, events, new FixedClock(Now.AddMinutes(2)))
+                .HandleAsync(new CancelEventCommand(owner, groupId, created.Id, 2), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Cancel_stale_version_throws_conflict()
+    {
+        var (groups, events, owner, groupId) = await SeedOwnerAsync();
+        var access = new GroupAccessService(groups);
+        var created = await new CreateEventHandler(access, events, new FixedClock(Now))
+            .HandleAsync(
+                new CreateEventCommand(owner, groupId, "Show", EventTypes.Performance, Starts),
+                CancellationToken.None);
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            new CancelEventHandler(access, events, new FixedClock(Now))
+                .HandleAsync(new CancelEventCommand(owner, groupId, created.Id, 99), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Member_cannot_cancel_event()
+    {
+        var (groups, events, owner, groupId, member) = await SeedOwnerAndMemberAsync();
+        var access = new GroupAccessService(groups);
+        var created = await new CreateEventHandler(access, events, new FixedClock(Now))
+            .HandleAsync(
+                new CreateEventCommand(owner, groupId, "Show", EventTypes.Performance, Starts),
+                CancellationToken.None);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            new CancelEventHandler(access, events, new FixedClock(Now))
+                .HandleAsync(new CancelEventCommand(member, groupId, created.Id, 1), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Member_get_cancelled_throws_not_found()
+    {
+        var (groups, events, owner, groupId, member) = await SeedOwnerAndMemberAsync();
+        var access = new GroupAccessService(groups);
+        var created = await new CreateEventHandler(access, events, new FixedClock(Now))
+            .HandleAsync(
+                new CreateEventCommand(owner, groupId, "Show", EventTypes.Performance, Starts),
+                CancellationToken.None);
+        await new CancelEventHandler(access, events, new FixedClock(Now.AddMinutes(1)))
+            .HandleAsync(new CancelEventCommand(owner, groupId, created.Id, 1), CancellationToken.None);
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            new GetEventHandler(access, events)
+                .HandleAsync(member, groupId, created.Id, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Owner_get_cancelled_returns_detail()
+    {
+        var (groups, events, owner, groupId) = await SeedOwnerAsync();
+        var access = new GroupAccessService(groups);
+        var created = await new CreateEventHandler(access, events, new FixedClock(Now))
+            .HandleAsync(
+                new CreateEventCommand(owner, groupId, "Show", EventTypes.Performance, Starts),
+                CancellationToken.None);
+        await new CancelEventHandler(access, events, new FixedClock(Now.AddMinutes(1)))
+            .HandleAsync(new CancelEventCommand(owner, groupId, created.Id, 1), CancellationToken.None);
+
+        var detail = await new GetEventHandler(access, events)
+            .HandleAsync(owner, groupId, created.Id, CancellationToken.None);
+        Assert.Equal(created.Id, detail.Id);
+        Assert.Equal(EventStatuses.Cancelled, detail.Status);
+        Assert.Equal(2, detail.Version);
+    }
+
     private static async Task<(FakeGroupStore Groups, FakeEventStore Events, Guid Owner, Guid GroupId)> SeedOwnerAsync()
     {
         var groups = new FakeGroupStore();

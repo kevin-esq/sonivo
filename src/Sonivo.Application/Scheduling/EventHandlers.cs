@@ -153,7 +153,7 @@ public sealed class GetEventHandler
         Guid eventId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
+        var (_, membership) = await _access.RequireMemberAsync(groupId, userId, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(groupId, eventId, cancellationToken);
         if (musicalEvent is null)
@@ -161,7 +161,131 @@ public sealed class GetEventHandler
             throw new NotFoundException("Event not found.");
         }
 
+        if ((musicalEvent.Status == EventStatuses.Cancelled || musicalEvent.IsHidden)
+            && !membership.IsOwner)
+        {
+            throw new NotFoundException("Event not found.");
+        }
+
         return CreateEventHandler.ToDetail(musicalEvent);
+    }
+}
+
+public sealed record UpdateEventCommand(
+    Guid UserId,
+    Guid GroupId,
+    Guid EventId,
+    string? Title,
+    string? Type,
+    DateTimeOffset? StartsAt,
+    int ExpectedVersion);
+
+public sealed class UpdateEventHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IEventStore _events;
+    private readonly IClock _clock;
+
+    public UpdateEventHandler(GroupAccessService access, IEventStore events, IClock clock)
+    {
+        _access = access;
+        _events = events;
+        _clock = clock;
+    }
+
+    public async Task<EventDetailDto> HandleAsync(UpdateEventCommand command, CancellationToken cancellationToken)
+    {
+        if (command.ExpectedVersion < 1)
+        {
+            throw new ValidationException("expectedVersion is required.");
+        }
+
+        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+
+        var musicalEvent = await _events.GetByIdWithItemsAsync(
+            command.GroupId,
+            command.EventId,
+            cancellationToken);
+        if (musicalEvent is null)
+        {
+            throw new NotFoundException("Event not found.");
+        }
+
+        var title = command.Title ?? musicalEvent.Title;
+        var type = command.Type ?? musicalEvent.Type;
+        var startsAt = command.StartsAt ?? musicalEvent.StartsAt;
+
+        try
+        {
+            musicalEvent.UpdateMetadata(title, type, startsAt, command.ExpectedVersion, _clock.UtcNow);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new ValidationException(ex.Message);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            throw new ConflictException(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new ValidationException(ex.Message);
+        }
+
+        await _events.UpdateAsync(musicalEvent, cancellationToken);
+        await _events.SaveChangesAsync(cancellationToken);
+        return CreateEventHandler.ToDetail(musicalEvent);
+    }
+}
+
+public sealed record CancelEventCommand(Guid UserId, Guid GroupId, Guid EventId, int ExpectedVersion);
+
+public sealed class CancelEventHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IEventStore _events;
+    private readonly IClock _clock;
+
+    public CancelEventHandler(GroupAccessService access, IEventStore events, IClock clock)
+    {
+        _access = access;
+        _events = events;
+        _clock = clock;
+    }
+
+    public async Task HandleAsync(CancelEventCommand command, CancellationToken cancellationToken)
+    {
+        if (command.ExpectedVersion < 1)
+        {
+            throw new ValidationException("expectedVersion is required.");
+        }
+
+        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+
+        var musicalEvent = await _events.GetByIdWithItemsAsync(
+            command.GroupId,
+            command.EventId,
+            cancellationToken);
+        if (musicalEvent is null)
+        {
+            throw new NotFoundException("Event not found.");
+        }
+
+        try
+        {
+            musicalEvent.Cancel(command.ExpectedVersion, _clock.UtcNow);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            throw new ConflictException(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new ValidationException(ex.Message);
+        }
+
+        await _events.UpdateAsync(musicalEvent, cancellationToken);
+        await _events.SaveChangesAsync(cancellationToken);
     }
 }
 

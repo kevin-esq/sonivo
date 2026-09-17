@@ -1018,6 +1018,63 @@ app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
 .WithName("GetEvent")
 .RequireAuthorization();
 
+app.MapPatch("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
+    Guid groupId,
+    Guid eventId,
+    UpdateEventRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    UpdateEventHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var updated = await handler.HandleAsync(
+        new UpdateEventCommand(
+            userId.Value,
+            groupId,
+            eventId,
+            request.Title,
+            request.Type,
+            request.StartsAt,
+            request.ExpectedVersion),
+        cancellationToken);
+
+    return Results.Ok(ToEventDetailResponse(updated));
+})
+.WithName("UpdateEvent")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/cancel", async (
+    Guid groupId,
+    Guid eventId,
+    CancelEventRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    CancelEventHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(
+        new CancelEventCommand(userId.Value, groupId, eventId, request.ExpectedVersion),
+        cancellationToken);
+
+    return Results.NoContent();
+})
+.WithName("CancelEvent")
+.RequireAuthorization()
+.DisableAntiforgery();
+
 app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/apply-setlist", async (
     Guid groupId,
     Guid eventId,
@@ -1357,6 +1414,12 @@ internal sealed record ReplaceSetlistItemsRequest(
     IReadOnlyList<ReplaceSetlistItemRequest>? Items);
 internal sealed record ReplaceSetlistItemRequest(Guid ArrangementId, int SortOrder);
 internal sealed record CreateEventRequest(string? Title, string? Type, DateTimeOffset StartsAt);
+internal sealed record UpdateEventRequest(
+    string? Title,
+    string? Type,
+    DateTimeOffset? StartsAt,
+    int ExpectedVersion);
+internal sealed record CancelEventRequest(int ExpectedVersion);
 internal sealed record ApplySetlistRequest(Guid SetlistId, int ExpectedVersion, bool ConfirmReplace = false);
 internal sealed record UpsertEventRsvpRequest(string? Response);
 
