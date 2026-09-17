@@ -37,8 +37,8 @@ Convention: JSON; Problem Details ([`TECHNICAL-SPEC.md`](TECHNICAL-SPEC.md) §8)
 | Rename / settings | PATCH | `/api/groups/{groupId}` | Yes | Owner | | 200 | 403, 404, 409 |
 | Soft-delete Group | DELETE | `/api/groups/{groupId}` | Yes | Owner | Soft | 204 | 403, 404 |
 | List my Groups | GET | `/api/groups` | Yes | — | Memberships | 200 | 401 |
-| Invite (MVP) | POST | `/api/groups/{groupId}/invitations` | Yes | Owner | Thin 3.4: [`PHASE-3.4-INVITE-SPEC.md`](PHASE-3.4-INVITE-SPEC.md) (link token, no email) | 201 `{ id, token, expiresAt }` | 403, 400, 404 |
-| Accept invite | POST | `/api/invitations/{token}/accept` | Yes | Authenticated | **200** `{ groupId, role }` (spec Q-I8; not 204) | 200 | 400, 409 |
+| Invite (MVP) | POST | `/api/groups/{groupId}/invitations` | Yes | Owner | Mechanics OPEN | 201 | 403, 400 |
+| Accept invite | POST | `/api/invitations/{token}/accept` | Yes | Invitee | | 204 | 400, 409 |
 | List members | GET | `/api/groups/{groupId}/members` | Yes | Member | | 200 | 404 |
 | Remove member | DELETE | `/api/groups/{groupId}/members/{userId}` | Yes | Owner | Owner rules ADR-0013 | 204 | 403, 409 |
 | Promote/demote | POST | `/api/groups/{groupId}/members/{userId}/role` | Yes | Owner | body role | 204 | 403, 409 |
@@ -48,41 +48,28 @@ Convention: JSON; Problem Details ([`TECHNICAL-SPEC.md`](TECHNICAL-SPEC.md) §8)
 
 ## Repertoire
 
-**Authoritative Phase 3.2 contract:** [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md) (API DTOs, AuthZ, concurrency, tickets). Summary below.
-
-**Phase 3.2 status:** approved scope **COMPLETED** — T-3.2.01–05 (API), T-3.2.07 (React Library Shell), T-3.2.08 (sparse Playwright). File Resource **DEFERRED** (T-3.2.06: upload/`IBlobStore`/`content`). Next work requires human decision / authorization.
-
-All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (GET → **404**). No list pagination/search in MVP.
-
-**PATCH (Song / Arrangement / Resource):** omitted or JSON `null` → keep; non-null → apply; optional whitespace-only text → store `null`. JSON `null` does **not** clear. Arrangement `defaultBpm` (1–400) cannot be cleared via PATCH in current MVP.
-
 | Use case | Method | Route | AuthZ | Notes | Success | Failures |
 | -------- | ------ | ----- | ----- | ----- | ------- | -------- |
-| List Songs | GET | `.../songs` | Member | Order by Title, Id | 200 | 401, 404 |
-| Create Song | POST | `.../songs` | Owner | Song only; zero Arrangements ALLOWED | 201 | 401, 403, 404, 400 |
-| Get Song | GET | `.../songs/{songId}` | Member | | 200 | 401, 404 |
-| Update Song | PATCH | `.../songs/{songId}` | Owner | `expectedVersion` required | 200 | 401, 403, 404, 400, 409 |
-| Soft-delete Song | DELETE | `.../songs/{songId}` | Owner | Body `{ expectedVersion }`; cascade live Arrs (ADR-0025 §8a) | 204 | 401, 403, 404, 400, 409 |
-| List Arrangements | GET | `.../songs/{songId}/arrangements` | Member | Live only; order CreatedAt | 200 | 401, 404 |
-| Create Arrangement | POST | `.../songs/{songId}/arrangements` | Owner | Label required; no IsDefault | 201 | 401, 403, 404, 400 |
-| Get Arrangement | GET | `.../arrangements/{arrangementId}` | Member | Includes resource summaries | 200 | 401, 404 |
-| Update Arrangement | PATCH | `.../arrangements/{arrangementId}` | Owner | `expectedVersion` required | 200 | 401, 403, 404, 400, 409 |
-| Soft-delete Arrangement | DELETE | `.../arrangements/{arrangementId}` | Owner | Body `{ expectedVersion }`; Resources left | 204 | 401, 403, 404, 400, 409 |
-| List Resources | GET | `.../arrangements/{arrangementId}/resources` | Member | Link Resources | 200 | 401, 404 |
-| Create Resource | POST | `.../arrangements/{arrangementId}/resources` | Owner | **Link only** (`kind=link`); `url` required; reject `file` | 201 | 401, 403, 404, 400 |
-| Get Resource | GET | `.../arrangements/{arrangementId}/resources/{resourceId}` | Member | Includes `url`; nested route only | 200 | 401, 404 |
-| Update Resource | PATCH | `.../arrangements/{arrangementId}/resources/{resourceId}` | Owner | purpose/label/part/note; `kind`/`url` immutable; **no** expectedVersion | 200 | 401, 403, 404, 400 |
-| Delete Resource | DELETE | `.../arrangements/{arrangementId}/resources/{resourceId}` | Owner | Hard-delete; nested route only | 204 | 401, 403, 404 |
+| List Songs | GET | `.../songs` | Member | Exclude soft-deleted | 200 | 404 |
+| Create Song | POST | `.../songs` | Owner | Creates Default Arrangement (assumption) | 201 | 403, 400 |
+| Get Song | GET | `.../songs/{songId}` | Member | | 200 | 404 |
+| Update Song | PATCH | `.../songs/{songId}` | Owner | Identity fields | 200 | 403, 404, 409 |
+| Soft-delete Song | DELETE | `.../songs/{songId}` | Owner | Soft | 204 | 403, 404 |
+| List Arrangements | GET | `.../songs/{songId}/arrangements` or `.../arrangements` | Member | | 200 | 404 |
+| Create Arrangement | POST | `.../songs/{songId}/arrangements` | Owner | | 201 | 403, 400 |
+| Get Arrangement | GET | `.../arrangements/{arrangementId}` | Member | Includes resources metadata | 200 | 404 |
+| Update Arrangement | PATCH | `.../arrangements/{arrangementId}` | Owner | Musical body | 200 | 403, 404, 409 |
+| Soft-delete Arrangement | DELETE | `.../arrangements/{arrangementId}` | Owner | Allow last (0017) | 204 | 403, 404, 409 |
+| Set default | POST | `.../arrangements/{arrangementId}/default` | Owner | Tx | 204 | 409 |
+| Add Resource | POST | `.../arrangements/{arrangementId}/resources` | Owner | multipart or init+upload | 201 | 403, 400 |
+| Delete Resource | DELETE | `.../resources/{resourceId}` | Owner | Hard | 204 | 403, 404 |
+| Download Resource | GET | `.../resources/{resourceId}/content` | Member | Redirect signed URL or stream | 200/302 | 403, 404 |
 
-**Not supported:** flat `.../resources/{resourceId}` get/patch/delete.
-
-**Deferred (T-3.2.06):** file Resource create/upload; nested `.../resources/{id}/content`; `IBlobStore`. See [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md).
+All `...` = `/api/groups/{groupId}`.
 
 ---
 
 ## Setlists
-
-**Phase 3.3 scheduling status:** thin S2 **COMPLETED** (T-3.3.01–05) on `develop` (PR #6) — Setlist → Event apply → React UI → Playwright. Authoritative thin contract: [`PHASE-3.3-THIN-SPEC.md`](PHASE-3.3-THIN-SPEC.md). Invites **shipped** in Phase 3.4 (PR #8). Thin RSVP **shipped** in Phase 3.5 (PR #10; [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md)). Event PATCH/cancel **shipped** in Phase 3.6 ([`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md)). Conceptual rows below remain the broader surface; hand-built plans are **not** in 3.6.
 
 | Use case | Method | Route | AuthZ | Notes | Success | Failures |
 | -------- | ------ | ----- | ----- | ----- | ------- | -------- |
@@ -105,12 +92,12 @@ All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (G
 | List | GET | `.../events` | Member | Active; optional includeCancelled for Owner | 200 | 404 |
 | Create | POST | `.../events` | Owner | type, time, location?, notes? | 201 | 400 |
 | Get | GET | `.../events/{eventId}` | Member | Items + tombstones | 200 | 404 |
-| Update | PATCH | `.../events/{eventId}` | Owner | body `expectedVersion` + title/type/startsAt; thin contract [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md) | 200 | 400, 403, 404, 409 |
-| Cancel / soft-hide | POST | `.../events/{eventId}/cancel` | Owner | body `expectedVersion` → 204; thin contract [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md) | 204 | 400, 403, 404, 409 |
+| Update | PATCH | `.../events/{eventId}` | Owner | Metadata | 200 | 409 |
+| Cancel / soft-hide | POST | `.../events/{eventId}/cancel` | Owner | | 204 | 403 |
 | Replace Event Plan from Setlist | POST | `.../events/{eventId}/apply-setlist` | Owner | body: setlistId, **expectedVersion**, **confirmReplace** if items exist; full replace (ADR-0021) | 200 | 400, 409 |
 | Replace items manually | PUT | `.../events/{eventId}/items` | Owner | Hand-built plan | 200 | 400 |
 | Patch item | PATCH | `.../events/{eventId}/items/{itemId}` | Owner | Overrides | 200 | 404 |
-| RSVP | PUT | `.../events/{eventId}/rsvp` | Member (any membership: Owner + Member) | body field **`response`** (`yes`\|`no`\|`maybe`); thin contract [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md) | 200 | 400, 404 |
+| RSVP | PUT | `.../events/{eventId}/rsvp` | Member | body status | 200 | 400, 404 |
 | List RSVPs | GET | `.../events/{eventId}/rsvps` | Member | | 200 | 404 |
 
 ---

@@ -8,179 +8,6 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
-## ADR-0025 — Song & Arrangement MVP field model
-
-- **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-15** (Phase 3.1 closure)  
-- **Date:** 2026-09-15  
-- **Depends on:** ADR-0007, 0014, 0015, 0016, 0017, 0018, 0022, 0023, 0024  
-- **Revises:**  
-  - ADR-0007 clause “Creating a Song creates a Default Arrangement” → **not** a domain invariant  
-  - ADR-0017 ASSUMPTION that Song create always creates Default Arrangement  
-  - Persistence sketch `Songs.IsOriginal` boolean → **`OriginKind`** enum (`original` \| `cover` \| `other`)  
-  - Persistence `DefaultBpm` → **nullable integer** BPM (1–400) when set  
-  - Persistence / Phase 2.2 sketch **`IsDefault` removed from MVP** (no preferred-Arrangement flag)  
-- **Does not supersede:** Song/Arrangement aggregate split (0007/0014); zero Arrangements ALLOW (0017); Event identity copies (0018); soft-delete/filters (0023); Resource model (0024)  
-- **Aligns with:** PERSISTENCE / ADR-0023 Application soft-delete of Arrangements when Song is soft-deleted
-
-### Context
-
-Phase 3.1 freezes Song vs Arrangement identity and field representations. Challenge passes rejected MVP `IsDefault` and confirmed Song→Arrangement soft-delete cascade plus Song-level deletion concurrency (§8a).
-
-### Decision (ACCEPTED)
-
-#### Song (Group-scoped work identity)
-
-1. **Identity:** `SongId` within a Group. Song is the **catalog work**, not a performable variant.  
-2. **No global/canonical Songs** across Groups.  
-3. **Title:** required, non-blank after trim. **Duplicate titles within a Group ALLOWED** — no `UNIQUE(GroupId, Title)`.  
-4. **Attribution:** single **optional free-text** string. No structured contributor list.  
-5. **OriginKind** (required): `original` \| `cover` \| `other`. Replaces boolean `IsOriginal`.  
-6. **RightsNotes:** optional free text. No licensing workflow.  
-7. **Song create does not require an Arrangement.** Zero Arrangements ALLOWED (0017). Convenience “Song + initial Arrangement” may exist as an Application use-case only (revises ADR-0007 auto-Default).  
-8. **Song soft-delete — CASCADE ARRANGEMENT SOFT-DELETE (Application, same transaction):**  
-   - Set `Song.DeletedAt` (+ bump Song `Version`).  
-   - Soft-delete **every Arrangement of that Song where `DeletedAt IS NULL`** (set `DeletedAt`, bump each Arr `Version`).  
-   - Arrangements **already** soft-deleted: leave unchanged (do not rewrite `DeletedAt`).  
-   - Resources: **left in place** under those Arrangements (0023).  
-   - SetlistItems / EventSetlistItems: **rows remain**; FKs valid (**RESTRICT**).  
-   - **No restore in MVP.** FUTURE restore would be an explicit multi-aggregate operation (out of scope).  
-   - Rationale: retiring a Song retires its live realizations; prevents “live Arrangement under deleted Song” orphans that confuse library/AuthZ; matches ACCEPTED “Arrangements inaccessible with Song soft-delete” (0017) and PERSISTENCE Application rule.
-
-8a. **Song soft-delete concurrency contract** (`DELETE /api/groups/{groupId}/songs/{songId}`) — mirrors Group soft-delete (Phase 3.0) + ACCEPTED integer `Version` (PERSISTENCE §6):
-
-   | Rule | Contract |
-   | ---- | -------- |
-   | Client `expectedVersion` | **Required** — Song’s current `Version` only (JSON body, same shape as Group DELETE) |
-   | Per-Arrangement `expectedVersion` from client | **Not required** — Song deletion semantically retires all live Arrangements |
-   | Song.Version on success | **Incremented** (+1) with `DeletedAt` set |
-   | Each live Arrangement on success | `DeletedAt` set; **Arrangement.Version incremented** (+1 each) |
-   | Already-soft-deleted Arrangements | Unchanged (no Version bump) |
-   | Transaction | **One** Application/DB transaction — all-or-nothing |
-   | Stale Song `expectedVersion` | **409**; **no** writes (Song or Arrangements) |
-   | Concurrent Arrangement mutation before commit | Detected via existing Arrangement `Version` concurrency tokens (loaded at handler start / EF token). Conflict → **409**; **full rollback**; **never** partial cascade; **never** silent overwrite of concurrent Arr state |
-   | Partial success | **Forbidden** |
-   | New concurrency mechanism | **None** — reuse integer `Version` + 409 only |
-
-#### Arrangement (separate aggregate; performable realization)
-
-9. **Identity:** `ArrangementId` only. Label is recognition metadata, not identity.  
-10. **Scope:** `GroupId` + `SongId`; composite FK (0022). Cannot move Song/Group after create (0015).  
-11. **Label:** required, non-blank. **Not unique** per Song.  
-12. **DefaultKey:** optional free-text. No pitch enum.  
-13. **DefaultBpm:** optional **integer** 1–400 when set; **0 forbidden**.  
-14. **Lyrics / Chords / Structure / Notes:** optional plain text; empty → null on write. ChordPro/structured sections FUTURE (Q8).  
-15. **No `IsDefault` in MVP.** UI lists Arrangements by Label (and may sort by `CreatedAt` or show the sole Arrangement without a flag). Setlist/Event always reference `ArrangementId` explicitly. Progressive disclosure when only one Arrangement exists needs **count**, not a default flag.  
-16. **Resources:** Arrangement-owned only (0024).  
-17. **Arrangement soft-delete (standalone):** Resources remain; SetlistItem/EventSetlistItem FKs remain. **No restore MVP.**  
-18. **Versioning:** in-place mutation only. Duplicate Arrangement = FUTURE.  
-19. **Edit after Setlist/Event use:** live library updates; Event copied labels stable (0018). Templates are live refs; apply copies labels at apply time (0021).
-
-#### Setlist / Event interaction
-
-20. Cannot **add** a soft-deleted Arrangement to a Setlist. Existing SetlistItems **may** retain FK after Arr or Song soft-delete. Soft-delete Arr (or Song cascade) while referenced is **allowed**. Apply Setlist **fails** if any template Arrangement is soft-deleted (0021) — including Arrs soft-deleted via Song cascade.  
-21. **SetlistItems are not cascade-deleted** when Song or Arrangement is soft-deleted. Template remains; Apply is blocked until Owner removes/replaces unusable items.  
-22. EventSetlistItem historical display uses copied labels only — **never** requires live Song/Arrangement or `IgnoreQueryFilters()` (0018/0023).
-
-#### Concurrency
-
-23. Song and Arrangement integer `Version` (PERSISTENCE §6). Owner PATCH / standalone soft-delete require that root’s `expectedVersion` → **409** on mismatch. Soft-delete Song uses **§8a** (Song-level client `expectedVersion` + transactional cascade; Arr Versions bumped server-side; Arr concurrency tokens prevent silent overwrite). Resource hard-delete does not bump Arrangement Version (PERSISTENCE default).
-
-#### Search
-
-24. No tags. Future search: Title, Attribution, Label, DefaultKey.
-
-### Rejected alternatives
-
-| Alternative | Why rejected |
-| ----------- | ------------ |
-| `IsDefault` / “set default” API | No MVP workflow; Setlist/Event pick Arr explicitly; Labels + list UX suffice; adds ≤1 constraint, delete/reassign lifecycle, partial unique, concurrency across Arrs |
-| `UNIQUE(GroupId, Title)` | False positives |
-| Structured attribution / rights taxonomy | Scope creep |
-| Auto-create Default Arrangement as invariant | Conflicts with zero-Arr ALLOW |
-| Leave Arrangements “live” under soft-deleted Song | Orphan / AuthZ / library inconsistency |
-| Require deleting all Arrangements before Song | Hostile UX |
-| Cascade-delete SetlistItems on Song/Arr soft-delete | Templates ≠ Events; destroys reusable plans unnecessarily |
-| Arrangement version history | Out of MVP |
-
-### Consequences
-
-- Persistence/API align to OriginKind, integer BPM, required Labels, duplicate titles ALLOWED, Song create without Arrangement, no `IsDefault`.  
-- Song soft-delete concurrency per §8a. Implementation of Song/Arrangement/Resource still requires **explicit** phase authorization.
-
-### Explicitly deferred (FUTURE)
-
-`IsDefault` / preferred Arrangement · Arrangement duplicate · version history · soft-delete restore · transposition · ChordPro · tags · global song catalog · decimal BPM · Song-level Resources
-
----
-
-## ADR-0024 — Practice Resources and Part Metadata
-
-- **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-15** (Phase 3.0.3 closure)  
-- **Date:** 2026-09-15  
-- **Depends on:** ADR-0007, 0008, 0017, 0018, 0023  
-- **Revises:** ADR-0017 §2 Resource purpose enum (adds `practice`; required Label; optional Part)  
-- **Does not supersede:** ADR-0008 (Resources stay Arrangement-scoped entities; no per-purpose subclasses)
-
-### Context
-
-Groups rehearse by listening to materials that teach a specific **musical part** (voice or instrument) or a full-ensemble guide. Examples: soprano/alto/tenor/baritone/bass guides, guitar guide, full rehearsal mix, instrumental, click, reference. Sonivo must support bands, choirs, ensembles, and cover groups **without** becoming choir-CMS or a DAW.
-
-ADR-0008 already forbids polymorphic asset platforms and entity-per-purpose tables. ADR-0017 kept a **small** purpose enum and put backing/stem/instrumental under `audio` + note. That enum does not distinguish **“learn my part”** practice guides from general rehearse-along audio in a way that cleanly drives Arrangement UX sections.
-
-### Decision (ACCEPTED)
-
-1. **Resource remains the only materials concept** — child of Arrangement (ADR-0008 unchanged).  
-2. **No** `PracticeMaterial`, `VocalGuide`, or other specialized aggregates/subclasses in MVP.  
-3. **Purpose enum gains `practice`** (revises ADR-0017 six-value list → seven):
-
-   | Purpose | Use |
-   | ------- | --- |
-   | `chart` | Notation / structure sheets |
-   | `lyrics` | Words-focused sheets |
-   | `audio` | Other musical audio (instrumental/backing/mix stems as needed) — not part-learning primary |
-   | `click` | Click / metronome |
-   | `reference` | External example / original performance |
-   | `practice` | Part guides and full-ensemble rehearsal recordings intended for learning/practice |
-   | `other` | Escape hatch + note |
-
-   Do **not** add top-level purposes such as `vocal-guide`, `backing-track`, `instrumental`, `slow-practice`, `harmony`, `rehearsal` — those distinctions belong in Label / Part / Note and UX.
-
-4. **Kind remains** `file` \| `link`.  
-5. **Label (required):** user-facing display name (e.g. “Tenor Guide — Slow”); non-blank after trim.  
-6. **Part (optional string metadata):** free-text musical part name (e.g. `Tenor`, `Guitar 1`, `Lead`).  
-   - **Not** a first-class `Part` entity, catalog, or enum of voices/instruments.  
-   - `null` / empty = not part-specific (e.g. full rehearsal).  
-   - At most **one** Part string per Resource (no multi-part targeting).  
-   - Multiple Resources may share the same Part (distinguish via Label/Note).  
-   - **No** DB CHECK restricting Part to `practice` only — Part MAY appear on any purpose when meaningful; validate only non-blank-when-present and max length.  
-7. **Member → Part assignment is FUTURE** — Members choose materials manually.  
-8. **Event interaction unchanged (ADR-0017/0018):** EventSetlistItem does **not** reference ResourceIds; Resource availability on past Events remains **NOT GUARANTEED**; no Resource snapshots.  
-9. **Deletion unchanged (ADR-0017/0023):** Resource hard-delete; Arrangement soft-delete leaves Resource rows/blobs.  
-10. **Technical audio fields** (duration, waveform, BPM on Resource, format/sample-rate/bitrate/codec) are **not** domain MVP. Arrangement may already carry default BPM. Storage MIME/size/`ObjectKey` stay Infrastructure.
-
-### Considered options (rejected)
-
-| Option | Why rejected |
-| ------ | ------------ |
-| B — Separate `PracticeMaterials` collection | Duplicates Resource AuthZ/storage; contradicts ADR-0008 minimalism |
-| C — `VocalGuide` / per-purpose entities | Choir-centric; type explosion (ADR-0008 rejected) |
-| Keep only `audio` + Part without `practice` | Collides “full rehearsal”, “instrumental”, and part guides in one UX bucket; weak filters |
-| First-class `Part` aggregate + catalog | Taxonomy product; hard-codes choir/instrument lists; custom parts still needed |
-| Snapshot Resources onto Event | Violates historical non-guarantee; storage/complexity; ADR-0017 forbids Resource versioning in MVP |
-| CHECK Part only when Purpose=`practice` | Unnecessary cross-field invariant; Part useful on other purposes when meaningful |
-
-### Consequences
-
-- Persistence (when Resource implementation is authorized): add Resource `Label` (required), `Part` (optional), extend Purpose CHECK to include `practice`.  
-- UX can group Arrangement materials as Practice / Charts / Lyrics / Backing audio / Click / Reference without new aggregates.  
-- Extensibility: custom parts are free text; FUTURE Part catalog or Member→Part assignment can be additive.
-
-### Explicitly deferred (FUTURE)
-
-Member→Part assignment · practice player (tempo/loop) · stems/mixer · Resource soft-delete undo · Resource history/snapshots · Song-level Resources · Event-scoped Resources · first-class Part registry
-
----
-
 ## ADR-0023 — Soft-delete visibility vs historical Event integrity
 
 - **Status:** **ACCEPTED**  
@@ -449,8 +276,7 @@ ADR-0015 item “last Arrangement rejected” and live Setlist FK language are *
 - **Accepted:** 2026-09-15 (Phase 1 closure — **HUMAN-APPROVED**)  
 - **Depends on:** ADR-0015, ADR-0016  
 - **Revises:** portions of ADR-0016 listed below  
-- **Does not supersede** ACCEPTED ADRs 0005–0014.  
-- **Revised by:** ADR-0024 (**ACCEPTED** 2026-09-15) — purpose `practice`; required Label; optional Part metadata. Binding Resource purpose set is the **seven-value** list in ADR-0024. Historical contract, deletion, and Event non-guarantees in this ADR remain in force.
+- **Does not supersede** ACCEPTED ADRs 0005–0014.
 
 ### Context
 
@@ -488,8 +314,6 @@ Challenge of prior eight values: `backing` / `stem` / `instrumental` are media-l
 | `click` | Click/metronome track | Distinct from musical audio |
 | `reference` | YouTube/example performance link | External reference, not primary chart |
 | `other` | Escape hatch | + note |
-
-**Binding purpose set:** ADR-0024 (**ACCEPTED**) adds `practice` → seven values. Do **not** reintroduce `backing`/`stem`/`instrumental` as purposes.
 
 **Rejected as first-class MVP purposes:** `backing`, `stem`, `instrumental` (use `audio` + note).  
 Still: kind `file` \| `link`; optional note; strict enum validation.
@@ -540,7 +364,7 @@ Intentionally imperfect MVP boundary: history = **what we planned**, not a foren
 - Prior: blocked deleting last Arrangement.  
 - **ACCEPTED:** **ALLOW** Song with **zero** Arrangements.  
 - Meaning: Song is catalog identity; Arrangement is the playable unit. Zero Arrangements = incomplete Song (no status machine). Cannot place a Song on a Setlist/Event without an Arrangement.  
-- Creating a Song still creates a Default Arrangement (**ASSUMPTION**) — **REVISED by ADR-0025 ACCEPTED:** not a domain invariant; Song may be created with zero Arrangements.  
+- Creating a Song still creates a Default Arrangement (**ASSUMPTION** unchanged).  
 - Soft-delete Song remains the way to retire identity + dependents.
 
 ### 6. Canonical value journey — **ACCEPTED**
@@ -656,7 +480,7 @@ No universal soft-delete framework required — per-entity rules above.
 1. User registers / signs in  
 2. Owner creates Group  
 3. Owner invites Member (Member joins)  
-4. Owner creates Song (Arrangement optional — ADR-0025; may create initial Arrangement in same product flow)  
+4. Owner creates Song (⇒ Default Arrangement)  
 5. Owner attaches ≥1 Resource  
 6. Owner creates Setlist template; adds Arrangement item(s) (duplicates allowed)  
 7. Owner creates Event (`rehearsal` or `performance`)  
@@ -702,7 +526,7 @@ Phase 1.0 challenged product boundaries and Song/Arrangement/Setlist/Event/AuthZ
 2. **Setlist independence:** Setlist is Group-scoped and may exist without an Event. *(Event association: **copy-on-apply** into Event-owned items — ADR-0016; not a live Setlist FK.)*  
 3. **No cross-tenant repertoire links:** SetlistItem and Event must not reference Arrangements/Setlists from another Group.  
 4. **Arrangement immutability of lineage:** An Arrangement cannot move to another Song or Group after create.  
-5. **Last Arrangement:** ~~rejected~~ → **ALLOW zero Arrangements** (ADR-0017). ~~Create Song still creates Default Arrangement (assumption).~~ → **ADR-0025 ACCEPTED:** Song create does not require Arrangement.  
+5. **Last Arrangement:** ~~rejected~~ → **ALLOW zero Arrangements** (ADR-0017). Create Song still creates Default Arrangement (assumption).  
 6. **SetlistItem overrides (MVP floor):** order plus optional key, BPM, capo, notes. Duration/transitions FUTURE (ADR-0016).  
 7. **Resource purpose:** Strict enum — **six values in ADR-0017** (revises earlier open/exact list).  
 8. **Event type:** `rehearsal` \| `performance` \| `other` (ADR-0016/0017).  
@@ -1022,10 +846,10 @@ Requires Arrangement existence (ADR-0007). AuthZ via Arrangement → Song → Gr
 - **Song** = musical work identity / attribution (title, original vs cover, etc.)  
 - **Arrangement** = group/project-specific musical realization  
 - **Arrangement owns:** lyrics, chords, structure, default key, default BPM  
-- ~~Creating a Song creates a **Default Arrangement**~~ → **REVISED by ADR-0025 ACCEPTED:** Song create does **not** require an Arrangement; zero Arrangements ALLOWED (ADR-0017). Convenience “Song + initial Arrangement” may exist as an Application use-case only.  
+- Creating a Song creates a **Default Arrangement**  
 - **SetlistItem** references an **Arrangement**  
 - **SetlistItem** may hold execution-specific overrides (e.g. one-off key) where appropriate  
-- UI may progressively disclose Arrangement when only one exists (**count-based**; no `IsDefault` — ADR-0025)  
+- UI may progressively disclose Arrangement when only the default exists  
 
 ### Intentional OUT OF MVP (do not invent as aggregates)
 

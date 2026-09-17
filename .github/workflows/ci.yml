@@ -10,11 +10,6 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Least privilege for GITHUB_TOKEN (artifact upload on E2E failure needs actions:write).
-permissions:
-  contents: read
-  actions: write
-
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
