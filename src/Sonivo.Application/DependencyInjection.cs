@@ -15,6 +15,10 @@ public static class DependencyInjection
         services.AddScoped<GetGroupHandler>();
         services.AddScoped<UpdateGroupHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
+        services.AddScoped<ListMembersHandler>();
+        services.AddScoped<RemoveMemberHandler>();
+        services.AddScoped<ChangeMemberRoleHandler>();
+        services.AddScoped<LeaveGroupHandler>();
         services.AddScoped<CreateInvitationHandler>();
         services.AddScoped<AcceptInvitationHandler>();
         services.AddScoped<CreateSongHandler>();
