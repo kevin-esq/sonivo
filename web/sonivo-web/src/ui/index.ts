@@ -3,3 +3,4 @@ export { Button, buttonVariants, dangerButtonClass, primaryButtonClass, secondar
 export { fieldClass } from './field'
 export { ConflictAlert, ProblemAlert } from './alert'
 export { ConfirmDialog } from './dialog'
+export { Skeleton, ListSkeleton, PageSkeleton } from './skeleton'

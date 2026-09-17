@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createGroup, listMyGroups, problemDetail, type CurrentUser, type GroupSummary } from '../api/client'
+import { formatMembershipRole } from '../repertoire/ui'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
+import { ListSkeleton } from '../ui/skeleton'
 
 export function GroupsPage({ user }: { user: CurrentUser }) {
   const [groups, setGroups] = useState<GroupSummary[] | null>(null)
@@ -59,7 +61,7 @@ export function GroupsPage({ user }: { user: CurrentUser }) {
       ) : null}
 
       {groups === null ? (
-        <p aria-live="polite">Cargando grupos…</p>
+        <ListSkeleton rows={3} label="Cargando grupos…" />
       ) : groups.length === 0 ? (
         <p>Aún no tienes grupos. Crea uno para empezar.</p>
       ) : (
@@ -72,7 +74,7 @@ export function GroupsPage({ user }: { user: CurrentUser }) {
               >
                 {group.name}
               </Link>
-              <span className="text-sm text-slate-500">({group.role})</span>
+              <span className="text-sm text-slate-500">({formatMembershipRole(group.role)})</span>
             </li>
           ))}
         </ul>

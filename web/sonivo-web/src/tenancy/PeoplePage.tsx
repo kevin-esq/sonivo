@@ -15,6 +15,7 @@ import {
 import { EmptyPanel, PageBreadcrumb } from '../repertoire/chrome'
 import {
   isOwnerRole,
+  formatMembershipRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -22,16 +23,10 @@ import {
 import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
+import { ListSkeleton, PageSkeleton } from '../ui/skeleton'
 
 function formatRole(role: string): string {
-  switch (role) {
-    case 'Owner':
-      return 'Owner'
-    case 'Member':
-      return 'Member'
-    default:
-      return role
-  }
+  return formatMembershipRole(role)
 }
 
 export function PeoplePage({ user }: { user: CurrentUser }) {
@@ -157,7 +152,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando miembros…</p>
+    return <PageSkeleton label="Cargando miembros…" />
   }
 
   if (group === null) {
@@ -190,7 +185,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       <ProblemAlert message={inviteError} />
 
       {members === null ? (
-        <p aria-live="polite">Cargando miembros…</p>
+        <ListSkeleton rows={3} label="Cargando miembros…" />
       ) : members.length === 0 ? (
         <EmptyPanel
           title="No hay miembros"
@@ -249,8 +244,8 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                           }
                         }}
                       >
-                        <option value="Owner">Owner</option>
-                        <option value="Member">Member</option>
+                        <option value="Owner">Organizador</option>
+                        <option value="Member">Miembro</option>
                       </select>
                     </label>
                     {isSelf ? null : (
@@ -277,7 +272,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
             Invitaciones pendientes
           </h2>
           {invites === null ? (
-            <p aria-live="polite">Cargando invitaciones…</p>
+            <ListSkeleton rows={2} label="Cargando invitaciones…" />
           ) : invites.length === 0 ? (
             <p className="text-sm text-slate-500">No hay invitaciones pendientes.</p>
           ) : (

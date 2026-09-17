@@ -5,23 +5,16 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (Gate B ACCEPTED; docs checkpoint on docs/gate-b-accepted)
-Human approval: APPROVED (Kevin Esquivel — Gate B accept + proceed plan)
-Git checkpoint: PENDING (docs PR then develop→main)
-Remote: NOT PUSHED (docs branch)
-CI: NOT RUN (docs PR)
+Implementation: COMPLETE (T-UX-COPY+polish + T-OPS-MAIL diagnose)
+Human approval: PENDING (Kevin review of UX PR)
+Git checkpoint: PENDING (feature/t-ux-copy-polish)
+Remote: NOT PUSHED
+CI: NOT RUN
 ```
 
-**Local Playwright:** 15/15 PASS on `d9ed61b`  
-**Live:** https://sonivo.onrender.com
-
-## Auditor agenda
-
-1. ~~Playwright~~ PASS
-2. Docs Gate B accept → PR → CI → merge → delete branch
-3. Merge develop → main
-4. T-OPS-MAIL
-5. T-UX-COPY + polish
+**Playwright:** 15/15 PASS  
+**main:** Gate B via #30 (`18e6430`)  
+**Live mail:** emailed=true verified
 
 ## Firewall
 
