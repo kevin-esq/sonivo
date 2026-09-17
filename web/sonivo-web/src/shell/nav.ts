@@ -12,7 +12,6 @@ export type GroupNavItem = {
 
 export const groupNavItems: GroupNavItem[] = [
   { id: 'home', label: 'Inicio', icon: Home, end: true, href: (id) => `/groups/${id}` },
-  { id: 'library', label: 'Biblioteca', icon: Library, href: (id) => `/groups/${id}/library` },
   {
     id: 'setlists',
     label: 'Setlists',
@@ -20,6 +19,7 @@ export const groupNavItems: GroupNavItem[] = [
     href: (id) => `/groups/${id}/setlists`,
   },
   { id: 'events', label: 'Eventos', icon: CalendarDays, href: (id) => `/groups/${id}/events` },
+  { id: 'library', label: 'Biblioteca', icon: Library, href: (id) => `/groups/${id}/library` },
   {
     id: 'people',
     label: 'Miembros',

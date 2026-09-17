@@ -106,8 +106,8 @@ Wordmark: **Sonivo**. Tagline: **Plan. Play. Together.**
 
 ## 8. Layout
 
-Desktop: sidebar persistente (logo, Inicio, Biblioteca, Setlists, Eventos, Miembros, grupo actual, avatar).  
-Mobile: bottom nav + drawer/sheets. Acciones frecuentes fáciles de tocar en ensayo.
+Desktop: sidebar persistente. Orden del tablero (el tablero gana sobre la lista Inicio→Biblioteca del borrador): **Inicio, Setlists, Eventos, Biblioteca**, luego **Miembros** (desktop) + grupo actual + avatar.  
+Mobile: bottom nav **Inicio, Setlists, Eventos, Biblioteca** + drawer para Miembros/cuenta. Acciones frecuentes fáciles de tocar en ensayo.
 
 ---
 
