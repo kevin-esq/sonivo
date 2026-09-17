@@ -82,7 +82,7 @@ All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (G
 
 ## Setlists
 
-**Phase 3.3 scheduling status:** thin S2 **COMPLETED** (T-3.3.01–05) on `develop` (PR #6) — Setlist → Event apply → React UI → Playwright. Authoritative thin contract: [`PHASE-3.3-THIN-SPEC.md`](PHASE-3.3-THIN-SPEC.md). Invites **shipped** in Phase 3.4 (PR #8). Thin RSVP **shipped** in Phase 3.5 (PR #10; [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md)). Event PATCH/cancel is **authorized** as Phase 3.6 (not started); thin contract: [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md). Conceptual rows below remain the broader surface; hand-built plans are **not** in 3.6.
+**Phase 3.3 scheduling status:** thin S2 **COMPLETED** (T-3.3.01–05) on `develop` (PR #6) — Setlist → Event apply → React UI → Playwright. Authoritative thin contract: [`PHASE-3.3-THIN-SPEC.md`](PHASE-3.3-THIN-SPEC.md). Invites **shipped** in Phase 3.4 (PR #8). Thin RSVP **shipped** in Phase 3.5 (PR #10; [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md)). Event PATCH/cancel **shipped** in Phase 3.6 ([`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md)). Conceptual rows below remain the broader surface; hand-built plans are **not** in 3.6.
 
 | Use case | Method | Route | AuthZ | Notes | Success | Failures |
 | -------- | ------ | ----- | ----- | ----- | ------- | -------- |

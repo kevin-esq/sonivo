@@ -105,16 +105,38 @@ public sealed class Event : IVersionedEntity
         return rsvp;
     }
 
+    public void UpdateMetadata(
+        string title,
+        string type,
+        DateTimeOffset startsAt,
+        int expectedVersion,
+        DateTimeOffset now)
+    {
+        EnsureNotCancelled("Cannot update a cancelled Event.");
+        EnsureExpectedVersion(expectedVersion);
+        Title = NormalizeTitle(title);
+        Type = NormalizeType(type);
+        StartsAt = startsAt;
+        Touch(now);
+    }
+
+    public void Cancel(int expectedVersion, DateTimeOffset now)
+    {
+        EnsureNotCancelled("Event is already cancelled.");
+        EnsureExpectedVersion(expectedVersion);
+        Status = EventStatuses.Cancelled;
+        IsHidden = true;
+        CancelledAt = now;
+        Touch(now);
+    }
+
     /// <summary>
     /// Starts Replace Event Plan from Setlist (ADR-0021).
     /// Caller validates Arrangements, confirmReplace, and persists item delete/insert.
     /// </summary>
     public void BeginReplacePlan(int expectedVersion, Guid sourceSetlistId, DateTimeOffset now)
     {
-        if (Status == EventStatuses.Cancelled)
-        {
-            throw new InvalidOperationException("Cannot replace the plan of a cancelled Event.");
-        }
+        EnsureNotCancelled("Cannot replace the plan of a cancelled Event.");
 
         if (sourceSetlistId == Guid.Empty)
         {
@@ -138,6 +160,14 @@ public sealed class Event : IVersionedEntity
         {
             throw new ConcurrencyConflictException(
                 $"Event version mismatch. Expected {expectedVersion}, actual {Version}.");
+        }
+    }
+
+    private void EnsureNotCancelled(string message)
+    {
+        if (Status == EventStatuses.Cancelled)
+        {
+            throw new InvalidOperationException(message);
         }
     }
 

@@ -40,6 +40,8 @@ public static class DependencyInjection
         services.AddScoped<CreateEventHandler>();
         services.AddScoped<ListEventsHandler>();
         services.AddScoped<GetEventHandler>();
+        services.AddScoped<UpdateEventHandler>();
+        services.AddScoped<CancelEventHandler>();
         services.AddScoped<ReplaceEventPlanFromSetlistHandler>();
         services.AddScoped<UpsertEventRsvpHandler>();
         services.AddScoped<ListEventRsvpsHandler>();

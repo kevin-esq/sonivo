@@ -7,9 +7,9 @@ Product sequencing.
 **Phase 3.3 thin S2 COMPLETED** — Setlist → Event apply → React UI → Playwright (T-3.3.01–05) on `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6)).  
 **Phase 3.4 thin invites COMPLETED** — T-3.4.01–03 on `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8)).  
 **Phase 3.5 thin RSVP COMPLETED** — T-3.5.01–03 on `develop` (PR [#10](https://github.com/kevin-esq/sonivo/pull/10)). Spec: [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md).  
-**Phase 3.6 thin Event PATCH/cancel AUTHORIZED** (not started) — T-3.6.01–03. Spec: [`PHASE-3.6-EVENT-SPEC.md`](../03-architecture/PHASE-3.6-EVENT-SPEC.md).  
+**Phase 3.6 thin Event PATCH/cancel COMPLETED** — T-3.6.01–03. Spec: [`PHASE-3.6-EVENT-SPEC.md`](../03-architecture/PHASE-3.6-EVENT-SPEC.md).  
 **Deferred:** T-3.2.06 file Resource / blob / content; SMTP. Do not merge to `main`.  
-**Next:** Phase 3.6 T-3.6.01 (Event PATCH + cancel Application + API).
+**Next:** requires **human decision / authorization**.
 
 Product/code features beyond authorized tickets require **explicit** human approval.
 
@@ -63,13 +63,13 @@ Yes / no / maybe on a dated Event. Spec: [`PHASE-3.5-RSVP-SPEC.md`](../03-archit
 - [x] T-3.5.02 React Event Attendance UI
 - [x] T-3.5.03 Sparse Playwright Member RSVP (TC-RSVP-01)
 
-### Phase 3.6 — Thin Event PATCH + cancel (AUTHORIZED, not started)
+### Phase 3.6 — Thin Event PATCH + cancel (COMPLETED)
 
 Owner corrects title / type / startsAt and cancels (soft-hide). Spec: [`PHASE-3.6-EVENT-SPEC.md`](../03-architecture/PHASE-3.6-EVENT-SPEC.md). T-3.2.06 and SMTP remain deferred. No merge to `main`.
 
-- [ ] T-3.6.01 Event PATCH + cancel Application + API
-- [ ] T-3.6.02 React Event edit + Cancel event UI
-- [ ] T-3.6.03 Sparse Playwright (TC-EVT-03)
+- [x] T-3.6.01 Event PATCH + cancel Application + API
+- [x] T-3.6.02 React Event edit + Cancel event UI
+- [x] T-3.6.03 Sparse Playwright (TC-EVT-03)
 
 ### Later (only when authorized)
 

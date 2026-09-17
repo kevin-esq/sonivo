@@ -101,6 +101,6 @@ Authoritative matrix: [`PHASE-3.4-INVITE-SPEC.md`](PHASE-3.4-INVITE-SPEC.md). Sh
 
 Authoritative matrix: [`PHASE-3.5-RSVP-SPEC.md`](PHASE-3.5-RSVP-SPEC.md). Shipped on `develop` (PR #10). **TC-RSVP-01 COMPLETE:** Owner Event with plan; invite Member; Member sets Yes; Owner sees that Member’s display name and Yes.
 
-### Phase 3.6 — Thin Event PATCH + cancel (AUTHORIZED, not started)
+### Phase 3.6 — Thin Event PATCH + cancel (COMPLETED)
 
-Authoritative matrix: [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md). T-3.6.01–03 not started. Playwright **TC-EVT-03** when T-3.6.03 lands.
+Authoritative matrix: [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md). **TC-EVT-03 COMPLETE:** Owner PATCH Event title; Cancel event; Event absent from default list.

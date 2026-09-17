@@ -22,16 +22,17 @@ ADRs **0001–0025** are **ACCEPTED** (including tooling ADR-0002).
 **Phase 3.3 thin S2:** **CLOSED** (T-3.3.01–05) — Setlist → Event apply → React UI → Playwright ([`PHASE-3.3-THIN-SPEC.md`](docs/03-architecture/PHASE-3.3-THIN-SPEC.md)). Merged to `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6), `80f5f63`).  
 **Phase 3.4 thin invites:** **CLOSED** / **COMPLETED** (T-3.4.01–03) — link token, no email ([`PHASE-3.4-INVITE-SPEC.md`](docs/03-architecture/PHASE-3.4-INVITE-SPEC.md)). Merged to `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8), `8db0714`).  
 **Phase 3.5 thin RSVP:** **CLOSED** / **COMPLETED** (T-3.5.01–03) — Event yes/no/maybe + Attendance UI + Playwright ([`PHASE-3.5-RSVP-SPEC.md`](docs/03-architecture/PHASE-3.5-RSVP-SPEC.md)). Merged to `develop` (PR [#10](https://github.com/kevin-esq/sonivo/pull/10), `cbc8824`).  
-**Phase 3.6 thin Event PATCH/cancel:** **AUTHORIZED** (T-3.6.01–03, not started) — Owner metadata PATCH + cancel/soft-hide ([`PHASE-3.6-EVENT-SPEC.md`](docs/03-architecture/PHASE-3.6-EVENT-SPEC.md)). File Resource (**T-3.2.06**) and SMTP remain **DEFERRED**. Do not merge to `main`.
+**Phase 3.6 thin Event PATCH/cancel:** **CLOSED** / **COMPLETED** (T-3.6.01–03) — Owner metadata PATCH + cancel/soft-hide ([`PHASE-3.6-EVENT-SPEC.md`](docs/03-architecture/PHASE-3.6-EVENT-SPEC.md)).  
+**Next:** requires **human decision / authorization**. File Resource (**T-3.2.06**) and SMTP remain **DEFERRED**. Do not merge to `main`.
 
 Until the user explicitly authorizes additional work:
 
 - Do **not** implement file Resource (T-3.2.06) / SMTP unless separately approved
-- Do **not** expand Event PATCH/cancel beyond the thin 3.6 spec (no location/notes, no includeCancelled)
+- Do **not** expand Event PATCH/cancel beyond the closed thin 3.6 spec (no location/notes, no includeCancelled)
 - Do **not** expand RSVP beyond the closed thin 3.5 spec without further approval
 - Do **not** install skills or non-stack tooling without approval
 - Do **not** push / create GitHub remotes / change branch protection unless explicitly authorized
-- Foundation + Group/Membership + repertoire + Phase 3.3 scheduling + Phase 3.4 invite + Phase 3.5 RSVP maintenance within the accepted contracts is allowed; Phase 3.6 implementation starts at T-3.6.01 when a builder is assigned
+- Foundation + Group/Membership + repertoire + Phase 3.3 scheduling + Phase 3.4 invite + Phase 3.5 RSVP + Phase 3.6 Event lifecycle maintenance within the accepted contracts is allowed
 - Local PostgreSQL: repository `compose.yaml` (host port **5433**)
 
 ---

@@ -35,6 +35,8 @@ public class ApplicationCompositionTests
         Assert.Contains(services, d => d.ServiceType == typeof(CreateEventHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(ListEventsHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(GetEventHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(UpdateEventHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(CancelEventHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(ReplaceEventPlanFromSetlistHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(UpsertEventRsvpHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(ListEventRsvpsHandler));
