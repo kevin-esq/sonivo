@@ -1,6 +1,6 @@
 # Phase 3.6 Thin Event PATCH + cancel specification
 
-**Status:** TICKETIZED — **authorized** 2026-09-17 (Kevin Esquivel).  
+**Status:** **COMPLETED** (T-3.6.01–03 shipped on `feature/phase-3.6-event-lifecycle`). Authorized 2026-09-17 (Kevin Esquivel).  
 **Product bet:** After the dated Event exists (3.3) and people can RSVP (3.5), the Owner can **correct** title / type / startsAt and **cancel** (soft-hide) so the list stays the live plan — not a graveyard of mistyped rehearsals.  
 **Develop reference:** `cbc88243c69d9676c672734a7846350395b178fe` (PR #10 merged).  
 **Date:** 2026-09-17  
@@ -186,4 +186,5 @@ Serial.
 
 ## Exit
 
-Planning + authorization artifact. Implementation starts at T-3.6.01 when a builder is assigned. No T-3.2.06, no SMTP, no merge to `main`.
+- Thin Event PATCH + cancel **COMPLETED** (T-3.6.01–03).
+- Next work requires human decision / authorization. T-3.2.06 and SMTP remain deferred. No merge to `main`.
