@@ -1,20 +1,20 @@
 # NOW — agent focus
 
-**Updated:** 2026-09-16
+**Updated:** 2026-09-17
 
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-3.3.02)
-Human approval: APPROVED (T-3.3.01 + T-3.3.02 — Kevin Esquivel)
-Git checkpoint: COMMITTED (01 @ 184518d · 02 @ PENDING)
+Implementation: COMPLETE (T-3.3.03)
+Human approval: APPROVED (T-3.3.01–03 — Kevin Esquivel)
+Git checkpoint: COMMITTED (01 @ 184518d · 02 @ 605b96a · 03 this commit)
 Remote: NOT PUSHED
 CI: NOT RUN
 ```
 
-**Current ticket:** T-3.3.02 Event Application + API (checkpoint)  
+**Current ticket:** T-3.3.03 Apply Setlist → Event Plan  
 **Branch:** `feature/phase-3.3-setlist-api`  
-**Base / T-3.3.01 commit:** `origin/develop` @ `53e9ca1` · local `184518da81b8bf9700f4feffe4d3469bfad38709`
+**Commits:** `184518da81b8bf9700f4feffe4d3469bfad38709` (01) · `605b96a4ab9d6bad60c69d8d013c006e78f65fd7` (02)
 
 ## Phase status
 
@@ -24,17 +24,18 @@ CI: NOT RUN
 | T-3.2.06 file/blob | **DEFERRED** |
 | T-3.3.01 Setlist Application + API | **APPROVED — COMMITTED (local only)** |
 | T-3.3.02 Event Application + API | **APPROVED — COMMITTED (local only)** |
-| T-3.3.03–05 | **NOT STARTED** |
+| T-3.3.03 Apply Setlist → Event Plan | **APPROVED — committing** |
+| T-3.3.04–05 | **NOT STARTED** |
 
-## T-3.3.02 delivered
+## T-3.3.03 delivered
 
-- Event domain `Create` (title/type/startsAt → scheduled)
-- Application create/list/get + `IEventStore` / `EfEventStore`
-- API: POST/GET list/GET detail under `/api/groups/{groupId}/events`
-- Plan items from copied labels only (empty until Apply)
-- **No Apply / PATCH / cancel / RSVP / UI / migration**
+- `POST .../events/{eventId}/apply-setlist` (Owner; ADR-0021 Replace Event Plan)
+- Copied `displaySongTitle` / `displayArrangementLabel` from live Song/Arr at apply time
+- `sourceSetlistId` provenance; `confirmReplace`; empty Setlist → 400; soft-deleted Arr → 400
+- One `IUnitOfWork` transaction; no migration; no UI
 
 ## Firewall
 
-- Do **not** implement T-3.3.03+ until authorized
-- Do **not** push / PR unless separately authorized
+- Do **not** push / PR / merge unless separately authorized
+- T-3.3.04–05 authorized in this director session (thin S2 only)
+- No T-3.2.06 / RSVP / invites / files

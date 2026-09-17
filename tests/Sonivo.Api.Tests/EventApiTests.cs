@@ -141,6 +141,168 @@ public class EventApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, get.StatusCode);
     }
 
+    [Fact]
+    public async Task Owner_apply_setlist_copies_labels_and_confirm_replace_works()
+    {
+        var client = await CreateAuthenticatedClientAsync("apply-owner@example.com");
+        var group = await CreateGroupAsync(client, "Apply Band");
+        var song = await CreateSongAsync(client, group.Id, "Grace");
+        var arrA = await CreateArrangementAsync(client, group.Id, song.Id, "Acoustic");
+        var arrB = await CreateArrangementAsync(client, group.Id, song.Id, "Full Band");
+
+        var setlistCreate = await client.PostAsJsonAsync($"/api/groups/{group.Id}/setlists", new { name = "Sunday" });
+        var setlist = await setlistCreate.Content.ReadFromJsonAsync<SetlistDetailResponse>(JsonOptions);
+        Assert.NotNull(setlist);
+        var replaceItems = await client.PutAsJsonAsync(
+            $"/api/groups/{group.Id}/setlists/{setlist.Id}/items",
+            new
+            {
+                expectedVersion = 1,
+                items = new[]
+                {
+                    new { arrangementId = arrA.Id, sortOrder = 1 },
+                    new { arrangementId = arrB.Id, sortOrder = 2 }
+                }
+            });
+        Assert.Equal(HttpStatusCode.OK, replaceItems.StatusCode);
+
+        var eventCreate = await client.PostAsJsonAsync($"/api/groups/{group.Id}/events", new
+        {
+            title = "Friday",
+            type = "rehearsal",
+            startsAt = Starts
+        });
+        var musicalEvent = await eventCreate.Content.ReadFromJsonAsync<EventDetailResponse>(JsonOptions);
+        Assert.NotNull(musicalEvent);
+
+        var apply = await client.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/events/{musicalEvent.Id}/apply-setlist",
+            new { setlistId = setlist.Id, expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.OK, apply.StatusCode);
+        var applied = await apply.Content.ReadFromJsonAsync<EventDetailResponse>(JsonOptions);
+        Assert.NotNull(applied);
+        Assert.Equal(2, applied.Version);
+        Assert.Equal(2, applied.Items.Count);
+        Assert.Equal("Grace", applied.Items[0].DisplaySongTitle);
+        Assert.Equal("Acoustic", applied.Items[0].DisplayArrangementLabel);
+        Assert.Equal(arrA.Id, applied.Items[0].ArrangementId);
+        Assert.Equal(arrB.Id, applied.Items[1].ArrangementId);
+
+        var blocked = await client.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/events/{musicalEvent.Id}/apply-setlist",
+            new { setlistId = setlist.Id, expectedVersion = 2, confirmReplace = false });
+        Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);
+
+        var reorder = await client.PutAsJsonAsync(
+            $"/api/groups/{group.Id}/setlists/{setlist.Id}/items",
+            new
+            {
+                expectedVersion = 2,
+                items = new[]
+                {
+                    new { arrangementId = arrB.Id, sortOrder = 1 },
+                    new { arrangementId = arrA.Id, sortOrder = 2 }
+                }
+            });
+        Assert.Equal(HttpStatusCode.OK, reorder.StatusCode);
+
+        var getBefore = await client.GetFromJsonAsync<EventDetailResponse>(
+            $"/api/groups/{group.Id}/events/{musicalEvent.Id}",
+            JsonOptions);
+        Assert.NotNull(getBefore);
+        Assert.Equal(arrA.Id, getBefore.Items[0].ArrangementId);
+        Assert.Equal("Acoustic", getBefore.Items[0].DisplayArrangementLabel);
+
+        var confirmed = await client.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/events/{musicalEvent.Id}/apply-setlist",
+            new { setlistId = setlist.Id, expectedVersion = 2, confirmReplace = true });
+        Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
+        var after = await confirmed.Content.ReadFromJsonAsync<EventDetailResponse>(JsonOptions);
+        Assert.NotNull(after);
+        Assert.Equal(3, after.Version);
+        Assert.Equal(arrB.Id, after.Items[0].ArrangementId);
+        Assert.Equal("Full Band", after.Items[0].DisplayArrangementLabel);
+    }
+
+    [Fact]
+    public async Task Apply_authz_and_validation_contracts()
+    {
+        var ownerId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        await SeedUsersAndMembershipAsync(
+            ("apply-o@example.com", "Password1", ownerId),
+            ("apply-m@example.com", "Password1", memberId),
+            groupId,
+            "Auth Apply",
+            ownerId,
+            memberId);
+
+        var owner = await CreateAuthenticatedClientAsync("apply-o@example.com");
+        var song = await CreateSongAsync(owner, groupId, "Song");
+        var arr = await CreateArrangementAsync(owner, groupId, song.Id, "Live");
+        var setlistCreate = await owner.PostAsJsonAsync($"/api/groups/{groupId}/setlists", new { name = "S" });
+        var setlist = await setlistCreate.Content.ReadFromJsonAsync<SetlistDetailResponse>(JsonOptions);
+        Assert.NotNull(setlist);
+        await owner.PutAsJsonAsync(
+            $"/api/groups/{groupId}/setlists/{setlist.Id}/items",
+            new { expectedVersion = 1, items = new[] { new { arrangementId = arr.Id, sortOrder = 1 } } });
+
+        var emptyCreate = await owner.PostAsJsonAsync($"/api/groups/{groupId}/setlists", new { name = "Empty" });
+        var empty = await emptyCreate.Content.ReadFromJsonAsync<SetlistDetailResponse>(JsonOptions);
+        Assert.NotNull(empty);
+
+        var eventCreate = await owner.PostAsJsonAsync($"/api/groups/{groupId}/events", new
+        {
+            title = "E",
+            type = "rehearsal",
+            startsAt = Starts
+        });
+        var musicalEvent = await eventCreate.Content.ReadFromJsonAsync<EventDetailResponse>(JsonOptions);
+        Assert.NotNull(musicalEvent);
+
+        var emptyApply = await owner.PostAsJsonAsync(
+            $"/api/groups/{groupId}/events/{musicalEvent.Id}/apply-setlist",
+            new { setlistId = empty.Id, expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.BadRequest, emptyApply.StatusCode);
+
+        var stale = await owner.PostAsJsonAsync(
+            $"/api/groups/{groupId}/events/{musicalEvent.Id}/apply-setlist",
+            new { setlistId = setlist.Id, expectedVersion = 99 });
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+
+        var member = await CreateAuthenticatedClientAsync("apply-m@example.com");
+        var memberApply = await member.PostAsJsonAsync(
+            $"/api/groups/{groupId}/events/{musicalEvent.Id}/apply-setlist",
+            new { setlistId = setlist.Id, expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.Forbidden, memberApply.StatusCode);
+
+        var stranger = await CreateAuthenticatedClientAsync("apply-stranger@example.com");
+        var strangerApply = await stranger.PostAsJsonAsync(
+            $"/api/groups/{groupId}/events/{musicalEvent.Id}/apply-setlist",
+            new { setlistId = setlist.Id, expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.NotFound, strangerApply.StatusCode);
+
+        var anon = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var anonApply = await anon.PostAsJsonAsync(
+            $"/api/groups/{groupId}/events/{musicalEvent.Id}/apply-setlist",
+            new { setlistId = setlist.Id, expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.Unauthorized, anonApply.StatusCode);
+
+        var softDelete = await owner.SendAsync(new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"/api/groups/{groupId}/arrangements/{arr.Id}")
+        {
+            Content = JsonContent.Create(new { expectedVersion = 1 })
+        });
+        Assert.Equal(HttpStatusCode.NoContent, softDelete.StatusCode);
+
+        var blockedSoft = await owner.PostAsJsonAsync(
+            $"/api/groups/{groupId}/events/{musicalEvent.Id}/apply-setlist",
+            new { setlistId = setlist.Id, expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.BadRequest, blockedSoft.StatusCode);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password = "Password1")
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -180,6 +342,30 @@ public class EventApiTests : IClassFixture<SonivoApiFactory>
         create.EnsureSuccessStatusCode();
         var group = await create.Content.ReadFromJsonAsync<GroupResponse>(JsonOptions);
         return group ?? throw new InvalidOperationException("Missing group response");
+    }
+
+    private static async Task<SongDetailResponse> CreateSongAsync(HttpClient client, Guid groupId, string title)
+    {
+        var create = await client.PostAsJsonAsync($"/api/groups/{groupId}/songs", new
+        {
+            title,
+            originKind = "original"
+        });
+        create.EnsureSuccessStatusCode();
+        return (await create.Content.ReadFromJsonAsync<SongDetailResponse>(JsonOptions))!;
+    }
+
+    private static async Task<ArrangementDetailResponse> CreateArrangementAsync(
+        HttpClient client,
+        Guid groupId,
+        Guid songId,
+        string label)
+    {
+        var create = await client.PostAsJsonAsync(
+            $"/api/groups/{groupId}/songs/{songId}/arrangements",
+            new { label });
+        create.EnsureSuccessStatusCode();
+        return (await create.Content.ReadFromJsonAsync<ArrangementDetailResponse>(JsonOptions))!;
     }
 
     private async Task SeedUsersAndMembershipAsync(
@@ -249,6 +435,9 @@ public class EventApiTests : IClassFixture<SonivoApiFactory>
 
     private sealed record CsrfResponse(string Token);
     private sealed record GroupResponse(Guid Id, string Name, int Version);
+    private sealed record SongDetailResponse(Guid Id, string Title, int Version);
+    private sealed record ArrangementDetailResponse(Guid Id, Guid SongId, string Label, int Version);
+    private sealed record SetlistDetailResponse(Guid Id, string Name, int Version);
     private sealed record EventListResponse(Guid Id, string Title, string Type, DateTimeOffset StartsAt, string Status, int Version);
     private sealed record EventDetailResponse(
         Guid Id,
@@ -257,6 +446,7 @@ public class EventApiTests : IClassFixture<SonivoApiFactory>
         DateTimeOffset StartsAt,
         string Status,
         int Version,
+        Guid? SourceSetlistId,
         List<EventPlanItemResponse> Items);
     private sealed record EventPlanItemResponse(
         Guid Id,

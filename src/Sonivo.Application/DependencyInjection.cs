@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<CreateEventHandler>();
         services.AddScoped<ListEventsHandler>();
         services.AddScoped<GetEventHandler>();
+        services.AddScoped<ReplaceEventPlanFromSetlistHandler>();
         return services;
     }
 }

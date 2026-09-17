@@ -1,5 +1,6 @@
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Tenancy;
+using Sonivo.Domain.Common;
 using Sonivo.Domain.Scheduling;
 
 namespace Sonivo.Application.Scheduling;
@@ -159,6 +160,164 @@ public sealed class GetEventHandler
         {
             throw new NotFoundException("Event not found.");
         }
+
+        return CreateEventHandler.ToDetail(musicalEvent);
+    }
+}
+
+public sealed record ReplaceEventPlanFromSetlistCommand(
+    Guid UserId,
+    Guid GroupId,
+    Guid EventId,
+    Guid SetlistId,
+    int ExpectedVersion,
+    bool ConfirmReplace);
+
+/// <summary>
+/// ADR-0021 — Replace Event Plan from Setlist (one-shot import/copy; not sync).
+/// </summary>
+public sealed class ReplaceEventPlanFromSetlistHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IEventStore _events;
+    private readonly ISetlistStore _setlists;
+    private readonly IArrangementStore _arrangements;
+    private readonly ISongStore _songs;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IClock _clock;
+
+    public ReplaceEventPlanFromSetlistHandler(
+        GroupAccessService access,
+        IEventStore events,
+        ISetlistStore setlists,
+        IArrangementStore arrangements,
+        ISongStore songs,
+        IUnitOfWork unitOfWork,
+        IClock clock)
+    {
+        _access = access;
+        _events = events;
+        _setlists = setlists;
+        _arrangements = arrangements;
+        _songs = songs;
+        _unitOfWork = unitOfWork;
+        _clock = clock;
+    }
+
+    public async Task<EventDetailDto> HandleAsync(
+        ReplaceEventPlanFromSetlistCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (command.ExpectedVersion < 1)
+        {
+            throw new ValidationException("expectedVersion is required.");
+        }
+
+        if (command.SetlistId == Guid.Empty)
+        {
+            throw new ValidationException("Setlist id is required.");
+        }
+
+        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+
+        var musicalEvent = await _events.GetByIdWithItemsAsync(
+            command.GroupId,
+            command.EventId,
+            cancellationToken);
+        if (musicalEvent is null)
+        {
+            throw new NotFoundException("Event not found.");
+        }
+
+        if (musicalEvent.Status == EventStatuses.Cancelled)
+        {
+            throw new ValidationException("Cannot replace the plan of a cancelled Event.");
+        }
+
+        if (musicalEvent.Items.Count >= 1 && !command.ConfirmReplace)
+        {
+            throw new ConflictException(
+                "Event already has a plan. Set confirmReplace to true to replace it.");
+        }
+
+        var setlist = await _setlists.GetByIdWithItemsAsync(
+            command.GroupId,
+            command.SetlistId,
+            cancellationToken);
+        if (setlist is null)
+        {
+            throw new NotFoundException("Setlist not found.");
+        }
+
+        var templateItems = setlist.Items
+            .OrderBy(i => i.SortOrder)
+            .ThenBy(i => i.Id)
+            .ToList();
+        if (templateItems.Count == 0)
+        {
+            throw new ValidationException("Cannot apply an empty Setlist.");
+        }
+
+        var copies = new List<(SetlistItem Template, string SongTitle, string ArrangementLabel)>(
+            templateItems.Count);
+        foreach (var template in templateItems)
+        {
+            var arrangement = await _arrangements.GetByIdAsync(
+                command.GroupId,
+                template.ArrangementId,
+                cancellationToken);
+            if (arrangement is null)
+            {
+                throw new ValidationException(
+                    "Arrangement not found, is soft-deleted, or does not belong to this group.");
+            }
+
+            var song = await _songs.GetByIdAsync(command.GroupId, arrangement.SongId, cancellationToken);
+            if (song is null)
+            {
+                throw new ValidationException(
+                    "Song not found, is soft-deleted, or does not belong to this group.");
+            }
+
+            copies.Add((template, song.Title, arrangement.Label));
+        }
+
+        var now = _clock.UtcNow;
+        try
+        {
+            musicalEvent.BeginReplacePlan(command.ExpectedVersion, command.SetlistId, now);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            throw new ConflictException(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new ValidationException(ex.Message);
+        }
+
+        var existing = musicalEvent.Items.ToList();
+        await _events.RemoveItemsAsync(existing, cancellationToken);
+        musicalEvent.Items.Clear();
+
+        var created = new List<EventSetlistItem>(copies.Count);
+        foreach (var (template, songTitle, arrangementLabel) in copies)
+        {
+            var item = EventSetlistItem.Create(
+                musicalEvent.Id,
+                musicalEvent.GroupId,
+                template.ArrangementId,
+                songTitle,
+                arrangementLabel,
+                template.SortOrder,
+                now);
+            created.Add(item);
+            musicalEvent.Items.Add(item);
+        }
+
+        await _events.AddItemsAsync(created, cancellationToken);
+        await _events.UpdateAsync(musicalEvent, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return CreateEventHandler.ToDetail(musicalEvent);
     }

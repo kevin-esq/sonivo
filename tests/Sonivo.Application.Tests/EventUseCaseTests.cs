@@ -227,6 +227,14 @@ public class EventUseCaseTests
         public Task<Event?> GetByIdWithItemsAsync(Guid groupId, Guid eventId, CancellationToken cancellationToken)
             => Task.FromResult(Events.FirstOrDefault(e => e.GroupId == groupId && e.Id == eventId));
 
+        public Task RemoveItemsAsync(IEnumerable<EventSetlistItem> items, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task AddItemsAsync(IEnumerable<EventSetlistItem> items, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task UpdateAsync(Event musicalEvent, CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 

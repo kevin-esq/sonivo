@@ -970,6 +970,37 @@ app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
 .WithName("GetEvent")
 .RequireAuthorization();
 
+app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/apply-setlist", async (
+    Guid groupId,
+    Guid eventId,
+    ApplySetlistRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ReplaceEventPlanFromSetlistHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var musicalEvent = await handler.HandleAsync(
+        new ReplaceEventPlanFromSetlistCommand(
+            userId.Value,
+            groupId,
+            eventId,
+            request.SetlistId,
+            request.ExpectedVersion,
+            request.ConfirmReplace),
+        cancellationToken);
+
+    return Results.Ok(ToEventDetailResponse(musicalEvent));
+})
+.WithName("ApplySetlistToEvent")
+.RequireAuthorization()
+.DisableAntiforgery();
+
 app.Run();
 
 static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users)
@@ -1206,6 +1237,7 @@ internal sealed record ReplaceSetlistItemsRequest(
     IReadOnlyList<ReplaceSetlistItemRequest>? Items);
 internal sealed record ReplaceSetlistItemRequest(Guid ArrangementId, int SortOrder);
 internal sealed record CreateEventRequest(string? Title, string? Type, DateTimeOffset StartsAt);
+internal sealed record ApplySetlistRequest(Guid SetlistId, int ExpectedVersion, bool ConfirmReplace = false);
 
 public sealed class AppExceptionHandler : IExceptionHandler
 {

@@ -31,9 +31,25 @@ public sealed class EfEventStore : IEventStore
 
     public Task<Event?> GetByIdWithItemsAsync(Guid groupId, Guid eventId, CancellationToken cancellationToken)
         => _db.Events
-            .AsNoTracking()
             .Include(e => e.Items)
             .FirstOrDefaultAsync(e => e.GroupId == groupId && e.Id == eventId, cancellationToken);
+
+    public Task RemoveItemsAsync(IEnumerable<EventSetlistItem> items, CancellationToken cancellationToken)
+    {
+        _db.EventSetlistItems.RemoveRange(items);
+        return Task.CompletedTask;
+    }
+
+    public async Task AddItemsAsync(IEnumerable<EventSetlistItem> items, CancellationToken cancellationToken)
+    {
+        await _db.EventSetlistItems.AddRangeAsync(items, cancellationToken);
+    }
+
+    public Task UpdateAsync(Event musicalEvent, CancellationToken cancellationToken)
+    {
+        _db.Events.Update(musicalEvent);
+        return Task.CompletedTask;
+    }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken)
         => _db.SaveChangesAsync(cancellationToken);

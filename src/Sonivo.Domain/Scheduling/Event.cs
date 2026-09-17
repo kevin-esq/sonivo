@@ -74,6 +74,42 @@ public sealed class Event : IVersionedEntity
         };
     }
 
+    /// <summary>
+    /// Starts Replace Event Plan from Setlist (ADR-0021).
+    /// Caller validates Arrangements, confirmReplace, and persists item delete/insert.
+    /// </summary>
+    public void BeginReplacePlan(int expectedVersion, Guid sourceSetlistId, DateTimeOffset now)
+    {
+        if (Status == EventStatuses.Cancelled)
+        {
+            throw new InvalidOperationException("Cannot replace the plan of a cancelled Event.");
+        }
+
+        if (sourceSetlistId == Guid.Empty)
+        {
+            throw new ArgumentException("Setlist id is required.", nameof(sourceSetlistId));
+        }
+
+        EnsureExpectedVersion(expectedVersion);
+        SourceSetlistId = sourceSetlistId;
+        Touch(now);
+    }
+
+    private void Touch(DateTimeOffset now)
+    {
+        UpdatedAt = now;
+        Version += 1;
+    }
+
+    private void EnsureExpectedVersion(int expectedVersion)
+    {
+        if (Version != expectedVersion)
+        {
+            throw new ConcurrencyConflictException(
+                $"Event version mismatch. Expected {expectedVersion}, actual {Version}.");
+        }
+    }
+
     private static string NormalizeTitle(string title)
     {
         if (string.IsNullOrWhiteSpace(title))
@@ -125,6 +161,54 @@ public sealed class EventSetlistItem
     public int? OverrideCapo { get; set; }
     public string? OverrideNotes { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+
+    public static EventSetlistItem Create(
+        Guid eventId,
+        Guid groupId,
+        Guid arrangementId,
+        string displaySongTitle,
+        string displayArrangementLabel,
+        int sortOrder,
+        DateTimeOffset createdAt,
+        Guid? id = null)
+    {
+        if (eventId == Guid.Empty)
+        {
+            throw new ArgumentException("Event id is required.", nameof(eventId));
+        }
+
+        if (groupId == Guid.Empty)
+        {
+            throw new ArgumentException("Group id is required.", nameof(groupId));
+        }
+
+        if (arrangementId == Guid.Empty)
+        {
+            throw new ArgumentException("Arrangement id is required.", nameof(arrangementId));
+        }
+
+        if (string.IsNullOrWhiteSpace(displaySongTitle))
+        {
+            throw new ArgumentException("Display song title is required.", nameof(displaySongTitle));
+        }
+
+        if (string.IsNullOrWhiteSpace(displayArrangementLabel))
+        {
+            throw new ArgumentException("Display arrangement label is required.", nameof(displayArrangementLabel));
+        }
+
+        return new EventSetlistItem
+        {
+            Id = id ?? Guid.NewGuid(),
+            EventId = eventId,
+            GroupId = groupId,
+            ArrangementId = arrangementId,
+            DisplaySongTitle = displaySongTitle.Trim(),
+            DisplayArrangementLabel = displayArrangementLabel.Trim(),
+            SortOrder = sortOrder,
+            CreatedAt = createdAt
+        };
+    }
 }
 
 public static class RsvpResponses
