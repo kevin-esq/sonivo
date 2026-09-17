@@ -24,9 +24,10 @@ ADRs **0001–0025** are **ACCEPTED** (including tooling ADR-0002).
 **Phase 3.5 thin RSVP:** **CLOSED** / **COMPLETED** (T-3.5.01–03) — Event yes/no/maybe + Attendance UI + Playwright ([`PHASE-3.5-RSVP-SPEC.md`](docs/03-architecture/PHASE-3.5-RSVP-SPEC.md)). Merged to `develop` (PR [#10](https://github.com/kevin-esq/sonivo/pull/10), `cbc8824`).  
 **Phase 3.6 thin Event PATCH/cancel:** **CLOSED** / **COMPLETED** (T-3.6.01–03) — Owner metadata PATCH + cancel/soft-hide ([`PHASE-3.6-EVENT-SPEC.md`](docs/03-architecture/PHASE-3.6-EVENT-SPEC.md)).  
 **Phase 3.7 thin People:** **CLOSED** / **COMPLETED** (T-3.7.01–03) — members list/remove/role/leave + People UI + Group rename/soft-delete ([`PHASE-3.7-PEOPLE-SPEC.md`](docs/03-architecture/PHASE-3.7-PEOPLE-SPEC.md)). Merged to `develop` (PR [#15](https://github.com/kevin-esq/sonivo/pull/15), `0e0de72`).  
-**Phase 3.8 thin invite hygiene:** **CLOSED** / **COMPLETED** (T-3.8.01–03) — list/revoke outstanding invites ([`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](docs/03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md)).  
+**Phase 3.8 thin invite hygiene:** **CLOSED** / **COMPLETED** (T-3.8.01–03) — list/revoke outstanding invites ([`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](docs/03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md)). Merged to `develop` (PR [#16](https://github.com/kevin-esq/sonivo/pull/16)).  
+**T-OPS-01:** **COMPLETED** — ASP.NET DataProtection keys persist in Postgres (`DataProtectionKeys`).  
 **System close plan:** [`docs/01-product/SYSTEM-CLOSE-PLAN.md`](docs/01-product/SYSTEM-CLOSE-PLAN.md) — Gate A (functional) then Gate B (UI redesign → `main`).  
-**Next:** T-OPS-01 DataProtection keys on Render; then Phase 3.9 SMTP (Resend) if still in Gate A. File Resource (**T-3.2.06**) remains **DEFERRED**. Do not merge to `main` until Gate B.
+**Next:** Phase 3.9 SMTP (Resend, optional); T-OPS-02 Render GitHub app (Kevin). File Resource (**T-3.2.06**) remains **DEFERRED**. Do not merge to `main` until Gate B.
 
 Until the user explicitly authorizes additional work:
 

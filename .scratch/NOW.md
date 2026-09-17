@@ -5,23 +5,24 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (Phase 3.8 T-3.8.01–03)
-Human approval: APPROVED (Kevin Esquivel; decision-auditor PASS)
-Git checkpoint: PENDING commit on feature/phase-3.8-invite-hygiene
+Implementation: COMPLETE (T-OPS-01 DataProtection keys)
+Human approval: PENDING auditor
+Git checkpoint: PENDING
 Remote: NOT PUSHED
 CI: NOT RUN
 ```
 
-**Live:** https://sonivo.onrender.com (`develop` includes 3.7 via PR #15)  
+**Live:** https://sonivo.onrender.com (`develop` includes 3.7 PR #15, 3.8 PR #16)  
 **main:** do not merge until Gate B (UI redesign)
 
 ## Sequence
 
-1. Git checkpoint 3.8 → PR `develop` → CI → merge
-2. **Gate A remaining:** T-OPS-01 DataProtection → T-OPS-02 (Kevin GitHub app) → 3.9 SMTP (Resend)
-3. **Gate B** — rediseño UI → merge `main` (do not start)
+1. Git checkpoint T-OPS-01 → PR `develop` → CI → merge (Render will migrate `DataProtectionKeys`)
+2. **T-OPS-02:** Kevin grants Render GitHub app access to `kevin-esq/sonivo` (I cannot)
+3. **Phase 3.9** SMTP / Resend (optional Gate A)
+4. **Gate B** — rediseño UI → merge `main` (do not start)
 
 ## Firewall
 
-- Do **not** implement SMTP / T-3.2.06 / merge `main` in this 3.8 checkpoint
+- Do **not** implement SMTP / T-3.2.06 / merge `main` in this ops checkpoint
 - Do **not** start UI redesign before Gate A

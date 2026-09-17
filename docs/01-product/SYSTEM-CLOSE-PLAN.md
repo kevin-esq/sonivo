@@ -1,6 +1,6 @@
 # System-close plan — Sonivo
 
-**Status:** Gate A **AUTHORIZED** 2026-09-17 (Kevin Esquivel). Phase 3.7 and 3.8 **COMPLETED**.  
+**Status:** Gate A **AUTHORIZED** 2026-09-17 (Kevin Esquivel). Phase 3.7, 3.8, and T-OPS-01 **COMPLETED**.  
 **Date:** 2026-09-17  
 **Live:** https://sonivo.onrender.com (Free Render + Neon; branch `develop`)  
 **Depends on:** ADR-0005–0006, 0012–0013, 0015–0021; Phases 3.2–3.6 **COMPLETED** on `develop`.
@@ -42,7 +42,7 @@ An organizer can, **without SQL**, on local and on the live URL:
 
 **Not required for Gate A:** file uploads, email, Event location/notes, roster-on-item, billing, native app, ChordPro, merge `main`.
 
-**Already true after 3.7:** 1–8 except invite list/revoke (3.8), persisted DataProtection keys (T-OPS-01), and optional SMTP (3.9).
+**Already true after 3.8 + T-OPS-01:** 1–8 except optional SMTP (3.9). Invite list/revoke and DataProtection keys are in.
 
 ---
 
@@ -95,7 +95,7 @@ Live is usable but two issues bite real users. Ticket when authorized; not a pro
 
 | ID | Work |
 | -- | ---- |
-| T-OPS-01 | Persist ASP.NET DataProtection keys (today: re-login after every Render deploy) |
+| T-OPS-01 | Persist ASP.NET DataProtection keys in Postgres (`DataProtectionKeys`) so cookies survive Render deploys — **COMPLETED** |
 | T-OPS-02 | Grant Render GitHub app access to `kevin-esq/sonivo` (clone warning; auto-deploy) |
 
 Free-instance spin-down (~50s cold start) is **accepted** until a paid instance. Not a Gate A blocker.
@@ -125,4 +125,4 @@ Until Gate B: `main` stays the pre-product workflow commit (revert PR [#14](http
 
 ## How to start
 
-Phase 3.7 and 3.8 are **done**. Next Gate A slice is **T-OPS-01** (DataProtection keys), then optional **Phase 3.9** SMTP. Do not start Gate B.
+Phase 3.7, 3.8, and T-OPS-01 are **done**. Next optional Gate A slice is **Phase 3.9** SMTP (Resend). T-OPS-02 is a GitHub setting Kevin must grant (Render app access). Do not start Gate B.

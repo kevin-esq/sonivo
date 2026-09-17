@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -31,6 +32,10 @@ public static class DependencyInjection
                 options.UseNpgsql(connectionString);
             }
         });
+
+        services.AddDataProtection()
+            .SetApplicationName("Sonivo")
+            .PersistKeysToDbContext<SonivoDbContext>();
 
         services
             .AddIdentityCore<ApplicationUser>(options =>
