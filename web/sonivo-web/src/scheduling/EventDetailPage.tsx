@@ -1,23 +1,27 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   applySetlistToEvent,
+  cancelEvent,
   getEvent,
   isConflictError,
   listEventRsvps,
   listSetlists,
+  patchEvent,
   upsertEventRsvp,
   type CurrentUser,
   type EventDetail,
   type EventRsvpItem,
   type EventRsvpResponse,
+  type EventType,
   type SetlistListItem,
 } from '../api/client'
 import {
   CONFLICT_MESSAGE,
   ConfirmDialog,
   ConflictAlert,
+  dangerButtonClass,
   fieldClass,
   isOwnerRole,
   mutationErrorMessage,
@@ -26,7 +30,7 @@ import {
   secondaryButtonClass,
   useGroupContext,
 } from '../repertoire/ui'
-import { formatEventType, formatStartsAt } from './datetime'
+import { formatEventType, formatStartsAt, fromDatetimeLocalValue, toDatetimeLocalValue } from './datetime'
 import { GroupSectionNav } from './GroupSectionNav'
 
 const RSVP_CHOICES: { value: EventRsvpResponse; label: string }[] = [
@@ -52,8 +56,13 @@ async function loadEventRsvps(groupId: string, eventId: string): Promise<RsvpLoa
   }
 }
 
+function isLiveEvent(status: string): boolean {
+  return status !== 'cancelled'
+}
+
 export function EventDetailPage({ user }: { user: CurrentUser }) {
   const { groupId, eventId } = useParams()
+  const navigate = useNavigate()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const [musicalEvent, setMusicalEvent] = useState<EventDetail | null | undefined>(undefined)
   const [setlists, setSetlists] = useState<SetlistListItem[] | null>(null)
@@ -64,8 +73,12 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
   const [confirmReplace, setConfirmReplace] = useState(false)
   const [applying, setApplying] = useState(false)
   const [savingRsvp, setSavingRsvp] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   const isOwner = isOwnerRole(group?.role)
+  const isLive = musicalEvent != null && isLiveEvent(musicalEvent.status)
   const plan = musicalEvent?.items ?? []
   const hasPlan = plan.length >= 1
   const myResponse = rsvps?.find((item) => item.userId === user.id)?.response ?? null
@@ -79,13 +92,20 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
     setError(mutationErrorMessage(result.error))
   }
 
+  async function loadEventSurface(nextGroupId: string, nextEventId: string) {
+    const [nextEvent, nextSetlists] = await Promise.all([
+      getEvent(nextGroupId, nextEventId),
+      listSetlists(nextGroupId),
+    ])
+    const rsvpLoad = isLiveEvent(nextEvent.status)
+      ? await loadEventRsvps(nextGroupId, nextEventId)
+      : { ok: true as const, items: [] as EventRsvpItem[] }
+    return { nextEvent, nextSetlists, rsvpLoad }
+  }
+
   async function reload() {
     if (!groupId || !eventId) return
-    const [nextEvent, nextSetlists, rsvpLoad] = await Promise.all([
-      getEvent(groupId, eventId),
-      listSetlists(groupId),
-      loadEventRsvps(groupId, eventId),
-    ])
+    const { nextEvent, nextSetlists, rsvpLoad } = await loadEventSurface(groupId, eventId)
     setMusicalEvent(nextEvent)
     setSetlists(nextSetlists)
     if (!selectedSetlistId && nextSetlists[0]) {
@@ -103,11 +123,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       setError(null)
       setConflict(null)
       try {
-        const [nextEvent, nextSetlists, rsvpLoad] = await Promise.all([
-          getEvent(groupId!, eventId!),
-          listSetlists(groupId!),
-          loadEventRsvps(groupId!, eventId!),
-        ])
+        const { nextEvent, nextSetlists, rsvpLoad } = await loadEventSurface(groupId!, eventId!)
         if (cancelled) return
         setMusicalEvent(nextEvent)
         setSetlists(nextSetlists)
@@ -182,6 +198,33 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
     void apply(false)
   }
 
+  async function handleCancelEvent() {
+    if (!groupId || !eventId || !musicalEvent) return
+    setCancelling(true)
+    setError(null)
+    setConflict(null)
+    try {
+      await cancelEvent(groupId, eventId, musicalEvent.version)
+      setConfirmCancel(false)
+      navigate(`/groups/${groupId}/events`)
+    } catch (err) {
+      if (isConflictError(err)) {
+        setConflict(CONFLICT_MESSAGE)
+        setConfirmCancel(false)
+        try {
+          await reload()
+        } catch (reloadErr) {
+          setError(mutationErrorMessage(reloadErr))
+        }
+      } else {
+        setError(mutationErrorMessage(err))
+        setConfirmCancel(false)
+      }
+    } finally {
+      setCancelling(false)
+    }
+  }
+
   if (group === undefined) {
     return <p aria-live="polite">Loading event…</p>
   }
@@ -243,20 +286,57 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       <ProblemAlert message={error} />
       <ConflictAlert message={conflict} />
 
-      <dl className="space-y-2">
-        <div>
-          <dt className="text-sm text-slate-600">Type</dt>
-          <dd>{formatEventType(musicalEvent.type)}</dd>
+      {editing && isOwner && isLive ? (
+        <EventEditForm
+          musicalEvent={musicalEvent}
+          groupId={group.id}
+          onCancel={() => setEditing(false)}
+          onSaved={async (next) => {
+            setMusicalEvent(next)
+            setEditing(false)
+            setConflict(null)
+          }}
+          onConflict={async () => {
+            setConflict(CONFLICT_MESSAGE)
+            setEditing(false)
+            try {
+              await reload()
+            } catch (err) {
+              setError(mutationErrorMessage(err))
+            }
+          }}
+        />
+      ) : (
+        <dl className="space-y-2">
+          <div>
+            <dt className="text-sm text-slate-600">Type</dt>
+            <dd>{formatEventType(musicalEvent.type)}</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-slate-600">Starts at</dt>
+            <dd>{formatStartsAt(musicalEvent.startsAt)}</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-slate-600">Status</dt>
+            <dd>{musicalEvent.status}</dd>
+          </div>
+        </dl>
+      )}
+
+      {isOwner && isLive && !editing ? (
+        <div className="flex flex-wrap gap-3">
+          <button type="button" className={secondaryButtonClass} onClick={() => setEditing(true)}>
+            Edit event
+          </button>
+          <button
+            type="button"
+            className={dangerButtonClass}
+            onClick={() => setConfirmCancel(true)}
+          >
+            Cancel event
+          </button>
         </div>
-        <div>
-          <dt className="text-sm text-slate-600">Starts at</dt>
-          <dd>{formatStartsAt(musicalEvent.startsAt)}</dd>
-        </div>
-        <div>
-          <dt className="text-sm text-slate-600">Status</dt>
-          <dd>{musicalEvent.status}</dd>
-        </div>
-      </dl>
+      ) : null}
 
       <section className="space-y-4 border-t border-slate-300 pt-6" aria-labelledby="plan-heading">
         <h3 id="plan-heading" className="font-medium">
@@ -268,7 +348,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
         </p>
 
         {plan.length === 0 ? (
-          <p>No plan yet.{isOwner ? ' Apply a setlist to copy its current arrangements.' : ''}</p>
+          <p>No plan yet.{isOwner && isLive ? ' Apply a setlist to copy its current arrangements.' : ''}</p>
         ) : (
           <ol className="space-y-2">
             {plan.map((item) => (
@@ -281,41 +361,43 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
         )}
       </section>
 
-      <section className="space-y-4 border-t border-slate-300 pt-6" aria-labelledby="attendance-heading">
-        <h3 id="attendance-heading" className="font-medium">
-          Attendance
-        </h3>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Your response">
-          {RSVP_CHOICES.map((choice) => {
-            const selected = myResponse === choice.value
-            return (
-              <button
-                key={choice.value}
-                type="button"
-                className={selected ? primaryButtonClass : secondaryButtonClass}
-                aria-pressed={selected}
-                disabled={savingRsvp}
-                onClick={() => void setOwnRsvp(choice.value)}
-              >
-                {choice.label}
-              </button>
-            )
-          })}
-        </div>
-        {rsvps === null ? null : rsvps.length === 0 ? (
-          <p>No responses yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {rsvps.map((item) => (
-              <li key={item.userId}>
-                {item.displayName} — {formatRsvpResponse(item.response)}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {isLive ? (
+        <section className="space-y-4 border-t border-slate-300 pt-6" aria-labelledby="attendance-heading">
+          <h3 id="attendance-heading" className="font-medium">
+            Attendance
+          </h3>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Your response">
+            {RSVP_CHOICES.map((choice) => {
+              const selected = myResponse === choice.value
+              return (
+                <button
+                  key={choice.value}
+                  type="button"
+                  className={selected ? primaryButtonClass : secondaryButtonClass}
+                  aria-pressed={selected}
+                  disabled={savingRsvp}
+                  onClick={() => void setOwnRsvp(choice.value)}
+                >
+                  {choice.label}
+                </button>
+              )
+            })}
+          </div>
+          {rsvps === null ? null : rsvps.length === 0 ? (
+            <p>No responses yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {rsvps.map((item) => (
+                <li key={item.userId}>
+                  {item.displayName} — {formatRsvpResponse(item.response)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
 
-      {isOwner ? (
+      {isOwner && isLive ? (
         <section className="space-y-3 border-t border-slate-300 pt-6" aria-labelledby="apply-heading">
           <h3 id="apply-heading" className="font-medium">
             Apply setlist
@@ -372,6 +454,121 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
           undone from this screen.
         </p>
       </ConfirmDialog>
+      <ConfirmDialog
+        open={confirmCancel}
+        title="Cancel event?"
+        confirmLabel="Cancel event"
+        pending={cancelling}
+        onCancel={() => setConfirmCancel(false)}
+        onConfirm={() => void handleCancelEvent()}
+      >
+        <p>
+          This hides the event from the default list. The copied plan and attendance responses stay
+          on the event.
+        </p>
+      </ConfirmDialog>
     </section>
+  )
+}
+
+function EventEditForm({
+  musicalEvent,
+  groupId,
+  onCancel,
+  onSaved,
+  onConflict,
+}: {
+  musicalEvent: EventDetail
+  groupId: string
+  onCancel: () => void
+  onSaved: (next: EventDetail) => Promise<void>
+  onConflict: () => Promise<void>
+}) {
+  const [title, setTitle] = useState(musicalEvent.title)
+  const [type, setType] = useState<EventType>(musicalEvent.type as EventType)
+  const [startsAt, setStartsAt] = useState(toDatetimeLocalValue(musicalEvent.startsAt))
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault()
+    setPending(true)
+    setError(null)
+    if (!startsAt) {
+      setError('Starts at is required.')
+      setPending(false)
+      return
+    }
+    try {
+      const updated = await patchEvent(groupId, musicalEvent.id, {
+        expectedVersion: musicalEvent.version,
+        title: title.trim(),
+        type,
+        startsAt: fromDatetimeLocalValue(startsAt),
+      })
+      await onSaved(updated)
+    } catch (err) {
+      if (isConflictError(err)) {
+        await onConflict()
+      } else {
+        setError(mutationErrorMessage(err))
+      }
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <form className="max-w-md space-y-3" onSubmit={onSubmit} noValidate>
+      <h3 className="font-medium">Edit event</h3>
+      <p className="text-sm text-slate-600">Editing version {musicalEvent.version}</p>
+      <ProblemAlert message={error} />
+      <label className="block space-y-1">
+        <span className="text-sm text-slate-700">Title</span>
+        <input
+          className={fieldClass}
+          required
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={200}
+        />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-sm text-slate-700">Type</span>
+        <select
+          className={fieldClass}
+          required
+          value={type}
+          onChange={(e) => setType(e.target.value as EventType)}
+        >
+          <option value="rehearsal">Rehearsal</option>
+          <option value="performance">Performance</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label className="block space-y-1">
+        <span className="text-sm text-slate-700">Starts at</span>
+        <input
+          className={fieldClass}
+          type="datetime-local"
+          required
+          value={startsAt}
+          onChange={(e) => setStartsAt(e.target.value)}
+        />
+      </label>
+      <div className="flex flex-wrap gap-3">
+        <button type="submit" disabled={pending} className={primaryButtonClass}>
+          {pending ? 'Saving…' : 'Save changes'}
+        </button>
+        <button
+          type="button"
+          className={secondaryButtonClass}
+          disabled={pending}
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   )
 }

@@ -572,6 +572,28 @@ export async function getEvent(groupId: string, eventId: string): Promise<EventD
   return apiRequest<EventDetail>(`/api/groups/${groupId}/events/${eventId}`)
 }
 
+export async function patchEvent(
+  groupId: string,
+  eventId: string,
+  input: { expectedVersion: number; title?: string; type?: EventType; startsAt?: string },
+): Promise<EventDetail> {
+  return apiRequest<EventDetail>(`/api/groups/${groupId}/events/${eventId}`, {
+    method: 'PATCH',
+    body: input,
+  })
+}
+
+export async function cancelEvent(
+  groupId: string,
+  eventId: string,
+  expectedVersion: number,
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/events/${eventId}/cancel`, {
+    method: 'POST',
+    body: { expectedVersion },
+  })
+}
+
 export async function applySetlistToEvent(
   groupId: string,
   eventId: string,
