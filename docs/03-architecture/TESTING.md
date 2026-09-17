@@ -108,3 +108,7 @@ Authoritative matrix: [`PHASE-3.6-EVENT-SPEC.md`](PHASE-3.6-EVENT-SPEC.md). **TC
 ### Phase 3.7 — Thin People + Group lifecycle (COMPLETED)
 
 Authoritative matrix: [`PHASE-3.7-PEOPLE-SPEC.md`](PHASE-3.7-PEOPLE-SPEC.md). **TC-PPL-01 COMPLETE:** Owner invites; second user accepts; Owner opens People, sees both names; Owner removes Member; Member visiting the Group URL sees not-found.
+
+### Phase 3.8 — Thin invite hygiene (COMPLETED)
+
+Authoritative matrix: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](PHASE-3.8-INVITE-HYGIENE-SPEC.md). **TC-INV-02 COMPLETE:** Owner creates invite; People shows outstanding; Owner revokes; second user opening the old join URL sees invalid/expired.

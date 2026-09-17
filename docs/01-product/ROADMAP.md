@@ -9,9 +9,10 @@ Product sequencing.
 **Phase 3.5 thin RSVP COMPLETED** — T-3.5.01–03 on `develop` (PR [#10](https://github.com/kevin-esq/sonivo/pull/10)). Spec: [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md).  
 **Phase 3.6 thin Event PATCH/cancel COMPLETED** — T-3.6.01–03. Spec: [`PHASE-3.6-EVENT-SPEC.md`](../03-architecture/PHASE-3.6-EVENT-SPEC.md).  
 **Phase 3.7 thin People COMPLETED** — T-3.7.01–03. Spec: [`PHASE-3.7-PEOPLE-SPEC.md`](../03-architecture/PHASE-3.7-PEOPLE-SPEC.md).  
+**Phase 3.8 thin invite hygiene COMPLETED** — T-3.8.01–03. Spec: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md).  
 **Deferred:** T-3.2.06 file Resource / blob / content; SMTP. Do not merge to `main`.  
 **System close:** [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md) — Gate A (functional loop on `develop`) then Gate B (UI redesign → `main`).  
-**Next:** Phase 3.8 thin invite list/revoke — requires **human decision / authorization**.
+**Next:** T-OPS-01 DataProtection keys; Phase 3.9 SMTP optional.
 
 Product/code features beyond authorized tickets require **explicit** human approval.
 
@@ -81,12 +82,20 @@ Who is in the Group; Owner remove/role; Member leave; Owner rename/soft-delete. 
 - [x] T-3.7.02 React People + Group lifecycle chrome
 - [x] T-3.7.03 Sparse Playwright (TC-PPL-01)
 
+### Phase 3.8 — Thin invite hygiene (COMPLETED)
+
+Owner lists outstanding unused invites and revokes a token. Spec: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md).
+
+- [x] T-3.8.01 List + revoke Application + API
+- [x] T-3.8.02 React on People
+- [x] T-3.8.03 Sparse Playwright (TC-INV-02)
+
 ### Gate A — close the functional system
 
 Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redesign is **Gate B**, after this.
 
 - [x] Phase 3.7 thin People + Group lifecycle (list/remove/role/leave + rename/soft-delete UI)
-- [ ] Phase 3.8 thin invite list/revoke
+- [x] Phase 3.8 thin invite list/revoke
 - [ ] T-OPS-01 DataProtection keys on Render (re-login after deploy)
 - [ ] Phase 3.9 SMTP — optional; separate auth; after 3.7
 
