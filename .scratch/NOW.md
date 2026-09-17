@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: IN PROGRESS (T-GATE-B-04)
+Implementation: COMPLETE (T-GATE-B-04)
 Human approval: PENDING
-Git checkpoint: PENDING
-Remote: NOT PUSHED
-CI: NOT RUN
+Git checkpoint: COMMITTED (2470d33)
+Remote: PUSHED (PR #26 → develop)
+CI: NOT RUN (await GitHub)
 ```
 
 **Live:** https://sonivo.onrender.com  
@@ -18,11 +18,12 @@ CI: NOT RUN
 ## Proof
 
 - T-GATE-B-01–03 merged on `develop` (through #25)
-- Branch: `feature/t-gate-b-04-events`
+- T-GATE-B-04: https://github.com/kevin-esq/sonivo/pull/26
+- Local: `npm run build` OK; Playwright 15/15
 
 ## Next
 
-Finish T-GATE-B-04: build + Playwright, then commit/push/PR per ticket auth.
+Auditor / human review of T-GATE-B-04. Then T-GATE-B-05 (People + Inicio).
 
 ## Firewall
 
