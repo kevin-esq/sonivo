@@ -529,6 +529,56 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
 .RequireAuthorization()
 .DisableAntiforgery();
 
+app.MapGet("/api/groups/{groupId:guid}/invitations", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListInvitationsHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var list = await handler.HandleAsync(new ListInvitationsQuery(userId.Value, groupId), cancellationToken);
+    return Results.Ok(new
+    {
+        items = list.Items.Select(i => new
+        {
+            id = i.Id,
+            createdAt = i.CreatedAt,
+            expiresAt = i.ExpiresAt
+        })
+    });
+})
+.WithName("ListGroupInvitations")
+.RequireAuthorization();
+
+app.MapDelete("/api/groups/{groupId:guid}/invitations/{invitationId:guid}", async (
+    Guid groupId,
+    Guid invitationId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    RevokeInvitationHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(
+        new RevokeInvitationCommand(userId.Value, groupId, invitationId),
+        cancellationToken);
+    return Results.NoContent();
+})
+.WithName("RevokeGroupInvitation")
+.RequireAuthorization()
+.DisableAntiforgery();
+
 app.MapPost("/api/invitations/{token}/accept", async (
     string token,
     ClaimsPrincipal principal,

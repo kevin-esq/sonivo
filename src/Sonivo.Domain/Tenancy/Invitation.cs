@@ -53,6 +53,16 @@ public sealed class Invitation
 
     public bool IsExpired(DateTimeOffset now) => now >= ExpiresAt;
 
+    public bool IsOutstanding(DateTimeOffset now) => !IsAccepted && !IsExpired(now);
+
+    public void EnsureCanRevoke()
+    {
+        if (IsAccepted)
+        {
+            throw new InvalidOperationException("Invitation already accepted.");
+        }
+    }
+
     public void Accept(Guid userId, DateTimeOffset now)
     {
         if (userId == Guid.Empty)

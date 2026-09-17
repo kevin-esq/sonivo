@@ -128,3 +128,78 @@ public sealed class AcceptInvitationHandler
         return new InvitationAcceptedDto(group.Id, MembershipRoles.Member);
     }
 }
+
+public sealed record OutstandingInvitationDto(Guid Id, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt);
+
+public sealed record InvitationListDto(IReadOnlyList<OutstandingInvitationDto> Items);
+
+public sealed record ListInvitationsQuery(Guid UserId, Guid GroupId);
+
+public sealed class ListInvitationsHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IInvitationStore _invitations;
+    private readonly IClock _clock;
+
+    public ListInvitationsHandler(GroupAccessService access, IInvitationStore invitations, IClock clock)
+    {
+        _access = access;
+        _invitations = invitations;
+        _clock = clock;
+    }
+
+    public async Task<InvitationListDto> HandleAsync(
+        ListInvitationsQuery query,
+        CancellationToken cancellationToken)
+    {
+        await _access.RequireOwnerAsync(query.GroupId, query.UserId, cancellationToken);
+        var now = _clock.UtcNow;
+        var items = (await _invitations.ListByGroupAsync(query.GroupId, cancellationToken))
+            .Where(i => i.IsOutstanding(now))
+            .OrderByDescending(i => i.CreatedAt)
+            .ThenBy(i => i.Id)
+            .Select(i => new OutstandingInvitationDto(i.Id, i.CreatedAt, i.ExpiresAt))
+            .ToList();
+        return new InvitationListDto(items);
+    }
+}
+
+public sealed record RevokeInvitationCommand(Guid UserId, Guid GroupId, Guid InvitationId);
+
+public sealed class RevokeInvitationHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IInvitationStore _invitations;
+    private readonly IClock _clock;
+
+    public RevokeInvitationHandler(GroupAccessService access, IInvitationStore invitations, IClock clock)
+    {
+        _access = access;
+        _invitations = invitations;
+        _clock = clock;
+    }
+
+    public async Task HandleAsync(RevokeInvitationCommand command, CancellationToken cancellationToken)
+    {
+        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        var invitation = await _invitations.GetForUpdateAsync(
+            command.GroupId, command.InvitationId, cancellationToken);
+        var now = _clock.UtcNow;
+        if (invitation is null || invitation.IsExpired(now))
+        {
+            throw new NotFoundException("Invitation not found.");
+        }
+
+        try
+        {
+            invitation.EnsureCanRevoke();
+        }
+        catch (InvalidOperationException)
+        {
+            throw new ConflictException("Invitation already accepted.");
+        }
+
+        await _invitations.RemoveAsync(invitation, cancellationToken);
+        await _invitations.SaveChangesAsync(cancellationToken);
+    }
+}

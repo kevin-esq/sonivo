@@ -19,6 +19,30 @@ public sealed class EfInvitationStore : IInvitationStore
     public Task<Invitation?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken)
         => _db.Invitations.FirstOrDefaultAsync(i => i.TokenHash == tokenHash, cancellationToken);
 
+    public async Task<IReadOnlyList<Invitation>> ListByGroupAsync(
+        Guid groupId,
+        CancellationToken cancellationToken)
+    {
+        return await _db.Invitations
+            .AsNoTracking()
+            .Where(i => i.GroupId == groupId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<Invitation?> GetForUpdateAsync(
+        Guid groupId,
+        Guid invitationId,
+        CancellationToken cancellationToken)
+        => _db.Invitations.FirstOrDefaultAsync(
+            i => i.GroupId == groupId && i.Id == invitationId,
+            cancellationToken);
+
+    public Task RemoveAsync(Invitation invitation, CancellationToken cancellationToken)
+    {
+        _db.Invitations.Remove(invitation);
+        return Task.CompletedTask;
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
         => _db.SaveChangesAsync(cancellationToken);
 }

@@ -91,6 +91,49 @@ public class InvitationApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(HttpStatusCode.OK, get.StatusCode);
     }
 
+    [Fact]
+    public async Task Owner_lists_outstanding_then_revoke_makes_accept_400()
+    {
+        var owner = await CreateAuthenticatedClientAsync("inv-hygiene-own@example.com");
+        var group = await CreateGroupAsync(owner, "Hygiene Band");
+        var create = await owner.PostAsJsonAsync($"/api/groups/{group.Id}/invitations", new { });
+        var created = await create.Content.ReadFromJsonAsync<InvitationCreatedResponse>(JsonOptions);
+        Assert.NotNull(created);
+
+        var list = await owner.GetAsync($"/api/groups/{group.Id}/invitations");
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        var payload = await list.Content.ReadFromJsonAsync<InvitationListResponse>(JsonOptions);
+        Assert.NotNull(payload);
+        Assert.Single(payload.Items);
+        Assert.Equal(created.Id, payload.Items[0].Id);
+
+        var revoke = await owner.DeleteAsync($"/api/groups/{group.Id}/invitations/{created.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, revoke.StatusCode);
+
+        var empty = await owner.GetAsync($"/api/groups/{group.Id}/invitations");
+        var emptyPayload = await empty.Content.ReadFromJsonAsync<InvitationListResponse>(JsonOptions);
+        Assert.NotNull(emptyPayload);
+        Assert.Empty(emptyPayload.Items);
+
+        var invitee = await CreateAuthenticatedClientAsync("inv-hygiene-join@example.com");
+        var accept = await invitee.PostAsJsonAsync($"/api/invitations/{created.Token}/accept", new { });
+        Assert.Equal(HttpStatusCode.BadRequest, accept.StatusCode);
+    }
+
+    [Fact]
+    public async Task Member_list_invitations_returns_403()
+    {
+        var owner = await CreateAuthenticatedClientAsync("inv-hygiene-o2@example.com");
+        var group = await CreateGroupAsync(owner, "Authz Invites");
+        var invite = await owner.PostAsJsonAsync($"/api/groups/{group.Id}/invitations", new { });
+        var created = await invite.Content.ReadFromJsonAsync<InvitationCreatedResponse>(JsonOptions);
+        var member = await CreateAuthenticatedClientAsync("inv-hygiene-m2@example.com");
+        await member.PostAsJsonAsync($"/api/invitations/{created!.Token}/accept", new { });
+
+        var list = await member.GetAsync($"/api/groups/{group.Id}/invitations");
+        Assert.Equal(HttpStatusCode.Forbidden, list.StatusCode);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password = "Password1")
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -201,4 +244,6 @@ public class InvitationApiTests : IClassFixture<SonivoApiFactory>
     private sealed record GroupResponse(Guid Id, string Name, int Version);
     private sealed record InvitationCreatedResponse(Guid Id, string Token, DateTimeOffset ExpiresAt);
     private sealed record InvitationAcceptedResponse(Guid GroupId, string Role);
+    private sealed record InvitationListResponse(List<InvitationListItem> Items);
+    private sealed record InvitationListItem(Guid Id, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt);
 }

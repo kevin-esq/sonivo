@@ -60,4 +60,17 @@ public class InvitationTests
         Assert.Throws<InvalidOperationException>(() =>
             invitation.Accept(Guid.NewGuid(), Now.AddHours(2)));
     }
+
+    [Fact]
+    public void EnsureCanRevoke_rejects_accepted_invite()
+    {
+        var invitation = Invitation.Create(
+            Guid.NewGuid(), TokenHash, Guid.NewGuid(), Now, Now.AddDays(7));
+        Assert.True(invitation.IsOutstanding(Now));
+        invitation.EnsureCanRevoke();
+
+        invitation.Accept(Guid.NewGuid(), Now.AddHours(1));
+        Assert.False(invitation.IsOutstanding(Now.AddHours(1)));
+        Assert.Throws<InvalidOperationException>(invitation.EnsureCanRevoke);
+    }
 }
