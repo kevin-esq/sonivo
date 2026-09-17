@@ -1049,6 +1049,65 @@ app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/apply-setlist", as
 .RequireAuthorization()
 .DisableAntiforgery();
 
+app.MapPut("/api/groups/{groupId:guid}/events/{eventId:guid}/rsvp", async (
+    Guid groupId,
+    Guid eventId,
+    UpsertEventRsvpRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    UpsertEventRsvpHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var rsvp = await handler.HandleAsync(
+        new UpsertEventRsvpCommand(userId.Value, groupId, eventId, request.Response),
+        cancellationToken);
+
+    return Results.Ok(new
+    {
+        userId = rsvp.UserId,
+        response = rsvp.Response,
+        updatedAt = rsvp.UpdatedAt
+    });
+})
+.WithName("UpsertEventRsvp")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}/rsvps", async (
+    Guid groupId,
+    Guid eventId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListEventRsvpsHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var list = await handler.HandleAsync(userId.Value, groupId, eventId, cancellationToken);
+    return Results.Ok(new
+    {
+        items = list.Items.Select(i => new
+        {
+            userId = i.UserId,
+            displayName = i.DisplayName,
+            response = i.Response,
+            updatedAt = i.UpdatedAt
+        })
+    });
+})
+.WithName("ListEventRsvps")
+.RequireAuthorization();
+
 app.Run();
 
 static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users)
@@ -1299,6 +1358,7 @@ internal sealed record ReplaceSetlistItemsRequest(
 internal sealed record ReplaceSetlistItemRequest(Guid ArrangementId, int SortOrder);
 internal sealed record CreateEventRequest(string? Title, string? Type, DateTimeOffset StartsAt);
 internal sealed record ApplySetlistRequest(Guid SetlistId, int ExpectedVersion, bool ConfirmReplace = false);
+internal sealed record UpsertEventRsvpRequest(string? Response);
 
 public sealed class AppExceptionHandler : IExceptionHandler
 {
