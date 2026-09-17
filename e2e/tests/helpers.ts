@@ -136,3 +136,17 @@ export async function createEvent(
 export async function applySetlist(page: Page) {
   await page.getByRole('button', { name: 'Apply setlist' }).click()
 }
+
+export async function inviteMemberAndReadLink(page: Page): Promise<string> {
+  await page.getByRole('button', { name: 'Invite member' }).click()
+  const inviteLink = page.getByLabel('Invite link')
+  await expect(inviteLink).toBeVisible()
+  const url = await inviteLink.inputValue()
+  expect(url).toContain('/join/')
+  return url
+}
+
+export async function acceptInvite(page: Page) {
+  await expect(page.getByRole('heading', { name: 'Join this group' })).toBeVisible()
+  await page.getByRole('button', { name: 'Accept invite' }).click()
+}
