@@ -8,8 +8,9 @@ import {
 } from '../api/client'
 import { PageBreadcrumb } from './chrome'
 import { RehearsalBodyView } from './ChordProView'
+import { PracticePlayer } from './PracticePlayer'
+import { listPracticeAudioTracks, type PracticeAudioSource } from './pickPracticeAudio'
 import { mutationErrorMessage, ProblemAlert, useGroupContext } from './ui'
-import { pickPracticeAudio, type PracticeAudioSource } from './pickPracticeAudio'
 
 export function PracticePage({ user }: { user: CurrentUser }) {
   const { groupId, arrangementId } = useParams()
@@ -17,7 +18,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
   const [songTitle, setSongTitle] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [audio, setAudio] = useState<PracticeAudioSource | null>(null)
+  const [tracks, setTracks] = useState<PracticeAudioSource[]>([])
 
   useEffect(() => {
     if (!groupId || !arrangementId || !group) return
@@ -25,13 +26,13 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     async function load() {
       setArrangement(undefined)
       setSongTitle(null)
-      setAudio(null)
+      setTracks([])
       setError(null)
       try {
         const result = await getArrangement(groupId!, arrangementId!)
         if (cancelled) return
         setArrangement(result)
-        setAudio(pickPracticeAudio(result.resources, groupId!, arrangementId!))
+        setTracks(listPracticeAudioTracks(result.resources, groupId!, arrangementId!))
         try {
           const song = await getSong(groupId!, result.songId)
           if (!cancelled) setSongTitle(song.title)
@@ -116,16 +117,12 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       <ProblemAlert message={error} />
 
-      {audio ? (
-        <section className="space-y-2" aria-labelledby="practice-audio-heading">
-          <h2 id="practice-audio-heading" className="text-lg font-semibold">
-            Reproducir
-          </h2>
-          <p className="text-sm text-slate-500">{audio.label}</p>
-          <audio className="w-full max-w-xl" controls preload="metadata" src={audio.src}>
-            Tu navegador no admite reproducción de audio.
-          </audio>
-        </section>
+      {tracks.length > 0 ? (
+        <PracticePlayer
+          groupId={group.id}
+          arrangementId={arrangement.id}
+          tracks={tracks}
+        />
       ) : null}
 
       <section className="space-y-3" aria-labelledby="practice-lyrics-heading">

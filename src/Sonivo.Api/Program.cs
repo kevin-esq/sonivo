@@ -1040,7 +1040,7 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resourc
         content.Content,
         content.ContentType,
         fileDownloadName: content.DownloadFileName,
-        enableRangeProcessing: false);
+        enableRangeProcessing: true);
 })
 .WithName("GetResourceContent")
 .RequireAuthorization();
