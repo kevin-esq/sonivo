@@ -111,8 +111,9 @@ export async function createFileResource(
   await page.getByLabel('Etiqueta', { exact: true }).fill(input.label)
   await page.getByLabel('Archivo').setInputFiles(input.filePath)
   await page.getByRole('button', { name: 'Subir archivo' }).click()
-  await expect(page.getByText(input.label, { exact: true })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Descargar' })).toBeVisible()
+  const row = page.getByRole('listitem').filter({ hasText: input.label })
+  await expect(row.getByText(input.label, { exact: true })).toBeVisible()
+  await expect(row.getByRole('link', { name: 'Descargar' })).toBeVisible()
 }
 
 export async function deleteSong(page: Page, title: string) {
