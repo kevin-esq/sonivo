@@ -7,6 +7,7 @@ import {
   type CurrentUser,
 } from '../api/client'
 import { PageBreadcrumb } from './chrome'
+import { RehearsalBodyView } from './ChordProView'
 import { mutationErrorMessage, ProblemAlert, useGroupContext } from './ui'
 import { pickPracticeAudio, type PracticeAudioSource } from './pickPracticeAudio'
 
@@ -131,16 +132,23 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         <h2 id="practice-lyrics-heading" className="text-lg font-semibold">
           Letra
         </h2>
-        {arrangement.lyrics ? (
-          <pre
-            className="max-h-[min(70vh,40rem)] overflow-y-auto whitespace-pre-wrap rounded-2xl bg-neutral-light p-5 font-sans text-base leading-relaxed text-neutral-dark"
-            data-testid="practice-lyrics"
-          >
-            {arrangement.lyrics}
-          </pre>
-        ) : (
-          <p className="text-sm text-slate-500">Este arreglo aún no tiene letra.</p>
-        )}
+        {(() => {
+          const body = arrangement.chords?.trim() || arrangement.lyrics?.trim() || ''
+          if (!body) {
+            return (
+              <p className="text-sm text-slate-500">
+                Este arreglo aún no tiene letra ni acordes.
+              </p>
+            )
+          }
+          return (
+            <RehearsalBodyView
+              text={body}
+              chordProTestId="practice-chordpro"
+              plainTestId="practice-lyrics"
+            />
+          )
+        })()}
       </section>
 
       <p>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   createFileResource,
@@ -28,6 +28,8 @@ import {
   RESOURCE_PURPOSE_ORDER,
   groupResourcesByPurpose,
 } from './chrome'
+import { ChordProView } from './ChordProView'
+import { looksLikeChordPro } from './chordPro'
 import {
   CONFLICT_MESSAGE,
   ConfirmDialog,
@@ -348,7 +350,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
                 <dd className="whitespace-pre-wrap font-medium">{arrangement.lyrics ?? '—'}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Acordes</dt>
+                <dt className="text-slate-500">Acordes (ChordPro)</dt>
                 <dd className="whitespace-pre-wrap font-medium">{arrangement.chords ?? '—'}</dd>
               </div>
               <div>
@@ -502,8 +504,28 @@ function ArrangementEditForm({
   const [chords, setChords] = useState(arrangement.chords ?? '')
   const [structure, setStructure] = useState(arrangement.structure ?? '')
   const [notes, setNotes] = useState(arrangement.notes ?? '')
+  const [importError, setImportError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+
+  function onImportChordPro(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setImportError(null)
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        setImportError('No se pudo leer el archivo.')
+        return
+      }
+      setChords(reader.result)
+    }
+    reader.onerror = () => {
+      setImportError('No se pudo leer el archivo.')
+    }
+    reader.readAsText(file)
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -582,9 +604,51 @@ function ArrangementEditForm({
       <Field label="Letra (opcional)">
         <textarea className={fieldClass} rows={3} value={lyrics} onChange={(e) => setLyrics(e.target.value)} />
       </Field>
-      <Field label="Acordes (opcional)">
-        <textarea className={fieldClass} rows={3} value={chords} onChange={(e) => setChords(e.target.value)} />
-      </Field>
+      <div className="space-y-1.5">
+        <label className="block space-y-1.5">
+          <span className="text-sm font-medium text-slate-700">Acordes (ChordPro)</span>
+          <textarea
+            className={fieldClass}
+            rows={5}
+            value={chords}
+            onChange={(e) => setChords(e.target.value)}
+            data-testid="arrangement-chords"
+            spellCheck={false}
+          />
+        </label>
+        <label className="block space-y-1.5">
+          <span className="text-sm font-medium text-slate-700">
+            Importar archivo (.cho, .chordpro, .txt)
+          </span>
+          <input
+            className={fieldClass}
+            type="file"
+            accept=".cho,.chordpro,.txt,text/plain"
+            onChange={onImportChordPro}
+            data-testid="arrangement-chords-import"
+          />
+        </label>
+        {importError ? <p className="text-sm text-red-600">{importError}</p> : null}
+        {chords.trim() ? (
+          <div className="space-y-2 pt-1">
+            <p className="text-sm font-medium text-slate-700">Vista previa</p>
+            {looksLikeChordPro(chords) ? (
+              <ChordProView
+                text={chords}
+                testId="chords-preview"
+                className="max-h-48 space-y-1 overflow-y-auto rounded-xl bg-white p-3 font-sans ring-1 ring-slate-200"
+              />
+            ) : (
+              <pre
+                className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl bg-white p-3 font-sans text-sm ring-1 ring-slate-200"
+                data-testid="chords-preview"
+              >
+                {chords}
+              </pre>
+            )}
+          </div>
+        ) : null}
+      </div>
       <Field label="Estructura (opcional)">
         <textarea
           className={fieldClass}
