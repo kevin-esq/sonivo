@@ -304,7 +304,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-          <p className="text-sm text-slate-500">Setlists</p>
+          <p className="text-sm text-slate-500">Listas</p>
           <p className="mt-1 text-2xl font-bold text-neutral-dark">
             {setlists === null ? <Skeleton className="mt-2 h-8 w-10" /> : setlists.length}
           </p>
@@ -371,7 +371,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
         <section className="space-y-3" aria-labelledby="recent-setlists-heading">
           <div className="flex items-baseline justify-between gap-3">
             <h3 id="recent-setlists-heading" className="font-semibold">
-              Setlists recientes
+              Listas recientes
             </h3>
             <Link
               className="text-sm font-semibold text-primary no-underline hover:underline"
@@ -382,10 +382,10 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           </div>
           {recentSetlists === null ? (
             <p aria-live="polite" className="text-sm text-slate-500">
-              Cargando setlists…
+              Cargando listas…
             </p>
           ) : recentSetlists.length === 0 ? (
-            <p className="text-sm text-slate-500">Aún no hay setlists.</p>
+            <p className="text-sm text-slate-500">Aún no hay listas.</p>
           ) : (
             <ul className="space-y-2">
               {recentSetlists.map((setlist, index) => (

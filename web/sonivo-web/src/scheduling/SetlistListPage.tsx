@@ -96,7 +96,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
   }, [groupId, group])
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando setlists…</p>
+    return <p aria-live="polite">Cargando listas…</p>
   }
 
   if (group === null) {
@@ -117,18 +117,18 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <PageBreadcrumb
-            items={[{ to: `/groups/${group.id}`, label: group.name }, { label: 'Setlists' }]}
+            items={[{ to: `/groups/${group.id}`, label: group.name }, { label: 'Listas' }]}
           />
           <h1 id="setlists-heading" className="text-2xl font-bold tracking-tight">
-            Setlists
+            Listas
           </h1>
           <p className="text-sm text-slate-500">
-            Crea y administra tus setlists. Luego podrás aplicarlos a tus eventos.
+            Crea y administra tus listas. Luego podrás aplicarlas a tus eventos.
           </p>
           {!isOwner ? <p className="text-sm text-slate-500">Solo lectura</p> : null}
         </div>
         {showHeaderAdd ? (
-          <Button onClick={() => setShowCreate(true)}>Nuevo setlist</Button>
+          <Button onClick={() => setShowCreate(true)}>Nueva lista</Button>
         ) : null}
       </div>
 
@@ -143,29 +143,29 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
           <input
             className={cn(fieldClass, 'pl-9')}
             type="search"
-            placeholder="Buscar setlists…"
+            placeholder="Buscar listas…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Buscar setlists"
+            aria-label="Buscar listas"
           />
         </div>
       ) : null}
 
       {setlists === null ? (
-        <p aria-live="polite">Cargando setlists…</p>
+        <p aria-live="polite">Cargando listas…</p>
       ) : setlists.length === 0 ? (
         showCreate ? null : (
           <EmptyPanel
-            title="Aún no hay setlists"
+            title="Aún no hay listas"
             description={
               isOwner
-                ? 'Crea un setlist con arreglos vivos de la biblioteca y aplícalo a un evento cuando esté listo.'
-                : 'Cuando haya setlists, aparecerán aquí para preparar el repertorio.'
+                ? 'Crea una lista con arreglos de la biblioteca y aplícala a un evento cuando esté lista.'
+                : 'Cuando haya listas, aparecerán aquí para preparar el repertorio.'
             }
           />
         )
       ) : filtered && filtered.length === 0 ? (
-        <p className="text-sm text-slate-500">Ningún setlist coincide con «{query.trim()}».</p>
+        <p className="text-sm text-slate-500">Ninguna lista coincide con «{query.trim()}».</p>
       ) : (
         <ul className="space-y-2">
           {filtered!.map((setlist, index) => {
@@ -194,7 +194,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                       {setlist.name}
                     </span>
                     <span className="mt-0.5 block text-sm text-slate-500">
-                      {formatSongCount(setlist.itemCount)} · v{setlist.version}
+                      {formatSongCount(setlist.itemCount)}
                     </span>
                     <span className="mt-0.5 block text-xs text-slate-400">
                       Actualizado: {formatUpdatedAt(setlist.updatedAt)}
@@ -252,7 +252,7 @@ function SetlistCreateForm({
 
   return (
     <form className="max-w-lg space-y-4 border-t border-slate-200 pt-6" onSubmit={onSubmit} noValidate>
-      <h2 className="text-lg font-semibold">Crear setlist</h2>
+      <h2 className="text-lg font-semibold">Crear lista</h2>
       <ProblemAlert message={error} />
       <Field label="Nombre">
         <input
@@ -265,7 +265,7 @@ function SetlistCreateForm({
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? 'Creando…' : 'Crear setlist'}
+          {pending ? 'Creando…' : 'Crear lista'}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
           Cancelar

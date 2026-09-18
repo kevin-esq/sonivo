@@ -149,7 +149,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
             title="Aún no hay eventos"
             description={
               isOwner
-                ? 'Crea un ensayo o concierto y aplica un setlist para copiar el plan de canciones.'
+                ? 'Crea un ensayo o concierto y aplica una lista para copiar el plan de canciones.'
                 : 'Cuando haya eventos, aparecerán aquí para prepararte.'
             }
           />
@@ -253,7 +253,7 @@ function EventCreateForm({
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">Crear evento</h2>
         <p className="text-sm text-slate-500">
-          Define los detalles de tu evento y luego aplica una setlist.
+          Define los detalles de tu evento y luego aplica una lista.
         </p>
       </div>
       <ProblemAlert message={error} />

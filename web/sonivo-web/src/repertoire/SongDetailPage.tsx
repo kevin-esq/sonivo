@@ -193,7 +193,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
             ) : null}
           </div>
           <p className="text-sm text-slate-500">
-            Cada arreglo es la versión que se ensaya y se toca, con sus recursos.
+            Cada arreglo es la versión que se ensaya y se toca, con sus materiales.
           </p>
 
           {arrangements === null ? (
@@ -201,7 +201,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           ) : arrangements.length === 0 && !creatingArrangement ? (
             <EmptyPanel
               title="Esta canción aún no tiene arreglos"
-              description="Un arreglo es la realización que se lleva a ensayo y a setlist. La canción puede existir sin arreglos."
+              description="Un arreglo es la realización que se lleva a ensayo y a una lista. La canción puede existir sin arreglos."
               action={
                 showAddArrangement ? (
                   <Button onClick={() => setCreatingArrangement(true)}>Agregar arreglo</Button>
@@ -228,7 +228,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                         {arrangement.defaultBpm != null
                           ? `${arrangement.defaultKey ? ' · ' : ''}${arrangement.defaultBpm} BPM`
                           : !arrangement.defaultKey
-                            ? 'Sin tonalidad ni BPM'
+                            ? 'Sin tonalidad ni tempo'
                             : ''}
                       </span>
                     </span>
@@ -390,8 +390,8 @@ function SongEditForm({
           value={originKind}
           onChange={(e) => setOriginKind(e.target.value as SongOriginKind)}
         >
-          <option value="original">Original</option>
-          <option value="cover">Cover</option>
+          <option value="original">Propia</option>
+          <option value="cover">Versión</option>
           <option value="other">Otro</option>
         </select>
       </Field>
@@ -454,7 +454,7 @@ function ArrangementCreateForm({
     if (defaultBpm.trim()) {
       const parsed = Number(defaultBpm)
       if (!Number.isInteger(parsed) || parsed < 1 || parsed > 400) {
-        setError('El BPM debe ser un entero entre 1 y 400.')
+        setError('El tempo (BPM) debe ser un entero entre 1 y 400.')
         setPending(false)
         return
       }
@@ -500,7 +500,7 @@ function ArrangementCreateForm({
           maxLength={32}
         />
       </Field>
-      <Field label="BPM (opcional, 1–400)">
+      <Field label="Tempo / BPM (opcional, 1–400)">
         <input
           className={fieldClass}
           type="number"

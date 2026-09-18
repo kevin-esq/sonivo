@@ -211,7 +211,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               Recursos
             </h2>
             {showAddResource && arrangement.resources.length > 0 ? (
-              <Button onClick={() => setCreatingResource(true)}>Agregar recurso enlace</Button>
+              <Button onClick={() => setCreatingResource(true)}>Agregar enlace</Button>
             ) : null}
           </div>
           <p className="text-sm text-slate-500">
@@ -221,11 +221,11 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
 
           {arrangement.resources.length === 0 && !creatingResource ? (
             <EmptyPanel
-              title="Aún no hay recursos"
+              title="Aún no hay materiales"
               description="Enlaza partituras, letra, audio, click u otro material de ensayo para este arreglo."
               action={
                 showAddResource ? (
-                  <Button onClick={() => setCreatingResource(true)}>Agregar recurso enlace</Button>
+                  <Button onClick={() => setCreatingResource(true)}>Agregar enlace</Button>
                 ) : null
               }
             />
@@ -305,7 +305,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
                 <dd className="font-medium">{arrangement.defaultKey ?? '—'}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">BPM</dt>
+                <dt className="text-slate-500">Tempo</dt>
                 <dd className="font-medium">{arrangement.defaultBpm ?? '—'}</dd>
               </div>
               <div>
@@ -351,15 +351,15 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
         onConfirm={() => void handleDeleteArrangement()}
       >
         <p>
-          Esto oculta el arreglo de las vistas activas. Los recursos enlazados se conservan en el
+          Esto oculta el arreglo de las vistas activas. Los enlaces se conservan en el
           servidor.
         </p>
       </ConfirmDialog>
 
       <ConfirmDialog
         open={resourceToDelete != null}
-        title="¿Eliminar recurso enlace?"
-        confirmLabel="Eliminar recurso"
+        title="¿Eliminar enlace?"
+        confirmLabel="Eliminar enlace"
         cancelLabel="Cancelar"
         pendingLabel="Eliminando…"
         pending={deletingResource}
@@ -367,7 +367,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
         onConfirm={() => void handleDeleteResource()}
       >
         <p>
-          Esto elimina de forma permanente el recurso
+          Esto elimina de forma permanente el enlace
           {resourceToDelete ? ` “${resourceToDelete.label}”` : ''}. No se puede deshacer.
         </p>
       </ConfirmDialog>
@@ -406,7 +406,7 @@ function ResourceRow({
       {isOwner ? (
         <div className="flex flex-wrap gap-3">
           <Button variant="secondary" size="sm" onClick={onEdit}>
-            Editar metadatos
+            Editar
           </Button>
           <Button variant="danger" size="sm" onClick={onDelete}>
             Eliminar
@@ -460,7 +460,7 @@ function ArrangementEditForm({
     if (defaultBpm.trim()) {
       const parsed = Number(defaultBpm)
       if (!Number.isInteger(parsed) || parsed < 1 || parsed > 400) {
-        setError('El BPM debe ser un entero entre 1 y 400.')
+        setError('El tempo (BPM) debe ser un entero entre 1 y 400.')
         setPending(false)
         return
       }
@@ -503,8 +503,8 @@ function ArrangementEditForm({
         />
       </Field>
       <Field
-        label="BPM (opcional, 1–400)"
-        hint="Déjalo en blanco para conservar el BPM actual. La API no permite borrarlo."
+        label="Tempo / BPM (opcional, 1–400)"
+        hint="Déjalo en blanco para conservar el tempo actual."
       >
         <input
           className={fieldClass}
@@ -586,7 +586,7 @@ function ResourceCreateForm({
 
   return (
     <form className="space-y-4 border-t border-slate-200 pt-4" onSubmit={onSubmit} noValidate>
-      <h3 className="font-semibold">Agregar recurso enlace</h3>
+      <h3 className="font-semibold">Agregar enlace</h3>
       <ProblemAlert message={error} />
       <Field label="Propósito">
         <select
@@ -684,7 +684,7 @@ function ResourceEditForm({
 
   return (
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
-      <h4 className="font-semibold">Editar metadatos del recurso</h4>
+      <h4 className="font-semibold">Editar datos del enlace</h4>
       {resource.url ? (
         <p className="text-sm text-slate-500">
           URL (no se puede cambiar):{' '}
@@ -730,7 +730,7 @@ function ResourceEditForm({
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? 'Guardando…' : 'Guardar metadatos'}
+          {pending ? 'Guardando…' : 'Guardar'}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
           Cancelar

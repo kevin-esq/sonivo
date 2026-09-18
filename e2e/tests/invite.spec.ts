@@ -75,11 +75,11 @@ test.describe('Invite journeys', () => {
     await page.getByRole('link', { name: eventTitle }).click()
     await expect(page.getByRole('heading', { name: eventTitle })).toBeVisible()
     await expect(eventPlanItem(page, songTitle, arrangementLabel)).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Aplicar setlist' })).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'Aplicar setlist' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Aplicar lista' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Aplicar lista' })).toHaveCount(0)
 
     await openSetlists(page)
-    await expect(page.getByRole('button', { name: 'Nuevo setlist' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Nueva lista' })).toHaveCount(0)
 
     await openLibrary(page)
     await expect(page.getByRole('button', { name: 'Agregar canción' })).toHaveCount(0)

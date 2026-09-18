@@ -35,9 +35,9 @@ export function formatMembershipRole(role: string | undefined): string {
 export function formatOriginKind(kind: string): string {
   switch (kind) {
     case 'original':
-      return 'Original'
+      return 'Propia'
     case 'cover':
-      return 'Cover'
+      return 'Versión'
     case 'other':
       return 'Otro'
     default:
@@ -54,7 +54,7 @@ export function formatPurpose(purpose: string): string {
     case 'audio':
       return 'Audio'
     case 'click':
-      return 'Click'
+      return 'Metrónomo'
     case 'practice':
       return 'Ensayo'
     case 'reference':
