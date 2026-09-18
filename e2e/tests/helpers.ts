@@ -56,13 +56,32 @@ export async function openSong(page: Page, title: string) {
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
 }
 
-export async function createArrangement(page: Page, label: string) {
+export async function createArrangement(
+  page: Page,
+  label: string,
+  options?: { lyrics?: string; defaultKey?: string; defaultBpm?: string },
+) {
   await page.getByRole('button', { name: 'Agregar arreglo' }).click()
   await expect(page.getByRole('heading', { name: 'Crear arreglo' })).toBeVisible()
   await page.getByLabel('Etiqueta', { exact: true }).fill(label)
+  if (options?.defaultKey) {
+    await page.getByLabel('Tonalidad (opcional)').fill(options.defaultKey)
+  }
+  if (options?.defaultBpm) {
+    await page.getByLabel('Tempo / BPM (opcional, 1–400)').fill(options.defaultBpm)
+  }
+  if (options?.lyrics) {
+    await page.getByLabel('Letra (opcional)').fill(options.lyrics)
+  }
   await page.getByRole('button', { name: 'Crear arreglo' }).click()
   // Create navigates to the new arrangement detail.
   await expect(page.getByRole('heading', { name: label })).toBeVisible()
+}
+
+export async function openPractice(page: Page) {
+  await page.getByRole('link', { name: 'Practicar' }).click()
+  await expect(page.getByText('Practicar', { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Letra' })).toBeVisible()
 }
 
 export async function createLinkResource(

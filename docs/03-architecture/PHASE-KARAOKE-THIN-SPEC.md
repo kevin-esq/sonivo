@@ -1,6 +1,6 @@
 # Phase Thin Practice / Karaoke view
 
-**Status:** AUTHORIZED 2026-09-17 (Kevin Esquivel — “Acepto todo”). ADR-0027 **ACCEPTED**.  
+**Status:** IMPLEMENTED on `feature/t-karaoke-thin` (await merge) — AUTHORIZED 2026-09-17 (Kevin Esquivel — “Acepto todo”). ADR-0027 **ACCEPTED**.  
 **Product bet:** Members can **Practicar** an Arrangement — lyrics + optional audio — without a live-tools platform.  
 **Date:** 2026-09-17  
 **Depends on:** ADR-0027; Arrangement + Resource (link/file) already shipped.

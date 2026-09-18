@@ -201,6 +201,14 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
             {arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm} BPM` : ''}
             {!isOwner ? ' · Solo lectura' : ''}
           </p>
+          <div className="pt-1">
+            <Link
+              className={buttonVariants({ variant: 'primary' })}
+              to={`/groups/${group.id}/arrangements/${arrangement.id}/practice`}
+            >
+              Practicar
+            </Link>
+          </div>
         </div>
       </div>
 

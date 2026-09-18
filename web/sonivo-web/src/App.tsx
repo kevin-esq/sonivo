@@ -5,6 +5,7 @@ import { GroupsPage } from './groups/GroupsPage'
 import { GroupHomePage } from './groups/GroupHomePage'
 import { ArrangementDetailPage } from './repertoire/ArrangementDetailPage'
 import { LibraryPage } from './repertoire/LibraryPage'
+import { PracticePage } from './repertoire/PracticePage'
 import { SongDetailPage } from './repertoire/SongDetailPage'
 import { EventDetailPage } from './scheduling/EventDetailPage'
 import { EventListPage } from './scheduling/EventListPage'
@@ -169,6 +170,16 @@ export default function App() {
           <RequireAuth user={user}>
             <GroupRoute user={user!} onLogout={onLogout}>
               <ArrangementDetailPage user={user!} />
+            </GroupRoute>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/groups/:groupId/arrangements/:arrangementId/practice"
+        element={
+          <RequireAuth user={user}>
+            <GroupRoute user={user!} onLogout={onLogout}>
+              <PracticePage user={user!} />
             </GroupRoute>
           </RequireAuth>
         }
