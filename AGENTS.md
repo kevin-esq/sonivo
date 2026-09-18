@@ -25,7 +25,7 @@ ADRs **0001–0030** are **ACCEPTED** (including tooling ADR-0002; Google OAuth 
 **Practice player Wave 2:** **CLOSED** / **COMPLETED** (ADR-0029; T-PLAY-01–05; PR [#54](https://github.com/kevin-esq/sonivo/pull/54)).  
 **Practice player Wave 3 (Event/Setlist queue):** **CLOSED** / **COMPLETED** (ADR-0029 §6; T-PLAY-06–08; PR [#58](https://github.com/kevin-esq/sonivo/pull/58)).  
 **UX journeys Wave 4:** **CLOSED** / **COMPLETED** ([`PHASE-UX-SPEC.md`](docs/03-architecture/PHASE-UX-SPEC.md) T-UX-10–13, 20–22, 30–32; PR [#62](https://github.com/kevin-esq/sonivo/pull/62)).  
-**ChordPro assisted tooling (ADR-0030):** **AUTHORIZED** — P0 transpose/views → P1 text digitizer → P2 compose assist ([`PHASE-CHORDPRO-IA-SPEC.md`](docs/03-architecture/PHASE-CHORDPRO-IA-SPEC.md)). Whisper / cloud LLM / audio digitizer / Q9 remain **DEFERRED**.  
+**ChordPro assisted tooling (ADR-0030):** **CLOSED** / **COMPLETED** — P0 transpose/views (#71), P1 text digitizer (#74), P2 compose assist (#76) ([`PHASE-CHORDPRO-IA-SPEC.md`](docs/03-architecture/PHASE-CHORDPRO-IA-SPEC.md)). Whisper / cloud LLM / audio digitizer / Q9 remain **DEFERRED**.  
 **Phase 3.3 thin S2:** **CLOSED** (T-3.3.01–05) — Setlist → Event apply → React UI → Playwright ([`PHASE-3.3-THIN-SPEC.md`](docs/03-architecture/PHASE-3.3-THIN-SPEC.md)). Merged to `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6), `80f5f63`).  
 **Phase 3.4 thin invites:** **CLOSED** / **COMPLETED** (T-3.4.01–03) — link token, no email ([`PHASE-3.4-INVITE-SPEC.md`](docs/03-architecture/PHASE-3.4-INVITE-SPEC.md)). Merged to `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8), `8db0714`).  
 **Phase 3.5 thin RSVP:** **CLOSED** / **COMPLETED** (T-3.5.01–03) — Event yes/no/maybe + Attendance UI + Playwright ([`PHASE-3.5-RSVP-SPEC.md`](docs/03-architecture/PHASE-3.5-RSVP-SPEC.md)). Merged to `develop` (PR [#10](https://github.com/kevin-esq/sonivo/pull/10), `cbc8824`).  
@@ -35,7 +35,7 @@ ADRs **0001–0030** are **ACCEPTED** (including tooling ADR-0002; Google OAuth 
 **T-OPS-01:** **COMPLETED** — ASP.NET DataProtection keys persist in Postgres (`DataProtectionKeys`).  
 **Phase 3.9 thin invite email:** **CLOSED** / **COMPLETED** (T-3.9.01–04 Gmail HTTPS) on `develop` (PR [#19](https://github.com/kevin-esq/sonivo/pull/19), `468517c`) ([`PHASE-3.9-SMTP-SPEC.md`](docs/03-architecture/PHASE-3.9-SMTP-SPEC.md)).  
 **System close plan:** [`docs/01-product/SYSTEM-CLOSE-PLAN.md`](docs/01-product/SYSTEM-CLOSE-PLAN.md) — Gate A **CLOSED**. Gate B UI redesign **ACCEPTED / CLOSED** ([`PHASE-GATE-B-UI-SPEC.md`](docs/03-architecture/PHASE-GATE-B-UI-SPEC.md); T-GATE-B-01–05, PRs #22–#27).  
-**Next:** ChordPro assisted tooling ADR-0030 **AUTHORIZED** (P0–P2 thin). Event/RSVP mail, Q9 realtime, Whisper/cloud LLM, S3 blob adapter remain **DEFERRED** until new authorization.
+**Next:** no automatic next feature. Whisper / cloud LLM / audio digitizer, Event/RSVP mail, Q9 realtime, S3 blob adapter remain **DEFERRED** until new authorization.
 
 Until the user explicitly authorizes additional work:
 

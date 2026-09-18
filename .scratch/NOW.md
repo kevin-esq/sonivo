@@ -5,21 +5,20 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: IN PROGRESS (ADR-0030 P2 compose on feature/t-c30-compose-assist)
-Human approval: APPROVED (Kevin — “Acepto todo” 2026-09-18)
-Git checkpoint: P0+P1 on develop; P2 pending PR
-Remote: P1 merged #74; #75 promote pending
-CI: Local Playwright 24/24 PASS
+Implementation: COMPLETE (ADR-0030 P0–P2)
+Human approval: APPROVED (Kevin — “Acepto todo”; auditor PASS each PR)
+Git checkpoint: COMMITTED on develop; #77 develop→main pending
+Remote: develop has P0–P2
+CI: PASSING on feature PRs
 ```
 
-## Module ADR-0030
+## Module ADR-0030 (shipped)
 
-1. Docs — DONE
-2. P0 — DONE (#71)
-3. P1 — DONE (#74)
-4. P2 — NOW
+1. Docs ADR — DONE (#68–#70)
+2. P0 transpose + views — DONE (#71, #73)
+3. P1 text digitizer — DONE (#74, #75)
+4. P2 compose assist — DONE (#76); promote #77
 
-## Firewall
+## Firewall / next
 
-- No Whisper / cloud LLM / Q9 / pitch / YouTube
-- No Cursor trailers
+Needs **new explicit authorization**. Still deferred: Whisper, cloud LLM, audio digitizer, Q9, pitch, YouTube, Event mail, S3.

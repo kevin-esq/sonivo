@@ -1,6 +1,6 @@
 # Phase ChordPro + assisted tooling (ADR-0030)
 
-**Status:** AUTHORIZED 2026-09-18 (Kevin Esquivel — “Acepto todo”). ADR-0030 **ACCEPTED**.  
+**Status:** Wave P0–P2 **COMPLETE** 2026-09-18 (T-C30-01–05, 10–12, 20–22). ADR-0030 **ACCEPTED**.  
 **Product bet:** Ensayo en otro tono + digitalizar letra/acordes + sembrar canción estructurada — sin Whisper/LLM cloud en este thin.  
 **Date:** 2026-09-18  
 **Depends on:** ADR-0030, 0028, 0029.
@@ -61,8 +61,8 @@ Branch: `feature/t-c30-compose-assist`
 
 ## Audit checklist (each PR)
 
-- [ ] No Whisper / cloud LLM / Q9 / pitch / YouTube  
-- [ ] No new aggregates / migrations  
-- [ ] Spanish copy  
-- [ ] Named Playwright TC + full suite green  
-- [ ] No Cursor trailers  
+- [x] No Whisper / cloud LLM / Q9 / pitch / YouTube  
+- [x] No new aggregates / migrations  
+- [x] Spanish copy  
+- [x] Named Playwright TC + full suite green  
+- [x] No Cursor trailers  
