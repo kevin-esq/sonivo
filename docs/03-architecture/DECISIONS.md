@@ -8,6 +8,45 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0028 — Chart / lyrics format (closes Q8) — hybrid ChordPro + file chart
+
+- **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-17** (Kevin Esquivel — “Acepto todo” Wave plan)  
+- **Date:** 2026-09-17  
+- **Depends on:** ADR-0007, 0014, 0017, 0024–0025, 0027  
+- **Revises:** ADR-0027 clause that treated ChordPro as FUTURE-only for Practice display — Practice **may** render ChordPro from Arrangement fields  
+- **Closes:** CONTEXT **Q8** (chart format) for MVP practice/edit path  
+- **Does not authorize:** MusicXML, Guitar Pro, realtime lyric sync (Q9), pitch detection, YouTube
+
+### Context
+
+Arrangement already has optional plain-text `Lyrics` / `Chords` / `Structure` / `Notes` (ADR-0025). Resources carry PDF/image/audio. Without a format decision, Practice and editors stay opaque. Musicians need a **typed** rehearsal format without replacing file charts.
+
+### Decision (ACCEPTED)
+
+1. **Hybrid model (option C):**  
+   - **Editable rehearsal body:** `Arrangement.Chords` (and optionally `Lyrics`) MAY hold **ChordPro-compatible** text (OpenSong/ChordPro common subset).  
+   - **Official / print chart:** Resource with purpose `chart` remains **file or link** (PDF/PNG/JPEG/WebP) — not parsed.  
+2. **`Lyrics` field:** plain text **or** ChordPro lyric lines without chords; no requirement to migrate existing rows.  
+3. **`Chords` field:** preferred home for ChordPro (chords + lyrics inline). Empty still allowed.  
+4. **Validation (thin):** server accepts ChordPro as **opaque text** within existing max body length; **no** hard reject for unknown directives. Optional soft warnings are UI-only in this wave. Do **not** invent a second storage column.  
+5. **Rendering:** Practice and Arrangement detail MAY render ChordPro into readable chords-over-lyrics when the text looks like ChordPro (`[` chord brackets or `{` directives). Fallback: monospace / preformatted plain text.  
+6. **Import:** Owner MAY upload/paste a `.cho` / `.chordpro` / `.txt` ChordPro body into `Chords` (and optionally clear-file import via existing file Resource is **not** required for this ADR). Thin: paste + file-pick that reads client-side into the PATCH body.  
+7. **MIME:** keep T-3.2.06 allowlist; `.cho`/`.chordpro` as `text/plain` (or add explicit types if browsers send them) — still ≤5 MiB when stored as Resource; Arrangement body remains DB text not blob.  
+8. **Transpose, sections UI, MusicXML:** FUTURE ADRs.  
+9. Spanish UI: “Letra”, “Acordes (ChordPro)”, “Vista previa”.
+
+### Consequences
+
+- Q8 answered for Sonivo MVP practice path.  
+- Parser/renderer lives in web (and optionally shared tests); Domain keeps strings.  
+- ADR-0027 Practice view gains ChordPro display without new aggregates.
+
+### Non-goals
+
+MusicXML · Guitar Pro · OCR PDF · realtime scroll sync · forcing all Groups to ChordPro
+
+---
+
 ## ADR-0027 — Thin practice / karaoke view (read-only Arrangement play)
 
 - **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-17** (Kevin Esquivel — “Acepto todo” pipeline)  

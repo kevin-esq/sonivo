@@ -17,7 +17,7 @@ This file is **not** the product requirements document. Product truth lives unde
 **Phase 3.0.3 Resource & rehearsal domain clarification is CLOSED** (ADR-0024 HUMAN-ACCEPTED).  
 **Phase 3.1 Song & Arrangement domain specification is CLOSED** (ADR-0025 HUMAN-ACCEPTED).
 
-ADRs **0001–0027** are **ACCEPTED** (including tooling ADR-0002; Google OAuth ADR-0026; Practice/karaoke ADR-0027).  
+ADRs **0001–0028** are **ACCEPTED** (including tooling ADR-0002; Google OAuth ADR-0026; Practice ADR-0027; formats/Q8 ADR-0028).  
 **Phase 3.2 approved scope:** **COMPLETED** (T-3.2.01–05, 07, 08) — `Song → Arrangement → Link Resource` + React Library Shell + sparse Playwright ([`PHASE-3.2-REPERTOIRE-SPEC.md`](docs/03-architecture/PHASE-3.2-REPERTOIRE-SPEC.md)). Nested Resource routes are authoritative. **T-3.2.06 File Resource** **COMPLETED** on `develop` (PR [#35](https://github.com/kevin-esq/sonivo/pull/35)) — `IBlobStore` + Postgres `ResourceBlobs`, multipart upload, `GET .../content`, TC-LIB-04 ([`PHASE-3.2.06-FILE-RESOURCE-SPEC.md`](docs/03-architecture/PHASE-3.2.06-FILE-RESOURCE-SPEC.md)).  
 **Google OAuth thin:** **CLOSED** / **COMPLETED** (T-OAUTH-01–03; ADR-0026) on `develop` (PR [#40](https://github.com/kevin-esq/sonivo/pull/40)) ([`PHASE-OAUTH-GOOGLE-SPEC.md`](docs/03-architecture/PHASE-OAUTH-GOOGLE-SPEC.md)).  
 **Thin Practice / karaoke:** **CLOSED** / **COMPLETED** (T-KARAOKE-01–02; ADR-0027) on `develop` (PR [#45](https://github.com/kevin-esq/sonivo/pull/45)) ([`PHASE-KARAOKE-THIN-SPEC.md`](docs/03-architecture/PHASE-KARAOKE-THIN-SPEC.md)).  
@@ -50,7 +50,7 @@ Until the user explicitly authorizes additional work:
 
 1. Read [`docs/00-context/CONTEXT.md`](docs/00-context/CONTEXT.md).
 2. Read **ACCEPTED** entries in [`docs/03-architecture/DECISIONS.md`](docs/03-architecture/DECISIONS.md).
-3. Do not reopen ACCEPTED ADRs 0001–0027 without a superseding ADR.
+3. Do not reopen ACCEPTED ADRs 0001–0028 without a superseding ADR.
 4. Do not invent FUTURE features or prematurely “solve” Q8–Q11.
 5. Check [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md) for the **AUTHORIZED** project-local allowlist (**ADR-0002 ACCEPTED**). Present tooling ≠ authorized.
 

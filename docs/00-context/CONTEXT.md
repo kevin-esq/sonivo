@@ -91,7 +91,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 | ID | Question |
 | -- | -------- |
-| **Q8** | Chart format |
+| **Q8** | Chart format — **CLOSED** by **ADR-0028** (hybrid ChordPro in Arrangement + file `chart` Resource) |
 | **Q9** | Realtime (lean no) |
 | **Q10** | Billing |
 | **Q11** | Native mobile / PWA |
