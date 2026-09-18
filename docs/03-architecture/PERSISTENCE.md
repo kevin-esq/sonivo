@@ -138,7 +138,7 @@ Indexes: none beyond PK for MVP (list via Membership).
 | ObjectKey | text | Y | **Required when Kind=file**; NULL when link |
 | CreatedAt | timestamptz | N | |
 
-> **Authoritative Kind nullability + API:** [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md). Link Resource CRUD shipped (T-3.2.05); nested Arrangement-scoped routes. File Kind / blob **DEFERRED** (T-3.2.06).
+> **Authoritative Kind nullability + API:** [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md) + [`PHASE-3.2.06-FILE-RESOURCE-SPEC.md`](PHASE-3.2.06-FILE-RESOURCE-SPEC.md). Link Resource CRUD shipped (T-3.2.05); File Kind + Postgres `ResourceBlobs` shipped (T-3.2.06); nested Arrangement-scoped routes including `.../content`.
 
 **No** GroupId · **No** Version · **No** soft-delete · **No** Part table.  
 **Index:** `(ArrangementId)`.  

@@ -486,6 +486,6 @@ No new ADR proposed.
 | T-3.2.07 React library shell | **COMPLETE** (integrated on `develop`) |
 | T-3.2.08 Playwright library journey (TC-LIB-01/02/03) | **COMPLETE** (integrated on `develop`; CI green) |
 | Member browser E2E / 409 E2E | **DEFERRED** (explicit; not part of T-3.2.08 ship) |
-| T-3.2.06 file/blob/content (`IBlobStore`, upload, download) | **DEFERRED** (not automatic next) |
+| T-3.2.06 file/blob/content (`IBlobStore`, upload, download) | **COMPLETE** (PR [#35](https://github.com/kevin-esq/sonivo/pull/35); see [`PHASE-3.2.06-FILE-RESOURCE-SPEC.md`](PHASE-3.2.06-FILE-RESOURCE-SPEC.md)) |
 | Approved Phase 3.2 scope (`Song → Arrangement → Link Resource` + React + sparse E2E) | **COMPLETED** |
-| Next implementation | Requires **human decision / authorization** (may include deferred T-3.2.06 or later Event/Setlist/RSVP — none authorized yet) |
+| Next implementation | Google OAuth (ADR-0026) / thin karaoke — require ADR + authorization (Kevin 2026-09-17 pipeline) |

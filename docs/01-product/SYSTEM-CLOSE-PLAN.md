@@ -5,7 +5,7 @@
 **Live:** https://sonivo.onrender.com (Free Render + Neon)  
 **Depends on:** ADR-0005–0006, 0012–0013, 0015–0021; Phases 3.2–3.9 **COMPLETED** on `develop`.
 
-This plan does **not** reopen ACCEPTED ADRs. It does **not** authorize T-3.2.06. Invite email (3.9, Gmail API HTTPS) stays optional and separate (ops follow-up: T-OPS-MAIL).
+This plan does **not** reopen ACCEPTED ADRs. T-3.2.06 was later authorized and **COMPLETED** (PR #35). Invite email (3.9, Gmail API HTTPS) stays optional and separate (ops follow-up: T-OPS-MAIL).
 
 ---
 
@@ -104,12 +104,12 @@ Free-instance spin-down (~50s cold start) is **accepted** until a paid instance.
 
 ## Explicitly out of Gate A and Gate B (until a later plan)
 
-- T-3.2.06 file Resource / blob / `content`
+- ~~T-3.2.06 file Resource / blob / `content`~~ **COMPLETED** (PR #35; outside original Gate A/B scope but now shipped)
 - Event location / notes / `includeCancelled` / un-cancel / hand-built plans
 - Roster-on-item (“who sings this song”)
 - Invite-as-Owner · Guest
 - Q8 chart format · Q9 realtime · Q10 billing · Q11 mobile/PWA
-- Account deletion product · WhatsApp · practice player
+- Account deletion product · WhatsApp · practice player / karaoke (until ADR)
 
 ---
 
@@ -123,4 +123,4 @@ Free-instance spin-down (~50s cold start) is **accepted** until a paid instance.
 
 ## How to start
 
-Gate A and Gate B are **closed**. Next: merge `develop` → `main`, then polish (T-OPS-MAIL invite email live; T-UX-COPY human Spanish + skeletons). T-3.2.06 / Google OAuth / karaoke remain out until separately authorized.
+Gate A and Gate B are **closed**. T-3.2.06 File Resource **COMPLETED** (PR #35). Next authorized: Google OAuth (ADR-0026) → thin karaoke/live; keep Event/RSVP mail deferred.
