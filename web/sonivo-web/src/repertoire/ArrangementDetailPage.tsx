@@ -30,6 +30,13 @@ import {
 } from './chrome'
 import { ChordProView } from './ChordProView'
 import { looksLikeChordPro } from './chordPro'
+import {
+  digitizeToChordPro,
+  listChordCursors,
+  nudgeChord,
+  parseChordProToDigitizer,
+  serializeDigitizerDocument,
+} from './chordProDigitizer'
 import { fileUploadErrorMessage, validateFileForUpload } from './fileUploadErrors'
 import {
   CONFLICT_MESSAGE,
@@ -506,8 +513,27 @@ function ArrangementEditForm({
   const [structure, setStructure] = useState(arrangement.structure ?? '')
   const [notes, setNotes] = useState(arrangement.notes ?? '')
   const [importError, setImportError] = useState<string | null>(null)
+  const [digitizerLyrics, setDigitizerLyrics] = useState('')
+  const [digitizerChords, setDigitizerChords] = useState('')
+  const [selectedChordIndex, setSelectedChordIndex] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+
+  const digitizerDoc = parseChordProToDigitizer(chords)
+  const chordCursors = listChordCursors(digitizerDoc)
+  const selectedCursor = chordCursors.find((c) => c.chordIndex === selectedChordIndex) ?? null
+
+  function onGenerateDigitizer() {
+    const generated = digitizeToChordPro(digitizerLyrics, digitizerChords)
+    setChords(generated)
+    setSelectedChordIndex(0)
+  }
+
+  function onNudgeSelected(direction: -1 | 1) {
+    if (selectedCursor == null) return
+    const next = nudgeChord(digitizerDoc, selectedChordIndex, direction)
+    setChords(serializeDigitizerDocument(next))
+  }
 
   function onImportChordPro(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -630,6 +656,90 @@ function ArrangementEditForm({
           />
         </label>
         {importError ? <p className="text-sm text-red-600">{importError}</p> : null}
+
+        <div
+          className="space-y-3 rounded-xl border border-slate-200 bg-neutral-light p-3"
+          data-testid="chordpro-digitizer"
+        >
+          <p className="text-sm font-semibold text-neutral-dark">Digitalizar texto</p>
+          <p className="text-xs text-slate-500">
+            Pega la letra y una lista de acordes. Sonivo los reparte de forma automática; luego
+            puedes mover un acorde con las flechas.
+          </p>
+          <Field label="Letra para digitalizar">
+            <textarea
+              className={fieldClass}
+              rows={3}
+              value={digitizerLyrics}
+              onChange={(e) => setDigitizerLyrics(e.target.value)}
+              data-testid="digitizer-lyrics"
+              spellCheck={false}
+            />
+          </Field>
+          <Field label="Acordes (separados por espacio o coma)" hint="Ejemplo: Am G C F">
+            <textarea
+              className={fieldClass}
+              rows={2}
+              value={digitizerChords}
+              onChange={(e) => setDigitizerChords(e.target.value)}
+              data-testid="digitizer-chords"
+              spellCheck={false}
+            />
+          </Field>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onGenerateDigitizer}
+            data-testid="digitizer-generate"
+          >
+            Generar ChordPro
+          </Button>
+          {chordCursors.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 pt-1" data-testid="digitizer-studio">
+              <label className="text-sm text-slate-700">
+                Acorde seleccionado{' '}
+                <select
+                  className={fieldClass}
+                  value={selectedChordIndex}
+                  onChange={(e) => setSelectedChordIndex(Number(e.target.value))}
+                  data-testid="digitizer-chord-select"
+                >
+                  {chordCursors.map((c) => {
+                    const chord =
+                      digitizerDoc.lines[c.lineIndex]?.slots[c.slotIndex]?.chord ?? '?'
+                    return (
+                      <option key={c.chordIndex} value={c.chordIndex}>
+                        {c.chordIndex + 1}. [{chord}]
+                      </option>
+                    )
+                  })}
+                </select>
+              </label>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                aria-label="Mover acorde a la izquierda"
+                onClick={() => onNudgeSelected(-1)}
+                data-testid="digitizer-nudge-left"
+              >
+                ←
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                aria-label="Mover acorde a la derecha"
+                onClick={() => onNudgeSelected(1)}
+                data-testid="digitizer-nudge-right"
+              >
+                →
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
         {chords.trim() ? (
           <div className="space-y-2 pt-1">
             <p className="text-sm font-medium text-slate-700">Vista previa</p>
