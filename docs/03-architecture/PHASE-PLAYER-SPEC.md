@@ -1,6 +1,6 @@
 # Phase Player — Practice audio (ADR-0029)
 
-**Status:** Wave 2 **COMPLETE** 2026-09-17 (T-PLAY-01–05; PR #54). Wave 3 **AUTHORIZED** (Kevin — “Acepto todo”). ADR-0029 **ACCEPTED**.  
+**Status:** Wave 2 **COMPLETE** 2026-09-17 (T-PLAY-01–05; PR #54). Wave 3 **COMPLETE** 2026-09-17 (T-PLAY-06–08). ADR-0029 **ACCEPTED**.  
 **Product bet:** Musicians rehearse with seek/volume/track choice while reading ChordPro/lyrics — without realtime. Event/Setlist queue next.  
 **Date:** 2026-09-17  
 **Depends on:** ADR-0029, 0027, 0028; T-3.2.06; Phase 3.3 Event plan.
@@ -18,7 +18,7 @@
 | Q-P2-5 | Manual lyric/ChordPro scroll; no time-sync marks |
 | Q-P2-6 | Spanish chrome; Playwright TC-PLAY-01 |
 
-## Frozen mechanics (Wave 3)
+## Frozen mechanics (Wave 3 — DONE)
 
 | ID | Decision |
 | -- | -------- |
@@ -27,6 +27,7 @@
 | Q-P3-3 | Jump opens/navigates that Arrangement’s Practice (reuse Wave 2 chrome) |
 | Q-P3-4 | No new aggregates; reuse Event GET plan + existing Practice route |
 | Q-P3-5 | Spanish UI; Playwright TC-PLAY-02 |
+| Q-P3-6 | Entry: Event **Ensayar plan** → Practice `?eventId=` + `item=` (SPA-only) |
 
 ---
 
@@ -47,13 +48,13 @@
 | -- | ---- |
 | T-PLAY-01…05 | COMPLETE (PR #54) |
 
-## Tickets (Wave 3)
+## Tickets (Wave 3 — DONE)
 
 | ID | Work |
 | -- | ---- |
-| T-PLAY-06 | Queue UI from Event plan order (next/prev) |
-| T-PLAY-07 | Show title/label; open Practice for current item |
-| T-PLAY-08 | Playwright TC-PLAY-02: apply setlist → Event player/queue → next |
+| T-PLAY-06 | Queue UI from Event plan order (Anterior / Siguiente) — COMPLETE |
+| T-PLAY-07 | Show title/label; open Practice for current item via `?eventId=` — COMPLETE |
+| T-PLAY-08 | Playwright TC-PLAY-02: apply setlist → Event queue → Siguiente — COMPLETE |
 
 Ship **one PR** `feature/t-play-event-queue` → `develop`.
 
@@ -61,8 +62,8 @@ Ship **one PR** `feature/t-play-event-queue` → `develop`.
 
 ## Audit checklist (Wave 3)
 
-- [ ] No realtime / pitch / YouTube  
-- [ ] No new aggregates / migrations  
-- [ ] Spanish queue chrome  
-- [ ] TC-PLAY-02 + full Playwright green  
-- [ ] No Cursor trailers  
+- [x] No realtime / pitch / YouTube  
+- [x] No new aggregates / migrations  
+- [x] Spanish queue chrome  
+- [x] TC-PLAY-02 + full Playwright green  
+- [x] No Cursor trailers  
