@@ -11,9 +11,9 @@ Product sequencing.
 **Phase 3.7 thin People COMPLETED** — T-3.7.01–03. Spec: [`PHASE-3.7-PEOPLE-SPEC.md`](../03-architecture/PHASE-3.7-PEOPLE-SPEC.md).  
 **Phase 3.8 thin invite hygiene COMPLETED** — T-3.8.01–03. Spec: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md).  
 **Phase 3.9 thin invite email COMPLETED** — T-3.9.01–04 (Gmail API HTTPS). Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md).  
-**Deferred:** T-3.2.06 file Resource / blob / content.  
+**T-3.2.06 File Resource COMPLETED** — Postgres `IBlobStore`, multipart, `content`, TC-LIB-04 (PR [#35](https://github.com/kevin-esq/sonivo/pull/35)). Spec: [`PHASE-3.2.06-FILE-RESOURCE-SPEC.md`](../03-architecture/PHASE-3.2.06-FILE-RESOURCE-SPEC.md).  
 **System close:** [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md) — Gate A **CLOSED**; Gate B **ACCEPTED / CLOSED**.  
-**Next:** T-UX-COPY/polish (human Spanish + skeletons) on `develop`; T-OPS-MAIL live invite email **verified** 2026-09-17 (`emailed=true`).
+**Next:** Google OAuth (ADR-0026) → thin karaoke/live (authorized pipeline); keep Event/RSVP mail **DEFERRED**.
 
 Product/code features beyond authorized tickets require **explicit** human approval.
 
@@ -27,7 +27,7 @@ Product/code features beyond authorized tickets require **explicit** human appro
 
 ### Phase 3.2 — Repertoire (approved scope COMPLETED)
 
-Approved slice: **Song → Arrangement → Link Resource** (backend + React library + sparse E2E). Not the full repertoire roadmap (file Resource, Event/Setlist/RSVP remain outside this closed scope).
+Approved slice (original): **Song → Arrangement → Link Resource**. **T-3.2.06 File Resource** later authorized and **COMPLETED** (PR #35).
 
 - [x] Spec [`PHASE-3.2-REPERTOIRE-SPEC.md`](../03-architecture/PHASE-3.2-REPERTOIRE-SPEC.md) + docs sync (nested Resource routes, PATCH semantics)
 - [x] T-3.2.01 Schema alignment migration
@@ -35,9 +35,9 @@ Approved slice: **Song → Arrangement → Link Resource** (backend + React libr
 - [x] T-3.2.04 Arrangement CRUD
 - [x] T-3.2.03 Song soft-delete cascade
 - [x] T-3.2.05 Link Resource CRUD (nested routes)
-- [x] T-3.2.07 React library shell (Song / Arrangement / Link Resource UI; Owner/Member gating; expectedVersion conflict UX; no file/blob)
+- [x] T-3.2.07 React library shell (Song / Arrangement / Link Resource UI; Owner/Member gating; expectedVersion conflict UX)
 - [x] T-3.2.08 Playwright library journey (TC-LIB-01/02/03; Member browser E2E and 409 E2E deferred)
-- [ ] T-3.2.06 File Resource / blob / content — **DEFERRED** (Q-R1/Q-R2); not automatic next
+- [x] T-3.2.06 File Resource / blob / content — **COMPLETE** (Q-R1 Postgres bytea; Q-R2 5 MiB + MIME; TC-LIB-04)
 - [ ] Optional: confirm Q-R3 max lengths
 
 ### Phase 3.3 — Thin S2 scheduling (COMPLETED)
@@ -118,8 +118,9 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 
 ### Later (only when authorized)
 
-- File Resource / blob storage (T-3.2.06)  
+- Google OAuth (ADR-0026) · thin karaoke/live  
 - Event/RSVP notification mail  
+- Object-storage blob adapter (S3/R2) replacing Postgres bytea if needed  
 
 ---
 
@@ -131,4 +132,4 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 
 ## Remaining OPEN
 
-Q8 chart format · Q9 realtime · Q10 billing · Q11 mobile/PWA · account deletion · hosting · invite mechanics thin freeze **Q-I1–I8** + **Q-M1–M9** (Event/RSVP mail **FUTURE**) · blob vendor · session TTLs · **Q-R1/Q-R2 file Resource (deferred)** · **Q-R3 max lengths** (provisional OK for link slice)
+Q8 chart format · Q9 realtime · Q10 billing · Q11 mobile/PWA · account deletion · hosting · invite mechanics thin freeze **Q-I1–I8** + **Q-M1–M9** (Event/RSVP mail **FUTURE**) · session TTLs · **Q-R3 max lengths** (provisional OK) · OAuth verified-email / auto-link policy (ADR-0026)

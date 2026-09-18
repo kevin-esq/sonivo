@@ -5,19 +5,22 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-3.2.06 File Resource — feature branch)
-Human approval: PENDING (auditor review)
-Git checkpoint: PENDING commit/push/PR by builder
-Remote: feature/t-3.2.06-file-resource → develop (PR)
-CI: PENDING after push
+Implementation: COMPLETE (T-3.2.06 merged #35)
+Human approval: APPROVED (auditor PASS + Kevin pipeline)
+Git checkpoint: COMMITTED on develop (cb23977)
+Remote: PUSHED develop; docs undefer PR pending; main forward pending
+CI: PASSING (#35)
 ```
 
-## Current
+**Merged:** [#35](https://github.com/kevin-esq/sonivo/pull/35) → `develop`  
+**Auditor:** PASS ([decision-auditor](e2b8c58a-4fd5-4b9a-add5-2a09226bfa5b))
 
-Builder implementing **T-3.2.06** File Resource (`IBlobStore` + Postgres `ResourceBlobs`, multipart, content GET, React Subir/Descargar, TC-LIB-04).
+## Pipeline next
+
+1. Docs undefer PR → develop → main forward
+2. Google OAuth ADR-0026 + thin implement
+3. Karaoke thin
 
 ## Firewall
 
 - No Cursor co-author trailers
-- Do not merge PR (auditor merges)
-- No Google OAuth / karaoke in this slice

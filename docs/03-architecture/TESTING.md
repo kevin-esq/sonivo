@@ -79,7 +79,7 @@ Authoritative matrix: [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC
 | Application | AuthZ, Song cascade §8a, Resource ownership via Arr |
 | API | 401/403/404/409/400 + CSRF; nested Resource get/patch/delete |
 | Postgres | Composite FKs, filters, cascade tx, Kind nullability |
-| Playwright (T-3.2.08 **COMPLETE**) | **TC-LIB-01** Owner Song→Arr→**link** Resource; **TC-LIB-02** Owner Song soft-delete; **TC-LIB-03** non-member denied library URL. **Deferred:** Member browser E2E; 409 conflict E2E; file Resource flows |
+| Playwright (T-3.2.08 + T-3.2.06 **COMPLETE**) | **TC-LIB-01** Owner Song→Arr→**link** Resource; **TC-LIB-02** Owner Song soft-delete; **TC-LIB-03** non-member denied library URL; **TC-LIB-04** Owner file upload + download. **Deferred:** Member browser E2E; 409 conflict E2E |
 
 RSVP Playwright is Phase 3.5 (**TC-RSVP-01**), not this closed 3.2 slice.
 
