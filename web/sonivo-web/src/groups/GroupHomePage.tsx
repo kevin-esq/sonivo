@@ -7,6 +7,7 @@ import {
   createInvitation,
   deleteGroup,
   getGroup,
+  listEventRsvps,
   listEvents,
   listSetlists,
   listSongs,
@@ -14,6 +15,7 @@ import {
   updateGroup,
   type CurrentUser,
   type EventListItem,
+  type EventRsvpResponse,
   type GroupDetail,
   type SetlistListItem,
 } from '../api/client'
@@ -27,7 +29,8 @@ import {
   mutationErrorMessage,
   ProblemAlert,
 } from '../repertoire/ui'
-import { Button, primaryButtonClass } from '../ui/button'
+import { EmptyPanel } from '../repertoire/chrome'
+import { Button, primaryButtonClass, secondaryButtonClass } from '../ui/button'
 import { cn } from '../ui/cn'
 import { Skeleton } from '../ui/skeleton'
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
@@ -77,6 +80,19 @@ function formatRelativeUpdated(iso: string): string {
   }
 }
 
+function formatRsvpLabel(response: EventRsvpResponse | string | null): string {
+  switch (response) {
+    case 'yes':
+      return 'Sí'
+    case 'no':
+      return 'No'
+    case 'maybe':
+      return 'Quizás'
+    default:
+      return 'Sin respuesta'
+  }
+}
+
 export function GroupHomePage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
@@ -85,6 +101,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   const [setlists, setSetlists] = useState<SetlistListItem[] | null>(null)
   const [songCount, setSongCount] = useState<number | null>(null)
   const [composeError, setComposeError] = useState<string | null>(null)
+  const [myRsvp, setMyRsvp] = useState<EventRsvpResponse | string | null | undefined>(undefined)
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
@@ -177,6 +194,29 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
     () => (events ? events.filter((e) => e.status === 'scheduled').length : null),
     [events],
   )
+
+  useEffect(() => {
+    if (!groupId || !nextEvent || nextEvent.status !== 'scheduled') {
+      setMyRsvp(null)
+      return
+    }
+    let cancelled = false
+    async function loadRsvp() {
+      setMyRsvp(undefined)
+      try {
+        const list = await listEventRsvps(groupId!, nextEvent!.id)
+        if (cancelled) return
+        const mine = list.items.find((item) => item.userId === user.id)
+        setMyRsvp(mine?.response ?? null)
+      } catch {
+        if (!cancelled) setMyRsvp(null)
+      }
+    }
+    void loadRsvp()
+    return () => {
+      cancelled = true
+    }
+  }, [groupId, nextEvent, user.id])
 
   async function onInviteMember() {
     if (!group) return
@@ -336,35 +376,63 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               Cargando eventos…
             </p>
           ) : nextEvent ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3">
-              <span
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
-                aria-hidden="true"
-              >
-                <CalendarDays className="h-6 w-6" />
-              </span>
-              <div className="min-w-0 flex-1 space-y-0.5">
-                <p className="truncate font-semibold text-neutral-dark">{nextEvent.title}</p>
-                <p className="text-sm text-slate-500">{formatStartsAt(nextEvent.startsAt)}</p>
-                <p className="text-xs text-slate-400">{formatEventType(nextEvent.type)}</p>
+            <div
+              className="space-y-3 rounded-2xl border border-slate-100 bg-white p-3"
+              data-testid="home-next-event"
+            >
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
+                  aria-hidden="true"
+                >
+                  <CalendarDays className="h-6 w-6" />
+                </span>
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="truncate font-semibold text-neutral-dark">{nextEvent.title}</p>
+                  <p className="text-sm text-slate-500">{formatStartsAt(nextEvent.startsAt)}</p>
+                  <p className="text-xs text-slate-400">{formatEventType(nextEvent.type)}</p>
+                </div>
               </div>
-              <Link
-                className={cn(primaryButtonClass, 'no-underline')}
-                to={`/groups/${group.id}/events/${nextEvent.id}`}
-              >
-                Ver evento
-              </Link>
+              <p className="text-sm text-slate-600" data-testid="home-next-event-rsvp">
+                Mi asistencia:{' '}
+                <strong>
+                  {myRsvp === undefined ? '…' : formatRsvpLabel(myRsvp)}
+                </strong>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  className={cn(primaryButtonClass, 'min-h-11 no-underline')}
+                  to={`/groups/${group.id}/events/${nextEvent.id}`}
+                  data-testid="home-next-event-plan"
+                >
+                  Ver plan y materiales
+                </Link>
+                <Link
+                  className={cn(secondaryButtonClass, 'min-h-11 no-underline')}
+                  to={`/groups/${group.id}/events/${nextEvent.id}`}
+                >
+                  Confirmar asistencia
+                </Link>
+              </div>
             </div>
           ) : (
-            <p className="text-sm text-slate-500">
-              No hay eventos programados.{' '}
-              <Link
-                className="font-semibold text-primary no-underline hover:underline"
-                to={`/groups/${group.id}/events`}
-              >
-                Ir a Eventos
-              </Link>
-            </p>
+            <EmptyPanel
+              title="No hay eventos programados"
+              description={
+                isOwner
+                  ? 'Crea un ensayo o concierto para que el grupo se prepare.'
+                  : 'Cuando haya un evento, verás aquí la fecha, tu asistencia y el plan.'
+              }
+              action={
+                <Link
+                  className="font-semibold text-primary no-underline hover:underline"
+                  to={`/groups/${group.id}/events`}
+                  data-testid="home-empty-events"
+                >
+                  Ir a Eventos
+                </Link>
+              }
+            />
           )}
         </section>
 
@@ -385,13 +453,28 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               Cargando listas…
             </p>
           ) : recentSetlists.length === 0 ? (
-            <p className="text-sm text-slate-500">Aún no hay listas.</p>
+            <EmptyPanel
+              title="Aún no hay listas"
+              description={
+                isOwner
+                  ? 'Crea una lista con arreglos de la biblioteca y aplícala a un evento.'
+                  : 'Cuando haya listas, aparecerán aquí.'
+              }
+              action={
+                <Link
+                  className="font-semibold text-primary no-underline hover:underline"
+                  to={`/groups/${group.id}/setlists`}
+                >
+                  Ir a Listas
+                </Link>
+              }
+            />
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
               {recentSetlists.map((setlist, index) => (
                 <li key={setlist.id}>
                   <Link
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light"
+                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light"
                     to={`/groups/${group.id}/setlists/${setlist.id}`}
                     style={{ animationDelay: `${Math.min(index, 4) * 40}ms` }}
                   >
