@@ -53,7 +53,8 @@ MusicXML · Guitar Pro · OCR PDF · realtime scroll sync · forcing all Groups 
 - **Date:** 2026-09-17  
 - **Depends on:** ADR-0007–0008, 0014, 0017, 0024–0025; T-3.2.06 file/link Resources  
 - **Does not supersede:** Resource model; Event plan snapshots; Auth cookie model  
-- **Does not authorize:** realtime sync (Q9), pitch detection, ChordPro parser, YouTube API, multi-user live conductor
+- **Does not authorize:** realtime sync (Q9), pitch detection, YouTube API, multi-user live conductor  
+- **REVISED by ADR-0028:** ChordPro parser/render on Practice is **authorized** (hybrid ChordPro in Arrangement fields). The original “no ChordPro parser” thin ban no longer binds.
 
 ### Context
 
@@ -62,7 +63,7 @@ Members need a first-class **practice** surface: see lyrics (and optionally hear
 ### Decision (ACCEPTED)
 
 1. Add a **Practice** (UI: “Practicar”) view for a live Arrangement, reachable from Arrangement detail (Member + Owner).  
-2. View shows: Arrangement **Label**, Song **Title**, **Lyrics** text (plain), optional **Key** / **Tempo** display.  
+2. View shows: Arrangement **Label**, Song **Title**, **Lyrics** text (plain), optional **Key** / **Tempo** display. **REVISED by ADR-0028:** Lyrics/Chords MAY render as ChordPro when text looks like ChordPro.  
 3. If the Arrangement has a Resource with purpose `audio` or `click` (link or file), expose **one** primary playable control (HTML5 `<audio>` for file `content` or link URL when audio MIME / known audio extension). Prefer purpose `audio`, else `click`.  
 4. **No** new domain aggregates. **No** new persistence tables. Reuse existing GET Arrangement + Resource list + file `content` AuthZ.  
 5. **No** websocket/realtime, **No** pitch tracking, **No** scrolling sync engine beyond basic CSS scroll of lyrics, **No** Event-plan karaoke mode in this thin.  
@@ -72,7 +73,7 @@ Members need a first-class **practice** surface: see lyrics (and optionally hear
 ### Consequences
 
 - Improves Member read UX without expanding Event or Resource semantics.  
-- FUTURE ADR may add realtime / conductor / ChordPro.
+- ~~FUTURE ADR may add realtime / conductor / ChordPro.~~ **REVISED by ADR-0028:** ChordPro display is in-scope; realtime / conductor remain FUTURE.
 
 ### Non-goals
 
