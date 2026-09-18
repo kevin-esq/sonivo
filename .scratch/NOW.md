@@ -5,19 +5,19 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-PLAY-06–08 on feature/t-play-event-queue)
-Human approval: PENDING (auditor after PR)
-Git checkpoint: COMMITTED (this deliverable)
-Remote: PUSHED (PR open)
-CI: NOT RUN (PR CI next)
+Implementation: IN PROGRESS (Wave 4 UX after Wave 3 merge #58)
+Human approval: APPROVED (Kevin — “Acepto todo”; auditor pipeline)
+Git checkpoint: Waves 1–3 on develop; #59 promote pending
+Remote: develop @ 3c8dc4f
+CI: PASSING on merged PRs
 ```
 
 ## Waves
 
-1. Formats — **DONE** (#48–#51)
-2. Player ADR-0029 Wave 2 — **MERGED** (#54)
-3. Event/Setlist T-PLAY-06–08 — **COMPLETE** (awaiting auditor)
-4. UX journeys T-UX-*
+1. Formats — **DONE**
+2. Player Arrangement — **DONE** (#54)
+3. Event queue — **DONE** (#58)
+4. UX journeys — **NOW** (PHASE-UX-SPEC)
 
 ## Firewall
 
