@@ -183,10 +183,13 @@ export async function inviteMemberAndReadLink(page: Page): Promise<string> {
   await expect(inviteLink).toBeVisible()
   const url = await inviteLink.inputValue()
   expect(url).toContain('/join/')
-  return url
+  // Path-only so Playwright stays on baseURL host (localhost vs 127.0.0.1 cookie jar).
+  return new URL(url, page.url()).pathname
 }
 
 export async function acceptInvite(page: Page) {
+  await expect(page).toHaveURL(/\/join\//)
+  await expect(page.getByText('Comprobando sesión…')).toHaveCount(0, { timeout: 15_000 })
   await expect(page.getByRole('heading', { name: 'Unirte a este grupo' })).toBeVisible()
   await page.getByRole('button', { name: 'Aceptar invitación' }).click()
 }

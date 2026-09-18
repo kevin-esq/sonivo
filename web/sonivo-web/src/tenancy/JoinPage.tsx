@@ -3,14 +3,9 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { acceptInvitation, ApiError, type CurrentUser } from '../api/client'
 import { mutationErrorMessage, ProblemAlert } from '../repertoire/ui'
 import { Button } from '../ui/button'
+import { safeJoinNextPath } from './safeJoinNextPath'
 
-const JOIN_NEXT_PATH = /^\/join\/[A-Za-z0-9._~-]+$/
-
-export function safeJoinNextPath(value: string | null | undefined): string | null {
-  if (!value) return null
-  if (!JOIN_NEXT_PATH.test(value)) return null
-  return value
-}
+export { safeJoinNextPath } from './safeJoinNextPath'
 
 export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
   const { token } = useParams()

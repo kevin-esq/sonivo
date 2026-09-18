@@ -13,7 +13,7 @@ import { BrandLockup, WaveformHero } from '../brand/SonivoMark'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
 import { SessionScreen } from './GroupsChrome'
-import { safeJoinNextPath } from '../tenancy/JoinPage'
+import { safeJoinNextPath } from '../tenancy/safeJoinNextPath'
 
 export function GuestAuthRoute({
   user,
