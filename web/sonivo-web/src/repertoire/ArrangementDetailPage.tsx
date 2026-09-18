@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
+  createFileResource,
   createLinkResource,
   deleteArrangement,
   deleteResource,
   getArrangement,
   getSong,
   isConflictError,
+  resourceContentUrl,
   updateArrangement,
   updateLinkResource,
   type ArrangementDetail,
@@ -15,7 +17,7 @@ import {
   type ResourcePurpose,
   type ResourceSummary,
 } from '../api/client'
-import { Button } from '../ui/button'
+import { Button, buttonVariants } from '../ui/button'
 import { fieldClass } from '../ui/field'
 import {
   EmptyPanel,
@@ -47,6 +49,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const [conflict, setConflict] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [creatingResource, setCreatingResource] = useState(false)
+  const [creatingFileResource, setCreatingFileResource] = useState(false)
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null)
   const [confirmDeleteArrangement, setConfirmDeleteArrangement] = useState(false)
   const [deletingArrangement, setDeletingArrangement] = useState(false)
@@ -174,7 +177,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   }
 
   const grouped = groupResourcesByPurpose(arrangement.resources)
-  const showAddResource = isOwner && !creatingResource
+  const showAddResource = isOwner && !creatingResource && !creatingFileResource
   const songHref = `/groups/${group.id}/songs/${arrangement.songId}`
 
   return (
@@ -211,21 +214,31 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               Recursos
             </h2>
             {showAddResource && arrangement.resources.length > 0 ? (
-              <Button onClick={() => setCreatingResource(true)}>Agregar enlace</Button>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => setCreatingResource(true)}>Agregar enlace</Button>
+                <Button variant="secondary" onClick={() => setCreatingFileResource(true)}>
+                  Subir archivo
+                </Button>
+              </div>
             ) : null}
           </div>
           <p className="text-sm text-slate-500">
-            Materiales de este arreglo, agrupados por propósito. Solo enlaces; no hay archivos en esta
-            versión.
+            Materiales de este arreglo, agrupados por propósito. Puedes enlazar o subir un archivo
+            pequeño (hasta 5&nbsp;MiB).
           </p>
 
-          {arrangement.resources.length === 0 && !creatingResource ? (
+          {arrangement.resources.length === 0 && !creatingResource && !creatingFileResource ? (
             <EmptyPanel
               title="Aún no hay materiales"
-              description="Enlaza partituras, letra, audio, click u otro material de ensayo para este arreglo."
+              description="Enlaza o sube partituras, letra, audio, click u otro material de ensayo para este arreglo."
               action={
                 showAddResource ? (
-                  <Button onClick={() => setCreatingResource(true)}>Agregar enlace</Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => setCreatingResource(true)}>Agregar enlace</Button>
+                    <Button variant="secondary" onClick={() => setCreatingFileResource(true)}>
+                      Subir archivo
+                    </Button>
+                  </div>
                 ) : null
               }
             />
@@ -250,6 +263,8 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
                           />
                         ) : (
                           <ResourceRow
+                            groupId={group.id}
+                            arrangementId={arrangement.id}
                             resource={resource}
                             isOwner={isOwner}
                             onEdit={() => setEditingResourceId(resource.id)}
@@ -271,6 +286,18 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               onCancel={() => setCreatingResource(false)}
               onCreated={async () => {
                 setCreatingResource(false)
+                await reloadArrangement()
+              }}
+            />
+          ) : null}
+
+          {isOwner && creatingFileResource ? (
+            <FileResourceCreateForm
+              groupId={group.id}
+              arrangementId={arrangement.id}
+              onCancel={() => setCreatingFileResource(false)}
+              onCreated={async () => {
+                setCreatingFileResource(false)
                 await reloadArrangement()
               }}
             />
@@ -358,8 +385,8 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
 
       <ConfirmDialog
         open={resourceToDelete != null}
-        title="¿Eliminar enlace?"
-        confirmLabel="Eliminar enlace"
+        title="¿Eliminar recurso?"
+        confirmLabel="Eliminar recurso"
         cancelLabel="Cancelar"
         pendingLabel="Eliminando…"
         pending={deletingResource}
@@ -367,7 +394,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
         onConfirm={() => void handleDeleteResource()}
       >
         <p>
-          Esto elimina de forma permanente el enlace
+          Esto elimina de forma permanente el recurso
           {resourceToDelete ? ` “${resourceToDelete.label}”` : ''}. No se puede deshacer.
         </p>
       </ConfirmDialog>
@@ -376,16 +403,25 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
 }
 
 function ResourceRow({
+  groupId,
+  arrangementId,
   resource,
   isOwner,
   onEdit,
   onDelete,
 }: {
+  groupId: string
+  arrangementId: string
   resource: ResourceSummary
   isOwner: boolean
   onEdit: () => void
   onDelete: () => void
 }) {
+  const isFile = resource.kind === 'file'
+  const downloadHref = isFile
+    ? resourceContentUrl(groupId, arrangementId, resource.id)
+    : null
+
   return (
     <div className="space-y-2">
       <p className="font-semibold text-neutral-dark">{resource.label}</p>
@@ -403,18 +439,37 @@ function ResourceRow({
           </a>
         </p>
       ) : null}
-      {isOwner ? (
-        <div className="flex flex-wrap gap-3">
-          <Button variant="secondary" size="sm" onClick={onEdit}>
-            Editar
-          </Button>
-          <Button variant="danger" size="sm" onClick={onDelete}>
-            Eliminar
-          </Button>
-        </div>
+      {isFile && downloadHref ? (
+        <p className="text-sm text-slate-500">
+          {resource.originalFileName ?? 'Archivo'}
+          {resource.byteSize != null ? ` · ${formatByteSize(resource.byteSize)}` : ''}
+        </p>
       ) : null}
+      <div className="flex flex-wrap gap-3">
+        {downloadHref ? (
+          <a className={buttonVariants({ variant: 'primary', size: 'sm' })} href={downloadHref}>
+            Descargar
+          </a>
+        ) : null}
+        {isOwner ? (
+          <>
+            <Button variant="secondary" size="sm" onClick={onEdit}>
+              Editar
+            </Button>
+            <Button variant="danger" size="sm" onClick={onDelete}>
+              Eliminar
+            </Button>
+          </>
+        ) : null}
+      </div>
     </div>
   )
+}
+
+function formatByteSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`
 }
 
 function ArrangementEditForm({
@@ -639,6 +694,106 @@ function ResourceCreateForm({
   )
 }
 
+function FileResourceCreateForm({
+  groupId,
+  arrangementId,
+  onCreated,
+  onCancel,
+}: {
+  groupId: string
+  arrangementId: string
+  onCreated: () => Promise<void>
+  onCancel: () => void
+}) {
+  const [purpose, setPurpose] = useState<ResourcePurpose>('practice')
+  const [label, setLabel] = useState('')
+  const [part, setPart] = useState('')
+  const [note, setNote] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault()
+    if (!file) {
+      setError('Selecciona un archivo.')
+      return
+    }
+    setPending(true)
+    setError(null)
+    try {
+      await createFileResource(groupId, arrangementId, {
+        purpose,
+        label: label.trim(),
+        file,
+        part: part.trim() || null,
+        note: note.trim() || null,
+      })
+      await onCreated()
+    } catch (err) {
+      setError(mutationErrorMessage(err))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <form className="space-y-4 border-t border-slate-200 pt-4" onSubmit={onSubmit} noValidate>
+      <h3 className="font-semibold">Subir archivo</h3>
+      <ProblemAlert message={error} />
+      <Field label="Propósito">
+        <select
+          className={fieldClass}
+          required
+          value={purpose}
+          onChange={(e) => setPurpose(e.target.value as ResourcePurpose)}
+        >
+          {RESOURCE_PURPOSE_ORDER.map((value) => (
+            <option key={value} value={value}>
+              {formatPurpose(value)}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Etiqueta">
+        <input
+          className={fieldClass}
+          required
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          maxLength={200}
+        />
+      </Field>
+      <Field
+        label="Archivo"
+        hint="PDF, imagen, audio o texto plano. Máximo 5 MiB."
+      >
+        <input
+          className={fieldClass}
+          type="file"
+          required
+          accept=".pdf,.png,.jpg,.jpeg,.webp,.mp3,.wav,.m4a,.txt,application/pdf,image/png,image/jpeg,image/webp,audio/mpeg,audio/wav,audio/mp4,text/plain"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        />
+      </Field>
+      <Field label="Parte (opcional)">
+        <input className={fieldClass} value={part} onChange={(e) => setPart(e.target.value)} maxLength={100} />
+      </Field>
+      <Field label="Nota (opcional)">
+        <textarea className={fieldClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+      </Field>
+      <FormActions>
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Subiendo…' : 'Subir archivo'}
+        </Button>
+        <Button variant="secondary" disabled={pending} onClick={onCancel}>
+          Cancelar
+        </Button>
+      </FormActions>
+    </form>
+  )
+}
+
 function ResourceEditForm({
   groupId,
   arrangementId,
@@ -684,7 +839,7 @@ function ResourceEditForm({
 
   return (
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
-      <h4 className="font-semibold">Editar datos del enlace</h4>
+      <h4 className="font-semibold">Editar datos del recurso</h4>
       {resource.url ? (
         <p className="text-sm text-slate-500">
           URL (no se puede cambiar):{' '}
@@ -696,6 +851,11 @@ function ResourceEditForm({
           >
             {resource.url}
           </a>
+        </p>
+      ) : null}
+      {resource.kind === 'file' && resource.originalFileName ? (
+        <p className="text-sm text-slate-500">
+          Archivo (no se puede cambiar): {resource.originalFileName}
         </p>
       ) : null}
       <ProblemAlert message={error} />

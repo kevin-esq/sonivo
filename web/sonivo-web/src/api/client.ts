@@ -319,6 +319,9 @@ export type ResourceSummary = {
   part: string | null
   note: string | null
   url: string | null
+  originalFileName?: string | null
+  contentType?: string | null
+  byteSize?: number | null
   createdAt: string
 }
 
@@ -496,6 +499,60 @@ export async function createLinkResource(
       },
     },
   )
+}
+
+export async function createFileResource(
+  groupId: string,
+  arrangementId: string,
+  input: {
+    purpose: ResourcePurpose
+    label: string
+    file: File
+    part?: string | null
+    note?: string | null
+  },
+): Promise<ResourceDetail> {
+  const form = new FormData()
+  form.append('purpose', input.purpose)
+  form.append('label', input.label)
+  if (input.part) form.append('part', input.part)
+  if (input.note) form.append('note', input.note)
+  form.append('file', input.file)
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'X-CSRF-TOKEN': await ensureCsrfToken(),
+  }
+
+  const response = await fetch(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/resources`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: form,
+    },
+  )
+
+  if (!response.ok) {
+    let body: unknown
+    try {
+      body = await response.json()
+    } catch {
+      body = undefined
+    }
+    throw new ApiError(`Request failed: ${response.status}`, response.status, body)
+  }
+
+  return (await response.json()) as ResourceDetail
+}
+
+export function resourceContentUrl(
+  groupId: string,
+  arrangementId: string,
+  resourceId: string,
+): string {
+  return `/api/groups/${groupId}/arrangements/${arrangementId}/resources/${resourceId}/content`
 }
 
 export async function getResource(

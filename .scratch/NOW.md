@@ -5,24 +5,19 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-UX plain Spanish / no Spanglish)
-Human approval: APPROVED
-Git checkpoint: PENDING (commit authorized)
-Remote: NOT PUSHED
-CI: NOT RUN
+Implementation: COMPLETE (T-3.2.06 File Resource — feature branch)
+Human approval: PENDING (auditor review)
+Git checkpoint: PENDING commit/push/PR by builder
+Remote: feature/t-3.2.06-file-resource → develop (PR)
+CI: PENDING after push
 ```
 
-**Playwright:** 15/15 PASS after Listas/enlace copy
+## Current
 
-## Copy map (UI only; routes/API unchanged)
-
-- Setlists → Listas
-- Cover → Versión · Original → Propia
-- Click → Metrónomo
-- recurso enlace → enlace
-- BPM labels → Tempo / BPM
+Builder implementing **T-3.2.06** File Resource (`IBlobStore` + Postgres `ResourceBlobs`, multipart, content GET, React Subir/Descargar, TC-LIB-04).
 
 ## Firewall
 
 - No Cursor co-author trailers
-- No T-3.2.06 / Google OAuth / karaoke
+- Do not merge PR (auditor merges)
+- No Google OAuth / karaoke in this slice

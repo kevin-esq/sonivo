@@ -1,23 +1,20 @@
 # PHASE-3.2 — Song / Arrangement / Resource technical specification
 
-**Status:** Approved Phase 3.2 scope **COMPLETED** (T-3.2.01–05, 07, 08) — backend + React Library Shell + sparse Playwright.  
-**Deferred:** T-3.2.06 file Resource / blob / content (not automatic next).  
-**Next:** requires human decision / authorization; may include already-documented deferred or later items.  
-**Date:** 2026-09-16  
+**Status:** Approved Phase 3.2 scope **COMPLETED** (T-3.2.01–05, 07, 08) + **T-3.2.06 File Resource** ([`PHASE-3.2.06-FILE-RESOURCE-SPEC.md`](PHASE-3.2.06-FILE-RESOURCE-SPEC.md)).  
+**Deferred (after 3.2.06):** none within Phase 3.2 thin repertoire.  
+**Date:** 2026-09-16 (T-3.2.06 2026-09-17)  
 **Depends on:** ADR-0024, ADR-0025, ADR-0019–0023, ADR-0007/0008/0014  
 
 **Implemented MVP slice:**
 
 ```text
-Song → Arrangement → Link Resource
-(+ React Library Shell + sparse Playwright E2E)
+Song → Arrangement → Link Resource + File Resource (Postgres blob)
+(+ React Library Shell + sparse Playwright E2E incl. TC-LIB-04)
 ```
 
-**Deferred:** File Resource / blob storage / `IBlobStore` / upload / content download (ticket T-3.2.06).
+Accepted ADRs remain authoritative. File Kind is supported via multipart create and `GET .../content` (T-3.2.06).
 
-Accepted ADRs remain authoritative. Domain still allows `Kind = file` later; API rejects `kind=file` until T-3.2.06 is authorized.
-
-Companion surfaces: [`API.md`](API.md) · [`PERSISTENCE.md`](PERSISTENCE.md) · [`TESTING.md`](TESTING.md) · tickets §14 below.
+Companion surfaces: [`API.md`](API.md) · [`PERSISTENCE.md`](PERSISTENCE.md) · [`TESTING.md`](TESTING.md) · tickets §14 below. · [`PHASE-3.2.06-FILE-RESOURCE-SPEC.md`](PHASE-3.2.06-FILE-RESOURCE-SPEC.md).
 
 ---
 
