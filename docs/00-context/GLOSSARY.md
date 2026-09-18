@@ -22,6 +22,6 @@ Working ubiquitous language. ACCEPTED ADRs 0005–0025.
 | **IsDefault** | Preferred Arrangement flag — **OUT OF MVP** (ADR-0025) | OUT / FUTURE |
 | **Member → Part assignment** | OUT OF MVP | OUT / FUTURE |
 | **Arrangement version history / duplicate** | OUT OF MVP | OUT / FUTURE |
-| **Practice player** | OUT OF MVP | OUT / FUTURE |
+| **Practice player** | IN (Wave 2 Arrangement; Wave 3 Event/Setlist queue) | ADR-0029 |
 
 Update when ADRs change.
