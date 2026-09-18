@@ -1,6 +1,6 @@
 # Phase UX journeys — Practice / Event daily use (Wave 4)
 
-**Status:** AUTHORIZED 2026-09-17 (Kevin Esquivel — “Acepto todo”). No new ADR (Gate B chrome closed; Practice/Player surfaces from ADR-0027–0029).  
+**Status:** Wave 4 **COMPLETE** 2026-09-17 (T-UX-10–32; PR #62). No new ADR (Gate B chrome closed; Practice/Player surfaces from ADR-0027–0029).  
 **Product bet:** Daily rehearsal path feels ready — empty states, loading, mobile Practice/Player, Member next-event, copy clean.  
 **Date:** 2026-09-17  
 **Depends on:** Gate B UI; ADR-0027–0029; Wave 1–3 complete.
@@ -54,8 +54,8 @@ Ship **one PR** `feature/t-ux-journeys` → `develop` (batch OK — one coherent
 
 ## Audit checklist
 
-- [ ] No Gate B reopen / purple-slop / new deps beyond allowlist  
-- [ ] No realtime / pitch / YouTube / Event mail  
-- [ ] Spanish only on touched surfaces  
-- [ ] Full Playwright green (+ optional TC-UX-01)  
-- [ ] No Cursor trailers  
+- [x] No Gate B reopen / purple-slop / new deps beyond allowlist  
+- [x] No realtime / pitch / YouTube / Event mail  
+- [x] Spanish only on touched surfaces  
+- [x] Full Playwright green (+ optional TC-UX-01)  
+- [x] No Cursor trailers  

@@ -24,7 +24,7 @@ ADRs **0001–0029** are **ACCEPTED** (including tooling ADR-0002; Google OAuth 
 **Formats (Q8):** **CLOSED** / **COMPLETED** (ADR-0028; T-FMT-01–06; PRs #48–#51).  
 **Practice player Wave 2:** **CLOSED** / **COMPLETED** (ADR-0029; T-PLAY-01–05; PR [#54](https://github.com/kevin-esq/sonivo/pull/54)).  
 **Practice player Wave 3 (Event/Setlist queue):** **CLOSED** / **COMPLETED** (ADR-0029 §6; T-PLAY-06–08; PR [#58](https://github.com/kevin-esq/sonivo/pull/58)).  
-**UX journeys Wave 4:** **AUTHORIZED** ([`PHASE-UX-SPEC.md`](docs/03-architecture/PHASE-UX-SPEC.md) T-UX-10–13, 20–22, 30–32).  
+**UX journeys Wave 4:** **CLOSED** / **COMPLETED** ([`PHASE-UX-SPEC.md`](docs/03-architecture/PHASE-UX-SPEC.md) T-UX-10–13, 20–22, 30–32; PR [#62](https://github.com/kevin-esq/sonivo/pull/62)).  
 **Phase 3.3 thin S2:** **CLOSED** (T-3.3.01–05) — Setlist → Event apply → React UI → Playwright ([`PHASE-3.3-THIN-SPEC.md`](docs/03-architecture/PHASE-3.3-THIN-SPEC.md)). Merged to `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6), `80f5f63`).  
 **Phase 3.4 thin invites:** **CLOSED** / **COMPLETED** (T-3.4.01–03) — link token, no email ([`PHASE-3.4-INVITE-SPEC.md`](docs/03-architecture/PHASE-3.4-INVITE-SPEC.md)). Merged to `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8), `8db0714`).  
 **Phase 3.5 thin RSVP:** **CLOSED** / **COMPLETED** (T-3.5.01–03) — Event yes/no/maybe + Attendance UI + Playwright ([`PHASE-3.5-RSVP-SPEC.md`](docs/03-architecture/PHASE-3.5-RSVP-SPEC.md)). Merged to `develop` (PR [#10](https://github.com/kevin-esq/sonivo/pull/10), `cbc8824`).  

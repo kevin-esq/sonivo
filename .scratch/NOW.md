@@ -1,26 +1,26 @@
 # NOW — agent focus
 
-**Updated:** 2026-09-18
+**Updated:** 2026-09-17
 
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (Wave 4 UX T-UX-10-13, 20-22, 30-32)
-Human approval: PENDING (auditor)
-Git checkpoint: COMMITTED (f3646a4)
-Remote: PUSHED (PR #62 → develop)
-CI: NOT RUN (await GitHub)
+Implementation: COMPLETE (Waves 1–4)
+Human approval: APPROVED (Kevin — “Acepto todo”; auditor PASS each PR)
+Git checkpoint: COMMITTED on develop; #63 develop→main pending CI
+Remote: develop @ Wave 4; main lagging until #63
+CI: PASSING on merged feature PRs; #63 pending
 ```
 
 ## Waves
 
-1. Formats — **DONE**
-2. Player Arrangement — **DONE** (#54)
-3. Event queue — **DONE** (#58)
-4. UX journeys — **PR OPEN** https://github.com/kevin-esq/sonivo/pull/62 — await auditor + CI; do not merge from builder
+1. Formats ADR-0028 + T-FMT — **DONE** (#48–#51)
+2. Player ADR-0029 T-PLAY-01–05 — **DONE** (#52–#55)
+3. Event queue T-PLAY-06–08 — **DONE** (#56–#59)
+4. UX journeys T-UX-* — **DONE** (#60, #62); promote #63
 
 ## Firewall
 
 - No Cursor trailers
-- Auditor merges only on PASS + green CI
 - No Q9 realtime / pitch / YouTube / Event mail
+- Next features need new explicit authorization
