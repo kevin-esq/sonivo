@@ -14,7 +14,7 @@ export const groupNavItems: GroupNavItem[] = [
   { id: 'home', label: 'Inicio', icon: Home, end: true, href: (id) => `/groups/${id}` },
   {
     id: 'setlists',
-    label: 'Setlists',
+    label: 'Listas',
     icon: ListMusic,
     href: (id) => `/groups/${id}/setlists`,
   },

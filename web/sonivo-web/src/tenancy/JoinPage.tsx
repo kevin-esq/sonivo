@@ -59,7 +59,7 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
           Unirte a este grupo
         </h1>
         <p className="text-sm text-slate-500">
-          Acepta la invitación para unirte y preparar setlists y eventos con el grupo.
+          Acepta la invitación para unirte y preparar listas y eventos con el grupo.
         </p>
       </div>
       <ProblemAlert message={error} />

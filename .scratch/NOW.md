@@ -5,18 +5,24 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-UX-COPY+polish + T-OPS-MAIL diagnose)
-Human approval: PENDING (Kevin review of UX PR)
-Git checkpoint: PENDING (feature/t-ux-copy-polish)
+Implementation: COMPLETE (T-UX plain Spanish / no Spanglish)
+Human approval: APPROVED
+Git checkpoint: PENDING (commit authorized)
 Remote: NOT PUSHED
 CI: NOT RUN
 ```
 
-**Playwright:** 15/15 PASS  
-**main:** Gate B via #30 (`18e6430`)  
-**Live mail:** emailed=true verified
+**Playwright:** 15/15 PASS after Listas/enlace copy
+
+## Copy map (UI only; routes/API unchanged)
+
+- Setlists → Listas
+- Cover → Versión · Original → Propia
+- Click → Metrónomo
+- recurso enlace → enlace
+- BPM labels → Tempo / BPM
 
 ## Firewall
 
-- No T-3.2.06 / Google OAuth / karaoke without ADR
 - No Cursor co-author trailers
+- No T-3.2.06 / Google OAuth / karaoke

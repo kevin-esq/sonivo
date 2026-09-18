@@ -187,7 +187,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando setlist…</p>
+    return <p aria-live="polite">Cargando lista…</p>
   }
 
   if (group === null) {
@@ -202,18 +202,18 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (setlist === undefined) {
-    return <p aria-live="polite">Cargando setlist…</p>
+    return <p aria-live="polite">Cargando lista…</p>
   }
 
   if (setlist === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? 'No se encontró el setlist o no tienes acceso.'} />
+        <ProblemAlert message={error ?? 'No se encontró la lista o no tienes acceso.'} />
         <Link
           className="font-semibold text-primary no-underline hover:underline"
           to={`/groups/${group.id}/setlists`}
         >
-          Setlists
+          Listas
         </Link>
       </div>
     )
@@ -227,7 +227,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
         <PageBreadcrumb
           items={[
             { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/setlists`, label: 'Setlists' },
+            { to: `/groups/${group.id}/setlists`, label: 'Listas' },
             { label: setlist.name },
           ]}
         />
@@ -244,7 +244,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                 {setlist.name}
               </h1>
               <p className="text-sm text-slate-500">
-                {formatSongCount(draft.length)} · v{setlist.version}
+                {formatSongCount(draft.length)}
                 {!isOwner ? <span> · Solo lectura</span> : null}
               </p>
             </div>
@@ -268,7 +268,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
             </h2>
             {isOwner && draft.length > 0 && !showAdd ? (
               <Button variant="ghost" onClick={() => setShowAdd(true)}>
-                Agregar a setlist
+                Agregar a la lista
               </Button>
             ) : null}
           </div>
@@ -279,11 +279,11 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
 
           {draft.length === 0 ? (
             <EmptyPanel
-              title="Este setlist está vacío"
+              title="Esta lista está vacía"
               description={
                 isOwner
-                  ? 'Agrega arreglos vivos de la biblioteca para preparar el repertorio del evento.'
-                  : 'Aún no hay arreglos en este setlist.'
+                  ? 'Agrega arreglos de la biblioteca para preparar el repertorio del evento.'
+                  : 'Aún no hay arreglos en esta lista.'
               }
             />
           ) : (
@@ -349,7 +349,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                 <p aria-live="polite">Cargando arreglos…</p>
               ) : options.length === 0 ? (
                 <p className="text-sm text-slate-500">
-                  No hay arreglos vivos. Agrega uno en la biblioteca primero.
+                  No hay arreglos en la biblioteca. Agrega uno primero.
                 </p>
               ) : (
                 <>
@@ -367,7 +367,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                     </select>
                   </Field>
                   <FormActions>
-                    <Button onClick={addSelectedArrangement}>Agregar a setlist</Button>
+                    <Button onClick={addSelectedArrangement}>Agregar a la lista</Button>
                     {draft.length > 0 ? (
                       <Button variant="secondary" onClick={() => setShowAdd(false)}>
                         Cancelar
@@ -411,10 +411,6 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                 <dd className="font-medium text-neutral-dark">{setlist.name}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Versión</dt>
-                <dd className="font-medium text-neutral-dark">v{setlist.version}</dd>
-              </div>
-              <div>
                 <dt className="text-slate-500">Canciones</dt>
                 <dd className="font-medium text-neutral-dark">{formatSongCount(draft.length)}</dd>
               </div>
@@ -423,13 +419,13 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
 
           {!renaming ? (
             <p className="text-xs text-slate-500">
-              Un setlist se puede aplicar a eventos cuando esté listo.
+              Una lista se puede aplicar a eventos cuando esté lista.
             </p>
           ) : null}
 
           {isOwner && !renaming ? (
             <Button variant="secondary" onClick={() => setRenaming(true)}>
-              Renombrar setlist
+              Renombrar lista
             </Button>
           ) : null}
         </aside>
@@ -475,7 +471,7 @@ function RenameSetlistForm({
 
   return (
     <form className="space-y-3" onSubmit={onSubmit} noValidate>
-      <p className="text-xs text-slate-500">Editando versión {setlist.version}</p>
+      <p className="text-xs text-slate-500">Cambia el nombre de esta lista</p>
       <ProblemAlert message={error} />
       <Field label="Nombre">
         <input

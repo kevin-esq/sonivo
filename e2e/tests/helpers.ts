@@ -69,8 +69,8 @@ export async function createLinkResource(
   page: Page,
   input: { label: string; url: string; purpose?: string },
 ) {
-  await page.getByRole('button', { name: 'Agregar recurso enlace' }).click()
-  await expect(page.getByRole('heading', { name: 'Agregar recurso enlace' })).toBeVisible()
+  await page.getByRole('button', { name: 'Agregar enlace' }).click()
+  await expect(page.getByRole('heading', { name: 'Agregar enlace' })).toBeVisible()
   await page.getByLabel('Propósito').selectOption(input.purpose ?? 'practice')
   await page.getByLabel('Etiqueta', { exact: true }).fill(input.label)
   await page.getByLabel('URL').fill(input.url)
@@ -92,15 +92,15 @@ export async function deleteSong(page: Page, title: string) {
 }
 
 export async function openSetlists(page: Page) {
-  await page.getByRole('link', { name: 'Setlists' }).first().click()
-  await expect(page.getByRole('heading', { name: 'Setlists' })).toBeVisible()
+  await page.getByRole('link', { name: 'Listas' }).first().click()
+  await expect(page.getByRole('heading', { name: 'Listas' })).toBeVisible()
 }
 
 export async function createSetlist(page: Page, name: string) {
-  await page.getByRole('button', { name: 'Nuevo setlist' }).click()
-  await expect(page.getByRole('heading', { name: 'Crear setlist' })).toBeVisible()
+  await page.getByRole('button', { name: 'Nueva lista' }).click()
+  await expect(page.getByRole('heading', { name: 'Crear lista' })).toBeVisible()
   await page.getByLabel('Nombre').fill(name)
-  await page.getByRole('button', { name: 'Crear setlist' }).click()
+  await page.getByRole('button', { name: 'Crear lista' }).click()
   await expect(page.getByRole('heading', { name })).toBeVisible()
 }
 
@@ -108,10 +108,10 @@ export async function createSetlist(page: Page, name: string) {
 export async function addArrangementToSetlist(page: Page, optionLabel: string) {
   const select = page.getByLabel('Arreglo')
   if (!(await select.isVisible())) {
-    await page.getByRole('button', { name: 'Agregar a setlist' }).click()
+    await page.getByRole('button', { name: 'Agregar a la lista' }).click()
   }
   await select.selectOption({ label: optionLabel })
-  await page.getByRole('button', { name: 'Agregar a setlist' }).click()
+  await page.getByRole('button', { name: 'Agregar a la lista' }).click()
   const [songTitle, arrangementLabel] = optionLabel.split(' — ')
   let item = page.getByRole('listitem').filter({ hasText: songTitle ?? optionLabel })
   if (arrangementLabel) {
@@ -152,7 +152,7 @@ export async function createEvent(
 }
 
 export async function applySetlist(page: Page) {
-  await page.getByRole('button', { name: 'Aplicar setlist' }).click()
+  await page.getByRole('button', { name: 'Aplicar lista' }).click()
 }
 
 /** Event plan rows show song title and arrangement label on separate lines. */

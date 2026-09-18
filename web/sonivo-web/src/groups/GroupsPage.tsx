@@ -50,7 +50,7 @@ export function GroupsPage({ user }: { user: CurrentUser }) {
           Mis grupos
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Crea y elige un grupo musical. Abre un grupo para preparar setlists y eventos.
+          Crea y elige un grupo musical. Abre un grupo para preparar listas y eventos.
         </p>
       </div>
 
