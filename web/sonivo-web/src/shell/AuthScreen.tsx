@@ -86,7 +86,7 @@ function AuthScreen({
             La música nos une
           </h1>
           <p className="text-base text-slate-300">
-            Organiza tus setlists, crea eventos y lleva tu música al siguiente nivel.
+            Organiza tus listas, crea eventos y lleva tu música al siguiente nivel.
           </p>
         </div>
         <WaveformHero className="max-w-xl opacity-90" />

@@ -10,7 +10,7 @@ test.describe('Group journeys', () => {
     await createGroup(page, groupName)
     await expect(page.getByText('Tu rol en este grupo:')).toBeVisible()
     await expect(page.getByRole('region').getByText('Organizador', { exact: true })).toBeVisible()
-    await expect(page.getByRole('main').getByText('Setlists', { exact: true })).toBeVisible()
+    await expect(page.getByRole('main').getByText('Listas', { exact: true })).toBeVisible()
 
     await page.getByRole('link', { name: 'Mis grupos' }).click()
     await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()

@@ -364,7 +364,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               </span>
             </div>
             <p className="text-sm text-slate-500">
-              Plan de canciones (copiado de setlist). Los cambios posteriores al setlist no
+              Plan de canciones (copiado de la lista). Los cambios posteriores a la lista no
               actualizan este plan hasta que vuelvas a aplicar.
             </p>
           </div>
@@ -374,7 +374,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               title="Aún no hay plan"
               description={
                 isOwner && isLive
-                  ? 'Aplica un setlist para copiar sus arreglos actuales a este evento.'
+                  ? 'Aplica una lista para copiar sus arreglos actuales a este evento.'
                   : 'Cuando haya un plan, las canciones aparecerán numeradas aquí.'
               }
             />
@@ -410,12 +410,12 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               aria-labelledby="apply-heading"
             >
               <h3 id="apply-heading" className="font-semibold">
-                Aplicar setlist
+                Aplicar lista
               </h3>
               {setlists === null ? (
-                <p aria-live="polite">Cargando setlists…</p>
+                <p aria-live="polite">Cargando listas…</p>
               ) : setlists.length === 0 ? (
-                <p className="text-sm text-slate-500">Aún no hay setlists. Crea uno primero.</p>
+                <p className="text-sm text-slate-500">Aún no hay listas. Crea una primero.</p>
               ) : (
                 <form
                   className="space-y-3"
@@ -424,7 +424,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     requestApply()
                   }}
                 >
-                  <Field label="Setlist">
+                  <Field label="Lista">
                     <select
                       className={fieldClass}
                       value={selectedSetlistId}
@@ -439,7 +439,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     </select>
                   </Field>
                   <Button type="submit" disabled={applying || !selectedSetlistId}>
-                    {applying ? 'Aplicando…' : 'Aplicar setlist'}
+                    {applying ? 'Aplicando…' : 'Aplicar lista'}
                   </Button>
                 </form>
               )}
@@ -554,7 +554,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
         onConfirm={() => void apply(true)}
       >
         <p>
-          Este evento ya tiene un plan. Aplicar un setlist reemplaza la copia actual. No se puede
+          Este evento ya tiene un plan. Aplicar una lista reemplaza la copia actual. No se puede
           deshacer desde esta pantalla.
         </p>
       </ConfirmDialog>
@@ -654,7 +654,7 @@ function EventEditForm({
   return (
     <form className="max-w-lg space-y-4" onSubmit={onSubmit} noValidate>
       <h3 className="text-lg font-semibold">Editar evento</h3>
-      <p className="text-sm text-slate-500">Editando versión {musicalEvent.version}</p>
+      <p className="text-sm text-slate-500">Guardando cambios · {musicalEvent.version}</p>
       <ProblemAlert message={error} />
       <Field label="Título">
         <input

@@ -81,8 +81,8 @@ test.describe('RSVP journeys', () => {
 
     await setRsvpYes(page)
     await expect(memberYesRow()).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Aplicar setlist' })).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'Aplicar setlist' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Aplicar lista' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Aplicar lista' })).toHaveCount(0)
 
     await logout(page)
     await login(page, ownerEmail)

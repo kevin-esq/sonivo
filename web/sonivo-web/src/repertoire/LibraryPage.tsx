@@ -111,7 +111,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
           title="La biblioteca está vacía"
           description={
             isOwner
-              ? 'Usa Agregar canción para empezar el repertorio y poder ensayar y armar setlists.'
+              ? 'Usa Agregar canción para empezar el repertorio y poder ensayar y armar listas.'
               : 'Aún no hay canciones en el repertorio.'
           }
         />
@@ -211,8 +211,8 @@ function SongCreateForm({
           value={originKind}
           onChange={(e) => setOriginKind(e.target.value as SongOriginKind)}
         >
-          <option value="original">Original</option>
-          <option value="cover">Cover</option>
+          <option value="original">Propia</option>
+          <option value="cover">Versión</option>
           <option value="other">Otro</option>
         </select>
       </Field>
