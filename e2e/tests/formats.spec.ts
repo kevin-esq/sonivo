@@ -46,3 +46,42 @@ test.describe('ChordPro formats (Wave 1)', () => {
     await expect(chordProView).toContainText(lyricWord)
   })
 })
+
+test.describe('ChordPro transpose + views (ADR-0030 P0)', () => {
+  test('TC-C30-01 ChordPro [Am] → Practicar → +1 shows A#m', async ({ page }) => {
+    const email = uniqueEmail('c30-transpose')
+    const groupName = `C30 Band ${Date.now()}`
+    const songTitle = `C30 Song ${Date.now()}`
+    const arrangementLabel = `C30 Arr ${Date.now()}`
+    const lyricWord = `verso${Date.now()}`
+    const chordProBody = `[Am]${lyricWord}`
+
+    await register(page, email)
+    await createGroup(page, groupName)
+    await openLibrary(page)
+    await createSong(page, songTitle)
+    await openSong(page, songTitle)
+    await createArrangement(page, arrangementLabel)
+
+    await page.getByRole('button', { name: 'Editar arreglo' }).click()
+    await expect(page.getByRole('heading', { name: 'Editar arreglo' })).toBeVisible()
+    await page.getByTestId('arrangement-chords').fill(chordProBody)
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expect(page.getByRole('button', { name: 'Editar arreglo' })).toBeVisible()
+
+    await openPractice(page)
+
+    const chordProView = page.getByTestId('practice-chordpro')
+    await expect(chordProView).toBeVisible()
+    await expect(chordProView).toContainText('Am')
+    await expect(chordProView).toContainText(lyricWord)
+
+    await expect(page.getByTestId('practice-transpose-up')).toBeVisible()
+    await page.getByTestId('practice-transpose-up').click()
+    await expect(page.getByTestId('practice-transpose-offset')).toContainText('+1')
+    // Sharp-preferring convention: Am +1 → A#m (not Bbm)
+    await expect(chordProView.locator('[data-chord="A#m"]')).toBeVisible()
+    await expect(chordProView.locator('[data-chord="Am"]')).toHaveCount(0)
+    await expect(chordProView).toContainText(lyricWord)
+  })
+})
