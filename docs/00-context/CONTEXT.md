@@ -2,8 +2,8 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-17 (Google OAuth thin COMPLETED — PR #40)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** including **T-3.2.06** file Resource. **Google OAuth** thin **COMPLETED** (ADR-0026; PR [#40](https://github.com/kevin-esq/sonivo/pull/40)) — Identity external login → `sonivo.auth`. T-OPS-01/02 done. Live: https://sonivo.onrender.com. Gate B **CLOSED**. Next: thin karaoke/live (ADR).  
+**Last updated:** 2026-09-17 (Thin Practice/karaoke COMPLETED — PR #45)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** including **T-3.2.06**. **Google OAuth** thin **COMPLETED** (ADR-0026; PR #40). **Thin Practice / karaoke** **COMPLETED** (ADR-0027; PR [#45](https://github.com/kevin-esq/sonivo/pull/45)) — read-only Practicar + optional audio. T-OPS-01/02 done. Live: https://sonivo.onrender.com. Gate B **CLOSED**. No automatic next feature.  
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
