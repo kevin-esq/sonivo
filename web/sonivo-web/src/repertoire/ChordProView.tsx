@@ -28,7 +28,13 @@ function directiveLabel(name: string, value: string | null): string {
   }
 }
 
-function ChordProLineView({ line }: { line: ChordProLine }) {
+function ChordProLineView({
+  line,
+  hideChords,
+}: {
+  line: ChordProLine
+  hideChords: boolean
+}) {
   if (line.kind === 'empty') {
     return <div className="h-3" aria-hidden />
   }
@@ -45,7 +51,8 @@ function ChordProLineView({ line }: { line: ChordProLine }) {
     )
   }
 
-  const hasChord = line.segments.some((s) => s.chord != null && s.chord.length > 0)
+  const hasChord =
+    !hideChords && line.segments.some((s) => s.chord != null && s.chord.length > 0)
 
   return (
     <div className="flex flex-wrap items-end gap-x-0 leading-tight">
@@ -72,10 +79,13 @@ export function ChordProView({
   text,
   testId,
   className,
+  hideChords = false,
 }: {
   text: string
   testId?: string
   className?: string
+  /** Vista Cantante: show lyrics only (ADR-0030 P0). */
+  hideChords?: boolean
 }) {
   const doc = parseChordPro(text)
   return (
@@ -87,7 +97,7 @@ export function ChordProView({
       data-testid={testId}
     >
       {doc.lines.map((line, index) => (
-        <ChordProLineView key={index} line={line} />
+        <ChordProLineView key={index} line={line} hideChords={hideChords} />
       ))}
     </div>
   )
@@ -98,13 +108,17 @@ export function RehearsalBodyView({
   text,
   chordProTestId,
   plainTestId,
+  hideChords = false,
 }: {
   text: string
   chordProTestId: string
   plainTestId: string
+  hideChords?: boolean
 }) {
   if (looksLikeChordPro(text)) {
-    return <ChordProView text={text} testId={chordProTestId} />
+    return (
+      <ChordProView text={text} testId={chordProTestId} hideChords={hideChords} />
+    )
   }
   return (
     <pre

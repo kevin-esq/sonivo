@@ -5,22 +5,26 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: IN PROGRESS (ADR-0030 ChordPro assisted tooling P0→P2)
-Human approval: APPROVED (Kevin — “Acepto todo” 2026-09-18)
-Git checkpoint: PENDING (docs ADR-0030 PR next)
-Remote: baseline develop/main post-Waves 1–4
-CI: Baseline Playwright 21/21 PASS (local Chromium)
+Implementation: COMPLETE (ADR-0030 P0 T-C30-01–05)
+Human approval: PENDING (await auditor)
+Git checkpoint: COMMITTED (this PR)
+Remote: PUSHED (feature/t-c30-transpose-views → develop PR)
+CI: Local Playwright 22/22 PASS; GitHub CI pending
 ```
 
 ## Module ADR-0030
 
-1. Docs ADR + PHASE-CHORDPRO-IA-SPEC — **NOW**
-2. P0 transpose + views
-3. P1 text digitizer
-4. P2 compose assist
+1. Docs ADR + PHASE-CHORDPRO-IA-SPEC — DONE (PR #68)
+2. P0 transpose + views — **this PR** (T-C30-01–05)
+3. P1 text digitizer — not started
+4. P2 compose assist — not started
+
+## P0 notes
+
+- Transpose convention: **sharps preferred** (Am +1 → A#m); flats only when source root used `b`
+- Guardar tono: PATCH chords; `defaultKey` updated only for simple single-token keys (else skip)
 
 ## Firewall
 
 - No Cursor trailers
-- No Whisper / cloud LLM / Q9 / pitch / YouTube / Event mail
-- Auditor merges only on PASS + green CI
+- No Whisper / cloud LLM / Q9 / pitch / YouTube / Event mail / P1/P2
