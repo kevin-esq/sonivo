@@ -18,7 +18,8 @@ import {
   type EventType,
   type SetlistListItem,
 } from '../api/client'
-import { Button } from '../ui/button'
+import { practiceQueueHref } from '../repertoire/PracticeEventQueue'
+import { Button, buttonVariants } from '../ui/button'
 import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
 import { EmptyPanel, Field, FormActions, PageBreadcrumb } from '../repertoire/chrome'
@@ -367,6 +368,17 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               Plan de canciones (copiado de la lista). Los cambios posteriores a la lista no
               actualizan este plan hasta que vuelvas a aplicar.
             </p>
+            {hasPlan && isLive ? (
+              <p>
+                <Link
+                  className={cn(buttonVariants({ variant: 'primary', size: 'sm' }), 'no-underline')}
+                  to={practiceQueueHref(group.id, musicalEvent.id, plan[0]!)}
+                  data-testid="ensayar-plan"
+                >
+                  Ensayar plan
+                </Link>
+              </p>
+            ) : null}
           </div>
 
           {plan.length === 0 ? (
