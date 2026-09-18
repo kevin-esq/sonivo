@@ -5,20 +5,24 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (ADR-0030 P0–P2)
-Human approval: APPROVED (Kevin — “Acepto todo”; auditor PASS each PR)
-Git checkpoint: COMMITTED on develop; #77 develop→main pending
-Remote: develop has P0–P2
-CI: PASSING on feature PRs
+Implementation: COMPLETE (T-SYNC-00 docs-only ADR-0031 + PHASE-PLAY-SYNC-SPEC)
+Human approval: APPROVED (Kevin — authorize follow-along thin / full backlog program 2026-09-18)
+Git checkpoint: PENDING (this docs PR — commit/push/PR authorized; merge = auditor)
+Remote: NOT PUSHED (until push of docs/adr-0031-play-sync)
+CI: NOT RUN (docs-only)
 ```
 
-## Module ADR-0030 (shipped)
+## Authorized program
 
-1. Docs ADR — DONE (#68–#70)
-2. P0 transpose + views — DONE (#71, #73)
-3. P1 text digitizer — DONE (#74, #75)
-4. P2 compose assist — DONE (#76); promote #77
+Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implement; merge/delete branches when PASS.
 
-## Firewall / next
+| Wave | Scope | Status |
+|------|-------|--------|
+| ADR-0031 T-SYNC-00 | Docs: ADR + PHASE-PLAY-SYNC-SPEC + AGENTS/CONTEXT | THIS PR |
+| ADR-0031 T-SYNC-01–03 | Migration ChordTimingJson + Owner marks UI + Practice highlight + TC-PLAY-SYNC-01 | AFTER merge |
+| ADR-0032+ | Whisper audio digitizer thin | AFTER 0031 impl |
+| Q9 / S3 / LLM / pitch / YouTube | Still need separate ADRs after core | LATER in same program |
 
-Needs **new explicit authorization**. Still deferred: Whisper, cloud LLM, audio digitizer, Q9, pitch, YouTube, Event mail, S3.
+## Deferred until their ADR
+
+Pitch · YouTube · karaoke scoring · multi-device Q9 · S3 >5MiB · cloud LLM upgrade of P1/P2 · ML auto-marks (unless Kevin expands 0032)

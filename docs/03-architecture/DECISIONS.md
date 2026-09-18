@@ -8,6 +8,41 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0031 — Practice ChordPro follow-along (Owner time marks + highlight)
+
+- **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-18** Kevin Esquivel — authorize follow-along thin (full backlog program)  
+- **Date:** 2026-09-18  
+- **Depends on:** ADR-0027, 0028, 0029, 0030  
+- **Revises:** ADR-0029 clause that treated time-synced lyric/ChordPro marks as FUTURE-only — Practice MAY highlight the current ChordPro line (or block) from Owner-authored timing marks while audio plays  
+- **Does not authorize:** Whisper / cloud STT, cloud LLM, auto-generated marks from ML, realtime multi-device sync (Q9), pitch detection, YouTube, S3 blob adapter, raising the 5 MiB blob cap
+
+### Context
+
+ADR-0029 shipped a usable Practice player with manual ChordPro scroll. Musicians still lose their place when rehearsing with audio. Full karaoke/realtime (Q9) and ML-generated marks are out of scope; a thin **Owner-authored** timing map plus client highlight reuses the existing HTML5 `timeupdate` path.
+
+### Decision (ACCEPTED)
+
+1. **Product:** while Practice audio plays, ChordPro **highlights the current line** (or contiguous block) driven by Owner-authored time marks. Toggle optional **“Seguir letra”** (on/off; prefer `localStorage` for the preference).  
+2. **Source of truth** for chart text remains `Arrangement.Chords` (ChordPro) per ADR-0028 / 0030. Timing does **not** replace or fork ChordPro into a second body.  
+3. **Timing persistence:** nullable string column **`ChordTimingJson`** on **Arrangement** (not overloaded into `Notes`). JSON array of `{ "lineIndex": number, "atMs": number }` (0-based line index into the ChordPro body as rendered/split for mark editing; `atMs` = audio position in milliseconds). Empty / null = no follow-along marks. One nullable column only — **no new table**. EF migration lands in **T-SYNC-01** (not docs-only).  
+4. **Roles:** Owner creates/edits/clears marks (PATCH Arrangement); Member **read-only** consumes marks on Practice. Same AuthZ pattern as other Arrangement body fields.  
+5. **Player:** reuse ADR-0029 custom chrome / HTML5 `<audio>` `timeupdate` (and seek) to resolve the active mark — no websocket, no conductor.  
+6. **Spanish UI**; sparse Playwright **TC-PLAY-SYNC-01** in T-SYNC-03.  
+7. **Tickets:** T-SYNC-00 (this ADR + [`PHASE-PLAY-SYNC-SPEC.md`](PHASE-PLAY-SYNC-SPEC.md)); T-SYNC-01–03 implementation — see that spec.  
+8. **Firewall unchanged:** no Whisper, cloud LLM, Q9 realtime, pitch, YouTube, S3, raising 5 MiB, ML auto-marks.
+
+### Consequences
+
+- ADR-0029 Wave 2 “manual scroll only / time-sync FUTURE” is superseded for **Owner-authored** follow-along highlight (not multi-device realtime).  
+- Arrangement GET/PATCH grow one optional field; Practice highlight is SPA-only given marks + audio.  
+- Whisper / audio digitizer remain a later ADR (may seed marks later; not this thin).
+
+### Non-goals
+
+Whisper · cloud LLM · ML auto-marks · Q9 multi-device · pitch · YouTube · S3 · MusicXML · karaoke scoring
+
+---
+
 ## ADR-0030 — ChordPro rehearsal intelligence module (transpose, text digitizer, compose assist)
 
 - **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-18** (Kevin Esquivel — “Acepto todo” on ChordPro+IA product proposal)  
@@ -51,6 +86,7 @@ Whisper · OpenAI/Anthropic/etc. in-process · realtime · pitch · stems · Mus
 - **Date:** 2026-09-17  
 - **Depends on:** ADR-0027, 0028; T-3.2.06 file/link Resources  
 - **Revises:** ADR-0027 “single primary `<audio>` control” — Practice MAY use a custom player chrome over the same HTML5 media element  
+- **REVISED by ADR-0031:** Owner-authored ChordPro line timing + Practice highlight (“Seguir letra”) is **authorized**; multi-device realtime (Q9) remains FUTURE  
 - **Does not authorize:** realtime sync (Q9), pitch detection, YouTube API, streaming CDN, stems mixer, raising the 5 MiB blob cap (separate ops ADR)
 
 ### Context
@@ -62,7 +98,7 @@ Thin Practice (ADR-0027) exposes one playable Resource via native browser contro
 1. **Scope Wave 2 (Arrangement player):** enhance the existing Practice route for one live Arrangement — no new domain aggregates, no new API endpoints required. Reuse GET Arrangement + Resource list + file `content` AuthZ.  
 2. **Chrome:** custom control bar (Spanish): reproducir/pausar, seek, tiempo actual/duración, volumen. Prefer one HTML5 `<audio>` under the hood (hidden or visually secondary).  
 3. **Track list:** list all playable Resources with purpose `audio` then `click` (same playability rules as today). User may switch track; switching resets or keeps playhead per thin UX (default: reset to 0). Prefer last-selected track from `localStorage` when still present.  
-4. **Lyrics / ChordPro:** keep ADR-0028 render beside/above the player. **Manual** scroll only in Wave 2. Time-synced auto-scroll / lyric marks = FUTURE (needs format + Q9-adjacent ADR).  
+4. **Lyrics / ChordPro:** keep ADR-0028 render beside/above the player. **Manual** scroll only in Wave 2. ~~Time-synced auto-scroll / lyric marks = FUTURE (needs format + Q9-adjacent ADR).~~ **REVISED by ADR-0031:** Owner-authored timing marks + optional highlight (“Seguir letra”) are authorized; Q9 multi-device sync remains FUTURE.  
 5. **UX persistence:** volume + last track Resource id in `localStorage` keyed by Group/Arrangement — **not** server state.  
 6. **Scope Wave 3 (authorized by this ADR, separate tickets):** Event plan / Setlist ordered queue with next/prev, title per item, jump to that Arrangement’s Practice. Still no realtime.  
 7. **Spanish UI** labels for player chrome.  
@@ -128,6 +164,7 @@ MusicXML · Guitar Pro · OCR PDF · realtime scroll sync · forcing all Groups 
 - **Does not authorize:** realtime sync (Q9), pitch detection, YouTube API, multi-user live conductor  
 - **REVISED by ADR-0028:** ChordPro parser/render on Practice is **authorized** (hybrid ChordPro in Arrangement fields). The original “no ChordPro parser” thin ban no longer binds.  
 - **REVISED by ADR-0029:** Practice MAY use custom player chrome (seek/volume/multi-track) over HTML5 audio; Event/Setlist queue is Wave 3 under the same ADR.
+- **REVISED by ADR-0031:** Owner-authored ChordPro line timing + optional Practice highlight (“Seguir letra”) is **authorized**; websocket/multi-device realtime remains FUTURE.
 
 ### Context
 
@@ -139,7 +176,7 @@ Members need a first-class **practice** surface: see lyrics (and optionally hear
 2. View shows: Arrangement **Label**, Song **Title**, **Lyrics** text (plain), optional **Key** / **Tempo** display. **REVISED by ADR-0028:** Lyrics/Chords MAY render as ChordPro when text looks like ChordPro.  
 3. If the Arrangement has a Resource with purpose `audio` or `click` (link or file), expose **one** primary playable control (HTML5 `<audio>` for file `content` or link URL when audio MIME / known audio extension). Prefer purpose `audio`, else `click`.  
 4. **No** new domain aggregates. **No** new persistence tables. Reuse existing GET Arrangement + Resource list + file `content` AuthZ.  
-5. **No** websocket/realtime, **No** pitch tracking, **No** scrolling sync engine beyond basic CSS scroll of lyrics, **No** Event-plan karaoke mode in this thin.  
+5. **No** websocket/realtime, **No** pitch tracking. ~~**No** scrolling sync engine beyond basic CSS scroll of lyrics~~ **REVISED by ADR-0031:** Owner time marks + highlight authorized; still **no** Event-plan karaoke mode / multi-device conductor in this thin.  
 6. Spanish UI copy; routes may stay English (`/practice` or query under arrangement).  
 7. Playwright: sparse TC — Owner opens Practicar and sees lyrics (fixture song with lyrics).
 

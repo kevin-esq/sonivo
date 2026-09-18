@@ -2,8 +2,8 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-17 (Thin Practice/karaoke COMPLETED — PR #45)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** including **T-3.2.06**. **Google OAuth** thin **COMPLETED** (ADR-0026; PR #40). **Thin Practice / karaoke** **COMPLETED** (ADR-0027; PR [#45](https://github.com/kevin-esq/sonivo/pull/45)) — read-only Practicar + optional audio. T-OPS-01/02 done. Live: https://sonivo.onrender.com. Gate B **CLOSED**. No automatic next feature.  
+**Last updated:** 2026-09-18 (ADR-0031 Practice ChordPro follow-along **ACCEPTED** — docs T-SYNC-00)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** including **T-3.2.06**. **Google OAuth** thin **COMPLETED** (ADR-0026; PR #40). **Thin Practice / karaoke** **COMPLETED** (ADR-0027; PR [#45](https://github.com/kevin-esq/sonivo/pull/45)) — read-only Practicar + optional audio. ChordPro formats + player + ADR-0030 tooling **COMPLETED**. **ADR-0031** follow-along **AUTHORIZED** (Owner time marks + highlight; impl T-SYNC-01–03). T-OPS-01/02 done. Live: https://sonivo.onrender.com. Gate B **CLOSED**.  
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
@@ -107,7 +107,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 2. Implement/scaffold/install without explicit approval.  
 3. Workspace/Organization; Recording/Performance aggregates in MVP.  
 4. Organizer/Guest roles; ACL engines; JWT web; BFF; Supabase Auth.  
-5. Silently reopen ACCEPTED ADRs 0001–0030 without a superseding ADR.  
+5. Silently reopen ACCEPTED ADRs 0001–0031 without a superseding ADR.  
 6. Content versioning / DAM / Event body snapshots in MVP.  
 7. Unauthorized user-global tooling as Sonivo dependency.
 
@@ -115,7 +115,9 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 ## FUTURE
 
-Organization · Event resources · Member edits · albums · live tools · mobile bearer · blob GC · account deletion · Event/RSVP notification mail · ChordPro cloud LLM / Whisper audio digitizer · MusicXML / Guitar Pro · realtime (Q9) · billing · duration/transitions · Arrangement status · Resource soft-delete undo
+Organization · Event resources · Member edits · albums · live tools · mobile bearer · blob GC · account deletion · Event/RSVP notification mail · ChordPro cloud LLM / Whisper audio digitizer · MusicXML / Guitar Pro · realtime multi-device (Q9) · billing · duration/transitions · Arrangement status · Resource soft-delete undo
+
+*(Owner-authored Practice ChordPro follow-along / highlight is **not** FUTURE — **ADR-0031 ACCEPTED**; ML auto-marks remain FUTURE.)*
 
 ---
 

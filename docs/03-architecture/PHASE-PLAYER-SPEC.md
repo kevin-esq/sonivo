@@ -15,7 +15,7 @@
 | Q-P2-2 | Custom chrome over HTML5 `<audio>`; no new API/aggregate |
 | Q-P2-3 | Track selector: all playable `audio` then `click` Resources |
 | Q-P2-4 | localStorage: volume + last Resource id (per Group/Arrangement) |
-| Q-P2-5 | Manual lyric/ChordPro scroll; no time-sync marks |
+| Q-P2-5 | Manual lyric/ChordPro scroll in Wave 2; **REVISED by ADR-0031** — Owner time marks + “Seguir letra” highlight authorized ([`PHASE-PLAY-SYNC-SPEC.md`](PHASE-PLAY-SYNC-SPEC.md)) |
 | Q-P2-6 | Spanish chrome; Playwright TC-PLAY-01 |
 
 ## Frozen mechanics (Wave 3 — DONE)
