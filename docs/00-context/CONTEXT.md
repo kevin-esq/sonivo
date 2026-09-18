@@ -115,7 +115,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 ## FUTURE
 
-Organization · Event resources · Member edits · albums · live tools · mobile bearer · blob GC · account deletion · Event/RSVP notification mail · ChordPro transpose / MusicXML / Guitar Pro · realtime (Q9) · billing · duration/transitions · Arrangement status · Resource soft-delete undo
+Organization · Event resources · Member edits · albums · live tools · mobile bearer · blob GC · account deletion · Event/RSVP notification mail · ChordPro cloud LLM / Whisper audio digitizer · MusicXML / Guitar Pro · realtime (Q9) · billing · duration/transitions · Arrangement status · Resource soft-delete undo
 
 ---
 
