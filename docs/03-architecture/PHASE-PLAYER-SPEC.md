@@ -1,13 +1,13 @@
-# Phase Player — Practice audio (Wave 2 / ADR-0029)
+# Phase Player — Practice audio (ADR-0029)
 
-**Status:** AUTHORIZED 2026-09-17 (Kevin Esquivel — “Acepto todo”). ADR-0029 **ACCEPTED**.  
-**Product bet:** Musicians rehearse with seek/volume/track choice while reading ChordPro/lyrics — without realtime.  
+**Status:** Wave 2 **COMPLETE** 2026-09-17 (T-PLAY-01–05; PR #54). Wave 3 **AUTHORIZED** (Kevin — “Acepto todo”). ADR-0029 **ACCEPTED**.  
+**Product bet:** Musicians rehearse with seek/volume/track choice while reading ChordPro/lyrics — without realtime. Event/Setlist queue next.  
 **Date:** 2026-09-17  
-**Depends on:** ADR-0029, 0027, 0028; T-3.2.06.
+**Depends on:** ADR-0029, 0027, 0028; T-3.2.06; Phase 3.3 Event plan.
 
 ---
 
-## Frozen mechanics
+## Frozen mechanics (Wave 2 — DONE)
 
 | ID | Decision |
 | -- | -------- |
@@ -18,39 +18,51 @@
 | Q-P2-5 | Manual lyric/ChordPro scroll; no time-sync marks |
 | Q-P2-6 | Spanish chrome; Playwright TC-PLAY-01 |
 
+## Frozen mechanics (Wave 3)
+
+| ID | Decision |
+| -- | -------- |
+| Q-P3-1 | Queue from Event plan items (ordered Arrangements after apply-setlist) |
+| Q-P3-2 | next/prev in SPA; show song title / arrangement label per item |
+| Q-P3-3 | Jump opens/navigates that Arrangement’s Practice (reuse Wave 2 chrome) |
+| Q-P3-4 | No new aggregates; reuse Event GET plan + existing Practice route |
+| Q-P3-5 | Spanish UI; Playwright TC-PLAY-02 |
+
 ---
 
-## Scope
+## Scope Wave 3
 
 | In | Out |
 | -- | --- |
-| Practice player bar: play/pause, seek, time, volume | Pitch, YouTube, realtime |
-| Multi-track Resource picker | Stems mixer, raising 5 MiB |
-| localStorage prefs | Server-side player state |
-| TC-PLAY-01 | Wave 3 queue (T-PLAY-06–08) |
+| Event page (or Practice-with-queue) next/prev over plan items | Realtime, pitch, YouTube |
+| Title/label per queue item | Auto-advance audio end → next (optional thin: button-only OK) |
+| Link/navigate to Arrangement Practice | Server playlist persistence |
+| TC-PLAY-02 | Raising 5 MiB / S3 |
 
 ---
 
-## Tickets (Wave 2)
+## Tickets (Wave 2 — DONE)
 
 | ID | Work |
 | -- | ---- |
-| T-PLAY-01 | Player chrome: play/pause, seek, current/duration, volume |
-| T-PLAY-02 | Track selector among playable `audio`/`click` Resources |
-| T-PLAY-03 | Keep ChordPro/lyrics panel; manual scroll only |
-| T-PLAY-04 | localStorage volume + last track |
-| T-PLAY-05 | Playwright TC-PLAY-01 + keep full e2e green |
+| T-PLAY-01…05 | COMPLETE (PR #54) |
 
-Ship **one PR** `feature/t-play-arrangement` → `develop`.
+## Tickets (Wave 3)
 
-Wave 3 (separate PR after Wave 2 merge): T-PLAY-06–08 per ADR-0029 §6.
+| ID | Work |
+| -- | ---- |
+| T-PLAY-06 | Queue UI from Event plan order (next/prev) |
+| T-PLAY-07 | Show title/label; open Practice for current item |
+| T-PLAY-08 | Playwright TC-PLAY-02: apply setlist → Event player/queue → next |
+
+Ship **one PR** `feature/t-play-event-queue` → `develop`.
 
 ---
 
-## Audit checklist
+## Audit checklist (Wave 3)
 
 - [ ] No realtime / pitch / YouTube  
 - [ ] No new aggregates / migrations  
-- [ ] Spanish player chrome  
-- [ ] TC-PLAY-01 + full Playwright green  
+- [ ] Spanish queue chrome  
+- [ ] TC-PLAY-02 + full Playwright green  
 - [ ] No Cursor trailers  
