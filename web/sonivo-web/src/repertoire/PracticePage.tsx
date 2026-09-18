@@ -4,17 +4,31 @@ import {
   getArrangement,
   getEvent,
   getSong,
+  updateArrangement,
   type ArrangementDetail,
   type CurrentUser,
   type EventDetail,
   type EventPlanItem,
 } from '../api/client'
 import { EmptyPanel, PageBreadcrumb } from './chrome'
+import { looksLikeChordPro, transposeChordPro, tryTransposeDefaultKey } from './chordPro'
 import { RehearsalBodyView } from './ChordProView'
 import { PracticeEventQueue } from './PracticeEventQueue'
 import { PracticePlayer } from './PracticePlayer'
+import {
+  readPracticeViewMode,
+  writePracticeViewMode,
+  type PracticeViewMode,
+} from './practiceViewPrefs'
 import { listPracticeAudioTracks, type PracticeAudioSource } from './pickPracticeAudio'
-import { mutationErrorMessage, ProblemAlert, useGroupContext } from './ui'
+import {
+  ConfirmDialog,
+  isOwnerRole,
+  mutationErrorMessage,
+  ProblemAlert,
+  useGroupContext,
+} from './ui'
+import { Button } from '../ui/button'
 import { Skeleton } from '../ui/skeleton'
 
 function resolveQueueItem(
@@ -80,6 +94,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const eventId = searchParams.get('eventId')
   const planItemId = searchParams.get('item')
   const { group, error: groupError } = useGroupContext(groupId, user.id)
+  const isOwner = isOwnerRole(group?.role)
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
   const [songTitle, setSongTitle] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -88,6 +103,19 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     eventId ? undefined : null,
   )
   const [queueError, setQueueError] = useState<string | null>(null)
+  const [semitoneOffset, setSemitoneOffset] = useState(0)
+  const [viewMode, setViewMode] = useState<PracticeViewMode>('guitarist')
+  const [confirmSaveTone, setConfirmSaveTone] = useState(false)
+  const [savingTone, setSavingTone] = useState(false)
+
+  useEffect(() => {
+    setSemitoneOffset(0)
+    if (!groupId || !arrangementId) {
+      setViewMode('guitarist')
+      return
+    }
+    setViewMode(readPracticeViewMode(groupId, arrangementId))
+  }, [groupId, arrangementId])
 
   useEffect(() => {
     if (!groupId || !arrangementId || !group) return
@@ -179,31 +207,80 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     )
   }
 
-  const arrangementHref = `/groups/${group.id}/arrangements/${arrangement.id}`
-  const songHref = `/groups/${group.id}/songs/${arrangement.songId}`
+  // Narrowed after early returns above — capture for nested handlers (TS).
+  const liveGroup = group
+  const liveArrangement = arrangement
+
+  const arrangementHref = `/groups/${liveGroup.id}/arrangements/${liveArrangement.id}`
+  const songHref = `/groups/${liveGroup.id}/songs/${liveArrangement.songId}`
   const queueItems = eventDetail?.items ?? []
   const queueItem =
     eventDetail && arrangementId
       ? resolveQueueItem(queueItems, arrangementId, planItemId)
       : null
   const displayTitle = queueItem?.displaySongTitle ?? songTitle ?? 'Canción'
-  const displayLabel = queueItem?.displayArrangementLabel ?? arrangement.label
+  const displayLabel = queueItem?.displayArrangementLabel ?? liveArrangement.label
+
+  const sourceBody = liveArrangement.chords?.trim() || liveArrangement.lyrics?.trim() || ''
+  const chordProSource = liveArrangement.chords?.trim() || ''
+  const canTranspose = looksLikeChordPro(chordProSource || sourceBody)
+  const displayBody =
+    canTranspose && semitoneOffset !== 0
+      ? transposeChordPro(sourceBody, semitoneOffset)
+      : sourceBody
+  const effectiveKeyHint =
+    liveArrangement.defaultKey && semitoneOffset !== 0
+      ? tryTransposeDefaultKey(liveArrangement.defaultKey, semitoneOffset)
+      : null
+  const hideChords = viewMode === 'singer'
+
+  function setViewModePersist(mode: PracticeViewMode) {
+    setViewMode(mode)
+    writePracticeViewMode(liveGroup.id, liveArrangement.id, mode)
+  }
+
+  async function handleSaveTone() {
+    if (!isOwner || semitoneOffset === 0 || !liveArrangement.chords?.trim()) return
+    setSavingTone(true)
+    setError(null)
+    try {
+      // defaultKey: update only when it is a single simple chord/key token
+      // (e.g. G, Am, F#m). Free-text or multi-token keys are left unchanged.
+      const nextKey = tryTransposeDefaultKey(liveArrangement.defaultKey, semitoneOffset)
+      const payload: Parameters<typeof updateArrangement>[2] = {
+        expectedVersion: liveArrangement.version,
+        chords: transposeChordPro(liveArrangement.chords, semitoneOffset),
+      }
+      if (nextKey != null) {
+        payload.defaultKey = nextKey
+      }
+      const updated = await updateArrangement(liveGroup.id, liveArrangement.id, payload)
+      setArrangement(updated)
+      setSemitoneOffset(0)
+      setConfirmSaveTone(false)
+    } catch (err) {
+      setError(mutationErrorMessage(err))
+      setConfirmSaveTone(false)
+    } finally {
+      setSavingTone(false)
+    }
+  }
 
   const breadcrumbItems = eventId
     ? [
-        { to: `/groups/${group.id}`, label: group.name },
-        { to: `/groups/${group.id}/events`, label: 'Eventos' },
+        { to: `/groups/${liveGroup.id}`, label: liveGroup.name },
+        { to: `/groups/${liveGroup.id}/events`, label: 'Eventos' },
         {
-          to: `/groups/${group.id}/events/${eventId}`,
+          to: `/groups/${liveGroup.id}/events/${eventId}`,
           label: eventDetail?.title ?? 'Evento',
         },
         { label: 'Ensayar plan' },
       ]
     : [
-        { to: `/groups/${group.id}`, label: group.name },
-        { to: `/groups/${group.id}/library`, label: 'Biblioteca' },
+        { to: `/groups/${liveGroup.id}`, label: liveGroup.name },
+        { to: `/groups/${liveGroup.id}/library`, label: 'Biblioteca' },
         { to: songHref, label: songTitle ?? 'Canción' },
-        { to: arrangementHref, label: arrangement.label },
+        { to: arrangementHref, label: liveArrangement.label },
         { label: 'Practicar' },
       ]
 
@@ -220,10 +297,12 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           </h1>
           <p className="text-base text-slate-700">{displayLabel}</p>
           <p className="text-sm text-slate-600">
-            {arrangement.defaultKey ? `Tonalidad: ${arrangement.defaultKey}` : 'Tonalidad: —'}
+            {liveArrangement.defaultKey
+              ? `Tonalidad: ${liveArrangement.defaultKey}`
+              : 'Tonalidad: —'}
             {' · '}
-            {arrangement.defaultBpm != null
-              ? `Tempo: ${arrangement.defaultBpm} BPM`
+            {liveArrangement.defaultBpm != null
+              ? `Tempo: ${liveArrangement.defaultBpm} BPM`
               : 'Tempo: —'}
           </p>
         </div>
@@ -236,7 +315,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       {eventId && eventDetail && queueItems.length > 0 ? (
         <PracticeEventQueue
-          groupId={group.id}
+          groupId={liveGroup.id}
           eventId={eventId}
           eventTitle={eventDetail.title}
           items={queueItems}
@@ -251,7 +330,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           action={
             <Link
               className="font-semibold text-primary no-underline hover:underline"
-              to={`/groups/${group.id}/events/${eventId}`}
+              to={`/groups/${liveGroup.id}/events/${eventId}`}
             >
               Volver al evento
             </Link>
@@ -261,10 +340,89 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       {tracks.length > 0 ? (
         <PracticePlayer
-          groupId={group.id}
-          arrangementId={arrangement.id}
+          groupId={liveGroup.id}
+          arrangementId={liveArrangement.id}
           tracks={tracks}
         />
+      ) : null}
+
+      {canTranspose ? (
+        <section
+          className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+          aria-labelledby="practice-transpose-heading"
+        >
+          <h2
+            id="practice-transpose-heading"
+            className="text-base font-semibold tracking-tight text-neutral-dark"
+          >
+            Tono y vista
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="practice-transpose-down"
+              onClick={() => setSemitoneOffset((n) => n - 1)}
+            >
+              Tono −1
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="practice-transpose-up"
+              onClick={() => setSemitoneOffset((n) => n + 1)}
+            >
+              Tono +1
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="practice-transpose-reset"
+              disabled={semitoneOffset === 0}
+              onClick={() => setSemitoneOffset(0)}
+            >
+              Restablecer preview
+            </Button>
+          </div>
+          <p className="text-sm text-slate-600" data-testid="practice-transpose-offset">
+            Desplazamiento:{' '}
+            {semitoneOffset > 0 ? `+${semitoneOffset}` : String(semitoneOffset)}
+            {effectiveKeyHint ? ` · Efectiva: ${effectiveKeyHint}` : null}
+          </p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Vista de ensayo">
+            <Button
+              variant={viewMode === 'singer' ? 'primary' : 'secondary'}
+              size="sm"
+              data-testid="practice-view-singer"
+              aria-pressed={viewMode === 'singer'}
+              onClick={() => setViewModePersist('singer')}
+            >
+              Vista Cantante
+            </Button>
+            <Button
+              variant={viewMode === 'guitarist' ? 'primary' : 'secondary'}
+              size="sm"
+              data-testid="practice-view-guitarist"
+              aria-pressed={viewMode === 'guitarist'}
+              onClick={() => setViewModePersist('guitarist')}
+            >
+              Vista Guitarrista
+            </Button>
+          </div>
+          {isOwner && liveArrangement.chords?.trim() ? (
+            <div>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="practice-save-tone"
+                disabled={semitoneOffset === 0 || savingTone}
+                onClick={() => setConfirmSaveTone(true)}
+              >
+                Guardar tono
+              </Button>
+            </div>
+          ) : null}
+        </section>
       ) : null}
 
       <section className="space-y-3" aria-labelledby="practice-lyrics-heading">
@@ -272,8 +430,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           Letra
         </h2>
         {(() => {
-          const body = arrangement.chords?.trim() || arrangement.lyrics?.trim() || ''
-          if (!body) {
+          if (!sourceBody) {
             return (
               <EmptyPanel
                 title="Sin letra ni acordes"
@@ -291,9 +448,10 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           }
           return (
             <RehearsalBodyView
-              text={body}
+              text={displayBody}
               chordProTestId="practice-chordpro"
               plainTestId="practice-lyrics"
+              hideChords={hideChords}
             />
           )
         })()}
@@ -316,6 +474,23 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           </Link>
         )}
       </p>
+
+      <ConfirmDialog
+        open={confirmSaveTone}
+        title="¿Guardar tono?"
+        confirmLabel="Guardar tono"
+        cancelLabel="Cancelar"
+        pendingLabel="Guardando…"
+        pending={savingTone}
+        onCancel={() => setConfirmSaveTone(false)}
+        onConfirm={() => void handleSaveTone()}
+      >
+        <p>
+          Se actualizarán los acordes ChordPro del arreglo
+          {effectiveKeyHint ? ` y la tonalidad a ${effectiveKeyHint}` : ''}. Esta
+          acción no se puede deshacer con Restablecer preview.
+        </p>
+      </ConfirmDialog>
     </section>
   )
 }
