@@ -5,19 +5,17 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (Wave 1 T-FMT-01–06)
-Human approval: PENDING (auditor review of PR → develop)
-Git checkpoint: COMMITTED (this branch)
-Remote: PUSHED (feature/t-fmt-chordpro)
-CI: NOT RUN (await PR checks)
+Implementation: IN PROGRESS (Wave 2 ADR-0029 docs → then T-PLAY)
+Human approval: APPROVED (Kevin — “Acepto todo” 2026-09-17)
+Git checkpoint: Wave 1 COMPLETE (#48–#51 on develop/main)
+Remote: main @ formats promote #51
+CI: PASSING on merged PRs
 ```
-
-**Local Playwright:** 18/18 PASS (incl. TC-FMT-01 + TC-PRACTICE-01).
 
 ## Waves
 
-1. Formats ADR-0028 **MERGED** (#48) → T-FMT-01–06 **PR open** (this branch)
-2. Player ADR-0029 + T-PLAY-01–05
+1. Formats ADR-0028 + T-FMT — **DONE** (#48–#51)
+2. Player ADR-0029 + T-PLAY-01–05 — **NOW**
 3. Event/Setlist player T-PLAY-06–08
 4. UX journeys T-UX-*
 
@@ -25,4 +23,4 @@ CI: NOT RUN (await PR checks)
 
 - No Cursor trailers
 - Auditor merges only on PASS + green CI
-- No Q9 realtime / pitch / YouTube / Event mail in these waves
+- No Q9 realtime / pitch / YouTube / Event mail

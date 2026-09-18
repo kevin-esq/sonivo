@@ -8,6 +8,41 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0029 — Practice audio player (Arrangement v1; Event/Setlist queue next)
+
+- **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-17** (Kevin Esquivel — “Acepto todo” Wave plan)  
+- **Date:** 2026-09-17  
+- **Depends on:** ADR-0027, 0028; T-3.2.06 file/link Resources  
+- **Revises:** ADR-0027 “single primary `<audio>` control” — Practice MAY use a custom player chrome over the same HTML5 media element  
+- **Does not authorize:** realtime sync (Q9), pitch detection, YouTube API, streaming CDN, stems mixer, raising the 5 MiB blob cap (separate ops ADR)
+
+### Context
+
+Thin Practice (ADR-0027) exposes one playable Resource via native browser controls. Musicians need a **usable rehearsal player**: seek, volume, and choosing among multiple `audio`/`click` Resources while reading ChordPro/lyrics. Setlist/Event queue is valuable but must not block Arrangement v1.
+
+### Decision (ACCEPTED)
+
+1. **Scope Wave 2 (Arrangement player):** enhance the existing Practice route for one live Arrangement — no new domain aggregates, no new API endpoints required. Reuse GET Arrangement + Resource list + file `content` AuthZ.  
+2. **Chrome:** custom control bar (Spanish): reproducir/pausar, seek, tiempo actual/duración, volumen. Prefer one HTML5 `<audio>` under the hood (hidden or visually secondary).  
+3. **Track list:** list all playable Resources with purpose `audio` then `click` (same playability rules as today). User may switch track; switching resets or keeps playhead per thin UX (default: reset to 0). Prefer last-selected track from `localStorage` when still present.  
+4. **Lyrics / ChordPro:** keep ADR-0028 render beside/above the player. **Manual** scroll only in Wave 2. Time-synced auto-scroll / lyric marks = FUTURE (needs format + Q9-adjacent ADR).  
+5. **UX persistence:** volume + last track Resource id in `localStorage` keyed by Group/Arrangement — **not** server state.  
+6. **Scope Wave 3 (authorized by this ADR, separate tickets):** Event plan / Setlist ordered queue with next/prev, title per item, jump to that Arrangement’s Practice. Still no realtime.  
+7. **Spanish UI** labels for player chrome.  
+8. **Playwright:** TC-PLAY-01 (play + seek + change track) for Wave 2; TC-PLAY-02 for Wave 3 queue.
+
+### Consequences
+
+- Practice becomes the product “player” surface without a second route.  
+- Wave 3 builds on the same chrome with a playlist model in the SPA.  
+- Large-file / S3 remains ops (T-BLOB-S3) when Neon/size hurts — not a prerequisite for Wave 2.
+
+### Non-goals
+
+Pitch · YouTube · karaoke scoring · conductor/realtime · multi-device sync · Event notification mail · MusicXML
+
+---
+
 ## ADR-0028 — Chart / lyrics format (closes Q8) — hybrid ChordPro + file chart
 
 - **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-17** (Kevin Esquivel — “Acepto todo” Wave plan)  
