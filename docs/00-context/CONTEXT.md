@@ -2,8 +2,8 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-17 (T-3.2.06 File Resource COMPLETED — PR #35)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** on `develop` including **T-3.2.06** file Resource (Postgres `IBlobStore`, multipart, `content`, TC-LIB-04). T-OPS-01 DataProtection keys persist in Postgres. T-OPS-02 Render GitHub app granted on `kevin-esq/sonivo`. Live: https://sonivo.onrender.com. Gate B **ACCEPTED / CLOSED**. Merge `develop` → `main` **authorized**. Next authorized pipeline: Google OAuth (ADR) → thin karaoke/live.  
+**Last updated:** 2026-09-17 (Google OAuth thin COMPLETED — PR #40)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** including **T-3.2.06** file Resource. **Google OAuth** thin **COMPLETED** (ADR-0026; PR [#40](https://github.com/kevin-esq/sonivo/pull/40)) — Identity external login → `sonivo.auth`. T-OPS-01/02 done. Live: https://sonivo.onrender.com. Gate B **CLOSED**. Next: thin karaoke/live (ADR).  
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
