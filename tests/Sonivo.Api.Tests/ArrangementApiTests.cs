@@ -175,6 +175,107 @@ public class ArrangementApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(HttpStatusCode.Conflict, delete.StatusCode);
     }
 
+    [Fact]
+    public async Task Owner_can_patch_and_get_chord_timing_json_member_read_ok_write_403()
+    {
+        var ownerId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+
+        await SeedUsersAndMembershipAsync(
+            ("arr-sync-owner@example.com", "OwnerSync1!", ownerId),
+            ("arr-sync-member@example.com", "MemberSync1!", memberId),
+            groupId,
+            "Sync Arr",
+            ownerId,
+            memberId);
+
+        var ownerClient = await CreateAuthenticatedClientAsync("arr-sync-owner@example.com", "OwnerSync1!");
+        var song = await CreateSongAsync(ownerClient, groupId, "Sync Song");
+        var create = await ownerClient.PostAsJsonAsync(
+            $"/api/groups/{groupId}/songs/{song.Id}/arrangements",
+            new { label = "Timed" });
+        var arr = await create.Content.ReadFromJsonAsync<ArrangementDetailResponse>();
+        Assert.NotNull(arr);
+        Assert.Null(arr.ChordTimingJson);
+
+        var marks = """[{"lineIndex":0,"atMs":1200},{"lineIndex":1,"atMs":3400}]""";
+        var patch = await ownerClient.PatchAsJsonAsync(
+            $"/api/groups/{groupId}/arrangements/{arr.Id}",
+            new { chordTimingJson = marks, expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
+        var updated = await patch.Content.ReadFromJsonAsync<ArrangementDetailResponse>();
+        Assert.NotNull(updated);
+        Assert.Equal(2, updated.Version);
+        Assert.Equal(marks, updated.ChordTimingJson);
+
+        var memberClient = await CreateAuthenticatedClientAsync("arr-sync-member@example.com", "MemberSync1!");
+        var memberGet = await memberClient.GetAsync($"/api/groups/{groupId}/arrangements/{arr.Id}");
+        Assert.Equal(HttpStatusCode.OK, memberGet.StatusCode);
+        var memberDetail = await memberGet.Content.ReadFromJsonAsync<ArrangementDetailResponse>();
+        Assert.NotNull(memberDetail);
+        Assert.Equal(marks, memberDetail.ChordTimingJson);
+
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await memberClient.PatchAsJsonAsync(
+                $"/api/groups/{groupId}/arrangements/{arr.Id}",
+                new { chordTimingJson = "[]", expectedVersion = 2 })).StatusCode);
+
+        var clear = await ownerClient.PatchAsJsonAsync(
+            $"/api/groups/{groupId}/arrangements/{arr.Id}",
+            new { chordTimingJson = "[]", expectedVersion = 2 });
+        Assert.Equal(HttpStatusCode.OK, clear.StatusCode);
+        var cleared = await clear.Content.ReadFromJsonAsync<ArrangementDetailResponse>();
+        Assert.NotNull(cleared);
+        Assert.Null(cleared.ChordTimingJson);
+        Assert.Equal(3, cleared.Version);
+    }
+
+    [Fact]
+    public async Task Malformed_chord_timing_json_returns_400()
+    {
+        var client = await CreateAuthenticatedClientAsync("arr-sync-val@example.com");
+        var group = await CreateGroupAsync(client, "Sync Val");
+        var song = await CreateSongAsync(client, group.Id, "Song");
+        var create = await client.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/songs/{song.Id}/arrangements",
+            new { label = "Bad timing" });
+        var arr = await create.Content.ReadFromJsonAsync<ArrangementDetailResponse>();
+        Assert.NotNull(arr);
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PatchAsJsonAsync(
+                $"/api/groups/{group.Id}/arrangements/{arr.Id}",
+                new { chordTimingJson = """{"not":"array"}""", expectedVersion = 1 })).StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PatchAsJsonAsync(
+                $"/api/groups/{group.Id}/arrangements/{arr.Id}",
+                new { chordTimingJson = """[{"lineIndex":-1,"atMs":0}]""", expectedVersion = 1 })).StatusCode);
+    }
+
+    [Fact]
+    public async Task Stale_version_on_chord_timing_patch_returns_409()
+    {
+        var client = await CreateAuthenticatedClientAsync("arr-sync-conflict@example.com");
+        var group = await CreateGroupAsync(client, "Sync Conflict");
+        var song = await CreateSongAsync(client, group.Id, "Song");
+        var create = await client.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/songs/{song.Id}/arrangements",
+            new { label = "Versioned sync" });
+        var arr = await create.Content.ReadFromJsonAsync<ArrangementDetailResponse>();
+        Assert.NotNull(arr);
+
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PatchAsJsonAsync(
+                $"/api/groups/{group.Id}/arrangements/{arr.Id}",
+                new
+                {
+                    chordTimingJson = """[{"lineIndex":0,"atMs":100}]""",
+                    expectedVersion = 99
+                })).StatusCode);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password = "Password1")
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -299,6 +400,7 @@ public class ArrangementApiTests : IClassFixture<SonivoApiFactory>
         string? DefaultKey,
         int? DefaultBpm,
         string? Lyrics,
+        string? ChordTimingJson,
         int Version,
         List<ResourceSummaryResponse> Resources);
     private sealed record ResourceSummaryResponse(Guid Id, string Kind, string Label);

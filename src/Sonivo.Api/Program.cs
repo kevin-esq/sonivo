@@ -847,6 +847,7 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", asy
             request.Chords,
             request.Structure,
             request.Notes,
+            request.ChordTimingJson,
             request.ExpectedVersion),
         cancellationToken);
 
@@ -1541,6 +1542,7 @@ static object ToArrangementDetailResponse(ArrangementDetailDto arrangement) => n
     chords = arrangement.Chords,
     structure = arrangement.Structure,
     notes = arrangement.Notes,
+    chordTimingJson = arrangement.ChordTimingJson,
     version = arrangement.Version,
     createdAt = arrangement.CreatedAt,
     updatedAt = arrangement.UpdatedAt,
@@ -1719,6 +1721,7 @@ internal sealed record UpdateArrangementRequest(
     string? Chords,
     string? Structure,
     string? Notes,
+    string? ChordTimingJson,
     int ExpectedVersion);
 internal sealed record SoftDeleteArrangementRequest(int ExpectedVersion);
 internal sealed record CreateLinkResourceRequest(

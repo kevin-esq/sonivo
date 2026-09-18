@@ -20,6 +20,10 @@ public sealed class Arrangement : IVersionedEntity
     public string? DefaultKey { get; private set; }
     public int? DefaultBpm { get; private set; }
     public string? Notes { get; private set; }
+    /// <summary>
+    /// Owner-authored ChordPro line timing marks as JSON text (ADR-0031). Null = no marks.
+    /// </summary>
+    public string? ChordTimingJson { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? DeletedAt { get; private set; }
@@ -80,6 +84,7 @@ public sealed class Arrangement : IVersionedEntity
         string? chords,
         string? structure,
         string? notes,
+        string? chordTimingJson,
         int expectedVersion,
         DateTimeOffset now)
     {
@@ -92,6 +97,8 @@ public sealed class Arrangement : IVersionedEntity
         Chords = NormalizeOptional(chords, MaxBodyLength, nameof(chords));
         Structure = NormalizeOptional(structure, MaxBodyLength, nameof(structure));
         Notes = NormalizeOptional(notes, MaxBodyLength, nameof(notes));
+        // Pre-validated/normalized by Application (or null to clear). Length-checked here.
+        ChordTimingJson = NormalizeOptional(chordTimingJson, MaxBodyLength, nameof(chordTimingJson));
         Touch(now);
     }
 

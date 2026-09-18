@@ -76,7 +76,7 @@ public class ArrangementDomainTests
     public void Update_does_not_change_group_or_song_ids()
     {
         var arr = Arrangement.Create(GroupId, SongId, "Live", Now);
-        arr.Update("Studio", "A", 90, null, null, null, null, expectedVersion: 1, Now.AddMinutes(1));
+        arr.Update("Studio", "A", 90, null, null, null, null, null, expectedVersion: 1, Now.AddMinutes(1));
 
         Assert.Equal(GroupId, arr.GroupId);
         Assert.Equal(SongId, arr.SongId);
@@ -89,7 +89,25 @@ public class ArrangementDomainTests
     {
         var arr = Arrangement.Create(GroupId, SongId, "Live", Now);
         Assert.Throws<ConcurrencyConflictException>(() =>
-            arr.Update("Other", null, null, null, null, null, null, expectedVersion: 99, Now));
+            arr.Update("Other", null, null, null, null, null, null, null, expectedVersion: 99, Now));
+    }
+
+    [Fact]
+    public void Update_sets_and_clears_chord_timing_json()
+    {
+        var arr = Arrangement.Create(GroupId, SongId, "Live", Now);
+        arr.Update(
+            "Live", null, null, null, null, null, null,
+            """[{"lineIndex":0,"atMs":1000}]""",
+            expectedVersion: 1,
+            Now.AddMinutes(1));
+
+        Assert.Equal("""[{"lineIndex":0,"atMs":1000}]""", arr.ChordTimingJson);
+        Assert.Equal(2, arr.Version);
+
+        arr.Update("Live", null, null, null, null, null, null, "  ", expectedVersion: 2, Now.AddMinutes(2));
+        Assert.Null(arr.ChordTimingJson);
+        Assert.Equal(3, arr.Version);
     }
 
     [Fact]

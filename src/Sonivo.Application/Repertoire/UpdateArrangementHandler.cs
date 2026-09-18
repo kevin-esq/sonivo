@@ -5,9 +5,11 @@ using Sonivo.Domain.Common;
 namespace Sonivo.Application.Repertoire;
 
 /// <summary>
-/// PATCH semantics: null Label/DefaultKey/Lyrics/Chords/Structure/Notes/DefaultBpm keep current values.
-/// Non-null optional strings are applied (whitespace-only → null in the domain).
-/// DefaultBpm: null means omit (cannot clear an existing BPM via null with this MVP contract).
+/// PATCH semantics: null Label/DefaultKey/Lyrics/Chords/Structure/Notes/DefaultBpm/ChordTimingJson
+/// keep current values. Non-null optional strings are applied (whitespace-only → null in the domain).
+/// ChordTimingJson: null omits; "" / "[]" / whitespace clears marks; valid JSON array replaces;
+/// malformed → <see cref="ValidationException"/>. DefaultBpm: null means omit (cannot clear an
+/// existing BPM via null with this MVP contract).
 /// </summary>
 public sealed record UpdateArrangementCommand(
     Guid UserId,
@@ -20,6 +22,7 @@ public sealed record UpdateArrangementCommand(
     string? Chords,
     string? Structure,
     string? Notes,
+    string? ChordTimingJson,
     int ExpectedVersion);
 
 public sealed class UpdateArrangementHandler
@@ -60,6 +63,9 @@ public sealed class UpdateArrangementHandler
         var chords = command.Chords ?? arrangement.Chords;
         var structure = command.Structure ?? arrangement.Structure;
         var notes = command.Notes ?? arrangement.Notes;
+        string? chordTimingJson = command.ChordTimingJson is null
+            ? arrangement.ChordTimingJson
+            : ChordTimingJsonNormalizer.Normalize(command.ChordTimingJson);
 
         try
         {
@@ -71,6 +77,7 @@ public sealed class UpdateArrangementHandler
                 chords,
                 structure,
                 notes,
+                chordTimingJson,
                 command.ExpectedVersion,
                 _clock.UtcNow);
         }
