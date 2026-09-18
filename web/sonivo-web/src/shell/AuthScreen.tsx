@@ -1,12 +1,19 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { loginUser, problemDetail, registerUser, type CurrentUser } from '../api/client'
+import {
+  fetchAuthProviders,
+  googleChallengeHref,
+  loginUser,
+  problemDetail,
+  registerUser,
+  type CurrentUser,
+} from '../api/client'
 import { BrandLockup, WaveformHero } from '../brand/SonivoMark'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
 import { SessionScreen } from './GroupsChrome'
-import { safeJoinNextPath } from '../tenancy/JoinPage'
+import { safeJoinNextPath } from '../tenancy/safeJoinNextPath'
 
 export function GuestAuthRoute({
   user,
@@ -40,6 +47,7 @@ function AuthScreen({
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [googleEnabled, setGoogleEnabled] = useState(false)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const next = safeJoinNextPath(searchParams.get('next'))
@@ -52,6 +60,24 @@ function AuthScreen({
         ? `/login?next=${encodeURIComponent(next)}`
         : '/login'
   const headingId = useId()
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchAuthProviders()
+      .then((providers) => {
+        if (!cancelled) {
+          setGoogleEnabled(providers.google === true)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setGoogleEnabled(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -149,6 +175,25 @@ function AuthScreen({
           <Button type="submit" className="w-full" disabled={pending}>
             {pending ? 'Trabajando…' : mode === 'login' ? 'Iniciar sesión' : 'Registrarse'}
           </Button>
+          {googleEnabled ? (
+            <>
+              <div className="relative py-1 text-center text-xs font-medium uppercase tracking-wide text-slate-400">
+                <span className="relative z-10 bg-white px-2">o</span>
+                <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-slate-200" aria-hidden />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={pending}
+                onClick={() => {
+                  window.location.assign(googleChallengeHref(next))
+                }}
+              >
+                Continuar con Google
+              </Button>
+            </>
+          ) : null}
           <p className="text-sm text-slate-600">
             {mode === 'login' ? (
               <>

@@ -12,6 +12,7 @@ using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Repertoire;
+using Sonivo.Api.Auth;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Identity;
 using Sonivo.Infrastructure.Persistence;
@@ -26,8 +27,13 @@ if (!string.IsNullOrWhiteSpace(listenPort))
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
-builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultScheme = IdentityConstants.ApplicationScheme;
+        options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
+    })
     .AddIdentityCookies();
+builder.Services.AddGoogleExternalLogin(builder.Configuration);
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = "sonivo.auth";
@@ -294,6 +300,8 @@ app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInMana
 .WithName("Logout")
 .RequireAuthorization()
 .DisableAntiforgery();
+
+app.MapGoogleAuthEndpoints();
 
 app.MapGet("/api/groups", async (
     ClaimsPrincipal principal,
