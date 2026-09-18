@@ -89,7 +89,8 @@ MusicXML · Guitar Pro · OCR PDF · realtime scroll sync · forcing all Groups 
 - **Depends on:** ADR-0007–0008, 0014, 0017, 0024–0025; T-3.2.06 file/link Resources  
 - **Does not supersede:** Resource model; Event plan snapshots; Auth cookie model  
 - **Does not authorize:** realtime sync (Q9), pitch detection, YouTube API, multi-user live conductor  
-- **REVISED by ADR-0028:** ChordPro parser/render on Practice is **authorized** (hybrid ChordPro in Arrangement fields). The original “no ChordPro parser” thin ban no longer binds.
+- **REVISED by ADR-0028:** ChordPro parser/render on Practice is **authorized** (hybrid ChordPro in Arrangement fields). The original “no ChordPro parser” thin ban no longer binds.  
+- **REVISED by ADR-0029:** Practice MAY use custom player chrome (seek/volume/multi-track) over HTML5 audio; Event/Setlist queue is Wave 3 under the same ADR.
 
 ### Context
 
