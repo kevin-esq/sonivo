@@ -26,6 +26,8 @@ public class ApplicationCompositionTests
         Assert.Contains(services, d => d.ServiceType == typeof(ListArrangementsHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(SoftDeleteArrangementHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(CreateLinkResourceHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(CreateFileResourceHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(GetResourceContentHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(DeleteResourceHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(CreateSetlistHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(ListSetlistsHandler));

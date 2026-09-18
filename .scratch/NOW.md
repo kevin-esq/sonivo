@@ -5,24 +5,22 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-UX plain Spanish / no Spanglish)
-Human approval: APPROVED
-Git checkpoint: PENDING (commit authorized)
-Remote: NOT PUSHED
-CI: NOT RUN
+Implementation: COMPLETE (T-3.2.06 merged #35)
+Human approval: APPROVED (auditor PASS + Kevin pipeline)
+Git checkpoint: COMMITTED on develop (cb23977)
+Remote: PUSHED develop; docs undefer PR pending; main forward pending
+CI: PASSING (#35)
 ```
 
-**Playwright:** 15/15 PASS after Listas/enlace copy
+**Merged:** [#35](https://github.com/kevin-esq/sonivo/pull/35) → `develop`  
+**Auditor:** PASS ([decision-auditor](e2b8c58a-4fd5-4b9a-add5-2a09226bfa5b))
 
-## Copy map (UI only; routes/API unchanged)
+## Pipeline next
 
-- Setlists → Listas
-- Cover → Versión · Original → Propia
-- Click → Metrónomo
-- recurso enlace → enlace
-- BPM labels → Tempo / BPM
+1. Docs undefer PR → develop → main forward
+2. Google OAuth ADR-0026 + thin implement
+3. Karaoke thin
 
 ## Firewall
 
 - No Cursor co-author trailers
-- No T-3.2.06 / Google OAuth / karaoke

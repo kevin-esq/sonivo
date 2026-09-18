@@ -23,6 +23,30 @@ public static class ResourceKinds
         => value is File or Link;
 }
 
+public static class ResourceFileConstraints
+{
+    public const long MaxByteSize = 5L * 1024 * 1024; // 5 MiB
+    public const int MaxOriginalFileNameLength = 255;
+    public const int MaxContentTypeLength = 100;
+    public const int MaxObjectKeyLength = 200;
+
+    public static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "audio/mpeg",
+        "audio/wav",
+        "audio/mp4",
+        "text/plain"
+    };
+
+    public static bool IsAllowedContentType(string? contentType)
+        => !string.IsNullOrWhiteSpace(contentType)
+           && AllowedContentTypes.Contains(contentType.Trim());
+}
+
 public sealed class Resource
 {
     public const int MaxLabelLength = 200;
@@ -81,17 +105,48 @@ public sealed class Resource
         };
     }
 
+    public static Resource CreateFile(
+        Guid arrangementId,
+        string purpose,
+        string label,
+        string originalFileName,
+        string contentType,
+        long byteSize,
+        string objectKey,
+        DateTimeOffset now,
+        string? part = null,
+        string? note = null,
+        Guid? id = null)
+    {
+        if (arrangementId == Guid.Empty)
+        {
+            throw new ArgumentException("Arrangement id is required.", nameof(arrangementId));
+        }
+
+        return new Resource
+        {
+            Id = id ?? Guid.NewGuid(),
+            ArrangementId = arrangementId,
+            Kind = ResourceKinds.File,
+            Purpose = NormalizePurpose(purpose),
+            Label = NormalizeLabel(label),
+            Part = NormalizeOptional(part, MaxPartLength, nameof(part)),
+            Note = NormalizeOptional(note, MaxNoteLength, nameof(note)),
+            Url = null,
+            OriginalFileName = NormalizeOriginalFileName(originalFileName),
+            ContentType = NormalizeContentType(contentType),
+            ByteSize = NormalizeByteSize(byteSize),
+            ObjectKey = NormalizeObjectKey(objectKey),
+            CreatedAt = now
+        };
+    }
+
     public void UpdateMetadata(
         string purpose,
         string label,
         string? part,
         string? note)
     {
-        if (Kind != ResourceKinds.Link)
-        {
-            throw new InvalidOperationException("Only link Resources can be updated in this phase.");
-        }
-
         Purpose = NormalizePurpose(purpose);
         Label = NormalizeLabel(label);
         Part = NormalizeOptional(part, MaxPartLength, nameof(part));
@@ -108,7 +163,9 @@ public sealed class Resource
         var trimmed = kind.Trim();
         if (trimmed == ResourceKinds.File)
         {
-            throw new ArgumentException("Resource kind 'file' is not supported in this phase.", nameof(kind));
+            throw new ArgumentException(
+                "Resource kind 'file' requires multipart upload; use the file create path.",
+                nameof(kind));
         }
 
         if (trimmed != ResourceKinds.Link)
@@ -166,6 +223,91 @@ public sealed class Resource
             throw new ArgumentException(
                 $"Resource url must be {MaxUrlLength} characters or fewer.",
                 nameof(url));
+        }
+
+        return trimmed;
+    }
+
+    private static string NormalizeOriginalFileName(string originalFileName)
+    {
+        if (string.IsNullOrWhiteSpace(originalFileName))
+        {
+            throw new ArgumentException("Original file name is required.", nameof(originalFileName));
+        }
+
+        var trimmed = Path.GetFileName(originalFileName.Trim());
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            throw new ArgumentException("Original file name is required.", nameof(originalFileName));
+        }
+
+        if (trimmed.Length > ResourceFileConstraints.MaxOriginalFileNameLength)
+        {
+            throw new ArgumentException(
+                $"Original file name must be {ResourceFileConstraints.MaxOriginalFileNameLength} characters or fewer.",
+                nameof(originalFileName));
+        }
+
+        return trimmed;
+    }
+
+    private static string NormalizeContentType(string contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            throw new ArgumentException("Content type is required.", nameof(contentType));
+        }
+
+        var trimmed = contentType.Trim();
+        // Strip parameters (e.g. charset) for allowlist check.
+        var mediaType = trimmed.Split(';', 2)[0].Trim();
+        if (!ResourceFileConstraints.IsAllowedContentType(mediaType))
+        {
+            throw new ArgumentException(
+                "Content type is not allowed.",
+                nameof(contentType));
+        }
+
+        if (mediaType.Length > ResourceFileConstraints.MaxContentTypeLength)
+        {
+            throw new ArgumentException(
+                $"Content type must be {ResourceFileConstraints.MaxContentTypeLength} characters or fewer.",
+                nameof(contentType));
+        }
+
+        return mediaType;
+    }
+
+    private static long NormalizeByteSize(long byteSize)
+    {
+        if (byteSize <= 0)
+        {
+            throw new ArgumentException("File must not be empty.", nameof(byteSize));
+        }
+
+        if (byteSize > ResourceFileConstraints.MaxByteSize)
+        {
+            throw new ArgumentException(
+                $"File must be {ResourceFileConstraints.MaxByteSize} bytes or fewer.",
+                nameof(byteSize));
+        }
+
+        return byteSize;
+    }
+
+    private static string NormalizeObjectKey(string objectKey)
+    {
+        if (string.IsNullOrWhiteSpace(objectKey))
+        {
+            throw new ArgumentException("Object key is required.", nameof(objectKey));
+        }
+
+        var trimmed = objectKey.Trim();
+        if (trimmed.Length > ResourceFileConstraints.MaxObjectKeyLength)
+        {
+            throw new ArgumentException(
+                $"Object key must be {ResourceFileConstraints.MaxObjectKeyLength} characters or fewer.",
+                nameof(objectKey));
         }
 
         return trimmed;

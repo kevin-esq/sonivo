@@ -82,6 +82,20 @@ export async function createLinkResource(
   await expect(link).toHaveAttribute('target', '_blank')
 }
 
+export async function createFileResource(
+  page: Page,
+  input: { label: string; filePath: string; purpose?: string },
+) {
+  await page.getByRole('button', { name: 'Subir archivo' }).click()
+  await expect(page.getByRole('heading', { name: 'Subir archivo' })).toBeVisible()
+  await page.getByLabel('Propósito').selectOption(input.purpose ?? 'practice')
+  await page.getByLabel('Etiqueta', { exact: true }).fill(input.label)
+  await page.getByLabel('Archivo').setInputFiles(input.filePath)
+  await page.getByRole('button', { name: 'Subir archivo' }).click()
+  await expect(page.getByText(input.label, { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Descargar' })).toBeVisible()
+}
+
 export async function deleteSong(page: Page, title: string) {
   await page.getByRole('button', { name: 'Eliminar canción' }).click()
   const dialog = page.getByRole('dialog', { name: '¿Eliminar canción?' })

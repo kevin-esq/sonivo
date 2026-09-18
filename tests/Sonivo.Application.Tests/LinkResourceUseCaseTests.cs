@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Tenancy;
@@ -44,7 +45,8 @@ public class LinkResourceUseCaseTests
 
         var arrangementVersionBefore = ctx.Arrangements.Items.Single().Version;
         await new DeleteResourceHandler(
-                new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources)
+                new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources,
+                new FakeBlobStore(), NullLogger<DeleteResourceHandler>.Instance)
             .HandleAsync(ctx.Owner, ctx.GroupId, ctx.ArrangementId, created.Id, CancellationToken.None);
 
         Assert.Empty(ctx.Resources.Items);
@@ -80,8 +82,101 @@ public class LinkResourceUseCaseTests
 
         await Assert.ThrowsAsync<ForbiddenException>(() =>
             new DeleteResourceHandler(
-                    new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources)
+                    new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources,
+                    new FakeBlobStore(), NullLogger<DeleteResourceHandler>.Instance)
                 .HandleAsync(ctx.Member, ctx.GroupId, ctx.ArrangementId, created.Id, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Owner_can_create_get_content_and_delete_file_resource()
+    {
+        var ctx = await SeedWithArrangementAsync();
+        var blobs = new FakeBlobStore();
+        var bytes = "hello chart"u8.ToArray();
+        await using var stream = new MemoryStream(bytes);
+
+        var created = await new CreateFileResourceHandler(
+                new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources, blobs, new FixedClock(Now))
+            .HandleAsync(
+                new CreateFileResourceCommand(
+                    ctx.Owner, ctx.GroupId, ctx.ArrangementId,
+                    ResourcePurposes.Chart, "Chart file", null, null,
+                    "chart.txt", "text/plain", bytes.Length, stream),
+                CancellationToken.None);
+
+        Assert.Equal(ResourceKinds.File, created.Kind);
+        Assert.Null(created.Url);
+        Assert.Equal("chart.txt", created.OriginalFileName);
+        Assert.Equal("text/plain", created.ContentType);
+        Assert.Equal(bytes.Length, created.ByteSize);
+        Assert.Single(blobs.Items);
+
+        var content = await new GetResourceContentHandler(
+                new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources, blobs)
+            .HandleAsync(ctx.Owner, ctx.GroupId, ctx.ArrangementId, created.Id, CancellationToken.None);
+        Assert.Equal("text/plain", content.ContentType);
+        Assert.Equal("chart.txt", content.DownloadFileName);
+        using var reader = new StreamReader(content.Content);
+        Assert.Equal("hello chart", await reader.ReadToEndAsync());
+
+        await new DeleteResourceHandler(
+                new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources,
+                blobs, NullLogger<DeleteResourceHandler>.Instance)
+            .HandleAsync(ctx.Owner, ctx.GroupId, ctx.ArrangementId, created.Id, CancellationToken.None);
+
+        Assert.Empty(ctx.Resources.Items);
+        Assert.Empty(blobs.Items);
+    }
+
+    [Fact]
+    public async Task Member_can_download_file_content_but_not_create()
+    {
+        var ctx = await SeedOwnerMemberWithArrangementAsync();
+        var blobs = new FakeBlobStore();
+        var bytes = "member ok"u8.ToArray();
+        await using var stream = new MemoryStream(bytes);
+
+        var created = await new CreateFileResourceHandler(
+                new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources, blobs, new FixedClock(Now))
+            .HandleAsync(
+                new CreateFileResourceCommand(
+                    ctx.Owner, ctx.GroupId, ctx.ArrangementId,
+                    ResourcePurposes.Practice, "Notes", null, null,
+                    "notes.txt", "text/plain", bytes.Length, stream),
+                CancellationToken.None);
+
+        var content = await new GetResourceContentHandler(
+                new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources, blobs)
+            .HandleAsync(ctx.Member, ctx.GroupId, ctx.ArrangementId, created.Id, CancellationToken.None);
+        Assert.Equal(bytes.Length, content.ByteSize);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            new CreateFileResourceHandler(
+                    new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources, blobs, new FixedClock(Now))
+                .HandleAsync(
+                    new CreateFileResourceCommand(
+                        ctx.Member, ctx.GroupId, ctx.ArrangementId,
+                        ResourcePurposes.Other, "Nope", null, null,
+                        "x.txt", "text/plain", 1, new MemoryStream("x"u8.ToArray())),
+                    CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Content_for_link_resource_is_validation_error()
+    {
+        var ctx = await SeedWithArrangementAsync();
+        var created = await new CreateLinkResourceHandler(
+                new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources, new FixedClock(Now))
+            .HandleAsync(
+                new CreateLinkResourceCommand(
+                    ctx.Owner, ctx.GroupId, ctx.ArrangementId, ResourceKinds.Link,
+                    ResourcePurposes.Other, "Label", null, null, "https://example.com"),
+                CancellationToken.None);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            new GetResourceContentHandler(
+                    new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources, new FakeBlobStore())
+                .HandleAsync(ctx.Owner, ctx.GroupId, ctx.ArrangementId, created.Id, CancellationToken.None));
     }
 
     [Fact]
@@ -190,6 +285,40 @@ public class LinkResourceUseCaseTests
     private sealed class FixedClock(DateTimeOffset now) : IClock
     {
         public DateTimeOffset UtcNow { get; } = now;
+    }
+
+    private sealed class FakeBlobStore : IBlobStore
+    {
+        public Dictionary<string, (byte[] Bytes, string ContentType)> Items { get; } = new();
+
+        public async Task PutAsync(
+            string objectKey,
+            Stream content,
+            string contentType,
+            long byteSize,
+            CancellationToken cancellationToken)
+        {
+            using var ms = new MemoryStream();
+            await content.CopyToAsync(ms, cancellationToken);
+            Items[objectKey] = (ms.ToArray(), contentType);
+        }
+
+        public Task<BlobContent?> GetAsync(string objectKey, CancellationToken cancellationToken)
+        {
+            if (!Items.TryGetValue(objectKey, out var item))
+            {
+                return Task.FromResult<BlobContent?>(null);
+            }
+
+            return Task.FromResult<BlobContent?>(
+                new BlobContent(new MemoryStream(item.Bytes), item.ContentType, item.Bytes.Length));
+        }
+
+        public Task DeleteAsync(string objectKey, CancellationToken cancellationToken)
+        {
+            Items.Remove(objectKey);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeResourceStore : IResourceStore

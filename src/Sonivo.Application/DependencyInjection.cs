@@ -34,8 +34,10 @@ public static class DependencyInjection
         services.AddScoped<UpdateArrangementHandler>();
         services.AddScoped<SoftDeleteArrangementHandler>();
         services.AddScoped<CreateLinkResourceHandler>();
+        services.AddScoped<CreateFileResourceHandler>();
         services.AddScoped<ListResourcesHandler>();
         services.AddScoped<GetResourceHandler>();
+        services.AddScoped<GetResourceContentHandler>();
         services.AddScoped<UpdateLinkResourceHandler>();
         services.AddScoped<DeleteResourceHandler>();
         services.AddScoped<CreateSetlistHandler>();
