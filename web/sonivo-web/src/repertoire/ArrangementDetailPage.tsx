@@ -37,6 +37,7 @@ import {
   parseChordProToDigitizer,
   serializeDigitizerDocument,
 } from './chordProDigitizer'
+import { composeChordPro, varyProgression, rewriteVerse } from './composeChordPro'
 import { fileUploadErrorMessage, validateFileForUpload } from './fileUploadErrors'
 import {
   CONFLICT_MESSAGE,
@@ -516,12 +517,16 @@ function ArrangementEditForm({
   const [digitizerLyrics, setDigitizerLyrics] = useState('')
   const [digitizerChords, setDigitizerChords] = useState('')
   const [selectedChordIndex, setSelectedChordIndex] = useState(0)
+  const [composeGenre, setComposeGenre] = useState('pop')
+  const [composeKey, setComposeKey] = useState('C')
+  const [composeIdea, setComposeIdea] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
   const digitizerDoc = parseChordProToDigitizer(chords)
   const chordCursors = listChordCursors(digitizerDoc)
   const selectedCursor = chordCursors.find((c) => c.chordIndex === selectedChordIndex) ?? null
+  const composeBrief = { genre: composeGenre, key: composeKey, idea: composeIdea }
 
   function onGenerateDigitizer() {
     const generated = digitizeToChordPro(digitizerLyrics, digitizerChords)
@@ -533,6 +538,18 @@ function ArrangementEditForm({
     if (selectedCursor == null) return
     const next = nudgeChord(digitizerDoc, selectedChordIndex, direction)
     setChords(serializeDigitizerDocument(next))
+  }
+
+  function onComposeGenerate() {
+    setChords(composeChordPro(composeBrief))
+  }
+
+  function onComposeVary() {
+    setChords(varyProgression(chords, composeBrief))
+  }
+
+  function onComposeRewriteVerse() {
+    setChords(rewriteVerse(chords, composeBrief))
   }
 
   function onImportChordPro(event: ChangeEvent<HTMLInputElement>) {
@@ -738,6 +755,74 @@ function ArrangementEditForm({
               </Button>
             </div>
           ) : null}
+        </div>
+
+        <div
+          className="space-y-3 rounded-xl border border-slate-200 bg-neutral-light p-3"
+          data-testid="chordpro-compose"
+        >
+          <p className="text-sm font-semibold text-neutral-dark">Asistente de composición</p>
+          <p className="text-xs text-slate-500">
+            Genera una plantilla ChordPro con estrofa y coro a partir de género, tonalidad e idea.
+          </p>
+          <Field label="Género">
+            <input
+              className={fieldClass}
+              value={composeGenre}
+              onChange={(e) => setComposeGenre(e.target.value)}
+              data-testid="compose-genre"
+              maxLength={64}
+            />
+          </Field>
+          <Field label="Tonalidad">
+            <input
+              className={fieldClass}
+              value={composeKey}
+              onChange={(e) => setComposeKey(e.target.value)}
+              data-testid="compose-key"
+              maxLength={16}
+            />
+          </Field>
+          <Field label="Idea base">
+            <input
+              className={fieldClass}
+              value={composeIdea}
+              onChange={(e) => setComposeIdea(e.target.value)}
+              data-testid="compose-idea"
+              maxLength={200}
+            />
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onComposeGenerate}
+              data-testid="compose-generate"
+            >
+              Generar canción
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onComposeVary}
+              data-testid="compose-vary-progression"
+              disabled={!chords.includes('{start_of_')}
+            >
+              Variar progresión
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onComposeRewriteVerse}
+              data-testid="compose-rewrite-verse"
+              disabled={!chords.includes('{start_of_verse}')}
+            >
+              Reescribir estrofa
+            </Button>
+          </div>
         </div>
 
         {chords.trim() ? (

@@ -123,3 +123,34 @@ test.describe('ChordPro text digitizer (ADR-0030 P1)', () => {
     await expect(chordProView).toContainText(lyricWord)
   })
 })
+
+test.describe('ChordPro compose assist (ADR-0030 P2)', () => {
+  test('TC-C30-03 compose generates ChordPro with chorus directive', async ({ page }) => {
+    const email = uniqueEmail('c30-compose')
+    const groupName = `Cmp Band ${Date.now()}`
+    const songTitle = `Cmp Song ${Date.now()}`
+    const arrangementLabel = `Cmp Arr ${Date.now()}`
+    const idea = `idea${Date.now()}`
+
+    await register(page, email)
+    await createGroup(page, groupName)
+    await openLibrary(page)
+    await createSong(page, songTitle)
+    await openSong(page, songTitle)
+    await createArrangement(page, arrangementLabel)
+
+    await page.getByRole('button', { name: 'Editar arreglo' }).click()
+    await expect(page.getByRole('heading', { name: 'Editar arreglo' })).toBeVisible()
+    await expect(page.getByTestId('chordpro-compose')).toBeVisible()
+    await page.getByTestId('compose-genre').fill('pop')
+    await page.getByTestId('compose-key').fill('G')
+    await page.getByTestId('compose-idea').fill(idea)
+    await page.getByTestId('compose-generate').click()
+    const chordsField = page.getByTestId('arrangement-chords')
+    await expect(chordsField).toContainText('{start_of_chorus}')
+    await expect(chordsField).toContainText('{start_of_verse}')
+    await expect(chordsField).toContainText(idea)
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expect(page.getByRole('button', { name: 'Editar arreglo' })).toBeVisible()
+  })
+})
