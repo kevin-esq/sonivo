@@ -5,22 +5,21 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-3.2.06 merged #35)
-Human approval: APPROVED (auditor PASS + Kevin pipeline)
-Git checkpoint: COMMITTED on develop (cb23977)
-Remote: PUSHED develop; docs undefer PR pending; main forward pending
-CI: PASSING (#35)
+Implementation: COMPLETE (OAuth #40 merged)
+Human approval: APPROVED (auditor PASS)
+Git checkpoint: COMMITTED develop 4d9cd18; docs undefer PR pending; main forward pending
+Remote: PUSHED develop
+CI: PASSING (#40)
 ```
 
-**Merged:** [#35](https://github.com/kevin-esq/sonivo/pull/35) → `develop`  
-**Auditor:** PASS ([decision-auditor](e2b8c58a-4fd5-4b9a-add5-2a09226bfa5b))
+**Merged:** [#40](https://github.com/kevin-esq/sonivo/pull/40) → `develop`  
+**Auditor:** PASS ([decision-auditor](c3cbf489-a41a-40ad-a571-0057f04607e9))
 
 ## Pipeline next
 
-1. Docs undefer PR → develop → main forward
-2. Google OAuth ADR-0026 + thin implement
-3. Karaoke thin
+1. Docs OAuth CLOSED + main forward
+2. Karaoke thin ADR + implement
 
 ## Firewall
 
-- No Cursor co-author trailers
+- No Cursor trailers

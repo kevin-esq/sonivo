@@ -24,3 +24,8 @@ services:
         sync: false
       - key: Gmail__From
         sync: false
+      # User Google sign-in (ADR-0026) — separate OAuth client from Gmail send
+      - key: Authentication__Google__ClientId
+        sync: false
+      - key: Authentication__Google__ClientSecret
+        sync: false
