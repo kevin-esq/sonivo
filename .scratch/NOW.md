@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (Wave 4 UX T-UX-10-13, 20-22, 30-32 on feature/t-ux-journeys)
+Implementation: COMPLETE (Wave 4 UX T-UX-10-13, 20-22, 30-32)
 Human approval: PENDING (auditor)
-Git checkpoint: COMMITTED (after this push)
-Remote: PUSHED (PR open)
-CI: NOT RUN
+Git checkpoint: COMMITTED (f3646a4)
+Remote: PUSHED (PR #62 → develop)
+CI: NOT RUN (await GitHub)
 ```
 
 ## Waves
@@ -17,7 +17,7 @@ CI: NOT RUN
 1. Formats — **DONE**
 2. Player Arrangement — **DONE** (#54)
 3. Event queue — **DONE** (#58)
-4. UX journeys — **IMPLEMENTATION COMPLETE** — await auditor + CI
+4. UX journeys — **PR OPEN** https://github.com/kevin-esq/sonivo/pull/62 — await auditor + CI; do not merge from builder
 
 ## Firewall
 
