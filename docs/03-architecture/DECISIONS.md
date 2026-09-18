@@ -8,6 +8,45 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0026 — Google as Identity external login (cookie session)
+
+- **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-17** (Kevin Esquivel — “Acepto todo” pipeline)  
+- **Date:** 2026-09-17  
+- **Depends on:** ADR-0009, 0011, 0020  
+- **Does not supersede:** Identity as sole AuthN (0009); HTTP-only cookie web session (0011); antiforgery CSRF (0020)  
+- **Does not touch:** Phase 3.9 `Gmail:*` outbound mail credentials
+
+### Context
+
+Email/password Identity works. Registration friction remains. Gate B forbade a Google button during UI cut; that gate is closed. External login must stay under ASP.NET Identity and the existing `sonivo.auth` cookie — no JWT web auth, no BFF (0009/0011).
+
+### Decision (ACCEPTED)
+
+1. Add **Google** as an **Identity external authentication** provider (`AddGoogle` / challenge → callback).  
+2. On successful callback: create or link `ApplicationUser`, record `AspNetUserLogins`, then **`SignInAsync`** into the existing **`sonivo.auth`** application cookie.  
+3. Email/password register + login **remain**.  
+4. Config keys: **`Authentication:Google:ClientId`** / **`ClientSecret`** (and optional callback path). **Never** reuse `Gmail:ClientId` / `ClientSecret` / `RefreshToken`.  
+5. Scopes thin: **`openid` `email` `profile`** only — no Gmail/Drive user scopes.  
+6. **Email linking:** auto-link an existing password account **only** when Google asserts **`email_verified`**. Otherwise create a distinct user or require password sign-in then link (thin default: create when email not found; link when verified email matches).  
+7. When Google asserts verified email, set **`EmailConfirmed = true`**.  
+8. Google-only users may have no usable password; lockout/reset UX for them is **out of thin**.  
+9. Preserve join **`?next=`** through OAuth `state` with **allowlist** (same-origin relative paths only — no open redirect).  
+10. CSRF: keep ADR-0020 for mutating cookie APIs; OAuth callback remains the Identity redirect GET.  
+11. CI / Playwright: **no live Google secrets required** — unit/integration with mocked external login; E2E for Google path may be skipped or faked.  
+12. UI: AuthScreen control **“Continuar con Google”** (Spanish).
+
+### Consequences
+
+- Web session model unchanged (cookie + CSRF).  
+- Ops must provision a **separate** Google Cloud OAuth client for user sign-in.  
+- Account linking/unlink UI, multi-provider, mobile bearer = FUTURE ADRs.
+
+### Non-goals
+
+JWT/BFF · Supabase/Clerk · reusing Gmail send credentials · Drive/Gmail API on user tokens · Event/RSVP mail
+
+---
+
 ## ADR-0025 — Song & Arrangement MVP field model
 
 - **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-15** (Phase 3.1 closure)  
