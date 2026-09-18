@@ -8,6 +8,43 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0030 — ChordPro rehearsal intelligence module (transpose, text digitizer, compose assist)
+
+- **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-18** (Kevin Esquivel — “Acepto todo” on ChordPro+IA product proposal)  
+- **Date:** 2026-09-18  
+- **Depends on:** ADR-0025, 0027, 0028, 0029  
+- **Revises:** ADR-0028 non-goal that treated **transpose** as FUTURE-only — Practice/Arrangement MAY offer visual (and Owner-save) transposition of ChordPro chord tokens  
+- **Does not authorize:** Whisper / cloud STT, cloud LLM providers, audio→ChordPro digitizer, pitch detection, YouTube, realtime conductor (Q9), MusicXML, Guitar Pro, raising 5 MiB blob cap
+
+### Context
+
+Groups need ChordPro that stays syllable-aligned, changes key in rehearsal, and can be created from messy inputs (plain lyrics + loose chords) or from a creative brief — without leaving Sonivo’s Arrangement-centric library. Full “AI” (Whisper + LLM) is desirable later; thin must ship value without new vendor secrets or opaque server ML.
+
+### Decision (ACCEPTED)
+
+1. **Source of truth** remains `Arrangement.Chords` (and optional `Lyrics`) as ChordPro-compatible text (ADR-0028). No orphan `.cho` aggregate.  
+2. **Priority slices (authorized now):**  
+   - **P0 — Transposición + vistas de ensayo:** client transpose of `[chord]` tokens by semitone; Practice view modes (p.ej. cantante / guitarrista: hide or emphasize chords). Prefs in `localStorage`. Owner MAY **Guardar tono** (PATCH chords + optional `defaultKey`) after confirming.  
+   - **P1 — Digitalizador de texto (thin):** Owner pastes plain lyrics + ordered/loose chord list; a **deterministic** placer produces ChordPro; UI “estudio” to nudge chords by syllable/word (click / ←→). Soft confidence styling optional. **Not** cloud LLM in this thin.  
+   - **P2 — Asistente de composición (thin):** Owner-only brief (género, tonalidad, idea); generates structured ChordPro with `{start_of_verse}` / `{start_of_chorus}` via **templates/rules**; actions: variar progresión, reescribir una sección manteniendo métrica cuando sea posible. **Not** cloud LLM in this thin.  
+3. **Deferred (explicit FUTURE ADRs):** audio digitizer (Whisper + chord timeline), cloud LLM upgrade of P1/P2, diagram frets as first-class, realtime sync.  
+4. **Roles:** P1/P2 write paths **Owner**; P0 view modes + local transpose preview **Owner + Member**; save transpose to server **Owner**.  
+5. **No new persistence tables** for thin. No new blob MIME requirements beyond T-3.2.06.  
+6. **Spanish UI.** Playwright sparse TCs per thin spec.  
+7. **Firewall unchanged:** no Q9, pitch, YouTube, Event/RSVP mail expansion.
+
+### Consequences
+
+- Transpose becomes a first-class Practice control.  
+- “IA” in marketing for P1/P2 thin means **assisted deterministic tooling**; vendor AI is a later ADR.  
+- Audio maquetas remain normal `audio` Resources until a digitizer ADR.
+
+### Non-goals
+
+Whisper · OpenAI/Anthropic/etc. in-process · realtime · pitch · stems · MusicXML
+
+---
+
 ## ADR-0029 — Practice audio player (Arrangement v1; Event/Setlist queue next)
 
 - **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-17** (Kevin Esquivel — “Acepto todo” Wave plan)  
@@ -67,7 +104,7 @@ Arrangement already has optional plain-text `Lyrics` / `Chords` / `Structure` / 
 5. **Rendering:** Practice and Arrangement detail MAY render ChordPro into readable chords-over-lyrics when the text looks like ChordPro (`[` chord brackets or `{` directives). Fallback: monospace / preformatted plain text.  
 6. **Import:** Owner MAY upload/paste a `.cho` / `.chordpro` / `.txt` ChordPro body into `Chords` (and optionally clear-file import via existing file Resource is **not** required for this ADR). Thin: paste + file-pick that reads client-side into the PATCH body.  
 7. **MIME:** keep T-3.2.06 allowlist; `.cho`/`.chordpro` as `text/plain` (or add explicit types if browsers send them) — still ≤5 MiB when stored as Resource; Arrangement body remains DB text not blob.  
-8. **Transpose, sections UI, MusicXML:** FUTURE ADRs.  
+8. **~~Transpose, sections UI, MusicXML:~~** **REVISED by ADR-0030:** visual + Owner-save transpose of ChordPro tokens is authorized (P0). Sections UI polish and MusicXML remain FUTURE.  
 9. Spanish UI: “Letra”, “Acordes (ChordPro)”, “Vista previa”.
 
 ### Consequences
