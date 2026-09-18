@@ -12,8 +12,9 @@ Product sequencing.
 **Phase 3.8 thin invite hygiene COMPLETED** — T-3.8.01–03. Spec: [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md).  
 **Phase 3.9 thin invite email COMPLETED** — T-3.9.01–04 (Gmail API HTTPS). Spec: [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md).  
 **T-3.2.06 File Resource COMPLETED** — Postgres `IBlobStore`, multipart, `content`, TC-LIB-04 (PR [#35](https://github.com/kevin-esq/sonivo/pull/35)). Spec: [`PHASE-3.2.06-FILE-RESOURCE-SPEC.md`](../03-architecture/PHASE-3.2.06-FILE-RESOURCE-SPEC.md).  
+**Google OAuth thin COMPLETED** — ADR-0026; T-OAUTH-01–03 (PR [#40](https://github.com/kevin-esq/sonivo/pull/40)). Spec: [`PHASE-OAUTH-GOOGLE-SPEC.md`](../03-architecture/PHASE-OAUTH-GOOGLE-SPEC.md).  
 **System close:** [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md) — Gate A **CLOSED**; Gate B **ACCEPTED / CLOSED**.  
-**Next:** Google OAuth (ADR-0026) → thin karaoke/live (authorized pipeline); keep Event/RSVP mail **DEFERRED**.
+**Next:** thin karaoke/live (ADR + thin spec); keep Event/RSVP mail **DEFERRED**.
 
 Product/code features beyond authorized tickets require **explicit** human approval.
 
@@ -118,7 +119,7 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 
 ### Later (only when authorized)
 
-- Google OAuth (ADR-0026) · thin karaoke/live  
+- Thin karaoke/live (practice player)  
 - Event/RSVP notification mail  
 - Object-storage blob adapter (S3/R2) replacing Postgres bytea if needed  
 
@@ -132,4 +133,4 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 
 ## Remaining OPEN
 
-Q8 chart format · Q9 realtime · Q10 billing · Q11 mobile/PWA · account deletion · hosting · invite mechanics thin freeze **Q-I1–I8** + **Q-M1–M9** (Event/RSVP mail **FUTURE**) · session TTLs · **Q-R3 max lengths** (provisional OK) · OAuth verified-email / auto-link policy (ADR-0026)
+Q8 chart format · Q9 realtime · Q10 billing · Q11 mobile/PWA · account deletion · hosting · invite mechanics thin freeze **Q-I1–I8** + **Q-M1–M9** (Event/RSVP mail **FUTURE**) · session TTLs · **Q-R3 max lengths** (provisional OK) · karaoke thin scope
