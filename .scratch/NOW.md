@@ -5,22 +5,23 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-3.2.06 merged #35)
-Human approval: APPROVED (auditor PASS + Kevin pipeline)
-Git checkpoint: COMMITTED on develop (cb23977)
-Remote: PUSHED develop; docs undefer PR pending; main forward pending
-CI: PASSING (#35)
+Implementation: COMPLETE (T-OAUTH-01–03 thin Google OAuth)
+Human approval: PENDING (auditor / Kevin)
+Git checkpoint: PENDING commit+push+PR authorized by builder task
+Remote: NOT PUSHED (about to push feature/t-oauth-google)
+CI: NOT RUN
 ```
 
-**Merged:** [#35](https://github.com/kevin-esq/sonivo/pull/35) → `develop`  
-**Auditor:** PASS ([decision-auditor](e2b8c58a-4fd5-4b9a-add5-2a09226bfa5b))
+**Closed:** [#35](https://github.com/kevin-esq/sonivo/pull/35) file Resource · [#36](https://github.com/kevin-esq/sonivo/pull/36) undefer · [#37](https://github.com/kevin-esq/sonivo/pull/37) → main · [#38](https://github.com/kevin-esq/sonivo/pull/38) ADR-0026  
+**Builder:** OAuth on `feature/t-oauth-google`
 
-## Pipeline next
+## Pipeline
 
-1. Docs undefer PR → develop → main forward
-2. Google OAuth ADR-0026 + thin implement
-3. Karaoke thin
+1. ~~T-3.2.06~~ DONE  
+2. Google OAuth — PR pending review (do not merge from builder)  
+3. Karaoke thin — after OAuth merge
 
 ## Firewall
 
-- No Cursor co-author trailers
+- No Cursor trailers
+- Do not merge PRs (builder)

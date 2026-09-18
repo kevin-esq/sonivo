@@ -149,6 +149,22 @@ export async function logoutUser(): Promise<void> {
   clearCsrfToken()
 }
 
+export type AuthProviders = {
+  google: boolean
+}
+
+export async function fetchAuthProviders(): Promise<AuthProviders> {
+  return apiRequest<AuthProviders>('/api/auth/providers')
+}
+
+/** Full-page navigation into the Google OAuth challenge (not a fetch). */
+export function googleChallengeHref(next?: string | null): string {
+  if (next) {
+    return `/api/auth/google?next=${encodeURIComponent(next)}`
+  }
+  return '/api/auth/google'
+}
+
 export async function listMyGroups(): Promise<GroupSummary[]> {
   return apiRequest<GroupSummary[]>('/api/groups')
 }

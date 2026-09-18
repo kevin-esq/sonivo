@@ -45,6 +45,24 @@ Account linking settings UI · unlink · Apple/Microsoft · JWT · BFF · mobile
 
 ---
 
+## Ops — Render / env vars
+
+Provision a **separate** Google Cloud OAuth client (Web application) for user sign-in. Do **not** reuse Phase 3.9 Gmail send credentials.
+
+| Config key | Render env var | Notes |
+| ---------- | -------------- | ----- |
+| `Authentication:Google:ClientId` | `Authentication__Google__ClientId` | OAuth client ID |
+| `Authentication:Google:ClientSecret` | `Authentication__Google__ClientSecret` | OAuth client secret |
+
+Authorized redirect URI (Google Cloud Console):
+
+- Production: `https://<your-host>/api/auth/google/response`
+- Local (Vite proxy): `http://localhost:5173/api/auth/google/response`
+
+When either var is missing, `/api/auth/providers` returns `{ "google": false }` and AuthScreen hides **Continuar con Google** (no 500).
+
+---
+
 ## Tickets
 
 | ID | Work |
@@ -59,10 +77,10 @@ Ship one PR: `feature/t-oauth-google` → `develop`.
 
 ## Audit checklist
 
-- [ ] No JWT / BFF  
-- [ ] No reuse of `Gmail:*`  
-- [ ] Cookie session after callback  
-- [ ] Email verified gate for link  
-- [ ] No open redirect via `next`  
-- [ ] Password journeys still 16+ Playwright green  
-- [ ] No Cursor trailers  
+- [x] No JWT / BFF  
+- [x] No reuse of `Gmail:*`  
+- [x] Cookie session after callback  
+- [x] Email verified gate for link  
+- [x] No open redirect via `next`  
+- [x] Password journeys still 16+ Playwright green  
+- [x] No Cursor trailers  

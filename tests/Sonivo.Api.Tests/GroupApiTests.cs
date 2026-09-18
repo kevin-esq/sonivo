@@ -255,5 +255,8 @@ public sealed class SonivoApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Gmail:RefreshToken", "");
         builder.UseSetting("Gmail:From", "");
         builder.UseSetting("PublicOrigin", "");
+        builder.UseSetting("Authentication:Google:ClientId", "");
+        builder.UseSetting("Authentication:Google:ClientSecret", "");
+        builder.UseSetting("Authentication:Google:EnableTestHook", "false");
     }
 }
