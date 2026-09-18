@@ -129,7 +129,7 @@ public class SoftDeleteSongCascadeTests
         await using (var db2 = new SonivoDbContext(options))
         {
             var concurrent = await db2.Arrangements.SingleAsync(a => a.Id == live.Id);
-            concurrent.Update("Concurrent edit", null, 120, null, null, null, null, concurrent.Version, now.AddSeconds(1));
+            concurrent.Update("Concurrent edit", null, 120, null, null, null, null, null, concurrent.Version, now.AddSeconds(1));
             await db2.SaveChangesAsync();
         }
 
