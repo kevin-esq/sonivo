@@ -11,6 +11,14 @@ import {
   openSong,
   register,
   uniqueEmail,
+  addArrangementToSetlist,
+  applySetlist,
+  createEvent,
+  createSetlist,
+  eventPlanItem,
+  openEvents,
+  openSetlists,
+  saveSetlistOrder,
 } from './helpers'
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures')
@@ -120,5 +128,71 @@ test.describe('Practice / karaoke thin', () => {
     await expect(trackSelect).not.toHaveValue(firstTrackId)
     await expect(page.getByTestId('practice-current-time')).toHaveText('0:00')
     await expect(playPause).toHaveAttribute('aria-label', 'Reproducir')
+  })
+
+  test('TC-PLAY-02 owner rehearses Event plan queue and advances to next item', async ({
+    page,
+  }) => {
+    const stamp = Date.now()
+    const email = uniqueEmail('play-queue')
+    const groupName = `Queue Band ${stamp}`
+    const songA = `Queue Song A ${stamp}`
+    const songB = `Queue Song B ${stamp}`
+    const arrA = `Queue Arr A ${stamp}`
+    const arrB = `Queue Arr B ${stamp}`
+    const lyricsA = `Letra cola A ${stamp}`
+    const lyricsB = `Letra cola B ${stamp}`
+    const setlistName = `Queue set ${stamp}`
+    const eventTitle = `Queue event ${stamp}`
+
+    await register(page, email)
+    await createGroup(page, groupName)
+    await openLibrary(page)
+
+    await createSong(page, songA)
+    await openSong(page, songA)
+    await createArrangement(page, arrA, { lyrics: lyricsA })
+    await createFileResource(page, {
+      label: `Audio A ${stamp}`,
+      filePath: path.join(fixturesDir, 'practice-a.wav'),
+      purpose: 'audio',
+    })
+
+    await page.getByRole('link', { name: groupName, exact: true }).click()
+    await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
+    await openLibrary(page)
+    await createSong(page, songB)
+    await openSong(page, songB)
+    await createArrangement(page, arrB, { lyrics: lyricsB })
+
+    await page.getByRole('link', { name: groupName, exact: true }).click()
+    await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
+
+    await openSetlists(page)
+    await createSetlist(page, setlistName)
+    await addArrangementToSetlist(page, `${songA} — ${arrA}`)
+    await addArrangementToSetlist(page, `${songB} — ${arrB}`)
+    await saveSetlistOrder(page)
+
+    await openEvents(page)
+    await createEvent(page, { title: eventTitle, startsAt: '2026-12-01T19:00' })
+    await applySetlist(page)
+    await expect(eventPlanItem(page, songA, arrA)).toBeVisible()
+    await expect(eventPlanItem(page, songB, arrB)).toBeVisible()
+
+    await page.getByTestId('ensayar-plan').click()
+    await expect(page.getByTestId('practice-queue')).toBeVisible()
+    await expect(page.getByTestId('practice-queue-song-title')).toHaveText(songA)
+    await expect(page.getByTestId('practice-queue-arrangement-label')).toHaveText(arrA)
+    await expect(page.getByRole('heading', { name: songA })).toBeVisible()
+    await expect(page.getByTestId('practice-lyrics')).toContainText(lyricsA)
+    await expect(page.getByTestId('practice-queue-prev')).toHaveAttribute('aria-disabled', 'true')
+
+    await page.getByTestId('practice-queue-next').click()
+    await expect(page.getByTestId('practice-queue-song-title')).toHaveText(songB)
+    await expect(page.getByTestId('practice-queue-arrangement-label')).toHaveText(arrB)
+    await expect(page.getByRole('heading', { name: songB })).toBeVisible()
+    await expect(page.getByTestId('practice-lyrics')).toContainText(lyricsB)
+    await expect(page.getByTestId('practice-queue-next')).toHaveAttribute('aria-disabled', 'true')
   })
 })

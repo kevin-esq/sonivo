@@ -1,24 +1,47 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   getArrangement,
+  getEvent,
   getSong,
   type ArrangementDetail,
   type CurrentUser,
+  type EventDetail,
+  type EventPlanItem,
 } from '../api/client'
 import { PageBreadcrumb } from './chrome'
 import { RehearsalBodyView } from './ChordProView'
+import { PracticeEventQueue } from './PracticeEventQueue'
 import { PracticePlayer } from './PracticePlayer'
 import { listPracticeAudioTracks, type PracticeAudioSource } from './pickPracticeAudio'
 import { mutationErrorMessage, ProblemAlert, useGroupContext } from './ui'
 
+function resolveQueueItem(
+  items: EventPlanItem[],
+  arrangementId: string,
+  itemId: string | null,
+): EventPlanItem | null {
+  if (itemId) {
+    const byId = items.find((item) => item.id === itemId)
+    if (byId) return byId
+  }
+  return items.find((item) => item.arrangementId === arrangementId) ?? null
+}
+
 export function PracticePage({ user }: { user: CurrentUser }) {
   const { groupId, arrangementId } = useParams()
+  const [searchParams] = useSearchParams()
+  const eventId = searchParams.get('eventId')
+  const planItemId = searchParams.get('item')
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
   const [songTitle, setSongTitle] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tracks, setTracks] = useState<PracticeAudioSource[]>([])
+  const [eventDetail, setEventDetail] = useState<EventDetail | null | undefined>(
+    eventId ? undefined : null,
+  )
+  const [queueError, setQueueError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!groupId || !arrangementId || !group) return
@@ -50,6 +73,32 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       cancelled = true
     }
   }, [groupId, arrangementId, group])
+
+  useEffect(() => {
+    if (!groupId || !group || !eventId) {
+      setEventDetail(null)
+      setQueueError(null)
+      return
+    }
+    let cancelled = false
+    async function loadEvent() {
+      setEventDetail(undefined)
+      setQueueError(null)
+      try {
+        const detail = await getEvent(groupId!, eventId!)
+        if (cancelled) return
+        setEventDetail(detail)
+      } catch (err) {
+        if (cancelled) return
+        setEventDetail(null)
+        setQueueError(mutationErrorMessage(err))
+      }
+    }
+    void loadEvent()
+    return () => {
+      cancelled = true
+    }
+  }, [groupId, group, eventId])
 
   if (group === undefined) {
     return <p aria-live="polite">Cargando práctica…</p>
@@ -86,25 +135,44 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
   const arrangementHref = `/groups/${group.id}/arrangements/${arrangement.id}`
   const songHref = `/groups/${group.id}/songs/${arrangement.songId}`
+  const queueItems = eventDetail?.items ?? []
+  const queueItem =
+    eventDetail && arrangementId
+      ? resolveQueueItem(queueItems, arrangementId, planItemId)
+      : null
+  const displayTitle = queueItem?.displaySongTitle ?? songTitle ?? 'Canción'
+  const displayLabel = queueItem?.displayArrangementLabel ?? arrangement.label
+
+  const breadcrumbItems = eventId
+    ? [
+        { to: `/groups/${group.id}`, label: group.name },
+        { to: `/groups/${group.id}/events`, label: 'Eventos' },
+        {
+          to: `/groups/${group.id}/events/${eventId}`,
+          label: eventDetail?.title ?? 'Evento',
+        },
+        { label: 'Ensayar plan' },
+      ]
+    : [
+        { to: `/groups/${group.id}`, label: group.name },
+        { to: `/groups/${group.id}/library`, label: 'Biblioteca' },
+        { to: songHref, label: songTitle ?? 'Canción' },
+        { to: arrangementHref, label: arrangement.label },
+        { label: 'Practicar' },
+      ]
 
   return (
     <section className="space-y-6" aria-labelledby="practice-heading">
       <div className="space-y-3">
-        <PageBreadcrumb
-          items={[
-            { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/library`, label: 'Biblioteca' },
-            { to: songHref, label: songTitle ?? 'Canción' },
-            { to: arrangementHref, label: arrangement.label },
-            { label: 'Practicar' },
-          ]}
-        />
+        <PageBreadcrumb items={breadcrumbItems} />
         <div className="space-y-2">
-          <p className="text-sm font-medium uppercase tracking-wide text-slate-500">Practicar</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+            {eventId ? 'Ensayar plan' : 'Practicar'}
+          </p>
           <h1 id="practice-heading" className="text-2xl font-bold tracking-tight">
-            {songTitle ?? 'Canción'}
+            {displayTitle}
           </h1>
-          <p className="text-base text-slate-600">{arrangement.label}</p>
+          <p className="text-base text-slate-600">{displayLabel}</p>
           <p className="text-sm text-slate-500">
             {arrangement.defaultKey ? `Tonalidad: ${arrangement.defaultKey}` : 'Tonalidad: —'}
             {' · '}
@@ -116,6 +184,25 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       </div>
 
       <ProblemAlert message={error} />
+      <ProblemAlert message={queueError} />
+
+      {eventId && eventDetail === undefined ? (
+        <p aria-live="polite">Cargando plan del evento…</p>
+      ) : null}
+
+      {eventId && eventDetail && queueItems.length > 0 ? (
+        <PracticeEventQueue
+          groupId={group.id}
+          eventId={eventId}
+          eventTitle={eventDetail.title}
+          items={queueItems}
+          currentItemId={queueItem?.id ?? null}
+        />
+      ) : null}
+
+      {eventId && eventDetail && queueItems.length === 0 ? (
+        <p className="text-sm text-slate-500">Este evento aún no tiene plan de canciones.</p>
+      ) : null}
 
       {tracks.length > 0 ? (
         <PracticePlayer
@@ -149,12 +236,21 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       </section>
 
       <p>
-        <Link
-          className="font-semibold text-primary no-underline hover:underline"
-          to={arrangementHref}
-        >
-          Volver al arreglo
-        </Link>
+        {eventId ? (
+          <Link
+            className="font-semibold text-primary no-underline hover:underline"
+            to={`/groups/${group.id}/events/${eventId}`}
+          >
+            Volver al evento
+          </Link>
+        ) : (
+          <Link
+            className="font-semibold text-primary no-underline hover:underline"
+            to={arrangementHref}
+          >
+            Volver al arreglo
+          </Link>
+        )}
       </p>
     </section>
   )
