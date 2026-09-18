@@ -135,4 +135,4 @@ Authoritative sequence: [`SYSTEM-CLOSE-PLAN.md`](SYSTEM-CLOSE-PLAN.md). UI redes
 
 ## Remaining OPEN
 
-Q8 chart format · Q9 realtime · Q10 billing · Q11 mobile/PWA · account deletion · hosting · invite mechanics thin freeze **Q-I1–I8** + **Q-M1–M9** (Event/RSVP mail **FUTURE**) · session TTLs · **Q-R3 max lengths** (provisional OK) · karaoke thin scope
+Q8 chart format · Q9 realtime · Q10 billing · Q11 mobile/PWA · account deletion · hosting · invite mechanics thin freeze **Q-I1–I8** + **Q-M1–M9** (Event/RSVP mail **FUTURE**) · session TTLs · **Q-R3 max lengths** (provisional OK)
