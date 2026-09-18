@@ -1,6 +1,6 @@
 # Phase Formats — ChordPro hybrid (Wave 1 / Q8)
 
-**Status:** AUTHORIZED 2026-09-17 (Kevin Esquivel — “Acepto todo”). ADR-0028 **ACCEPTED**.  
+**Status:** COMPLETE 2026-09-17 (T-FMT-01–06). ADR-0028 **ACCEPTED**.  
 **Product bet:** Owners edit ChordPro in Arrangement; Members see readable chords+lyrics in Practice; PDF charts stay as Resources.  
 **Date:** 2026-09-17  
 **Depends on:** ADR-0028, 0025, 0027; T-3.2.06 file Resources.
@@ -49,8 +49,8 @@ Ship **one PR** `feature/t-fmt-chordpro` → `develop` (implementation). ADR+thi
 
 ## Audit checklist
 
-- [ ] No MusicXML / realtime / pitch  
-- [ ] No new aggregates / migrations unless unavoidable  
-- [ ] Practice + Arrangement Spanish copy  
-- [ ] TC-FMT-01 + full Playwright green  
-- [ ] No Cursor trailers  
+- [x] No MusicXML / realtime / pitch  
+- [x] No new aggregates / migrations unless unavoidable  
+- [x] Practice + Arrangement Spanish copy  
+- [x] TC-FMT-01 + full Playwright green  
+- [x] No Cursor trailers  

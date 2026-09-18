@@ -5,18 +5,18 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: IN PROGRESS (Wave plan — formats → player → UX)
-Human approval: APPROVED (Kevin — “Acepto todo” 2026-09-17)
-Git checkpoint: PENDING per wave
-Remote: develop/main baseline post-#47
-CI: PENDING
+Implementation: COMPLETE (Wave 1 T-FMT-01–06)
+Human approval: PENDING (auditor review of PR → develop)
+Git checkpoint: COMMITTED (this branch)
+Remote: PUSHED (feature/t-fmt-chordpro)
+CI: NOT RUN (await PR checks)
 ```
 
-**Baseline Playwright:** 17/17 PASS (local Chromium) before Wave work.
+**Local Playwright:** 18/18 PASS (incl. TC-FMT-01 + TC-PRACTICE-01).
 
 ## Waves
 
-1. Formats ADR-0028 + T-FMT (now)
+1. Formats ADR-0028 **MERGED** (#48) → T-FMT-01–06 **PR open** (this branch)
 2. Player ADR-0029 + T-PLAY-01–05
 3. Event/Setlist player T-PLAY-06–08
 4. UX journeys T-UX-*
