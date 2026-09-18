@@ -110,7 +110,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
     )
   }
 
-  const showHeaderAdd = isOwner && !showCreate
+  const showHeaderAdd = isOwner && !showCreate && setlists !== null && setlists.length > 0
 
   return (
     <section className="space-y-6" aria-labelledby="setlists-heading">
@@ -162,12 +162,26 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                 ? 'Crea una lista con arreglos de la biblioteca y aplícala a un evento cuando esté lista.'
                 : 'Cuando haya listas, aparecerán aquí para preparar el repertorio.'
             }
+            action={
+              isOwner ? (
+                <Button data-testid="setlists-empty-create" onClick={() => setShowCreate(true)}>
+                  Nueva lista
+                </Button>
+              ) : (
+                <Link
+                  className="font-semibold text-primary no-underline hover:underline"
+                  to={`/groups/${group.id}/library`}
+                >
+                  Ir a la biblioteca
+                </Link>
+              )
+            }
           />
         )
       ) : filtered && filtered.length === 0 ? (
         <p className="text-sm text-slate-500">Ninguna lista coincide con «{query.trim()}».</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-1.5">
           {filtered!.map((setlist, index) => {
             const { Icon, tileClass } = setlistTile(index)
             return (
@@ -177,7 +191,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
                 <Link
-                  className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light"
+                  className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light"
                   to={`/groups/${group.id}/setlists/${setlist.id}`}
                 >
                   <span

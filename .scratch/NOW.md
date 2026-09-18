@@ -1,15 +1,15 @@
 # NOW — agent focus
 
-**Updated:** 2026-09-17
+**Updated:** 2026-09-18
 
 ## Checkpoint state (required)
 
 ```text
-Implementation: IN PROGRESS (Wave 4 UX after Wave 3 merge #58)
-Human approval: APPROVED (Kevin — “Acepto todo”; auditor pipeline)
-Git checkpoint: Waves 1–3 on develop; #59 promote pending
-Remote: develop @ 3c8dc4f
-CI: PASSING on merged PRs
+Implementation: COMPLETE (Wave 4 UX T-UX-10-13, 20-22, 30-32 on feature/t-ux-journeys)
+Human approval: PENDING (auditor)
+Git checkpoint: COMMITTED (after this push)
+Remote: PUSHED (PR open)
+CI: NOT RUN
 ```
 
 ## Waves
@@ -17,7 +17,7 @@ CI: PASSING on merged PRs
 1. Formats — **DONE**
 2. Player Arrangement — **DONE** (#54)
 3. Event queue — **DONE** (#58)
-4. UX journeys — **NOW** (PHASE-UX-SPEC)
+4. UX journeys — **IMPLEMENTATION COMPLETE** — await auditor + CI
 
 ## Firewall
 

@@ -133,16 +133,20 @@ export function PracticePlayer({
   }
 
   const seekMax = duration > 0 ? duration : 0
+  const volumePct = Math.round(volume * 100)
 
   return (
     <section
-      className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+      className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm"
       aria-labelledby="practice-audio-heading"
       data-testid="practice-player"
     >
-      <h2 id="practice-audio-heading" className="text-lg font-semibold">
-        Reproducir
-      </h2>
+      <div className="space-y-1">
+        <h2 id="practice-audio-heading" className="text-lg font-semibold tracking-tight text-neutral-dark">
+          Audio de práctica
+        </h2>
+        <p className="text-sm text-slate-600">Elige una pista y ensaya con la letra abajo.</p>
+      </div>
 
       <audio
         ref={audioRef}
@@ -156,13 +160,13 @@ export function PracticePlayer({
         Tu navegador no admite reproducción de audio.
       </audio>
 
-      <div className="space-y-1">
-        <label htmlFor={trackId} className="block text-sm font-medium text-slate-700">
+      <div className="space-y-1.5">
+        <label htmlFor={trackId} className="block text-sm font-medium text-slate-800">
           Pista
         </label>
         <select
           id={trackId}
-          className="w-full max-w-xl rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+          className="min-h-11 w-full max-w-xl rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-neutral-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:text-sm"
           value={selected.resourceId}
           onChange={(e) => onTrackChange(e.target.value)}
           data-testid="practice-track-select"
@@ -179,22 +183,26 @@ export function PracticePlayer({
         <Button
           type="button"
           variant="secondary"
-          size="sm"
+          className="min-h-11 min-w-28"
           onClick={() => void togglePlay()}
           aria-label={playing ? 'Pausar' : 'Reproducir'}
           data-testid="practice-play-pause"
         >
           {playing ? 'Pausar' : 'Reproducir'}
         </Button>
-        <p className="tabular-nums text-sm text-slate-600" aria-live="off">
+        <p
+          className="tabular-nums text-sm font-medium text-slate-700"
+          aria-live="off"
+          aria-label={`Tiempo ${formatTime(currentTime)} de ${formatTime(duration)}`}
+        >
           <span data-testid="practice-current-time">{formatTime(currentTime)}</span>
           {' / '}
           <span data-testid="practice-duration">{formatTime(duration)}</span>
         </p>
       </div>
 
-      <div className="max-w-xl space-y-1">
-        <label htmlFor={seekId} className="block text-sm font-medium text-slate-700">
+      <div className="max-w-xl space-y-1.5">
+        <label htmlFor={seekId} className="block text-sm font-medium text-slate-800">
           Posición
         </label>
         <input
@@ -207,14 +215,15 @@ export function PracticePlayer({
           disabled={seekMax <= 0}
           onInput={(e) => onSeek(Number((e.target as HTMLInputElement).value))}
           onChange={(e) => onSeek(Number(e.target.value))}
-          className="w-full accent-primary"
+          className="h-11 w-full accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-valuetext={`${formatTime(currentTime)} de ${formatTime(duration)}`}
           data-testid="practice-seek"
         />
       </div>
 
-      <div className="max-w-xs space-y-1">
-        <label htmlFor={volumeId} className="block text-sm font-medium text-slate-700">
-          Volumen
+      <div className="max-w-xs space-y-1.5">
+        <label htmlFor={volumeId} className="block text-sm font-medium text-slate-800">
+          Volumen ({volumePct}%)
         </label>
         <input
           id={volumeId}
@@ -224,7 +233,8 @@ export function PracticePlayer({
           step={0.01}
           value={volume}
           onChange={(e) => setVolume(Number(e.target.value))}
-          className="w-full accent-primary"
+          className="h-11 w-full accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-valuetext={`${volumePct} por ciento`}
           data-testid="practice-volume"
         />
       </div>

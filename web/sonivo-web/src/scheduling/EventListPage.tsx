@@ -100,7 +100,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
     )
   }
 
-  const showHeaderAdd = isOwner && !showCreate
+  const showHeaderAdd = isOwner && !showCreate && events !== null && events.length > 0
 
   return (
     <section className="space-y-6" aria-labelledby="events-heading">
@@ -152,12 +152,26 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                 ? 'Crea un ensayo o concierto y aplica una lista para copiar el plan de canciones.'
                 : 'Cuando haya eventos, aparecerán aquí para prepararte.'
             }
+            action={
+              isOwner ? (
+                <Button data-testid="events-empty-create" onClick={() => setShowCreate(true)}>
+                  Nuevo evento
+                </Button>
+              ) : (
+                <Link
+                  className="font-semibold text-primary no-underline hover:underline"
+                  to={`/groups/${group.id}/library`}
+                >
+                  Ir a la biblioteca
+                </Link>
+              )
+            }
           />
         )
       ) : filtered && filtered.length === 0 ? (
         <p className="text-sm text-slate-500">Ningún evento coincide con «{query.trim()}».</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-1.5">
           {filtered!.map((musicalEvent, index) => {
             const { Icon, tileClass } = eventTile(index)
             return (
@@ -167,7 +181,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
                 <Link
-                  className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light"
+                  className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light"
                   to={`/groups/${group.id}/events/${musicalEvent.id}`}
                 >
                   <span
