@@ -5,21 +5,19 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (OAuth #40 merged)
-Human approval: APPROVED (auditor PASS)
-Git checkpoint: COMMITTED develop 4d9cd18; docs undefer PR pending; main forward pending
-Remote: PUSHED develop
-CI: PASSING (#40)
+Implementation: COMPLETE (T-KARAOKE-01–02 thin Practice)
+Human approval: PENDING (builder report)
+Git checkpoint: PENDING commit/push/PR authorized by task
+Remote: NOT PUSHED (about to push)
+CI: NOT RUN
 ```
 
-**Merged:** [#40](https://github.com/kevin-esq/sonivo/pull/40) → `develop`  
-**Auditor:** PASS ([decision-auditor](c3cbf489-a41a-40ad-a571-0057f04607e9))
-
-## Pipeline next
-
-1. Docs OAuth CLOSED + main forward
-2. Karaoke thin ADR + implement
+**Branch:** `feature/t-karaoke-thin` → develop  
+**Closed recently:** #40 OAuth · #41 docs · #43 ADR-0027  
+**Builder karaoke:** Practice UI + TC-PRACTICE-01 shipped; await human review / auditor
 
 ## Firewall
 
 - No Cursor trailers
+- No realtime / pitch in thin karaoke
+- Do NOT merge PR without human/auditor
