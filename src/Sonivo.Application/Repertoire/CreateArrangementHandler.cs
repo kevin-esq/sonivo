@@ -35,6 +35,9 @@ public sealed record ResourceSummaryDto(
     string? Part,
     string? Note,
     string? Url,
+    string? OriginalFileName,
+    string? ContentType,
+    long? ByteSize,
     DateTimeOffset CreatedAt);
 
 public sealed record ArrangementDetailDto(
@@ -134,5 +137,8 @@ public sealed class CreateArrangementHandler
         resource.Part,
         resource.Note,
         resource.Url,
+        resource.OriginalFileName,
+        resource.ContentType,
+        resource.ByteSize,
         resource.CreatedAt);
 }

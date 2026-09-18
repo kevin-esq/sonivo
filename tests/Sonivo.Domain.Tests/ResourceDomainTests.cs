@@ -65,6 +65,67 @@ public class ResourceDomainTests
     }
 
     [Fact]
+    public void CreateFile_sets_file_fields_and_null_url()
+    {
+        var resource = Resource.CreateFile(
+            ArrangementId,
+            ResourcePurposes.Chart,
+            "  Chart PDF  ",
+            "chart.pdf",
+            "application/pdf",
+            1024,
+            "resources/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            Now,
+            part: "  Guitar  ",
+            note: "  rehearsal  ");
+
+        Assert.Equal(ResourceKinds.File, resource.Kind);
+        Assert.Null(resource.Url);
+        Assert.Equal("Chart PDF", resource.Label);
+        Assert.Equal("chart.pdf", resource.OriginalFileName);
+        Assert.Equal("application/pdf", resource.ContentType);
+        Assert.Equal(1024, resource.ByteSize);
+        Assert.Equal("resources/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", resource.ObjectKey);
+        Assert.Equal("Guitar", resource.Part);
+    }
+
+    [Theory]
+    [InlineData("image/png")]
+    [InlineData("text/plain")]
+    [InlineData("audio/mpeg")]
+    public void CreateFile_allows_accepted_content_types(string contentType)
+    {
+        var resource = Resource.CreateFile(
+            ArrangementId, ResourcePurposes.Other, "Label", "f.bin", contentType, 10, "key", Now);
+        Assert.Equal(contentType, resource.ContentType);
+    }
+
+    [Fact]
+    public void CreateFile_rejects_disallowed_mime_empty_and_oversize()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Resource.CreateFile(ArrangementId, ResourcePurposes.Other, "L", "a.exe", "application/octet-stream", 10, "k", Now));
+        Assert.Throws<ArgumentException>(() =>
+            Resource.CreateFile(ArrangementId, ResourcePurposes.Other, "L", "a.txt", "text/plain", 0, "k", Now));
+        Assert.Throws<ArgumentException>(() =>
+            Resource.CreateFile(
+                ArrangementId, ResourcePurposes.Other, "L", "a.txt", "text/plain",
+                ResourceFileConstraints.MaxByteSize + 1, "k", Now));
+    }
+
+    [Fact]
+    public void UpdateMetadata_allows_file_kind()
+    {
+        var resource = Resource.CreateFile(
+            ArrangementId, ResourcePurposes.Chart, "Old", "a.pdf", "application/pdf", 10, "key", Now);
+        resource.UpdateMetadata(ResourcePurposes.Lyrics, "New", null, "note");
+        Assert.Equal("New", resource.Label);
+        Assert.Equal(ResourcePurposes.Lyrics, resource.Purpose);
+        Assert.Equal(ResourceKinds.File, resource.Kind);
+        Assert.Equal("application/pdf", resource.ContentType);
+    }
+
+    [Fact]
     public void RejectNonLinkKind_rejects_file()
     {
         Assert.Throws<ArgumentException>(() => Resource.RejectNonLinkKind(ResourceKinds.File));

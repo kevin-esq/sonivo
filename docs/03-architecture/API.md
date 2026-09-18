@@ -52,7 +52,7 @@ Convention: JSON; Problem Details ([`TECHNICAL-SPEC.md`](TECHNICAL-SPEC.md) §8)
 
 **Authoritative Phase 3.2 contract:** [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md) (API DTOs, AuthZ, concurrency, tickets). Summary below.
 
-**Phase 3.2 status:** approved scope **COMPLETED** — T-3.2.01–05 (API), T-3.2.07 (React Library Shell), T-3.2.08 (sparse Playwright). File Resource **DEFERRED** (T-3.2.06: upload/`IBlobStore`/`content`). Next work requires human decision / authorization.
+**Phase 3.2 status:** approved scope **COMPLETED** — T-3.2.01–05, 07, 08; **T-3.2.06 File Resource** (`IBlobStore` + Postgres `ResourceBlobs`, multipart create, `GET .../content`) — see [`PHASE-3.2.06-FILE-RESOURCE-SPEC.md`](PHASE-3.2.06-FILE-RESOURCE-SPEC.md).
 
 All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (GET → **404**). No list pagination/search in MVP.
 
@@ -70,15 +70,15 @@ All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (G
 | Get Arrangement | GET | `.../arrangements/{arrangementId}` | Member | Includes resource summaries | 200 | 401, 404 |
 | Update Arrangement | PATCH | `.../arrangements/{arrangementId}` | Owner | `expectedVersion` required | 200 | 401, 403, 404, 400, 409 |
 | Soft-delete Arrangement | DELETE | `.../arrangements/{arrangementId}` | Owner | Body `{ expectedVersion }`; Resources left | 204 | 401, 403, 404, 400, 409 |
-| List Resources | GET | `.../arrangements/{arrangementId}/resources` | Member | Link Resources | 200 | 401, 404 |
-| Create Resource | POST | `.../arrangements/{arrangementId}/resources` | Owner | **Link only** (`kind=link`); `url` required; reject `file` | 201 | 401, 403, 404, 400 |
-| Get Resource | GET | `.../arrangements/{arrangementId}/resources/{resourceId}` | Member | Includes `url`; nested route only | 200 | 401, 404 |
-| Update Resource | PATCH | `.../arrangements/{arrangementId}/resources/{resourceId}` | Owner | purpose/label/part/note; `kind`/`url` immutable; **no** expectedVersion | 200 | 401, 403, 404, 400 |
-| Delete Resource | DELETE | `.../arrangements/{arrangementId}/resources/{resourceId}` | Owner | Hard-delete; nested route only | 204 | 401, 403, 404 |
+| List Resources | GET | `.../arrangements/{arrangementId}/resources` | Member | Link + file metadata (no bytes) | 200 | 401, 404 |
+| Create link Resource | POST | `.../arrangements/{arrangementId}/resources` | Owner | JSON `kind=link`; `url` required; reject JSON `kind=file` | 201 | 401, 403, 404, 400 |
+| Create file Resource | POST | `.../arrangements/{arrangementId}/resources` | Owner | **multipart**: purpose, label, part?, note?, file; max 5 MiB; MIME allowlist | 201 | 401, 403, 404, 400 |
+| Get Resource | GET | `.../arrangements/{arrangementId}/resources/{resourceId}` | Member | Includes `url` or file metadata; nested route only | 200 | 401, 404 |
+| Get Resource content | GET | `.../arrangements/{arrangementId}/resources/{resourceId}/content` | Member | File bytes only; `Content-Disposition: attachment` | 200 | 401, 404, 400 |
+| Update Resource | PATCH | `.../arrangements/{arrangementId}/resources/{resourceId}` | Owner | purpose/label/part/note; `kind`/`url`/blob fields immutable; **no** expectedVersion | 200 | 401, 403, 404, 400 |
+| Delete Resource | DELETE | `.../arrangements/{arrangementId}/resources/{resourceId}` | Owner | Hard-delete; deletes blob best-effort | 204 | 401, 403, 404 |
 
 **Not supported:** flat `.../resources/{resourceId}` get/patch/delete.
-
-**Deferred (T-3.2.06):** file Resource create/upload; nested `.../resources/{id}/content`; `IBlobStore`. See [`PHASE-3.2-REPERTOIRE-SPEC.md`](PHASE-3.2-REPERTOIRE-SPEC.md).
 
 ---
 

@@ -11,6 +11,7 @@ using Sonivo.Application.Abstractions;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
+using Sonivo.Domain.Repertoire;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Identity;
 using Sonivo.Infrastructure.Persistence;
@@ -899,10 +900,11 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resourc
 app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources", async (
     Guid groupId,
     Guid arrangementId,
-    CreateLinkResourceRequest request,
+    HttpRequest httpRequest,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
-    CreateLinkResourceHandler handler,
+    CreateLinkResourceHandler linkHandler,
+    CreateFileResourceHandler fileHandler,
     CancellationToken cancellationToken) =>
 {
     var userId = await RequireUserIdAsync(principal, users);
@@ -911,7 +913,58 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resour
         return Results.Unauthorized();
     }
 
-    var created = await handler.HandleAsync(
+    if (httpRequest.HasFormContentType)
+    {
+        var form = await httpRequest.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null || file.Length <= 0)
+        {
+            return Results.Problem(
+                detail: "File is required and must not be empty.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+
+        if (file.Length > ResourceFileConstraints.MaxByteSize)
+        {
+            return Results.Problem(
+                detail: $"File must be {ResourceFileConstraints.MaxByteSize} bytes or fewer.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+
+        var contentType = ResolveUploadContentType(file.ContentType, file.FileName);
+        await using var stream = file.OpenReadStream();
+        var createdFile = await fileHandler.HandleAsync(
+            new CreateFileResourceCommand(
+                userId.Value,
+                groupId,
+                arrangementId,
+                form["purpose"].ToString(),
+                form["label"].ToString(),
+                NullIfWhiteSpace(form["part"].ToString()),
+                NullIfWhiteSpace(form["note"].ToString()),
+                file.FileName,
+                contentType,
+                file.Length,
+                stream),
+            cancellationToken);
+
+        return Results.Created(
+            $"/api/groups/{groupId}/arrangements/{arrangementId}/resources/{createdFile.Id}",
+            ToResourceDetailResponse(createdFile));
+    }
+
+    var request = await httpRequest.ReadFromJsonAsync<CreateLinkResourceRequest>(cancellationToken: cancellationToken);
+    if (request is null)
+    {
+        return Results.Problem(
+            detail: "Request body is required.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var created = await linkHandler.HandleAsync(
         new CreateLinkResourceCommand(
             userId.Value,
             groupId,
@@ -928,7 +981,7 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resour
         $"/api/groups/{groupId}/arrangements/{arrangementId}/resources/{created.Id}",
         ToResourceDetailResponse(created));
 })
-.WithName("CreateLinkResource")
+.WithName("CreateResource")
 .RequireAuthorization()
 .DisableAntiforgery();
 
@@ -951,6 +1004,37 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resourc
     return Results.Ok(ToResourceDetailResponse(resource));
 })
 .WithName("GetResource")
+.RequireAuthorization();
+
+app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources/{resourceId:guid}/content", async (
+    Guid groupId,
+    Guid arrangementId,
+    Guid resourceId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetResourceContentHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var content = await handler.HandleAsync(
+        userId.Value,
+        groupId,
+        arrangementId,
+        resourceId,
+        cancellationToken);
+
+    return Results.File(
+        content.Content,
+        content.ContentType,
+        fileDownloadName: content.DownloadFileName,
+        enableRangeProcessing: false);
+})
+.WithName("GetResourceContent")
 .RequireAuthorization();
 
 app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources/{resourceId:guid}", async (
@@ -1462,6 +1546,9 @@ static object ToArrangementDetailResponse(ArrangementDetailDto arrangement) => n
         part = r.Part,
         note = r.Note,
         url = r.Url,
+        originalFileName = r.OriginalFileName,
+        contentType = r.ContentType,
+        byteSize = r.ByteSize,
         createdAt = r.CreatedAt
     })
 };
@@ -1476,6 +1563,9 @@ static object ToResourceSummaryResponse(ResourceSummaryDto resource) => new
     part = resource.Part,
     note = resource.Note,
     url = resource.Url,
+    originalFileName = resource.OriginalFileName,
+    contentType = resource.ContentType,
+    byteSize = resource.ByteSize,
     createdAt = resource.CreatedAt
 };
 
@@ -1489,8 +1579,42 @@ static object ToResourceDetailResponse(ResourceDetailDto resource) => new
     part = resource.Part,
     note = resource.Note,
     url = resource.Url,
+    originalFileName = resource.OriginalFileName,
+    contentType = resource.ContentType,
+    byteSize = resource.ByteSize,
     createdAt = resource.CreatedAt
 };
+
+static string? NullIfWhiteSpace(string? value)
+    => string.IsNullOrWhiteSpace(value) ? null : value;
+
+/// <summary>
+/// Browsers often send empty or application/octet-stream for .txt uploads; infer from extension.
+/// </summary>
+static string ResolveUploadContentType(string? declaredContentType, string? fileName)
+{
+    var mediaType = declaredContentType?.Split(';', 2)[0].Trim() ?? string.Empty;
+    if (!string.IsNullOrWhiteSpace(mediaType)
+        && !string.Equals(mediaType, "application/octet-stream", StringComparison.OrdinalIgnoreCase)
+        && ResourceFileConstraints.IsAllowedContentType(mediaType))
+    {
+        return mediaType;
+    }
+
+    var ext = Path.GetExtension(fileName ?? string.Empty).ToLowerInvariant();
+    return ext switch
+    {
+        ".pdf" => "application/pdf",
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".webp" => "image/webp",
+        ".mp3" => "audio/mpeg",
+        ".wav" => "audio/wav",
+        ".m4a" or ".mp4" => "audio/mp4",
+        ".txt" => "text/plain",
+        _ => mediaType
+    };
+}
 
 static object ToSetlistListResponse(SetlistListItemDto setlist) => new
 {

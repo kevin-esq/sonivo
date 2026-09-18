@@ -22,6 +22,7 @@ public sealed class SonivoDbContext : IdentityDbContext<ApplicationUser, Identit
     public DbSet<Song> Songs => Set<Song>();
     public DbSet<Arrangement> Arrangements => Set<Arrangement>();
     public DbSet<Resource> Resources => Set<Resource>();
+    public DbSet<ResourceBlob> ResourceBlobs => Set<ResourceBlob>();
     public DbSet<Setlist> Setlists => Set<Setlist>();
     public DbSet<SetlistItem> SetlistItems => Set<SetlistItem>();
     public DbSet<Event> Events => Set<Event>();

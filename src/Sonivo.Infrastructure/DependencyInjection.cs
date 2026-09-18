@@ -63,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<ISongStore, EfSongStore>();
         services.AddScoped<IArrangementStore, EfArrangementStore>();
         services.AddScoped<IResourceStore, EfResourceStore>();
+        services.AddScoped<IBlobStore, PostgresBlobStore>();
         services.AddScoped<ISetlistStore, EfSetlistStore>();
         services.AddScoped<IEventStore, EfEventStore>();
         services.AddScoped<IUserDirectory, EfUserDirectory>();

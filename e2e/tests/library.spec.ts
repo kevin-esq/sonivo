@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   createArrangement,
+  createFileResource,
   createGroup,
   createLinkResource,
   createSong,
@@ -11,6 +14,8 @@ import {
   register,
   uniqueEmail,
 } from './helpers'
+
+const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures')
 
 test.describe('Library journeys', () => {
   test('TC-LIB-01 owner creates Song, Arrangement, and link Resource', async ({ page }) => {
@@ -70,5 +75,39 @@ test.describe('Library journeys', () => {
     await expect(page.getByRole('alert')).toContainText(
       'No encontramos este grupo o no tienes acceso.',
     )
+  })
+
+  test('TC-LIB-04 owner uploads file Resource and can download it', async ({ page }) => {
+    const email = uniqueEmail('lib-file')
+    const groupName = `File Band ${Date.now()}`
+    const songTitle = `File Song ${Date.now()}`
+    const arrangementLabel = `File Arr ${Date.now()}`
+    const resourceLabel = `Notas ${Date.now()}`
+    const fixturePath = path.join(fixturesDir, 'sample-chart.txt')
+
+    await register(page, email)
+    await createGroup(page, groupName)
+    await openLibrary(page)
+    await createSong(page, songTitle)
+    await openSong(page, songTitle)
+    await createArrangement(page, arrangementLabel)
+    await createFileResource(page, {
+      label: resourceLabel,
+      filePath: fixturePath,
+      purpose: 'lyrics',
+    })
+
+    const downloadPromise = page.waitForEvent('download')
+    await page.getByRole('link', { name: 'Descargar' }).click()
+    const download = await downloadPromise
+    expect(download.suggestedFilename()).toBe('sample-chart.txt')
+    const downloaded = await download.createReadStream()
+    expect(downloaded).toBeTruthy()
+    const chunks: Buffer[] = []
+    for await (const chunk of downloaded!) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+    }
+    const text = Buffer.concat(chunks).toString('utf8')
+    expect(text).toContain('Sonivo file Resource fixture')
   })
 })
