@@ -1,6 +1,6 @@
 # Phase Thin Practice / Karaoke view
 
-**Status:** IMPLEMENTED on `feature/t-karaoke-thin` (await merge) — AUTHORIZED 2026-09-17 (Kevin Esquivel — “Acepto todo”). ADR-0027 **ACCEPTED**.  
+**Status:** **CLOSED** / **COMPLETED** on `develop` (PR [#45](https://github.com/kevin-esq/sonivo/pull/45), merge `6fec726`). AUTHORIZED 2026-09-17 (Kevin Esquivel — “Acepto todo”). ADR-0027 **ACCEPTED**.  
 **Product bet:** Members can **Practicar** an Arrangement — lyrics + optional audio — without a live-tools platform.  
 **Date:** 2026-09-17  
 **Depends on:** ADR-0027; Arrangement + Resource (link/file) already shipped.
@@ -43,8 +43,8 @@ One PR: `feature/t-karaoke-thin` → `develop`.
 
 ## Audit checklist
 
-- [ ] No realtime / no new aggregates  
-- [ ] AuthZ unchanged (Member can open)  
-- [ ] Spanish copy  
-- [ ] Existing Playwright suite still green  
-- [ ] No Cursor trailers  
+- [x] No realtime / no new aggregates  
+- [x] AuthZ unchanged (Member can open)  
+- [x] Spanish copy  
+- [x] Existing Playwright suite still green (17/17 CI)  
+- [x] No Cursor trailers  
