@@ -107,7 +107,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 2. Implement/scaffold/install without explicit approval.  
 3. Workspace/Organization; Recording/Performance aggregates in MVP.  
 4. Organizer/Guest roles; ACL engines; JWT web; BFF; Supabase Auth.  
-5. Silently reopen ACCEPTED ADRs 0001–0025 without a superseding ADR.  
+5. Silently reopen ACCEPTED ADRs 0001–0030 without a superseding ADR.  
 6. Content versioning / DAM / Event body snapshots in MVP.  
 7. Unauthorized user-global tooling as Sonivo dependency.
 
