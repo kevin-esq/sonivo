@@ -23,7 +23,8 @@ ADRs **0001–0029** are **ACCEPTED** (including tooling ADR-0002; Google OAuth 
 **Thin Practice / karaoke:** **CLOSED** / **COMPLETED** (T-KARAOKE-01–02; ADR-0027).  
 **Formats (Q8):** **CLOSED** / **COMPLETED** (ADR-0028; T-FMT-01–06; PRs #48–#51).  
 **Practice player Wave 2:** **CLOSED** / **COMPLETED** (ADR-0029; T-PLAY-01–05; PR [#54](https://github.com/kevin-esq/sonivo/pull/54)).  
-**Practice player Wave 3 (Event/Setlist queue):** **AUTHORIZED** (ADR-0029 §6; [`PHASE-PLAYER-SPEC.md`](docs/03-architecture/PHASE-PLAYER-SPEC.md) T-PLAY-06–08).  
+**Practice player Wave 3 (Event/Setlist queue):** **CLOSED** / **COMPLETED** (ADR-0029 §6; T-PLAY-06–08; PR [#58](https://github.com/kevin-esq/sonivo/pull/58)).  
+**UX journeys Wave 4:** **CLOSED** / **COMPLETED** ([`PHASE-UX-SPEC.md`](docs/03-architecture/PHASE-UX-SPEC.md) T-UX-10–13, 20–22, 30–32; PR [#62](https://github.com/kevin-esq/sonivo/pull/62)).  
 **Phase 3.3 thin S2:** **CLOSED** (T-3.3.01–05) — Setlist → Event apply → React UI → Playwright ([`PHASE-3.3-THIN-SPEC.md`](docs/03-architecture/PHASE-3.3-THIN-SPEC.md)). Merged to `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6), `80f5f63`).  
 **Phase 3.4 thin invites:** **CLOSED** / **COMPLETED** (T-3.4.01–03) — link token, no email ([`PHASE-3.4-INVITE-SPEC.md`](docs/03-architecture/PHASE-3.4-INVITE-SPEC.md)). Merged to `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8), `8db0714`).  
 **Phase 3.5 thin RSVP:** **CLOSED** / **COMPLETED** (T-3.5.01–03) — Event yes/no/maybe + Attendance UI + Playwright ([`PHASE-3.5-RSVP-SPEC.md`](docs/03-architecture/PHASE-3.5-RSVP-SPEC.md)). Merged to `develop` (PR [#10](https://github.com/kevin-esq/sonivo/pull/10), `cbc8824`).  
@@ -40,7 +41,7 @@ Until the user explicitly authorizes additional work:
 - Do **not** expand SMTP beyond the closed thin 3.9 spec (Gmail API HTTPS only; no Event/RSVP mail, no generic SMTP server) — diagnose live send is allowed as T-OPS-MAIL
 - Do **not** expand Event PATCH/cancel beyond the closed thin 3.6 spec (no location/notes, no includeCancelled)
 - Do **not** expand RSVP beyond the closed thin 3.5 spec without further approval
-- Do **not** expand Practice beyond ADR-0027 + ADR-0028 ChordPro + ADR-0029 player (no realtime, pitch, YouTube). Wave 2 COMPLETE. Wave 3 Event/Setlist queue is authorized by ADR-0029 + [`PHASE-PLAYER-SPEC.md`](docs/03-architecture/PHASE-PLAYER-SPEC.md) (T-PLAY-06–08).
+- Do **not** expand Practice beyond ADR-0027 + ADR-0028 ChordPro + ADR-0029 player Waves 2–3 (no realtime, pitch, YouTube). Wave 4 UX polish is authorized by [`PHASE-UX-SPEC.md`](docs/03-architecture/PHASE-UX-SPEC.md) only (T-UX-*).
 - Do **not** install skills or non-stack tooling without approval (Gate B npm: lucide / shadcn primitives / motion / optional morphicons only — see Gate B spec)
 - Do **not** push / create GitHub remotes / change branch protection unless explicitly authorized
 - Foundation + Group/Membership + repertoire (incl. T-3.2.06) + Phase 3.3–3.9 + Gate B + Google OAuth + **thin Practice** are closed on `develop`. Merge to `main` is **authorized**.

@@ -9,12 +9,13 @@ import {
   type EventDetail,
   type EventPlanItem,
 } from '../api/client'
-import { PageBreadcrumb } from './chrome'
+import { EmptyPanel, PageBreadcrumb } from './chrome'
 import { RehearsalBodyView } from './ChordProView'
 import { PracticeEventQueue } from './PracticeEventQueue'
 import { PracticePlayer } from './PracticePlayer'
 import { listPracticeAudioTracks, type PracticeAudioSource } from './pickPracticeAudio'
 import { mutationErrorMessage, ProblemAlert, useGroupContext } from './ui'
+import { Skeleton } from '../ui/skeleton'
 
 function resolveQueueItem(
   items: EventPlanItem[],
@@ -26,6 +27,51 @@ function resolveQueueItem(
     if (byId) return byId
   }
   return items.find((item) => item.arrangementId === arrangementId) ?? null
+}
+
+function PracticePageSkeleton({ label }: { label: string }) {
+  return (
+    <div className="space-y-6" role="status" aria-live="polite" aria-label={label}>
+      <span className="sr-only">{label}</span>
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-8 w-64 max-w-full" />
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-3 w-56 max-w-full" />
+      </div>
+      <div className="space-y-3 rounded-xl border border-slate-100 p-4">
+        <Skeleton className="h-5 w-36" />
+        <Skeleton className="h-11 w-full max-w-xl" />
+        <Skeleton className="h-11 w-28" />
+        <Skeleton className="h-3 w-full max-w-xl" />
+      </div>
+      <div className="space-y-3">
+        <Skeleton className="h-5 w-20" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    </div>
+  )
+}
+
+function QueueSkeleton() {
+  return (
+    <div
+      className="space-y-3 rounded-xl border border-slate-200 bg-neutral-light p-4"
+      role="status"
+      aria-live="polite"
+      aria-label="Cargando plan del evento…"
+      data-testid="practice-queue-skeleton"
+    >
+      <span className="sr-only">Cargando plan del evento…</span>
+      <Skeleton className="h-4 w-28" />
+      <Skeleton className="h-6 w-48" />
+      <Skeleton className="h-4 w-32" />
+      <div className="flex flex-wrap gap-3">
+        <Skeleton className="h-11 w-28" />
+        <Skeleton className="h-11 w-28" />
+      </div>
+    </div>
+  )
 }
 
 export function PracticePage({ user }: { user: CurrentUser }) {
@@ -101,7 +147,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   }, [groupId, group, eventId])
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando práctica…</p>
+    return <PracticePageSkeleton label="Cargando práctica…" />
   }
 
   if (group === null) {
@@ -116,7 +162,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   }
 
   if (arrangement === undefined) {
-    return <p aria-live="polite">Cargando práctica…</p>
+    return <PracticePageSkeleton label="Cargando práctica…" />
   }
 
   if (arrangement === null) {
@@ -162,18 +208,18 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       ]
 
   return (
-    <section className="space-y-6" aria-labelledby="practice-heading">
+    <section className="space-y-7" aria-labelledby="practice-heading">
       <div className="space-y-3">
         <PageBreadcrumb items={breadcrumbItems} />
         <div className="space-y-2">
-          <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+          <p className="text-sm font-medium uppercase tracking-wide text-slate-600">
             {eventId ? 'Ensayar plan' : 'Practicar'}
           </p>
-          <h1 id="practice-heading" className="text-2xl font-bold tracking-tight">
+          <h1 id="practice-heading" className="text-2xl font-bold tracking-tight text-neutral-dark sm:text-[1.75rem]">
             {displayTitle}
           </h1>
-          <p className="text-base text-slate-600">{displayLabel}</p>
-          <p className="text-sm text-slate-500">
+          <p className="text-base text-slate-700">{displayLabel}</p>
+          <p className="text-sm text-slate-600">
             {arrangement.defaultKey ? `Tonalidad: ${arrangement.defaultKey}` : 'Tonalidad: —'}
             {' · '}
             {arrangement.defaultBpm != null
@@ -186,9 +232,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       <ProblemAlert message={error} />
       <ProblemAlert message={queueError} />
 
-      {eventId && eventDetail === undefined ? (
-        <p aria-live="polite">Cargando plan del evento…</p>
-      ) : null}
+      {eventId && eventDetail === undefined ? <QueueSkeleton /> : null}
 
       {eventId && eventDetail && queueItems.length > 0 ? (
         <PracticeEventQueue
@@ -201,7 +245,18 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       ) : null}
 
       {eventId && eventDetail && queueItems.length === 0 ? (
-        <p className="text-sm text-slate-500">Este evento aún no tiene plan de canciones.</p>
+        <EmptyPanel
+          title="Este evento aún no tiene plan"
+          description="Cuando el organizador aplique una lista, podrás ensayar las canciones en orden."
+          action={
+            <Link
+              className="font-semibold text-primary no-underline hover:underline"
+              to={`/groups/${group.id}/events/${eventId}`}
+            >
+              Volver al evento
+            </Link>
+          }
+        />
       ) : null}
 
       {tracks.length > 0 ? (
@@ -213,16 +268,25 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       ) : null}
 
       <section className="space-y-3" aria-labelledby="practice-lyrics-heading">
-        <h2 id="practice-lyrics-heading" className="text-lg font-semibold">
+        <h2 id="practice-lyrics-heading" className="text-lg font-semibold tracking-tight text-neutral-dark">
           Letra
         </h2>
         {(() => {
           const body = arrangement.chords?.trim() || arrangement.lyrics?.trim() || ''
           if (!body) {
             return (
-              <p className="text-sm text-slate-500">
-                Este arreglo aún no tiene letra ni acordes.
-              </p>
+              <EmptyPanel
+                title="Sin letra ni acordes"
+                description="Este arreglo aún no tiene letra ni acordes para ensayar."
+                action={
+                  <Link
+                    className="font-semibold text-primary no-underline hover:underline"
+                    to={arrangementHref}
+                  >
+                    Ver el arreglo
+                  </Link>
+                }
+              />
             )
           }
           return (
@@ -238,14 +302,14 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       <p>
         {eventId ? (
           <Link
-            className="font-semibold text-primary no-underline hover:underline"
+            className="inline-flex min-h-11 items-center font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             to={`/groups/${group.id}/events/${eventId}`}
           >
             Volver al evento
           </Link>
         ) : (
           <Link
-            className="font-semibold text-primary no-underline hover:underline"
+            className="inline-flex min-h-11 items-center font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             to={arrangementHref}
           >
             Volver al arreglo

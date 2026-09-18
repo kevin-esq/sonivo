@@ -371,7 +371,10 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
             {hasPlan && isLive ? (
               <p>
                 <Link
-                  className={cn(buttonVariants({ variant: 'primary', size: 'sm' }), 'no-underline')}
+                  className={cn(
+                    buttonVariants({ variant: 'primary', size: 'default' }),
+                    'min-h-11 no-underline',
+                  )}
                   to={practiceQueueHref(group.id, musicalEvent.id, plan[0]!)}
                   data-testid="ensayar-plan"
                 >
@@ -389,13 +392,44 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   ? 'Aplica una lista para copiar sus arreglos actuales a este evento.'
                   : 'Cuando haya un plan, las canciones aparecerán numeradas aquí.'
               }
+              action={
+                isOwner && isLive ? (
+                  setlists !== null && setlists.length === 0 ? (
+                    <Link
+                      className="font-semibold text-primary no-underline hover:underline"
+                      to={`/groups/${group.id}/setlists`}
+                    >
+                      Ir a Listas
+                    </Link>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        document.getElementById('apply-heading')?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'start',
+                        })
+                      }}
+                    >
+                      Aplicar una lista
+                    </Button>
+                  )
+                ) : (
+                  <Link
+                    className="font-semibold text-primary no-underline hover:underline"
+                    to={`/groups/${group.id}/library`}
+                  >
+                    Ir a la biblioteca
+                  </Link>
+                )
+              }
             />
           ) : (
-            <ol className="space-y-2">
+            <ol className="space-y-1.5">
               {plan.map((item, index) => (
                 <li
                   key={item.id}
-                  className="library-enter flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3"
+                  className="library-enter flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5"
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
                   <PlanNumber n={item.sortOrder} />
@@ -411,6 +445,18 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     </span>
                     <span className="text-sm text-slate-500">{item.displayArrangementLabel}</span>
                   </span>
+                  {isLive ? (
+                    <Link
+                      className={cn(
+                        buttonVariants({ variant: 'secondary', size: 'sm' }),
+                        'min-h-11 no-underline',
+                      )}
+                      to={practiceQueueHref(group.id, musicalEvent.id, item)}
+                      data-testid={`practicar-item-${item.id}`}
+                    >
+                      Practicar
+                    </Link>
+                  ) : null}
                 </li>
               ))}
             </ol>

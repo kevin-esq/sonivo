@@ -83,7 +83,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
     )
   }
 
-  const showHeaderAdd = isOwner && !showCreate
+  const showHeaderAdd = isOwner && !showCreate && songs !== null && songs.length > 0
 
   return (
     <section className="space-y-6" aria-labelledby="library-heading">
@@ -111,8 +111,22 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
           title="La biblioteca está vacía"
           description={
             isOwner
-              ? 'Usa Agregar canción para empezar el repertorio y poder ensayar y armar listas.'
+              ? 'Agrega la primera canción para empezar el repertorio, ensayar y armar listas.'
               : 'Aún no hay canciones en el repertorio.'
+          }
+          action={
+            isOwner ? (
+              <Button data-testid="library-empty-add-song" onClick={() => setShowCreate(true)}>
+                Agregar canción
+              </Button>
+            ) : (
+              <Link
+                className="font-semibold text-primary no-underline hover:underline"
+                to={`/groups/${group.id}`}
+              >
+                Volver al inicio
+              </Link>
+            )
           }
         />
         )
@@ -125,7 +139,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
               style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
             >
               <Link
-                className="flex items-center gap-3 rounded-xl px-2 py-3 no-underline transition duration-150 hover:bg-neutral-light"
+                className="flex items-center gap-3 rounded-xl px-2 py-2.5 no-underline transition duration-150 hover:bg-neutral-light"
                 to={`/groups/${group.id}/songs/${song.id}`}
               >
                 <OriginMark kind={song.originKind} />

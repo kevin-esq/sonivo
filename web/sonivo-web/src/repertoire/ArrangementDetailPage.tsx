@@ -30,6 +30,7 @@ import {
 } from './chrome'
 import { ChordProView } from './ChordProView'
 import { looksLikeChordPro } from './chordPro'
+import { fileUploadErrorMessage, validateFileForUpload } from './fileUploadErrors'
 import {
   CONFLICT_MESSAGE,
   ConfirmDialog,
@@ -791,6 +792,11 @@ function FileResourceCreateForm({
       setError('Selecciona un archivo.')
       return
     }
+    const clientError = validateFileForUpload(file)
+    if (clientError) {
+      setError(clientError)
+      return
+    }
     setPending(true)
     setError(null)
     try {
@@ -803,21 +809,37 @@ function FileResourceCreateForm({
       })
       await onCreated()
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(fileUploadErrorMessage(err))
     } finally {
       setPending(false)
     }
   }
 
   return (
-    <form className="space-y-4 border-t border-slate-200 pt-4" onSubmit={onSubmit} noValidate>
+    <form
+      className="space-y-4 border-t border-slate-200 pt-4"
+      onSubmit={onSubmit}
+      noValidate
+      aria-busy={pending}
+    >
       <h3 className="font-semibold">Subir archivo</h3>
       <ProblemAlert message={error} />
+      {pending ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-neutral-dark"
+          data-testid="file-upload-pending"
+        >
+          Subiendo archivo… Espera un momento.
+        </p>
+      ) : null}
       <Field label="Propósito">
         <select
           className={fieldClass}
           required
           value={purpose}
+          disabled={pending}
           onChange={(e) => setPurpose(e.target.value as ResourcePurpose)}
         >
           {RESOURCE_PURPOSE_ORDER.map((value) => (
@@ -832,27 +854,44 @@ function FileResourceCreateForm({
           className={fieldClass}
           required
           value={label}
+          disabled={pending}
           onChange={(e) => setLabel(e.target.value)}
           maxLength={200}
         />
       </Field>
       <Field
         label="Archivo"
-        hint="PDF, imagen, audio o texto plano. Máximo 5 MiB."
+        hint="PDF, imagen (PNG, JPEG, WebP), audio (MP3, WAV, M4A) o texto plano. Máximo 5 MiB."
       >
         <input
           className={fieldClass}
           type="file"
           required
+          disabled={pending}
           accept=".pdf,.png,.jpg,.jpeg,.webp,.mp3,.wav,.m4a,.txt,application/pdf,image/png,image/jpeg,image/webp,audio/mpeg,audio/wav,audio/mp4,text/plain"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            setFile(e.target.files?.[0] ?? null)
+            setError(null)
+          }}
         />
       </Field>
       <Field label="Parte (opcional)">
-        <input className={fieldClass} value={part} onChange={(e) => setPart(e.target.value)} maxLength={100} />
+        <input
+          className={fieldClass}
+          value={part}
+          disabled={pending}
+          onChange={(e) => setPart(e.target.value)}
+          maxLength={100}
+        />
       </Field>
       <Field label="Nota (opcional)">
-        <textarea className={fieldClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+        <textarea
+          className={fieldClass}
+          rows={2}
+          value={note}
+          disabled={pending}
+          onChange={(e) => setNote(e.target.value)}
+        />
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
