@@ -357,6 +357,8 @@ export type ArrangementDetail = ArrangementListItem & {
   chords: string | null
   structure: string | null
   notes: string | null
+  /** ADR-0031: JSON array of `{ lineIndex, atMs }` or null when unset. */
+  chordTimingJson: string | null
   resources: ResourceSummary[]
 }
 
@@ -462,6 +464,8 @@ export async function updateArrangement(
     chords?: string | null
     structure?: string | null
     notes?: string | null
+    /** null omits; "" / "[]" clears; valid JSON array replaces (T-SYNC-01). */
+    chordTimingJson?: string | null
   },
 ): Promise<ArrangementDetail> {
   return apiRequest<ArrangementDetail>(

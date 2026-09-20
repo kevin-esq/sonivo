@@ -29,10 +29,12 @@ export function PracticePlayer({
   groupId,
   arrangementId,
   tracks,
+  onCurrentTimeChange,
 }: {
   groupId: string
   arrangementId: string
   tracks: PracticeAudioSource[]
+  onCurrentTimeChange?: (seconds: number) => void
 }) {
   const [selectedId, setSelectedId] = useState(() => {
     const prefs = readPracticePlayerPrefs(groupId, arrangementId)
@@ -59,6 +61,10 @@ export function PracticePlayer({
       resourceId: selected.resourceId,
     })
   }, [groupId, arrangementId, volume, selected.resourceId])
+
+  useEffect(() => {
+    onCurrentTimeChange?.(currentTime)
+  }, [currentTime, onCurrentTimeChange])
 
   useEffect(() => {
     const el = audioRef.current

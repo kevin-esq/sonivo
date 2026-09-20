@@ -515,7 +515,7 @@ function ArrangementCreateForm({
         <textarea className={fieldClass} rows={3} value={lyrics} onChange={(e) => setLyrics(e.target.value)} />
       </Field>
       <Field label="Acordes (opcional)">
-        <textarea className={fieldClass} rows={3} value={chords} onChange={(e) => setChords(e.target.value)} />
+        <textarea className={fieldClass} rows={3} value={chords} onChange={(e) => setChords(e.target.value)} data-testid="arrangement-chords" />
       </Field>
       <Field label="Estructura (opcional)">
         <textarea

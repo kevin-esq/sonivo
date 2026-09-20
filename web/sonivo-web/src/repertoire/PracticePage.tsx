@@ -13,8 +13,16 @@ import {
 import { EmptyPanel, PageBreadcrumb } from './chrome'
 import { looksLikeChordPro, transposeChordPro, tryTransposeDefaultKey } from './chordPro'
 import { RehearsalBodyView } from './ChordProView'
+import {
+  activeChordLineBlock,
+  parseChordTimingJson,
+} from './chordTiming'
 import { PracticeEventQueue } from './PracticeEventQueue'
 import { PracticePlayer } from './PracticePlayer'
+import {
+  readPracticeFollowAlong,
+  writePracticeFollowAlong,
+} from './practiceFollowPrefs'
 import {
   readPracticeViewMode,
   writePracticeViewMode,
@@ -107,14 +115,19 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const [viewMode, setViewMode] = useState<PracticeViewMode>('guitarist')
   const [confirmSaveTone, setConfirmSaveTone] = useState(false)
   const [savingTone, setSavingTone] = useState(false)
+  const [followAlong, setFollowAlong] = useState(false)
+  const [audioSeconds, setAudioSeconds] = useState(0)
 
   useEffect(() => {
     setSemitoneOffset(0)
+    setAudioSeconds(0)
     if (!groupId || !arrangementId) {
       setViewMode('guitarist')
+      setFollowAlong(false)
       return
     }
     setViewMode(readPracticeViewMode(groupId, arrangementId))
+    setFollowAlong(readPracticeFollowAlong(groupId, arrangementId))
   }, [groupId, arrangementId])
 
   useEffect(() => {
@@ -233,10 +246,20 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       ? tryTransposeDefaultKey(liveArrangement.defaultKey, semitoneOffset)
       : null
   const hideChords = viewMode === 'singer'
+  const timingMarks = parseChordTimingJson(liveArrangement.chordTimingJson)
+  const highlightBlock =
+    followAlong && timingMarks.length > 0
+      ? activeChordLineBlock(timingMarks, Math.round(audioSeconds * 1000))
+      : null
 
   function setViewModePersist(mode: PracticeViewMode) {
     setViewMode(mode)
     writePracticeViewMode(liveGroup.id, liveArrangement.id, mode)
+  }
+
+  function setFollowAlongPersist(enabled: boolean) {
+    setFollowAlong(enabled)
+    writePracticeFollowAlong(liveGroup.id, liveArrangement.id, enabled)
   }
 
   async function handleSaveTone() {
@@ -343,6 +366,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           groupId={liveGroup.id}
           arrangementId={liveArrangement.id}
           tracks={tracks}
+          onCurrentTimeChange={setAudioSeconds}
         />
       ) : null}
 
@@ -408,6 +432,17 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             >
               Vista Guitarrista
             </Button>
+            {timingMarks.length > 0 ? (
+              <Button
+                variant={followAlong ? 'primary' : 'secondary'}
+                size="sm"
+                data-testid="practice-follow-along"
+                aria-pressed={followAlong}
+                onClick={() => setFollowAlongPersist(!followAlong)}
+              >
+                Seguir letra
+              </Button>
+            ) : null}
           </div>
           {isOwner && liveArrangement.chords?.trim() ? (
             <div>
@@ -452,6 +487,8 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               chordProTestId="practice-chordpro"
               plainTestId="practice-lyrics"
               hideChords={hideChords}
+              activeLineIndex={highlightBlock?.lineIndex ?? null}
+              activeBlockEndIndex={highlightBlock?.blockEndIndex ?? null}
             />
           )
         })()}
