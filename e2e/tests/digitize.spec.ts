@@ -16,7 +16,8 @@ const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fix
 
 /**
  * TC-WSP-01 (ADR-0032 T-W32-03): Whisper audio digitizer thin, mechanics only.
- * Real `tiny` model on the existing 3s fixture; asserts the job pipeline
+ * Real `tiny` model on a Spanish speech fixture (practice-a.wav tones yield
+ * zero segments through this pipeline — verified); asserts the job pipeline
  * (done → review renders → apply → Practice "Seguir letra" toggle appears),
  * never transcript quality. No fixed sleeps — polling with generous timeouts
  * for first-run model download.
@@ -42,7 +43,7 @@ test.describe('Audio digitizer thin (Whisper)', () => {
     await createArrangement(page, arrangementLabel, { chords: chordProBody })
     await createFileResource(page, {
       label: `Maqueta ${stamp}`,
-      filePath: path.join(fixturesDir, 'practice-a.wav'),
+      filePath: path.join(fixturesDir, 'practice-speech.wav'),
       purpose: 'audio',
     })
 
