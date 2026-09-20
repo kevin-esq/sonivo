@@ -8,44 +8,35 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
-## ADR-0032 — Whisper audio digitizer thin (audio → ChordPro / timing drafts)
+## ADR-0032 — Whisper audio digitizer thin (audio → timing-mark + lyric drafts)
 
-- **Status:** **PROPOSED** — awaiting Kevin decision on the open questions below; **not** authorized for implementation
+- **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-20** (Kevin: “elige las opciones que queden mejor para el proyecto e implementa”; auditor decided W32-Q1–Q7 below, rationale in PR)
 - **Date:** 2026-09-20
-- **Depends on:** ADR-0024, 0025, 0027, 0028, 0029, 0030, 0031; T-3.2.06 file/link Resources
-- **Revises:** nothing while PROPOSED — ADR-0030 / ADR-0031 clauses keeping audio digitizer and ML auto-marks FUTURE remain binding until this ADR is ACCEPTED
-- **Does not authorize (firewall):** cloud LLM lyric/chord rewriting (Wave B), ML auto-marks saved without Owner review UX (Wave C), realtime multi-device sync (Q9), pitch detection, YouTube, S3 blob adapter, raising the 5 MiB blob cap, MusicXML / Guitar Pro
+- **Depends on:** ADR-0019, 0020, 0024, 0025, 0027, 0028, 0029, 0030, 0031; T-3.2.06 file/link Resources
+- **Revises:** ADR-0030 / ADR-0031 clauses keeping audio→ChordPro digitizer FUTURE — a thin Owner-reviewed digitizer is now authorized as specified below (unattended ML auto-marks stay FUTURE, Wave C)
+- **Does not authorize (firewall):** cloud LLM lyric/chord rewriting (Wave B), ML auto-marks saved without Owner review UX (Wave C), realtime multi-device sync (Q9), pitch detection, YouTube, S3 blob adapter, raising the 5 MiB blob cap, MusicXML / Guitar Pro, Event/RSVP mail
 
 ### Context
 
-Groups rehearse from audio maquetas stored as Arrangement Resources (ADR-0024; T-3.2.06). Owners today hand-transcribe lyrics into ChordPro (`Arrangement.Chords`, ADR-0028 / ADR-0030) and hand-place Practice follow-along time marks (`Arrangement.ChordTimingJson`, ADR-0031). A thin digitizer would turn an **existing audio Resource** into a **draft** the Owner reviews and explicitly saves — feeding the existing `Chords` + `ChordTimingJson` columns with **no new tables** in thin.
+Groups rehearse from audio maquetas stored as Arrangement Resources (ADR-0024; T-3.2.06). Owners today hand-transcribe lyrics into ChordPro (`Arrangement.Chords`, ADR-0028 / ADR-0030) and hand-place Practice follow-along time marks (`Arrangement.ChordTimingJson`, ADR-0031). A thin digitizer turns an **existing audio file Resource** into a **draft** the Owner reviews and explicitly saves — feeding the existing `Lyrics` + `ChordTimingJson` columns with **no new tables** and **no new vendor secrets**.
 
-### Proposal (not decided — needs Kevin answers below)
+### Decision (ACCEPTED — W32-Q1–Q7 resolved)
 
-1. **Input:** one existing audio Resource of a live Arrangement (exact eligibility — file vs link, which purposes — is OPEN QUESTION W32-Q3).
-2. **Output (thin):** Owner-reviewed drafts only — a ChordPro body draft feeding `Arrangement.Chords`, and/or timing-mark drafts feeding `Arrangement.ChordTimingJson`. Nothing is auto-saved; every write goes through the existing Owner PATCH path with `expectedVersion` / 409 (ADR-0025). Whether thin ships body vs marks vs both is OPEN QUESTION W32-Q4.
-3. **No new persistence tables in thin.** Draft-ephemeral state (if any) must be justified in the implementation tickets; the persisted contract stays the two existing columns.
-4. **Roles (proposed):** Owner creates/reviews/discards drafts; Member read-only consumes only saved `Chords` / marks. Owner-only drafts themselves are OPEN QUESTION W32-Q7.
-5. **Provider and execution model undecided:** local whisper.cpp vs hosted API (W32-Q1), sync vs async job (W32-Q2), duration/size caps (W32-Q5), secrets/config (W32-Q6).
-6. **Spanish UI** for any draft review surface; sparse Playwright TCs per thin spec (names fixed at implementation time).
-7. **Tickets:** T-W32-00 (this docs proposal: ADR-0032 PROPOSED + [`PHASE-WHISPER-SPEC.md`](PHASE-WHISPER-SPEC.md) skeleton); T-W32-01–03 implementation sketches live in that spec and start only after this ADR is ACCEPTED.
+1. **Q1 provider: local whisper.cpp via Whisper.net, default model `tiny`** (config `base`). Zero vendor secrets, zero cost, audio never leaves the server. Limited transcription quality is acceptable because output is an Owner-reviewed draft only. Hosted transcription APIs remain FUTURE (Wave B-adjacent, separate ADR).
+2. **Q2 execution: async job — `202 Accepted` + polling.** Transcription is CPU-bound (tens of seconds); async avoids HTTP/proxy timeouts on Render free tier. Job state lives in an **in-memory store with expiry** (no new table in thin; restarts may drop in-flight jobs — documented, not silent).
+3. **Q3 eligibility: `file`-kind Resources with playable audio MIME** (purposes `audio` / `practice` / `click`, same playability rule as Practice). Link Resources are OUT (server must read bytes; link fetching is SSRF surface; YouTube is firewall). Thin decoder is WAV-only: non-WAV audio is rejected at POST with a clear Spanish error, never a doomed job.
+4. **Q4 output: segments → (a) timing-mark drafts + (b) lyric-text draft. `Chords` NEVER touched by the digitizer** (protects hand-made ChordPro). Each segment `{startMs, endMs, text}` maps in review UX to `{lineIndex, atMs=startMs}` applied via the existing PATCH `chordTimingJson` path (upsert semantics — hand-made marks on other lines are preserved); segment text may be appended to `Lyrics` via explicit Owner action through the existing PATCH `lyrics` path. Smart seeding of `Chords` stays with Wave B.
+5. **Q5 caps: blob ≤5 MiB (unchanged, NOT raised) + audio duration ≤120s + segments ≤500** (far below server `MaxMarks = 2000`); jobs expire after 30 min. Over-cap input fails the job with a clear error, never partial writes.
+6. **Q6 config (no secrets in thin): `Whisper:Model`** (`tiny`\|`base`, default `tiny`), **`Whisper:ModelDirectory`** (model `.bin` location, environment-provisioned), **`Whisper:MaxAudioSeconds`** (default 120). Model weights download lazily on first job — never in git, never in DB. Render ephemeral disk (re-download after sleep/restart) is documented.
+7. **Q7 visibility: drafts are Owner-only.** Transcription endpoints require Owner (same `RequireOwnerAsync` pattern as other Arrangement mutations); job ids are unguessable Guids scoped to `(groupId, arrangementId)` and re-checked per request (ADR-0019: 404 non-member/unknown, 403 member non-Owner). Members consume only saved `Lyrics` / marks.
+8. **Writes use existing PATCH semantics only** (`expectedVersion` / 409 per ADR-0025); CSRF per ADR-0020 (POST is unsafe, GET status is safe). Concurrency mechanism unchanged.
+9. **Spanish UI** for the draft review surface (“Digitalizar audio”, “Revisar borrador”, “Aplicar marcas”, “Añadir a letra”, “Descartar”); sparse Playwright **TC-WSP-01** in T-W32-03.
+10. **Tickets:** T-W32-00 (proposal docs, merged PR #83); T-W32-01–03 implementation — see [`PHASE-WHISPER-SPEC.md`](PHASE-WHISPER-SPEC.md).
 
-### Open questions for Kevin (blocking ACCEPTANCE)
+### Consequences
 
-| ID | Question | Options (undecided) |
-| -- | -------- | ------------------- |
-| W32-Q1 | Transcription provider? | Local whisper.cpp vs hosted Whisper-compatible API vs other — cost, ops, privacy trade-offs unstated; no recommendation made here |
-| W32-Q2 | Execution model? | Synchronous request/response vs async background job with polling — latency and Render-free-tier implications unstated |
-| W32-Q3 | Which audio Resource is eligible? | File-only vs link URLs; purpose `audio` vs `practice` vs `click` — UX and AuthZ surface unstated |
-| W32-Q4 | Thin output? | ChordPro body draft vs timing-mark drafts vs both — scope of T-W32-01–03 depends on this |
-| W32-Q5 | Duration / size caps? | Max audio length and payload within/against the 5 MiB blob cap — no cap proposed here |
-| W32-Q6 | Secrets / config model? | Env/config keys, per-environment provisioning — nothing proposed; no secrets in git per repo policy |
-| W32-Q7 | Draft visibility? | Owner-only drafts with explicit review-and-save UX assumed in proposal but not confirmed; Member visibility of pending drafts unstated |
-
-### Consequences (if ACCEPTED as-is or amended)
-
-- Audio maquetas gain a draft path into the existing ChordPro + follow-along columns without new aggregates.
-- “Digitizer” output stays a **draft** until an Owner saves it; saved `Chords` / `ChordTimingJson` keep their current GET/PATCH/AuthZ semantics.
+- Audio maquetas gain a draft path into follow-along marks + lyrics without new aggregates, tables, or vendors.
+- “Digitizer” output stays a **draft** until an Owner saves it; saved `Lyrics` / `ChordTimingJson` keep current GET/PATCH/AuthZ semantics.
 - Wave B (cloud LLM upgrade) and Wave C (unattended ML auto-marks) each need their own ADR; this thin must not be read as authorizing them.
 
 ### Non-goals

@@ -22,6 +22,7 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | ADR-0031 T-SYNC-01 | Migration ChordTimingJson + GET/PATCH + tests | MERGED (PR #81) |
 | ADR-0031 T-SYNC-02–03 | Owner marks UI + Practice highlight + TC-PLAY-SYNC-01 | MERGED (`887a2b3` / PR #82, CI green 25/25) |
 | Wave A T-W32-00 | ADR-0032 PROPOSED docs + PHASE-WHISPER-SPEC.md skeleton (docs only) | MERGED (`bdf092f` / PR #83, CI green); ADR-0032 still PROPOSED — Kevin answers W32-Q1–Q7 pending |
+| Wave A T-W32-01–03 | Whisper digitizer thin: IAudioTranscriber + Whisper.net 1.9.1 job endpoints + Owner review UX + TC-WSP-01 (this branch) | IMPLEMENTED — backend 367 green, web build green, `playwright --list` 26/26; full local E2E not run (needs live servers; CI covers) |
 | ADR-0032+ | Whisper audio digitizer thin implementation (T-W32-01–03) | BLOCKED on ADR-0032 ACCEPTANCE |
 | Q9 / S3 / LLM / pitch / YouTube | Still need separate ADRs after core | LATER in same program |
 

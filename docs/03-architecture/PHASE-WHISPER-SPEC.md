@@ -1,38 +1,56 @@
 # Phase Whisper audio digitizer thin (ADR-0032)
 
-**Status:** **PROPOSED** — T-W32-00 docs skeleton. ADR-0032 is **PROPOSED**, not ACCEPTED. Implementation T-W32-01–03 **not authorized** until Kevin answers W32-Q1–Q7 and ACCEPTS the ADR.
-**Product bet:** An existing Arrangement audio Resource becomes an Owner-reviewed ChordPro and/or timing draft — without cloud LLM, unattended ML auto-marks, or Q9 realtime.
+**Status:** ADR-0032 **ACCEPTED** 2026-09-20 (auditor-decided W32-Q1–Q7, HUMAN-DELEGATED). Implementation T-W32-01–03 **AUTHORIZED** on branch `feature/t-w32-digitizer-thin`.
+**Product bet:** An existing Arrangement audio file becomes an Owner-reviewed timing-mark + lyric draft — without cloud LLM, unattended ML auto-marks, or Q9 realtime.
 **Date:** 2026-09-20
-**Depends on:** ADR-0032 (PROPOSED), 0024, 0025, 0027, 0028, 0029, 0030, 0031; T-3.2.06 file/link Resources; [`PHASE-PLAY-SYNC-SPEC.md`](PHASE-PLAY-SYNC-SPEC.md).
+**Depends on:** ADR-0032 (ACCEPTED), 0019, 0020, 0024, 0025, 0027, 0028, 0029, 0030, 0031; T-3.2.06 file/link Resources; [`PHASE-PLAY-SYNC-SPEC.md`](PHASE-PLAY-SYNC-SPEC.md).
 
 ---
 
-## Frozen mechanics (proposed — open items are questions, not decisions)
+## Frozen mechanics (binding)
 
-| ID | Proposal / open question |
-| -- | ------------------------ |
-| Q-W32-1 | Persisted contract stays the existing columns: `Arrangement.Chords` (ChordPro body, ADR-0028) and `Arrangement.ChordTimingJson` (timing marks, ADR-0031). **No new tables in thin.** |
-| Q-W32-2 | Digitizer output is a **draft** until an Owner explicitly saves via the existing Arrangement PATCH (`expectedVersion` / 409 per ADR-0025). No auto-save of ML output. |
-| Q-W32-3 | **OPEN QUESTION W32-Q1:** provider — local whisper.cpp vs hosted Whisper-compatible API? Undecided; no recommendation in this spec. |
-| Q-W32-4 | **OPEN QUESTION W32-Q2:** sync request/response vs async job with polling? Undecided. |
-| Q-W32-5 | **OPEN QUESTION W32-Q3:** which audio Resource is eligible — file vs link; purpose `audio` vs `practice` vs `click`? Undecided. |
-| Q-W32-6 | **OPEN QUESTION W32-Q4:** thin output — ChordPro body draft vs timing-mark drafts vs both? Undecided; scopes T-W32-01–03. |
-| Q-W32-7 | **OPEN QUESTION W32-Q5:** duration / size caps for digitized audio? Undecided; 5 MiB blob cap is NOT raised by this thin. |
-| Q-W32-8 | **OPEN QUESTION W32-Q6:** secrets / config model? Undecided; no secrets in git. |
-| Q-W32-9 | **OPEN QUESTION W32-Q7:** Owner-only drafts with review-and-save UX (proposed) vs any Member visibility of pending drafts? Unconfirmed. |
-| Q-W32-10 | Spanish UI for any draft review surface (e.g. “Revisar borrador”, “Descartar”, “Guardar en arreglo”). Route/naming fixed at implementation time. |
+| ID | Decision |
+| -- | -------- |
+| Q-W32-1 | Persisted contract stays the existing columns: `Arrangement.Lyrics` (plain text append target) and `Arrangement.ChordTimingJson` (timing marks, ADR-0031). **No new tables. No migration. `Arrangement.Chords` is NEVER written by the digitizer.** |
+| Q-W32-2 | Digitizer output is a **draft** until an Owner explicitly saves via the existing Arrangement PATCH (`expectedVersion` / 409 per ADR-0025). No auto-save of ML output. Mark apply uses upsert semantics (hand-made marks on other lines preserved). |
+| Q-W32-3 | Provider: local whisper.cpp via Whisper.net; default model `tiny` (config `base`). No vendor secrets. |
+| Q-W32-4 | Execution: async job. `POST .../digitize {resourceId}` → `202 {jobId, status}`; `GET .../digitize/{jobId}` → `{status: queued\|processing\|done\|failed, segments?[{startMs,endMs,text}], error?}`. In-memory job store with 30-min expiry (restarts may drop in-flight jobs — documented). |
+| Q-W32-5 | Eligibility: `file`-kind Resources with playable audio MIME, purposes `audio`/`practice`/`click`. Links OUT. Thin decoder is WAV-only: non-WAV audio is rejected at POST with a clear error (never a doomed job). |
+| Q-W32-6 | Caps: blob ≤5 MiB (unchanged) + duration ≤120s + segments ≤500. Over-cap fails the job with a clear error; never partial writes. |
+| Q-W32-7 | Config (no secrets): `Whisper:Model` (default `tiny`), `Whisper:ModelDirectory`, `Whisper:MaxAudioSeconds` (default 120). Lazy `.bin` download; never in git/DB. |
+| Q-W32-8 | AuthZ: Owner-only endpoints (`RequireOwnerAsync` pattern; per-request group+arrangement check → 404 non-member/unknown, 403 member non-Owner). CSRF on POST per ADR-0020. |
+| Q-W32-9 | Testability: transcription behind an `IAudioTranscriber` interface; unit/API tests run against a fake (no model download in tests). E2E TC-WSP-01 uses the real `tiny` model on the 3s fixture and asserts mechanics (job done → review renders → apply → Practice toggle), not transcript quality. |
+| Q-W32-10 | Spanish UI (“Digitalizar audio”, “Revisar borrador”, “Aplicar marcas”, “Añadir a letra”, “Descartar”). |
+| Q-W32-11 | **OUT (firewall):** cloud LLM rewriting (Wave B), unattended ML auto-marks (Wave C), Q9 realtime, pitch, YouTube, S3, raising 5 MiB, MusicXML / Guitar Pro, Event/RSVP mail. |
+
+---
+
+## Frozen mechanics (binding)
+
+| ID | Decision |
+| -- | -------- |
+| Q-W32-1 | Persisted contract stays the existing columns: `Arrangement.Lyrics` (plain text append target) and `Arrangement.ChordTimingJson` (timing marks, ADR-0031). **No new tables. No migration. `Arrangement.Chords` is NEVER written by the digitizer.** |
+| Q-W32-2 | Digitizer output is a **draft** until an Owner explicitly saves via the existing Arrangement PATCH (`expectedVersion` / 409 per ADR-0025). No auto-save of ML output. Mark apply uses upsert semantics (hand-made marks on other lines preserved). |
+| Q-W32-3 | Provider: local whisper.cpp via Whisper.net; default model `tiny` (config `base`). No vendor secrets. |
+| Q-W32-4 | Execution: async job. `POST .../digitize {resourceId}` → `202 {jobId, status}`; `GET .../digitize/{jobId}` → `{status: queued\|processing\|done\|failed, segments?[{startMs,endMs,text}], error?}`. In-memory job store with 30-min expiry (restarts may drop in-flight jobs — documented). |
+| Q-W32-5 | Eligibility: `file`-kind Resources with playable audio MIME, purposes `audio`/`practice`/`click`. Links OUT. Thin decoder is WAV-only: non-WAV audio is rejected at POST with a clear error (never a doomed job). |
+| Q-W32-6 | Caps: blob ≤5 MiB (unchanged) + duration ≤120s + segments ≤500. Over-cap fails the job with a clear error; never partial writes. |
+| Q-W32-7 | Config (no secrets): `Whisper:Model` (default `tiny`), `Whisper:ModelDirectory`, `Whisper:MaxAudioSeconds` (default 120). Lazy `.bin` download; never in git/DB. |
+| Q-W32-8 | AuthZ: Owner-only endpoints (`RequireOwnerAsync` pattern; per-request group+arrangement check → 404 non-member/unknown, 403 member non-Owner). CSRF on POST per ADR-0020. |
+| Q-W32-9 | Testability: transcription behind an `IAudioTranscriber` interface; unit/API tests run against a fake (no model download in tests). E2E TC-WSP-01 uses the real `tiny` model on the 3s fixture and asserts mechanics (job done → review renders → apply → Practice toggle), not transcript quality. |
+| Q-W32-10 | Spanish UI (“Digitalizar audio”, “Revisar borrador”, “Aplicar marcas”, “Añadir a letra”, “Descartar”). |
 | Q-W32-11 | **OUT (firewall):** cloud LLM rewriting (Wave B), unattended ML auto-marks (Wave C), Q9 realtime, pitch, YouTube, S3, raising 5 MiB, MusicXML / Guitar Pro, Event/RSVP mail. |
 
 ---
 
 ## Scope
 
-| In (proposed thin) | Out |
-| ------------------ | --- |
-| Draft from existing audio Resource into `Chords` and/or `ChordTimingJson` | New persistence tables |
-| Owner review-and-save UX (Spanish) | Auto-save / unattended ML marks (Wave C) |
-| Member read of saved body/marks (unchanged semantics) | Cloud LLM rewrite (Wave B) |
-| Sparse Playwright TCs (names fixed at impl time) | Q9 realtime, pitch, YouTube, S3, 5 MiB raise, MusicXML |
+| In (thin) | Out |
+| --------- | --- |
+| Transcribe endpoint + polling (T-W32-01) | New persistence tables / migrations |
+| Owner review-and-save UX incl. per-segment line assignment (T-W32-02, Spanish) | Auto-save / unattended marks (Wave C) |
+| Unit + API tests with fake transcriber; E2E TC-WSP-01 with real tiny model (T-W32-03) | Cloud LLM rewrite (Wave B) |
+| Whisper.net NuGet (pinned, justified by this ADR) | Q9 realtime, pitch, YouTube, S3, 5 MiB raise, MusicXML |
 
 ---
 
@@ -40,14 +58,13 @@
 
 | ID | Work | Status |
 | -- | ---- | ------ |
-| **T-W32-00** | This docs PR: ADR-0032 **PROPOSED** + this spec skeleton + NOW update | **IN PROGRESS (docs only; this branch)** |
-| **T-W32-01** | Sketch: transcription input — eligible audio Resource selection + execution model (sync vs job) + caps. Binds on W32-Q1/Q2/Q3/Q5 answers | Later — needs ADR ACCEPTED |
-| **T-W32-02** | Sketch: draft review UX — Owner review/discard/save into `Chords` and/or `ChordTimingJson` (Spanish). Binds on W32-Q4/Q7 answers | Later — needs ADR ACCEPTED |
-| **T-W32-03** | Sketch: tests — unit/API for draft→PATCH path + sparse Playwright TC for review-and-save | Later — needs ADR ACCEPTED |
+| **T-W32-00** | Docs: ADR-0032 PROPOSED + spec skeleton + NOW update | MERGED (PR #83) |
+| **T-W32-00b** | ADR-0032 ACCEPTED (auditor-decided W32-Q1–Q7, HUMAN-DELEGATED) + spec frozen | This branch, this commit |
+| **T-W32-01** | Server: `IAudioTranscriber` + Whisper.net job endpoints (202 + poll) + caps + unit/API tests with fake | Authorized — builder |
+| **T-W32-02** | Web: Owner review UX (segment list, per-segment line assignment, apply marks via PATCH upsert, append-to-Lyrics, discard; Spanish) | Authorized — builder |
+| **T-W32-03** | Tests: TC-WSP-01 Playwright (real tiny model, mechanics assertions) + suite green | Authorized — builder |
 
-Branch naming (implementation, after ACCEPTANCE): `feature/t-w32-01-transcribe-input`, `feature/t-w32-02-draft-review`, `feature/t-w32-03-digitizer-tests` (or one coherent vertical slice if human batches).
-
-Docs branch for T-W32-00: `docs/adr-0032-whisper`.
+Branch for implementation: `feature/t-w32-digitizer-thin` (this branch; one coherent vertical slice).
 
 ---
 

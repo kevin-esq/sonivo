@@ -799,3 +799,39 @@ export async function deleteResource(
     { method: 'DELETE' },
   )
 }
+
+export type DigitizeSegment = {
+  startMs: number
+  endMs: number
+  text: string
+}
+
+export type DigitizeJobStatus = 'queued' | 'processing' | 'done' | 'failed'
+
+export type DigitizeJob = {
+  jobId: string
+  status: DigitizeJobStatus
+  segments: DigitizeSegment[] | null
+  error: string | null
+}
+
+export async function startDigitizeJob(
+  groupId: string,
+  arrangementId: string,
+  resourceId: string,
+): Promise<{ jobId: string; status: DigitizeJobStatus }> {
+  return apiRequest<{ jobId: string; status: DigitizeJobStatus }>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/digitize`,
+    { method: 'POST', body: { resourceId } },
+  )
+}
+
+export async function getDigitizeJob(
+  groupId: string,
+  arrangementId: string,
+  jobId: string,
+): Promise<DigitizeJob> {
+  return apiRequest<DigitizeJob>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/digitize/${jobId}`,
+  )
+}
