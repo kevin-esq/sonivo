@@ -8,6 +8,56 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0035 — Cloudflare R2 (S3-compatible) as alternate `IBlobStore` backend (thin)
+
+- **Status:** **PROPOSED** — awaiting Kevin review + ACCEPTANCE (blocking OPEN QUESTIONS below)
+- **Date:** 2026-09-20
+- **Depends on:** ADR-0010 (S3-compatible storage via abstraction), ADR-0019 (tenancy/AuthZ), ADR-0020 (CSRF), ADR-0023 (soft-delete; blobs left in place), T-3.2.06 (`IBlobStore` + Postgres `ResourceBlobs`, 5 MiB cap)
+- **Revises:** nothing yet — on ACCEPTANCE it would authorize an alternate `IBlobStore` backend alongside the Postgres default; no AuthZ/tenancy/soft-delete semantic changes
+- **Does not authorize (firewall):** AuthZ/tenancy changes of any kind; soft-delete semantic changes; public buckets; browser-direct reads/writes (bare presigned URLs); raising the 5 MiB cap; Whisper / cloud LLM / audio digitizer changes; unattended ML auto-marks; Q9 realtime; pitch; YouTube; MusicXML / Guitar Pro; Event/RSVP mail; dropping the `ResourceBlobs` table before verified backfill
+
+### Context
+
+File Resources (T-3.2.06) store bytes in Postgres (`ResourceBlobs`) behind the `IBlobStore` abstraction, capped at 5 MiB, served through the AuthZ'd `GET .../content` proxy. Postgres blobs are operationally sufficient today but couple binary growth to the primary database. A thin **alternate backend** on Cloudflare R2 (S3-compatible) would let deployments offload bytes without changing the Resource model, AuthZ, or read path.
+
+### Proposal (PROPOSED — R2-Q1–Q7 open, Kevin decides)
+
+1. **Backend thin:** new `R2BlobStore : IBlobStore` in Infrastructure, registered **conditionally** (R2 configured → R2, else Postgres default). No change to the `IBlobStore` contract or the `GET .../content` route shape.
+2. **Verified facts informing the proposal (vendor docs, `developers.cloudflare.com/r2/pricing` + documented R2 dotnet example — re-verify at implementation time):**
+   - R2 free tier includes 10 GB-months storage + 1M Class-A + 10M Class-B operations/month + **zero egress fees**.
+   - S3-compatible ops Put/Get/Delete/Head + presigned URLs are supported; gaps (ACLs, tagging, KMS, POST-presigns) are **unused by Sonivo** and stay unused.
+   - `AWSSDK.S3` against R2 needs `DisablePayloadSigning` + `DisableDefaultChecksumValidation`, `ServiceURL https://<ACCOUNT>.r2.cloudflarestorage.com`, region `auto` (per the documented R2 dotnet example).
+3. **Server proxy stays:** KEEP the server proxy through the AuthZ'd `GET .../content` (per-request Membership recheck per ADR-0019). **No public buckets, no bare presigned reads** — bearer-token URL risk. (Browser-direct PUT is likewise OUT — no CORS surface needed; see R2-Q4.)
+4. **Config (never in git):** `R2:AccountId` / `R2:AccessKey` / `R2:Secret` / `R2:BucketName`, per-env (local / Render). Secrets live in environment config only.
+5. **Migration (dual-read + lazy backfill, proposed):** dual-read R2-first with Postgres fallback; lazy backfill of `ResourceBlobs` rows into R2 on read; `Resource` rows/metadata stay in Postgres always. Drop the `ResourceBlobs` table only in a **later migration after verified backfill** — never in the thin cutover.
+6. **Cap unchanged:** 5 MiB upload cap UNCHANGED unless a later ADR says otherwise.
+7. **Spanish UI:** no user-visible copy change expected in thin (ops-only); any error copy stays Spanish.
+8. **Tickets (gated on ACCEPTANCE + R2 credentials provided):** T-R2-00 (this proposal docs); T-R2-01–03 implementation — see [`PHASE-R2-SPEC.md`](PHASE-R2-SPEC.md). No implementation branch authorized until Kevin ACCEPTS and resolves R2-Q1–Q7.
+
+### Open questions (blocking — Kevin decides, auditors do NOT commit unilaterally)
+
+| ID | Question |
+| -- | -------- |
+| **R2-Q1** | Account ownership + Admin token holder: whose Cloudflare account owns the R2 account, who holds the Admin token? |
+| **R2-Q2** | Bucket name + jurisdiction: canonical bucket name(s) per environment + jurisdiction/data-location choice. |
+| **R2-Q3** | Scoped read/write token + per-env secret storage: least-privilege token scope, rotation story, where secrets live per environment (local / Render env). Never in git. |
+| **R2-Q4** | Proxy-only confirm: confirm server-proxy-only (no browser-direct PUT → no CORS needed), no public buckets / bare presigned reads. |
+| **R2-Q5** | Orphan-blob lifecycle vs ADR-0023: ADR-0023 leaves Resource rows/blobs in place on Arrangement soft-delete — confirm the same rule applies to R2 objects (purge stays FUTURE) or define the R2 variant. |
+| **R2-Q6** | Cost ceiling / overage acceptance: who accepts overage beyond the free tier, alerting/ceiling story. |
+| **R2-Q7** | Card-on-file at R2 checkout (unconfirmed in docs): confirm whether card is required and who provides it. |
+
+### Consequences (if ACCEPTED as proposed)
+
+- Deployments with R2 configured store new bytes in R2; Postgres remains the default/fallback and the metadata store.
+- The `GET .../content` AuthZ posture is unchanged (proxy, per-request Membership recheck, 404/403 per ADR-0019).
+- The `ResourceBlobs` table survives until a later verified-backfill migration explicitly drops it.
+
+### Non-goals
+
+AuthZ/tenancy changes · soft-delete semantic changes · public buckets / bare presigned URLs · browser-direct PUT / CORS · 5 MiB raise · Whisper · cloud LLM · unattended ML auto-marks · Q9 · pitch · YouTube · MusicXML · Event/RSVP mail
+
+---
+
 ## ADR-0034 — ML timing-mark suggest (review-gated mapping assist)
 
 - **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-20** (Kevin: program continues until done; auditor decides technical spend-free scope)
