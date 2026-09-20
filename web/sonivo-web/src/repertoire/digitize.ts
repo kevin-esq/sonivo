@@ -32,3 +32,33 @@ export function segmentsToLyricsDraft(segments: { text: string }[]): string {
     .filter((t) => t.length > 0)
     .join('\n')
 }
+
+/**
+ * ADR-0034 Q-W34-1: review-gated timing-mark suggest (client-only, deterministic).
+ * Maps each transcript segment onto a lyric-bearing ChordPro line index:
+ * lyric-bearing = trimmed non-blank lines NOT matching /^\{.*\}$/.
+ * Segment i → i-th lyric line; overflow clamps to the last lyric line.
+ * No lyric lines (or null/blank body) → identity clamped to max(lineCount - 1, 0).
+ */
+export function suggestLineMapping(
+  chordProText: string | null | undefined,
+  segmentCount: number,
+): number[] {
+  if (!Number.isInteger(segmentCount) || segmentCount <= 0) return []
+  const lines = (chordProText ?? '').replace(/\r\n/g, '\n').split('\n')
+  const lyricIndices: number[] = []
+  lines.forEach((line, index) => {
+    const trimmed = line.trim()
+    if (trimmed.length === 0) return
+    if (/^\{.*\}$/.test(trimmed)) return
+    lyricIndices.push(index)
+  })
+  if (lyricIndices.length === 0) {
+    const maxLine = Math.max(lines.length - 1, 0)
+    return Array.from({ length: segmentCount }, (_, i) => Math.min(i, maxLine))
+  }
+  const lastLyric = lyricIndices[lyricIndices.length - 1]
+  return Array.from({ length: segmentCount }, (_, i) =>
+    i < lyricIndices.length ? lyricIndices[i] : lastLyric,
+  )
+}

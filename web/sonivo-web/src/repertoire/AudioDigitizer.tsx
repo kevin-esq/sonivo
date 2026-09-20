@@ -13,6 +13,7 @@ import {
   formatTimestamp,
   isDigitizableResource,
   segmentsToLyricsDraft,
+  suggestLineMapping,
 } from './digitize'
 import {
   parseChordTimingJson,
@@ -170,6 +171,11 @@ export function AudioDigitizer({
     }
   }
 
+  function handleSuggestMapping() {
+    if (job.phase !== 'ready') return
+    setLineFor(suggestLineMapping(arrangement.chords, job.segments.length))
+  }
+
   const workingResourceLabel =
     job.phase === 'working' || job.phase === 'ready' || job.phase === 'failed'
       ? (eligible.find((r) => r.id === job.resourceId)?.label ?? '')
@@ -297,6 +303,17 @@ export function AudioDigitizer({
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2">
+            {job.segments.length > 0 ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={pending}
+                onClick={handleSuggestMapping}
+                data-testid="digitize-suggest"
+              >
+                Sugerir mapeo
+              </Button>
+            ) : null}
             {job.segments.length > 0 ? (
               <Button
                 size="sm"

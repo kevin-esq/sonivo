@@ -1,9 +1,9 @@
 # Phase LLM cloud upgrade of P1/P2 (ADR-0033)
 
-**Status:** ADR-0033 **PROPOSED** 2026-09-20 (L33-Q1–Q6 open, Kevin decides). Implementation T-LLM-01–03 **NOT AUTHORIZED** until ACCEPTANCE.
-**Product bet:** Owner-invoked cloud draft (“Generar con IA”) improves P1 chord placement and P2 song seeding — deterministic engines stay as offline fallback, Owner review-and-save required.
+**Status:** **CLOSED** 2026-09-20 — Wave B closed under Option C (no cloud vendor; HUMAN-DELEGATED, see ADR-0033 Resolution). Deterministic P1/P2 per ADR-0030 unchanged. The Q-LLM table below is retained as the question set for any future reopen. No implementation was authorized and none shipped.
+**Product bet (not pursued):** Owner-invoked cloud draft (“Generar con IA”) improves P1 chord placement and P2 song seeding — deterministic engines stay as offline fallback, Owner review-and-save required.
 **Date:** 2026-09-20
-**Depends on:** ADR-0033 (PROPOSED), 0019, 0020, 0025, 0027, 0028, 0030 (P1/P2 deterministic baseline); [`PHASE-CHORDPRO-IA-SPEC.md`](PHASE-CHORDPRO-IA-SPEC.md).
+**Depends on:** ADR-0033 (SUPERSEDED by Wave B closure), 0019, 0020, 0025, 0027, 0028, 0030 (P1/P2 deterministic baseline); [`PHASE-CHORDPRO-IA-SPEC.md`](PHASE-CHORDPRO-IA-SPEC.md).
 
 ---
 
