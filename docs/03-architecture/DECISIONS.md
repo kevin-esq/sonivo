@@ -8,6 +8,64 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0033 — Cloud LLM upgrade of ChordPro P1 text-digitizer + P2 compose assist (thin)
+
+- **Status:** **PROPOSED** — awaiting Kevin decision on L33-Q1–Q6 below (T-LLM-00 docs only; no implementation authorized)
+- **Date:** 2026-09-20
+- **Depends on:** ADR-0019, 0020, 0025, 0027, 0028, 0030 (P1/P2 deterministic baseline); T-3.2.06 file/link Resources
+- **Revises:** nothing yet — on ACCEPTANCE it would revise ADR-0030 §2–3 clauses that keep P1/P2 deterministic-only (“Not cloud LLM in this thin”) into an opt-in cloud-assisted upgrade; the deterministic engines stay as offline fallback
+- **Does not authorize (firewall):** Whisper / audio-digitizer changes (Wave A done, ADR-0032), unattended ML auto-marks saved without Owner review (Wave C), realtime multi-device sync (Q9), pitch detection, YouTube, S3 blob adapter, raising the 5 MiB blob cap, MusicXML / Guitar Pro, Event/RSVP mail
+
+### Context
+
+ADR-0030 shipped P1 (Owner pastes plain lyrics + chord list → deterministic placer → ChordPro + syllable-nudge studio) and P2 (Owner brief → template/rule-generated structured ChordPro) as **deterministic** tooling with no vendor secrets. Groups now hit the ceiling of rules: P1 misplaces chords on irregular meter, P2 templates repeat themselves. A thin **cloud-LLM upgrade** would offer Owner-invoked “Mejorar con IA” / “Generar con IA” actions that send the Owner’s own draft input to a hosted LLM and return a **draft** the Owner reviews and explicitly saves — reusing the existing Arrangement PATCH (`expectedVersion` / 409 per ADR-0025) with the deterministic engines kept as the offline fallback.
+
+### Proposal (PROPOSED — L33-Q1–Q6 open, Kevin decides)
+
+1. **Scope thin:** P1 upgrade = lyrics + chord list → LLM-proposed ChordPro placement (replaces only the placer output, still editable in the existing nudge studio). P2 upgrade = brief → LLM-proposed structured ChordPro with `{start_of_verse}` / `{start_of_chorus}` (still editable; “variar progresión” / “reescribir sección” may call the LLM again). P0 transpose/views unchanged (deterministic, no LLM).
+2. **Draft-only:** LLM output is a **draft** until an Owner explicitly saves via the existing PATCH `chords` path. No auto-save, no background generation, no unattended marks.
+3. **Fallback:** deterministic P1 placer + P2 templates remain fully functional with no network/vendor configured (offline path). When the vendor is unreachable or unconfigured, the UI falls back to the deterministic output with a clear Spanish notice — exact fallback UX per L33-Q5.
+4. **No new persistence tables** in thin (existing `Arrangement.Chords` text column only). No new blob MIME requirements. Server never stores vendor keys in the DB in this proposal (config model per L33-Q2).
+5. **Roles:** generate actions default Owner-only (same `RequireOwnerAsync` pattern as other Arrangement mutations); Member read-only consumes saved `Chords`. Whether Members may invoke generation is L33-Q6.
+6. **Spanish UI** for generate/review surfaces (“Generar con IA”, “Revisar borrador”, “Aplicar”, “Descartar”); sparse Playwright TCs per thin spec (T-LLM-03).
+7. **Tickets (gated on ACCEPTANCE):** T-LLM-00 (this proposal docs); T-LLM-01–03 implementation — see [`PHASE-LLM-SPEC.md`](PHASE-LLM-SPEC.md). No implementation branch authorized until Kevin ACCEPTS and resolves L33-Q1–Q6.
+
+### Vendor comparison (neutral — FACTS about dimensions, no recommendation stated as fact)
+
+| Dimension | Option A: hosted general LLM API (e.g. OpenAI-compatible chat endpoint) | Option B: hosted general LLM API, alternative vendor (e.g. Anthropic-compatible messages endpoint) | Option C: no vendor (stay deterministic, close Wave B without cloud) |
+| --------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Integration shape | HTTPS chat-completions-style call, server-side only | HTTPS messages-style call, server-side only | No integration |
+| Secrets / config | Vendor API key via server config (model per L33-Q2) | Vendor API key via server config (model per L33-Q2) | None |
+| Cost model | Per-token metered billing; caps needed (L33-Q3) | Per-token metered billing; caps needed (L33-Q3) | Zero marginal cost |
+| Privacy surface | Owner-supplied lyrics/brief leave the server to the vendor (retention per L33-Q4) | Same — content leaves the server to the vendor (retention per L33-Q4) | Content never leaves the server |
+| Offline behavior | Falls back to deterministic engines (L33-Q5) | Falls back to deterministic engines (L33-Q5) | Always available |
+| Output quality (ASSUMPTION, not verified) | Expected better placement/variety than rules | Expected better placement/variety than rules | Capped at rule quality |
+
+*Auditor lean (clearly labeled opinion, NOT a decision): Option A or B are functionally interchangeable for this thin — the binding choice is Kevin’s (L33-Q1). If forced to pick a default for the proposal, the auditor would lean toward whichever vendor Kevin already bills (to avoid a second paid account), with per-group opt-in + hard caps; but this lean authorizes nothing and must not be read as ACCEPTED.*
+
+### Open questions (Kevin decides — auditors do NOT commit unilaterally)
+
+| ID | Question |
+| -- | -------- |
+| **L33-Q1** | Vendor choice: OpenAI vs Anthropic vs other vs Option C (no cloud)? Auditors do not commit Sonivo to a paid vendor unilaterally. |
+| **L33-Q2** | Secrets/config model + per-env provisioning: config key names, where keys live per environment (local / Render), rotation story. Never in git. |
+| **L33-Q3** | Cost caps / rate limits: per-group quotas, max tokens per call, monthly ceiling, behavior when exceeded. |
+| **L33-Q4** | Privacy: lyrics/briefs are user content sent to the vendor — retention policy, data-processing terms, user notice/consent copy. |
+| **L33-Q5** | Fallback behavior when the vendor is unreachable or unconfigured: exact UX + whether generation buttons hide or degrade to deterministic. |
+| **L33-Q6** | Member vs Owner access to generate actions: Owner-only (default) or Members may generate drafts for Owner save? |
+
+### Consequences (if ACCEPTED as proposed)
+
+- P1/P2 gain an opt-in cloud draft path; deterministic engines stay as the offline fallback.
+- Sonivo gains its first paid-vendor dependency and first user-content-egress surface — both bounded by L33-Q1–Q6 answers.
+- Wave C (unattended ML auto-marks) still needs its own ADR; this thin must not be read as authorizing it.
+
+### Non-goals
+
+Whisper changes · unattended ML auto-marks · Q9 realtime/multi-device · pitch · stems/mixer · YouTube · S3 · raising 5 MiB · MusicXML · Guitar Pro · Event/RSVP mail
+
+---
+
 ## ADR-0032 — Whisper audio digitizer thin (audio → timing-mark + lyric drafts)
 
 - **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-20** (Kevin: “elige las opciones que queden mejor para el proyecto e implementa”; auditor decided W32-Q1–Q7 below, rationale in PR)
