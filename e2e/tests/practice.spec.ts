@@ -207,6 +207,11 @@ test.describe('Practice / karaoke thin', () => {
     const lyricsLine3 = `Tercera línea del verso ${stamp}`
     const allLyrics = `${lyricsLine1}\n${lyricsLine2}\n${lyricsLine3}`
 
+    // Timing marks within the 3-second practice audio duration
+    const mark1Ms = 500
+    const mark2Ms = 1500
+    const mark3Ms = 2500
+
     await register(page, email)
     await createGroup(page, groupName)
     await openLibrary(page)
@@ -231,10 +236,10 @@ test.describe('Practice / karaoke thin', () => {
     // Verify chords field has content (3 lines)
     await expect(page.getByTestId('arrangement-chords')).toHaveValue(allLyrics)
 
-    // Set timing marks for each line (in milliseconds)
-    await page.getByTestId('timing-line-0-ms').fill('1000')
-    await page.getByTestId('timing-line-1-ms').fill('3000')
-    await page.getByTestId('timing-line-2-ms').fill('5000')
+    // Set timing marks for each line (in milliseconds) — within 3s audio duration
+    await page.getByTestId('timing-line-0-ms').fill(String(mark1Ms))
+    await page.getByTestId('timing-line-1-ms').fill(String(mark2Ms))
+    await page.getByTestId('timing-line-2-ms').fill(String(mark3Ms))
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible({ timeout: 10000 })
 
@@ -242,9 +247,9 @@ test.describe('Practice / karaoke thin', () => {
     await page.getByRole('button', { name: 'Editar arreglo' }).click()
     await expect(page.getByRole('heading', { name: 'Editar arreglo' })).toBeVisible()
     await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByTestId('timing-line-0-ms')).toHaveValue('1000')
-    await expect(page.getByTestId('timing-line-1-ms')).toHaveValue('3000')
-    await expect(page.getByTestId('timing-line-2-ms')).toHaveValue('5000')
+    await expect(page.getByTestId('timing-line-0-ms')).toHaveValue(String(mark1Ms))
+    await expect(page.getByTestId('timing-line-1-ms')).toHaveValue(String(mark2Ms))
+    await expect(page.getByTestId('timing-line-2-ms')).toHaveValue(String(mark3Ms))
 
     // Close edit form and open Practice page
     await page.getByRole('button', { name: 'Cancelar' }).click()
@@ -267,7 +272,7 @@ test.describe('Practice / karaoke thin', () => {
     await playPause.click()
     await expect(playPause).toHaveAttribute('aria-label', 'Pausar')
 
-    // Wait for first highlight (line 0 at ~1s)
+    // Wait for first highlight (line 0 at ~500ms)
     await expect
       .poll(async () => page.getByTestId('practice-chordpro').locator('[data-active-line="true"]').count(), { timeout: 15_000 })
       .toBe(1)
@@ -276,13 +281,13 @@ test.describe('Practice / karaoke thin', () => {
     const chordPro = page.getByTestId('practice-chordpro')
     await expect(chordPro.locator('[data-line-index="0"][data-active-line="true"]')).toContainText('Primera línea')
 
-    // Wait for second highlight (line 1 at ~3s)
+    // Wait for second highlight (line 1 at ~1500ms)
     await expect
       .poll(async () => page.getByTestId('practice-chordpro').locator('[data-line-index="1"][data-active-line="true"]').count(), { timeout: 10_000 })
       .toBe(1)
     await expect(chordPro.locator('[data-line-index="1"][data-active-line="true"]')).toContainText('Segunda línea')
 
-    // Wait for third highlight (line 2 at ~5s)
+    // Wait for third highlight (line 2 at ~2500ms)
     await expect
       .poll(async () => page.getByTestId('practice-chordpro').locator('[data-line-index="2"][data-active-line="true"]').count(), { timeout: 10_000 })
       .toBe(1)
