@@ -206,6 +206,8 @@ test.describe('Practice / karaoke thin', () => {
     const lyricsLine2 = `Segunda línea del verso ${stamp}`
     const lyricsLine3 = `Tercera línea del verso ${stamp}`
     const allLyrics = `${lyricsLine1}\n${lyricsLine2}\n${lyricsLine3}`
+    // ChordPro body so Practice renders ChordProView (with highlight) + canTranspose toggle section
+    const chordProBody = `[Am]${lyricsLine1}\n[G]${lyricsLine2}\n[C]${lyricsLine3}`
 
     // Timing marks within the 3-second practice audio duration
     const mark1Ms = 500
@@ -217,7 +219,7 @@ test.describe('Practice / karaoke thin', () => {
     await openLibrary(page)
     await createSong(page, songTitle)
     await openSong(page, songTitle)
-    await createArrangement(page, arrangementLabel, { lyrics: allLyrics, chords: allLyrics })
+    await createArrangement(page, arrangementLabel, { lyrics: allLyrics, chords: chordProBody })
     await createFileResource(page, {
       label: `Audio Sync ${stamp}`,
       filePath: path.join(fixturesDir, 'practice-a.wav'),
@@ -234,7 +236,7 @@ test.describe('Practice / karaoke thin', () => {
     await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
 
     // Verify chords field has content (3 lines)
-    await expect(page.getByTestId('arrangement-chords')).toHaveValue(allLyrics)
+    await expect(page.getByTestId('arrangement-chords')).toHaveValue(chordProBody)
 
     // Set timing marks for each line (in milliseconds) — within 3s audio duration
     await page.getByTestId('timing-line-0-ms').fill(String(mark1Ms))
@@ -259,8 +261,8 @@ test.describe('Practice / karaoke thin', () => {
     await page.getByRole('link', { name: 'Practicar' }).click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
 
-    // Wait for arrangement data to load (practice-lyrics for plain text, practice-chordpro for ChordPro)
-    await expect(page.getByTestId('practice-lyrics')).toBeVisible({ timeout: 15_000 })
+    // Wait for arrangement data to load (ChordPro body renders ChordProView)
+    await expect(page.getByTestId('practice-chordpro')).toBeVisible({ timeout: 15_000 })
 
     // Verify "Seguir letra" toggle appears
     const followToggle = page.getByTestId('practice-follow-along')
@@ -277,22 +279,22 @@ test.describe('Practice / karaoke thin', () => {
 
     // Wait for first highlight (line 0 at ~500ms)
     await expect
-      .poll(async () => page.getByTestId('practice-lyrics').locator('[data-active-line="true"]').count(), { timeout: 15_000 })
+      .poll(async () => page.getByTestId('practice-chordpro').locator('[data-active-line="true"]').count(), { timeout: 15_000 })
       .toBe(1)
 
     // Verify first line is highlighted
-    const chordPro = page.getByTestId('practice-lyrics')
+    const chordPro = page.getByTestId('practice-chordpro')
     await expect(chordPro.locator('[data-line-index="0"][data-active-line="true"]')).toContainText('Primera línea')
 
     // Wait for second highlight (line 1 at ~1500ms)
     await expect
-      .poll(async () => page.getByTestId('practice-lyrics').locator('[data-line-index="1"][data-active-line="true"]').count(), { timeout: 10_000 })
+      .poll(async () => page.getByTestId('practice-chordpro').locator('[data-line-index="1"][data-active-line="true"]').count(), { timeout: 10_000 })
       .toBe(1)
     await expect(chordPro.locator('[data-line-index="1"][data-active-line="true"]')).toContainText('Segunda línea')
 
     // Wait for third highlight (line 2 at ~2500ms)
     await expect
-      .poll(async () => page.getByTestId('practice-lyrics').locator('[data-line-index="2"][data-active-line="true"]').count(), { timeout: 10_000 })
+      .poll(async () => page.getByTestId('practice-chordpro').locator('[data-line-index="2"][data-active-line="true"]').count(), { timeout: 10_000 })
       .toBe(1)
     await expect(chordPro.locator('[data-line-index="2"][data-active-line="true"]')).toContainText('Tercera línea')
   })
