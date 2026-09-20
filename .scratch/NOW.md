@@ -24,7 +24,7 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Wave A T-W32-00 | ADR-0032 PROPOSED docs + PHASE-WHISPER-SPEC.md skeleton (docs only) | MERGED (`bdf092f` / PR #83) |
 | Wave A T-W32-00b | ADR-0032 ACCEPTED (auditor-decided W32-Q1–Q7, HUMAN-DELEGATED) + spec frozen | MERGED in PR #84 |
 | Wave A T-W32-01–03 | Whisper digitizer thin: transcribe job + Owner review UX + TC-WSP-01 | MERGED (`a5f2272` / PR #84, CI green 26/26) |
-| Wave B T-LLM-00 | Docs: ADR-0033 PROPOSED + PHASE-LLM-SPEC.md skeleton (docs only) | IN PROGRESS (approval PENDING, NOT merged; branch `docs/adr-0033-llm`) |
+| Wave B T-LLM-00 | Docs: ADR-0033 PROPOSED + PHASE-LLM-SPEC.md skeleton (docs only) | MERGED (`98e015a` / PR #85, CI green); impl BLOCKED on ACCEPTANCE — L33-Q1–Q6 (vendor/gasto/privacidad) reserved for Kevin |
 | Q9 / S3 / LLM / pitch / YouTube | Still need separate ADRs after core | LATER in same program |
 
 ## Deferred until their ADR
