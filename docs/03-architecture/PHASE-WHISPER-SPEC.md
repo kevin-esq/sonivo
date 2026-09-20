@@ -15,7 +15,7 @@
 | Q-W32-2 | Digitizer output is a **draft** until an Owner explicitly saves via the existing Arrangement PATCH (`expectedVersion` / 409 per ADR-0025). No auto-save of ML output. Mark apply uses upsert semantics (hand-made marks on other lines preserved). |
 | Q-W32-3 | Provider: local whisper.cpp via Whisper.net; default model `tiny` (config `base`). No vendor secrets. |
 | Q-W32-4 | Execution: async job. `POST .../digitize {resourceId}` → `202 {jobId, status}`; `GET .../digitize/{jobId}` → `{status: queued\|processing\|done\|failed, segments?[{startMs,endMs,text}], error?}`. In-memory job store with 30-min expiry (restarts may drop in-flight jobs — documented). |
-| Q-W32-5 | Eligibility: `file`-kind Resources with playable audio MIME, purposes `audio`/`practice`/`click`. Links OUT. |
+| Q-W32-5 | Eligibility: `file`-kind Resources with playable audio MIME, purposes `audio`/`practice`/`click`. Links OUT. Thin decoder is WAV-only: non-WAV audio is rejected at POST with a clear error (never a doomed job). |
 | Q-W32-6 | Caps: blob ≤5 MiB (unchanged) + duration ≤120s + segments ≤500. Over-cap fails the job with a clear error; never partial writes. |
 | Q-W32-7 | Config (no secrets): `Whisper:Model` (default `tiny`), `Whisper:ModelDirectory`, `Whisper:MaxAudioSeconds` (default 120). Lazy `.bin` download; never in git/DB. |
 | Q-W32-8 | AuthZ: Owner-only endpoints (`RequireOwnerAsync` pattern; per-request group+arrangement check → 404 non-member/unknown, 403 member non-Owner). CSRF on POST per ADR-0020. |
@@ -33,7 +33,7 @@
 | Q-W32-2 | Digitizer output is a **draft** until an Owner explicitly saves via the existing Arrangement PATCH (`expectedVersion` / 409 per ADR-0025). No auto-save of ML output. Mark apply uses upsert semantics (hand-made marks on other lines preserved). |
 | Q-W32-3 | Provider: local whisper.cpp via Whisper.net; default model `tiny` (config `base`). No vendor secrets. |
 | Q-W32-4 | Execution: async job. `POST .../digitize {resourceId}` → `202 {jobId, status}`; `GET .../digitize/{jobId}` → `{status: queued\|processing\|done\|failed, segments?[{startMs,endMs,text}], error?}`. In-memory job store with 30-min expiry (restarts may drop in-flight jobs — documented). |
-| Q-W32-5 | Eligibility: `file`-kind Resources with playable audio MIME, purposes `audio`/`practice`/`click`. Links OUT. |
+| Q-W32-5 | Eligibility: `file`-kind Resources with playable audio MIME, purposes `audio`/`practice`/`click`. Links OUT. Thin decoder is WAV-only: non-WAV audio is rejected at POST with a clear error (never a doomed job). |
 | Q-W32-6 | Caps: blob ≤5 MiB (unchanged) + duration ≤120s + segments ≤500. Over-cap fails the job with a clear error; never partial writes. |
 | Q-W32-7 | Config (no secrets): `Whisper:Model` (default `tiny`), `Whisper:ModelDirectory`, `Whisper:MaxAudioSeconds` (default 120). Lazy `.bin` download; never in git/DB. |
 | Q-W32-8 | AuthZ: Owner-only endpoints (`RequireOwnerAsync` pattern; per-request group+arrangement check → 404 non-member/unknown, 403 member non-Owner). CSRF on POST per ADR-0020. |

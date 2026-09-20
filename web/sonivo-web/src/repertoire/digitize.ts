@@ -1,13 +1,20 @@
 import type { ResourceSummary } from '../api/client'
 import { isPlayableAudioResource } from './pickPracticeAudio'
 
-/** ADR-0032 Q-W32-5: file-kind, playable audio MIME, purpose audio/practice/click. Links OUT. */
+/** ADR-0032 Q-W32-5: file-kind, WAV audio, purpose audio/practice/click. Links OUT. */
 export function isDigitizableResource(resource: ResourceSummary): boolean {
   if (resource.kind !== 'file') return false
   if (resource.purpose !== 'audio' && resource.purpose !== 'practice' && resource.purpose !== 'click') {
     return false
   }
-  return isPlayableAudioResource(resource)
+  if (!isPlayableAudioResource(resource)) return false
+  // Thin decoder is WAV-only (mirrors server DigitizeEligibility.IsWavAudio).
+  const mime = resource.contentType?.split(';')[0]?.trim().toLowerCase() ?? ''
+  if (mime === 'audio/wav' || mime === 'audio/x-wav' || mime === 'audio/wave' || mime === 'audio/vnd.wave') {
+    return true
+  }
+  const name = (resource.originalFileName ?? '').split('?')[0]?.toLowerCase() ?? ''
+  return name.endsWith('.wav')
 }
 
 /** Milliseconds → "m:ss" for the draft review list. */

@@ -25,8 +25,17 @@ public class DigitizeAudioTests
     [InlineData(ResourcePurposes.Click)]
     public void Audio_file_with_digitizable_purpose_is_eligible(string purpose)
     {
-        var resource = FileResource(Guid.NewGuid(), purpose, "audio/mpeg", "guia.mp3", 1024);
+        var resource = FileResource(Guid.NewGuid(), purpose, "audio/wav", "guia.wav", 1024);
         Assert.Null(DigitizeEligibility.RejectReason(resource));
+    }
+
+    [Fact]
+    public void Non_wav_audio_is_rejected_with_clear_error()
+    {
+        var resource = FileResource(Guid.NewGuid(), ResourcePurposes.Audio, "audio/mpeg", "guia.mp3", 1024);
+        var reason = DigitizeEligibility.RejectReason(resource);
+        Assert.NotNull(reason);
+        Assert.Contains("WAV", reason, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -192,7 +201,7 @@ public class DigitizeAudioTests
     public async Task Start_requires_owner_and_known_resource()
     {
         var ctx = await SeedOwnerMemberWithArrangementAsync();
-        var file = FileResource(ctx.ArrangementId, ResourcePurposes.Audio, "audio/mpeg", "g.mp3", 64);
+        var file = FileResource(ctx.ArrangementId, ResourcePurposes.Audio, "audio/wav", "g.wav", 64);
         ctx.Resources.Add(file);
 
         var handler = new StartDigitizeJobHandler(

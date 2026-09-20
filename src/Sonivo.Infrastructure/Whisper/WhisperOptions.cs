@@ -1,9 +1,10 @@
 namespace Sonivo.Infrastructure.Whisper;
 
 /// <summary>
-/// Local transcription config (ADR-0032 Q-W32-6). No secrets: model name,
-/// model directory, and the duration cap. Bound from the <c>Whisper</c>
-/// section. Model weights download lazily on first job — never in git,
+/// Local transcription config (ADR-0032 Q-W32-6). No secrets: model name and
+/// model directory. Bound from the <c>Whisper</c> section. The duration cap
+/// lives in <see cref="DigitizeOptions"/> (single source of truth).
+/// Model weights download lazily on first job — never in git,
 /// never in the DB. Render ephemeral disk re-downloads after sleep/restart.
 /// </summary>
 public sealed class WhisperOptions
@@ -16,7 +17,4 @@ public sealed class WhisperOptions
     /// folder under the OS temp path (environment-provisioned).
     /// </summary>
     public string ModelDirectory { get; set; } = string.Empty;
-
-    /// <summary>Audio duration cap in seconds (default 120, ADR-0032 Q-W32-6).</summary>
-    public int MaxAudioSeconds { get; set; } = 120;
 }

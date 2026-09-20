@@ -5,8 +5,10 @@ namespace Sonivo.Application.Repertoire;
 
 /// <summary>
 /// In-memory digitizer job store (ADR-0032 Q-W32-4). Jobs expire 30 minutes
-/// after creation; expiry is enforced on every read/transition and expired
-/// entries are purged opportunistically. Restarts may drop in-flight jobs.
+/// after creation; expiry is enforced on reads and transitions-to-processing
+/// (terminal writes to an already-expired job are harmless: it is already
+/// invisible to readers). Expired entries are purged opportunistically.
+/// Restarts may drop in-flight jobs.
 /// </summary>
 public sealed class InMemoryDigitizeJobStore : IDigitizeJobStore
 {

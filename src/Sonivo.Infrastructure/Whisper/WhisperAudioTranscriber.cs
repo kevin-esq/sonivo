@@ -17,12 +17,17 @@ namespace Sonivo.Infrastructure.Whisper;
 public sealed class WhisperAudioTranscriber : IAudioTranscriber
 {
     private readonly WhisperOptions _options;
+    private readonly DigitizeOptions _caps;
     private readonly ILogger<WhisperAudioTranscriber> _logger;
     private readonly SemaphoreSlim _modelGate = new(1, 1);
 
-    public WhisperAudioTranscriber(IOptions<WhisperOptions> options, ILogger<WhisperAudioTranscriber> logger)
+    public WhisperAudioTranscriber(
+        IOptions<WhisperOptions> options,
+        IOptions<DigitizeOptions> caps,
+        ILogger<WhisperAudioTranscriber> logger)
     {
         _options = options.Value;
+        _caps = caps.Value;
         _logger = logger;
     }
 
@@ -44,7 +49,7 @@ public sealed class WhisperAudioTranscriber : IAudioTranscriber
                 $"El archivo supera el máximo de {ResourceFileConstraints.MaxByteSize} bytes.");
         }
 
-        var maxSeconds = Math.Max(1, _options.MaxAudioSeconds);
+        var maxSeconds = Math.Max(1, _caps.MaxAudioSeconds);
         float[] samples;
         try
         {
