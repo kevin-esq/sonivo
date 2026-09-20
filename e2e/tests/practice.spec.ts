@@ -220,7 +220,7 @@ test.describe('Practice / karaoke thin', () => {
     })
 
     // Go to Arrangement detail and open edit form
-    await page.getByRole('link', { name: arrangementLabel }).click()
+    // createArrangement already navigates to detail page
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
     await page.getByRole('button', { name: 'Editar arreglo' }).click()
     await expect(page.getByRole('heading', { name: 'Editar arreglo' })).toBeVisible()
