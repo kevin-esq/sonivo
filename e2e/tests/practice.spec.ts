@@ -225,6 +225,9 @@ test.describe('Practice / karaoke thin', () => {
     await page.getByRole('button', { name: 'Editar arreglo' }).click()
     await expect(page.getByRole('heading', { name: 'Editar arreglo' })).toBeVisible()
 
+    // Wait for ChordTimingEditor to be visible (chords must be populated)
+    await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
+
     // Set timing marks for each line (in milliseconds)
     await page.getByTestId('timing-line-0-ms').fill('1000')
     await page.getByTestId('timing-line-1-ms').fill('3000')
