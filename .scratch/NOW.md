@@ -1,15 +1,15 @@
 # NOW — agent focus
 
-**Updated:** 2026-09-18
+**Updated:** 2026-09-20
 
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (T-SYNC-01 ChordTimingJson persistence + API)
-Human approval: PENDING (auditor)
-Git checkpoint: COMMITTED (pending push/PR this turn)
-Remote: NOT PUSHED → PUSHED with PR → develop (do not merge; auditor)
-CI: NOT RUN / pending
+Implementation: COMPLETE (T-SYNC-02 Owner timing editor + T-SYNC-03 Practice follow-along + TC-PLAY-SYNC-01)
+Human approval: APPROVED (Kevin: "Apruebo todo" 2026-09-20)
+Git checkpoint: COMMITTED + MERGED to develop (PR #82, 887a2b3; branch deleted)
+Remote: PUSHED + MERGED
+CI: PASSING (Backend + Frontend + Playwright E2E 25/25, run 35529555652)
 ```
 
 ## Authorized program
@@ -19,9 +19,9 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Wave | Scope | Status |
 |------|-------|--------|
 | ADR-0031 T-SYNC-00 | Docs: ADR + PHASE-PLAY-SYNC-SPEC + AGENTS/CONTEXT | MERGED (`9cc1e5f` / PR #80) |
-| ADR-0031 T-SYNC-01 | Migration ChordTimingJson + GET/PATCH + tests | PR → develop (auditor) |
-| ADR-0031 T-SYNC-02–03 | Owner marks UI + Practice highlight + TC-PLAY-SYNC-01 | AFTER T-SYNC-01 merge |
-| ADR-0032+ | Whisper audio digitizer thin | AFTER 0031 impl |
+| ADR-0031 T-SYNC-01 | Migration ChordTimingJson + GET/PATCH + tests | MERGED (PR #81) |
+| ADR-0031 T-SYNC-02–03 | Owner marks UI + Practice highlight + TC-PLAY-SYNC-01 | MERGED (`887a2b3` / PR #82, CI green 25/25) |
+| ADR-0032+ | Whisper audio digitizer thin | NEXT (needs ADR before impl) |
 | Q9 / S3 / LLM / pitch / YouTube | Still need separate ADRs after core | LATER in same program |
 
 ## Deferred until their ADR
