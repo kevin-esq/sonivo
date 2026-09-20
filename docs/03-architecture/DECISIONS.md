@@ -8,9 +8,37 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0034 — ML timing-mark suggest (review-gated mapping assist)
+
+- **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-20** (Kevin: program continues until done; auditor decides technical spend-free scope)
+- **Date:** 2026-09-20
+- **Depends on:** ADR-0032 (digitizer segments + review UX); ADR-0025 (PATCH/409); ADR-0028 (ChordPro)
+- **Revises:** nothing — T-W32-02 already defaults segment→line identity; this ADR authorizes one smarter client-side suggestion
+- **Does not authorize:** auto-save of any marks (every write still requires Owner Aplicar via PATCH), cloud LLM, Q9, pitch, YouTube, S3, new tables, server changes of any kind
+
+### Context
+
+T-W32-02 pre-fills each transcript segment to its positional line (segment i → line i). Real ChordPro bodies carry directives (`{start_of_verse}`), comments, and blank lines, so identity mapping plants marks on non-lyric lines. Owners then hand-fix every row. A deterministic, review-gated suggester closes the remaining Wave C gap: ML segments exist (Wave A), unattended auto-save stays forbidden (firewall).
+
+### Decision (ACCEPTED)
+
+1. **Pure client function `suggestLineMapping(chordProText, segmentCount)`** (web, `digitize.ts`): collect 0-based indices of lyric-bearing lines — non-blank lines that are not `{directive}` blocks; map segment i to the i-th lyric line; clamp overflow segments to the last lyric line. Zero lyric lines (or null/blank body) → identity clamped to `max(lineCount - 1, 0)`; zero segments → `[]`.
+2. **Review UX:** one “Sugerir mapeo” button (`digitize-suggest`) in the ready phase fills the per-segment line inputs; Owner edits freely, then Aplicar/Añadir/Descartar unchanged. Suggest never writes anything by itself.
+3. **No server changes.** No new deps. Spanish copy. Playwright **TC-WSP-02** (speech fixture: chords with a directive + a blank line; assert suggested `1`/`3`, apply, Practice toggle appears).
+4. **Tickets:** T-W34-01 (this slice: util + button + TC-WSP-02). Branch `feature/t-w34-suggest-marks`.
+
+### Consequences
+
+- Wave C (ML auto-marks) is CLOSED as review-gated suggest; the unattended variant stays FUTURE behind its own ADR.
+- Suggest is deterministic and fully covered by E2E (web has no unit framework — known gap, unchanged).
+
+### Non-goals
+
+Auto-save · cloud LLM · server-side mapping · Q9 · pitch · YouTube · S3 · MusicXML
+
 ## ADR-0033 — Cloud LLM upgrade of ChordPro P1 text-digitizer + P2 compose assist (thin)
 
-- **Status:** **PROPOSED** — awaiting Kevin decision on L33-Q1–Q6 below (T-LLM-00 docs only; no implementation authorized)
+- **Status:** **SUPERSEDED** — Wave B closed 2026-09-20 under Option C below (HUMAN-DELEGATED: Kevin “la opción que sea más conveniente”; auditor decision with rationale). Deterministic P1/P2 per ADR-0030 remain the standing decision. L33-Q1–Q6 recorded as resolved-moot for reference; a future ADR may reopen with usage evidence.
 - **Date:** 2026-09-20
 - **Depends on:** ADR-0019, 0020, 0025, 0027, 0028, 0030 (P1/P2 deterministic baseline); T-3.2.06 file/link Resources
 - **Revises:** nothing yet — on ACCEPTANCE it would revise ADR-0030 §2–3 clauses that keep P1/P2 deterministic-only (“Not cloud LLM in this thin”) into an opt-in cloud-assisted upgrade; the deterministic engines stay as offline fallback
@@ -42,6 +70,10 @@ ADR-0030 shipped P1 (Owner pastes plain lyrics + chord list → deterministic pl
 | Output quality (ASSUMPTION, not verified) | Expected better placement/variety than rules | Expected better placement/variety than rules | Capped at rule quality |
 
 *Auditor lean (clearly labeled opinion, NOT a decision): Option A or B are functionally interchangeable for this thin — the binding choice is Kevin’s (L33-Q1). If forced to pick a default for the proposal, the auditor would lean toward whichever vendor Kevin already bills (to avoid a second paid account), with per-group opt-in + hard caps; but this lean authorizes nothing and must not be read as ACCEPTED.*
+
+### Resolution — Wave B closed under Option C (2026-09-20, HUMAN-DELEGATED)
+
+**Decision: Option C — no cloud vendor.** Rationale: (1) zero marginal cost vs metered billing with no billing infra; (2) zero secrets/ops burden (no keys, rotation, caps monitoring); (3) user lyrics never leave the server (no retention policy or consent surface needed); (4) single always-available path (no degraded fallback UX to design); (5) deterministic P1/P2 already deliver the thin value (ADR-0030, shipped + tested); (6) no usage evidence that rules are insufficient — buying vendor capacity now would be premature. **Reversible:** a future ADR may reopen the upgrade with usage evidence; L33-Q1–Q6 stand answered-moot and reusable as the question set.
 
 ### Open questions (Kevin decides — auditors do NOT commit unilaterally)
 
