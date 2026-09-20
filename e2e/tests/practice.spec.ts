@@ -259,8 +259,8 @@ test.describe('Practice / karaoke thin', () => {
     await page.getByRole('link', { name: 'Practicar' }).click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
 
-    // Wait for arrangement data to load (ChordProView indicates lyrics/chords loaded)
-    await expect(page.getByTestId('practice-chordpro')).toBeVisible({ timeout: 15_000 })
+    // Wait for arrangement data to load (practice-lyrics for plain text, practice-chordpro for ChordPro)
+    await expect(page.getByTestId('practice-lyrics')).toBeVisible({ timeout: 15_000 })
 
     // Verify "Seguir letra" toggle appears
     const followToggle = page.getByTestId('practice-follow-along')
@@ -277,22 +277,22 @@ test.describe('Practice / karaoke thin', () => {
 
     // Wait for first highlight (line 0 at ~500ms)
     await expect
-      .poll(async () => page.getByTestId('practice-chordpro').locator('[data-active-line="true"]').count(), { timeout: 15_000 })
+      .poll(async () => page.getByTestId('practice-lyrics').locator('[data-active-line="true"]').count(), { timeout: 15_000 })
       .toBe(1)
 
     // Verify first line is highlighted
-    const chordPro = page.getByTestId('practice-chordpro')
+    const chordPro = page.getByTestId('practice-lyrics')
     await expect(chordPro.locator('[data-line-index="0"][data-active-line="true"]')).toContainText('Primera línea')
 
     // Wait for second highlight (line 1 at ~1500ms)
     await expect
-      .poll(async () => page.getByTestId('practice-chordpro').locator('[data-line-index="1"][data-active-line="true"]').count(), { timeout: 10_000 })
+      .poll(async () => page.getByTestId('practice-lyrics').locator('[data-line-index="1"][data-active-line="true"]').count(), { timeout: 10_000 })
       .toBe(1)
     await expect(chordPro.locator('[data-line-index="1"][data-active-line="true"]')).toContainText('Segunda línea')
 
     // Wait for third highlight (line 2 at ~2500ms)
     await expect
-      .poll(async () => page.getByTestId('practice-chordpro').locator('[data-line-index="2"][data-active-line="true"]').count(), { timeout: 10_000 })
+      .poll(async () => page.getByTestId('practice-lyrics').locator('[data-line-index="2"][data-active-line="true"]').count(), { timeout: 10_000 })
       .toBe(1)
     await expect(chordPro.locator('[data-line-index="2"][data-active-line="true"]')).toContainText('Tercera línea')
   })
