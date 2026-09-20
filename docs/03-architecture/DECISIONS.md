@@ -8,6 +8,46 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0037 — Practice extras scope: pitch tuner IN, YouTube reference CONDITIONAL, karaoke scoring OUT
+
+- **Status:** **PROPOSED** — awaiting Kevin review + ACCEPTANCE (in/out confirmation blocking)
+- **Date:** 2026-09-20
+- **Depends on:** ADR-0024 (Resource purposes incl. `reference`), ADR-0027, 0028, 0029, 0030, 0031; T-3.2.06 file/link Resources
+- **Revises:** nothing yet — on ACCEPTANCE it would scope three Practice-adjacent extras: (1) authorize a client-only tuner, (2) conditionally authorize a YouTube reference embed, (3) record karaoke scoring as OUT for now
+- **Does not authorize (firewall):** Whisper / cloud STT, cloud LLM, realtime multi-device sync (Q9), S3 blob adapter, raising the 5 MiB blob cap, MusicXML / Guitar Pro, Event/RSVP mail, per-note feedback against a reference melody (no reference melody exists), IFrame API control of YouTube, YouTube search/extraction, server-side pitch detection, audio recording
+
+### Context
+
+Practice is usable (player, ChordPro, follow-along per ADR-0027–0031) but three adjacent asks recur: (1) “am I in tune?” before rehearsing, (2) watching the linked reference performance without leaving Sonivo, (3) karaoke-style scoring of a sung take. Each has a different cost/confusion profile. This ADR scopes all three explicitly so implementation tickets can proceed only on what Kevin confirms.
+
+### Proposal (PROPOSED — FX-Q1–Q3 open, Kevin confirms in/out)
+
+1. **(1) Pitch tuner — IN (proposed): client-only chromatic tuner.** YIN/autocorrelation pitch detection in the web client (AudioWorklet), mic-gated (only while the tuner is open), Spanish “Afinador” UX. No new dependencies, no server, no recording, no persistence. **Non-goal: per-note feedback** — no reference melody exists in Sonivo, so “you sang verse 2 flat” would mislead; the tuner reports the heard pitch only.
+2. **(2) YouTube reference embed — CONDITIONAL IN (proposed): `youtube-nocookie` iframe for `purpose=reference` links.** No Data API, no keys. Requires CSP `frame-src` + `img-src` additions for the nocookie host/thumbnails. **Explicit constraint: NO follow-along sync on YouTube** — cross-origin iframe exposes no `timeupdate`; sync stays file-audio-only per ADR-0031. **Non-goals:** IFrame API control, search, extraction.
+3. **(3) Karaoke scoring — OUT for now (proposed):** reference-free scores mislead without melody ground truth; game value < confusion risk. May reopen with reference tracks via a future ADR.
+4. **Spanish UI** (“Afinador”, reference “Ver referencia”, tuner mic-gate notice — exact copy at ACCEPTANCE).
+5. **Tickets (gated on ACCEPTANCE + Kevin in/out confirmation):** T-FX-00 (this proposal docs); ticket sketches TC-PITCH-01 (tuner), TC-YT-01 (reference embed), TC-KAR-01 (scoring — name reserved, OUT) — see [`PHASE-EXTRAS-SPEC.md`](PHASE-EXTRAS-SPEC.md). No implementation branch authorized until Kevin ACCEPTS and confirms in/out.
+
+### Open questions (blocking — Kevin decides, auditors do NOT commit unilaterally)
+
+| ID | Question |
+| -- | -------- |
+| **FX-Q1** | Tuner in/out confirm: ship the client-only “Afinador” as proposed (no deps, no server)? |
+| **FX-Q2** | YouTube embed in/out confirm: allow `youtube-nocookie` iframe for `purpose=reference` links + CSP additions, with the no-sync-on-YouTube constraint? |
+| **FX-Q3** | Scoring stays OUT: confirm karaoke scoring remains OUT for now (reopen only with reference tracks)? |
+
+### Consequences (if ACCEPTED as proposed)
+
+- Practice gains a mic-gated tuner and an inline reference view without new vendors, keys, server state, or sync promises it cannot keep.
+- Scoring is explicitly OUT, so no score UX, no reference-track modeling, and no “accuracy without ground truth” confusion surface.
+- YouTube never becomes a sync source: ADR-0031 follow-along stays file-audio-only.
+
+### Non-goals
+
+Per-note feedback (no reference melody) · server pitch detection · audio recording · IFrame API control · YouTube search/extraction · follow-along sync on YouTube · karaoke scoring · Whisper · cloud LLM · Q9 · S3 · 5 MiB raise · MusicXML · Event/RSVP mail
+
+---
+
 ## ADR-0036 — Q9 realtime thin: self-hosted SignalR conductor (single Event room)
 
 - **Status:** **PROPOSED** — awaiting Kevin review + ACCEPTANCE (blocking OPEN QUESTIONS below)
