@@ -8,6 +8,51 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0036 — Q9 realtime thin: self-hosted SignalR conductor (single Event room)
+
+- **Status:** **PROPOSED** — awaiting Kevin review + ACCEPTANCE (blocking OPEN QUESTIONS below)
+- **Date:** 2026-09-20
+- **Depends on:** ADR-0009, 0011 (cookie session), ADR-0012 (Owner/Member), ADR-0016, 0018 (Event plan), ADR-0019 (tenancy/AuthZ), ADR-0020 (CSRF), ADR-0027, 0029, 0031 (Practice player + follow-along)
+- **Revises:** nothing yet — on ACCEPTANCE it would authorize the first websocket/realtime surface in Sonivo; ADR-0027/0029/0031 clauses keeping multi-device sync FUTURE would be revised for Owner-conducted position broadcast only
+- **Does not authorize (firewall):** Azure SignalR Service or any hosted realtime vendor (self-hosted only — vendor/cost ban); audio streaming; beat-clock; chat; multi-conductor; recording; backplane/multi-instance scale-out; raising the 5 MiB blob cap; Whisper / cloud LLM; pitch; YouTube; S3; MusicXML; Event/RSVP mail
+
+### Context
+
+Practice (ADR-0027/0029) plays per-device: every musician presses play on their own clock. Follow-along (ADR-0031) highlights the current ChordPro line from Owner-authored marks — still per-device. Groups rehearsing together need a thin **conductor**: one Owner broadcasts “we are here” and Members' Practice views follow. Full realtime (audio sync, beat-clock, chat) is out; a throttled position broadcast over self-hosted SignalR is the smallest useful slice and answers CONTEXT **Q9** (realtime, lean no) for the conductor case only.
+
+### Proposal (PROPOSED — Q9-Q1–Q5 open, Kevin decides)
+
+1. **Transport thin:** self-hosted ASP.NET Core SignalR Hub (in-process, same deployable per ADR-0003). **NO Azure SignalR Service** — vendor/cost ban. Single-instance assumption: **no backplane, no sticky-session design** in thin (documented limitation, not silent).
+2. **Room model:** single Event room `event-{id}`. Client methods `JoinRoom` / `LeaveRoom`; server pushes a **presence list** (who is in the room).
+3. **Conductor broadcast:** Owner-conductor sends `BroadcastPosition({arrangementId, positionMs, playing})`, **throttled 1–2 Hz** (exact rate per Q9-Q1). Members receive and move their Practice playhead/highlight; Members never broadcast.
+4. **Non-goals (explicit):** audio streaming, beat-clock, chat, multi-conductor, recording.
+5. **AuthZ:** Hub requires `[Authorize]` (cookie session); **per-method Membership recheck** — non-member/unknown Event → 404, member non-Owner attempting conduct → 403 (per ADR-0019); conductor role Owner-only (definition per Q9-Q2). CSRF posture on `/negotiate` per Q9-Q3.
+6. **Resilience notes (proposed):** sleep drops sockets + client auto-reconnect; `Context.User` cached at connect (re-validate Membership per method call, not just at connect); Spanish reconnect copy (per Q9-Q4). Room caps per Q9-Q5.
+7. **Spanish UI** for join/follow surfaces (“Seguir al director”, “En vivo”, “Reconectando…” — exact copy at ACCEPTANCE).
+8. **Tickets (gated on ACCEPTANCE):** T-Q9-00 (this proposal docs); T-Q9-01–03 implementation — see [`PHASE-Q9-SPEC.md`](PHASE-Q9-SPEC.md). No implementation branch authorized until Kevin ACCEPTS and resolves Q9-Q1–Q5.
+
+### Open questions (blocking — Kevin decides, auditors do NOT commit unilaterally)
+
+| ID | Question |
+| -- | -------- |
+| **Q9-Q1** | Broadcast rate: 1 Hz vs 2 Hz for `BroadcastPosition` (battery/traffic vs follow smoothness)? |
+| **Q9-Q2** | Conductor definition: any Owner present, or a designated single conductor (first-join / explicit “tomar la batuta”)? |
+| **Q9-Q3** | CSRF on `/negotiate`: exact posture for the cookie-authed negotiate endpoint under ADR-0020. |
+| **Q9-Q4** | Spanish reconnect copy: exact strings for dropped/reconnecting/live states. |
+| **Q9-Q5** | Room caps: max members per `event-{id}` room + over-cap behavior. |
+
+### Consequences (if ACCEPTED as proposed)
+
+- Sonivo gains its first websocket surface (one Hub, one room pattern, one broadcast message) — still no audio transport, no vendor realtime dependency.
+- Practice follow stays file-audio-only per device; the conductor message only moves the playhead/highlight, it does not stream or clock audio.
+- Single-instance limitation is documented; scale-out (backplane/sticky) needs its own ADR.
+
+### Non-goals
+
+Azure SignalR / hosted realtime · audio streaming · beat-clock · chat · multi-conductor · recording · backplane/sticky multi-instance · Whisper · cloud LLM · pitch · YouTube · S3 · 5 MiB raise · MusicXML · Event/RSVP mail
+
+---
+
 ## ADR-0035 — Cloudflare R2 (S3-compatible) as alternate `IBlobStore` backend (thin)
 
 - **Status:** **PROPOSED** — awaiting Kevin review + ACCEPTANCE (blocking OPEN QUESTIONS below)
