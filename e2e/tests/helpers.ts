@@ -74,7 +74,7 @@ export async function createArrangement(
     await page.getByLabel('Letra (opcional)').fill(options.lyrics)
   }
   if (options?.chords) {
-    await page.getByLabel('Acordes (ChordPro)').fill(options.chords)
+    await page.getByTestId('arrangement-chords').fill(options.chords)
   }
   await page.getByRole('button', { name: 'Crear arreglo' }).click()
   // Create navigates to the new arrangement detail.
