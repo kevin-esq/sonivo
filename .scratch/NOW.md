@@ -29,7 +29,9 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Wave D T-R2-00 | Docs: ADR-0035 PROPOSED (R2 blob backend thin) + PHASE-R2-SPEC.md skeleton (docs only) | IN PROGRESS (this branch, docs only) — PENDING, NOT merged |
 | Wave E T-Q9-00 | Docs: ADR-0036 PROPOSED (Q9 realtime thin) + PHASE-Q9-SPEC.md skeleton (docs only) | PLANNED |
 | Wave F T-FX-00 | Docs: ADR-0037 PROPOSED (Practice extras scope) + PHASE-EXTRAS-SPEC.md skeleton (docs only) | PLANNED |
-| Q9 / S3 / LLM / pitch / YouTube | Still need separate ADRs after core | LATER in same program |
+| Wave D T-R2-00 | Docs: ADR-0035 PROPOSED (R2 thin) + PHASE-R2-SPEC.md | MERGED (PR #87); impl BLOCKED on ACCEPTANCE + R2 credentials (R2-Q1–Q7 for Kevin) |
+| Wave E T-Q9-00 | Docs: ADR-0036 PROPOSED (SignalR conductor) + PHASE-Q9-SPEC.md | MERGED (PR #88); impl BLOCKED on ACCEPTANCE (Q9-Q1–Q5 for Kevin) |
+| Wave F T-FX-00 | Docs: ADR-0037 PROPOSED (tuner IN / YT conditional / scoring OUT) + PHASE-EXTRAS-SPEC.md | MERGED (PR #89); impl BLOCKED on ACCEPTANCE + in/out confirm (FX-Q1–Q3 for Kevin) |
 
 ## Deferred until their ADR
 
