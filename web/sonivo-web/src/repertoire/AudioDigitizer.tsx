@@ -47,10 +47,15 @@ export function AudioDigitizer({
   const eligible = arrangement.resources.filter(isDigitizableResource)
   const [job, setJob] = useState<JobView>({ phase: 'idle' })
   const [lineFor, setLineFor] = useState<number[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const pollTimer = useRef<number | null>(null)
+  // Single select (not one row per resource) so resource labels stay unique
+  // on the page for assistive tech and the shared E2E resource helpers.
+  const selectedResourceId =
+    eligible.some((r) => r.id === selectedId) ? selectedId! : (eligible[0]?.id ?? null)
 
   function stopPolling() {
     if (pollTimer.current != null) {
@@ -185,23 +190,34 @@ export function AudioDigitizer({
       </p>
 
       {job.phase === 'idle' ? (
-        <ul className="space-y-2">
-          {eligible.map((resource) => (
-            <li key={resource.id} className="flex flex-wrap items-center gap-2">
-              <span className="min-w-0 flex-1 text-sm font-medium text-neutral-dark">
-                {resource.label}
-              </span>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => void handleStart(resource.id)}
-                data-testid="digitize-start"
-              >
-                Digitalizar audio
-              </Button>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-2">
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-slate-700">Audio a digitalizar</span>
+            <select
+              className={fieldClass}
+              value={selectedResourceId ?? ''}
+              onChange={(e) => setSelectedId(e.target.value)}
+              data-testid="digitize-resource-select"
+            >
+              {eligible.map((resource) => (
+                <option key={resource.id} value={resource.id}>
+                  {resource.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={selectedResourceId == null}
+            onClick={() => {
+              if (selectedResourceId != null) void handleStart(selectedResourceId)
+            }}
+            data-testid="digitize-start"
+          >
+            Digitalizar audio
+          </Button>
+        </div>
       ) : null}
 
       {job.phase === 'working' ? (
