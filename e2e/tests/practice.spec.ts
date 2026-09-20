@@ -238,10 +238,17 @@ test.describe('Practice / karaoke thin', () => {
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible({ timeout: 10000 })
 
-    // Wait for arrangement to reload with updated chordTimingJson (verify timing marks saved)
+    // Re-open edit form to verify timing marks were saved
+    await page.getByRole('button', { name: 'Editar arreglo' }).click()
+    await expect(page.getByRole('heading', { name: 'Editar arreglo' })).toBeVisible()
+    await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByTestId('timing-line-0-ms')).toHaveValue('1000')
     await expect(page.getByTestId('timing-line-1-ms')).toHaveValue('3000')
     await expect(page.getByTestId('timing-line-2-ms')).toHaveValue('5000')
+
+    // Close edit form and open Practice page
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
 
     // Open Practice page
     await page.getByRole('link', { name: 'Practicar' }).click()
