@@ -26,6 +26,9 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Wave A T-W32-01–03 | Whisper digitizer thin: transcribe job + Owner review UX + TC-WSP-01 | MERGED (`a5f2272` / PR #84, CI green 26/26) |
 | Wave B T-LLM-00 | Docs: ADR-0033 PROPOSED + PHASE-LLM-SPEC.md skeleton (docs only) | MERGED (`98e015a` / PR #85) → CLOSED Option C, ADR-0033 SUPERSEDED (PR #86) |
 | Wave C T-W34-01 | ADR-0034 ACCEPTED (review-gated suggest) + util + button + TC-WSP-02 | MERGED (`a4ede4a` / PR #86, CI green 27/27) — Wave C CLOSED |
+| Wave D T-R2-00 | Docs: ADR-0035 PROPOSED (R2 blob backend thin) + PHASE-R2-SPEC.md skeleton (docs only) | IN PROGRESS (this branch, docs only) — PENDING, NOT merged |
+| Wave E T-Q9-00 | Docs: ADR-0036 PROPOSED (Q9 realtime thin) + PHASE-Q9-SPEC.md skeleton (docs only) | PLANNED |
+| Wave F T-FX-00 | Docs: ADR-0037 PROPOSED (Practice extras scope) + PHASE-EXTRAS-SPEC.md skeleton (docs only) | PLANNED |
 | Q9 / S3 / LLM / pitch / YouTube | Still need separate ADRs after core | LATER in same program |
 
 ## Deferred until their ADR
