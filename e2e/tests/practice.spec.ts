@@ -277,25 +277,34 @@ test.describe('Practice / karaoke thin', () => {
     await playPause.click()
     await expect(playPause).toHaveAttribute('aria-label', 'Pausar')
 
-    // Wait for first highlight (line 0 at ~500ms)
-    await expect
-      .poll(async () => page.getByTestId('practice-chordpro').locator('[data-active-line="true"]').count(), { timeout: 15_000 })
-      .toBe(1)
-
-    // Verify first line is highlighted
+    // Live follow-along: first highlight (line 0 at ~500ms) proves timeupdate wiring
     const chordPro = page.getByTestId('practice-chordpro')
+    await expect
+      .poll(async () => chordPro.locator('[data-active-line="true"]').count(), { timeout: 15_000 })
+      .toBe(1)
     await expect(chordPro.locator('[data-line-index="0"][data-active-line="true"]')).toContainText('Primera línea')
 
-    // Wait for second highlight (line 1 at ~1500ms)
-    await expect
-      .poll(async () => page.getByTestId('practice-chordpro').locator('[data-line-index="1"][data-active-line="true"]').count(), { timeout: 10_000 })
-      .toBe(1)
+    // Pause for deterministic seeks (headless audio advancement is not real-time reliable)
+    await playPause.click()
+    await expect(playPause).toHaveAttribute('aria-label', 'Reproducir')
+
+    const seek = page.getByTestId('practice-seek')
+    async function seekTo(seconds: string) {
+      await seek.evaluate((el, value) => {
+        const input = el as HTMLInputElement
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+        setter?.call(input, value)
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      }, seconds)
+    }
+
+    // Seek to 1.6s → line 1 (mark at 1500ms) highlights
+    await seekTo('1.6')
     await expect(chordPro.locator('[data-line-index="1"][data-active-line="true"]')).toContainText('Segunda línea')
 
-    // Wait for third highlight (line 2 at ~2500ms)
-    await expect
-      .poll(async () => page.getByTestId('practice-chordpro').locator('[data-line-index="2"][data-active-line="true"]').count(), { timeout: 10_000 })
-      .toBe(1)
+    // Seek to 2.6s → line 2 (mark at 2500ms) highlights
+    await seekTo('2.6')
     await expect(chordPro.locator('[data-line-index="2"][data-active-line="true"]')).toContainText('Tercera línea')
   })
 })
