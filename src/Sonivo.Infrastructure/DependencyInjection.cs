@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Sonivo.Application.Abstractions;
 using Sonivo.Infrastructure.Identity;
 using Sonivo.Infrastructure.Persistence;
+using Sonivo.Infrastructure.Whisper;
 
 namespace Sonivo.Infrastructure;
 
@@ -70,6 +71,11 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddSingleton<IPublicOrigin, ConfigurationPublicOrigin>();
         services.AddHttpClient<IEmailSender, GmailEmailSender>();
+        // ADR-0032: Whisper config has no secrets; the fake transcriber replaces
+        // IAudioTranscriber in unit/API tests so no model is ever downloaded there.
+        services.Configure<DigitizeOptions>(configuration.GetSection("Whisper"));
+        services.Configure<WhisperOptions>(configuration.GetSection("Whisper"));
+        services.AddSingleton<IAudioTranscriber, WhisperAudioTranscriber>();
 
         return services;
     }

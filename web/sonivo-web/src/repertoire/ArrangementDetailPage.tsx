@@ -30,6 +30,7 @@ import {
 } from './chrome'
 import { ChordProView } from './ChordProView'
 import { ChordTimingEditor } from './ChordTimingEditor'
+import { AudioDigitizer } from './AudioDigitizer'
 import { looksLikeChordPro } from './chordPro'
 import {
   parseChordTimingJson,
@@ -305,6 +306,15 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               ))}
             </div>
           )}
+
+          {isOwner ? (
+            <AudioDigitizer
+              key={arrangement.id}
+              groupId={group.id}
+              arrangement={arrangement}
+              onChanged={reloadArrangement}
+            />
+          ) : null}
 
           {isOwner && creatingResource ? (
             <ResourceCreateForm

@@ -1102,6 +1102,77 @@ app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/reso
 .RequireAuthorization()
 .DisableAntiforgery();
 
+// ADR-0032 Q-W32-4: async digitizer job. POST validates eligibility and
+// returns 202; transcription runs in the background and never writes
+// Arrangement fields — the Owner saves drafts via the existing PATCH.
+app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/digitize", async (
+    Guid groupId,
+    Guid arrangementId,
+    DigitizeRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    StartDigitizeJobHandler handler,
+    IServiceScopeFactory scopes,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var started = await handler.HandleAsync(
+        new StartDigitizeJobCommand(userId.Value, groupId, arrangementId, request.ResourceId),
+        cancellationToken);
+
+    var jobId = started.JobId;
+    _ = Task.Run(async () =>
+    {
+        using var scope = scopes.CreateScope();
+        var runner = scope.ServiceProvider.GetRequiredService<DigitizeJobRunner>();
+        await runner.ProcessAsync(jobId, CancellationToken.None);
+    }, CancellationToken.None);
+
+    return Results.Accepted(
+        $"/api/groups/{groupId}/arrangements/{arrangementId}/digitize/{jobId}",
+        new { jobId, status = started.Status });
+})
+.WithName("StartDigitize")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/digitize/{jobId:guid}", async (
+    Guid groupId,
+    Guid arrangementId,
+    Guid jobId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetDigitizeJobHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var job = await handler.HandleAsync(userId.Value, groupId, arrangementId, jobId, cancellationToken);
+    return Results.Ok(new
+    {
+        jobId = job.JobId,
+        status = job.Status,
+        segments = job.Segments?.Select(s => new
+        {
+            startMs = s.StartMs,
+            endMs = s.EndMs,
+            text = s.Text
+        }),
+        error = job.Error
+    });
+})
+.WithName("GetDigitizeJob")
+.RequireAuthorization();
+
 app.MapGet("/api/groups/{groupId:guid}/setlists", async (
     Guid groupId,
     ClaimsPrincipal principal,
@@ -1736,6 +1807,7 @@ internal sealed record UpdateLinkResourceRequest(
     string? Label,
     string? Part,
     string? Note);
+internal sealed record DigitizeRequest(Guid ResourceId);
 internal sealed record CreateSetlistRequest(string? Name);
 internal sealed record UpdateSetlistRequest(string? Name, int ExpectedVersion);
 internal sealed record ReplaceSetlistItemsRequest(
