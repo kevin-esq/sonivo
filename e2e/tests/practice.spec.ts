@@ -228,12 +228,20 @@ test.describe('Practice / karaoke thin', () => {
     // Wait for ChordTimingEditor to be visible (chords must be populated)
     await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
 
+    // Verify chords field has content (3 lines)
+    await expect(page.getByTestId('arrangement-chords')).toHaveValue(allLyrics)
+
     // Set timing marks for each line (in milliseconds)
     await page.getByTestId('timing-line-0-ms').fill('1000')
     await page.getByTestId('timing-line-1-ms').fill('3000')
     await page.getByTestId('timing-line-2-ms').fill('5000')
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible({ timeout: 10000 })
+
+    // Wait for arrangement to reload with updated chordTimingJson (verify timing marks saved)
+    await expect(page.getByTestId('timing-line-0-ms')).toHaveValue('1000')
+    await expect(page.getByTestId('timing-line-1-ms')).toHaveValue('3000')
+    await expect(page.getByTestId('timing-line-2-ms')).toHaveValue('5000')
 
     // Open Practice page
     await page.getByRole('link', { name: 'Practicar' }).click()
