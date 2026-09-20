@@ -259,6 +259,9 @@ test.describe('Practice / karaoke thin', () => {
     await page.getByRole('link', { name: 'Practicar' }).click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
 
+    // Wait for arrangement data to load (ChordProView indicates lyrics/chords loaded)
+    await expect(page.getByTestId('practice-chordpro')).toBeVisible({ timeout: 15_000 })
+
     // Verify "Seguir letra" toggle appears
     const followToggle = page.getByTestId('practice-follow-along')
     await expect(followToggle).toBeVisible()
