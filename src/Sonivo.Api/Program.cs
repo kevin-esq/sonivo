@@ -11,6 +11,7 @@ using Sonivo.Application.Abstractions;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
+using Sonivo.Api.Realtime;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Api.Auth;
 using Sonivo.Infrastructure;
@@ -90,6 +91,10 @@ builder.Services.AddProblemDetails(options =>
 builder.Services.AddExceptionHandler<AppExceptionHandler>();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
+// ADR-0036: self-hosted in-process SignalR (shared framework, no vendor).
+// The global antiforgery middleware above requires X-CSRF-TOKEN on the
+// /negotiate POST (Q9-Q3); GET/WebSocket hub traffic needs only the cookie.
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -302,6 +307,10 @@ app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInMana
 .DisableAntiforgery();
 
 app.MapGoogleAuthEndpoints();
+
+// ADR-0036: Q9 conductor room. Cookie-authorized; per-method Membership
+// recheck inside the Hub (404 non-member/unknown, 403 non-Owner conduct).
+app.MapHub<PracticeRoomHub>("/hubs/practiceroom").RequireAuthorization();
 
 app.MapGet("/api/groups", async (
     ClaimsPrincipal principal,

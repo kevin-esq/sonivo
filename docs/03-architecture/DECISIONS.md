@@ -50,36 +50,46 @@ Per-note feedback (no reference melody) · server pitch detection · audio recor
 
 ## ADR-0036 — Q9 realtime thin: self-hosted SignalR conductor (single Event room)
 
-- **Status:** **PROPOSED** — awaiting Kevin review + ACCEPTANCE (blocking OPEN QUESTIONS below)
+- **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-20** (Kevin: program continues until done; auditor decides technical spend-free scope)
 - **Date:** 2026-09-20
 - **Depends on:** ADR-0009, 0011 (cookie session), ADR-0012 (Owner/Member), ADR-0016, 0018 (Event plan), ADR-0019 (tenancy/AuthZ), ADR-0020 (CSRF), ADR-0027, 0029, 0031 (Practice player + follow-along)
-- **Revises:** nothing yet — on ACCEPTANCE it would authorize the first websocket/realtime surface in Sonivo; ADR-0027/0029/0031 clauses keeping multi-device sync FUTURE would be revised for Owner-conducted position broadcast only
+- **Revises:** ADR-0027 / ADR-0029 / ADR-0031 clauses keeping multi-device sync FUTURE — Owner-conducted position broadcast (this ADR only) is now authorized; all other realtime (audio sync, beat-clock, chat, recording) stays FUTURE
 - **Does not authorize (firewall):** Azure SignalR Service or any hosted realtime vendor (self-hosted only — vendor/cost ban); audio streaming; beat-clock; chat; multi-conductor; recording; backplane/multi-instance scale-out; raising the 5 MiB blob cap; Whisper / cloud LLM; pitch; YouTube; S3; MusicXML; Event/RSVP mail
 
 ### Context
 
 Practice (ADR-0027/0029) plays per-device: every musician presses play on their own clock. Follow-along (ADR-0031) highlights the current ChordPro line from Owner-authored marks — still per-device. Groups rehearsing together need a thin **conductor**: one Owner broadcasts “we are here” and Members' Practice views follow. Full realtime (audio sync, beat-clock, chat) is out; a throttled position broadcast over self-hosted SignalR is the smallest useful slice and answers CONTEXT **Q9** (realtime, lean no) for the conductor case only.
 
-### Proposal (PROPOSED — Q9-Q1–Q5 open, Kevin decides)
+### Proposal (ACCEPTED — Q9-Q1–Q5 resolved 2026-09-20, HUMAN-DELEGATED)
 
 1. **Transport thin:** self-hosted ASP.NET Core SignalR Hub (in-process, same deployable per ADR-0003). **NO Azure SignalR Service** — vendor/cost ban. Single-instance assumption: **no backplane, no sticky-session design** in thin (documented limitation, not silent).
 2. **Room model:** single Event room `event-{id}`. Client methods `JoinRoom` / `LeaveRoom`; server pushes a **presence list** (who is in the room).
-3. **Conductor broadcast:** Owner-conductor sends `BroadcastPosition({arrangementId, positionMs, playing})`, **throttled 1–2 Hz** (exact rate per Q9-Q1). Members receive and move their Practice playhead/highlight; Members never broadcast.
+3. **Conductor broadcast:** Owner-conductor sends `BroadcastPosition({arrangementId, positionMs, playing})`, **throttled 1 Hz** (Q9-Q1 decided: client sends at most 1 Hz; server enforces a minimum 900 ms gap per connection and silently drops faster messages with a debug log). Members receive and move their Practice playhead/highlight; Members never broadcast. **Conductor: ANY Owner present may broadcast — last-writer-wins** (Q9-Q2 decided: no election, no baton; documented in code + spec).
 4. **Non-goals (explicit):** audio streaming, beat-clock, chat, multi-conductor, recording.
-5. **AuthZ:** Hub requires `[Authorize]` (cookie session); **per-method Membership recheck** — non-member/unknown Event → 404, member non-Owner attempting conduct → 403 (per ADR-0019); conductor role Owner-only (definition per Q9-Q2). CSRF posture on `/negotiate` per Q9-Q3.
-6. **Resilience notes (proposed):** sleep drops sockets + client auto-reconnect; `Context.User` cached at connect (re-validate Membership per method call, not just at connect); Spanish reconnect copy (per Q9-Q4). Room caps per Q9-Q5.
-7. **Spanish UI** for join/follow surfaces (“Seguir al director”, “En vivo”, “Reconectando…” — exact copy at ACCEPTANCE).
-8. **Tickets (gated on ACCEPTANCE):** T-Q9-00 (this proposal docs); T-Q9-01–03 implementation — see [`PHASE-Q9-SPEC.md`](PHASE-Q9-SPEC.md). No implementation branch authorized until Kevin ACCEPTS and resolves Q9-Q1–Q5.
+5. **AuthZ:** Hub requires `[Authorize]` (cookie session); **per-method Membership recheck** — non-member/unknown Event → 404, member non-Owner attempting conduct → 403 (per ADR-0019); conductor role Owner-only (any Owner present, last-writer-wins per Q9-Q2). CSRF: **`X-CSRF-TOKEN` header REQUIRED on `/negotiate` POST** (Q9-Q3 decided: same antiforgery as API unsafe methods — the global POST middleware already enforces it; GET hub/WebSocket traffic needs nothing beyond the cookie).
+6. **Resilience notes:** sleep drops sockets + client auto-reconnect; `Context.User` cached at connect (re-validate Membership per method call, not just at connect); Spanish copy decided (Q9-Q4): follow toggle **“Seguir al director”**, live badge **“En vivo”**, reconnecting **“Reconectando…”**; follow preference persisted per event in `localStorage`. Room caps decided (Q9-Q5): **50 connections max per event-room**; join over cap → clear Spanish error; presence list capped likewise.
+7. **Spanish UI** for join/follow surfaces (“Seguir al director”, “En vivo”, “Reconectando…” — decided Q9-Q4).
+8. **Tickets:** T-Q9-00 (proposal docs); T-Q9-01–03 implementation — see [`PHASE-Q9-SPEC.md`](PHASE-Q9-SPEC.md).
 
-### Open questions (blocking — Kevin decides, auditors do NOT commit unilaterally)
+### Resolution (ACCEPTED 2026-09-20, HUMAN-DELEGATED — auditor decisions, zero spend scope)
 
-| ID | Question |
+| ID | Decision |
 | -- | -------- |
-| **Q9-Q1** | Broadcast rate: 1 Hz vs 2 Hz for `BroadcastPosition` (battery/traffic vs follow smoothness)? |
-| **Q9-Q2** | Conductor definition: any Owner present, or a designated single conductor (first-join / explicit “tomar la batuta”)? |
-| **Q9-Q3** | CSRF on `/negotiate`: exact posture for the cookie-authed negotiate endpoint under ADR-0020. |
-| **Q9-Q4** | Spanish reconnect copy: exact strings for dropped/reconnecting/live states. |
-| **Q9-Q5** | Room caps: max members per `event-{id}` room + over-cap behavior. |
+| **Q9-Q1** | **1 Hz**: client sends at most 1 Hz; server enforces minimum 900 ms gap per connection, drops faster messages silently with debug log. |
+| **Q9-Q2** | **Any Owner present may broadcast** (last-writer-wins, documented in code + spec). No election. |
+| **Q9-Q3** | **`X-CSRF-TOKEN` header REQUIRED on `/negotiate` POST** (same antiforgery as API unsafe methods); GET hub traffic needs none beyond cookie. |
+| **Q9-Q4** | Copy: **“Seguir al director”** (follow toggle), **“En vivo”** (live badge), **“Reconectando…”** (reconnecting). Follow preference persisted per event in `localStorage`. |
+| **Q9-Q5** | **50 connections max per event-room**; join over cap → clear Spanish error; presence list capped likewise. |
+
+### Open questions (resolved — see Resolution above; kept for reference)
+
+| ID | Question | Answer |
+| -- | -------- | ------ |
+| **Q9-Q1** | Broadcast rate: 1 Hz vs 2 Hz for `BroadcastPosition` (battery/traffic vs follow smoothness)? | **1 Hz** + 900 ms server gap. |
+| **Q9-Q2** | Conductor definition: any Owner present, or a designated single conductor (first-join / explicit “tomar la batuta”)? | **Any Owner present, last-writer-wins.** |
+| **Q9-Q3** | CSRF on `/negotiate`: exact posture for the cookie-authed negotiate endpoint under ADR-0020. | **`X-CSRF-TOKEN` required on POST.** |
+| **Q9-Q4** | Spanish reconnect copy: exact strings for dropped/reconnecting/live states. | **“Seguir al director” / “En vivo” / “Reconectando…”.** |
+| **Q9-Q5** | Room caps: max members per `event-{id}` room + over-cap behavior. | **50/room; Spanish error on over-cap.** |
 
 ### Consequences (if ACCEPTED as proposed)
 
@@ -276,7 +286,7 @@ Cloud LLM rewriting · unattended ML auto-marks · Q9 realtime/multi-device · p
 - **Date:** 2026-09-18  
 - **Depends on:** ADR-0027, 0028, 0029, 0030  
 - **Revises:** ADR-0029 clause that treated time-synced lyric/ChordPro marks as FUTURE-only — Practice MAY highlight the current ChordPro line (or block) from Owner-authored timing marks while audio plays  
-- **Does not authorize:** Whisper / cloud STT, cloud LLM, auto-generated marks from ML, realtime multi-device sync (Q9), pitch detection, YouTube, S3 blob adapter, raising the 5 MiB blob cap
+- **Does not authorize:** Whisper / cloud STT, cloud LLM, auto-generated marks from ML, realtime multi-device sync (Q9 — except Owner-conducted position broadcast per ADR-0036), pitch detection, YouTube, S3 blob adapter, raising the 5 MiB blob cap
 
 ### Context
 
@@ -288,10 +298,11 @@ ADR-0029 shipped a usable Practice player with manual ChordPro scroll. Musicians
 2. **Source of truth** for chart text remains `Arrangement.Chords` (ChordPro) per ADR-0028 / 0030. Timing does **not** replace or fork ChordPro into a second body.  
 3. **Timing persistence:** nullable string column **`ChordTimingJson`** on **Arrangement** (not overloaded into `Notes`). JSON array of `{ "lineIndex": number, "atMs": number }` (0-based line index into the ChordPro body as rendered/split for mark editing; `atMs` = audio position in milliseconds). Empty / null = no follow-along marks. One nullable column only — **no new table**. EF migration lands in **T-SYNC-01** (not docs-only).  
 4. **Roles:** Owner creates/edits/clears marks (PATCH Arrangement); Member **read-only** consumes marks on Practice. Same AuthZ pattern as other Arrangement body fields.  
-5. **Player:** reuse ADR-0029 custom chrome / HTML5 `<audio>` `timeupdate` (and seek) to resolve the active mark — no websocket, no conductor.  
+5. **Player:** reuse ADR-0029 custom chrome / HTML5 `<audio>` `timeupdate` (and seek) to resolve the active mark — no websocket, no conductor.
+   **REVISED by ADR-0036:** an Owner-conducted position broadcast (1 Hz, last-writer-wins) MAY additionally move the local playhead/highlight; the per-device `timeupdate` path remains the local source of truth.  
 6. **Spanish UI**; sparse Playwright **TC-PLAY-SYNC-01** in T-SYNC-03.  
 7. **Tickets:** T-SYNC-00 (this ADR + [`PHASE-PLAY-SYNC-SPEC.md`](PHASE-PLAY-SYNC-SPEC.md)); T-SYNC-01–03 implementation — see that spec.  
-8. **Firewall unchanged:** no Whisper, cloud LLM, Q9 realtime, pitch, YouTube, S3, raising 5 MiB, ML auto-marks.
+8. **Firewall unchanged except ADR-0036:** no Whisper, cloud LLM, ML auto-marks; Q9 realtime beyond the Owner-conducted position broadcast stays FUTURE; no pitch, YouTube, S3, raising 5 MiB.
 
 ### Consequences
 
@@ -348,8 +359,9 @@ Whisper · OpenAI/Anthropic/etc. in-process · realtime · pitch · stems · Mus
 - **Date:** 2026-09-17  
 - **Depends on:** ADR-0027, 0028; T-3.2.06 file/link Resources  
 - **Revises:** ADR-0027 “single primary `<audio>` control” — Practice MAY use a custom player chrome over the same HTML5 media element  
-- **REVISED by ADR-0031:** Owner-authored ChordPro line timing + Practice highlight (“Seguir letra”) is **authorized**; multi-device realtime (Q9) remains FUTURE  
-- **Does not authorize:** realtime sync (Q9), pitch detection, YouTube API, streaming CDN, stems mixer, raising the 5 MiB blob cap (separate ops ADR)
+- **REVISED by ADR-0031:** Owner-authored ChordPro line timing + Practice highlight (“Seguir letra”) is **authorized**; multi-device realtime (Q9) remains FUTURE
+- **REVISED by ADR-0036:** Owner-conducted position broadcast (any Owner present, last-writer-wins, 1 Hz) is **authorized**; all other multi-device realtime remains FUTURE
+- **Does not authorize:** realtime sync (Q9 — except ADR-0036 conductor broadcast), pitch detection, YouTube API, streaming CDN, stems mixer, raising the 5 MiB blob cap (separate ops ADR)
 
 ### Context
 
@@ -423,10 +435,11 @@ MusicXML · Guitar Pro · OCR PDF · realtime scroll sync · forcing all Groups 
 - **Date:** 2026-09-17  
 - **Depends on:** ADR-0007–0008, 0014, 0017, 0024–0025; T-3.2.06 file/link Resources  
 - **Does not supersede:** Resource model; Event plan snapshots; Auth cookie model  
-- **Does not authorize:** realtime sync (Q9), pitch detection, YouTube API, multi-user live conductor  
+- **Does not authorize:** realtime sync (Q9 — except Owner-conducted position broadcast per ADR-0036), pitch detection, YouTube API, multi-user live conductor (except ADR-0036 conductor)  
 - **REVISED by ADR-0028:** ChordPro parser/render on Practice is **authorized** (hybrid ChordPro in Arrangement fields). The original “no ChordPro parser” thin ban no longer binds.  
 - **REVISED by ADR-0029:** Practice MAY use custom player chrome (seek/volume/multi-track) over HTML5 audio; Event/Setlist queue is Wave 3 under the same ADR.
 - **REVISED by ADR-0031:** Owner-authored ChordPro line timing + optional Practice highlight (“Seguir letra”) is **authorized**; websocket/multi-device realtime remains FUTURE.
+- **REVISED by ADR-0036:** Owner-conducted position broadcast (any Owner present, last-writer-wins, 1 Hz) is **authorized**; all other multi-device realtime (audio sync, beat-clock, chat, recording) remains FUTURE.
 
 ### Context
 

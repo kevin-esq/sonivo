@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Sonivo.Application.Abstractions;
+using Sonivo.Application.Realtime;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
@@ -58,6 +59,8 @@ public static class DependencyInjection
         services.AddScoped<ReplaceEventPlanFromSetlistHandler>();
         services.AddScoped<UpsertEventRsvpHandler>();
         services.AddScoped<ListEventRsvpsHandler>();
+        services.AddSingleton<PracticeRoomState>();
+        services.AddScoped<ConductorRoomAuthorizer>();
         return services;
     }
 }
