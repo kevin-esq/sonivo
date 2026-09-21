@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure;
+using Sonivo.Infrastructure.Blobs;
 using Sonivo.Infrastructure.Persistence;
 using Xunit.Abstractions;
 
@@ -53,8 +55,12 @@ public class LinkResourcePersistenceTests
         Assert.Equal(2, await db.Resources.CountAsync(r => r.ArrangementId == arrangementId));
 
         var arrVersion = (await db.Arrangements.SingleAsync(a => a.Id == arrangementId)).Version;
+        var blobs = new FileSystemBlobStore(Options.Create(new BlobsOptions
+        {
+            FileSystemDirectory = Path.Combine(Path.GetTempPath(), $"sonivo-link-test-{Guid.NewGuid():N}")
+        }));
         await new DeleteResourceHandler(
-                access, arrangements, resources, new PostgresBlobStore(db, clock),
+                access, arrangements, resources, blobs,
                 NullLogger<DeleteResourceHandler>.Instance)
             .HandleAsync(owner, groupId, arrangementId, created.Id, CancellationToken.None);
 

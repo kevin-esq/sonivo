@@ -157,6 +157,10 @@ File Resources (T-3.2.06) store bytes in Postgres (`ResourceBlobs`) behind the `
 - The `GET .../content` AuthZ posture is unchanged (proxy, per-request Membership recheck, 404/403 per ADR-0019).
 - The `ResourceBlobs` table survives until a later verified-backfill migration explicitly drops it.
 
+### Amendment — T-R2-04 filesystem fallback + table drop (2026-09-21)
+
+Unconfigured environments (local dev without `R2__*`, CI) keep working through a new `FileSystemBlobStore` (ephemeral temp dir, `Blobs:FileSystemDirectory` override) instead of Postgres: R2 configured → `R2BlobStore`; else filesystem. `PostgresBlobStore`, `DualReadBlobStore`, the `ResourceBlob` entity and the `ResourceBlobs` table are removed (migration `DropResourceBlobs`, downgrade recreates the empty table). Lazy-backfill machinery goes away with `DualReadBlobStore`. This amendment is covered by the original “drop after verified backfill” condition — the merge gate is the backfill count check, not this code.
+
 ### Non-goals
 
 AuthZ/tenancy changes · soft-delete semantic changes · public buckets / bare presigned URLs · browser-direct PUT / CORS · 5 MiB raise · Whisper · cloud LLM · unattended ML auto-marks · Q9 · pitch · YouTube · MusicXML · Event/RSVP mail

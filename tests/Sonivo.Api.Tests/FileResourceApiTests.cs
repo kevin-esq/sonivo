@@ -99,7 +99,6 @@ public class FileResourceApiTests : IClassFixture<SonivoApiFactory>
             var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
             objectKey = await db.Resources.Where(r => r.Id == created.Id).Select(r => r.ObjectKey).SingleAsync();
             Assert.False(string.IsNullOrWhiteSpace(objectKey));
-            Assert.True(await db.ResourceBlobs.AnyAsync(b => b.ObjectKey == objectKey));
         }
 
         var delete = await ownerClient.DeleteAsync($"{basePath}/{created.Id}");
@@ -109,8 +108,11 @@ public class FileResourceApiTests : IClassFixture<SonivoApiFactory>
         {
             var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
             Assert.False(await db.Resources.AnyAsync(r => r.Id == created.Id));
-            Assert.False(await db.ResourceBlobs.AnyAsync(b => b.ObjectKey == objectKey));
         }
+
+        // Blob bytes are gone with the row: content is 404 after hard delete.
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await memberClient.GetAsync($"{basePath}/{created.Id}/content")).StatusCode);
     }
 
     [Fact]
