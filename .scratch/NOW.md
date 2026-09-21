@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (Wave E T-Q9-01-03 conductor + Wave F T-FX-01-02 tuner/YT)
-Human approval: DELEGATED (Kevin: auditor decides + merges when correct + blanket improvement mandate, 2026-09-21)
-Git checkpoint: COMMITTED + MERGED to develop (PR #90 d1491e5 + PR #91 8e67578; branches deleted)
-Remote: PUSHED + MERGED
-CI: PASSING (both PRs: Backend + Frontend + Playwright E2E green)
+Implementation: COMPLETE (Wave D T-R2-01-03: R2BlobStore + dual-read/backfill + T-R2-03 outcome, TC-R2-01 explicitly skipped)
+Human approval: DELEGATED (Kevin: auditor decides; Q-facts delivered 2026-09-21)
+Git checkpoint: COMMITTED on feature/t-r2-blobstore (4 commits) — see final report for push/PR
+Remote: NOT PUSHED (push + PR authorized with this task; DO NOT merge)
+CI: NOT RUN (CI is the gate after PR opens)
 ```
 
 ## Authorized program
@@ -32,7 +32,7 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Wave F T-FX-00 | Docs: ADR-0037 PROPOSED (Practice extras scope) + PHASE-EXTRAS-SPEC.md skeleton (docs only) | PLANNED |
 | Wave E T-Q9-01–03 | ADR-0036 ACCEPTED + SignalR conductor room + presence + TC-Q9-01 | MERGED (PR #90, CI green incl. E2E two-context follow) |
 | Wave F T-FX-01–02 | ADR-0037 ACCEPTED (tuner IN, YT conditional IN, scoring OUT) + Afinador + nocookie embed + TC-PITCH-01/TC-YT-01 | MERGED (PR #91, CI green) — scoring OUT, no work |
-| Wave D T-R2-01–03 | ADR-0035 impl: R2BlobStore + dual-read/backfill + tests | ACTIVE on `feature/t-r2-blobstore` (Q-facts delivered 2026-09-21: bucket `sonivo-blobs`, auto jurisdiction, scoped token, user-env config, free-tier-only, orphans stay, proxy-only, 5MiB unchanged, ResourceBlobs retained) |
+| Wave D T-R2-01–03 | ADR-0035 impl: R2BlobStore + dual-read/backfill + tests | COMPLETE on `feature/t-r2-blobstore` (dotnet 402/402 + live R2 + E2E 31/31 on R2 path; PR to develop, DO NOT merge) |
 
 ## Deferred until their ADR
 
