@@ -45,7 +45,7 @@
 | **T-R2-00** | Docs: ADR-0035 PROPOSED + this spec skeleton + NOW update | DONE (PROPOSED docs merged PR #87; ACCEPTED 2026-09-21 HUMAN-DELEGATED) |
 | **T-R2-01** | Server: `R2BlobStore:IBlobStore` + conditional registration + config + unit tests (fake-backed) | ACTIVE |
 | **T-R2-02** | Migration: dual-read R2-first + lazy backfill; `ResourceBlobs` retained (NEVER dropped in this slice) | ACTIVE |
-| **T-R2-03** | Tests: API AuthZ matrix (existing TC-LIB-04 covers the path) + full-suite green WITH R2 configured locally + document CI Postgres-path coverage | ACTIVE |
+| **T-R2-03** | Tests: API AuthZ matrix (existing TC-LIB-04 covers the path) + full-suite green WITH R2 configured locally + document CI Postgres-path coverage | DONE 2026-09-21 — no new TC (verdict below); full E2E 31/31 green on the R2 path; CI Postgres path unchanged |
 
 Implementation branch naming: `feature/t-r2-*` (one coherent vertical slice per ticket or batched only with explicit approval).
 
@@ -61,13 +61,33 @@ Implementation branch naming: `feature/t-r2-*` (one coherent vertical slice per 
 
 ---
 
-## Audit checklist (each implementation PR, after ACCEPTANCE)
+## Audit checklist (R2 implementation — verified 2026-09-21)
 
-- [ ] No AuthZ/tenancy/soft-delete semantic changes
-- [ ] No public buckets / bare presigned reads / browser-direct PUT
-- [ ] 5 MiB cap unchanged
-- [ ] `ResourceBlobs` retained until verified-backfill migration
-- [ ] No secrets in git; per-env config only
-- [ ] Spanish error copy
-- [ ] Named Playwright TC when T-R2-03 ships + suite green
-- [ ] No Cursor co-author trailers
+- [x] No AuthZ/tenancy/soft-delete semantic changes
+- [x] No public buckets / bare presigned reads / browser-direct PUT
+- [x] 5 MiB cap unchanged
+- [x] `ResourceBlobs` retained (NEVER dropped in this slice)
+- [x] No secrets in git; per-env config only
+- [x] Spanish error copy (no user-facing copy change; ops-only thin)
+- [x] E2E verdict recorded (T-R2-03 outcome below) + suite green
+- [x] No Cursor co-author trailers
+
+## T-R2-03 outcome (2026-09-21, branch `feature/t-r2-blobstore`)
+
+- **TC-R2-01 explicitly NOT added.** No backend-observable behavior exists at the
+  E2E level without leaking infra details: the upload/download path through
+  `IBlobStore` + AuthZ'd `GET .../content` is identical on either backend, and
+  backend choice is an ops concern (asserted at startup log + unit/integration level).
+  A product E2E asserting "served from R2" would couple journeys to infrastructure.
+- **CI Postgres-path coverage (unchanged default):** CI has no `R2__*` creds, so
+  `R2Options.IsConfigured` is false and `PostgresBlobStore` stays the `IBlobStore`.
+  `FileResourceApiTests` (upload → member download → AuthZ 404/403 matrix →
+  `ResourceBlobs` row asserts) covers this path; full `dotnet test Sonivo.slnx`
+  green 402/402 (Domain 80 + Application 176 + Integration 44 + Api 102).
+- **Local R2-path coverage (this machine, user env):** `R2LiveMigrationTests`
+  executed live against bucket `sonivo-blobs` (put/get/delete roundtrip +
+  dual-read backfill keeping the Postgres row, ~2s each; unique `test/` keys,
+  cleaned up). Full Playwright suite **31/31 green WITH R2 configured**
+  (API log: `Blob storage backend: R2`; TC-LIB-04 exercised live R2 PUT + GET).
+  First attempt showed 21 pass / 10 fail from a dead local Vite server only;
+  re-run of the 5 affected files after restart: 11/11 pass — no product regression.
