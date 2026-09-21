@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   getArrangement,
@@ -17,6 +17,12 @@ import {
   activeChordLineBlock,
   parseChordTimingJson,
 } from './chordTiming'
+import { ConductorPanel } from './ConductorPanel'
+import {
+  readConductorFollow,
+  writeConductorFollow,
+} from './conductorFollowPrefs'
+import { useConductorRoom } from './useConductorRoom'
 import { PracticeEventQueue } from './PracticeEventQueue'
 import { PracticePlayer } from './PracticePlayer'
 import {
@@ -117,18 +123,31 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const [savingTone, setSavingTone] = useState(false)
   const [followAlong, setFollowAlong] = useState(false)
   const [audioSeconds, setAudioSeconds] = useState(0)
+  // ADR-0036 conductor follow (Event rooms only).
+  const conductor = useConductorRoom(eventId)
+  const [followDirector, setFollowDirector] = useState(false)
+  const [followSeekMs, setFollowSeekMs] = useState<number | null>(null)
+  const audioSecondsRef = useRef(0)
+  const audioPlayingRef = useRef(false)
+  const sendPositionRef = useRef(conductor.sendPosition)
+  sendPositionRef.current = conductor.sendPosition
 
   useEffect(() => {
     setSemitoneOffset(0)
     setAudioSeconds(0)
+    audioSecondsRef.current = 0
+    audioPlayingRef.current = false
+    setFollowSeekMs(null)
     if (!groupId || !arrangementId) {
       setViewMode('guitarist')
       setFollowAlong(false)
+      setFollowDirector(false)
       return
     }
     setViewMode(readPracticeViewMode(groupId, arrangementId))
     setFollowAlong(readPracticeFollowAlong(groupId, arrangementId))
-  }, [groupId, arrangementId])
+    setFollowDirector(eventId ? readConductorFollow(eventId) : false)
+  }, [groupId, arrangementId, eventId])
 
   useEffect(() => {
     if (!groupId || !arrangementId || !group) return
@@ -186,6 +205,31 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       cancelled = true
     }
   }, [groupId, group, eventId])
+
+  // ADR-0036 follower: a broadcast for this Arrangement moves the local
+  // playhead (PracticePlayer seeks) and the follow-along highlight.
+  useEffect(() => {
+    const last = conductor.lastPosition
+    if (!followDirector || isOwner || !last || !arrangementId) return
+    if (last.position.arrangementId !== arrangementId) return
+    setFollowSeekMs(last.position.positionMs)
+  }, [conductor.lastPosition, followDirector, isOwner, arrangementId])
+
+  // ADR-0036 conductor: the Owner broadcasts their player position at 1 Hz
+  // (Q9-Q1 client pacing; the server drops anything inside its 900 ms gap).
+  useEffect(() => {
+    if (!isOwner || !eventId || conductor.connectionState !== 'connected' || !arrangementId) {
+      return
+    }
+    const timer = setInterval(() => {
+      sendPositionRef.current(
+        arrangementId,
+        Math.round(audioSecondsRef.current * 1000),
+        audioPlayingRef.current,
+      )
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [isOwner, eventId, conductor.connectionState, arrangementId])
 
   if (group === undefined) {
     return <PracticePageSkeleton label="Cargando práctica…" />
@@ -247,10 +291,38 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       : null
   const hideChords = viewMode === 'singer'
   const timingMarks = parseChordTimingJson(liveArrangement.chordTimingJson)
+  // Conductor follow drives the same highlight path: when the Member follows
+  // the director, the broadcast position moves playhead + highlight even when
+  // the local "Seguir letra" toggle is off. Without audio tracks the
+  // broadcast position itself is the highlight clock.
+  const conductorFollowing = !isOwner && followDirector && followSeekMs != null
+  const highlightMs =
+    tracks.length > 0 ? Math.round(audioSeconds * 1000) : (followSeekMs ?? 0)
   const highlightBlock =
-    followAlong && timingMarks.length > 0
-      ? activeChordLineBlock(timingMarks, Math.round(audioSeconds * 1000))
+    (followAlong || conductorFollowing) && timingMarks.length > 0
+      ? activeChordLineBlock(timingMarks, highlightMs)
       : null
+  const conductorLive =
+    conductor.connectionState === 'connected' &&
+    (isOwner ||
+      (conductor.lastPosition != null &&
+        Date.now() - conductor.lastPosition.receivedAt < 5000))
+
+  function toggleFollowDirector() {
+    if (!eventId) return
+    const next = !followDirector
+    setFollowDirector(next)
+    writeConductorFollow(eventId, next)
+  }
+
+  function handleAudioTime(seconds: number) {
+    setAudioSeconds(seconds)
+    audioSecondsRef.current = seconds
+  }
+
+  function handleAudioPlaying(playing: boolean) {
+    audioPlayingRef.current = playing
+  }
 
   function setViewModePersist(mode: PracticeViewMode) {
     setViewMode(mode)
@@ -361,12 +433,26 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         />
       ) : null}
 
+      {eventId ? (
+        <ConductorPanel
+          presence={conductor.presence}
+          connectionState={conductor.connectionState}
+          isOwner={isOwner}
+          followEnabled={followDirector}
+          onToggleFollow={toggleFollowDirector}
+          isLive={conductorLive}
+          error={conductor.error}
+        />
+      ) : null}
+
       {tracks.length > 0 ? (
         <PracticePlayer
           groupId={liveGroup.id}
           arrangementId={liveArrangement.id}
           tracks={tracks}
-          onCurrentTimeChange={setAudioSeconds}
+          onCurrentTimeChange={handleAudioTime}
+          onPlayingChange={handleAudioPlaying}
+          followSeekMs={!isOwner && followDirector ? followSeekMs : null}
         />
       ) : null}
 

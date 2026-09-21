@@ -11,6 +11,12 @@ export default defineConfig({
         target: 'http://localhost:5171',
         changeOrigin: true,
       },
+      // ADR-0036 conductor Hub (negotiate POST + WebSocket).
+      '/hubs': {
+        target: 'http://localhost:5171',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
 })
