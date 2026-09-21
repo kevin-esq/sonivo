@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (Wave C T-W34-01 suggest + TC-WSP-02)
-Human approval: DELEGATED (Kevin: auditor decides + merges when correct, 2026-09-20)
-Git checkpoint: COMMITTED + MERGED to develop (PR #86, a4ede4a; branch deleted)
+Implementation: COMPLETE (Wave E T-Q9-01-03 conductor + Wave F T-FX-01-02 tuner/YT)
+Human approval: DELEGATED (Kevin: auditor decides + merges when correct + blanket improvement mandate, 2026-09-21)
+Git checkpoint: COMMITTED + MERGED to develop (PR #90 d1491e5 + PR #91 8e67578; branches deleted)
 Remote: PUSHED + MERGED
-CI: PASSING (Backend + Frontend + Playwright E2E 27/27, run 35540151788)
+CI: PASSING (both PRs: Backend + Frontend + Playwright E2E green)
 ```
 
 ## Authorized program
@@ -29,9 +29,9 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Wave D T-R2-00 | Docs: ADR-0035 PROPOSED (R2 blob backend thin) + PHASE-R2-SPEC.md skeleton (docs only) | IN PROGRESS (this branch, docs only) — PENDING, NOT merged |
 | Wave E T-Q9-00 | Docs: ADR-0036 PROPOSED (Q9 realtime thin) + PHASE-Q9-SPEC.md skeleton (docs only) | PLANNED |
 | Wave F T-FX-00 | Docs: ADR-0037 PROPOSED (Practice extras scope) + PHASE-EXTRAS-SPEC.md skeleton (docs only) | PLANNED |
-| Wave D T-R2-00 | Docs: ADR-0035 PROPOSED (R2 thin) + PHASE-R2-SPEC.md | MERGED (PR #87); impl BLOCKED on ACCEPTANCE + R2 credentials (R2-Q1–Q7 for Kevin) |
-| Wave E T-Q9-00 | Docs: ADR-0036 PROPOSED (SignalR conductor) + PHASE-Q9-SPEC.md | MERGED (PR #88); impl BLOCKED on ACCEPTANCE (Q9-Q1–Q5 for Kevin) |
-| Wave F T-FX-00 | Docs: ADR-0037 PROPOSED (tuner IN / YT conditional / scoring OUT) + PHASE-EXTRAS-SPEC.md | MERGED (PR #89); impl BLOCKED on ACCEPTANCE + in/out confirm (FX-Q1–Q3 for Kevin) |
+| Wave E T-Q9-01–03 | ADR-0036 ACCEPTED + SignalR conductor room + presence + TC-Q9-01 | MERGED (PR #90, CI green incl. E2E two-context follow) |
+| Wave F T-FX-01–02 | ADR-0037 ACCEPTED (tuner IN, YT conditional IN, scoring OUT) + Afinador + nocookie embed + TC-PITCH-01/TC-YT-01 | MERGED (PR #91, CI green) — scoring OUT, no work |
+| Wave D T-R2-01–03 | ADR-0035 PROPOSED + PHASE-R2-SPEC.md | MERGED docs (PR #87); impl BLOCKED on Kevin: bucket sonivo-blobs + token + R2-Q answers |
 
 ## Deferred until their ADR
 
