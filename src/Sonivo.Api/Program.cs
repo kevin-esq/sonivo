@@ -15,6 +15,7 @@ using Sonivo.Api.Realtime;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Api.Auth;
 using Sonivo.Infrastructure;
+using Sonivo.Infrastructure.Blobs;
 using Sonivo.Infrastructure.Identity;
 using Sonivo.Infrastructure.Persistence;
 
@@ -97,6 +98,11 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
 
 var app = builder.Build();
+
+// ADR-0035: log which blob backend is active at startup (backend name only — never values).
+app.Logger.LogInformation(
+    "Blob storage backend: {Backend}",
+    R2Options.IsConfigured(app.Configuration) ? "R2" : "Postgres");
 
 if (!app.Environment.IsDevelopment())
 {

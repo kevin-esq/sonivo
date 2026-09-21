@@ -114,10 +114,11 @@ Azure SignalR / hosted realtime · audio streaming · beat-clock · chat · mult
 
 ## ADR-0035 — Cloudflare R2 (S3-compatible) as alternate `IBlobStore` backend (thin)
 
-- **Status:** **PROPOSED** — awaiting Kevin review + ACCEPTANCE (blocking OPEN QUESTIONS below)
+- **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-21** (Kevin: auditor resolves R2-Q1–Q7 per the proposal within the facts below; no scope beyond the thin cutover)
 - **Date:** 2026-09-20
+- **Accepted:** 2026-09-21
 - **Depends on:** ADR-0010 (S3-compatible storage via abstraction), ADR-0019 (tenancy/AuthZ), ADR-0020 (CSRF), ADR-0023 (soft-delete; blobs left in place), T-3.2.06 (`IBlobStore` + Postgres `ResourceBlobs`, 5 MiB cap)
-- **Revises:** nothing yet — on ACCEPTANCE it would authorize an alternate `IBlobStore` backend alongside the Postgres default; no AuthZ/tenancy/soft-delete semantic changes
+- **Revises:** nothing — ACCEPTED 2026-09-21: authorizes an alternate `IBlobStore` backend alongside the Postgres default; no AuthZ/tenancy/soft-delete semantic changes
 - **Does not authorize (firewall):** AuthZ/tenancy changes of any kind; soft-delete semantic changes; public buckets; browser-direct reads/writes (bare presigned URLs); raising the 5 MiB cap; Whisper / cloud LLM / audio digitizer changes; unattended ML auto-marks; Q9 realtime; pitch; YouTube; MusicXML / Guitar Pro; Event/RSVP mail; dropping the `ResourceBlobs` table before verified backfill
 
 ### Context
@@ -136,19 +137,19 @@ File Resources (T-3.2.06) store bytes in Postgres (`ResourceBlobs`) behind the `
 5. **Migration (dual-read + lazy backfill, proposed):** dual-read R2-first with Postgres fallback; lazy backfill of `ResourceBlobs` rows into R2 on read; `Resource` rows/metadata stay in Postgres always. Drop the `ResourceBlobs` table only in a **later migration after verified backfill** — never in the thin cutover.
 6. **Cap unchanged:** 5 MiB upload cap UNCHANGED unless a later ADR says otherwise.
 7. **Spanish UI:** no user-visible copy change expected in thin (ops-only); any error copy stays Spanish.
-8. **Tickets (gated on ACCEPTANCE + R2 credentials provided):** T-R2-00 (this proposal docs); T-R2-01–03 implementation — see [`PHASE-R2-SPEC.md`](PHASE-R2-SPEC.md). No implementation branch authorized until Kevin ACCEPTS and resolves R2-Q1–Q7.
+8. **Tickets:** T-R2-00 (this proposal docs); T-R2-01–03 implementation — see [`PHASE-R2-SPEC.md`](PHASE-R2-SPEC.md). ACCEPTED 2026-09-21 (HUMAN-DELEGATED, R2-Q1–Q7 resolved above).
 
-### Open questions (blocking — Kevin decides, auditors do NOT commit unilaterally)
+### Open questions (resolved 2026-09-21, HUMAN-DELEGATED — auditor decisions; kept for reference)
 
-| ID | Question |
-| -- | -------- |
-| **R2-Q1** | Account ownership + Admin token holder: whose Cloudflare account owns the R2 account, who holds the Admin token? |
-| **R2-Q2** | Bucket name + jurisdiction: canonical bucket name(s) per environment + jurisdiction/data-location choice. |
-| **R2-Q3** | Scoped read/write token + per-env secret storage: least-privilege token scope, rotation story, where secrets live per environment (local / Render env). Never in git. |
-| **R2-Q4** | Proxy-only confirm: confirm server-proxy-only (no browser-direct PUT → no CORS needed), no public buckets / bare presigned reads. |
-| **R2-Q5** | Orphan-blob lifecycle vs ADR-0023: ADR-0023 leaves Resource rows/blobs in place on Arrangement soft-delete — confirm the same rule applies to R2 objects (purge stays FUTURE) or define the R2 variant. |
-| **R2-Q6** | Cost ceiling / overage acceptance: who accepts overage beyond the free tier, alerting/ceiling story. |
-| **R2-Q7** | Card-on-file at R2 checkout (unconfirmed in docs): confirm whether card is required and who provides it. |
+| ID | Question | Answer |
+| -- | -------- | ------ |
+| **R2-Q1** | Account ownership + Admin token holder: whose Cloudflare account owns the R2 account, who holds the Admin token? | **Kevin's Cloudflare account.** The app never holds an Admin token — it uses only the scoped bucket token below (R2-Q3). The Admin token stays with Kevin and never enters app config. |
+| **R2-Q2** | Bucket name + jurisdiction: canonical bucket name(s) per environment + jurisdiction/data-location choice. | **Bucket `sonivo-blobs`** (all environments unless a later ADR says otherwise); **jurisdiction automatic** (no pinned data location in thin). |
+| **R2-Q3** | Scoped read/write token + per-env secret storage: least-privilege token scope, rotation story, where secrets live per environment (local / Render env). Never in git. | **Object Read & Write scoped to `sonivo-blobs` ONLY.** Local: this machine's user environment (`R2__AccountId` / `R2__AccessKey` / `R2__Secret` / `R2__BucketName`). Render env provisioning is Kevin's ops step (later, not this slice). Never in git. Rotation: revoke + reissue in Cloudflare dashboard (no code change). |
+| **R2-Q4** | Proxy-only confirm: confirm server-proxy-only (no browser-direct PUT → no CORS needed), no public buckets / bare presigned reads. | **Confirmed proxy-only.** Server proxy through AuthZ'd `GET .../content` stays; **no public buckets, no bare presigned reads, no browser-direct PUT, no CORS surface.** |
+| **R2-Q5** | Orphan-blob lifecycle vs ADR-0023: ADR-0023 leaves Resource rows/blobs in place on Arrangement soft-delete — confirm the same rule applies to R2 objects (purge stays FUTURE) or define the R2 variant. | **Orphans stay — same rule as Postgres.** No R2 lifecycle rule in thin; purge stays FUTURE behind its own ADR. |
+| **R2-Q6** | Cost ceiling / overage acceptance: who accepts overage beyond the free tier, alerting/ceiling story. | **Free-tier-only scope.** No quota enforcement in code (documented, not silent) — the only coded guard remains the unchanged 5 MiB cap. Monitoring/overage acceptance is Kevin's ops concern. |
+| **R2-Q7** | Card-on-file at R2 checkout (unconfirmed in docs): confirm whether card is required and who provides it. | **No card action in this slice.** Provisioning (whatever Cloudflare checkout requires) is Kevin's ops step alongside Render env (R2-Q3); the thin code assumes only the four `R2__*` values. |
 
 ### Consequences (if ACCEPTED as proposed)
 

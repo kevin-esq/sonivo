@@ -17,6 +17,8 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="9.0.9" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.9" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+    <!-- ADR-0035 ACCEPTED: S3-compatible R2 backend (pinned v3 per the documented R2 dotnet example). -->
+    <PackageReference Include="AWSSDK.S3" Version="3.7.511.8" />
     <!-- ADR-0032: local whisper.cpp transcription (managed + official native runtime companion, pinned in lockstep). -->
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
