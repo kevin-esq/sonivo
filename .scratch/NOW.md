@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (Wave D T-R2-01-03 R2 backend + dual-read + live verification)
+Implementation: COMPLETE (program ChordPro+IA Waves A–F + R2 prod-live)
 Human approval: DELEGATED (Kevin: auditor decides + merges when correct + blanket improvement mandate, 2026-09-21)
-Git checkpoint: COMMITTED + MERGED to develop (PR #92, 0d89c46; branch deleted)
-Remote: PUSHED + MERGED
-CI: PASSING (Backend + Frontend + Playwright E2E green, run 35563722408)
+Git checkpoint: IN PROGRESS (docs-hygiene branch; PR after CI)
+Remote: NOT PUSHED
+CI: NOT RUN
 ```
 
 ## Authorized program

@@ -1,6 +1,6 @@
 # Phase Practice ChordPro follow-along (ADR-0031)
 
-**Status:** Docs (T-SYNC-00) **IN PROGRESS** → COMPLETE when this PR merges. Implementation T-SYNC-01–03 **AUTHORIZED**, not started. ADR-0031 **ACCEPTED**.  
+**Status:** **COMPLETE** — T-SYNC-00 merged (PR #80); T-SYNC-01 merged (PR #81); T-SYNC-02–03 merged (PR #82, TC-PLAY-SYNC-01 green). ADR-0031 **ACCEPTED**.
 **Product bet:** While Practice audio plays, ChordPro highlights the current line from Owner-authored time marks — without Whisper, cloud LLM, or Q9 realtime.  
 **Date:** 2026-09-18  
 **Depends on:** ADR-0031, 0027, 0028, 0029, 0030; [`PHASE-PLAYER-SPEC.md`](PHASE-PLAYER-SPEC.md).

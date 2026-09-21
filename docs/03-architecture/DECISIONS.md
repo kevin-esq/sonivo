@@ -125,7 +125,7 @@ Azure SignalR / hosted realtime · audio streaming · beat-clock · chat · mult
 
 File Resources (T-3.2.06) store bytes in Postgres (`ResourceBlobs`) behind the `IBlobStore` abstraction, capped at 5 MiB, served through the AuthZ'd `GET .../content` proxy. Postgres blobs are operationally sufficient today but couple binary growth to the primary database. A thin **alternate backend** on Cloudflare R2 (S3-compatible) would let deployments offload bytes without changing the Resource model, AuthZ, or read path.
 
-### Proposal (PROPOSED — R2-Q1–Q7 open, Kevin decides)
+### Decision (ACCEPTED 2026-09-21 — R2-Q1–Q7 resolved in Open questions below, kept for reference)
 
 1. **Backend thin:** new `R2BlobStore : IBlobStore` in Infrastructure, registered **conditionally** (R2 configured → R2, else Postgres default). No change to the `IBlobStore` contract or the `GET .../content` route shape.
 2. **Verified facts informing the proposal (vendor docs, `developers.cloudflare.com/r2/pricing` + documented R2 dotnet example — re-verify at implementation time):**
@@ -203,7 +203,7 @@ Auto-save · cloud LLM · server-side mapping · Q9 · pitch · YouTube · S3 ·
 
 ADR-0030 shipped P1 (Owner pastes plain lyrics + chord list → deterministic placer → ChordPro + syllable-nudge studio) and P2 (Owner brief → template/rule-generated structured ChordPro) as **deterministic** tooling with no vendor secrets. Groups now hit the ceiling of rules: P1 misplaces chords on irregular meter, P2 templates repeat themselves. A thin **cloud-LLM upgrade** would offer Owner-invoked “Mejorar con IA” / “Generar con IA” actions that send the Owner’s own draft input to a hosted LLM and return a **draft** the Owner reviews and explicitly saves — reusing the existing Arrangement PATCH (`expectedVersion` / 409 per ADR-0025) with the deterministic engines kept as the offline fallback.
 
-### Proposal (PROPOSED — L33-Q1–Q6 open, Kevin decides)
+### Proposal (as proposed — DECLINED under Option C; see Resolution; L33-Q1–Q6 retained as the reusable question set)
 
 1. **Scope thin:** P1 upgrade = lyrics + chord list → LLM-proposed ChordPro placement (replaces only the placer output, still editable in the existing nudge studio). P2 upgrade = brief → LLM-proposed structured ChordPro with `{start_of_verse}` / `{start_of_chorus}` (still editable; “variar progresión” / “reescribir sección” may call the LLM again). P0 transpose/views unchanged (deterministic, no LLM).
 2. **Draft-only:** LLM output is a **draft** until an Owner explicitly saves via the existing PATCH `chords` path. No auto-save, no background generation, no unattended marks.

@@ -29,3 +29,12 @@ services:
         sync: false
       - key: Authentication__Google__ClientSecret
         sync: false
+      # Cloudflare R2 blob backend (ADR-0035) — scoped bucket token, per-env
+      - key: R2__AccountId
+        sync: false
+      - key: R2__AccessKey
+        sync: false
+      - key: R2__Secret
+        sync: false
+      - key: R2__BucketName
+        sync: false
