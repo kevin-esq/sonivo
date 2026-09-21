@@ -26,12 +26,13 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Wave A T-W32-01–03 | Whisper digitizer thin: transcribe job + Owner review UX + TC-WSP-01 | MERGED (`a5f2272` / PR #84, CI green 26/26) |
 | Wave B T-LLM-00 | Docs: ADR-0033 PROPOSED + PHASE-LLM-SPEC.md skeleton (docs only) | MERGED (`98e015a` / PR #85) → CLOSED Option C, ADR-0033 SUPERSEDED (PR #86) |
 | Wave C T-W34-01 | ADR-0034 ACCEPTED (review-gated suggest) + util + button + TC-WSP-02 | MERGED (`a4ede4a` / PR #86, CI green 27/27) — Wave C CLOSED |
-| Wave D T-R2-00 | Docs: ADR-0035 PROPOSED (R2 blob backend thin) + PHASE-R2-SPEC.md skeleton (docs only) | IN PROGRESS (this branch, docs only) — PENDING, NOT merged |
+| Wave D T-R2-00 | Docs: ADR-0035 PROPOSED (R2 blob backend thin) + PHASE-R2-SPEC.md skeleton (docs only) | MERGED docs (PR #87); ACCEPTED 2026-09-21 HUMAN-DELEGATED (auditor-resolved R2-Q1–Q7), spec frozen |
+| Wave D T-R2-01–03 | ADR-0035 impl: R2BlobStore + dual-read/backfill + tests | ACTIVE on `feature/t-r2-blobstore` |
 | Wave E T-Q9-00 | Docs: ADR-0036 PROPOSED (Q9 realtime thin) + PHASE-Q9-SPEC.md skeleton (docs only) | PLANNED |
 | Wave F T-FX-00 | Docs: ADR-0037 PROPOSED (Practice extras scope) + PHASE-EXTRAS-SPEC.md skeleton (docs only) | PLANNED |
 | Wave E T-Q9-01–03 | ADR-0036 ACCEPTED + SignalR conductor room + presence + TC-Q9-01 | MERGED (PR #90, CI green incl. E2E two-context follow) |
 | Wave F T-FX-01–02 | ADR-0037 ACCEPTED (tuner IN, YT conditional IN, scoring OUT) + Afinador + nocookie embed + TC-PITCH-01/TC-YT-01 | MERGED (PR #91, CI green) — scoring OUT, no work |
-| Wave D T-R2-01–03 | ADR-0035 PROPOSED + PHASE-R2-SPEC.md | MERGED docs (PR #87); impl BLOCKED on Kevin: bucket sonivo-blobs + token + R2-Q answers |
+| Wave D T-R2-01–03 | ADR-0035 impl: R2BlobStore + dual-read/backfill + tests | ACTIVE on `feature/t-r2-blobstore` (Q-facts delivered 2026-09-21: bucket `sonivo-blobs`, auto jurisdiction, scoped token, user-env config, free-tier-only, orphans stay, proxy-only, 5MiB unchanged, ResourceBlobs retained) |
 
 ## Deferred until their ADR
 
