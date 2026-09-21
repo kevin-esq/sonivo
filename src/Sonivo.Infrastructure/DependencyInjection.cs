@@ -74,7 +74,10 @@ public static class DependencyInjection
         {
             services.AddSingleton<IAmazonS3>(sp =>
                 R2BlobStore.CreateClient(sp.GetRequiredService<IOptions<R2Options>>().Value));
-            services.AddSingleton<IBlobStore, R2BlobStore>();
+            // T-R2-02: R2-first dual-read + lazy backfill; Postgres ResourceBlobs kept as fallback.
+            services.AddSingleton<R2BlobStore>();
+            services.AddScoped<PostgresBlobStore>();
+            services.AddScoped<IBlobStore, DualReadBlobStore>();
         }
         else
         {
