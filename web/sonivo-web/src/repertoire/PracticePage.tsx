@@ -18,6 +18,9 @@ import {
   parseChordTimingJson,
 } from './chordTiming'
 import { ConductorPanel } from './ConductorPanel'
+import { ReferenceEmbed } from './ReferenceEmbed'
+import { TunerPanel } from './TunerPanel'
+import { isYouTubeReference } from './youtubeRef'
 import {
   readConductorFollow,
   writeConductorFollow,
@@ -291,6 +294,16 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       : null
   const hideChords = viewMode === 'singer'
   const timingMarks = parseChordTimingJson(liveArrangement.chordTimingJson)
+  // ADR-0037 T-FX-02: reference links; YouTube ones embed via nocookie iframe.
+  const referenceResources = liveArrangement.resources.filter(
+    (r) => r.purpose === 'reference' && r.kind === 'link',
+  )
+  // ADR-0037 / ADR-0031: cross-origin YouTube iframes expose no timeupdate,
+  // so follow-along stays file-audio-only. When Practice has timing marks but
+  // no file audio and only a YouTube reference to play from, the toggle is
+  // disabled with an explanation instead of promising sync it cannot keep.
+  const youTubeOnlyPractice =
+    tracks.length === 0 && referenceResources.some((r) => isYouTubeReference(r))
   // Conductor follow drives the same highlight path: when the Member follows
   // the director, the broadcast position moves playhead + highlight even when
   // the local "Seguir letra" toggle is off. Without audio tracks the
@@ -456,6 +469,24 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         />
       ) : null}
 
+      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="practice-tuner-heading">
+        <h2 id="practice-tuner-heading" className="text-base font-semibold tracking-tight text-neutral-dark">
+          Afinador
+        </h2>
+        <TunerPanel />
+      </section>
+
+      {referenceResources.length > 0 ? (
+        <section className="space-y-4" aria-labelledby="practice-reference-heading">
+          <h2 id="practice-reference-heading" className="text-lg font-semibold tracking-tight text-neutral-dark">
+            Referencia
+          </h2>
+          {referenceResources.map((resource) => (
+            <ReferenceEmbed key={resource.id} resource={resource} />
+          ))}
+        </section>
+      ) : null}
+
       {canTranspose ? (
         <section
           className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
@@ -519,15 +550,37 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               Vista Guitarrista
             </Button>
             {timingMarks.length > 0 ? (
-              <Button
-                variant={followAlong ? 'primary' : 'secondary'}
-                size="sm"
-                data-testid="practice-follow-along"
-                aria-pressed={followAlong}
-                onClick={() => setFollowAlongPersist(!followAlong)}
-              >
-                Seguir letra
-              </Button>
+              youTubeOnlyPractice ? (
+                <div className="space-y-1">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    data-testid="practice-follow-along"
+                    aria-disabled="true"
+                    aria-pressed={false}
+                    disabled
+                  >
+                    Seguir letra
+                  </Button>
+                  <p
+                    className="text-xs text-slate-500"
+                    data-testid="practice-follow-along-youtube-note"
+                  >
+                    «Seguir letra» solo funciona con audio subido a Sonivo. Los videos de
+                    YouTube no permiten sincronizar la letra.
+                  </p>
+                </div>
+              ) : (
+                <Button
+                  variant={followAlong ? 'primary' : 'secondary'}
+                  size="sm"
+                  data-testid="practice-follow-along"
+                  aria-pressed={followAlong}
+                  onClick={() => setFollowAlongPersist(!followAlong)}
+                >
+                  Seguir letra
+                </Button>
+              )
             ) : null}
           </div>
           {isOwner && liveArrangement.chords?.trim() ? (
