@@ -100,9 +100,10 @@ builder.Services.AddSignalR();
 var app = builder.Build();
 
 // ADR-0035: log which blob backend is active at startup (backend name only — never values).
+// T-R2-04: R2 when configured, else the filesystem fallback (local dev, CI).
 app.Logger.LogInformation(
     "Blob storage backend: {Backend}",
-    R2Options.IsConfigured(app.Configuration) ? "R2" : "Postgres");
+    R2Options.IsConfigured(app.Configuration) ? "R2" : "FileSystem");
 
 if (!app.Environment.IsDevelopment())
 {
