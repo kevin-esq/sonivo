@@ -195,4 +195,116 @@ test.describe('Practice / karaoke thin', () => {
     await expect(page.getByTestId('practice-lyrics')).toContainText(lyricsB)
     await expect(page.getByTestId('practice-queue-next')).toHaveAttribute('aria-disabled', 'true')
   })
+
+  test('TC-PLAY-SYNC-01 owner sets timing marks and Practice highlights current line (Seguir letra)', async ({ page }) => {
+    const stamp = Date.now()
+    const email = uniqueEmail('play-sync')
+    const groupName = `Sync Band ${stamp}`
+    const songTitle = `Sync Song ${stamp}`
+    const arrangementLabel = `Sync Arr ${stamp}`
+    const lyricsLine1 = `Primera línea del verso ${stamp}`
+    const lyricsLine2 = `Segunda línea del verso ${stamp}`
+    const lyricsLine3 = `Tercera línea del verso ${stamp}`
+    const allLyrics = `${lyricsLine1}\n${lyricsLine2}\n${lyricsLine3}`
+    // ChordPro body so Practice renders ChordProView (with highlight) + canTranspose toggle section
+    const chordProBody = `[Am]${lyricsLine1}\n[G]${lyricsLine2}\n[C]${lyricsLine3}`
+
+    // Timing marks within the 3-second practice audio duration
+    const mark1Ms = 500
+    const mark2Ms = 1500
+    const mark3Ms = 2500
+
+    await register(page, email)
+    await createGroup(page, groupName)
+    await openLibrary(page)
+    await createSong(page, songTitle)
+    await openSong(page, songTitle)
+    await createArrangement(page, arrangementLabel, { lyrics: allLyrics, chords: chordProBody })
+    await createFileResource(page, {
+      label: `Audio Sync ${stamp}`,
+      filePath: path.join(fixturesDir, 'practice-a.wav'),
+      purpose: 'audio',
+    })
+
+    // Go to Arrangement detail and open edit form
+    // createArrangement already navigates to detail page
+    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
+    await page.getByRole('button', { name: 'Editar arreglo' }).click()
+    await expect(page.getByRole('heading', { name: 'Editar arreglo' })).toBeVisible()
+
+    // Wait for ChordTimingEditor to be visible (chords must be populated)
+    await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
+
+    // Verify chords field has content (3 lines)
+    await expect(page.getByTestId('arrangement-chords')).toHaveValue(chordProBody)
+
+    // Set timing marks for each line (in milliseconds) — within 3s audio duration
+    await page.getByTestId('timing-line-0-ms').fill(String(mark1Ms))
+    await page.getByTestId('timing-line-1-ms').fill(String(mark2Ms))
+    await page.getByTestId('timing-line-2-ms').fill(String(mark3Ms))
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible({ timeout: 10000 })
+
+    // Re-open edit form to verify timing marks were saved
+    await page.getByRole('button', { name: 'Editar arreglo' }).click()
+    await expect(page.getByRole('heading', { name: 'Editar arreglo' })).toBeVisible()
+    await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByTestId('timing-line-0-ms')).toHaveValue(String(mark1Ms))
+    await expect(page.getByTestId('timing-line-1-ms')).toHaveValue(String(mark2Ms))
+    await expect(page.getByTestId('timing-line-2-ms')).toHaveValue(String(mark3Ms))
+
+    // Close edit form and open Practice page
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
+
+    // Open Practice page
+    await page.getByRole('link', { name: 'Practicar' }).click()
+    await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
+
+    // Wait for arrangement data to load (ChordPro body renders ChordProView)
+    await expect(page.getByTestId('practice-chordpro')).toBeVisible({ timeout: 15_000 })
+
+    // Verify "Seguir letra" toggle appears
+    const followToggle = page.getByTestId('practice-follow-along')
+    await expect(followToggle).toBeVisible()
+
+    // Enable "Seguir letra"
+    await followToggle.click()
+    await expect(followToggle).toHaveAttribute('aria-pressed', 'true')
+
+    // Start playback
+    const playPause = page.getByTestId('practice-play-pause')
+    await playPause.click()
+    await expect(playPause).toHaveAttribute('aria-label', 'Pausar')
+
+    // Live follow-along: first highlight (line 0 at ~500ms) proves timeupdate wiring
+    const chordPro = page.getByTestId('practice-chordpro')
+    await expect
+      .poll(async () => chordPro.locator('[data-active-line="true"]').count(), { timeout: 15_000 })
+      .toBe(1)
+    await expect(chordPro.locator('[data-line-index="0"][data-active-line="true"]')).toContainText('Primera línea')
+
+    // Pause for deterministic seeks (headless audio advancement is not real-time reliable)
+    await playPause.click()
+    await expect(playPause).toHaveAttribute('aria-label', 'Reproducir')
+
+    const seek = page.getByTestId('practice-seek')
+    async function seekTo(seconds: string) {
+      await seek.evaluate((el, value) => {
+        const input = el as HTMLInputElement
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+        setter?.call(input, value)
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      }, seconds)
+    }
+
+    // Seek to 1.6s → line 1 (mark at 1500ms) highlights
+    await seekTo('1.6')
+    await expect(chordPro.locator('[data-line-index="1"][data-active-line="true"]')).toContainText('Segunda línea')
+
+    // Seek to 2.6s → line 2 (mark at 2500ms) highlights
+    await seekTo('2.6')
+    await expect(chordPro.locator('[data-line-index="2"][data-active-line="true"]')).toContainText('Tercera línea')
+  })
 })

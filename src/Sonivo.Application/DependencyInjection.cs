@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Sonivo.Application.Abstractions;
+using Sonivo.Application.Realtime;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
@@ -38,6 +40,10 @@ public static class DependencyInjection
         services.AddScoped<ListResourcesHandler>();
         services.AddScoped<GetResourceHandler>();
         services.AddScoped<GetResourceContentHandler>();
+        services.AddScoped<StartDigitizeJobHandler>();
+        services.AddScoped<GetDigitizeJobHandler>();
+        services.AddScoped<DigitizeJobRunner>();
+        services.AddSingleton<IDigitizeJobStore, InMemoryDigitizeJobStore>();
         services.AddScoped<UpdateLinkResourceHandler>();
         services.AddScoped<DeleteResourceHandler>();
         services.AddScoped<CreateSetlistHandler>();
@@ -53,6 +59,8 @@ public static class DependencyInjection
         services.AddScoped<ReplaceEventPlanFromSetlistHandler>();
         services.AddScoped<UpsertEventRsvpHandler>();
         services.AddScoped<ListEventRsvpsHandler>();
+        services.AddSingleton<PracticeRoomState>();
+        services.AddScoped<ConductorRoomAuthorizer>();
         return services;
     }
 }

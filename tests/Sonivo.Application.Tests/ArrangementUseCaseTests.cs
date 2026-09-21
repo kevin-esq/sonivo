@@ -114,7 +114,7 @@ public class ArrangementUseCaseTests
                 new GroupAccessService(ctx.Groups), ctx.Arrangements, new FixedClock(Now.AddMinutes(1)))
             .HandleAsync(
                 new UpdateArrangementCommand(
-                    ctx.Owner, ctx.GroupId, created.Id, "Studio", "A", 95, null, null, null, null, 1),
+                    ctx.Owner, ctx.GroupId, created.Id, "Studio", "A", 95, null, null, null, null, null, 1),
                 CancellationToken.None);
 
         Assert.Equal("Studio", updated.Label);
@@ -137,7 +137,7 @@ public class ArrangementUseCaseTests
             new UpdateArrangementHandler(new GroupAccessService(ctx.Groups), ctx.Arrangements, new FixedClock(Now))
                 .HandleAsync(
                     new UpdateArrangementCommand(
-                        ctx.Member, ctx.GroupId, created.Id, "Hacked", null, null, null, null, null, null, 1),
+                        ctx.Member, ctx.GroupId, created.Id, "Hacked", null, null, null, null, null, null, null, 1),
                     CancellationToken.None));
 
         await Assert.ThrowsAsync<ForbiddenException>(() =>
@@ -162,7 +162,7 @@ public class ArrangementUseCaseTests
             new UpdateArrangementHandler(new GroupAccessService(ctx.Groups), ctx.Arrangements, new FixedClock(Now))
                 .HandleAsync(
                     new UpdateArrangementCommand(
-                        ctx.Owner, ctx.GroupId, created.Id, "Nope", null, null, null, null, null, null, 99),
+                        ctx.Owner, ctx.GroupId, created.Id, "Nope", null, null, null, null, null, null, null, 99),
                     CancellationToken.None));
 
         await Assert.ThrowsAsync<ConflictException>(() =>
@@ -210,6 +210,115 @@ public class ArrangementUseCaseTests
                 .HandleAsync(ctx.Owner, ctx.GroupId, created.Id, CancellationToken.None));
 
         Assert.Contains(ctx.Arrangements.Resources, r => r.Id == resource.Id);
+    }
+
+    [Fact]
+    public async Task Owner_can_set_clear_and_read_chord_timing_json()
+    {
+        var ctx = await SeedOwnerMemberWithSongAsync();
+        var created = await new CreateArrangementHandler(
+                new GroupAccessService(ctx.Groups), ctx.Songs, ctx.Arrangements, new FixedClock(Now))
+            .HandleAsync(
+                new CreateArrangementCommand(
+                    ctx.Owner, ctx.GroupId, ctx.SongId, "Live", null, null, null, null, null, null),
+                CancellationToken.None);
+
+        var marks = """[{"lineIndex":1,"atMs":2500},{"lineIndex":0,"atMs":1000}]""";
+        var updated = await new UpdateArrangementHandler(
+                new GroupAccessService(ctx.Groups), ctx.Arrangements, new FixedClock(Now.AddMinutes(1)))
+            .HandleAsync(
+                new UpdateArrangementCommand(
+                    ctx.Owner, ctx.GroupId, created.Id, null, null, null, null, null, null, null, marks, 1),
+                CancellationToken.None);
+
+        Assert.Equal(2, updated.Version);
+        // Normalized ascending by atMs
+        Assert.Equal("""[{"lineIndex":0,"atMs":1000},{"lineIndex":1,"atMs":2500}]""", updated.ChordTimingJson);
+
+        var memberRead = await new GetArrangementHandler(new GroupAccessService(ctx.Groups), ctx.Arrangements)
+            .HandleAsync(ctx.Member, ctx.GroupId, created.Id, CancellationToken.None);
+        Assert.Equal(updated.ChordTimingJson, memberRead.ChordTimingJson);
+
+        var cleared = await new UpdateArrangementHandler(
+                new GroupAccessService(ctx.Groups), ctx.Arrangements, new FixedClock(Now.AddMinutes(2)))
+            .HandleAsync(
+                new UpdateArrangementCommand(
+                    ctx.Owner, ctx.GroupId, created.Id, null, null, null, null, null, null, null, "[]", 2),
+                CancellationToken.None);
+        Assert.Null(cleared.ChordTimingJson);
+        Assert.Equal(3, cleared.Version);
+    }
+
+    [Fact]
+    public async Task Malformed_chord_timing_json_throws_validation()
+    {
+        var ctx = await SeedOwnerWithSongAsync();
+        var created = await new CreateArrangementHandler(
+                new GroupAccessService(ctx.Groups), ctx.Songs, ctx.Arrangements, new FixedClock(Now))
+            .HandleAsync(
+                new CreateArrangementCommand(
+                    ctx.Owner, ctx.GroupId, ctx.SongId, "Live", null, null, null, null, null, null),
+                CancellationToken.None);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            new UpdateArrangementHandler(new GroupAccessService(ctx.Groups), ctx.Arrangements, new FixedClock(Now))
+                .HandleAsync(
+                    new UpdateArrangementCommand(
+                        ctx.Owner, ctx.GroupId, created.Id, null, null, null, null, null, null, null,
+                        """{"lineIndex":0}""",
+                        1),
+                    CancellationToken.None));
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            new UpdateArrangementHandler(new GroupAccessService(ctx.Groups), ctx.Arrangements, new FixedClock(Now))
+                .HandleAsync(
+                    new UpdateArrangementCommand(
+                        ctx.Owner, ctx.GroupId, created.Id, null, null, null, null, null, null, null,
+                        """[{"lineIndex":-1,"atMs":0}]""",
+                        1),
+                    CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Member_cannot_patch_chord_timing_json()
+    {
+        var ctx = await SeedOwnerMemberWithSongAsync();
+        var created = await new CreateArrangementHandler(
+                new GroupAccessService(ctx.Groups), ctx.Songs, ctx.Arrangements, new FixedClock(Now))
+            .HandleAsync(
+                new CreateArrangementCommand(
+                    ctx.Owner, ctx.GroupId, ctx.SongId, "Live", null, null, null, null, null, null),
+                CancellationToken.None);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            new UpdateArrangementHandler(new GroupAccessService(ctx.Groups), ctx.Arrangements, new FixedClock(Now))
+                .HandleAsync(
+                    new UpdateArrangementCommand(
+                        ctx.Member, ctx.GroupId, created.Id, null, null, null, null, null, null, null,
+                        """[{"lineIndex":0,"atMs":0}]""",
+                        1),
+                    CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Stale_chord_timing_patch_throws_conflict()
+    {
+        var ctx = await SeedOwnerWithSongAsync();
+        var created = await new CreateArrangementHandler(
+                new GroupAccessService(ctx.Groups), ctx.Songs, ctx.Arrangements, new FixedClock(Now))
+            .HandleAsync(
+                new CreateArrangementCommand(
+                    ctx.Owner, ctx.GroupId, ctx.SongId, "Live", null, null, null, null, null, null),
+                CancellationToken.None);
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            new UpdateArrangementHandler(new GroupAccessService(ctx.Groups), ctx.Arrangements, new FixedClock(Now))
+                .HandleAsync(
+                    new UpdateArrangementCommand(
+                        ctx.Owner, ctx.GroupId, created.Id, null, null, null, null, null, null, null,
+                        """[{"lineIndex":0,"atMs":500}]""",
+                        99),
+                    CancellationToken.None));
     }
 
     [Fact]

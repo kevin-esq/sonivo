@@ -29,7 +29,16 @@ import {
   groupResourcesByPurpose,
 } from './chrome'
 import { ChordProView } from './ChordProView'
+import { ChordTimingEditor } from './ChordTimingEditor'
+import { AudioDigitizer } from './AudioDigitizer'
 import { looksLikeChordPro } from './chordPro'
+import {
+  parseChordTimingJson,
+  serializeChordTimingJson,
+  splitChordProLines,
+  type ChordTimingMark,
+} from './chordTiming'
+import { listPracticeAudioTracks } from './pickPracticeAudio'
 import {
   digitizeToChordPro,
   listChordCursors,
@@ -298,6 +307,15 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
             </div>
           )}
 
+          {isOwner ? (
+            <AudioDigitizer
+              key={arrangement.id}
+              groupId={group.id}
+              arrangement={arrangement}
+              onChanged={reloadArrangement}
+            />
+          ) : null}
+
           {isOwner && creatingResource ? (
             <ResourceCreateForm
               groupId={group.id}
@@ -513,6 +531,9 @@ function ArrangementEditForm({
   const [chords, setChords] = useState(arrangement.chords ?? '')
   const [structure, setStructure] = useState(arrangement.structure ?? '')
   const [notes, setNotes] = useState(arrangement.notes ?? '')
+  const [timingMarks, setTimingMarks] = useState<ChordTimingMark[]>(() =>
+    parseChordTimingJson(arrangement.chordTimingJson),
+  )
   const [importError, setImportError] = useState<string | null>(null)
   const [digitizerLyrics, setDigitizerLyrics] = useState('')
   const [digitizerChords, setDigitizerChords] = useState('')
@@ -522,6 +543,25 @@ function ArrangementEditForm({
   const [composeIdea, setComposeIdea] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [maxMs, setMaxMs] = useState<number | undefined>(undefined)
+
+  // Load practice audio tracks to get duration for timing validation
+  useEffect(() => {
+    let cancelled = false
+    const tracks = listPracticeAudioTracks(arrangement.resources, groupId, arrangement.id)
+    if (tracks.length > 0) {
+      const audio = new Audio(tracks[0].src)
+      audio.addEventListener('loadedmetadata', () => {
+        if (!cancelled && Number.isFinite(audio.duration) && audio.duration > 0) {
+          setMaxMs(Math.round(audio.duration * 1000))
+        }
+      })
+      audio.load()
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [arrangement.resources, groupId, arrangement.id])
 
   const digitizerDoc = parseChordProToDigitizer(chords)
   const chordCursors = listChordCursors(digitizerDoc)
@@ -576,6 +616,9 @@ function ArrangementEditForm({
     setPending(true)
     setError(null)
 
+    const lineCount = splitChordProLines(chords).length
+    const clippedMarks = timingMarks.filter((m) => m.lineIndex < lineCount)
+
     const payload: Parameters<typeof updateArrangement>[2] = {
       expectedVersion: arrangement.version,
       label: label.trim(),
@@ -584,6 +627,7 @@ function ArrangementEditForm({
       chords,
       structure,
       notes,
+      chordTimingJson: serializeChordTimingJson(clippedMarks),
     }
 
     if (defaultBpm.trim()) {
@@ -824,6 +868,8 @@ function ArrangementEditForm({
             </Button>
           </div>
         </div>
+
+        <ChordTimingEditor chords={chords} marks={timingMarks} onChange={setTimingMarks} maxMs={maxMs} />
 
         {chords.trim() ? (
           <div className="space-y-2 pt-1">

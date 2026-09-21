@@ -8,6 +8,324 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0037 — Practice extras scope: pitch tuner IN, YouTube reference CONDITIONAL, karaoke scoring OUT
+
+- **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-21** (Kevin: "acepto todo lo que propongas"; auditor resolves FX-Q1–Q3 per the proposal — tuner IN, YouTube CONDITIONAL IN, scoring OUT-confirmed)
+- **Date:** 2026-09-20
+- **Accepted:** 2026-09-21
+- **Depends on:** ADR-0024 (Resource purposes incl. `reference`), ADR-0027, 0028, 0029, 0030, 0031; T-3.2.06 file/link Resources
+- **Revises:** nothing yet — on ACCEPTANCE it would scope three Practice-adjacent extras: (1) authorize a client-only tuner, (2) conditionally authorize a YouTube reference embed, (3) record karaoke scoring as OUT for now
+- **Does not authorize (firewall):** Whisper / cloud STT, cloud LLM, realtime multi-device sync (Q9), S3 blob adapter, raising the 5 MiB blob cap, MusicXML / Guitar Pro, Event/RSVP mail, per-note feedback against a reference melody (no reference melody exists), IFrame API control of YouTube, YouTube search/extraction, server-side pitch detection, audio recording
+
+### Context
+
+Practice is usable (player, ChordPro, follow-along per ADR-0027–0031) but three adjacent asks recur: (1) “am I in tune?” before rehearsing, (2) watching the linked reference performance without leaving Sonivo, (3) karaoke-style scoring of a sung take. Each has a different cost/confusion profile. This ADR scopes all three explicitly so implementation tickets can proceed only on what Kevin confirms.
+
+### Proposal (ACCEPTED 2026-09-21, HUMAN-DELEGATED — FX-Q1–Q3 resolved below)
+
+1. **(1) Pitch tuner — IN (proposed): client-only chromatic tuner.** YIN/autocorrelation pitch detection in the web client (AudioWorklet), mic-gated (only while the tuner is open), Spanish “Afinador” UX. No new dependencies, no server, no recording, no persistence. **Non-goal: per-note feedback** — no reference melody exists in Sonivo, so “you sang verse 2 flat” would mislead; the tuner reports the heard pitch only.
+2. **(2) YouTube reference embed — CONDITIONAL IN (proposed): `youtube-nocookie` iframe for `purpose=reference` links.** No Data API, no keys. Requires CSP `frame-src` + `img-src` additions for the nocookie host/thumbnails. **Explicit constraint: NO follow-along sync on YouTube** — cross-origin iframe exposes no `timeupdate`; sync stays file-audio-only per ADR-0031. **Non-goals:** IFrame API control, search, extraction.
+3. **(3) Karaoke scoring — OUT for now (proposed):** reference-free scores mislead without melody ground truth; game value < confusion risk. May reopen with reference tracks via a future ADR.
+4. **Spanish UI** (“Afinador”, reference “Ver referencia”, tuner mic-gate notice — exact copy at ACCEPTANCE).
+5. **Tickets (gated on ACCEPTANCE + Kevin in/out confirmation):** T-FX-00 (this proposal docs); ticket sketches TC-PITCH-01 (tuner), TC-YT-01 (reference embed), TC-KAR-01 (scoring — name reserved, OUT) — see [`PHASE-EXTRAS-SPEC.md`](PHASE-EXTRAS-SPEC.md). No implementation branch authorized until Kevin ACCEPTS and confirms in/out.
+
+### Resolution (ACCEPTED 2026-09-21, HUMAN-DELEGATED — auditor decisions, zero spend scope)
+
+| ID | Decision |
+| -- | -------- |
+| **FX-Q1** | **Tuner IN**: ship the client-only “Afinador” as proposed (no deps, no server, no recording, no persistence). T-FX-01. |
+| **FX-Q2** | **YouTube embed CONDITIONAL IN**: allow `youtube-nocookie` iframe for `purpose=reference` links + minimal CSP additions (`frame-src https://www.youtube-nocookie.com`, `img-src https://i.ytimg.com`), with the no-sync-on-YouTube constraint. T-FX-02. |
+| **FX-Q3** | **Scoring stays OUT (confirmed)**: karaoke scoring remains OUT for now; reopen only with reference tracks via a future ADR. **Zero implementation work** — TC-KAR-01 name stays reserved. |
+
+### Open questions (resolved — see Resolution above; kept for reference)
+
+| ID | Question | Answer |
+| -- | -------- | ------ |
+| **FX-Q1** | Tuner in/out confirm: ship the client-only “Afinador” as proposed (no deps, no server)? | **IN** (T-FX-01). |
+| **FX-Q2** | YouTube embed in/out confirm: allow `youtube-nocookie` iframe for `purpose=reference` links + CSP additions, with the no-sync-on-YouTube constraint? | **CONDITIONAL IN** (T-FX-02). |
+| **FX-Q3** | Scoring stays OUT: confirm karaoke scoring remains OUT for now (reopen only with reference tracks)? | **OUT confirmed — zero work.** |
+
+### Consequences (if ACCEPTED as proposed)
+
+- Practice gains a mic-gated tuner and an inline reference view without new vendors, keys, server state, or sync promises it cannot keep.
+- Scoring is explicitly OUT, so no score UX, no reference-track modeling, and no “accuracy without ground truth” confusion surface.
+- YouTube never becomes a sync source: ADR-0031 follow-along stays file-audio-only.
+
+### Non-goals
+
+Per-note feedback (no reference melody) · server pitch detection · audio recording · IFrame API control · YouTube search/extraction · follow-along sync on YouTube · karaoke scoring · Whisper · cloud LLM · Q9 · S3 · 5 MiB raise · MusicXML · Event/RSVP mail
+
+---
+
+## ADR-0036 — Q9 realtime thin: self-hosted SignalR conductor (single Event room)
+
+- **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-20** (Kevin: program continues until done; auditor decides technical spend-free scope)
+- **Date:** 2026-09-20
+- **Depends on:** ADR-0009, 0011 (cookie session), ADR-0012 (Owner/Member), ADR-0016, 0018 (Event plan), ADR-0019 (tenancy/AuthZ), ADR-0020 (CSRF), ADR-0027, 0029, 0031 (Practice player + follow-along)
+- **Revises:** ADR-0027 / ADR-0029 / ADR-0031 clauses keeping multi-device sync FUTURE — Owner-conducted position broadcast (this ADR only) is now authorized; all other realtime (audio sync, beat-clock, chat, recording) stays FUTURE
+- **Does not authorize (firewall):** Azure SignalR Service or any hosted realtime vendor (self-hosted only — vendor/cost ban); audio streaming; beat-clock; chat; multi-conductor; recording; backplane/multi-instance scale-out; raising the 5 MiB blob cap; Whisper / cloud LLM; pitch; YouTube; S3; MusicXML; Event/RSVP mail
+
+### Context
+
+Practice (ADR-0027/0029) plays per-device: every musician presses play on their own clock. Follow-along (ADR-0031) highlights the current ChordPro line from Owner-authored marks — still per-device. Groups rehearsing together need a thin **conductor**: one Owner broadcasts “we are here” and Members' Practice views follow. Full realtime (audio sync, beat-clock, chat) is out; a throttled position broadcast over self-hosted SignalR is the smallest useful slice and answers CONTEXT **Q9** (realtime, lean no) for the conductor case only.
+
+### Proposal (ACCEPTED — Q9-Q1–Q5 resolved 2026-09-20, HUMAN-DELEGATED)
+
+1. **Transport thin:** self-hosted ASP.NET Core SignalR Hub (in-process, same deployable per ADR-0003). **NO Azure SignalR Service** — vendor/cost ban. Single-instance assumption: **no backplane, no sticky-session design** in thin (documented limitation, not silent).
+2. **Room model:** single Event room `event-{id}`. Client methods `JoinRoom` / `LeaveRoom`; server pushes a **presence list** (who is in the room).
+3. **Conductor broadcast:** Owner-conductor sends `BroadcastPosition({arrangementId, positionMs, playing})`, **throttled 1 Hz** (Q9-Q1 decided: client sends at most 1 Hz; server enforces a minimum 900 ms gap per connection and silently drops faster messages with a debug log). Members receive and move their Practice playhead/highlight; Members never broadcast. **Conductor: ANY Owner present may broadcast — last-writer-wins** (Q9-Q2 decided: no election, no baton; documented in code + spec).
+4. **Non-goals (explicit):** audio streaming, beat-clock, chat, multi-conductor, recording.
+5. **AuthZ:** Hub requires `[Authorize]` (cookie session); **per-method Membership recheck** — non-member/unknown Event → 404, member non-Owner attempting conduct → 403 (per ADR-0019); conductor role Owner-only (any Owner present, last-writer-wins per Q9-Q2). CSRF: **`X-CSRF-TOKEN` header REQUIRED on `/negotiate` POST** (Q9-Q3 decided: same antiforgery as API unsafe methods — the global POST middleware already enforces it; GET hub/WebSocket traffic needs nothing beyond the cookie).
+6. **Resilience notes:** sleep drops sockets + client auto-reconnect; `Context.User` cached at connect (re-validate Membership per method call, not just at connect); Spanish copy decided (Q9-Q4): follow toggle **“Seguir al director”**, live badge **“En vivo”**, reconnecting **“Reconectando…”**; follow preference persisted per event in `localStorage`. Room caps decided (Q9-Q5): **50 connections max per event-room**; join over cap → clear Spanish error; presence list capped likewise.
+7. **Spanish UI** for join/follow surfaces (“Seguir al director”, “En vivo”, “Reconectando…” — decided Q9-Q4).
+8. **Tickets:** T-Q9-00 (proposal docs); T-Q9-01–03 implementation — see [`PHASE-Q9-SPEC.md`](PHASE-Q9-SPEC.md).
+
+### Resolution (ACCEPTED 2026-09-20, HUMAN-DELEGATED — auditor decisions, zero spend scope)
+
+| ID | Decision |
+| -- | -------- |
+| **Q9-Q1** | **1 Hz**: client sends at most 1 Hz; server enforces minimum 900 ms gap per connection, drops faster messages silently with debug log. |
+| **Q9-Q2** | **Any Owner present may broadcast** (last-writer-wins, documented in code + spec). No election. |
+| **Q9-Q3** | **`X-CSRF-TOKEN` header REQUIRED on `/negotiate` POST** (same antiforgery as API unsafe methods); GET hub traffic needs none beyond cookie. |
+| **Q9-Q4** | Copy: **“Seguir al director”** (follow toggle), **“En vivo”** (live badge), **“Reconectando…”** (reconnecting). Follow preference persisted per event in `localStorage`. |
+| **Q9-Q5** | **50 connections max per event-room**; join over cap → clear Spanish error; presence list capped likewise. |
+
+### Open questions (resolved — see Resolution above; kept for reference)
+
+| ID | Question | Answer |
+| -- | -------- | ------ |
+| **Q9-Q1** | Broadcast rate: 1 Hz vs 2 Hz for `BroadcastPosition` (battery/traffic vs follow smoothness)? | **1 Hz** + 900 ms server gap. |
+| **Q9-Q2** | Conductor definition: any Owner present, or a designated single conductor (first-join / explicit “tomar la batuta”)? | **Any Owner present, last-writer-wins.** |
+| **Q9-Q3** | CSRF on `/negotiate`: exact posture for the cookie-authed negotiate endpoint under ADR-0020. | **`X-CSRF-TOKEN` required on POST.** |
+| **Q9-Q4** | Spanish reconnect copy: exact strings for dropped/reconnecting/live states. | **“Seguir al director” / “En vivo” / “Reconectando…”.** |
+| **Q9-Q5** | Room caps: max members per `event-{id}` room + over-cap behavior. | **50/room; Spanish error on over-cap.** |
+
+### Consequences (if ACCEPTED as proposed)
+
+- Sonivo gains its first websocket surface (one Hub, one room pattern, one broadcast message) — still no audio transport, no vendor realtime dependency.
+- Practice follow stays file-audio-only per device; the conductor message only moves the playhead/highlight, it does not stream or clock audio.
+- Single-instance limitation is documented; scale-out (backplane/sticky) needs its own ADR.
+
+### Non-goals
+
+Azure SignalR / hosted realtime · audio streaming · beat-clock · chat · multi-conductor · recording · backplane/sticky multi-instance · Whisper · cloud LLM · pitch · YouTube · S3 · 5 MiB raise · MusicXML · Event/RSVP mail
+
+---
+
+## ADR-0035 — Cloudflare R2 (S3-compatible) as alternate `IBlobStore` backend (thin)
+
+- **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-21** (Kevin: auditor resolves R2-Q1–Q7 per the proposal within the facts below; no scope beyond the thin cutover)
+- **Date:** 2026-09-20
+- **Accepted:** 2026-09-21
+- **Depends on:** ADR-0010 (S3-compatible storage via abstraction), ADR-0019 (tenancy/AuthZ), ADR-0020 (CSRF), ADR-0023 (soft-delete; blobs left in place), T-3.2.06 (`IBlobStore` + Postgres `ResourceBlobs`, 5 MiB cap)
+- **Revises:** nothing — ACCEPTED 2026-09-21: authorizes an alternate `IBlobStore` backend alongside the Postgres default; no AuthZ/tenancy/soft-delete semantic changes
+- **Does not authorize (firewall):** AuthZ/tenancy changes of any kind; soft-delete semantic changes; public buckets; browser-direct reads/writes (bare presigned URLs); raising the 5 MiB cap; Whisper / cloud LLM / audio digitizer changes; unattended ML auto-marks; Q9 realtime; pitch; YouTube; MusicXML / Guitar Pro; Event/RSVP mail; dropping the `ResourceBlobs` table before verified backfill
+
+### Context
+
+File Resources (T-3.2.06) store bytes in Postgres (`ResourceBlobs`) behind the `IBlobStore` abstraction, capped at 5 MiB, served through the AuthZ'd `GET .../content` proxy. Postgres blobs are operationally sufficient today but couple binary growth to the primary database. A thin **alternate backend** on Cloudflare R2 (S3-compatible) would let deployments offload bytes without changing the Resource model, AuthZ, or read path.
+
+### Proposal (PROPOSED — R2-Q1–Q7 open, Kevin decides)
+
+1. **Backend thin:** new `R2BlobStore : IBlobStore` in Infrastructure, registered **conditionally** (R2 configured → R2, else Postgres default). No change to the `IBlobStore` contract or the `GET .../content` route shape.
+2. **Verified facts informing the proposal (vendor docs, `developers.cloudflare.com/r2/pricing` + documented R2 dotnet example — re-verify at implementation time):**
+   - R2 free tier includes 10 GB-months storage + 1M Class-A + 10M Class-B operations/month + **zero egress fees**.
+   - S3-compatible ops Put/Get/Delete/Head + presigned URLs are supported; gaps (ACLs, tagging, KMS, POST-presigns) are **unused by Sonivo** and stay unused.
+   - `AWSSDK.S3` against R2 needs `DisablePayloadSigning` + `DisableDefaultChecksumValidation`, `ServiceURL https://<ACCOUNT>.r2.cloudflarestorage.com`, region `auto` (per the documented R2 dotnet example).
+3. **Server proxy stays:** KEEP the server proxy through the AuthZ'd `GET .../content` (per-request Membership recheck per ADR-0019). **No public buckets, no bare presigned reads** — bearer-token URL risk. (Browser-direct PUT is likewise OUT — no CORS surface needed; see R2-Q4.)
+4. **Config (never in git):** `R2:AccountId` / `R2:AccessKey` / `R2:Secret` / `R2:BucketName`, per-env (local / Render). Secrets live in environment config only.
+5. **Migration (dual-read + lazy backfill, proposed):** dual-read R2-first with Postgres fallback; lazy backfill of `ResourceBlobs` rows into R2 on read; `Resource` rows/metadata stay in Postgres always. Drop the `ResourceBlobs` table only in a **later migration after verified backfill** — never in the thin cutover.
+6. **Cap unchanged:** 5 MiB upload cap UNCHANGED unless a later ADR says otherwise.
+7. **Spanish UI:** no user-visible copy change expected in thin (ops-only); any error copy stays Spanish.
+8. **Tickets:** T-R2-00 (this proposal docs); T-R2-01–03 implementation — see [`PHASE-R2-SPEC.md`](PHASE-R2-SPEC.md). ACCEPTED 2026-09-21 (HUMAN-DELEGATED, R2-Q1–Q7 resolved above).
+
+### Open questions (resolved 2026-09-21, HUMAN-DELEGATED — auditor decisions; kept for reference)
+
+| ID | Question | Answer |
+| -- | -------- | ------ |
+| **R2-Q1** | Account ownership + Admin token holder: whose Cloudflare account owns the R2 account, who holds the Admin token? | **Kevin's Cloudflare account.** The app never holds an Admin token — it uses only the scoped bucket token below (R2-Q3). The Admin token stays with Kevin and never enters app config. |
+| **R2-Q2** | Bucket name + jurisdiction: canonical bucket name(s) per environment + jurisdiction/data-location choice. | **Bucket `sonivo-blobs`** (all environments unless a later ADR says otherwise); **jurisdiction automatic** (no pinned data location in thin). |
+| **R2-Q3** | Scoped read/write token + per-env secret storage: least-privilege token scope, rotation story, where secrets live per environment (local / Render env). Never in git. | **Object Read & Write scoped to `sonivo-blobs` ONLY.** Local: this machine's user environment (`R2__AccountId` / `R2__AccessKey` / `R2__Secret` / `R2__BucketName`). Render env provisioning is Kevin's ops step (later, not this slice). Never in git. Rotation: revoke + reissue in Cloudflare dashboard (no code change). |
+| **R2-Q4** | Proxy-only confirm: confirm server-proxy-only (no browser-direct PUT → no CORS needed), no public buckets / bare presigned reads. | **Confirmed proxy-only.** Server proxy through AuthZ'd `GET .../content` stays; **no public buckets, no bare presigned reads, no browser-direct PUT, no CORS surface.** |
+| **R2-Q5** | Orphan-blob lifecycle vs ADR-0023: ADR-0023 leaves Resource rows/blobs in place on Arrangement soft-delete — confirm the same rule applies to R2 objects (purge stays FUTURE) or define the R2 variant. | **Orphans stay — same rule as Postgres.** No R2 lifecycle rule in thin; purge stays FUTURE behind its own ADR. |
+| **R2-Q6** | Cost ceiling / overage acceptance: who accepts overage beyond the free tier, alerting/ceiling story. | **Free-tier-only scope.** No quota enforcement in code (documented, not silent) — the only coded guard remains the unchanged 5 MiB cap. Monitoring/overage acceptance is Kevin's ops concern. |
+| **R2-Q7** | Card-on-file at R2 checkout (unconfirmed in docs): confirm whether card is required and who provides it. | **No card action in this slice.** Provisioning (whatever Cloudflare checkout requires) is Kevin's ops step alongside Render env (R2-Q3); the thin code assumes only the four `R2__*` values. |
+
+### Consequences (if ACCEPTED as proposed)
+
+- Deployments with R2 configured store new bytes in R2; Postgres remains the default/fallback and the metadata store.
+- The `GET .../content` AuthZ posture is unchanged (proxy, per-request Membership recheck, 404/403 per ADR-0019).
+- The `ResourceBlobs` table survives until a later verified-backfill migration explicitly drops it.
+
+### Non-goals
+
+AuthZ/tenancy changes · soft-delete semantic changes · public buckets / bare presigned URLs · browser-direct PUT / CORS · 5 MiB raise · Whisper · cloud LLM · unattended ML auto-marks · Q9 · pitch · YouTube · MusicXML · Event/RSVP mail
+
+---
+
+## ADR-0034 — ML timing-mark suggest (review-gated mapping assist)
+
+- **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-20** (Kevin: program continues until done; auditor decides technical spend-free scope)
+- **Date:** 2026-09-20
+- **Depends on:** ADR-0032 (digitizer segments + review UX); ADR-0025 (PATCH/409); ADR-0028 (ChordPro)
+- **Revises:** nothing — T-W32-02 already defaults segment→line identity; this ADR authorizes one smarter client-side suggestion
+- **Does not authorize:** auto-save of any marks (every write still requires Owner Aplicar via PATCH), cloud LLM, Q9, pitch, YouTube, S3, new tables, server changes of any kind
+
+### Context
+
+T-W32-02 pre-fills each transcript segment to its positional line (segment i → line i). Real ChordPro bodies carry directives (`{start_of_verse}`), comments, and blank lines, so identity mapping plants marks on non-lyric lines. Owners then hand-fix every row. A deterministic, review-gated suggester closes the remaining Wave C gap: ML segments exist (Wave A), unattended auto-save stays forbidden (firewall).
+
+### Decision (ACCEPTED)
+
+1. **Pure client function `suggestLineMapping(chordProText, segmentCount)`** (web, `digitize.ts`): collect 0-based indices of lyric-bearing lines — non-blank lines that are not `{directive}` blocks; map segment i to the i-th lyric line; clamp overflow segments to the last lyric line. Zero lyric lines (or null/blank body) → identity clamped to `max(lineCount - 1, 0)`; zero segments → `[]`.
+2. **Review UX:** one “Sugerir mapeo” button (`digitize-suggest`) in the ready phase fills the per-segment line inputs; Owner edits freely, then Aplicar/Añadir/Descartar unchanged. Suggest never writes anything by itself.
+3. **No server changes.** No new deps. Spanish copy. Playwright **TC-WSP-02** (speech fixture: chords with a directive + a blank line; assert suggested `1`/`3`, apply, Practice toggle appears).
+4. **Tickets:** T-W34-01 (this slice: util + button + TC-WSP-02). Branch `feature/t-w34-suggest-marks`.
+
+### Consequences
+
+- Wave C (ML auto-marks) is CLOSED as review-gated suggest; the unattended variant stays FUTURE behind its own ADR.
+- Suggest is deterministic and fully covered by E2E (web has no unit framework — known gap, unchanged).
+
+### Non-goals
+
+Auto-save · cloud LLM · server-side mapping · Q9 · pitch · YouTube · S3 · MusicXML
+
+## ADR-0033 — Cloud LLM upgrade of ChordPro P1 text-digitizer + P2 compose assist (thin)
+
+- **Status:** **SUPERSEDED** — Wave B closed 2026-09-20 under Option C below (HUMAN-DELEGATED: Kevin “la opción que sea más conveniente”; auditor decision with rationale). Deterministic P1/P2 per ADR-0030 remain the standing decision. L33-Q1–Q6 recorded as resolved-moot for reference; a future ADR may reopen with usage evidence.
+- **Date:** 2026-09-20
+- **Depends on:** ADR-0019, 0020, 0025, 0027, 0028, 0030 (P1/P2 deterministic baseline); T-3.2.06 file/link Resources
+- **Revises:** nothing yet — on ACCEPTANCE it would revise ADR-0030 §2–3 clauses that keep P1/P2 deterministic-only (“Not cloud LLM in this thin”) into an opt-in cloud-assisted upgrade; the deterministic engines stay as offline fallback
+- **Does not authorize (firewall):** Whisper / audio-digitizer changes (Wave A done, ADR-0032), unattended ML auto-marks saved without Owner review (Wave C), realtime multi-device sync (Q9), pitch detection, YouTube, S3 blob adapter, raising the 5 MiB blob cap, MusicXML / Guitar Pro, Event/RSVP mail
+
+### Context
+
+ADR-0030 shipped P1 (Owner pastes plain lyrics + chord list → deterministic placer → ChordPro + syllable-nudge studio) and P2 (Owner brief → template/rule-generated structured ChordPro) as **deterministic** tooling with no vendor secrets. Groups now hit the ceiling of rules: P1 misplaces chords on irregular meter, P2 templates repeat themselves. A thin **cloud-LLM upgrade** would offer Owner-invoked “Mejorar con IA” / “Generar con IA” actions that send the Owner’s own draft input to a hosted LLM and return a **draft** the Owner reviews and explicitly saves — reusing the existing Arrangement PATCH (`expectedVersion` / 409 per ADR-0025) with the deterministic engines kept as the offline fallback.
+
+### Proposal (PROPOSED — L33-Q1–Q6 open, Kevin decides)
+
+1. **Scope thin:** P1 upgrade = lyrics + chord list → LLM-proposed ChordPro placement (replaces only the placer output, still editable in the existing nudge studio). P2 upgrade = brief → LLM-proposed structured ChordPro with `{start_of_verse}` / `{start_of_chorus}` (still editable; “variar progresión” / “reescribir sección” may call the LLM again). P0 transpose/views unchanged (deterministic, no LLM).
+2. **Draft-only:** LLM output is a **draft** until an Owner explicitly saves via the existing PATCH `chords` path. No auto-save, no background generation, no unattended marks.
+3. **Fallback:** deterministic P1 placer + P2 templates remain fully functional with no network/vendor configured (offline path). When the vendor is unreachable or unconfigured, the UI falls back to the deterministic output with a clear Spanish notice — exact fallback UX per L33-Q5.
+4. **No new persistence tables** in thin (existing `Arrangement.Chords` text column only). No new blob MIME requirements. Server never stores vendor keys in the DB in this proposal (config model per L33-Q2).
+5. **Roles:** generate actions default Owner-only (same `RequireOwnerAsync` pattern as other Arrangement mutations); Member read-only consumes saved `Chords`. Whether Members may invoke generation is L33-Q6.
+6. **Spanish UI** for generate/review surfaces (“Generar con IA”, “Revisar borrador”, “Aplicar”, “Descartar”); sparse Playwright TCs per thin spec (T-LLM-03).
+7. **Tickets (gated on ACCEPTANCE):** T-LLM-00 (this proposal docs); T-LLM-01–03 implementation — see [`PHASE-LLM-SPEC.md`](PHASE-LLM-SPEC.md). No implementation branch authorized until Kevin ACCEPTS and resolves L33-Q1–Q6.
+
+### Vendor comparison (neutral — FACTS about dimensions, no recommendation stated as fact)
+
+| Dimension | Option A: hosted general LLM API (e.g. OpenAI-compatible chat endpoint) | Option B: hosted general LLM API, alternative vendor (e.g. Anthropic-compatible messages endpoint) | Option C: no vendor (stay deterministic, close Wave B without cloud) |
+| --------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Integration shape | HTTPS chat-completions-style call, server-side only | HTTPS messages-style call, server-side only | No integration |
+| Secrets / config | Vendor API key via server config (model per L33-Q2) | Vendor API key via server config (model per L33-Q2) | None |
+| Cost model | Per-token metered billing; caps needed (L33-Q3) | Per-token metered billing; caps needed (L33-Q3) | Zero marginal cost |
+| Privacy surface | Owner-supplied lyrics/brief leave the server to the vendor (retention per L33-Q4) | Same — content leaves the server to the vendor (retention per L33-Q4) | Content never leaves the server |
+| Offline behavior | Falls back to deterministic engines (L33-Q5) | Falls back to deterministic engines (L33-Q5) | Always available |
+| Output quality (ASSUMPTION, not verified) | Expected better placement/variety than rules | Expected better placement/variety than rules | Capped at rule quality |
+
+*Auditor lean (clearly labeled opinion, NOT a decision): Option A or B are functionally interchangeable for this thin — the binding choice is Kevin’s (L33-Q1). If forced to pick a default for the proposal, the auditor would lean toward whichever vendor Kevin already bills (to avoid a second paid account), with per-group opt-in + hard caps; but this lean authorizes nothing and must not be read as ACCEPTED.*
+
+### Resolution — Wave B closed under Option C (2026-09-20, HUMAN-DELEGATED)
+
+**Decision: Option C — no cloud vendor.** Rationale: (1) zero marginal cost vs metered billing with no billing infra; (2) zero secrets/ops burden (no keys, rotation, caps monitoring); (3) user lyrics never leave the server (no retention policy or consent surface needed); (4) single always-available path (no degraded fallback UX to design); (5) deterministic P1/P2 already deliver the thin value (ADR-0030, shipped + tested); (6) no usage evidence that rules are insufficient — buying vendor capacity now would be premature. **Reversible:** a future ADR may reopen the upgrade with usage evidence; L33-Q1–Q6 stand answered-moot and reusable as the question set.
+
+### Open questions (Kevin decides — auditors do NOT commit unilaterally)
+
+| ID | Question |
+| -- | -------- |
+| **L33-Q1** | Vendor choice: OpenAI vs Anthropic vs other vs Option C (no cloud)? Auditors do not commit Sonivo to a paid vendor unilaterally. |
+| **L33-Q2** | Secrets/config model + per-env provisioning: config key names, where keys live per environment (local / Render), rotation story. Never in git. |
+| **L33-Q3** | Cost caps / rate limits: per-group quotas, max tokens per call, monthly ceiling, behavior when exceeded. |
+| **L33-Q4** | Privacy: lyrics/briefs are user content sent to the vendor — retention policy, data-processing terms, user notice/consent copy. |
+| **L33-Q5** | Fallback behavior when the vendor is unreachable or unconfigured: exact UX + whether generation buttons hide or degrade to deterministic. |
+| **L33-Q6** | Member vs Owner access to generate actions: Owner-only (default) or Members may generate drafts for Owner save? |
+
+### Consequences (if ACCEPTED as proposed)
+
+- P1/P2 gain an opt-in cloud draft path; deterministic engines stay as the offline fallback.
+- Sonivo gains its first paid-vendor dependency and first user-content-egress surface — both bounded by L33-Q1–Q6 answers.
+- Wave C (unattended ML auto-marks) still needs its own ADR; this thin must not be read as authorizing it.
+
+### Non-goals
+
+Whisper changes · unattended ML auto-marks · Q9 realtime/multi-device · pitch · stems/mixer · YouTube · S3 · raising 5 MiB · MusicXML · Guitar Pro · Event/RSVP mail
+
+---
+
+## ADR-0032 — Whisper audio digitizer thin (audio → timing-mark + lyric drafts)
+
+- **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-20** (Kevin: “elige las opciones que queden mejor para el proyecto e implementa”; auditor decided W32-Q1–Q7 below, rationale in PR)
+- **Date:** 2026-09-20
+- **Depends on:** ADR-0019, 0020, 0024, 0025, 0027, 0028, 0029, 0030, 0031; T-3.2.06 file/link Resources
+- **Revises:** ADR-0030 / ADR-0031 clauses keeping audio→ChordPro digitizer FUTURE — a thin Owner-reviewed digitizer is now authorized as specified below (unattended ML auto-marks stay FUTURE, Wave C)
+- **Does not authorize (firewall):** cloud LLM lyric/chord rewriting (Wave B), ML auto-marks saved without Owner review UX (Wave C), realtime multi-device sync (Q9), pitch detection, YouTube, S3 blob adapter, raising the 5 MiB blob cap, MusicXML / Guitar Pro, Event/RSVP mail
+
+### Context
+
+Groups rehearse from audio maquetas stored as Arrangement Resources (ADR-0024; T-3.2.06). Owners today hand-transcribe lyrics into ChordPro (`Arrangement.Chords`, ADR-0028 / ADR-0030) and hand-place Practice follow-along time marks (`Arrangement.ChordTimingJson`, ADR-0031). A thin digitizer turns an **existing audio file Resource** into a **draft** the Owner reviews and explicitly saves — feeding the existing `Lyrics` + `ChordTimingJson` columns with **no new tables** and **no new vendor secrets**.
+
+### Decision (ACCEPTED — W32-Q1–Q7 resolved)
+
+1. **Q1 provider: local whisper.cpp via Whisper.net, default model `tiny`** (config `base`). Zero vendor secrets, zero cost, audio never leaves the server. Limited transcription quality is acceptable because output is an Owner-reviewed draft only. Hosted transcription APIs remain FUTURE (Wave B-adjacent, separate ADR).
+2. **Q2 execution: async job — `202 Accepted` + polling.** Transcription is CPU-bound (tens of seconds); async avoids HTTP/proxy timeouts on Render free tier. Job state lives in an **in-memory store with expiry** (no new table in thin; restarts may drop in-flight jobs — documented, not silent).
+3. **Q3 eligibility: `file`-kind Resources with playable audio MIME** (purposes `audio` / `practice` / `click`, same playability rule as Practice). Link Resources are OUT (server must read bytes; link fetching is SSRF surface; YouTube is firewall). Thin decoder is WAV-only: non-WAV audio is rejected at POST with a clear Spanish error, never a doomed job.
+4. **Q4 output: segments → (a) timing-mark drafts + (b) lyric-text draft. `Chords` NEVER touched by the digitizer** (protects hand-made ChordPro). Each segment `{startMs, endMs, text}` maps in review UX to `{lineIndex, atMs=startMs}` applied via the existing PATCH `chordTimingJson` path (upsert semantics — hand-made marks on other lines are preserved); segment text may be appended to `Lyrics` via explicit Owner action through the existing PATCH `lyrics` path. Smart seeding of `Chords` stays with Wave B.
+5. **Q5 caps: blob ≤5 MiB (unchanged, NOT raised) + audio duration ≤120s + segments ≤500** (far below server `MaxMarks = 2000`); jobs expire after 30 min. Over-cap input fails the job with a clear error, never partial writes.
+6. **Q6 config (no secrets in thin): `Whisper:Model`** (`tiny`\|`base`, default `tiny`), **`Whisper:ModelDirectory`** (model `.bin` location, environment-provisioned), **`Whisper:MaxAudioSeconds`** (default 120). Model weights download lazily on first job — never in git, never in DB. Render ephemeral disk (re-download after sleep/restart) is documented.
+7. **Q7 visibility: drafts are Owner-only.** Transcription endpoints require Owner (same `RequireOwnerAsync` pattern as other Arrangement mutations); job ids are unguessable Guids scoped to `(groupId, arrangementId)` and re-checked per request (ADR-0019: 404 non-member/unknown, 403 member non-Owner). Members consume only saved `Lyrics` / marks.
+8. **Writes use existing PATCH semantics only** (`expectedVersion` / 409 per ADR-0025); CSRF per ADR-0020 (POST is unsafe, GET status is safe). Concurrency mechanism unchanged.
+9. **Spanish UI** for the draft review surface (“Digitalizar audio”, “Revisar borrador”, “Aplicar marcas”, “Añadir a letra”, “Descartar”); sparse Playwright **TC-WSP-01** in T-W32-03.
+10. **Tickets:** T-W32-00 (proposal docs, merged PR #83); T-W32-01–03 implementation — see [`PHASE-WHISPER-SPEC.md`](PHASE-WHISPER-SPEC.md).
+
+### Consequences
+
+- Audio maquetas gain a draft path into follow-along marks + lyrics without new aggregates, tables, or vendors.
+- “Digitizer” output stays a **draft** until an Owner saves it; saved `Lyrics` / `ChordTimingJson` keep current GET/PATCH/AuthZ semantics.
+- Wave B (cloud LLM upgrade) and Wave C (unattended ML auto-marks) each need their own ADR; this thin must not be read as authorizing them.
+
+### Non-goals
+
+Cloud LLM rewriting · unattended ML auto-marks · Q9 realtime/multi-device · pitch · stems/mixer · YouTube · S3 · raising 5 MiB · MusicXML · Guitar Pro · Event/RSVP mail
+
+---
+
+## ADR-0031 — Practice ChordPro follow-along (Owner time marks + highlight)
+
+- **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-18** Kevin Esquivel — authorize follow-along thin (full backlog program)  
+- **Date:** 2026-09-18  
+- **Depends on:** ADR-0027, 0028, 0029, 0030  
+- **Revises:** ADR-0029 clause that treated time-synced lyric/ChordPro marks as FUTURE-only — Practice MAY highlight the current ChordPro line (or block) from Owner-authored timing marks while audio plays  
+- **Does not authorize:** Whisper / cloud STT, cloud LLM, auto-generated marks from ML, realtime multi-device sync (Q9 — except Owner-conducted position broadcast per ADR-0036), pitch detection, YouTube, S3 blob adapter, raising the 5 MiB blob cap
+
+### Context
+
+ADR-0029 shipped a usable Practice player with manual ChordPro scroll. Musicians still lose their place when rehearsing with audio. Full karaoke/realtime (Q9) and ML-generated marks are out of scope; a thin **Owner-authored** timing map plus client highlight reuses the existing HTML5 `timeupdate` path.
+
+### Decision (ACCEPTED)
+
+1. **Product:** while Practice audio plays, ChordPro **highlights the current line** (or contiguous block) driven by Owner-authored time marks. Toggle optional **“Seguir letra”** (on/off; prefer `localStorage` for the preference).  
+2. **Source of truth** for chart text remains `Arrangement.Chords` (ChordPro) per ADR-0028 / 0030. Timing does **not** replace or fork ChordPro into a second body.  
+3. **Timing persistence:** nullable string column **`ChordTimingJson`** on **Arrangement** (not overloaded into `Notes`). JSON array of `{ "lineIndex": number, "atMs": number }` (0-based line index into the ChordPro body as rendered/split for mark editing; `atMs` = audio position in milliseconds). Empty / null = no follow-along marks. One nullable column only — **no new table**. EF migration lands in **T-SYNC-01** (not docs-only).  
+4. **Roles:** Owner creates/edits/clears marks (PATCH Arrangement); Member **read-only** consumes marks on Practice. Same AuthZ pattern as other Arrangement body fields.  
+5. **Player:** reuse ADR-0029 custom chrome / HTML5 `<audio>` `timeupdate` (and seek) to resolve the active mark — no websocket, no conductor.
+   **REVISED by ADR-0036:** an Owner-conducted position broadcast (1 Hz, last-writer-wins) MAY additionally move the local playhead/highlight; the per-device `timeupdate` path remains the local source of truth.  
+6. **Spanish UI**; sparse Playwright **TC-PLAY-SYNC-01** in T-SYNC-03.  
+7. **Tickets:** T-SYNC-00 (this ADR + [`PHASE-PLAY-SYNC-SPEC.md`](PHASE-PLAY-SYNC-SPEC.md)); T-SYNC-01–03 implementation — see that spec.  
+8. **Firewall unchanged except ADR-0036:** no Whisper, cloud LLM, ML auto-marks; Q9 realtime beyond the Owner-conducted position broadcast stays FUTURE; no pitch, YouTube, S3, raising 5 MiB.
+
+### Consequences
+
+- ADR-0029 Wave 2 “manual scroll only / time-sync FUTURE” is superseded for **Owner-authored** follow-along highlight (not multi-device realtime).  
+- Arrangement GET/PATCH grow one optional field; Practice highlight is SPA-only given marks + audio.  
+- Whisper / audio digitizer remain a later ADR (may seed marks later; not this thin).
+
+### Non-goals
+
+Whisper · cloud LLM · ML auto-marks · Q9 multi-device · pitch · YouTube · S3 · MusicXML · karaoke scoring
+
+---
+
 ## ADR-0030 — ChordPro rehearsal intelligence module (transpose, text digitizer, compose assist)
 
 - **Status:** **ACCEPTED** — **HUMAN-APPROVED 2026-09-18** (Kevin Esquivel — “Acepto todo” on ChordPro+IA product proposal)  
@@ -51,7 +369,9 @@ Whisper · OpenAI/Anthropic/etc. in-process · realtime · pitch · stems · Mus
 - **Date:** 2026-09-17  
 - **Depends on:** ADR-0027, 0028; T-3.2.06 file/link Resources  
 - **Revises:** ADR-0027 “single primary `<audio>` control” — Practice MAY use a custom player chrome over the same HTML5 media element  
-- **Does not authorize:** realtime sync (Q9), pitch detection, YouTube API, streaming CDN, stems mixer, raising the 5 MiB blob cap (separate ops ADR)
+- **REVISED by ADR-0031:** Owner-authored ChordPro line timing + Practice highlight (“Seguir letra”) is **authorized**; multi-device realtime (Q9) remains FUTURE
+- **REVISED by ADR-0036:** Owner-conducted position broadcast (any Owner present, last-writer-wins, 1 Hz) is **authorized**; all other multi-device realtime remains FUTURE
+- **Does not authorize:** realtime sync (Q9 — except ADR-0036 conductor broadcast), pitch detection, YouTube API, streaming CDN, stems mixer, raising the 5 MiB blob cap (separate ops ADR)
 
 ### Context
 
@@ -62,7 +382,7 @@ Thin Practice (ADR-0027) exposes one playable Resource via native browser contro
 1. **Scope Wave 2 (Arrangement player):** enhance the existing Practice route for one live Arrangement — no new domain aggregates, no new API endpoints required. Reuse GET Arrangement + Resource list + file `content` AuthZ.  
 2. **Chrome:** custom control bar (Spanish): reproducir/pausar, seek, tiempo actual/duración, volumen. Prefer one HTML5 `<audio>` under the hood (hidden or visually secondary).  
 3. **Track list:** list all playable Resources with purpose `audio` then `click` (same playability rules as today). User may switch track; switching resets or keeps playhead per thin UX (default: reset to 0). Prefer last-selected track from `localStorage` when still present.  
-4. **Lyrics / ChordPro:** keep ADR-0028 render beside/above the player. **Manual** scroll only in Wave 2. Time-synced auto-scroll / lyric marks = FUTURE (needs format + Q9-adjacent ADR).  
+4. **Lyrics / ChordPro:** keep ADR-0028 render beside/above the player. **Manual** scroll only in Wave 2. ~~Time-synced auto-scroll / lyric marks = FUTURE (needs format + Q9-adjacent ADR).~~ **REVISED by ADR-0031:** Owner-authored timing marks + optional highlight (“Seguir letra”) are authorized; Q9 multi-device sync remains FUTURE.  
 5. **UX persistence:** volume + last track Resource id in `localStorage` keyed by Group/Arrangement — **not** server state.  
 6. **Scope Wave 3 (authorized by this ADR, separate tickets):** Event plan / Setlist ordered queue with next/prev, title per item, jump to that Arrangement’s Practice. Still no realtime.  
 7. **Spanish UI** labels for player chrome.  
@@ -125,9 +445,11 @@ MusicXML · Guitar Pro · OCR PDF · realtime scroll sync · forcing all Groups 
 - **Date:** 2026-09-17  
 - **Depends on:** ADR-0007–0008, 0014, 0017, 0024–0025; T-3.2.06 file/link Resources  
 - **Does not supersede:** Resource model; Event plan snapshots; Auth cookie model  
-- **Does not authorize:** realtime sync (Q9), pitch detection, YouTube API, multi-user live conductor  
+- **Does not authorize:** realtime sync (Q9 — except Owner-conducted position broadcast per ADR-0036), pitch detection, YouTube API, multi-user live conductor (except ADR-0036 conductor)  
 - **REVISED by ADR-0028:** ChordPro parser/render on Practice is **authorized** (hybrid ChordPro in Arrangement fields). The original “no ChordPro parser” thin ban no longer binds.  
 - **REVISED by ADR-0029:** Practice MAY use custom player chrome (seek/volume/multi-track) over HTML5 audio; Event/Setlist queue is Wave 3 under the same ADR.
+- **REVISED by ADR-0031:** Owner-authored ChordPro line timing + optional Practice highlight (“Seguir letra”) is **authorized**; websocket/multi-device realtime remains FUTURE.
+- **REVISED by ADR-0036:** Owner-conducted position broadcast (any Owner present, last-writer-wins, 1 Hz) is **authorized**; all other multi-device realtime (audio sync, beat-clock, chat, recording) remains FUTURE.
 
 ### Context
 
@@ -139,7 +461,7 @@ Members need a first-class **practice** surface: see lyrics (and optionally hear
 2. View shows: Arrangement **Label**, Song **Title**, **Lyrics** text (plain), optional **Key** / **Tempo** display. **REVISED by ADR-0028:** Lyrics/Chords MAY render as ChordPro when text looks like ChordPro.  
 3. If the Arrangement has a Resource with purpose `audio` or `click` (link or file), expose **one** primary playable control (HTML5 `<audio>` for file `content` or link URL when audio MIME / known audio extension). Prefer purpose `audio`, else `click`.  
 4. **No** new domain aggregates. **No** new persistence tables. Reuse existing GET Arrangement + Resource list + file `content` AuthZ.  
-5. **No** websocket/realtime, **No** pitch tracking, **No** scrolling sync engine beyond basic CSS scroll of lyrics, **No** Event-plan karaoke mode in this thin.  
+5. **No** websocket/realtime, **No** pitch tracking. ~~**No** scrolling sync engine beyond basic CSS scroll of lyrics~~ **REVISED by ADR-0031:** Owner time marks + highlight authorized; still **no** Event-plan karaoke mode / multi-device conductor in this thin.  
 6. Spanish UI copy; routes may stay English (`/practice` or query under arrangement).  
 7. Playwright: sparse TC — Owner opens Practicar and sees lyrics (fixture song with lyrics).
 

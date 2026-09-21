@@ -17,7 +17,7 @@ This file is **not** the product requirements document. Product truth lives unde
 **Phase 3.0.3 Resource & rehearsal domain clarification is CLOSED** (ADR-0024 HUMAN-ACCEPTED).  
 **Phase 3.1 Song & Arrangement domain specification is CLOSED** (ADR-0025 HUMAN-ACCEPTED).
 
-ADRs **0001–0030** are **ACCEPTED** (including tooling ADR-0002; Google OAuth ADR-0026; Practice ADR-0027; formats/Q8 ADR-0028; Practice player ADR-0029; ChordPro assisted tooling ADR-0030).  
+ADRs **0001–0031** are **ACCEPTED** (including tooling ADR-0002; Google OAuth ADR-0026; Practice ADR-0027; formats/Q8 ADR-0028; Practice player ADR-0029; ChordPro assisted tooling ADR-0030; Practice ChordPro follow-along ADR-0031).  
 **Phase 3.2 approved scope:** **COMPLETED** (T-3.2.01–05, 07, 08) — `Song → Arrangement → Link Resource` + React Library Shell + sparse Playwright ([`PHASE-3.2-REPERTOIRE-SPEC.md`](docs/03-architecture/PHASE-3.2-REPERTOIRE-SPEC.md)). Nested Resource routes are authoritative. **T-3.2.06 File Resource** **COMPLETED** on `develop` (PR [#35](https://github.com/kevin-esq/sonivo/pull/35)) — `IBlobStore` + Postgres `ResourceBlobs`, multipart upload, `GET .../content`, TC-LIB-04 ([`PHASE-3.2.06-FILE-RESOURCE-SPEC.md`](docs/03-architecture/PHASE-3.2.06-FILE-RESOURCE-SPEC.md)).  
 **Google OAuth thin:** **CLOSED** / **COMPLETED** (T-OAUTH-01–03; ADR-0026) on `develop` (PR [#40](https://github.com/kevin-esq/sonivo/pull/40)) ([`PHASE-OAUTH-GOOGLE-SPEC.md`](docs/03-architecture/PHASE-OAUTH-GOOGLE-SPEC.md)).  
 **Thin Practice / karaoke:** **CLOSED** / **COMPLETED** (T-KARAOKE-01–02; ADR-0027).  
@@ -26,6 +26,7 @@ ADRs **0001–0030** are **ACCEPTED** (including tooling ADR-0002; Google OAuth 
 **Practice player Wave 3 (Event/Setlist queue):** **CLOSED** / **COMPLETED** (ADR-0029 §6; T-PLAY-06–08; PR [#58](https://github.com/kevin-esq/sonivo/pull/58)).  
 **UX journeys Wave 4:** **CLOSED** / **COMPLETED** ([`PHASE-UX-SPEC.md`](docs/03-architecture/PHASE-UX-SPEC.md) T-UX-10–13, 20–22, 30–32; PR [#62](https://github.com/kevin-esq/sonivo/pull/62)).  
 **ChordPro assisted tooling (ADR-0030):** **CLOSED** / **COMPLETED** — P0 transpose/views (#71), P1 text digitizer (#74), P2 compose assist (#76) ([`PHASE-CHORDPRO-IA-SPEC.md`](docs/03-architecture/PHASE-CHORDPRO-IA-SPEC.md)). Whisper / cloud LLM / audio digitizer / Q9 remain **DEFERRED**.  
+**Practice ChordPro follow-along (ADR-0031):** **AUTHORIZED** — Owner time marks + Practice highlight (“Seguir letra”); docs T-SYNC-00 then T-SYNC-01–03 ([`PHASE-PLAY-SYNC-SPEC.md`](docs/03-architecture/PHASE-PLAY-SYNC-SPEC.md)). Implementation not started until tickets ship.  
 **Phase 3.3 thin S2:** **CLOSED** (T-3.3.01–05) — Setlist → Event apply → React UI → Playwright ([`PHASE-3.3-THIN-SPEC.md`](docs/03-architecture/PHASE-3.3-THIN-SPEC.md)). Merged to `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6), `80f5f63`).  
 **Phase 3.4 thin invites:** **CLOSED** / **COMPLETED** (T-3.4.01–03) — link token, no email ([`PHASE-3.4-INVITE-SPEC.md`](docs/03-architecture/PHASE-3.4-INVITE-SPEC.md)). Merged to `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8), `8db0714`).  
 **Phase 3.5 thin RSVP:** **CLOSED** / **COMPLETED** (T-3.5.01–03) — Event yes/no/maybe + Attendance UI + Playwright ([`PHASE-3.5-RSVP-SPEC.md`](docs/03-architecture/PHASE-3.5-RSVP-SPEC.md)). Merged to `develop` (PR [#10](https://github.com/kevin-esq/sonivo/pull/10), `cbc8824`).  
@@ -35,14 +36,14 @@ ADRs **0001–0030** are **ACCEPTED** (including tooling ADR-0002; Google OAuth 
 **T-OPS-01:** **COMPLETED** — ASP.NET DataProtection keys persist in Postgres (`DataProtectionKeys`).  
 **Phase 3.9 thin invite email:** **CLOSED** / **COMPLETED** (T-3.9.01–04 Gmail HTTPS) on `develop` (PR [#19](https://github.com/kevin-esq/sonivo/pull/19), `468517c`) ([`PHASE-3.9-SMTP-SPEC.md`](docs/03-architecture/PHASE-3.9-SMTP-SPEC.md)).  
 **System close plan:** [`docs/01-product/SYSTEM-CLOSE-PLAN.md`](docs/01-product/SYSTEM-CLOSE-PLAN.md) — Gate A **CLOSED**. Gate B UI redesign **ACCEPTED / CLOSED** ([`PHASE-GATE-B-UI-SPEC.md`](docs/03-architecture/PHASE-GATE-B-UI-SPEC.md); T-GATE-B-01–05, PRs #22–#27).  
-**Next:** no automatic next feature. Whisper / cloud LLM / audio digitizer, Event/RSVP mail, Q9 realtime, S3 blob adapter remain **DEFERRED** until new authorization.
+**Next:** ADR-0031 follow-along thin (T-SYNC-00 docs → T-SYNC-01–03). Whisper / cloud LLM / audio digitizer, Event/RSVP mail, Q9 realtime, S3 blob adapter remain **DEFERRED** until their ADRs.
 
 Until the user explicitly authorizes additional work:
 
 - Do **not** expand SMTP beyond the closed thin 3.9 spec (Gmail API HTTPS only; no Event/RSVP mail, no generic SMTP server) — diagnose live send is allowed as T-OPS-MAIL
 - Do **not** expand Event PATCH/cancel beyond the closed thin 3.6 spec (no location/notes, no includeCancelled)
 - Do **not** expand RSVP beyond the closed thin 3.5 spec without further approval
-- Do **not** expand Practice beyond ADR-0027 + ADR-0028 ChordPro + ADR-0029 player + ADR-0030 assisted tooling thin (no realtime, pitch, YouTube, Whisper, cloud LLM). ADR-0030 P0–P2 authorized by [`PHASE-CHORDPRO-IA-SPEC.md`](docs/03-architecture/PHASE-CHORDPRO-IA-SPEC.md).
+- Do **not** expand Practice beyond ADR-0027 + ADR-0028 ChordPro + ADR-0029 player + ADR-0030 assisted tooling + **ADR-0031 follow-along** thin (no realtime, pitch, YouTube, Whisper, cloud LLM). ADR-0031 authorized by [`PHASE-PLAY-SYNC-SPEC.md`](docs/03-architecture/PHASE-PLAY-SYNC-SPEC.md). ADR-0030 P0–P2 authorized by [`PHASE-CHORDPRO-IA-SPEC.md`](docs/03-architecture/PHASE-CHORDPRO-IA-SPEC.md).
 - Do **not** install skills or non-stack tooling without approval (Gate B npm: lucide / shadcn primitives / motion / optional morphicons only — see Gate B spec)
 - Do **not** push / create GitHub remotes / change branch protection unless explicitly authorized
 - Foundation + Group/Membership + repertoire (incl. T-3.2.06) + Phase 3.3–3.9 + Gate B + Google OAuth + **thin Practice** are closed on `develop`. Merge to `main` is **authorized**.
@@ -55,7 +56,7 @@ Until the user explicitly authorizes additional work:
 
 1. Read [`docs/00-context/CONTEXT.md`](docs/00-context/CONTEXT.md).
 2. Read **ACCEPTED** entries in [`docs/03-architecture/DECISIONS.md`](docs/03-architecture/DECISIONS.md).
-3. Do not reopen ACCEPTED ADRs 0001–0030 without a superseding ADR.
+3. Do not reopen ACCEPTED ADRs 0001–0031 without a superseding ADR.
 4. Do not invent FUTURE features or reopen closed Q8 (ADR-0028). Do not prematurely “solve” Q9–Q11.
 5. Check [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md) for the **AUTHORIZED** project-local allowlist (**ADR-0002 ACCEPTED**). Present tooling ≠ authorized.
 

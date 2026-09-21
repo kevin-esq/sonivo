@@ -177,6 +177,9 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ChordTimingJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("Chords")
                         .HasColumnType("text");
 

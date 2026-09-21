@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   getArrangement,
@@ -13,8 +13,25 @@ import {
 import { EmptyPanel, PageBreadcrumb } from './chrome'
 import { looksLikeChordPro, transposeChordPro, tryTransposeDefaultKey } from './chordPro'
 import { RehearsalBodyView } from './ChordProView'
+import {
+  activeChordLineBlock,
+  parseChordTimingJson,
+} from './chordTiming'
+import { ConductorPanel } from './ConductorPanel'
+import { ReferenceEmbed } from './ReferenceEmbed'
+import { TunerPanel } from './TunerPanel'
+import { isYouTubeReference } from './youtubeRef'
+import {
+  readConductorFollow,
+  writeConductorFollow,
+} from './conductorFollowPrefs'
+import { useConductorRoom } from './useConductorRoom'
 import { PracticeEventQueue } from './PracticeEventQueue'
 import { PracticePlayer } from './PracticePlayer'
+import {
+  readPracticeFollowAlong,
+  writePracticeFollowAlong,
+} from './practiceFollowPrefs'
 import {
   readPracticeViewMode,
   writePracticeViewMode,
@@ -107,15 +124,33 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const [viewMode, setViewMode] = useState<PracticeViewMode>('guitarist')
   const [confirmSaveTone, setConfirmSaveTone] = useState(false)
   const [savingTone, setSavingTone] = useState(false)
+  const [followAlong, setFollowAlong] = useState(false)
+  const [audioSeconds, setAudioSeconds] = useState(0)
+  // ADR-0036 conductor follow (Event rooms only).
+  const conductor = useConductorRoom(eventId)
+  const [followDirector, setFollowDirector] = useState(false)
+  const [followSeekMs, setFollowSeekMs] = useState<number | null>(null)
+  const audioSecondsRef = useRef(0)
+  const audioPlayingRef = useRef(false)
+  const sendPositionRef = useRef(conductor.sendPosition)
+  sendPositionRef.current = conductor.sendPosition
 
   useEffect(() => {
     setSemitoneOffset(0)
+    setAudioSeconds(0)
+    audioSecondsRef.current = 0
+    audioPlayingRef.current = false
+    setFollowSeekMs(null)
     if (!groupId || !arrangementId) {
       setViewMode('guitarist')
+      setFollowAlong(false)
+      setFollowDirector(false)
       return
     }
     setViewMode(readPracticeViewMode(groupId, arrangementId))
-  }, [groupId, arrangementId])
+    setFollowAlong(readPracticeFollowAlong(groupId, arrangementId))
+    setFollowDirector(eventId ? readConductorFollow(eventId) : false)
+  }, [groupId, arrangementId, eventId])
 
   useEffect(() => {
     if (!groupId || !arrangementId || !group) return
@@ -173,6 +208,31 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       cancelled = true
     }
   }, [groupId, group, eventId])
+
+  // ADR-0036 follower: a broadcast for this Arrangement moves the local
+  // playhead (PracticePlayer seeks) and the follow-along highlight.
+  useEffect(() => {
+    const last = conductor.lastPosition
+    if (!followDirector || isOwner || !last || !arrangementId) return
+    if (last.position.arrangementId !== arrangementId) return
+    setFollowSeekMs(last.position.positionMs)
+  }, [conductor.lastPosition, followDirector, isOwner, arrangementId])
+
+  // ADR-0036 conductor: the Owner broadcasts their player position at 1 Hz
+  // (Q9-Q1 client pacing; the server drops anything inside its 900 ms gap).
+  useEffect(() => {
+    if (!isOwner || !eventId || conductor.connectionState !== 'connected' || !arrangementId) {
+      return
+    }
+    const timer = setInterval(() => {
+      sendPositionRef.current(
+        arrangementId,
+        Math.round(audioSecondsRef.current * 1000),
+        audioPlayingRef.current,
+      )
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [isOwner, eventId, conductor.connectionState, arrangementId])
 
   if (group === undefined) {
     return <PracticePageSkeleton label="Cargando práctica…" />
@@ -233,10 +293,58 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       ? tryTransposeDefaultKey(liveArrangement.defaultKey, semitoneOffset)
       : null
   const hideChords = viewMode === 'singer'
+  const timingMarks = parseChordTimingJson(liveArrangement.chordTimingJson)
+  // ADR-0037 T-FX-02: reference links; YouTube ones embed via nocookie iframe.
+  const referenceResources = liveArrangement.resources.filter(
+    (r) => r.purpose === 'reference' && r.kind === 'link',
+  )
+  // ADR-0037 / ADR-0031: cross-origin YouTube iframes expose no timeupdate,
+  // so follow-along stays file-audio-only. When Practice has timing marks but
+  // no file audio and only a YouTube reference to play from, the toggle is
+  // disabled with an explanation instead of promising sync it cannot keep.
+  const youTubeOnlyPractice =
+    tracks.length === 0 && referenceResources.some((r) => isYouTubeReference(r))
+  // Conductor follow drives the same highlight path: when the Member follows
+  // the director, the broadcast position moves playhead + highlight even when
+  // the local "Seguir letra" toggle is off. Without audio tracks the
+  // broadcast position itself is the highlight clock.
+  const conductorFollowing = !isOwner && followDirector && followSeekMs != null
+  const highlightMs =
+    tracks.length > 0 ? Math.round(audioSeconds * 1000) : (followSeekMs ?? 0)
+  const highlightBlock =
+    (followAlong || conductorFollowing) && timingMarks.length > 0
+      ? activeChordLineBlock(timingMarks, highlightMs)
+      : null
+  const conductorLive =
+    conductor.connectionState === 'connected' &&
+    (isOwner ||
+      (conductor.lastPosition != null &&
+        Date.now() - conductor.lastPosition.receivedAt < 5000))
+
+  function toggleFollowDirector() {
+    if (!eventId) return
+    const next = !followDirector
+    setFollowDirector(next)
+    writeConductorFollow(eventId, next)
+  }
+
+  function handleAudioTime(seconds: number) {
+    setAudioSeconds(seconds)
+    audioSecondsRef.current = seconds
+  }
+
+  function handleAudioPlaying(playing: boolean) {
+    audioPlayingRef.current = playing
+  }
 
   function setViewModePersist(mode: PracticeViewMode) {
     setViewMode(mode)
     writePracticeViewMode(liveGroup.id, liveArrangement.id, mode)
+  }
+
+  function setFollowAlongPersist(enabled: boolean) {
+    setFollowAlong(enabled)
+    writePracticeFollowAlong(liveGroup.id, liveArrangement.id, enabled)
   }
 
   async function handleSaveTone() {
@@ -338,12 +446,45 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         />
       ) : null}
 
+      {eventId ? (
+        <ConductorPanel
+          presence={conductor.presence}
+          connectionState={conductor.connectionState}
+          isOwner={isOwner}
+          followEnabled={followDirector}
+          onToggleFollow={toggleFollowDirector}
+          isLive={conductorLive}
+          error={conductor.error}
+        />
+      ) : null}
+
       {tracks.length > 0 ? (
         <PracticePlayer
           groupId={liveGroup.id}
           arrangementId={liveArrangement.id}
           tracks={tracks}
+          onCurrentTimeChange={handleAudioTime}
+          onPlayingChange={handleAudioPlaying}
+          followSeekMs={!isOwner && followDirector ? followSeekMs : null}
         />
+      ) : null}
+
+      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="practice-tuner-heading">
+        <h2 id="practice-tuner-heading" className="text-base font-semibold tracking-tight text-neutral-dark">
+          Afinador
+        </h2>
+        <TunerPanel />
+      </section>
+
+      {referenceResources.length > 0 ? (
+        <section className="space-y-4" aria-labelledby="practice-reference-heading">
+          <h2 id="practice-reference-heading" className="text-lg font-semibold tracking-tight text-neutral-dark">
+            Referencia
+          </h2>
+          {referenceResources.map((resource) => (
+            <ReferenceEmbed key={resource.id} resource={resource} />
+          ))}
+        </section>
       ) : null}
 
       {canTranspose ? (
@@ -408,6 +549,39 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             >
               Vista Guitarrista
             </Button>
+            {timingMarks.length > 0 ? (
+              youTubeOnlyPractice ? (
+                <div className="space-y-1">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    data-testid="practice-follow-along"
+                    aria-disabled="true"
+                    aria-pressed={false}
+                    disabled
+                  >
+                    Seguir letra
+                  </Button>
+                  <p
+                    className="text-xs text-slate-500"
+                    data-testid="practice-follow-along-youtube-note"
+                  >
+                    «Seguir letra» solo funciona con audio subido a Sonivo. Los videos de
+                    YouTube no permiten sincronizar la letra.
+                  </p>
+                </div>
+              ) : (
+                <Button
+                  variant={followAlong ? 'primary' : 'secondary'}
+                  size="sm"
+                  data-testid="practice-follow-along"
+                  aria-pressed={followAlong}
+                  onClick={() => setFollowAlongPersist(!followAlong)}
+                >
+                  Seguir letra
+                </Button>
+              )
+            ) : null}
           </div>
           {isOwner && liveArrangement.chords?.trim() ? (
             <div>
@@ -452,6 +626,8 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               chordProTestId="practice-chordpro"
               plainTestId="practice-lyrics"
               hideChords={hideChords}
+              activeLineIndex={highlightBlock?.lineIndex ?? null}
+              activeBlockEndIndex={highlightBlock?.blockEndIndex ?? null}
             />
           )
         })()}

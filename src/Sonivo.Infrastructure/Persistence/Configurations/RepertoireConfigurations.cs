@@ -36,6 +36,7 @@ public sealed class ArrangementConfiguration : IEntityTypeConfiguration<Arrangem
         builder.Property(x => x.Label).IsRequired().HasMaxLength(200);
         builder.Property(x => x.DefaultKey).HasMaxLength(32);
         builder.Property(x => x.DefaultBpm);
+        builder.Property(x => x.ChordTimingJson).HasColumnType("text");
         builder.Property(x => x.Version).IsConcurrencyToken();
         builder.HasIndex(x => new { x.GroupId, x.Id }).IsUnique();
         builder.HasIndex(x => x.GroupId);

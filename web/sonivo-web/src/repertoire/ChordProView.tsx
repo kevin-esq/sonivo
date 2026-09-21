@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+import { cn } from '../ui/cn'
 import { looksLikeChordPro, parseChordPro, type ChordProLine } from './chordPro'
 
 function directiveLabel(name: string, value: string | null): string {
@@ -80,14 +82,27 @@ export function ChordProView({
   testId,
   className,
   hideChords = false,
+  activeLineIndex = null,
+  activeBlockEndIndex = null,
 }: {
   text: string
   testId?: string
   className?: string
   /** Vista Cantante: show lyrics only (ADR-0030 P0). */
   hideChords?: boolean
+  /** ADR-0031: highlight this 0-based ChordPro line when following along. */
+  activeLineIndex?: number | null
+  /** ADR-0031 Q-SYNC-6: highlight contiguous block sharing the active mark. */
+  activeBlockEndIndex?: number | null
 }) {
   const doc = parseChordPro(text)
+  const activeRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (activeLineIndex == null) return
+    activeRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [activeLineIndex])
+
   return (
     <div
       className={
@@ -96,9 +111,21 @@ export function ChordProView({
       }
       data-testid={testId}
     >
-      {doc.lines.map((line, index) => (
-        <ChordProLineView key={index} line={line} hideChords={hideChords} />
-      ))}
+      {doc.lines.map((line, index) => {
+        const isActive = activeLineIndex != null && index >= activeLineIndex && index <= (activeBlockEndIndex ?? activeLineIndex)
+        const isBlockStart = activeLineIndex === index
+        return (
+          <div
+            key={index}
+            ref={isBlockStart ? activeRef : undefined}
+            data-line-index={index}
+            data-active-line={isActive ? 'true' : undefined}
+            className={cn(isActive && 'rounded-lg bg-primary/10 px-1 -mx-1 ring-1 ring-primary/30')}
+          >
+            <ChordProLineView line={line} hideChords={hideChords} />
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -109,15 +136,25 @@ export function RehearsalBodyView({
   chordProTestId,
   plainTestId,
   hideChords = false,
+  activeLineIndex = null,
+  activeBlockEndIndex = null,
 }: {
   text: string
   chordProTestId: string
   plainTestId: string
   hideChords?: boolean
+  activeLineIndex?: number | null
+  activeBlockEndIndex?: number | null
 }) {
   if (looksLikeChordPro(text)) {
     return (
-      <ChordProView text={text} testId={chordProTestId} hideChords={hideChords} />
+      <ChordProView
+        text={text}
+        testId={chordProTestId}
+        hideChords={hideChords}
+        activeLineIndex={activeLineIndex}
+        activeBlockEndIndex={activeBlockEndIndex}
+      />
     )
   }
   return (

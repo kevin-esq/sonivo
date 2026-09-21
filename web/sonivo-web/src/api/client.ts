@@ -357,6 +357,8 @@ export type ArrangementDetail = ArrangementListItem & {
   chords: string | null
   structure: string | null
   notes: string | null
+  /** ADR-0031: JSON array of `{ lineIndex, atMs }` or null when unset. */
+  chordTimingJson: string | null
   resources: ResourceSummary[]
 }
 
@@ -462,6 +464,8 @@ export async function updateArrangement(
     chords?: string | null
     structure?: string | null
     notes?: string | null
+    /** null omits; "" / "[]" clears; valid JSON array replaces (T-SYNC-01). */
+    chordTimingJson?: string | null
   },
 ): Promise<ArrangementDetail> {
   return apiRequest<ArrangementDetail>(
@@ -793,5 +797,41 @@ export async function deleteResource(
   await apiRequest<void>(
     `/api/groups/${groupId}/arrangements/${arrangementId}/resources/${resourceId}`,
     { method: 'DELETE' },
+  )
+}
+
+export type DigitizeSegment = {
+  startMs: number
+  endMs: number
+  text: string
+}
+
+export type DigitizeJobStatus = 'queued' | 'processing' | 'done' | 'failed'
+
+export type DigitizeJob = {
+  jobId: string
+  status: DigitizeJobStatus
+  segments: DigitizeSegment[] | null
+  error: string | null
+}
+
+export async function startDigitizeJob(
+  groupId: string,
+  arrangementId: string,
+  resourceId: string,
+): Promise<{ jobId: string; status: DigitizeJobStatus }> {
+  return apiRequest<{ jobId: string; status: DigitizeJobStatus }>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/digitize`,
+    { method: 'POST', body: { resourceId } },
+  )
+}
+
+export async function getDigitizeJob(
+  groupId: string,
+  arrangementId: string,
+  jobId: string,
+): Promise<DigitizeJob> {
+  return apiRequest<DigitizeJob>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/digitize/${jobId}`,
   )
 }

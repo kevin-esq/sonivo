@@ -11,9 +11,11 @@ using Sonivo.Application.Abstractions;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
+using Sonivo.Api.Realtime;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Api.Auth;
 using Sonivo.Infrastructure;
+using Sonivo.Infrastructure.Blobs;
 using Sonivo.Infrastructure.Identity;
 using Sonivo.Infrastructure.Persistence;
 
@@ -90,8 +92,17 @@ builder.Services.AddProblemDetails(options =>
 builder.Services.AddExceptionHandler<AppExceptionHandler>();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
+// ADR-0036: self-hosted in-process SignalR (shared framework, no vendor).
+// The global antiforgery middleware above requires X-CSRF-TOKEN on the
+// /negotiate POST (Q9-Q3); GET/WebSocket hub traffic needs only the cookie.
+builder.Services.AddSignalR();
 
 var app = builder.Build();
+
+// ADR-0035: log which blob backend is active at startup (backend name only — never values).
+app.Logger.LogInformation(
+    "Blob storage backend: {Backend}",
+    R2Options.IsConfigured(app.Configuration) ? "R2" : "Postgres");
 
 if (!app.Environment.IsDevelopment())
 {
@@ -119,6 +130,16 @@ app.UseAuthorization();
 app.Use(async (context, next) =>
 {
     context.Response.Headers.TryAdd("X-Request-Id", context.TraceIdentifier);
+    await next();
+});
+
+// ADR-0037 T-FX-02: minimal embed policy for YouTube reference iframes.
+// Only frame-src (nocookie player) + img-src (thumbnails) are declared;
+// no other directive is loosened (no script/style/object changes).
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.TryAdd("Content-Security-Policy",
+        "frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: https://i.ytimg.com");
     await next();
 });
 
@@ -302,6 +323,10 @@ app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInMana
 .DisableAntiforgery();
 
 app.MapGoogleAuthEndpoints();
+
+// ADR-0036: Q9 conductor room. Cookie-authorized; per-method Membership
+// recheck inside the Hub (404 non-member/unknown, 403 non-Owner conduct).
+app.MapHub<PracticeRoomHub>("/hubs/practiceroom").RequireAuthorization();
 
 app.MapGet("/api/groups", async (
     ClaimsPrincipal principal,
@@ -847,6 +872,7 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", asy
             request.Chords,
             request.Structure,
             request.Notes,
+            request.ChordTimingJson,
             request.ExpectedVersion),
         cancellationToken);
 
@@ -1100,6 +1126,77 @@ app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/reso
 .WithName("DeleteResource")
 .RequireAuthorization()
 .DisableAntiforgery();
+
+// ADR-0032 Q-W32-4: async digitizer job. POST validates eligibility and
+// returns 202; transcription runs in the background and never writes
+// Arrangement fields — the Owner saves drafts via the existing PATCH.
+app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/digitize", async (
+    Guid groupId,
+    Guid arrangementId,
+    DigitizeRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    StartDigitizeJobHandler handler,
+    IServiceScopeFactory scopes,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var started = await handler.HandleAsync(
+        new StartDigitizeJobCommand(userId.Value, groupId, arrangementId, request.ResourceId),
+        cancellationToken);
+
+    var jobId = started.JobId;
+    _ = Task.Run(async () =>
+    {
+        using var scope = scopes.CreateScope();
+        var runner = scope.ServiceProvider.GetRequiredService<DigitizeJobRunner>();
+        await runner.ProcessAsync(jobId, CancellationToken.None);
+    }, CancellationToken.None);
+
+    return Results.Accepted(
+        $"/api/groups/{groupId}/arrangements/{arrangementId}/digitize/{jobId}",
+        new { jobId, status = started.Status });
+})
+.WithName("StartDigitize")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/digitize/{jobId:guid}", async (
+    Guid groupId,
+    Guid arrangementId,
+    Guid jobId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetDigitizeJobHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var job = await handler.HandleAsync(userId.Value, groupId, arrangementId, jobId, cancellationToken);
+    return Results.Ok(new
+    {
+        jobId = job.JobId,
+        status = job.Status,
+        segments = job.Segments?.Select(s => new
+        {
+            startMs = s.StartMs,
+            endMs = s.EndMs,
+            text = s.Text
+        }),
+        error = job.Error
+    });
+})
+.WithName("GetDigitizeJob")
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}/setlists", async (
     Guid groupId,
@@ -1541,6 +1638,7 @@ static object ToArrangementDetailResponse(ArrangementDetailDto arrangement) => n
     chords = arrangement.Chords,
     structure = arrangement.Structure,
     notes = arrangement.Notes,
+    chordTimingJson = arrangement.ChordTimingJson,
     version = arrangement.Version,
     createdAt = arrangement.CreatedAt,
     updatedAt = arrangement.UpdatedAt,
@@ -1719,6 +1817,7 @@ internal sealed record UpdateArrangementRequest(
     string? Chords,
     string? Structure,
     string? Notes,
+    string? ChordTimingJson,
     int ExpectedVersion);
 internal sealed record SoftDeleteArrangementRequest(int ExpectedVersion);
 internal sealed record CreateLinkResourceRequest(
@@ -1733,6 +1832,7 @@ internal sealed record UpdateLinkResourceRequest(
     string? Label,
     string? Part,
     string? Note);
+internal sealed record DigitizeRequest(Guid ResourceId);
 internal sealed record CreateSetlistRequest(string? Name);
 internal sealed record UpdateSetlistRequest(string? Name, int ExpectedVersion);
 internal sealed record ReplaceSetlistItemsRequest(

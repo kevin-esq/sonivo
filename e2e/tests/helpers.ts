@@ -59,7 +59,7 @@ export async function openSong(page: Page, title: string) {
 export async function createArrangement(
   page: Page,
   label: string,
-  options?: { lyrics?: string; defaultKey?: string; defaultBpm?: string },
+  options?: { lyrics?: string; chords?: string; defaultKey?: string; defaultBpm?: string },
 ) {
   await page.getByRole('button', { name: 'Agregar arreglo' }).click()
   await expect(page.getByRole('heading', { name: 'Crear arreglo' })).toBeVisible()
@@ -72,6 +72,9 @@ export async function createArrangement(
   }
   if (options?.lyrics) {
     await page.getByLabel('Letra (opcional)').fill(options.lyrics)
+  }
+  if (options?.chords) {
+    await page.getByTestId('arrangement-chords').fill(options.chords)
   }
   await page.getByRole('button', { name: 'Crear arreglo' }).click()
   // Create navigates to the new arrangement detail.

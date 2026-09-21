@@ -29,10 +29,17 @@ export function PracticePlayer({
   groupId,
   arrangementId,
   tracks,
+  onCurrentTimeChange,
+  onPlayingChange,
+  followSeekMs,
 }: {
   groupId: string
   arrangementId: string
   tracks: PracticeAudioSource[]
+  onCurrentTimeChange?: (seconds: number) => void
+  onPlayingChange?: (playing: boolean) => void
+  /** ADR-0036: conductor follow — when set, the playhead jumps here. */
+  followSeekMs?: number | null
 }) {
   const [selectedId, setSelectedId] = useState(() => {
     const prefs = readPracticePlayerPrefs(groupId, arrangementId)
@@ -46,6 +53,7 @@ export function PracticePlayer({
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const appliedFollowSeekMs = useRef<number | null>(null)
   const seekId = useId()
   const volumeId = useId()
   const trackId = useId()
@@ -59,6 +67,30 @@ export function PracticePlayer({
       resourceId: selected.resourceId,
     })
   }, [groupId, arrangementId, volume, selected.resourceId])
+
+  useEffect(() => {
+    onCurrentTimeChange?.(currentTime)
+  }, [currentTime, onCurrentTimeChange])
+
+  useEffect(() => {
+    onPlayingChange?.(playing)
+  }, [playing, onPlayingChange])
+
+  // ADR-0036 conductor follow: jump the local playhead to the broadcast
+  // position (only when it actually moved, and only when it differs enough
+  // to avoid fighting local playback second by second).
+  useEffect(() => {
+    if (followSeekMs == null || appliedFollowSeekMs.current === followSeekMs) return
+    appliedFollowSeekMs.current = followSeekMs
+    const el = audioRef.current
+    if (!el) return
+    const next = followSeekMs / 1000
+    if (!Number.isFinite(next) || next < 0) return
+    if (Math.abs(el.currentTime - next) > 1) {
+      el.currentTime = next
+      setCurrentTime(next)
+    }
+  }, [followSeekMs])
 
   useEffect(() => {
     const el = audioRef.current
