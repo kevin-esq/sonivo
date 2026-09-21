@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<IBlobStore, PostgresBlobStore>();
         services.AddScoped<ISetlistStore, EfSetlistStore>();
         services.AddScoped<IEventStore, EfEventStore>();
+        services.AddScoped<IEventGroupResolver, EfEventGroupResolver>();
         services.AddScoped<IUserDirectory, EfUserDirectory>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddSingleton<IPublicOrigin, ConfigurationPublicOrigin>();
