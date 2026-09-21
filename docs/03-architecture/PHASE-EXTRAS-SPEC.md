@@ -3,7 +3,7 @@
 **Status:** **ACCEPTED 2026-09-21** (ADR-0037 HUMAN-DELEGATED: tuner IN, YouTube CONDITIONAL IN, scoring OUT-confirmed). Tickets T-FX-01–02 ACTIVE; scoring gets zero work (TC-KAR-01 reserved).
 **Product bet (proposed):** Practice helps musicians get in tune (client tuner) and watch the linked reference (embed) — without scoring promises Sonivo cannot keep.
 **Date:** 2026-09-20
-**Depends on:** ADR-0037 (PROPOSED), 0024, 0027, 0028, 0029, 0030, 0031; T-3.2.06.
+**Depends on:** ADR-0037 (ACCEPTED), 0024, 0027, 0028, 0029, 0030, 0031; T-3.2.06.
 
 ---
 

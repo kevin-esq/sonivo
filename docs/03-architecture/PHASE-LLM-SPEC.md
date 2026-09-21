@@ -36,14 +36,14 @@
 
 ---
 
-## Tickets (gated on ACCEPTANCE — do NOT start before Kevin ACCEPTS ADR-0033)
+## Tickets (CLOSED with the spec — Wave B closed under Option C, no implementation was authorized)
 
 | ID | Work | Status |
 | -- | ---- | ------ |
-| **T-LLM-00** | Docs: ADR-0033 PROPOSED + this spec skeleton + NOW update | IN PROGRESS (this branch, docs only) |
-| **T-LLM-01** | Server: LLM assistant interface + draft endpoints + caps/quotas + unit/API tests with fake | GATED — needs ACCEPTANCE |
-| **T-LLM-02** | Web: Owner generate/review UX (draft, apply via PATCH, deterministic fallback, discard; Spanish) | GATED — needs ACCEPTANCE |
-| **T-LLM-03** | Tests: TC-LLM-01 Playwright (mechanics assertions) + suite green | GATED — needs ACCEPTANCE |
+| **T-LLM-00** | Docs: ADR-0033 PROPOSED + this spec skeleton + NOW update | MERGED (PR #85) → CLOSED Option C, ADR-0033 SUPERSEDED |
+| **T-LLM-01** | Server: LLM assistant interface + draft endpoints + caps/quotas + unit/API tests with fake | CLOSED unstarted (Option C) |
+| **T-LLM-02** | Web: Owner generate/review UX (draft, apply via PATCH, deterministic fallback, discard; Spanish) | CLOSED unstarted (Option C) |
+| **T-LLM-03** | Tests: TC-LLM-01 Playwright (mechanics assertions) + suite green | CLOSED unstarted (Option C) |
 
 Implementation branch naming: `feature/t-llm-*` (one coherent vertical slice per ticket or batched only with explicit approval).
 
