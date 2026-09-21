@@ -2,8 +2,8 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-18 (ADR-0031 Practice ChordPro follow-along **ACCEPTED** — docs T-SYNC-00)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** including **T-3.2.06**. **Google OAuth** thin **COMPLETED** (ADR-0026; PR #40). **Thin Practice / karaoke** **COMPLETED** (ADR-0027; PR [#45](https://github.com/kevin-esq/sonivo/pull/45)) — read-only Practicar + optional audio. ChordPro formats + player + ADR-0030 tooling **COMPLETED**. **ADR-0031** follow-along **AUTHORIZED** (Owner time marks + highlight; impl T-SYNC-01–03). T-OPS-01/02 done. Live: https://sonivo.onrender.com. Gate B **CLOSED**.  
+**Last updated:** 2026-09-21 (Waves A–F + R2 prod-live: ADR-0032–0037 decided; follow-along, Whisper digitizer, suggest, Q9 conductor, tuner, YouTube embed shipped; LLM closed Option C; scoring OUT)  
+**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** including **T-3.2.06**. **Google OAuth** thin **COMPLETED** (ADR-0026; PR #40). **Thin Practice / karaoke** **COMPLETED** (ADR-0027; PR [#45](https://github.com/kevin-esq/sonivo/pull/45)) — read-only Practicar + optional audio. ChordPro formats + player + ADR-0030 tooling **COMPLETED**. **ADR-0031** follow-along **SHIPPED** (Owner time marks + Practice highlight “Seguir letra”, T-SYNC-01–03, PRs #81–82). **ADR-0032** Whisper digitizer thin **SHIPPED** (transcribe job + Owner review + TC-WSP-01, PR #84) + **ADR-0034** review-gated suggest + TC-WSP-02 (PR #86). **ADR-0033** LLM **CLOSED without cloud** (Option C, SUPERSEDED). **ADR-0035** R2 blob backend **SHIPPED + LIVE in prod** (dual-read, PR #92). **ADR-0036** Q9 conductor **SHIPPED** (SignalR room + presence + TC-Q9-01, PR #90). **ADR-0037** extras **SHIPPED** (tuner + YouTube reference embed + TC-PITCH-01/TC-YT-01, PR #91; scoring OUT). T-OPS-01/02 done. Live: https://sonivo.onrender.com (R2 backend active). Gate B **CLOSED**.  
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
@@ -92,12 +92,12 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 | ID | Question |
 | -- | -------- |
 | **Q8** | Chart format — **CLOSED** by **ADR-0028** (hybrid ChordPro in Arrangement + file `chart` Resource) |
-| **Q9** | Realtime (lean no) |
+| **Q9** | Realtime — conductor thin **ANSWERED** by **ADR-0036** (self-hosted SignalR Event room + Owner `BroadcastPosition`, PR #90); full multi-device sync (audio/clock/chat) stays FUTURE |
 | **Q10** | Billing |
 | **Q11** | Native mobile / PWA |
 | — | Hosting · account-deletion product |
 | — | Invite mechanics: thin 3.4 freeze **Q-I1–I8** (link canonical); thin 3.9 optional Gmail API HTTPS outbound ([`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md) Q-M2/Q-M3); Event/RSVP mail remains **FUTURE** |
-| — | Blob vendor · exact session TTLs · upload size caps |
+| — | Blob vendor — **DECIDED**: Cloudflare R2 alternate backend, Postgres default (ADR-0035, live in prod) · exact session TTLs · upload size caps (5 MiB kept, raises need their own ADR) |
 
 ---
 
@@ -107,7 +107,7 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 2. Implement/scaffold/install without explicit approval.  
 3. Workspace/Organization; Recording/Performance aggregates in MVP.  
 4. Organizer/Guest roles; ACL engines; JWT web; BFF; Supabase Auth.  
-5. Silently reopen ACCEPTED ADRs 0001–0031 without a superseding ADR.  
+5. Silently reopen ACCEPTED ADRs 0001–0037 without a superseding ADR.  
 6. Content versioning / DAM / Event body snapshots in MVP.  
 7. Unauthorized user-global tooling as Sonivo dependency.
 
@@ -115,9 +115,9 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 ## FUTURE
 
-Organization · Event resources · Member edits · albums · live tools · mobile bearer · blob GC · account deletion · Event/RSVP notification mail · ChordPro cloud LLM / Whisper audio digitizer · MusicXML / Guitar Pro · realtime multi-device (Q9) · billing · duration/transitions · Arrangement status · Resource soft-delete undo
+Organization · Event resources · Member edits · albums · live tools · mobile bearer · blob GC · account deletion · Event/RSVP notification mail · MusicXML / Guitar Pro · full realtime multi-device (beyond Q9 conductor thin) · billing · duration/transitions · Arrangement status · Resource soft-delete undo · `ResourceBlobs` table drop (after verified R2 backfill, ADR-0035) · 5 MiB raise · cloud LLM reopen (usage evidence, ADR-0033)
 
-*(Owner-authored Practice ChordPro follow-along / highlight is **not** FUTURE — **ADR-0031 ACCEPTED**; ML auto-marks remain FUTURE.)*
+*(Shipped, not FUTURE: Owner-authored Practice ChordPro follow-along / highlight — **ADR-0031**; Whisper digitizer + review-gated suggest — **ADR-0032/0034**; Q9 conductor thin — **ADR-0036**; tuner + YouTube reference embed — **ADR-0037**; R2 blob backend — **ADR-0035**. Karaoke scoring is OUT per **ADR-0037**.)*
 
 ---
 

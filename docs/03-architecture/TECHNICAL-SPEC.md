@@ -189,20 +189,20 @@ Validation/concurrency → no partial write; client reload; no server auto-retry
 
 ---
 
-## 7. Object storage (**PROPOSED**; vendor OPEN)
+## 7. Object storage (DECIDED by ADR-0035 2026-09-21: Cloudflare R2 alternate backend, Postgres default)
 
 | Concern | Rule |
 | ------- | ---- |
 | Metadata | Resource row in Postgres (ArrangementId, purpose incl. `practice`, required Label, optional Part, note, Kind file\|link, contentType, size, objectKey / Url as applicable — ADR-0024) |
-| Bytes | Object store via `IBlobStore` port |
-| Key | `groups/{groupId}/arrangements/{arrangementId}/{resourceId}/{safeFileName}` |
-| Upload | Owner; authenticated; size/type limits (limits OPEN numeric — assume sensible defaults e.g. 50MB audio, 10MB docs until product sets) |
-| Download | Member+Owner of Group; authorize then signed URL **or** authenticated proxy (PROPOSED prefer **signed URL** short TTL after AuthZ) |
+| Bytes | Object store via `IBlobStore` port; backend selected by config — R2 (`R2BlobStore`, Cloudflare R2 S3-compatible) when `R2:*` configured, else Postgres `ResourceBlobs` (ADR-0035) |
+| Key | `groups/{groupId}/arrangements/{arrangementId}/{resourceId}/{safeFileName}` (unchanged across backends) |
+| Upload | Owner; authenticated; 5 MiB cap UNCHANGED (ADR-0035; raises need their own ADR) |
+| Download | Member+Owner of Group; authorize then **authenticated proxy** `GET .../content` (ADR-0019; ADR-0035 forbids public buckets / bare presigned reads in thin) |
 | Public URLs | **Forbidden** for MVP Resources |
-| Delete | Hard-delete DB row + best-effort blob delete; orphan GC FUTURE |
+| Delete | Hard-delete DB row + best-effort blob delete (both backends); orphan GC FUTURE; `ResourceBlobs` table drops only after verified backfill (ADR-0035) |
 | Filename | Sanitize; store original display name separately if needed |
 
-Not a DAM. **Confidence:** HIGH on abstraction; MEDIUM on size limits until product sets numbers.
+Not a DAM. Live in prod with R2 backend since 2026-09-21 (dual-read + lazy backfill; Postgres retained as fallback).
 
 ---
 
