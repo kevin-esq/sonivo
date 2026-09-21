@@ -1,6 +1,6 @@
 # Phase Practice extras thin (ADR-0037)
 
-**Status:** **PROPOSED** 2026-09-20 — awaiting Kevin ACCEPTANCE + in/out confirmation. Nothing below binds implementation.
+**Status:** **ACCEPTED 2026-09-21** (ADR-0037 HUMAN-DELEGATED: tuner IN, YouTube CONDITIONAL IN, scoring OUT-confirmed). Tickets T-FX-01–02 ACTIVE; scoring gets zero work (TC-KAR-01 reserved).
 **Product bet (proposed):** Practice helps musicians get in tune (client tuner) and watch the linked reference (embed) — without scoring promises Sonivo cannot keep.
 **Date:** 2026-09-20
 **Depends on:** ADR-0037 (PROPOSED), 0024, 0027, 0028, 0029, 0030, 0031; T-3.2.06.
@@ -32,14 +32,16 @@
 
 ---
 
-## Tickets (gated on ACCEPTANCE + Kevin in/out confirmation — do NOT start before Kevin ACCEPTS ADR-0037)
+## Tickets (ACTIVE — ADR-0037 ACCEPTED 2026-09-21, HUMAN-DELEGATED)
 
 | ID | Work | Status |
 | -- | ---- | ------ |
-| **T-FX-00** | Docs: ADR-0037 PROPOSED + this spec skeleton | IN PROGRESS (this branch, docs only) |
-| **TC-PITCH-01** | (sketch) Tuner: mic-gated Afinador UX + pitch-math tests + sparse Playwright mechanics | GATED — needs ACCEPTANCE + in-confirm |
-| **TC-YT-01** | (sketch) Reference embed: nocookie iframe + CSP + sparse Playwright mechanics | GATED — needs ACCEPTANCE + in-confirm |
-| **TC-KAR-01** | (name reserved) Scoring — OUT; no work authorized | RESERVED — explicitly OUT |
+| **T-FX-00** | Docs: ADR-0037 ACCEPTED (HUMAN-DELEGATED 2026-09-21) + this spec frozen (tickets active) | DONE |
+| **T-FX-01** | Tuner: mic-gated Afinador UX (AudioWorklet + hand-rolled autocorrelation, no deps/server/recording) + sparse Playwright TC-PITCH-01 | ACTIVE |
+| **T-FX-02** | Reference embed: nocookie iframe for `purpose=reference` YouTube links + minimal CSP + sparse Playwright TC-YT-01; follow-along hidden/disabled on YouTube-sourced Practice | ACTIVE |
+| **TC-PITCH-01** | Tuner: mic-gated Afinador UX asserts note display + mic-denied Spanish copy | ACTIVE (ships with T-FX-01) |
+| **TC-YT-01** | Reference embed: nocookie iframe render + follow-toggle hidden with explanation | ACTIVE (ships with T-FX-02) |
+| **TC-KAR-01** | (name reserved) Scoring — OUT confirmed; no work authorized | RESERVED — explicitly OUT, zero work |
 
 Implementation branch naming: `feature/t-fx-*` (one coherent vertical slice per ticket or batched only with explicit approval).
 

@@ -127,6 +127,16 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// ADR-0037 T-FX-02: minimal embed policy for YouTube reference iframes.
+// Only frame-src (nocookie player) + img-src (thumbnails) are declared;
+// no other directive is loosened (no script/style/object changes).
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.TryAdd("Content-Security-Policy",
+        "frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: https://i.ytimg.com");
+    await next();
+});
+
 app.Use(async (context, next) =>
 {
     var method = context.Request.Method;
