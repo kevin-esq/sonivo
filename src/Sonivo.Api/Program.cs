@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
@@ -92,6 +93,10 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("auth-resend", http => PerIp(http, 10));
     options.AddPolicy("auth-forgot", http => PerIp(http, 10));
     options.AddPolicy("auth-reset", http => PerIp(http, 30));
+    // T-AU-02: TOTP codes are 6 digits (brute-forceable) — the challenge
+    // endpoints get the strictest budget; management is session-authed.
+    options.AddPolicy("auth-2fa-challenge", http => PerIp(http, 10));
+    options.AddPolicy("auth-2fa-manage", http => PerIp(http, 30));
 });
 builder.Services.AddSingleton<VerificationThrottle>();
 
@@ -303,9 +308,14 @@ app.MapPost("/api/auth/login", async (
             title: "Unauthorized");
     }
 
-    var result = await signInManager.CheckPasswordSignInAsync(
+    // T-AU-02 (ADR-0038 S2): PasswordSignInAsync signs the app session
+    // itself, except when 2FA is enabled — then it stores only the temp 2FA
+    // cookie (TwoFactorUserIdScheme, NOT the app cookie) and reports
+    // RequiresTwoFactor. The second step completes the session.
+    var result = await signInManager.PasswordSignInAsync(
         user,
         request.Password,
+        isPersistent: request.RememberMe,
         lockoutOnFailure: true);
 
     if (result.IsLockedOut)
@@ -329,6 +339,13 @@ app.MapPost("/api/auth/login", async (
             title: "Unauthorized");
     }
 
+    if (result.RequiresTwoFactor)
+    {
+        // 2FA presence is visible only AFTER a correct password (standard,
+        // documented S2 decision — no oracle for unauthenticated callers).
+        return Results.Ok(new { requiresTwoFactor = true });
+    }
+
     if (!result.Succeeded)
     {
         return Results.Problem(
@@ -337,7 +354,6 @@ app.MapPost("/api/auth/login", async (
             title: "Unauthorized");
     }
 
-    await signInManager.SignInAsync(user, isPersistent: request.RememberMe);
     return Results.Ok(new
     {
         id = user.Id,
@@ -531,6 +547,299 @@ app.MapPost("/api/auth/reset-password", async (
 .AllowAnonymous()
 .DisableAntiforgery()
 .RequireRateLimiting("auth-reset");
+
+// T-AU-02 (ADR-0038 S2): TOTP 2FA via the Identity authenticator provider.
+// Recovery codes are Identity-hashed at rest, shown exactly once at enable
+// (and on explicit regenerate), single-use enforced by UserManager.
+// No new tables: AspNetUserTokens already stores the authenticator key +
+// recovery codes (verified — no migration).
+static string SanitizeTotpCode(string? code) =>
+    (code ?? string.Empty).Replace(" ", string.Empty, StringComparison.Ordinal)
+        .Replace("-", string.Empty, StringComparison.Ordinal);
+
+static string BuildAuthenticatorUri(string issuer, string account, string key) =>
+    string.Format(CultureInfo.InvariantCulture,
+        "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6",
+        Uri.EscapeDataString(issuer),
+        Uri.EscapeDataString(account),
+        key);
+
+app.MapGet("/api/auth/2fa/status", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(new
+    {
+        enabled = await users.GetTwoFactorEnabledAsync(user),
+        hasPassword = await users.HasPasswordAsync(user)
+    });
+})
+.WithName("TwoFactorStatus")
+.RequireAuthorization();
+
+app.MapPost("/api/auth/2fa/enroll-start", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (await users.GetTwoFactorEnabledAsync(user))
+    {
+        return Results.Problem(
+            detail: "La verificación en dos pasos ya está activada",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    // S38-Q2 (b): Google-only (passwordless) accounts enroll with session
+    // auth + CSRF only — no password hash exists to recheck (documented risk).
+    var key = await users.GetAuthenticatorKeyAsync(user);
+    if (string.IsNullOrEmpty(key))
+    {
+        await users.ResetAuthenticatorKeyAsync(user);
+        key = await users.GetAuthenticatorKeyAsync(user);
+    }
+
+    return Results.Ok(new
+    {
+        uri = BuildAuthenticatorUri(
+            "Sonivo", user.Email ?? user.UserName ?? string.Empty, key!),
+        manualKey = key
+    });
+})
+.WithName("TwoFactorEnrollStart")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-manage");
+
+app.MapPost("/api/auth/2fa/enroll-verify", async (
+    TwoFactorCodeRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (await users.GetTwoFactorEnabledAsync(user))
+    {
+        return Results.Problem(
+            detail: "La verificación en dos pasos ya está activada",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    var valid = await users.VerifyTwoFactorTokenAsync(
+        user,
+        TokenOptions.DefaultAuthenticatorProvider,
+        SanitizeTotpCode(request.Code));
+    if (!valid)
+    {
+        return Results.Problem(
+            detail: "Código de verificación incorrecto — inténtalo de nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    await users.SetTwoFactorEnabledAsync(user, true);
+    var recoveryCodes = (await users.GenerateNewTwoFactorRecoveryCodesAsync(user, 10))?.ToList()
+        ?? [];
+    return Results.Ok(new { enabled = true, recoveryCodes });
+})
+.WithName("TwoFactorEnrollVerify")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-manage");
+
+app.MapPost("/api/auth/2fa/disable", async (
+    DisableTwoFactorRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!await users.GetTwoFactorEnabledAsync(user))
+    {
+        return Results.Problem(
+            detail: "La verificación en dos pasos no está activada",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    // Password recheck only when a password exists; passwordless
+    // (Google-only) accounts skip it per S38-Q2 (b).
+    if (await users.HasPasswordAsync(user))
+    {
+        var passwordOk = await users.CheckPasswordAsync(user, request.Password ?? string.Empty);
+        if (!passwordOk)
+        {
+            return Results.Problem(
+                detail: "La contraseña no es correcta",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Validation failed");
+        }
+    }
+
+    await users.SetTwoFactorEnabledAsync(user, false);
+    await users.ResetAuthenticatorKeyAsync(user);
+    return Results.Ok(new { disabled = true });
+})
+.WithName("TwoFactorDisable")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-manage");
+
+app.MapPost("/api/auth/2fa/challenge", async (
+    TwoFactorChallengeRequest request,
+    SignInManager<ApplicationUser> signInManager) =>
+{
+    var user = await signInManager.GetTwoFactorAuthenticationUserAsync();
+    if (user is null)
+    {
+        return Results.Problem(
+            detail: "No hay una verificación pendiente — inicia sesión de nuevo",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    // Strict brute-force posture: 6-digit codes + lockout counting.
+    var result = await signInManager.TwoFactorAuthenticatorSignInAsync(
+        SanitizeTotpCode(request.Code),
+        isPersistent: request.RememberMe,
+        rememberClient: false);
+
+    if (result.IsLockedOut)
+    {
+        return Results.Problem(
+            detail: "Account temporarily locked.",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.Problem(
+            detail: "Código de verificación incorrecto",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    return Results.Ok(new
+    {
+        id = user.Id,
+        email = user.Email,
+        displayName = user.DisplayName,
+        emailConfirmed = user.EmailConfirmed
+    });
+})
+.WithName("TwoFactorChallenge")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-challenge");
+
+app.MapPost("/api/auth/2fa/recover", async (
+    TwoFactorChallengeRequest request,
+    SignInManager<ApplicationUser> signInManager) =>
+{
+    var user = await signInManager.GetTwoFactorAuthenticationUserAsync();
+    if (user is null)
+    {
+        return Results.Problem(
+            detail: "No hay una verificación pendiente — inicia sesión de nuevo",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    // Same strict budget + lockout as the TOTP challenge; redemption is
+    // single-use (Identity consumes the code on success).
+    var code = (request.Code ?? string.Empty).Replace(" ", string.Empty, StringComparison.Ordinal);
+    var result = await signInManager.TwoFactorRecoveryCodeSignInAsync(code);
+
+    if (result.IsLockedOut)
+    {
+        return Results.Problem(
+            detail: "Account temporarily locked.",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.Problem(
+            detail: "Código de recuperación incorrecto",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    return Results.Ok(new
+    {
+        id = user.Id,
+        email = user.Email,
+        displayName = user.DisplayName,
+        emailConfirmed = user.EmailConfirmed
+    });
+})
+.WithName("TwoFactorRecover")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-challenge");
+
+app.MapPost("/api/auth/2fa/recovery-codes/regenerate", async (
+    RegenerateRecoveryCodesRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!await users.GetTwoFactorEnabledAsync(user))
+    {
+        return Results.Problem(
+            detail: "La verificación en dos pasos no está activada",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    if (await users.HasPasswordAsync(user))
+    {
+        var passwordOk = await users.CheckPasswordAsync(user, request.Password ?? string.Empty);
+        if (!passwordOk)
+        {
+            return Results.Problem(
+                detail: "La contraseña no es correcta",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Validation failed");
+        }
+    }
+
+    // Old codes die here; the new set is shown exactly once in this response.
+    var recoveryCodes = (await users.GenerateNewTwoFactorRecoveryCodesAsync(user, 10))?.ToList()
+        ?? [];
+    return Results.Ok(new { recoveryCodes });
+})
+.WithName("TwoFactorRegenerateRecoveryCodes")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-manage");
 
 // T-AU-01 test hook (E2E only): marks a user confirmed without a mailbox.
 // DOUBLE-GATED: Auth:EnableTestHook AND Development environment. The env gate
@@ -2034,6 +2343,10 @@ internal sealed record ResendConfirmationRequest(string? Email);
 internal sealed record ForgotPasswordRequest(string? Email);
 internal sealed record ResetPasswordRequest(string? Email, string? Token, string? NewPassword);
 internal sealed record TestConfirmRequest(string? Email);
+internal sealed record TwoFactorCodeRequest(string? Code);
+internal sealed record TwoFactorChallengeRequest(string? Code, bool RememberMe = false);
+internal sealed record DisableTwoFactorRequest(string? Password);
+internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
 internal sealed record CreateInvitationRequest(string? Email);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);

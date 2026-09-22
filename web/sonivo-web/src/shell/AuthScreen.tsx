@@ -2,10 +2,13 @@ import { useEffect, useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import {
+  challengeTwoFactor,
   fetchAuthProviders,
   googleChallengeHref,
+  isSecondStepRequired,
   loginUser,
   problemDetail,
+  recoverTwoFactor,
   registerUser,
   resendConfirmation,
   type CurrentUser,
@@ -54,6 +57,12 @@ function AuthScreen({
   const [resendPending, setResendPending] = useState(false)
   const [resendSent, setResendSent] = useState(false)
   const [resendError, setResendError] = useState<string | null>(null)
+  // T-AU-02: password accepted but the account requires a second factor.
+  const [secondStep, setSecondStep] = useState(false)
+  const [secondCode, setSecondCode] = useState('')
+  const [secondError, setSecondError] = useState<string | null>(null)
+  const [secondPending, setSecondPending] = useState(false)
+  const [useRecovery, setUseRecovery] = useState(false)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const next = safeJoinNextPath(searchParams.get('next'))
@@ -95,14 +104,37 @@ function AuthScreen({
         await registerUser({ email, password, displayName: displayName || undefined })
         setRegistered(true)
       } else {
-        const user = await loginUser({ email, password })
-        onSuccess(user)
-        navigate(next ?? '/')
+        const result = await loginUser({ email, password })
+        if (isSecondStepRequired(result)) {
+          setSecondStep(true)
+          setSecondError(null)
+        } else {
+          onSuccess(result)
+          navigate(next ?? '/')
+        }
       }
     } catch (err) {
       setError(problemDetail(err))
     } finally {
       setPending(false)
+    }
+  }
+
+  async function onSecondStep(event: FormEvent) {
+    event.preventDefault()
+    setSecondPending(true)
+    setSecondError(null)
+    try {
+      // T-AU-02: the temp 2FA cookie (not a session) authorizes this call.
+      const user = useRecovery
+        ? await recoverTwoFactor(secondCode.trim())
+        : await challengeTwoFactor(secondCode.trim())
+      onSuccess(user)
+      navigate(next ?? '/')
+    } catch (err) {
+      setSecondError(problemDetail(err))
+    } finally {
+      setSecondPending(false)
     }
   }
 
@@ -141,7 +173,54 @@ function AuthScreen({
         <div className="mb-8 lg:hidden">
           <BrandLockup to="/login" />
         </div>
-        {mode === 'register' && registered ? (
+        {mode === 'login' && secondStep ? (
+          <form className="space-y-4" onSubmit={onSecondStep} noValidate aria-labelledby={headingId}>
+            <div className="space-y-1">
+              <h1 id={headingId} className="text-2xl font-bold tracking-tight">
+                Verificación en dos pasos
+              </h1>
+              <p className="text-sm text-slate-500">
+                {useRecovery
+                  ? 'Ingresa uno de tus códigos de recuperación'
+                  : 'Ingresa el código de 6 dígitos de tu app de autenticación'}
+              </p>
+            </div>
+            {secondError ? (
+              <p role="alert" className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error">
+                {secondError}
+              </p>
+            ) : null}
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">
+                {useRecovery ? 'Código de recuperación' : 'Código de 6 dígitos'}
+              </span>
+              <input
+                className={fieldClass}
+                required
+                value={secondCode}
+                onChange={(e) => setSecondCode(e.target.value)}
+                autoComplete="one-time-code"
+                inputMode={useRecovery ? 'text' : 'numeric'}
+              />
+            </label>
+            <Button type="submit" className="w-full" disabled={secondPending}>
+              {secondPending ? 'Verificando…' : 'Verificar'}
+            </Button>
+            <button
+              type="button"
+              className="text-sm font-semibold text-primary hover:underline"
+              onClick={() => {
+                setUseRecovery((value) => !value)
+                setSecondCode('')
+                setSecondError(null)
+              }}
+            >
+              {useRecovery
+                ? 'Usar el código de mi app de autenticación'
+                : 'No tengo acceso a mi app — usar un código de recuperación'}
+            </button>
+          </form>
+        ) : mode === 'register' && registered ? (
           <div className="space-y-4" aria-labelledby={headingId}>
             <div className="space-y-1">
               <h1 id={headingId} className="text-2xl font-bold tracking-tight">

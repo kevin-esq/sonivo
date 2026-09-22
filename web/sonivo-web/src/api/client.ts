@@ -132,16 +132,23 @@ export async function loginUser(input: {
   email: string
   password: string
   rememberMe?: boolean
-}): Promise<CurrentUser> {
+}): Promise<CurrentUser | { requiresTwoFactor: true }> {
   clearCsrfToken()
   await ensureCsrfToken()
-  const user = await apiRequest<CurrentUser>('/api/auth/login', {
+  const result = await apiRequest<CurrentUser | { requiresTwoFactor: true }>('/api/auth/login', {
     method: 'POST',
     body: input,
   })
   clearCsrfToken()
   await ensureCsrfToken()
-  return user
+  return result
+}
+
+/** T-AU-02: narrows the login union to the 2FA second-step shape. */
+export function isSecondStepRequired(
+  value: CurrentUser | { requiresTwoFactor: true },
+): value is { requiresTwoFactor: true } {
+  return (value as { requiresTwoFactor?: unknown }).requiresTwoFactor === true
 }
 
 export async function logoutUser(): Promise<void> {
@@ -186,6 +193,71 @@ export async function resetPassword(input: {
   return apiRequest<{ passwordReset: boolean }>('/api/auth/reset-password', {
     method: 'POST',
     body: input,
+  })
+}
+
+/** T-AU-02: TOTP two-factor authentication (ADR-0038 S2). */
+export type TwoFactorStatus = {
+  enabled: boolean
+  hasPassword: boolean
+}
+
+export async function fetchTwoFactorStatus(): Promise<TwoFactorStatus> {
+  return apiRequest<TwoFactorStatus>('/api/auth/2fa/status')
+}
+
+export async function startTwoFactorEnroll(): Promise<{ uri: string; manualKey: string }> {
+  return apiRequest<{ uri: string; manualKey: string }>('/api/auth/2fa/enroll-start', {
+    method: 'POST',
+    body: {},
+  })
+}
+
+export async function verifyTwoFactorEnroll(
+  code: string,
+): Promise<{ enabled: boolean; recoveryCodes: string[] }> {
+  return apiRequest<{ enabled: boolean; recoveryCodes: string[] }>('/api/auth/2fa/enroll-verify', {
+    method: 'POST',
+    body: { code },
+  })
+}
+
+export async function disableTwoFactor(password?: string): Promise<{ disabled: boolean }> {
+  return apiRequest<{ disabled: boolean }>('/api/auth/2fa/disable', {
+    method: 'POST',
+    body: password === undefined ? {} : { password },
+  })
+}
+
+export async function challengeTwoFactor(
+  code: string,
+  rememberMe = false,
+): Promise<CurrentUser> {
+  const user = await apiRequest<CurrentUser>('/api/auth/2fa/challenge', {
+    method: 'POST',
+    body: { code, rememberMe },
+  })
+  clearCsrfToken()
+  await ensureCsrfToken()
+  return user
+}
+
+export async function recoverTwoFactor(code: string): Promise<CurrentUser> {
+  const user = await apiRequest<CurrentUser>('/api/auth/2fa/recover', {
+    method: 'POST',
+    body: { code },
+  })
+  clearCsrfToken()
+  await ensureCsrfToken()
+  return user
+}
+
+export async function regenerateRecoveryCodes(
+  password?: string,
+): Promise<{ recoveryCodes: string[] }> {
+  return apiRequest<{ recoveryCodes: string[] }>('/api/auth/2fa/recovery-codes/regenerate', {
+    method: 'POST',
+    body: password === undefined ? {} : { password },
   })
 }
 
