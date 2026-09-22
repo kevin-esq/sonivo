@@ -215,6 +215,8 @@ public class LinkResourceApiTests : IClassFixture<SonivoApiFactory>
             throw new InvalidOperationException(await register.Content.ReadAsStringAsync());
         }
 
+        // T-AU-01: mailbox must be proven before the login gate passes.
+        await AuthTestHelper.ConfirmEmailAsync(_factory.Services, email);
         await EnsureCsrfAsync(client);
         Assert.Equal(HttpStatusCode.OK,
             (await client.PostAsJsonAsync("/api/auth/login", new { email, password, rememberMe = false })).StatusCode);

@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using System.Security.Claims;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Sonivo.Application;
 using Sonivo.Application.Abstractions;
@@ -70,6 +72,29 @@ builder.Services.AddAntiforgery(options =>
         : CookieSecurePolicy.Always;
 });
 
+// T-AU-01: fixed-window rate limits on register + verification endpoints
+// (modest per-IP budgets; absolute session cap stays DEFERRED per ADR-0038).
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    static RateLimitPartition<string> PerIp(HttpContext http, int permits) =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = permits,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
+    options.AddPolicy("auth-register", http => PerIp(http, 30));
+    options.AddPolicy("auth-confirm", http => PerIp(http, 30));
+    options.AddPolicy("auth-resend", http => PerIp(http, 10));
+    options.AddPolicy("auth-forgot", http => PerIp(http, 10));
+    options.AddPolicy("auth-reset", http => PerIp(http, 30));
+});
+builder.Services.AddSingleton<VerificationThrottle>();
+
 if (!builder.Environment.IsDevelopment())
 {
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -107,6 +132,8 @@ app.Logger.LogInformation(
 if (!app.Environment.IsDevelopment())
 {
     app.UseForwardedHeaders();
+    // T-AU-01 quick win: HSTS in non-dev (standard placement, early).
+    app.UseHsts();
 }
 
 if (app.Configuration.GetValue("SONIVO_MIGRATE_ON_START", false))
@@ -126,6 +153,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.Use(async (context, next) =>
 {
@@ -190,7 +218,10 @@ app.MapGet("/api/auth/csrf", (HttpContext http, IAntiforgery antiforgery) =>
 
 app.MapPost("/api/auth/register", async (
     RegisterRequest request,
-    UserManager<ApplicationUser> users) =>
+    UserManager<ApplicationUser> users,
+    IEmailSender email,
+    IPublicOrigin origin,
+    CancellationToken cancellationToken) =>
 {
     if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
     {
@@ -221,17 +252,34 @@ app.MapPost("/api/auth/register", async (
             title: duplicate ? "Conflict" : "Validation failed");
     }
 
+    // T-AU-01: register never signs in; it mails a confirmation link
+    // best-effort (mailed=false degrades to the login resend affordance).
+    // Register-409 contract UNCHANGED (ADR-0038).
+    var mailed = false;
+    try
+    {
+        var token = await users.GenerateEmailConfirmationTokenAsync(user);
+        mailed = await VerificationMail.TrySendConfirmationAsync(
+            email, origin, app.Logger, user.Email!, token, cancellationToken);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Verification email could not be sent (best-effort).");
+    }
+
     return Results.Created($"/api/auth/me", new
     {
         id = user.Id,
         email = user.Email,
         displayName = user.DisplayName,
-        emailConfirmed = user.EmailConfirmed
+        emailConfirmed = user.EmailConfirmed,
+        mailed
     });
 })
 .WithName("Register")
 .AllowAnonymous()
-.DisableAntiforgery();
+.DisableAntiforgery()
+.RequireRateLimiting("auth-register");
 
 app.MapPost("/api/auth/login", async (
     LoginRequest request,
@@ -264,6 +312,19 @@ app.MapPost("/api/auth/login", async (
     {
         return Results.Problem(
             detail: "Account temporarily locked.",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    if (result.IsNotAllowed)
+    {
+        // T-AU-01 (Q-AU-1): unverified mailbox denied with the IDENTICAL
+        // 401 shape as bad credentials — no new oracle. The Spanish
+        // unconfirmed copy + resend affordance live as PERMANENT
+        // unconditional elements on the login screen, never conditioned
+        // on this response.
+        return Results.Problem(
+            detail: "Invalid email or password.",
             statusCode: StatusCodes.Status401Unauthorized,
             title: "Unauthorized");
     }
@@ -321,6 +382,189 @@ app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInMana
 .WithName("Logout")
 .RequireAuthorization()
 .DisableAntiforgery();
+
+// T-AU-01 (Q-AU-2): single-use expiring DataProtection tokens via UserManager.
+// Invalid/expired/unknown → 400 with the frozen Spanish copy.
+app.MapPost("/api/auth/confirm-email", async (
+    ConfirmEmailRequest request,
+    UserManager<ApplicationUser> users) =>
+{
+    var email = request.Email?.Trim();
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(request.Token))
+    {
+        return Results.Problem(
+            detail: "Enlace expirado o inválido — solicita uno nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var user = await users.FindByEmailAsync(email);
+    if (user is null)
+    {
+        return Results.Problem(
+            detail: "Enlace expirado o inválido — solicita uno nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var result = await users.ConfirmEmailAsync(user, request.Token);
+    if (!result.Succeeded)
+    {
+        return Results.Problem(
+            detail: "Enlace expirado o inválido — solicita uno nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    // Rotate the stamp so the token is single-use (reuse → 400).
+    await users.UpdateSecurityStampAsync(user);
+    return Results.Ok(new { emailConfirmed = true });
+})
+.WithName("ConfirmEmail")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-confirm");
+
+// T-AU-01 (Q-AU-2): ALWAYS 202 — silent for unknown/already-confirmed emails
+// (no oracle), per-email 60 s cooldown, best-effort mail + mailed flag.
+app.MapPost("/api/auth/resend-confirmation", async (
+    ResendConfirmationRequest request,
+    UserManager<ApplicationUser> users,
+    IEmailSender email,
+    IPublicOrigin origin,
+    VerificationThrottle throttle,
+    CancellationToken cancellationToken) =>
+{
+    var mailed = false;
+    var normalized = request.Email?.Trim() ?? string.Empty;
+    if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim(normalized))
+    {
+        var user = await users.FindByEmailAsync(normalized);
+        if (user is not null && !user.EmailConfirmed)
+        {
+            var token = await users.GenerateEmailConfirmationTokenAsync(user);
+            mailed = await VerificationMail.TrySendConfirmationAsync(
+                email, origin, app.Logger, user.Email!, token, cancellationToken);
+        }
+    }
+
+    return Results.Accepted("/api/auth/resend-confirmation", new { accepted = true, mailed });
+})
+.WithName("ResendConfirmation")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-resend");
+
+// T-AU-01 (Q-AU-2): ALWAYS 202 — silent for unknown emails (no oracle),
+// best-effort mail + mailed flag.
+app.MapPost("/api/auth/forgot-password", async (
+    ForgotPasswordRequest request,
+    UserManager<ApplicationUser> users,
+    IEmailSender email,
+    IPublicOrigin origin,
+    CancellationToken cancellationToken) =>
+{
+    var mailed = false;
+    var normalized = request.Email?.Trim() ?? string.Empty;
+    if (!string.IsNullOrWhiteSpace(normalized))
+    {
+        var user = await users.FindByEmailAsync(normalized);
+        if (user is not null)
+        {
+            var token = await users.GeneratePasswordResetTokenAsync(user);
+            mailed = await VerificationMail.TrySendPasswordResetAsync(
+                email, origin, app.Logger, user.Email!, token, cancellationToken);
+        }
+    }
+
+    return Results.Accepted("/api/auth/forgot-password", new { accepted = true, mailed });
+})
+.WithName("ForgotPassword")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-forgot");
+
+// T-AU-01 (Q-AU-2): single-use reset via security-stamp rotation.
+// Invalid/expired/unknown → 400 with the frozen Spanish copy.
+app.MapPost("/api/auth/reset-password", async (
+    ResetPasswordRequest request,
+    UserManager<ApplicationUser> users) =>
+{
+    var email = request.Email?.Trim();
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(request.Token))
+    {
+        return Results.Problem(
+            detail: "Enlace expirado o inválido — solicita uno nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var user = await users.FindByEmailAsync(email);
+    if (user is null)
+    {
+        return Results.Problem(
+            detail: "Enlace expirado o inválido — solicita uno nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var result = await users.ResetPasswordAsync(user, request.Token, request.NewPassword ?? string.Empty);
+    if (!result.Succeeded)
+    {
+        if (result.Errors.All(e => e.Code == "InvalidToken"))
+        {
+            return Results.Problem(
+                detail: "Enlace expirado o inválido — solicita uno nuevo",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+
+        return Results.Problem(
+            detail: string.Join(" ", result.Errors.Select(e => e.Description)),
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    return Results.Ok(new { passwordReset = true });
+})
+.WithName("ResetPassword")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-reset");
+
+// T-AU-01 test hook (E2E only): marks a user confirmed without a mailbox.
+// Gated by Auth:EnableTestHook (default false; NOT set in prod). Mirrors the
+// existing Google test-callback precedent. Returns 404 when disabled.
+var authTestHook = app.Configuration.GetValue("Auth:EnableTestHook", false);
+if (authTestHook)
+{
+    app.MapPost("/api/auth/test/confirm", async (
+        TestConfirmRequest request,
+        UserManager<ApplicationUser> users) =>
+    {
+        var email = request.Email?.Trim();
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return Results.Problem(
+                detail: "Email is required.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Validation failed");
+        }
+
+        var user = await users.FindByEmailAsync(email);
+        if (user is null)
+        {
+            return Results.NotFound();
+        }
+
+        user.EmailConfirmed = true;
+        await users.UpdateAsync(user);
+        return Results.Ok(new { emailConfirmed = true });
+    })
+    .WithName("TestConfirmUser")
+    .AllowAnonymous()
+    .DisableAntiforgery();
+}
 
 app.MapGoogleAuthEndpoints();
 
@@ -1784,6 +2028,11 @@ static object ToEventDetailResponse(EventDetailDto musicalEvent) => new
 
 internal sealed record RegisterRequest(string? Email, string? Password, string? DisplayName);
 internal sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
+internal sealed record ConfirmEmailRequest(string? Email, string? Token);
+internal sealed record ResendConfirmationRequest(string? Email);
+internal sealed record ForgotPasswordRequest(string? Email);
+internal sealed record ResetPasswordRequest(string? Email, string? Token, string? NewPassword);
+internal sealed record TestConfirmRequest(string? Email);
 internal sealed record CreateGroupRequest(string? Name);
 internal sealed record CreateInvitationRequest(string? Email);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);

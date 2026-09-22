@@ -121,6 +121,10 @@ jobs:
         working-directory: e2e
         run: npx playwright install chromium --with-deps
       - name: Start API
+        env:
+          # T-AU-01: E2E-only mailbox bypass (POST /api/auth/test/confirm).
+          # Never set in prod; the endpoint 404s when the flag is absent.
+          Auth__EnableTestHook: "true"
         run: |
           nohup dotnet run --project src/Sonivo.Api --no-launch-profile --urls http://127.0.0.1:5171 > /tmp/sonivo-api.log 2>&1 &
           echo $! > /tmp/sonivo-api.pid

@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (Security Wave S0: ADR-0038 PROPOSED + PHASE-AUTH-SPEC)
-Human approval: PENDING (Kevin: S38-Q1–Q4 login-UX decisions)
-Git checkpoint: COMMITTED + MERGED to develop (PR #96, cc817d1; branch deleted)
-Remote: PUSHED + MERGED
-CI: PASSING (Backend + Frontend + Playwright E2E green, run 35671924295)
+Implementation: COMPLETE (Security Wave S1 T-AU-01: verification endpoints + login gate + HSTS + rate limits + tests)
+Human approval: PENDING (parent-session review of T-AU-01 PR)
+Git checkpoint: PENDING (commit+push+PR authorized in-task; merge NOT authorized)
+Remote: NOT PUSHED
+CI: NOT RUN (local: dotnet test 417/417 green; web build green; playwright --list 35 green-listed; live smoke green)
 ```
 
 ## Authorized program
