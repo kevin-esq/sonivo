@@ -134,6 +134,31 @@ app.Logger.LogInformation(
     "Blob storage backend: {Backend}",
     R2Options.IsConfigured(app.Configuration) ? "R2" : "Postgres");
 
+// Gmail From guard (S1 follow-up): Gmail silently rewrites the From header to
+// the OAuth account unless Gmail:From is a verified SendAs alias with an exact
+// match. Best-effort posture — warn HIGH severity, never throw at startup.
+try
+{
+    var gmailConfigured =
+        !string.IsNullOrWhiteSpace(app.Configuration["Gmail:ClientId"])
+        && !string.IsNullOrWhiteSpace(app.Configuration["Gmail:ClientSecret"])
+        && !string.IsNullOrWhiteSpace(app.Configuration["Gmail:RefreshToken"])
+        && !string.IsNullOrWhiteSpace(app.Configuration["Gmail:From"]);
+    if (gmailConfigured && !GmailFromValidator.IsValid(app.Configuration["Gmail:From"]))
+    {
+        app.Logger.LogWarning(
+            "HIGH severity: Gmail:From '{From}' is not a valid addr@domain shape. "
+            + "Gmail requires a verified SendAs alias with an exact address match — "
+            + "otherwise it silently rewrites the sender to the OAuth account. "
+            + "Verification mail will still send best-effort, but the From header cannot be trusted.",
+            app.Configuration["Gmail:From"]);
+    }
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Gmail From startup check failed (best-effort).");
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseForwardedHeaders();
