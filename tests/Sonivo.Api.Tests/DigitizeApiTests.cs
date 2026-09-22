@@ -174,7 +174,8 @@ public class DigitizeApiTests : IClassFixture<SonivoApiFactory>
         string email,
         string password = "Password1")
     {
-        var client = _factory.WithWebHostBuilder(configure).CreateClient(
+        var derived = _factory.WithWebHostBuilder(configure);
+        var client = derived.CreateClient(
             new WebApplicationFactoryClientOptions
             {
                 AllowAutoRedirect = false,
@@ -192,6 +193,9 @@ public class DigitizeApiTests : IClassFixture<SonivoApiFactory>
             throw new InvalidOperationException(await register.Content.ReadAsStringAsync());
         }
 
+        // T-AU-01: mailbox must be proven before the login gate passes
+        // (derived factory owns this client's store).
+        await AuthTestHelper.ConfirmEmailAsync(derived.Services, email);
         await EnsureCsrfAsync(client);
         Assert.Equal(HttpStatusCode.OK,
             (await client.PostAsJsonAsync("/api/auth/login", new { email, password, rememberMe = false })).StatusCode);

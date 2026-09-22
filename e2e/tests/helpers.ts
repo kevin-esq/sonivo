@@ -7,12 +7,45 @@ export function uniqueEmail(prefix = 'e2e'): string {
 /** Meets Identity password rules (length, upper, lower, digit). */
 export const testPassword = 'TestPass1a'
 
+/**
+ * T-AU-01 E2E confirmation without a mailbox: the API exposes
+ * POST /api/auth/test/confirm only when Auth:EnableTestHook=true
+ * (CI + local E2E startup; never prod). Same-origin fetch keeps the
+ * browser cookie jar + CSRF flow intact.
+ */
+export async function testConfirmUser(page: Page, email: string) {
+  await page.evaluate(async (targetEmail: string) => {
+    const csrfResponse = await fetch('/api/auth/csrf', { credentials: 'include' })
+    if (!csrfResponse.ok) {
+      throw new Error(`csrf failed: ${csrfResponse.status}`)
+    }
+    const { token } = (await csrfResponse.json()) as { token: string }
+    const confirm = await fetch('/api/auth/test/confirm', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+      body: JSON.stringify({ email: targetEmail }),
+    })
+    if (!confirm.ok) {
+      throw new Error(`test-confirm failed: ${confirm.status}`)
+    }
+  }, email)
+}
+
 export async function register(page: Page, email: string, password = testPassword) {
   await page.goto('/register')
   await page.getByLabel('Nombre').fill(email.split('@')[0] ?? 'e2e')
   await page.getByLabel('Correo electrónico').fill(email)
   await page.getByLabel('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Registrarse' }).click()
+  // T-AU-01: register proves nothing by itself — confirm the mailbox
+  // out-of-band, then sign in with the same credentials.
+  await expect(page.getByText('Te enviamos un enlace de confirmación')).toBeVisible()
+  await testConfirmUser(page, email)
+  await page.goto('/login')
+  await page.getByLabel('Correo electrónico').fill(email)
+  await page.getByLabel('Contraseña').fill(password)
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
   await expect(page.getByText(email)).toBeVisible()
 }
