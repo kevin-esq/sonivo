@@ -1,6 +1,6 @@
 # Phase Auth hardening thin (ADR-0038)
 
-**Status:** **PROPOSED** — ADR-0038 awaiting Kevin's decision (S38-Q1–Q4). No implementation authorized.
+**Status:** **ACCEPTED / FROZEN for S1 2026-09-21** (HUMAN-DELEGATED resolutions; S1 mechanics decided, S2/S3 proposals open until their waves). Implementation T-AU-01 **AUTHORIZED** on branch `feature/t-au-01-verify`.
 **Product bet:** mailbox-proven accounts, then opt-in second factors, then passkeys — without changing the cookie + CSRF session posture.
 **Date:** 2026-09-21
 **Depends on:** ADR-0038 (PROPOSED), 0009, 0011, 0019, 0020, 0026; Phase 3.9 Gmail API HTTPS sender (candidate verification-mail transport).
@@ -9,22 +9,22 @@
 
 ## Mechanics (proposed — open items are questions, NOT decisions)
 
-| ID | Sketch | Open item |
-| -- | ------ | --------- |
-| Q-AU-1 | S1: login gate for unverified password accounts (`RequireConfirmedEmail` or equivalent); session denied while preserving the same-401-shape discipline | Exact status/body at ACCEPTANCE — must not regress no-enumeration |
-| Q-AU-2 | S1: confirm / resend / forgot / reset endpoints; tokens single-use + expiry; resend rate-limited | Exact routes/shapes/budgets at ACCEPTANCE |
-| Q-AU-3 | S1: verification-mail transport — proposed reuse of the Phase 3.9 Gmail API HTTPS sender; no generic SMTP | Transport confirm at ACCEPTANCE |
-| Q-AU-4 | S1: grandfather rule for pre-existing password users | S38-Q1 (blocking) |
-| Q-AU-5 | S1 quick wins: HSTS non-dev; absolute session cap over the 14-day sliding window; register/first-step rate limiting | Exact values/budgets at ACCEPTANCE |
-| Q-AU-6 | S1: register-409 enumeration tradeoff — documented decision (keep 409 vs generic success-shape) | Decision at ACCEPTANCE |
-| Q-AU-7 | S2: TOTP enroll (QR URI) / verify / disable-with-password-recheck; recovery codes one-time + shown once | Exact endpoint shapes + storage at ACCEPTANCE |
-| Q-AU-8 | S2: second-step login via `RequiresTwoFactor` + recovery-code path | Exact shapes at ACCEPTANCE |
-| Q-AU-9 | S2: Google-only (passwordless) enrollment gate | S38-Q2 (blocking) |
-| Q-AU-10 | S3: passkey registration/authentication ceremonies; RP ID per-env config; password+TOTP fallback | Exact .NET 9 API surface MUST be re-verified in Microsoft Learn at implementation time (binding obligation in ADR-0038) |
-| Q-AU-11 | S3 + global: recovery UX when ALL methods are lost | S38-Q3 (blocking) |
-| Q-AU-12 | Enforcement order | S38-Q4 (blocking) |
-| Q-AU-13 | Spanish UI copy (examples in ADR-0038; exact strings at ACCEPTANCE) | Exact copy at ACCEPTANCE |
-| Q-AU-14 | **OUT (firewall):** auth behavior changes in docs; generic SMTP; Event/RSVP mail; JWT/BFF; account deletion; unlink UI; mobile bearer | — |
+| ID | Decided mechanics (binding for S1; S2/S3 sketches stay open) |
+| -- | ------------------------------------------------------------ |
+| Q-AU-1 | S1 login gate for unverified password accounts via `RequireConfirmedEmail`; denied session keeps the identical-401 shape AND carries the Spanish unconfirmed copy + resend affordance (no new oracle: resend endpoint always 202). |
+| Q-AU-2 | S1 endpoints: `POST /api/auth/confirm-email {email, token}` (single-use, expiring tokens), `POST /api/auth/resend-confirmation {email}` (always 202 + per-email cooldown), `POST /api/auth/forgot-password {email}` (always 202), `POST /api/auth/reset-password {email, token, newPassword}`. Fixed-window rate limits on register + these four (modest budgets at implementation). |
+| Q-AU-3 | Transport: reuse Phase 3.9 Gmail API HTTPS sender, best-effort + warning (existing pattern); confirm link carries `{email, token}` to an SPA route. NO generic SMTP. |
+| Q-AU-4 | Grandfather: forced-verify-on-next-login (S38-Q1 decided). |
+| Q-AU-5 | Quick wins in S1: HSTS non-dev; rate limits (above); absolute session cap DEFERRED (documented); register-409 KEPT. |
+| Q-AU-6 | Register-409 tradeoff: kept (existing clients + E2E rely on it; accepted low risk). |
+| Q-AU-7 | S2: open until S2 wave (recorded answers bind: explicit-accept Google-only enrollment). |
+| Q-AU-8 | S2: open until S2 wave. |
+| Q-AU-9 | S2: open until S2 wave. |
+| Q-AU-10 | S3: open until S3 wave (binding obligation stands: verify .NET 9 passkey surface in Learn at implementation time; RP ID per-env; fallback kept). |
+| Q-AU-11 | S3: open until S3 wave (manual support for lost-all, no code). |
+| Q-AU-12 | Order: sequential S1 → S2 → S3 (S38-Q4 decided). |
+| Q-AU-13 | Spanish UI copy (binding): “Confirma tu correo”, “Te enviamos un enlace de confirmación”, “Reenviar correo”, “Tu cuenta aún no está verificada — revisa tu bandeja o reenvía el correo”, “Restablecer contraseña”, “Enlace expirado o inválido — solicita uno nuevo”. |
+| Q-AU-14 | **OUT (firewall):** S2/S3 implementation in S1; generic SMTP; Event/RSVP mail; JWT/BFF; account deletion; unlink UI; mobile bearer; absolute session cap; register-shape change; Whisper · cloud LLM · Q9 · pitch · YouTube · MusicXML · scoring |
 
 ---
 
@@ -39,14 +39,14 @@
 
 ---
 
-## Tickets (PROPOSED — no branches until ACCEPTANCE)
+## Tickets (S1 ACTIVE on `feature/t-au-01-verify`; S2/S3 gated sequential)
 
 | ID | Work | Status |
 | -- | ---- | ------ |
-| **T-AU-00** | Docs: ADR-0038 PROPOSED + this spec skeleton + NOW update | IN PROGRESS (this PR, docs only) |
-| **T-AU-01** | S1 implementation sketch: endpoints + gate + quick wins + tests | GATED on ACCEPTANCE + S38-Q1 (+ S38-Q4) |
-| **T-AU-02** | S2 implementation sketch: TOTP + recovery codes + second step + tests | GATED on ACCEPTANCE + S38-Q2 (+ S38-Q4) |
-| **T-AU-03** | S3 implementation sketch: passkeys + RP ID + fallback + tests | GATED on ACCEPTANCE + S38-Q3 (+ S38-Q4) |
+| **T-AU-00** | Docs: ADR-0038 PROPOSED + this spec skeleton + NOW update | MERGED (PR #96) |
+| **T-AU-01** | S1: verification endpoints + login gate + HSTS + rate limits + tests | ACTIVE on `feature/t-au-01-verify` (this branch) |
+| **T-AU-02** | S2: TOTP + recovery codes + second step + tests | GATED (starts after S1 ships) |
+| **T-AU-03** | S3: passkeys + RP ID + fallback + tests | GATED (starts after S2 ships) |
 
 Implementation branch naming: `feature/t-au-*` (one coherent vertical slice per ticket or batched only with explicit approval).
 
