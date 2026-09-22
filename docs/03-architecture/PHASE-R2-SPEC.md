@@ -91,3 +91,4 @@ Implementation branch naming: `feature/t-r2-*` (one coherent vertical slice per 
   (API log: `Blob storage backend: R2`; TC-LIB-04 exercised live R2 PUT + GET).
   First attempt showed 21 pass / 10 fail from a dead local Vite server only;
   re-run of the 5 affected files after restart: 11/11 pass — no product regression.
+- **2026-09-22 update (T-R2-04 + dev bucket):** the Postgres/DualRead machinery above is REMOVED (migration `DropResourceBlobs`; `FileSystemBlobStore` is the unconfigured default). Local runs now target bucket **`sonivo-blobs-dev`** (automatic jurisdiction, created 2026-09-22) via user-env `R2__BucketName` so E2E/test uploads stop polluting the prod bucket; the prod bucket stays canonical for prod only. Backfill gate (R2 objects vs Postgres rows) still governs the T-R2-04 merge.
