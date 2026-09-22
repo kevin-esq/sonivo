@@ -28,6 +28,14 @@
 
 ---
 
+## Mail transport note — Gmail SendAs alias requirement (S1 follow-up)
+
+- **FACT:** Gmail silently rewrites the `From` header to the OAuth account unless `Gmail:From` is a **verified SendAs alias** on that account with an **exact address match** (`Name <addr>` display form is fine — the address inside must match exactly).
+- **Guard:** at startup, when the Gmail sender is configured but `Gmail:From` is not a valid `addr@domain` shape, the API logs a **HIGH-severity warning** naming this requirement. The check never throws (best-effort posture stays); successful sends are unchanged.
+- **Operator action:** if the warning surfaces (or recipients see the wrong sender), add the address under the Gmail account's *Settings → Accounts → Send mail as* and set `Gmail:From` to that exact address.
+
+---
+
 ## Scope
 
 | In (thin, after ACCEPTANCE) | Out |

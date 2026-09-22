@@ -225,5 +225,10 @@ public sealed class GoogleAuthApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Authentication:Google:ClientId", "test-google-client-id.apps.googleusercontent.com");
         builder.UseSetting("Authentication:Google:ClientSecret", "test-google-client-secret");
         builder.UseSetting("Authentication:Google:EnableTestHook", "true");
+        // Hermetic blob backend: ambient R2__* creds must never leak into tests.
+        builder.UseSetting("R2:AccountId", "");
+        builder.UseSetting("R2:AccessKey", "");
+        builder.UseSetting("R2:Secret", "");
+        builder.UseSetting("R2:BucketName", "");
     }
 }
