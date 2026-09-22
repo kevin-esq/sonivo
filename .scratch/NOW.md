@@ -7,9 +7,9 @@
 ```text
 Implementation: IN PROGRESS (Security Wave S2 T-AU-02: TOTP 2FA + recovery codes + second-step login, on feature/t-au-02-totp, PR open)
 Human approval: DELEGATED (Kevin: auditor decides + merges when correct, 2026-09-21/22)
-Git checkpoint: COMMITTED + PUSHED (PR to develop, NOT merged — CI is the gate)
+Git checkpoint: COMMITTED + PUSHED (PR #98 to develop, NOT merged — CI running: Backend QUEUED, Frontend IN_PROGRESS)
 Remote: PUSHED
-CI: NOT RUN (awaiting PR checks)
+CI: RUNNING (PR #98 checks started 2026-09-22)
 ```
 
 ## Authorized program
