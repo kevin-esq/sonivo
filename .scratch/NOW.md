@@ -33,6 +33,7 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Wave E T-Q9-01–03 | ADR-0036 ACCEPTED + SignalR conductor room + presence + TC-Q9-01 | MERGED (PR #90, CI green incl. E2E two-context follow) |
 | Wave F T-FX-01–02 | ADR-0037 ACCEPTED (tuner IN, YT conditional IN, scoring OUT) + Afinador + nocookie embed + TC-PITCH-01/TC-YT-01 | MERGED (PR #91, CI green) — scoring OUT, no work |
 | Wave D T-R2-01–03 | ADR-0035 ACCEPTED + R2BlobStore + dual-read/backfill + tests + live R2 verification | MERGED (PR #92, CI green; E2E also 31/31 local on live R2 path) — Wave D CLOSED; PROD LIVE with R2 backend (Render redeploy, log-verified) |
+| Security Wave S0 | ADR-0038 PROPOSED + PHASE-AUTH-SPEC | IN PROGRESS, PENDING, NOT merged |
 
 ## Deferred until their ADR
 
