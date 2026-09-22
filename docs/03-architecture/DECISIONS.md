@@ -10,17 +10,17 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ## ADR-0038 — Auth hardening: mandatory email verification + TOTP 2FA + passkeys (thin, waves)
 
-- **Status:** **PROPOSED** — awaiting Kevin's decision on S38-Q1–Q4 below. No implementation authorized until ACCEPTANCE.
+- **Status:** **ACCEPTED** — **HUMAN-DELEGATED 2026-09-21** (Kevin: “toma las mejores decisiones para el proyecto y continua”; auditor resolutions below)
 - **Date:** 2026-09-21
-- **Depends on:** ADR-0009 (Identity AuthN), ADR-0011 (cookie session), ADR-0019 (tenancy/AuthZ), ADR-0020 (CSRF), ADR-0026 (Google external login, verified-email linking); Phase 3.9 Gmail API HTTPS sender (candidate mail transport for verification flows)
-- **Revises:** nothing yet — on ACCEPTANCE it would revise the baseline clauses below (`RequireConfirmedEmail`, login gating, session expiry, new endpoints)
-- **Does not authorize (firewall):** any auth behavior change in the docs PR itself; any implementation (code, migrations, deps) before ACCEPTANCE; any wave (S1/S2/S3) before Kevin resolves its gating questions; generic SMTP transport; Event/RSVP mail; JWT/BFF; account-deletion product
+- **Depends on:** ADR-0009 (Identity AuthN), ADR-0011 (cookie session), ADR-0019 (tenancy/AuthZ), ADR-0020 (CSRF), ADR-0026 (Google external login, verified-email linking); Phase 3.9 Gmail API HTTPS sender (verification-mail transport)
+- **Revises:** baseline `RequireConfirmedEmail=false` + ungated login → S1 enforcement per Resolution; login-gate UX; HSTS + rate-limit posture per Resolution. ADR-0026 Google verified-linking unchanged.
+- **Does not authorize (firewall):** S2 TOTP or S3 passkeys implementation in the S1 slice (separate waves after S1 ships); generic SMTP transport; Event/RSVP mail; JWT/BFF; account-deletion product; absolute session cap (deferred, see Resolution); changing the register-409 contract (kept, see Resolution)
 
 ### Baseline (verified FACTS — current `develop`, read-only grounding, NOT changed by this ADR)
 
 Password policy: min 8 chars with upper + lower + digit required, non-alphanumeric NOT required (`DependencyInjection.cs` Identity options). Lockout: 5 failed attempts / 15 min, enabled for new users. `SignIn.RequireConfirmedEmail = false`. NO confirm / resend / forgot / reset / 2FA / passkey endpoints exist (auth surface = register, login, me, logout + Google). Google: auto-link of an existing password account only when Google asserts `email_verified`; verified Google email sets `EmailConfirmed = true` (ADR-0026); Google-only users may have no usable password (lockout/reset UX for them is out of thin per ADR-0026). Login: unknown email and wrong password share one identical 401 shape (no enumeration); locked-out accounts return their own 401 shape. Register returns 409 on duplicate email/username (known enumeration tradeoff — documented decision needed as part of S1). Cookie `sonivo.auth`: HttpOnly, Secure non-dev, Lax, sliding 14 days, NO absolute cap. Antiforgery double-submit `X-CSRF-TOKEN` (cookie `sonivo.csrf` readable by JS). No HSTS header. OpenAPI mapped dev-only.
 
-### Proposal (PROPOSED — nothing below is decided until ACCEPTANCE + S38-Q1–Q4 resolved)
+### Proposal (ACCEPTED — S1 mechanics decided below; S2/S3 proposals stay open until their waves)
 
 **Wave S1 — mandatory email verification (+ quick wins).**
 
@@ -28,9 +28,9 @@ Password policy: min 8 chars with upper + lower + digit required, non-alphanumer
 2. New rate-limited endpoints (sketches; exact routes/shapes at ACCEPTANCE): confirm (token), resend (rate-limited), forgot/reset flow (token, single-use, expiry).
 3. Login UX for unconfirmed accounts: deny the session while preserving the same-401-shape discipline (no new oracle — exact status/body at ACCEPTANCE, must not regress the no-enumeration posture), plus a resend path (“¿No recibiste el correo? Reenviar”).
 4. Mail transport (proposed): reuse the ACCEPTED Phase 3.9 Gmail API HTTPS sender. NO generic SMTP server, NO Event/RSVP mail. Any other transport needs its own decision.
-5. Grandfather rule for pre-existing password users: OPEN — see S38-Q1 (options: grace-period banner vs forced-verify-on-next-login vs exempt-existing). Nothing decided.
+5. Grandfather rule for pre-existing password users: **DECIDED (b) forced-verify-on-next-login** — no grace state, no banner machinery; denied login returns the Spanish unconfirmed copy + resend affordance; Google-verified accounts exempt per §6.
 6. Google `email_verified` accounts stay exempt (already confirmed at the provider per ADR-0026); non-verified Google link behavior unchanged.
-7. Quick wins bundled into S1 (proposed; exact values at ACCEPTANCE): HSTS header in non-dev; absolute session cap on top of the 14-day sliding window; rate limiting on register + auth first-step endpoints.
+7. Quick wins in S1 (decided): HSTS header in non-dev; rate limiting (fixed-window) on register + confirm/resend/forgot/reset endpoints (modest budgets at implementation); absolute session cap **DEFERRED** — sliding 14d stays, proportionate for an org app, revisit on incident. Register-409 contract **KEPT** (existing clients + E2E rely on it; accepted low-risk tradeoff for a group app, documented here instead of drifted).
 8. Spanish UI examples (proposed; exact copy at ACCEPTANCE): “Confirma tu correo”, “Te enviamos un enlace de confirmación”, “Reenviar correo”, “Tu cuenta aún no está verificada — revisa tu bandeja o reenvía el correo”, “Restablecer contraseña”, “Enlace expirado o inválido — solicita uno nuevo”.
 9. Tests (S1): unit (token generation/validation, resend throttling) + API matrix (verified / unverified / expired-token / rate-limited) + Playwright denial paths (unverified login blocked with resend affordance; confirm happy path; expired-token error).
 
@@ -38,7 +38,7 @@ Password policy: min 8 chars with upper + lower + digit required, non-alphanumer
 
 1. Enable-start (QR URI + manual key) → verify → enabled; disable requires password recheck; recovery codes one-time, shown once, hashed at rest (exact storage at ACCEPTANCE).
 2. Login second step via `RequiresTwoFactor` (exact endpoint shapes at ACCEPTANCE); recovery-code path when the authenticator is unavailable.
-3. Google-only users (no password) enrollment: OPEN — see S38-Q2.
+3. Google-only users (no password) enrollment: **DECIDED (b) explicit accept, no reauth** — enrollment allowed without a password challenge when the account has no password hash (documented risk; applies at S2).
 4. Spanish UI examples (proposed; exact copy at ACCEPTANCE): “Verificación en dos pasos”, “Escanea este código con tu app de autenticación”, “Ingresa el código de 6 dígitos”, “Códigos de recuperación — guárdalos en un lugar seguro”.
 5. Tests (S2): unit (TOTP verify/drift window, recovery-code single-use) + API matrix (2FA-enabled login requires second step; wrong code denied; recovery code consumes once) + Playwright denial paths.
 
@@ -46,7 +46,7 @@ Password policy: min 8 chars with upper + lower + digit required, non-alphanumer
 
 1. **Binding implementer obligation:** at implementation time the implementer MUST verify the exact ASP.NET Core Identity passkey API surface for .NET 9 in Microsoft Learn (names, packages, ceremonies) and record the verified surface in the wave ticket before writing code — this ADR proposes no API names because the surface is version-sensitive.
 2. RP ID per-env config (exact keys at ACCEPTANCE; never in git).
-3. Password + TOTP stay as fallback; passkey is an additional method, never the sole recovery path until S38-Q3 is resolved.
+3. Password + TOTP stay as fallback; passkey is an additional method, never the sole recovery path. **DECIDED: RP ID explicit per-env config (`Passkeys:RelyingPartyId`, never hardcoded); lost-all-methods = manual support, documented, no code** (applies at S3).
 4. Spanish UI examples (proposed; exact copy at ACCEPTANCE): “Iniciar sesión con llave de acceso”, “Crear llave de acceso para este dispositivo”, “Esta llave solo funciona en este sitio”.
 5. Tests (S3): unit (registration/authentication ceremony validation with fakes) + API matrix (fallback intact when passkey absent) + Playwright denial paths (ceremony failure keeps the session unauthenticated).
 
@@ -57,14 +57,18 @@ Password policy: min 8 chars with upper + lower + digit required, non-alphanumer
 | **S38-Q1** | Grandfather rule: how do pre-existing password users (registered while verification was optional) reach the mandatory-verification world? | (a) grace-period banner (N days to verify, then blocked) · (b) forced-verify-on-next-login (login denied until confirmed, resend offered) · (c) exempt-existing (only new registrations must verify) |
 | **S38-Q2** | Google-only users (no password) enrolling in TOTP 2FA: what gates enrollment? | (a) recent-OAuth-reauth required before enable · (b) explicit accept with no reauth (documented risk) |
 | **S38-Q3** | Passkey RP IDs per environment + recovery UX when ALL methods are lost (password + TOTP + passkey + recovery codes): what is the recovery path? | RP ID values per env (local / Render / custom domain) open; recovery: support-assisted flow (shape open) vs self-serve fallback (shape open) vs no-recovery / account unrecoverable (explicit accept) |
-| **S38-Q4** | Enforcement order: sequential S1 → S2 → S3, or batched S1+S2 then S3? | (a) sequential (each wave ACCEPTED + shipped before the next starts) · (b) S1+S2 batched (one ACCEPTANCE, two ticket tracks) then S3 |
+| **S38-Q4** | Enforcement order | **DECIDED (a) sequential S1 → S2 → S3** (each wave ACCEPTED + shipped before the next starts) |
+
+### Resolution (2026-09-21, HUMAN-DELEGATED — auditor decisions, rationale in PR)
+
+S38-Q1 → (b); S38-Q2 → (b); S38-Q3 → config RP ID + manual support; S38-Q4 → (a) sequential. Quick wins: HSTS + rate limits in S1; absolute cap deferred; register-409 kept. Transport: Gmail API reuse, best-effort + warning (T-3.9 pattern). E2E determinism: API white-box token for the confirm happy path; E2E covers denial + resend-accepted + copy. S2/S3 proposals stay open until their waves; their recorded answers above bind those waves unless a later ADR says otherwise.
 
 ### Tickets (gated on ACCEPTANCE — no branches until Kevin ACCEPTS + resolves S38-Q1–Q4)
 
 | ID | Sketch | Gates |
 | -- | ------ | ----- |
 | **T-AU-00** | Docs: this ADR PROPOSED + PHASE-AUTH-SPEC skeleton + NOW update | This PR (docs only) |
-| **T-AU-01** | S1 implementation: verification endpoints + login gate + quick wins + tests | ACCEPTANCE + S38-Q1 (+ S38-Q4 order) |
+| **T-AU-01** | S1 implementation: verification endpoints + login gate + quick wins + tests | ACTIVE on `feature/t-au-01-verify` (this branch) |
 | **T-AU-02** | S2 implementation: TOTP enroll/verify/disable + recovery codes + second-step login + tests | ACCEPTANCE + S38-Q2 (+ S38-Q4 order) |
 | **T-AU-03** | S3 implementation: passkeys (verified .NET 9 surface) + RP ID config + fallback + tests | ACCEPTANCE + S38-Q3 (+ S38-Q4 order) |
 
