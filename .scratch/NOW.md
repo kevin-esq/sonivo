@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: IN PROGRESS (Security Wave S2 T-AU-02: TOTP 2FA + recovery codes + second-step login, on feature/t-au-02-totp, PR open)
-Human approval: DELEGATED (Kevin: auditor decides + merges when correct, 2026-09-21/22)
-Git checkpoint: COMMITTED + PUSHED (PR #98 to develop, NOT merged — CI running: Backend QUEUED, Frontend IN_PROGRESS)
-Remote: PUSHED
-CI: RUNNING (PR #98 checks started 2026-09-22)
+Implementation: COMPLETE (Security Wave S2 T-AU-02: TOTP 2FA + recovery codes)
+Human approval: DELEGATED (Kevin: auditor decides + merges when correct, 2026-09-22)
+Git checkpoint: COMMITTED + MERGED to develop (PR #98, 5d19462; branch deleted)
+Remote: PUSHED + MERGED
+CI: PASSING (Backend + Frontend + Playwright E2E green incl. TC-2FA-01)
 ```
 
 ## Authorized program
@@ -35,8 +35,7 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Wave D T-R2-01–03 | ADR-0035 ACCEPTED + R2BlobStore + dual-read/backfill + tests + live R2 verification | MERGED (PR #92, CI green; E2E also 31/31 local on live R2 path) — Wave D CLOSED; PROD LIVE with R2 backend (Render redeploy, log-verified) |
 | Security Wave S0 | ADR-0038 PROPOSED (auth hardening: verification + TOTP + passkeys) + PHASE-AUTH-SPEC | MERGED docs (PR #96, CI green) → ACCEPTED 2026-09-21 HUMAN-DELEGATED (S1 active, S2/S3 gated sequential) |
 | Security Wave S1 | T-AU-01: verification endpoints + login gate + HSTS + rate limits + tests (+ auditor double-gate fix on test hook) | MERGED (PR #97, CI green incl. E2E) — S1 CLOSED; S2 TOTP next |
-| Security Wave S2 | T-AU-02: TOTP enroll/verify/disable + recovery codes + second-step login + tests | ACTIVE on `feature/t-au-02-totp` (PR open, CI pending) |
-| Security Wave S0 | ADR-0038 PROPOSED + PHASE-AUTH-SPEC | MERGED docs (PR #96, CI green) → ACCEPTED 2026-09-21 HUMAN-DELEGATED |
+| Security Wave S2 | T-AU-02: TOTP enroll/verify/disable + recovery codes + second-step login + tests (+ auditor security review, no changes needed) | MERGED (PR #98, CI green incl. TC-2FA-01) — S2 CLOSED; S3 passkeys next |
 
 ## Deferred until their ADR
 
