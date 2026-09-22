@@ -533,10 +533,11 @@ app.MapPost("/api/auth/reset-password", async (
 .RequireRateLimiting("auth-reset");
 
 // T-AU-01 test hook (E2E only): marks a user confirmed without a mailbox.
-// Gated by Auth:EnableTestHook (default false; NOT set in prod). Mirrors the
-// existing Google test-callback precedent. Returns 404 when disabled.
+// DOUBLE-GATED: Auth:EnableTestHook AND Development environment. The env gate
+// is the backstop — a misconfigured prod flag alone can never enable it.
+// Returns 404 when disabled.
 var authTestHook = app.Configuration.GetValue("Auth:EnableTestHook", false);
-if (authTestHook)
+if (authTestHook && app.Environment.IsDevelopment())
 {
     app.MapPost("/api/auth/test/confirm", async (
         TestConfirmRequest request,
