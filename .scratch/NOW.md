@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (program ChordPro+IA Waves A–F + R2 prod-live)
-Human approval: DELEGATED (Kevin: auditor decides + merges when correct + blanket improvement mandate, 2026-09-21)
-Git checkpoint: IN PROGRESS (docs-hygiene branch; PR after CI)
-Remote: NOT PUSHED
-CI: NOT RUN
+Implementation: COMPLETE (Security Wave S0: ADR-0038 PROPOSED + PHASE-AUTH-SPEC)
+Human approval: PENDING (Kevin: S38-Q1–Q4 login-UX decisions)
+Git checkpoint: COMMITTED + MERGED to develop (PR #96, cc817d1; branch deleted)
+Remote: PUSHED + MERGED
+CI: PASSING (Backend + Frontend + Playwright E2E green, run 35671924295)
 ```
 
 ## Authorized program
@@ -33,6 +33,7 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Wave E T-Q9-01–03 | ADR-0036 ACCEPTED + SignalR conductor room + presence + TC-Q9-01 | MERGED (PR #90, CI green incl. E2E two-context follow) |
 | Wave F T-FX-01–02 | ADR-0037 ACCEPTED (tuner IN, YT conditional IN, scoring OUT) + Afinador + nocookie embed + TC-PITCH-01/TC-YT-01 | MERGED (PR #91, CI green) — scoring OUT, no work |
 | Wave D T-R2-01–03 | ADR-0035 ACCEPTED + R2BlobStore + dual-read/backfill + tests + live R2 verification | MERGED (PR #92, CI green; E2E also 31/31 local on live R2 path) — Wave D CLOSED; PROD LIVE with R2 backend (Render redeploy, log-verified) |
+| Security Wave S0 | ADR-0038 PROPOSED (auth hardening: verification + TOTP + passkeys) + PHASE-AUTH-SPEC | MERGED docs (PR #96, CI green); impl BLOCKED on ACCEPTANCE — S38-Q1–Q4 for Kevin |
 | Security Wave S0 | ADR-0038 PROPOSED + PHASE-AUTH-SPEC | IN PROGRESS, PENDING, NOT merged |
 
 ## Deferred until their ADR
