@@ -92,6 +92,14 @@ npx playwright install chromium
 npm test
 ```
 
+The API must run with the E2E-only mailbox bypass enabled
+(`POST /api/auth/test/confirm` 404s otherwise — never set this in prod):
+
+```powershell
+$env:Auth__EnableTestHook = "true"
+dotnet run --project src/Sonivo.Api --launch-profile http
+```
+
 See [`docs/03-architecture/TESTING.md`](docs/03-architecture/TESTING.md).
 
 ## Docs
