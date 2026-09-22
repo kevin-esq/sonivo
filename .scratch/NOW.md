@@ -5,9 +5,9 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (mail From-guard + test hermeticity fix)
+Implementation: COMPLETE (docs: S1 session-continuity contract + R2 dev-bucket convention)
 Human approval: DELEGATED (Kevin blanket mandate, 2026-09-22)
-Git checkpoint: COMMITTED + MERGED to develop (PR #99, 738deaa; branch deleted)
+Git checkpoint: COMMITTED + MERGED to develop (PR #100, 4eeb5ad; branch deleted)
 Remote: PUSHED + MERGED
 CI: PASSING (Backend + Frontend + Playwright E2E green)
 ```
