@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (Security Wave S2 T-AU-02: TOTP 2FA + recovery codes)
-Human approval: DELEGATED (Kevin: auditor decides + merges when correct, 2026-09-22)
-Git checkpoint: COMMITTED + MERGED to develop (PR #98, 5d19462; branch deleted)
+Implementation: COMPLETE (mail From-guard + test hermeticity fix)
+Human approval: DELEGATED (Kevin blanket mandate, 2026-09-22)
+Git checkpoint: COMMITTED + MERGED to develop (PR #99, 738deaa; branch deleted)
 Remote: PUSHED + MERGED
-CI: PASSING (Backend + Frontend + Playwright E2E green incl. TC-2FA-01)
+CI: PASSING (Backend + Frontend + Playwright E2E green)
 ```
 
 ## Authorized program
