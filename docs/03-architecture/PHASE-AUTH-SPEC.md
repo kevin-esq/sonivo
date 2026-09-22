@@ -14,7 +14,7 @@
 | Q-AU-1 | S1 login gate for unverified password accounts via `RequireConfirmedEmail`; denied session keeps the identical-401 shape AND carries the Spanish unconfirmed copy + resend affordance (no new oracle: resend endpoint always 202). |
 | Q-AU-2 | S1 endpoints: `POST /api/auth/confirm-email {email, token}` (single-use, expiring tokens), `POST /api/auth/resend-confirmation {email}` (always 202 + per-email cooldown), `POST /api/auth/forgot-password {email}` (always 202), `POST /api/auth/reset-password {email, token, newPassword}`. Fixed-window rate limits on register + these four (modest budgets at implementation). |
 | Q-AU-3 | Transport: reuse Phase 3.9 Gmail API HTTPS sender, best-effort + warning (existing pattern); confirm link carries `{email, token}` to an SPA route. NO generic SMTP. |
-| Q-AU-4 | Grandfather: forced-verify-on-next-login (S38-Q1 decided). |
+| Q-AU-4 | Grandfather: forced-verify-on-next-login (S38-Q1 decided). Live sessions are never invalidated: gate applies at sign-in only; SPA RequireAuth checks session presence only. |
 | Q-AU-5 | Quick wins in S1: HSTS non-dev; rate limits (above); absolute session cap DEFERRED (documented); register-409 KEPT. |
 | Q-AU-6 | Register-409 tradeoff: kept (existing clients + E2E rely on it; accepted low risk). |
 | Q-AU-7 | S2: open until S2 wave (recorded answers bind: explicit-accept Google-only enrollment). |
