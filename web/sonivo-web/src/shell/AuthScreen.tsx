@@ -341,7 +341,7 @@ function AuthScreen({
                 disabled={pending}
                 onClick={() => void onPasskeyLogin()}
               >
-                Iniciar sesión con llave de acceso (Passkey)
+                Usar llave de acceso (Passkey)
               </Button>
             ) : null}
             {googleEnabled ? (
