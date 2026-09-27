@@ -192,6 +192,8 @@ app.UseRateLimiter();
 app.Use(async (context, next) =>
 {
     context.Response.Headers.TryAdd("X-Request-Id", context.TraceIdentifier);
+    context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
     await next();
 });
 
