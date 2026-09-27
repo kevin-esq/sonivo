@@ -46,6 +46,7 @@
 | **T-R2-01** | Server: `R2BlobStore:IBlobStore` + conditional registration + config + unit tests (fake-backed) | MERGED (PR #92) |
 | **T-R2-02** | Migration: dual-read R2-first + lazy backfill; `ResourceBlobs` retained (NEVER dropped in this slice) | MERGED (PR #92); table drop scheduled for a later migration after verified backfill |
 | **T-R2-03** | Tests: API AuthZ matrix (existing TC-LIB-04 covers the path) + full-suite green WITH R2 configured locally + document CI Postgres-path coverage | DONE — no new TC (verdict in spec); full E2E 31/31 green on the R2 path; CI Postgres path unchanged; PROD LIVE with R2 backend (log-verified 2026-09-21) |
+| **T-R2-04** | Drop `ResourceBlobs` post-verified-backfill + filesystem fallback for unconfigured envs + rework affected tests | ACTIVE on `feature/t-r2-drop-postgres`; MERGE GATE = backfill count check (R2 objects vs Postgres rows) |
 
 Implementation branch naming: `feature/t-r2-*` (one coherent vertical slice per ticket or batched only with explicit approval).
 

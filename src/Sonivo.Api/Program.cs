@@ -133,9 +133,10 @@ builder.Services.AddSignalR();
 var app = builder.Build();
 
 // ADR-0035: log which blob backend is active at startup (backend name only — never values).
+// T-R2-04: R2 when configured, else the filesystem fallback (local dev, CI).
 app.Logger.LogInformation(
     "Blob storage backend: {Backend}",
-    R2Options.IsConfigured(app.Configuration) ? "R2" : "Postgres");
+    R2Options.IsConfigured(app.Configuration) ? "R2" : "FileSystem");
 
 // Gmail From guard (S1 follow-up): Gmail silently rewrites the From header to
 // the OAuth account unless Gmail:From is a verified SendAs alias with an exact

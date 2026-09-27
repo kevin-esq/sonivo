@@ -2,15 +2,12 @@ using System.Net;
 using System.Net.Http.Headers;
 using Amazon.Runtime;
 using Amazon.S3;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Sonivo.Application.Abstractions;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Blobs;
-using Sonivo.Infrastructure.Persistence;
 
 namespace Sonivo.Integration.Tests;
 
@@ -54,16 +51,16 @@ public sealed class R2BlobBackendTests
     }
 
     [Fact]
-    public void AddInfrastructure_without_R2_registers_Postgres_default()
+    public void AddInfrastructure_without_R2_registers_filesystem_default()
     {
         using var provider = BuildProvider(r2: false);
         using var scope = provider.CreateScope();
 
-        Assert.IsType<PostgresBlobStore>(scope.ServiceProvider.GetRequiredService<IBlobStore>());
+        Assert.IsType<FileSystemBlobStore>(scope.ServiceProvider.GetRequiredService<IBlobStore>());
     }
 
     [Fact]
-    public void AddInfrastructure_with_full_R2_registers_dualread_over_R2()
+    public void AddInfrastructure_with_full_R2_registers_R2_singleton()
     {
         using var provider = BuildProvider(r2: true);
 
@@ -79,11 +76,10 @@ public sealed class R2BlobBackendTests
             second = scope.ServiceProvider.GetRequiredService<IBlobStore>();
         }
 
-        // T-R2-02: the composed store is scoped (Postgres fallback is scoped);
-        // the R2 primary underneath stays a singleton.
-        Assert.IsType<DualReadBlobStore>(first);
-        Assert.IsType<DualReadBlobStore>(second);
-        Assert.NotSame(first, second);
+        // T-R2-04: R2 resolves directly (no dual-read); the same singleton
+        // instance serves every scope.
+        Assert.IsType<R2BlobStore>(first);
+        Assert.Same(first, second);
 
         R2BlobStore primary;
         using (var scope = provider.CreateScope())
@@ -91,22 +87,18 @@ public sealed class R2BlobBackendTests
             primary = scope.ServiceProvider.GetRequiredService<R2BlobStore>();
         }
 
-        using (var scope = provider.CreateScope())
-        {
-            Assert.Same(primary, scope.ServiceProvider.GetRequiredService<R2BlobStore>());
-        }
-
+        Assert.Same(first, primary);
         Assert.Equal("sonivo-blobs", primary.BucketName);
     }
 
     [Fact]
-    public void AddInfrastructure_with_partial_R2_falls_back_to_Postgres()
+    public void AddInfrastructure_with_partial_R2_falls_back_to_filesystem()
     {
         // Only three of four values: missing Secret must NOT select R2.
         using var provider = BuildProvider(r2: true, omitSecret: true);
         using var scope = provider.CreateScope();
 
-        Assert.IsType<PostgresBlobStore>(scope.ServiceProvider.GetRequiredService<IBlobStore>());
+        Assert.IsType<FileSystemBlobStore>(scope.ServiceProvider.GetRequiredService<IBlobStore>());
     }
 
     [Fact]
@@ -187,117 +179,84 @@ public sealed class R2BlobBackendTests
         BucketName = "sonivo-blobs"
     };
 
-    // ---- T-R2-02: dual-read R2-first + lazy backfill (no network; intercepted S3) ----
+    // ---- T-R2-04: filesystem fallback (no network, isolated temp dirs) ----
 
     [Fact]
-    public async Task DualRead_prefers_R2_over_Postgres()
+    public async Task Filesystem_roundtrip_preserves_bytes_and_metadata()
     {
-        var payload = "from r2"u8.ToArray();
-        var script = new ScriptedHandler(_ =>
-            HttpResponseMessageFor(HttpStatusCode.OK, payload, "text/plain"));
-        await using var db = CreateBlobDb();
-        var fallback = new PostgresBlobStore(db, TestClock());
-        await fallback.PutAsync("resources/k", new MemoryStream("from pg"u8.ToArray()), "text/plain", 7, CancellationToken.None);
-        var store = CreateDualRead(script, fallback);
+        var store = FileSystemStore();
+        const string objectKey = "resources/fs-roundtrip";
+        var payload = "filesystem bytes"u8.ToArray();
+        await store.PutAsync(
+            objectKey, new MemoryStream(payload), "text/plain", payload.Length, CancellationToken.None);
 
-        var blob = await store.GetAsync("resources/k", CancellationToken.None);
+        var blob = await store.GetAsync(objectKey, CancellationToken.None);
 
         Assert.NotNull(blob);
-        Assert.Equal("from r2", await ReadTextAsync(blob!.Content));
-        Assert.DoesNotContain(script.Requests, r => r.Method == HttpMethod.Put);
-    }
-
-    [Fact]
-    public async Task DualRead_falls_back_to_Postgres_and_backfills_R2_keeping_postgres_row()
-    {
-        var payload = "legacy bytes"u8.ToArray();
-        var script = new ScriptedHandler(request =>
-            request.Method == HttpMethod.Put
-                ? new HttpResponseMessage(HttpStatusCode.OK)
-                : new HttpResponseMessage(HttpStatusCode.NotFound));
-        await using var db = CreateBlobDb();
-        var fallback = new PostgresBlobStore(db, TestClock());
-        await fallback.PutAsync("resources/legacy", new MemoryStream(payload), "text/plain", payload.Length, CancellationToken.None);
-        var store = CreateDualRead(script, fallback);
-
-        var blob = await store.GetAsync("resources/legacy", CancellationToken.None);
-
-        Assert.NotNull(blob);
-        Assert.Equal("legacy bytes", await ReadTextAsync(blob!.Content));
+        Assert.Equal(payload, await ReadBytesAsync(blob!.Content));
+        Assert.Equal("text/plain", blob.ContentType);
         Assert.Equal(payload.Length, blob.ByteSize);
-        // Lazy backfill: exactly one PUT to R2 for the missed key.
-        var puts = script.Requests.Where(r => r.Method == HttpMethod.Put).ToList();
-        Assert.Single(puts);
-        Assert.Contains("resources/legacy", puts[0].RequestUri!.ToString(), StringComparison.Ordinal);
-        // Postgres row is kept (ResourceBlobs NEVER dropped in this slice).
-        Assert.NotNull(await fallback.GetAsync("resources/legacy", CancellationToken.None));
+
+        await store.DeleteAsync(objectKey, CancellationToken.None);
+        Assert.Null(await store.GetAsync(objectKey, CancellationToken.None));
     }
 
     [Fact]
-    public async Task DualRead_R2_error_falls_back_to_Postgres()
+    public async Task Filesystem_get_miss_returns_null_and_delete_miss_does_not_throw()
     {
-        // 403: an R2-side failure that the SDK does NOT retry (transport blips
-        // are retried inside the SDK before surfacing — same fallback outcome).
-        var script = new ScriptedHandler(_ => new HttpResponseMessage(HttpStatusCode.Forbidden));
-        await using var db = CreateBlobDb();
-        var fallback = new PostgresBlobStore(db, TestClock());
-        var payload = "pg bytes"u8.ToArray();
-        await fallback.PutAsync("resources/e", new MemoryStream(payload), "text/plain", payload.Length, CancellationToken.None);
-        var store = CreateDualRead(script, fallback);
-
-        var blob = await store.GetAsync("resources/e", CancellationToken.None);
-
-        Assert.NotNull(blob);
-        Assert.Equal("pg bytes", await ReadTextAsync(blob!.Content));
-    }
-
-    [Fact]
-    public async Task DualRead_returns_null_when_both_backends_miss()
-    {
-        var script = new ScriptedHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-        await using var db = CreateBlobDb();
-        var store = CreateDualRead(script, new PostgresBlobStore(db, TestClock()));
+        var store = FileSystemStore();
 
         Assert.Null(await store.GetAsync("resources/nowhere", CancellationToken.None));
+        await store.DeleteAsync("resources/nowhere", CancellationToken.None);
     }
 
     [Fact]
-    public async Task DualRead_put_goes_to_R2_only()
+    public async Task Filesystem_overwrite_replaces_bytes_and_metadata()
     {
-        var script = new ScriptedHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-        await using var db = CreateBlobDb();
-        var fallback = new PostgresBlobStore(db, TestClock());
-        var store = CreateDualRead(script, fallback);
+        var store = FileSystemStore();
+        const string objectKey = "resources/fs-overwrite";
+        var first = "first"u8.ToArray();
+        var second = "second version"u8.ToArray();
+        await store.PutAsync(
+            objectKey, new MemoryStream(first), "text/plain", first.Length, CancellationToken.None);
+        await store.PutAsync(
+            objectKey, new MemoryStream(second), "audio/wav", second.Length, CancellationToken.None);
 
-        var payload = "new bytes"u8.ToArray();
-        await store.PutAsync("resources/new", new MemoryStream(payload), "text/plain", payload.Length, CancellationToken.None);
+        var blob = await store.GetAsync(objectKey, CancellationToken.None);
 
-        Assert.Contains(script.Requests, r => r.Method == HttpMethod.Put);
-        Assert.Null(await fallback.GetAsync("resources/new", CancellationToken.None));
+        Assert.NotNull(blob);
+        Assert.Equal(second, await ReadBytesAsync(blob!.Content));
+        Assert.Equal("audio/wav", blob.ContentType);
+        Assert.Equal(second.Length, blob.ByteSize);
     }
 
-    [Fact]
-    public async Task DualRead_delete_removes_from_both_backends()
+    [Theory]
+    [InlineData("../evil")]
+    [InlineData("resources/../../evil")]
+    [InlineData("/absolute/evil")]
+    public async Task Filesystem_rejects_traversal_keys(string objectKey)
     {
-        var script = new ScriptedHandler(_ => new HttpResponseMessage(HttpStatusCode.NoContent));
-        await using var db = CreateBlobDb();
-        var fallback = new PostgresBlobStore(db, TestClock());
-        var payload = "gone"u8.ToArray();
-        await fallback.PutAsync("resources/gone", new MemoryStream(payload), "text/plain", payload.Length, CancellationToken.None);
-        var store = CreateDualRead(script, fallback);
+        var store = FileSystemStore();
 
-        await store.DeleteAsync("resources/gone", CancellationToken.None);
-
-        Assert.Contains(script.Requests, r => r.Method == HttpMethod.Delete);
-        Assert.Null(await fallback.GetAsync("resources/gone", CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            store.PutAsync(
+                objectKey, new MemoryStream("x"u8.ToArray()), "text/plain", 1, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.GetAsync(objectKey, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.DeleteAsync(objectKey, CancellationToken.None));
     }
 
-    private static DualReadBlobStore CreateDualRead(ScriptedHandler script, PostgresBlobStore fallback)
+    private static FileSystemBlobStore FileSystemStore()
     {
-        var options = TestOptions();
-        var client = R2BlobStore.CreateClient(options, new CaptureFactory(script));
-        var primary = new R2BlobStore(client, Options.Create(options));
-        return new DualReadBlobStore(primary, fallback, NullDualReadLogger());
+        var root = Path.Combine(Path.GetTempPath(), $"sonivo-fs-test-{Guid.NewGuid():N}");
+        return new FileSystemBlobStore(Options.Create(new BlobsOptions { FileSystemDirectory = root }));
+    }
+
+    private static async Task<byte[]> ReadBytesAsync(Stream stream)
+    {
+        await using var owned = stream;
+        await using var buffer = new MemoryStream();
+        await owned.CopyToAsync(buffer);
+        return buffer.ToArray();
     }
 
     private static ServiceProvider BuildProvider(bool r2, bool omitSecret = false)
@@ -356,42 +315,6 @@ public sealed class R2BlobBackendTests
         public override HttpClient CreateHttpClient(IClientConfig clientConfig)
             => new(handler, disposeHandler: false);
     }
-
-    private sealed class ScriptedHandler(Func<HttpRequestMessage, HttpResponseMessage> respond)
-        : HttpMessageHandler
-    {
-        public List<HttpRequestMessage> Requests { get; } = new();
-
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            Requests.Add(request);
-            return Task.FromResult(respond(request));
-        }
-    }
-
-    private static HttpResponseMessage HttpResponseMessageFor(
-        HttpStatusCode status, byte[] body, string contentType)
-    {
-        var response = new HttpResponseMessage(status)
-        {
-            Content = new ByteArrayContent(body)
-        };
-        response.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
-        return response;
-    }
-
-    private static SonivoDbContext CreateBlobDb()
-    {
-        var options = new DbContextOptionsBuilder<SonivoDbContext>()
-            .UseInMemoryDatabase($"sonivo-r2-{Guid.NewGuid():N}")
-            .Options;
-        return new SonivoDbContext(options);
-    }
-
-    private static IClock TestClock() => new SystemClock();
-
-    private static NullLogger<DualReadBlobStore> NullDualReadLogger() => NullLogger<DualReadBlobStore>.Instance;
 
     private static async Task<string> ReadTextAsync(Stream stream)
     {

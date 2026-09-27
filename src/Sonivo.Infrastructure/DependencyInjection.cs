@@ -67,21 +67,22 @@ public static class DependencyInjection
         services.AddScoped<ISongStore, EfSongStore>();
         services.AddScoped<IArrangementStore, EfArrangementStore>();
         services.AddScoped<IResourceStore, EfResourceStore>();
-        // ADR-0035: R2 configured (all four R2__* values present) → R2 singleton,
-        // else the Postgres default. Values are never logged (see Program.cs startup line).
+        // T-R2-04: R2 configured (all four R2__* values present) → R2 singleton,
+        // else the filesystem fallback (local dev without creds, CI).
+        // Values are never logged (see Program.cs startup line).
         services.Configure<R2Options>(configuration.GetSection(R2Options.SectionName));
+        services.Configure<BlobsOptions>(configuration.GetSection(BlobsOptions.SectionName));
         if (R2Options.IsConfigured(configuration))
         {
             services.AddSingleton<IAmazonS3>(sp =>
                 R2BlobStore.CreateClient(sp.GetRequiredService<IOptions<R2Options>>().Value));
-            // T-R2-02: R2-first dual-read + lazy backfill; Postgres ResourceBlobs kept as fallback.
             services.AddSingleton<R2BlobStore>();
-            services.AddScoped<PostgresBlobStore>();
-            services.AddScoped<IBlobStore, DualReadBlobStore>();
+            services.AddScoped<IBlobStore>(sp => sp.GetRequiredService<R2BlobStore>());
         }
         else
         {
-            services.AddScoped<IBlobStore, PostgresBlobStore>();
+            services.AddSingleton<FileSystemBlobStore>();
+            services.AddScoped<IBlobStore>(sp => sp.GetRequiredService<FileSystemBlobStore>());
         }
         services.AddScoped<ISetlistStore, EfSetlistStore>();
         services.AddScoped<IEventStore, EfEventStore>();
