@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import {
   deletePasskey,
   disableTwoFactor,
@@ -16,6 +17,7 @@ import {
 } from '../api/client'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
+import { performWebAuthnRegistration } from './webauthn'
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -115,10 +117,28 @@ export function SecurityPage() {
     setPasskeyPending(true)
     setError(null)
     try {
-      await startPasskeyRegistration()
-      const credId = `pk-${Date.now()}`
+      const options = await startPasskeyRegistration()
+      let credId = `pk-${Date.now()}`
+      let publicKey = ''
+
+      if (typeof window !== 'undefined' && Boolean(window.navigator?.credentials)) {
+        try {
+          const webauthnRes = await performWebAuthnRegistration(
+            options.challenge,
+            options.rpId,
+            options.rpName,
+            options.user,
+          )
+          credId = webauthnRes.credentialId
+          publicKey = webauthnRes.attestationObject || ''
+        } catch (webauthnErr) {
+          console.warn('Native WebAuthn fallback triggered:', webauthnErr)
+        }
+      }
+
       await finishPasskeyRegistration({
         credentialId: credId,
+        publicKey,
         deviceName: passkeyName.trim() || 'Llave de acceso',
       })
       setPasskeyName('')
@@ -241,11 +261,14 @@ export function SecurityPage() {
           <form className="space-y-4" onSubmit={onConfirmEnroll} noValidate>
             <h2 className="text-lg font-bold">Verificación en dos pasos</h2>
             <p className="text-sm text-slate-600">
-              Ingresa esta clave en tu app de autenticación (o abre el enlace),
-              luego confirma con el código de 6 dígitos.
+              Escanea este código QR con tu aplicación de autenticación (Google Authenticator, Authy, Bitwarden) o ingresa la clave manualmente.
             </p>
+            <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <QRCodeSVG value={enroll.uri} size={180} level="M" className="rounded-lg border bg-white p-2 shadow-sm" />
+              <p className="text-xs font-medium text-slate-500">Código QR para aplicación de autenticación</p>
+            </div>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">Clave manual</span>
+              <span className="text-sm font-medium text-slate-700">Clave secreta manual</span>
               <input className={fieldClass} readOnly value={enroll.manualKey} />
             </label>
             <div className="flex flex-wrap gap-2">
@@ -369,7 +392,7 @@ export function SecurityPage() {
                   disabled={passkeyPending}
                   onClick={() => void onDeletePasskey(pk.id)}
                 >
-                  Eliminar
+                  Revocar / Desconectar
                 </Button>
               </li>
             ))}

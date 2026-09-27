@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   challengeTwoFactor,
   fetchAuthProviders,
+  finishPasskeyLogin,
   googleChallengeHref,
   isSecondStepRequired,
   loginUser,
@@ -11,8 +12,10 @@ import {
   recoverTwoFactor,
   registerUser,
   resendConfirmation,
+  startPasskeyLogin,
   type CurrentUser,
 } from '../api/client'
+import { performWebAuthnLogin } from './webauthn'
 import { BrandLockup, WaveformHero } from '../brand/SonivoMark'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
@@ -113,6 +116,44 @@ function AuthScreen({
           navigate(next ?? '/')
         }
       }
+    } catch (err) {
+      setError(problemDetail(err))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function onPasskeyLogin() {
+    setPending(true)
+    setError(null)
+    try {
+      const { challenge, rpId } = await startPasskeyLogin()
+      let credId = ''
+      let signature = ''
+      let clientData = ''
+
+      if (typeof window !== 'undefined' && Boolean(window.navigator?.credentials)) {
+        try {
+          const webauthnRes = await performWebAuthnLogin(challenge, rpId)
+          credId = webauthnRes.credentialId
+          signature = webauthnRes.signature || ''
+          clientData = webauthnRes.clientDataJSON || ''
+        } catch (webauthnErr) {
+          console.warn('Native WebAuthn login fallback triggered:', webauthnErr)
+        }
+      }
+
+      if (!credId) {
+        credId = prompt('Ingresa tu identificador de llave de acceso:')?.trim() || ''
+      }
+
+      if (!credId) {
+        throw new Error('Identificador de llave de acceso requerido')
+      }
+
+      const user = await finishPasskeyLogin({ credentialId: credId, signature, clientData })
+      onSuccess(user)
+      navigate(next ?? '/')
     } catch (err) {
       setError(problemDetail(err))
     } finally {
@@ -292,6 +333,17 @@ function AuthScreen({
             <Button type="submit" className="w-full" disabled={pending}>
               {pending ? 'Trabajando…' : mode === 'login' ? 'Iniciar sesión' : 'Registrarse'}
             </Button>
+            {mode === 'login' ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full mt-2"
+                disabled={pending}
+                onClick={() => void onPasskeyLogin()}
+              >
+                Iniciar sesión con llave de acceso (Passkey)
+              </Button>
+            ) : null}
             {googleEnabled ? (
               <>
                 <div className="relative py-1 text-center text-xs font-medium uppercase tracking-wide text-slate-400">

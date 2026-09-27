@@ -169,7 +169,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-if (app.Configuration.GetValue("SONIVO_MIGRATE_ON_START", false))
+if (!app.Configuration.GetValue("UseInMemoryDatabase", false) && app.Configuration.GetValue("SONIVO_MIGRATE_ON_START", false))
 {
     using var migrateScope = app.Services.CreateScope();
     var db = migrateScope.ServiceProvider.GetRequiredService<SonivoDbContext>();
