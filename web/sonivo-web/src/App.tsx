@@ -19,6 +19,11 @@ import { GroupWorkspace } from './shell/GroupWorkspace'
 import { JoinPage } from './tenancy/JoinPage'
 import { PeoplePage } from './tenancy/PeoplePage'
 
+import { AudioPlayerProvider } from './repertoire/AudioPlayerContext'
+import { PersistentGlobalPlayer } from './shell/PersistentGlobalPlayer'
+import { SettingsLayout } from './shell/settings/SettingsLayout'
+import { SettingsProfilePage, SettingsBillingPage, SettingsTeamPage } from './shell/settings/SettingsPages'
+
 function RequireAuth({
   user,
   children,
@@ -75,7 +80,8 @@ export default function App() {
   const onLogout = () => void handleLogout()
 
   return (
-    <Routes>
+    <AudioPlayerProvider>
+      <Routes>
       <Route
         path="/"
         element={
@@ -215,6 +221,24 @@ export default function App() {
           </RequireAuth>
         }
       />
+      <Route
+        path="/settings"
+        element={
+          <RequireAuth user={user}>
+            <GroupsChrome user={user!} onLogout={onLogout}>
+              <SettingsLayout />
+            </GroupsChrome>
+          </RequireAuth>
+        }
+      >
+        <Route index element={<Navigate to="/settings/profile" replace />} />
+        <Route path="profile" element={<SettingsProfilePage user={user!} />} />
+        <Route path="security" element={<SecurityPage />} />
+        <Route path="billing" element={<SettingsBillingPage />} />
+        <Route path="team" element={<SettingsTeamPage />} />
+      </Route>
     </Routes>
+    <PersistentGlobalPlayer />
+    </AudioPlayerProvider>
   )
 }
