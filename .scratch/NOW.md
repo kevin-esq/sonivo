@@ -5,11 +5,11 @@
 ## Checkpoint state (required)
 
 ```text
-Implementation: COMPLETE (program ChordPro+IA Waves A–F + R2 prod-live)
-Human approval: DELEGATED (Kevin: auditor decides + merges when correct + blanket improvement mandate, 2026-09-21)
-Git checkpoint: IN PROGRESS (docs-hygiene branch; PR after CI)
-Remote: NOT PUSHED
-CI: NOT RUN
+Implementation: COMPLETE (docs: S1 session-continuity contract + R2 dev-bucket convention)
+Human approval: DELEGATED (Kevin blanket mandate, 2026-09-22)
+Git checkpoint: COMMITTED + MERGED to develop (PR #100, 4eeb5ad; branch deleted)
+Remote: PUSHED + MERGED
+CI: PASSING (Backend + Frontend + Playwright E2E green)
 ```
 
 ## Authorized program
@@ -34,6 +34,10 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Wave F T-FX-01–02 | ADR-0037 ACCEPTED (tuner IN, YT conditional IN, scoring OUT) + Afinador + nocookie embed + TC-PITCH-01/TC-YT-01 | MERGED (PR #91, CI green) — scoring OUT, no work |
 | Wave D T-R2-01–03 | ADR-0035 ACCEPTED + R2BlobStore + dual-read/backfill + tests + live R2 verification | MERGED (PR #92, CI green; E2E also 31/31 local on live R2 path) — Wave D CLOSED; PROD LIVE with R2 backend (Render redeploy, log-verified) |
 | Wave D T-R2-04 | Drop `ResourceBlobs` post-verified-backfill + filesystem fallback + tests rework | ACTIVE on `feature/t-r2-drop-postgres`; MERGE GATE = backfill count check |
+| Security Wave S0 | ADR-0038 PROPOSED (auth hardening: verification + TOTP + passkeys) + PHASE-AUTH-SPEC | MERGED docs (PR #96, CI green) → ACCEPTED 2026-09-21 HUMAN-DELEGATED (S1 active, S2/S3 gated sequential) |
+| Security Wave S1 | T-AU-01: verification endpoints + login gate + HSTS + rate limits + tests (+ auditor double-gate fix on test hook) | MERGED (PR #97, CI green incl. E2E) — S1 CLOSED; S2 TOTP next |
+| Security Wave S2 | T-AU-02: TOTP enroll/verify/disable + recovery codes + second-step login + tests (+ auditor security review, no changes needed) | MERGED (PR #98, CI green incl. TC-2FA-01) — S2 CLOSED; S3 passkeys next |
+| Security Wave S3 | T-AU-03: Passkeys / WebAuthn registration, authentication, deletion + Security UI + PasskeysApiTests + TC-PK-01 | COMPLETE — S3 CLOSED; Security Waves S1–S3 CLOSED |
 
 ## Deferred until their ADR
 

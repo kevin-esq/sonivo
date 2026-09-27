@@ -5,8 +5,40 @@ import {
   inviteMemberAndReadLink,
   logout,
   openPeople,
+  testConfirmUser,
+  testPassword,
   uniqueEmail,
 } from './helpers'
+
+async function registerAndLogin(
+  page: Parameters<typeof testConfirmUser>[0],
+  input: { name: string; email: string },
+) {
+  await page.goto('/register')
+  await page.getByLabel('Nombre').fill(input.name)
+  await page.getByLabel('Correo electrónico').fill(input.email)
+  await page.getByLabel('Contraseña').fill(testPassword)
+  await page.getByRole('button', { name: 'Registrarse' }).click()
+  // T-AU-01: register alone proves nothing — confirm, then sign in.
+  await expect(page.getByText('Te enviamos un enlace de confirmación')).toBeVisible()
+  await testConfirmUser(page, input.email)
+  await page.goto('/login')
+  await page.getByLabel('Correo electrónico').fill(input.email)
+  await page.getByLabel('Contraseña').fill(testPassword)
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+  await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
+}
+
+async function loginAs(
+  page: Parameters<typeof testConfirmUser>[0],
+  input: { email: string; password?: string },
+) {
+  await page.goto('/login')
+  await page.getByLabel('Correo electrónico').fill(input.email)
+  await page.getByLabel('Contraseña').fill(input.password ?? testPassword)
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+  await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
+}
 
 test.describe('People journeys', () => {
   test('TC-PPL-01 owner sees roster after invite; removes member; member loses access', async ({
@@ -19,12 +51,7 @@ test.describe('People journeys', () => {
     const memberName = `Member ${stamp}`
     const groupName = `People Band ${stamp}`
 
-    await page.goto('/register')
-    await page.getByLabel('Nombre').fill(ownerName)
-    await page.getByLabel('Correo electrónico').fill(ownerEmail)
-    await page.getByLabel('Contraseña').fill('TestPass1a')
-    await page.getByRole('button', { name: 'Registrarse' }).click()
-    await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
+    await registerAndLogin(page, { name: ownerName, email: ownerEmail })
 
     await createGroup(page, groupName)
     const groupUrl = page.url()
@@ -33,23 +60,14 @@ test.describe('People journeys', () => {
     const inviteUrl = await inviteMemberAndReadLink(page)
 
     await logout(page)
-    await page.goto('/register')
-    await page.getByLabel('Nombre').fill(memberName)
-    await page.getByLabel('Correo electrónico').fill(memberEmail)
-    await page.getByLabel('Contraseña').fill('TestPass1a')
-    await page.getByRole('button', { name: 'Registrarse' }).click()
-    await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
+    await registerAndLogin(page, { name: memberName, email: memberEmail })
 
     await page.goto(inviteUrl)
     await acceptInvite(page)
     await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
 
     await logout(page)
-    await page.goto('/login')
-    await page.getByLabel('Correo electrónico').fill(ownerEmail)
-    await page.getByLabel('Contraseña').fill('TestPass1a')
-    await page.getByRole('button', { name: 'Iniciar sesión' }).click()
-    await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
+    await loginAs(page, { email: ownerEmail })
     await page.getByRole('link', { name: groupName }).click()
     await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
 
@@ -61,11 +79,7 @@ test.describe('People journeys', () => {
     await expect(page.getByText(memberName, { exact: true })).toHaveCount(0)
 
     await logout(page)
-    await page.goto('/login')
-    await page.getByLabel('Correo electrónico').fill(memberEmail)
-    await page.getByLabel('Contraseña').fill('TestPass1a')
-    await page.getByRole('button', { name: 'Iniciar sesión' }).click()
-    await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
+    await loginAs(page, { email: memberEmail })
     await expect(page.getByRole('link', { name: groupName })).toHaveCount(0)
 
     await page.goto(groupUrl)

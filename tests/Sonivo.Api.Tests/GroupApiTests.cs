@@ -162,6 +162,8 @@ public class GroupApiTests : IClassFixture<SonivoApiFactory>
             throw new InvalidOperationException($"Register failed: {(int)register.StatusCode} {body}");
         }
 
+        // T-AU-01: mailbox must be proven before the login gate passes.
+        await AuthTestHelper.ConfirmEmailAsync(_factory.Services, email);
         await EnsureCsrfAsync(client);
         var login = await client.PostAsJsonAsync("/api/auth/login", new
         {
@@ -258,5 +260,10 @@ public sealed class SonivoApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Authentication:Google:ClientId", "");
         builder.UseSetting("Authentication:Google:ClientSecret", "");
         builder.UseSetting("Authentication:Google:EnableTestHook", "false");
+        // Hermetic blob backend: ambient R2__* creds must never leak into tests.
+        builder.UseSetting("R2:AccountId", "");
+        builder.UseSetting("R2:AccessKey", "");
+        builder.UseSetting("R2:Secret", "");
+        builder.UseSetting("R2:BucketName", "");
     }
 }

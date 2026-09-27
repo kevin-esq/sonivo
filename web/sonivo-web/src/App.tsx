@@ -12,6 +12,8 @@ import { EventListPage } from './scheduling/EventListPage'
 import { SetlistDetailPage } from './scheduling/SetlistDetailPage'
 import { SetlistListPage } from './scheduling/SetlistListPage'
 import { GuestAuthRoute } from './shell/AuthScreen'
+import { SecurityPage } from './shell/SecurityPage'
+import { ConfirmPage, ForgotPasswordPage, ResetPasswordPage } from './shell/VerifyPages'
 import { GroupsChrome, PublicChrome, SessionScreen } from './shell/GroupsChrome'
 import { GroupWorkspace } from './shell/GroupWorkspace'
 import { JoinPage } from './tenancy/JoinPage'
@@ -199,6 +201,19 @@ export default function App() {
       <Route
         path="/register"
         element={<GuestAuthRoute user={user} mode="register" onSuccess={setUser} />}
+      />
+      <Route path="/confirm" element={<ConfirmPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route
+        path="/security"
+        element={
+          <RequireAuth user={user}>
+            <GroupsChrome user={user!} onLogout={onLogout}>
+              <SecurityPage />
+            </GroupsChrome>
+          </RequireAuth>
+        }
       />
     </Routes>
   )

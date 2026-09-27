@@ -162,6 +162,8 @@ public class SoftDeleteSongApiTests : IClassFixture<SonivoApiFactory>
             throw new InvalidOperationException($"Register failed: {(int)register.StatusCode} {body}");
         }
 
+        // T-AU-01: mailbox must be proven before the login gate passes.
+        await AuthTestHelper.ConfirmEmailAsync(_factory.Services, email);
         await EnsureCsrfAsync(client);
         var login = await client.PostAsJsonAsync("/api/auth/login", new
         {

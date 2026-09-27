@@ -1,10 +1,13 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Security.Claims;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Sonivo.Application;
 using Sonivo.Application.Abstractions;
@@ -70,6 +73,36 @@ builder.Services.AddAntiforgery(options =>
         : CookieSecurePolicy.Always;
 });
 
+// T-AU-01: fixed-window rate limits on register + verification endpoints
+// (modest per-IP budgets; absolute session cap stays DEFERRED per ADR-0038).
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    static RateLimitPartition<string> PerIp(HttpContext http, int permits) =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = permits,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
+    options.AddPolicy("auth-register", http => PerIp(http, 30));
+    options.AddPolicy("auth-confirm", http => PerIp(http, 30));
+    options.AddPolicy("auth-resend", http => PerIp(http, 10));
+    options.AddPolicy("auth-forgot", http => PerIp(http, 10));
+    options.AddPolicy("auth-reset", http => PerIp(http, 30));
+    // T-AU-02: TOTP codes are 6 digits (brute-forceable) — the challenge
+    // endpoints get the strictest budget; management is session-authed.
+    options.AddPolicy("auth-2fa-challenge", http => PerIp(http, 10));
+    options.AddPolicy("auth-2fa-manage", http => PerIp(http, 30));
+    // T-AU-03: Passkeys / WebAuthn challenge & management rate limits
+    options.AddPolicy("auth-passkeys-challenge", http => PerIp(http, 10));
+    options.AddPolicy("auth-passkeys-manage", http => PerIp(http, 30));
+});
+builder.Services.AddSingleton<VerificationThrottle>();
+
 if (!builder.Environment.IsDevelopment())
 {
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -105,9 +138,36 @@ app.Logger.LogInformation(
     "Blob storage backend: {Backend}",
     R2Options.IsConfigured(app.Configuration) ? "R2" : "FileSystem");
 
+// Gmail From guard (S1 follow-up): Gmail silently rewrites the From header to
+// the OAuth account unless Gmail:From is a verified SendAs alias with an exact
+// match. Best-effort posture — warn HIGH severity, never throw at startup.
+try
+{
+    var gmailConfigured =
+        !string.IsNullOrWhiteSpace(app.Configuration["Gmail:ClientId"])
+        && !string.IsNullOrWhiteSpace(app.Configuration["Gmail:ClientSecret"])
+        && !string.IsNullOrWhiteSpace(app.Configuration["Gmail:RefreshToken"])
+        && !string.IsNullOrWhiteSpace(app.Configuration["Gmail:From"]);
+    if (gmailConfigured && !GmailFromValidator.IsValid(app.Configuration["Gmail:From"]))
+    {
+        app.Logger.LogWarning(
+            "HIGH severity: Gmail:From '{From}' is not a valid addr@domain shape. "
+            + "Gmail requires a verified SendAs alias with an exact address match — "
+            + "otherwise it silently rewrites the sender to the OAuth account. "
+            + "Verification mail will still send best-effort, but the From header cannot be trusted.",
+            app.Configuration["Gmail:From"]);
+    }
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Gmail From startup check failed (best-effort).");
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseForwardedHeaders();
+    // T-AU-01 quick win: HSTS in non-dev (standard placement, early).
+    app.UseHsts();
 }
 
 if (app.Configuration.GetValue("SONIVO_MIGRATE_ON_START", false))
@@ -127,6 +187,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.Use(async (context, next) =>
 {
@@ -191,7 +252,10 @@ app.MapGet("/api/auth/csrf", (HttpContext http, IAntiforgery antiforgery) =>
 
 app.MapPost("/api/auth/register", async (
     RegisterRequest request,
-    UserManager<ApplicationUser> users) =>
+    UserManager<ApplicationUser> users,
+    IEmailSender email,
+    IPublicOrigin origin,
+    CancellationToken cancellationToken) =>
 {
     if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
     {
@@ -222,17 +286,34 @@ app.MapPost("/api/auth/register", async (
             title: duplicate ? "Conflict" : "Validation failed");
     }
 
+    // T-AU-01: register never signs in; it mails a confirmation link
+    // best-effort (mailed=false degrades to the login resend affordance).
+    // Register-409 contract UNCHANGED (ADR-0038).
+    var mailed = false;
+    try
+    {
+        var token = await users.GenerateEmailConfirmationTokenAsync(user);
+        mailed = await VerificationMail.TrySendConfirmationAsync(
+            email, origin, app.Logger, user.Email!, token, cancellationToken);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Verification email could not be sent (best-effort).");
+    }
+
     return Results.Created($"/api/auth/me", new
     {
         id = user.Id,
         email = user.Email,
         displayName = user.DisplayName,
-        emailConfirmed = user.EmailConfirmed
+        emailConfirmed = user.EmailConfirmed,
+        mailed
     });
 })
 .WithName("Register")
 .AllowAnonymous()
-.DisableAntiforgery();
+.DisableAntiforgery()
+.RequireRateLimiting("auth-register");
 
 app.MapPost("/api/auth/login", async (
     LoginRequest request,
@@ -256,9 +337,14 @@ app.MapPost("/api/auth/login", async (
             title: "Unauthorized");
     }
 
-    var result = await signInManager.CheckPasswordSignInAsync(
+    // T-AU-02 (ADR-0038 S2): PasswordSignInAsync signs the app session
+    // itself, except when 2FA is enabled — then it stores only the temp 2FA
+    // cookie (TwoFactorUserIdScheme, NOT the app cookie) and reports
+    // RequiresTwoFactor. The second step completes the session.
+    var result = await signInManager.PasswordSignInAsync(
         user,
         request.Password,
+        isPersistent: request.RememberMe,
         lockoutOnFailure: true);
 
     if (result.IsLockedOut)
@@ -269,6 +355,26 @@ app.MapPost("/api/auth/login", async (
             title: "Unauthorized");
     }
 
+    if (result.IsNotAllowed)
+    {
+        // T-AU-01 (Q-AU-1): unverified mailbox denied with the IDENTICAL
+        // 401 shape as bad credentials — no new oracle. The Spanish
+        // unconfirmed copy + resend affordance live as PERMANENT
+        // unconditional elements on the login screen, never conditioned
+        // on this response.
+        return Results.Problem(
+            detail: "Invalid email or password.",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    if (result.RequiresTwoFactor)
+    {
+        // 2FA presence is visible only AFTER a correct password (standard,
+        // documented S2 decision — no oracle for unauthenticated callers).
+        return Results.Ok(new { requiresTwoFactor = true });
+    }
+
     if (!result.Succeeded)
     {
         return Results.Problem(
@@ -277,7 +383,6 @@ app.MapPost("/api/auth/login", async (
             title: "Unauthorized");
     }
 
-    await signInManager.SignInAsync(user, isPersistent: request.RememberMe);
     return Results.Ok(new
     {
         id = user.Id,
@@ -322,6 +427,679 @@ app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInMana
 .WithName("Logout")
 .RequireAuthorization()
 .DisableAntiforgery();
+
+// T-AU-01 (Q-AU-2): single-use expiring DataProtection tokens via UserManager.
+// Invalid/expired/unknown → 400 with the frozen Spanish copy.
+app.MapPost("/api/auth/confirm-email", async (
+    ConfirmEmailRequest request,
+    UserManager<ApplicationUser> users) =>
+{
+    var email = request.Email?.Trim();
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(request.Token))
+    {
+        return Results.Problem(
+            detail: "Enlace expirado o inválido — solicita uno nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var user = await users.FindByEmailAsync(email);
+    if (user is null)
+    {
+        return Results.Problem(
+            detail: "Enlace expirado o inválido — solicita uno nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var result = await users.ConfirmEmailAsync(user, request.Token);
+    if (!result.Succeeded)
+    {
+        return Results.Problem(
+            detail: "Enlace expirado o inválido — solicita uno nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    // Rotate the stamp so the token is single-use (reuse → 400).
+    await users.UpdateSecurityStampAsync(user);
+    return Results.Ok(new { emailConfirmed = true });
+})
+.WithName("ConfirmEmail")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-confirm");
+
+// T-AU-01 (Q-AU-2): ALWAYS 202 — silent for unknown/already-confirmed emails
+// (no oracle), per-email 60 s cooldown, best-effort mail + mailed flag.
+app.MapPost("/api/auth/resend-confirmation", async (
+    ResendConfirmationRequest request,
+    UserManager<ApplicationUser> users,
+    IEmailSender email,
+    IPublicOrigin origin,
+    VerificationThrottle throttle,
+    CancellationToken cancellationToken) =>
+{
+    var mailed = false;
+    var normalized = request.Email?.Trim() ?? string.Empty;
+    if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim(normalized))
+    {
+        var user = await users.FindByEmailAsync(normalized);
+        if (user is not null && !user.EmailConfirmed)
+        {
+            var token = await users.GenerateEmailConfirmationTokenAsync(user);
+            mailed = await VerificationMail.TrySendConfirmationAsync(
+                email, origin, app.Logger, user.Email!, token, cancellationToken);
+        }
+    }
+
+    return Results.Accepted("/api/auth/resend-confirmation", new { accepted = true, mailed });
+})
+.WithName("ResendConfirmation")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-resend");
+
+// T-AU-01 (Q-AU-2): ALWAYS 202 — silent for unknown emails (no oracle),
+// best-effort mail + mailed flag.
+app.MapPost("/api/auth/forgot-password", async (
+    ForgotPasswordRequest request,
+    UserManager<ApplicationUser> users,
+    IEmailSender email,
+    IPublicOrigin origin,
+    CancellationToken cancellationToken) =>
+{
+    var mailed = false;
+    var normalized = request.Email?.Trim() ?? string.Empty;
+    if (!string.IsNullOrWhiteSpace(normalized))
+    {
+        var user = await users.FindByEmailAsync(normalized);
+        if (user is not null)
+        {
+            var token = await users.GeneratePasswordResetTokenAsync(user);
+            mailed = await VerificationMail.TrySendPasswordResetAsync(
+                email, origin, app.Logger, user.Email!, token, cancellationToken);
+        }
+    }
+
+    return Results.Accepted("/api/auth/forgot-password", new { accepted = true, mailed });
+})
+.WithName("ForgotPassword")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-forgot");
+
+// T-AU-01 (Q-AU-2): single-use reset via security-stamp rotation.
+// Invalid/expired/unknown → 400 with the frozen Spanish copy.
+app.MapPost("/api/auth/reset-password", async (
+    ResetPasswordRequest request,
+    UserManager<ApplicationUser> users) =>
+{
+    var email = request.Email?.Trim();
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(request.Token))
+    {
+        return Results.Problem(
+            detail: "Enlace expirado o inválido — solicita uno nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var user = await users.FindByEmailAsync(email);
+    if (user is null)
+    {
+        return Results.Problem(
+            detail: "Enlace expirado o inválido — solicita uno nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var result = await users.ResetPasswordAsync(user, request.Token, request.NewPassword ?? string.Empty);
+    if (!result.Succeeded)
+    {
+        if (result.Errors.All(e => e.Code == "InvalidToken"))
+        {
+            return Results.Problem(
+                detail: "Enlace expirado o inválido — solicita uno nuevo",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+
+        return Results.Problem(
+            detail: string.Join(" ", result.Errors.Select(e => e.Description)),
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    return Results.Ok(new { passwordReset = true });
+})
+.WithName("ResetPassword")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-reset");
+
+// T-AU-02 (ADR-0038 S2): TOTP 2FA via the Identity authenticator provider.
+// Recovery codes are Identity-hashed at rest, shown exactly once at enable
+// (and on explicit regenerate), single-use enforced by UserManager.
+// No new tables: AspNetUserTokens already stores the authenticator key +
+// recovery codes (verified — no migration).
+static string SanitizeTotpCode(string? code) =>
+    (code ?? string.Empty).Replace(" ", string.Empty, StringComparison.Ordinal)
+        .Replace("-", string.Empty, StringComparison.Ordinal);
+
+static string BuildAuthenticatorUri(string issuer, string account, string key) =>
+    string.Format(CultureInfo.InvariantCulture,
+        "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6",
+        Uri.EscapeDataString(issuer),
+        Uri.EscapeDataString(account),
+        key);
+
+app.MapGet("/api/auth/2fa/status", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(new
+    {
+        enabled = await users.GetTwoFactorEnabledAsync(user),
+        hasPassword = await users.HasPasswordAsync(user)
+    });
+})
+.WithName("TwoFactorStatus")
+.RequireAuthorization();
+
+app.MapPost("/api/auth/2fa/enroll-start", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (await users.GetTwoFactorEnabledAsync(user))
+    {
+        return Results.Problem(
+            detail: "La verificación en dos pasos ya está activada",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    // S38-Q2 (b): Google-only (passwordless) accounts enroll with session
+    // auth + CSRF only — no password hash exists to recheck (documented risk).
+    var key = await users.GetAuthenticatorKeyAsync(user);
+    if (string.IsNullOrEmpty(key))
+    {
+        await users.ResetAuthenticatorKeyAsync(user);
+        key = await users.GetAuthenticatorKeyAsync(user);
+    }
+
+    return Results.Ok(new
+    {
+        uri = BuildAuthenticatorUri(
+            "Sonivo", user.Email ?? user.UserName ?? string.Empty, key!),
+        manualKey = key
+    });
+})
+.WithName("TwoFactorEnrollStart")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-manage");
+
+app.MapPost("/api/auth/2fa/enroll-verify", async (
+    TwoFactorCodeRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (await users.GetTwoFactorEnabledAsync(user))
+    {
+        return Results.Problem(
+            detail: "La verificación en dos pasos ya está activada",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    var valid = await users.VerifyTwoFactorTokenAsync(
+        user,
+        TokenOptions.DefaultAuthenticatorProvider,
+        SanitizeTotpCode(request.Code));
+    if (!valid)
+    {
+        return Results.Problem(
+            detail: "Código de verificación incorrecto — inténtalo de nuevo",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    await users.SetTwoFactorEnabledAsync(user, true);
+    var recoveryCodes = (await users.GenerateNewTwoFactorRecoveryCodesAsync(user, 10))?.ToList()
+        ?? [];
+    return Results.Ok(new { enabled = true, recoveryCodes });
+})
+.WithName("TwoFactorEnrollVerify")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-manage");
+
+app.MapPost("/api/auth/2fa/disable", async (
+    DisableTwoFactorRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!await users.GetTwoFactorEnabledAsync(user))
+    {
+        return Results.Problem(
+            detail: "La verificación en dos pasos no está activada",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    // Password recheck only when a password exists; passwordless
+    // (Google-only) accounts skip it per S38-Q2 (b).
+    if (await users.HasPasswordAsync(user))
+    {
+        var passwordOk = await users.CheckPasswordAsync(user, request.Password ?? string.Empty);
+        if (!passwordOk)
+        {
+            return Results.Problem(
+                detail: "La contraseña no es correcta",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Validation failed");
+        }
+    }
+
+    await users.SetTwoFactorEnabledAsync(user, false);
+    await users.ResetAuthenticatorKeyAsync(user);
+    return Results.Ok(new { disabled = true });
+})
+.WithName("TwoFactorDisable")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-manage");
+
+app.MapPost("/api/auth/2fa/challenge", async (
+    TwoFactorChallengeRequest request,
+    SignInManager<ApplicationUser> signInManager) =>
+{
+    var user = await signInManager.GetTwoFactorAuthenticationUserAsync();
+    if (user is null)
+    {
+        return Results.Problem(
+            detail: "No hay una verificación pendiente — inicia sesión de nuevo",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    // Strict brute-force posture: 6-digit codes + lockout counting.
+    var result = await signInManager.TwoFactorAuthenticatorSignInAsync(
+        SanitizeTotpCode(request.Code),
+        isPersistent: request.RememberMe,
+        rememberClient: false);
+
+    if (result.IsLockedOut)
+    {
+        return Results.Problem(
+            detail: "Account temporarily locked.",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.Problem(
+            detail: "Código de verificación incorrecto",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    return Results.Ok(new
+    {
+        id = user.Id,
+        email = user.Email,
+        displayName = user.DisplayName,
+        emailConfirmed = user.EmailConfirmed
+    });
+})
+.WithName("TwoFactorChallenge")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-challenge");
+
+app.MapPost("/api/auth/2fa/recover", async (
+    TwoFactorChallengeRequest request,
+    SignInManager<ApplicationUser> signInManager) =>
+{
+    var user = await signInManager.GetTwoFactorAuthenticationUserAsync();
+    if (user is null)
+    {
+        return Results.Problem(
+            detail: "No hay una verificación pendiente — inicia sesión de nuevo",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    // Same strict budget + lockout as the TOTP challenge; redemption is
+    // single-use (Identity consumes the code on success).
+    var code = (request.Code ?? string.Empty).Replace(" ", string.Empty, StringComparison.Ordinal);
+    var result = await signInManager.TwoFactorRecoveryCodeSignInAsync(code);
+
+    if (result.IsLockedOut)
+    {
+        return Results.Problem(
+            detail: "Account temporarily locked.",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.Problem(
+            detail: "Código de recuperación incorrecto",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    return Results.Ok(new
+    {
+        id = user.Id,
+        email = user.Email,
+        displayName = user.DisplayName,
+        emailConfirmed = user.EmailConfirmed
+    });
+})
+.WithName("TwoFactorRecover")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-challenge");
+
+app.MapPost("/api/auth/2fa/recovery-codes/regenerate", async (
+    RegenerateRecoveryCodesRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!await users.GetTwoFactorEnabledAsync(user))
+    {
+        return Results.Problem(
+            detail: "La verificación en dos pasos no está activada",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    if (await users.HasPasswordAsync(user))
+    {
+        var passwordOk = await users.CheckPasswordAsync(user, request.Password ?? string.Empty);
+        if (!passwordOk)
+        {
+            return Results.Problem(
+                detail: "La contraseña no es correcta",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Validation failed");
+        }
+    }
+
+    // Old codes die here; the new set is shown exactly once in this response.
+    var recoveryCodes = (await users.GenerateNewTwoFactorRecoveryCodesAsync(user, 10))?.ToList()
+        ?? [];
+    return Results.Ok(new { recoveryCodes });
+})
+.WithName("TwoFactorRegenerateRecoveryCodes")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-2fa-manage");
+
+// T-AU-03 (ADR-0038 S3): Passkeys / WebAuthn API endpoints
+static string GetRelyingPartyId(HttpContext http, IConfiguration config)
+{
+    var configured = config["Passkeys:RelyingPartyId"];
+    if (!string.IsNullOrWhiteSpace(configured)) return configured.Trim();
+    return http.Request.Host.Host;
+}
+
+app.MapGet("/api/auth/passkeys", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SonivoDbContext db) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var tokens = await db.UserTokens
+        .Where(t => t.UserId == user.Id && t.LoginProvider == "Passkeys")
+        .ToListAsync();
+
+    var list = new List<PasskeyDto>();
+    foreach (var token in tokens)
+    {
+        if (token.Name.StartsWith("Credential_", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(token.Value))
+        {
+            try
+            {
+                var cred = System.Text.Json.JsonSerializer.Deserialize<PasskeyCredential>(token.Value);
+                if (cred is not null)
+                {
+                    list.Add(new PasskeyDto(cred.CredentialId, cred.DeviceName, cred.CreatedAt));
+                }
+            }
+            catch
+            {
+                var credId = token.Name.Substring("Credential_".Length);
+                list.Add(new PasskeyDto(credId, "Llave de acceso", DateTimeOffset.UtcNow));
+            }
+        }
+    }
+
+    return Results.Ok(list);
+})
+.WithName("ListPasskeys")
+.RequireAuthorization();
+
+app.MapPost("/api/auth/passkeys/register-start", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    HttpContext http,
+    IConfiguration config) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var challenge = PasskeyChallengeStore.CreateChallenge(user.Id);
+    var rpId = GetRelyingPartyId(http, config);
+
+    return Results.Ok(new PasskeyRegistrationStartResponse(
+        challenge,
+        rpId,
+        "Sonivo",
+        new PasskeyUserDto(user.Id.ToString(), user.Email ?? user.UserName!, user.DisplayName ?? user.Email ?? "Usuario")));
+})
+.WithName("PasskeysRegisterStart")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-passkeys-manage");
+
+app.MapPost("/api/auth/passkeys/register-finish", async (
+    PasskeyRegistrationFinishRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var credId = request.CredentialId?.Trim();
+    if (string.IsNullOrWhiteSpace(credId))
+    {
+        return Results.Problem(
+            detail: "Identificador de llave de acceso inválido",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    var deviceName = string.IsNullOrWhiteSpace(request.DeviceName) ? "Llave de acceso" : request.DeviceName.Trim();
+    var cred = new PasskeyCredential(
+        credId,
+        request.PublicKey ?? string.Empty,
+        deviceName,
+        DateTimeOffset.UtcNow);
+
+    var json = System.Text.Json.JsonSerializer.Serialize(cred);
+    await users.SetAuthenticationTokenAsync(user, "Passkeys", "Credential_" + credId, json);
+
+    return Results.Ok(new { registered = true, credentialId = credId });
+})
+.WithName("PasskeysRegisterFinish")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-passkeys-manage");
+
+app.MapDelete("/api/auth/passkeys/{id}", async (
+    string id,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var credId = id.Trim();
+    await users.RemoveAuthenticationTokenAsync(user, "Passkeys", "Credential_" + credId);
+    return Results.Ok(new { deleted = true });
+})
+.WithName("PasskeysDelete")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-passkeys-manage");
+
+app.MapPost("/api/auth/passkeys/login-start", (
+    HttpContext http,
+    IConfiguration config) =>
+{
+    var challenge = PasskeyChallengeStore.CreateChallenge();
+    var rpId = GetRelyingPartyId(http, config);
+    return Results.Ok(new PasskeyLoginStartResponse(challenge, rpId));
+})
+.WithName("PasskeysLoginStart")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-passkeys-challenge");
+
+app.MapPost("/api/auth/passkeys/login-finish", async (
+    PasskeyLoginFinishRequest request,
+    UserManager<ApplicationUser> users,
+    SignInManager<ApplicationUser> signInManager,
+    SonivoDbContext db) =>
+{
+    var credId = request.CredentialId?.Trim();
+    if (string.IsNullOrWhiteSpace(credId))
+    {
+        return Results.Problem(
+            detail: "Llave de acceso inválida o no registrada",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    var tokenName = "Credential_" + credId;
+    var token = await db.UserTokens
+        .FirstOrDefaultAsync(t => t.LoginProvider == "Passkeys" && t.Name == tokenName);
+
+    if (token is null)
+    {
+        return Results.Problem(
+            detail: "Llave de acceso no registrada",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    var user = await users.FindByIdAsync(token.UserId.ToString());
+    if (user is null)
+    {
+        return Results.Problem(
+            detail: "Llave de acceso no registrada",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    await signInManager.SignInAsync(user, isPersistent: true);
+
+    return Results.Ok(new
+    {
+        id = user.Id,
+        email = user.Email,
+        displayName = user.DisplayName,
+        emailConfirmed = user.EmailConfirmed
+    });
+})
+.WithName("PasskeysLoginFinish")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-passkeys-challenge");
+
+// T-AU-01 test hook (E2E only): marks a user confirmed without a mailbox.
+// DOUBLE-GATED: Auth:EnableTestHook AND Development environment. The env gate
+// is the backstop — a misconfigured prod flag alone can never enable it.
+// Returns 404 when disabled.
+var authTestHook = app.Configuration.GetValue("Auth:EnableTestHook", false);
+if (authTestHook && app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/auth/test/confirm", async (
+        TestConfirmRequest request,
+        UserManager<ApplicationUser> users) =>
+    {
+        var email = request.Email?.Trim();
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return Results.Problem(
+                detail: "Email is required.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Validation failed");
+        }
+
+        var user = await users.FindByEmailAsync(email);
+        if (user is null)
+        {
+            return Results.NotFound();
+        }
+
+        user.EmailConfirmed = true;
+        await users.UpdateAsync(user);
+        return Results.Ok(new { emailConfirmed = true });
+    })
+    .WithName("TestConfirmUser")
+    .AllowAnonymous()
+    .DisableAntiforgery();
+}
 
 app.MapGoogleAuthEndpoints();
 
@@ -1785,6 +2563,15 @@ static object ToEventDetailResponse(EventDetailDto musicalEvent) => new
 
 internal sealed record RegisterRequest(string? Email, string? Password, string? DisplayName);
 internal sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
+internal sealed record ConfirmEmailRequest(string? Email, string? Token);
+internal sealed record ResendConfirmationRequest(string? Email);
+internal sealed record ForgotPasswordRequest(string? Email);
+internal sealed record ResetPasswordRequest(string? Email, string? Token, string? NewPassword);
+internal sealed record TestConfirmRequest(string? Email);
+internal sealed record TwoFactorCodeRequest(string? Code);
+internal sealed record TwoFactorChallengeRequest(string? Code, bool RememberMe = false);
+internal sealed record DisableTwoFactorRequest(string? Password);
+internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
 internal sealed record CreateInvitationRequest(string? Email);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);

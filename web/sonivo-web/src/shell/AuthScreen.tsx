@@ -2,11 +2,15 @@ import { useEffect, useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import {
+  challengeTwoFactor,
   fetchAuthProviders,
   googleChallengeHref,
+  isSecondStepRequired,
   loginUser,
   problemDetail,
+  recoverTwoFactor,
   registerUser,
+  resendConfirmation,
   type CurrentUser,
 } from '../api/client'
 import { BrandLockup, WaveformHero } from '../brand/SonivoMark'
@@ -48,6 +52,17 @@ function AuthScreen({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [googleEnabled, setGoogleEnabled] = useState(false)
+  const [registered, setRegistered] = useState(false)
+  const [resendOpen, setResendOpen] = useState(false)
+  const [resendPending, setResendPending] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
+  const [resendError, setResendError] = useState<string | null>(null)
+  // T-AU-02: password accepted but the account requires a second factor.
+  const [secondStep, setSecondStep] = useState(false)
+  const [secondCode, setSecondCode] = useState('')
+  const [secondError, setSecondError] = useState<string | null>(null)
+  const [secondPending, setSecondPending] = useState(false)
+  const [useRecovery, setUseRecovery] = useState(false)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const next = safeJoinNextPath(searchParams.get('next'))
@@ -85,18 +100,54 @@ function AuthScreen({
     setError(null)
     try {
       if (mode === 'register') {
+        // T-AU-01: register never signs in — the mailbox must be proven first.
         await registerUser({ email, password, displayName: displayName || undefined })
-        const user = await loginUser({ email, password })
-        onSuccess(user)
+        setRegistered(true)
       } else {
-        const user = await loginUser({ email, password })
-        onSuccess(user)
+        const result = await loginUser({ email, password })
+        if (isSecondStepRequired(result)) {
+          setSecondStep(true)
+          setSecondError(null)
+        } else {
+          onSuccess(result)
+          navigate(next ?? '/')
+        }
       }
-      navigate(next ?? '/')
     } catch (err) {
       setError(problemDetail(err))
     } finally {
       setPending(false)
+    }
+  }
+
+  async function onSecondStep(event: FormEvent) {
+    event.preventDefault()
+    setSecondPending(true)
+    setSecondError(null)
+    try {
+      // T-AU-02: the temp 2FA cookie (not a session) authorizes this call.
+      const user = useRecovery
+        ? await recoverTwoFactor(secondCode.trim())
+        : await challengeTwoFactor(secondCode.trim())
+      onSuccess(user)
+      navigate(next ?? '/')
+    } catch (err) {
+      setSecondError(problemDetail(err))
+    } finally {
+      setSecondPending(false)
+    }
+  }
+
+  async function onResend() {
+    setResendPending(true)
+    setResendError(null)
+    try {
+      await resendConfirmation(email)
+      setResendSent(true)
+    } catch (err) {
+      setResendError(problemDetail(err))
+    } finally {
+      setResendPending(false)
     }
   }
 
@@ -122,96 +173,218 @@ function AuthScreen({
         <div className="mb-8 lg:hidden">
           <BrandLockup to="/login" />
         </div>
-        <form className="space-y-4" onSubmit={onSubmit} noValidate aria-labelledby={headingId}>
-          <div className="space-y-1">
-            <h1 id={headingId} className="text-2xl font-bold tracking-tight">
-              {mode === 'login' ? 'Iniciar sesión' : 'Registrarse'}
-            </h1>
-            <p className="text-sm text-slate-500">
-              {mode === 'login'
-                ? 'Bienvenido de nuevo. Accede a tu cuenta para continuar.'
-                : 'Crea una cuenta con correo y contraseña para organizar tu música.'}
-            </p>
-          </div>
-          {error ? (
-            <p role="alert" className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error">
-              {error}
-            </p>
-          ) : null}
-          {mode === 'register' ? (
+        {mode === 'login' && secondStep ? (
+          <form className="space-y-4" onSubmit={onSecondStep} noValidate aria-labelledby={headingId}>
+            <div className="space-y-1">
+              <h1 id={headingId} className="text-2xl font-bold tracking-tight">
+                Verificación en dos pasos
+              </h1>
+              <p className="text-sm text-slate-500">
+                {useRecovery
+                  ? 'Ingresa uno de tus códigos de recuperación'
+                  : 'Ingresa el código de 6 dígitos de tu app de autenticación'}
+              </p>
+            </div>
+            {secondError ? (
+              <p role="alert" className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error">
+                {secondError}
+              </p>
+            ) : null}
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">Nombre</span>
+              <span className="text-sm font-medium text-slate-700">
+                {useRecovery ? 'Código de recuperación' : 'Código de 6 dígitos'}
+              </span>
               <input
                 className={fieldClass}
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                autoComplete="nickname"
+                required
+                value={secondCode}
+                onChange={(e) => setSecondCode(e.target.value)}
+                autoComplete="one-time-code"
+                inputMode={useRecovery ? 'text' : 'numeric'}
               />
             </label>
-          ) : null}
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-700">Correo electrónico</span>
-            <input
-              className={fieldClass}
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-            />
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-700">Contraseña</span>
-            <input
-              className={fieldClass}
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            />
-          </label>
-          <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? 'Trabajando…' : mode === 'login' ? 'Iniciar sesión' : 'Registrarse'}
-          </Button>
-          {googleEnabled ? (
-            <>
-              <div className="relative py-1 text-center text-xs font-medium uppercase tracking-wide text-slate-400">
-                <span className="relative z-10 bg-white px-2">o</span>
-                <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-slate-200" aria-hidden />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                disabled={pending}
-                onClick={() => {
-                  window.location.assign(googleChallengeHref(next))
-                }}
-              >
-                Continuar con Google
-              </Button>
-            </>
-          ) : null}
-          <p className="text-sm text-slate-600">
+            <Button type="submit" className="w-full" disabled={secondPending}>
+              {secondPending ? 'Verificando…' : 'Verificar'}
+            </Button>
+            <button
+              type="button"
+              className="text-sm font-semibold text-primary hover:underline"
+              onClick={() => {
+                setUseRecovery((value) => !value)
+                setSecondCode('')
+                setSecondError(null)
+              }}
+            >
+              {useRecovery
+                ? 'Usar el código de mi app de autenticación'
+                : 'No tengo acceso a mi app — usar un código de recuperación'}
+            </button>
+          </form>
+        ) : mode === 'register' && registered ? (
+          <div className="space-y-4" aria-labelledby={headingId}>
+            <div className="space-y-1">
+              <h1 id={headingId} className="text-2xl font-bold tracking-tight">
+                Confirma tu correo
+              </h1>
+              <p className="text-sm text-slate-600">Te enviamos un enlace de confirmación</p>
+              <p className="text-sm text-slate-500">
+                Revisa tu bandeja y sigue el enlace para activar tu cuenta. Luego inicia sesión.
+              </p>
+            </div>
+            <Link
+              className="inline-block font-semibold text-primary no-underline hover:underline"
+              to={next ? `/login?next=${encodeURIComponent(next)}` : '/login'}
+            >
+              Ir a iniciar sesión
+            </Link>
+          </div>
+        ) : (
+          <form className="space-y-4" onSubmit={onSubmit} noValidate aria-labelledby={headingId}>
+            <div className="space-y-1">
+              <h1 id={headingId} className="text-2xl font-bold tracking-tight">
+                {mode === 'login' ? 'Iniciar sesión' : 'Registrarse'}
+              </h1>
+              <p className="text-sm text-slate-500">
+                {mode === 'login'
+                  ? 'Bienvenido de nuevo. Accede a tu cuenta para continuar.'
+                  : 'Crea una cuenta con correo y contraseña para organizar tu música.'}
+              </p>
+            </div>
+            {error ? (
+              <p role="alert" className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error">
+                {error}
+              </p>
+            ) : null}
+            {mode === 'register' ? (
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-slate-700">Nombre</span>
+                <input
+                  className={fieldClass}
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  autoComplete="nickname"
+                />
+              </label>
+            ) : null}
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Correo electrónico</span>
+              <input
+                className={fieldClass}
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Contraseña</span>
+              <input
+                className={fieldClass}
+                type="password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              />
+            </label>
+            <Button type="submit" className="w-full" disabled={pending}>
+              {pending ? 'Trabajando…' : mode === 'login' ? 'Iniciar sesión' : 'Registrarse'}
+            </Button>
+            {googleEnabled ? (
+              <>
+                <div className="relative py-1 text-center text-xs font-medium uppercase tracking-wide text-slate-400">
+                  <span className="relative z-10 bg-white px-2">o</span>
+                  <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-slate-200" aria-hidden />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={pending}
+                  onClick={() => {
+                    window.location.assign(googleChallengeHref(next))
+                  }}
+                >
+                  Continuar con Google
+                </Button>
+              </>
+            ) : null}
             {mode === 'login' ? (
-              <>
-                ¿No tienes una cuenta?{' '}
-                <Link className="font-semibold text-primary no-underline hover:underline" to={otherModeTo}>
-                  Regístrate
-                </Link>
-              </>
-            ) : (
-              <>
-                ¿Ya tienes una cuenta?{' '}
-                <Link className="font-semibold text-primary no-underline hover:underline" to={otherModeTo}>
-                  Iniciar sesión
-                </Link>
-              </>
-            )}
-          </p>
-        </form>
+              <div className="space-y-2 rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600">
+                <p>Tu cuenta aún no está verificada — revisa tu bandeja o reenvía el correo</p>
+                {!resendOpen ? (
+                  <button
+                    type="button"
+                    className="font-semibold text-primary hover:underline"
+                    onClick={() => {
+                      setResendOpen(true)
+                      setResendSent(false)
+                      setResendError(null)
+                    }}
+                  >
+                    Reenviar correo
+                  </button>
+                ) : resendSent ? (
+                  <p>Te enviamos un enlace de confirmación</p>
+                ) : (
+                  <div className="space-y-2">
+                    {resendError ? (
+                      <p role="alert" className="text-error">
+                        {resendError}
+                      </p>
+                    ) : null}
+                    <label className="block space-y-1.5">
+                      <span className="text-sm font-medium text-slate-700">Correo electrónico</span>
+                      <input
+                        className={fieldClass}
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        autoComplete="email"
+                      />
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={resendPending}
+                      onClick={() => void onResend()}
+                    >
+                      {resendPending ? 'Enviando…' : 'Reenviar correo'}
+                    </Button>
+                  </div>
+                )}
+                <p>
+                  <Link
+                    className="font-semibold text-primary no-underline hover:underline"
+                    to="/forgot-password"
+                  >
+                    ¿Olvidaste tu contraseña? Restablecer contraseña
+                  </Link>
+                </p>
+              </div>
+            ) : null}
+            <p className="text-sm text-slate-600">
+              {mode === 'login' ? (
+                <>
+                  ¿No tienes una cuenta?{' '}
+                  <Link className="font-semibold text-primary no-underline hover:underline" to={otherModeTo}>
+                    Regístrate
+                  </Link>
+                </>
+              ) : (
+                <>
+                  ¿Ya tienes una cuenta?{' '}
+                  <Link className="font-semibold text-primary no-underline hover:underline" to={otherModeTo}>
+                    Iniciar sesión
+                  </Link>
+                </>
+              )}
+            </p>
+          </form>
+        )}
       </div>
     </div>
   )

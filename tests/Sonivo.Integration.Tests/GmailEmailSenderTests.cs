@@ -65,6 +65,42 @@ public class GmailEmailSenderTests
     }
 
     [Fact]
+    public void FromValidator_accepts_bare_address()
+    {
+        Assert.True(GmailFromValidator.IsValid("owner@example.com"));
+    }
+
+    [Fact]
+    public void FromValidator_accepts_display_name_with_brackets_and_trims_whitespace()
+    {
+        Assert.True(GmailFromValidator.IsValid("  Sonivo <owner@example.com>  "));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("not-an-address")]
+    [InlineData("owner@")]
+    [InlineData("@example.com")]
+    [InlineData("owner@example")]
+    [InlineData("owner @example.com")]
+    [InlineData("Sonivo <owner@example>")]
+    [InlineData("Sonivo <not-an-address>")]
+    [InlineData("Sonivo <owner@example.com")]
+    public void FromValidator_rejects_malformed(string? from)
+    {
+        Assert.False(GmailFromValidator.IsValid(from));
+    }
+
+    [Fact]
+    public void FromValidator_extracts_bare_address_from_display_form()
+    {
+        Assert.True(GmailFromValidator.TryExtractAddress("Sonivo <owner@example.com>", out var address));
+        Assert.Equal("owner@example.com", address);
+    }
+
+    [Fact]
     public void PublicOrigin_trims_trailing_slash()
     {
         var origin = new ConfigurationPublicOrigin(
