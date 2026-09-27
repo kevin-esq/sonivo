@@ -261,6 +261,80 @@ export async function regenerateRecoveryCodes(
   })
 }
 
+/** T-AU-03: Passkeys / WebAuthn authentication (ADR-0038 S3). */
+export type PasskeyItem = {
+  id: string
+  name: string
+  createdAt: string
+}
+
+export type PasskeyRegistrationOptions = {
+  challenge: string
+  rpId: string
+  rpName: string
+  user: {
+    id: string
+    name: string
+    displayName: string
+  }
+}
+
+export type PasskeyLoginOptions = {
+  challenge: string
+  rpId: string
+}
+
+export async function fetchPasskeys(): Promise<PasskeyItem[]> {
+  return apiRequest<PasskeyItem[]>('/api/auth/passkeys')
+}
+
+export async function startPasskeyRegistration(): Promise<PasskeyRegistrationOptions> {
+  return apiRequest<PasskeyRegistrationOptions>('/api/auth/passkeys/register-start', {
+    method: 'POST',
+    body: {},
+  })
+}
+
+export async function finishPasskeyRegistration(input: {
+  credentialId: string
+  publicKey?: string
+  deviceName?: string
+}): Promise<{ registered: boolean; credentialId: string }> {
+  return apiRequest<{ registered: boolean; credentialId: string }>('/api/auth/passkeys/register-finish', {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function deletePasskey(id: string): Promise<{ deleted: boolean }> {
+  return apiRequest<{ deleted: boolean }>(`/api/auth/passkeys/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function startPasskeyLogin(): Promise<PasskeyLoginOptions> {
+  return apiRequest<PasskeyLoginOptions>('/api/auth/passkeys/login-start', {
+    method: 'POST',
+    body: {},
+  })
+}
+
+export async function finishPasskeyLogin(input: {
+  credentialId: string
+  signature?: string
+  clientData?: string
+}): Promise<CurrentUser> {
+  clearCsrfToken()
+  await ensureCsrfToken()
+  const user = await apiRequest<CurrentUser>('/api/auth/passkeys/login-finish', {
+    method: 'POST',
+    body: input,
+  })
+  clearCsrfToken()
+  await ensureCsrfToken()
+  return user
+}
+
 export type AuthProviders = {
   google: boolean
 }

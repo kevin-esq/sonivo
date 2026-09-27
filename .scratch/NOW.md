@@ -36,6 +36,7 @@ Kevin: fulfill original ChordPro+IA ask; parent acts as auditor; builders implem
 | Security Wave S0 | ADR-0038 PROPOSED (auth hardening: verification + TOTP + passkeys) + PHASE-AUTH-SPEC | MERGED docs (PR #96, CI green) → ACCEPTED 2026-09-21 HUMAN-DELEGATED (S1 active, S2/S3 gated sequential) |
 | Security Wave S1 | T-AU-01: verification endpoints + login gate + HSTS + rate limits + tests (+ auditor double-gate fix on test hook) | MERGED (PR #97, CI green incl. E2E) — S1 CLOSED; S2 TOTP next |
 | Security Wave S2 | T-AU-02: TOTP enroll/verify/disable + recovery codes + second-step login + tests (+ auditor security review, no changes needed) | MERGED (PR #98, CI green incl. TC-2FA-01) — S2 CLOSED; S3 passkeys next |
+| Security Wave S3 | T-AU-03: Passkeys / WebAuthn registration, authentication, deletion + Security UI + PasskeysApiTests + TC-PK-01 | COMPLETE — S3 CLOSED; Security Waves S1–S3 CLOSED |
 
 ## Deferred until their ADR
 

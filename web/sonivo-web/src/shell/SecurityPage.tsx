@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
+  deletePasskey,
   disableTwoFactor,
+  fetchPasskeys,
   fetchTwoFactorStatus,
+  finishPasskeyRegistration,
   problemDetail,
   regenerateRecoveryCodes,
+  startPasskeyRegistration,
   startTwoFactorEnroll,
   verifyTwoFactorEnroll,
+  type PasskeyItem,
   type TwoFactorStatus,
 } from '../api/client'
 import { Button } from '../ui/button'
@@ -76,17 +81,23 @@ export function SecurityPage() {
   async function refresh() {
     try {
       setStatus(await fetchTwoFactorStatus())
+      setPasskeys(await fetchPasskeys())
     } catch (err) {
       setError(problemDetail(err))
     }
   }
 
+  const [passkeys, setPasskeys] = useState<PasskeyItem[]>([])
+  const [passkeyName, setPasskeyName] = useState('')
+  const [passkeyPending, setPasskeyPending] = useState(false)
+
   useEffect(() => {
     let cancelled = false
-    void fetchTwoFactorStatus()
-      .then((fresh) => {
+    void Promise.all([fetchTwoFactorStatus(), fetchPasskeys()])
+      .then(([freshStatus, freshPasskeys]) => {
         if (!cancelled) {
-          setStatus(fresh)
+          setStatus(freshStatus)
+          setPasskeys(freshPasskeys)
         }
       })
       .catch((err: unknown) => {
@@ -98,6 +109,39 @@ export function SecurityPage() {
       cancelled = true
     }
   }, [])
+
+  async function onRegisterPasskey(e: FormEvent) {
+    e.preventDefault()
+    setPasskeyPending(true)
+    setError(null)
+    try {
+      await startPasskeyRegistration()
+      const credId = `pk-${Date.now()}`
+      await finishPasskeyRegistration({
+        credentialId: credId,
+        deviceName: passkeyName.trim() || 'Llave de acceso',
+      })
+      setPasskeyName('')
+      setPasskeys(await fetchPasskeys())
+    } catch (err) {
+      setError(problemDetail(err))
+    } finally {
+      setPasskeyPending(false)
+    }
+  }
+
+  async function onDeletePasskey(id: string) {
+    setPasskeyPending(true)
+    setError(null)
+    try {
+      await deletePasskey(id)
+      setPasskeys(await fetchPasskeys())
+    } catch (err) {
+      setError(problemDetail(err))
+    } finally {
+      setPasskeyPending(false)
+    }
+  }
 
   async function onStartEnroll() {
     setPending(true)
@@ -301,6 +345,54 @@ export function SecurityPage() {
           </form>
         </div>
       )}
+
+      <section className="space-y-4 border-t border-slate-200 pt-6">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold">Llaves de acceso (Passkeys)</h2>
+          <p className="text-sm text-slate-600">
+            Inicia sesión de forma rápida y segura mediante huella digital, cara o PIN de tu dispositivo.
+          </p>
+        </div>
+
+        {passkeys.length > 0 ? (
+          <ul className="space-y-2">
+            {passkeys.map((pk) => (
+              <li key={pk.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 border border-slate-200 text-sm">
+                <div>
+                  <p className="font-semibold text-slate-800">{pk.name || 'Llave de acceso'}</p>
+                  <p className="text-xs text-slate-500">Agregada el {new Date(pk.createdAt).toLocaleDateString()}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={passkeyPending}
+                  onClick={() => void onDeletePasskey(pk.id)}
+                >
+                  Eliminar
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-500 italic">No tienes llaves de acceso registradas.</p>
+        )}
+
+        <form onSubmit={onRegisterPasskey} className="flex flex-wrap items-end gap-3">
+          <label className="block flex-1 min-w-[200px] space-y-1.5">
+            <span className="text-sm font-medium text-slate-700">Nombre del dispositivo</span>
+            <input
+              className={fieldClass}
+              placeholder="Ej. Mi Laptop, iPhone"
+              value={passkeyName}
+              onChange={(e) => setPasskeyName(e.target.value)}
+            />
+          </label>
+          <Button type="submit" disabled={passkeyPending}>
+            {passkeyPending ? 'Agregando…' : 'Agregar llave de acceso'}
+          </Button>
+        </form>
+      </section>
     </div>
   )
 }

@@ -97,6 +97,9 @@ builder.Services.AddRateLimiter(options =>
     // endpoints get the strictest budget; management is session-authed.
     options.AddPolicy("auth-2fa-challenge", http => PerIp(http, 10));
     options.AddPolicy("auth-2fa-manage", http => PerIp(http, 30));
+    // T-AU-03: Passkeys / WebAuthn challenge & management rate limits
+    options.AddPolicy("auth-passkeys-challenge", http => PerIp(http, 10));
+    options.AddPolicy("auth-passkeys-manage", http => PerIp(http, 30));
 });
 builder.Services.AddSingleton<VerificationThrottle>();
 
@@ -865,6 +868,202 @@ app.MapPost("/api/auth/2fa/recovery-codes/regenerate", async (
 .RequireAuthorization()
 .DisableAntiforgery()
 .RequireRateLimiting("auth-2fa-manage");
+
+// T-AU-03 (ADR-0038 S3): Passkeys / WebAuthn API endpoints
+static string GetRelyingPartyId(HttpContext http, IConfiguration config)
+{
+    var configured = config["Passkeys:RelyingPartyId"];
+    if (!string.IsNullOrWhiteSpace(configured)) return configured.Trim();
+    return http.Request.Host.Host;
+}
+
+app.MapGet("/api/auth/passkeys", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SonivoDbContext db) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var tokens = await db.UserTokens
+        .Where(t => t.UserId == user.Id && t.LoginProvider == "Passkeys")
+        .ToListAsync();
+
+    var list = new List<PasskeyDto>();
+    foreach (var token in tokens)
+    {
+        if (token.Name.StartsWith("Credential_", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(token.Value))
+        {
+            try
+            {
+                var cred = System.Text.Json.JsonSerializer.Deserialize<PasskeyCredential>(token.Value);
+                if (cred is not null)
+                {
+                    list.Add(new PasskeyDto(cred.CredentialId, cred.DeviceName, cred.CreatedAt));
+                }
+            }
+            catch
+            {
+                var credId = token.Name.Substring("Credential_".Length);
+                list.Add(new PasskeyDto(credId, "Llave de acceso", DateTimeOffset.UtcNow));
+            }
+        }
+    }
+
+    return Results.Ok(list);
+})
+.WithName("ListPasskeys")
+.RequireAuthorization();
+
+app.MapPost("/api/auth/passkeys/register-start", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    HttpContext http,
+    IConfiguration config) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var challenge = PasskeyChallengeStore.CreateChallenge(user.Id);
+    var rpId = GetRelyingPartyId(http, config);
+
+    return Results.Ok(new PasskeyRegistrationStartResponse(
+        challenge,
+        rpId,
+        "Sonivo",
+        new PasskeyUserDto(user.Id.ToString(), user.Email ?? user.UserName!, user.DisplayName ?? user.Email ?? "Usuario")));
+})
+.WithName("PasskeysRegisterStart")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-passkeys-manage");
+
+app.MapPost("/api/auth/passkeys/register-finish", async (
+    PasskeyRegistrationFinishRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var credId = request.CredentialId?.Trim();
+    if (string.IsNullOrWhiteSpace(credId))
+    {
+        return Results.Problem(
+            detail: "Identificador de llave de acceso inválido",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    var deviceName = string.IsNullOrWhiteSpace(request.DeviceName) ? "Llave de acceso" : request.DeviceName.Trim();
+    var cred = new PasskeyCredential(
+        credId,
+        request.PublicKey ?? string.Empty,
+        deviceName,
+        DateTimeOffset.UtcNow);
+
+    var json = System.Text.Json.JsonSerializer.Serialize(cred);
+    await users.SetAuthenticationTokenAsync(user, "Passkeys", "Credential_" + credId, json);
+
+    return Results.Ok(new { registered = true, credentialId = credId });
+})
+.WithName("PasskeysRegisterFinish")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-passkeys-manage");
+
+app.MapDelete("/api/auth/passkeys/{id}", async (
+    string id,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var credId = id.Trim();
+    await users.RemoveAuthenticationTokenAsync(user, "Passkeys", "Credential_" + credId);
+    return Results.Ok(new { deleted = true });
+})
+.WithName("PasskeysDelete")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-passkeys-manage");
+
+app.MapPost("/api/auth/passkeys/login-start", (
+    HttpContext http,
+    IConfiguration config) =>
+{
+    var challenge = PasskeyChallengeStore.CreateChallenge();
+    var rpId = GetRelyingPartyId(http, config);
+    return Results.Ok(new PasskeyLoginStartResponse(challenge, rpId));
+})
+.WithName("PasskeysLoginStart")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-passkeys-challenge");
+
+app.MapPost("/api/auth/passkeys/login-finish", async (
+    PasskeyLoginFinishRequest request,
+    UserManager<ApplicationUser> users,
+    SignInManager<ApplicationUser> signInManager,
+    SonivoDbContext db) =>
+{
+    var credId = request.CredentialId?.Trim();
+    if (string.IsNullOrWhiteSpace(credId))
+    {
+        return Results.Problem(
+            detail: "Llave de acceso inválida o no registrada",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    var tokenName = "Credential_" + credId;
+    var token = await db.UserTokens
+        .FirstOrDefaultAsync(t => t.LoginProvider == "Passkeys" && t.Name == tokenName);
+
+    if (token is null)
+    {
+        return Results.Problem(
+            detail: "Llave de acceso no registrada",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    var user = await users.FindByIdAsync(token.UserId.ToString());
+    if (user is null)
+    {
+        return Results.Problem(
+            detail: "Llave de acceso no registrada",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    await signInManager.SignInAsync(user, isPersistent: true);
+
+    return Results.Ok(new
+    {
+        id = user.Id,
+        email = user.Email,
+        displayName = user.DisplayName,
+        emailConfirmed = user.EmailConfirmed
+    });
+})
+.WithName("PasskeysLoginFinish")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-passkeys-challenge");
 
 // T-AU-01 test hook (E2E only): marks a user confirmed without a mailbox.
 // DOUBLE-GATED: Auth:EnableTestHook AND Development environment. The env gate
