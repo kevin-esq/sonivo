@@ -261,14 +261,14 @@ export function SecurityPage() {
           <form className="space-y-4" onSubmit={onConfirmEnroll} noValidate>
             <h2 className="text-lg font-bold">Verificación en dos pasos</h2>
             <p className="text-sm text-slate-600">
-              Escanea este código QR con tu aplicación de autenticación (Google Authenticator, Authy, Bitwarden) o ingresa la clave manualmente.
+              Ingresa esta clave en tu app de autenticación (o escanea el código QR a continuación):
             </p>
             <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
               <QRCodeSVG value={enroll.uri} size={180} level="M" className="rounded-lg border bg-white p-2 shadow-sm" />
               <p className="text-xs font-medium text-slate-500">Código QR para aplicación de autenticación</p>
             </div>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">Clave secreta manual</span>
+              <span className="text-sm font-medium text-slate-700">Clave manual</span>
               <input className={fieldClass} readOnly value={enroll.manualKey} />
             </label>
             <div className="flex flex-wrap gap-2">
@@ -392,7 +392,7 @@ export function SecurityPage() {
                   disabled={passkeyPending}
                   onClick={() => void onDeletePasskey(pk.id)}
                 >
-                  Revocar / Desconectar
+                  Eliminar
                 </Button>
               </li>
             ))}
