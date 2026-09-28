@@ -12,4 +12,4 @@ Run typechecking regularly, single test files regularly, and the full test suite
 
 Once done, use /code-review to review the work.
 
-Commit your work to the current branch.
+Do not stage, commit, push, or create a PR unless the current user explicitly authorizes that Git action. Follow the repository checkpoint policy in `AGENTS.md`.

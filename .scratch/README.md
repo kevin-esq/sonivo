@@ -2,12 +2,12 @@
 
 Ephemeral workspace for Cursor agents on Sonivo. **Not product truth.**
 
-| Path | Purpose |
-| ---- | ------- |
-| [`NOW.md`](NOW.md) | Current focus, next actions, blockers |
-| [`installs/LOG.md`](installs/LOG.md) | What was installed, where, when |
-| `notes/` | Throwaway notes (gitignored) |
-| `tmp/` | Temporary files (gitignored) |
+| Path                                 | Purpose                               |
+| ------------------------------------ | ------------------------------------- |
+| [`NOW.md`](NOW.md)                   | Current focus, next actions, blockers |
+| [`installs/LOG.md`](installs/LOG.md) | What was installed, where, when       |
+| `notes/`                             | Throwaway notes (gitignored)          |
+| `tmp/`                               | Temporary files (gitignored)          |
 
 ## Rules
 
@@ -16,6 +16,7 @@ Ephemeral workspace for Cursor agents on Sonivo. **Not product truth.**
 3. Durable decisions go to `docs/` or ADRs — never only here.
 4. Do not put secrets in this folder.
 5. Prefer updating existing docs over parallel note dumps.
+6. Obsidian navigation starts at [`docs/00-context/INDEX.md`](../docs/00-context/INDEX.md); do not create a parallel `knowledge/` tree.
 
 ## Related
 

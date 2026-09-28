@@ -7,8 +7,8 @@ description: "Use when you need to resolve an in-progress git merge/rebase confl
 
 2. **Find the primary sources** for each conflict. Understand deeply why each change was made, and what the original intent was. Read the commit messages, check the PRs, check original issues/tickets.
 
-3. **Resolve each hunk.** Preserve both intents where possible. Where incompatible, pick the one matching the merge's stated goal and note the trade-off. Do **not** invent new behaviour. Always resolve; never `--abort`.
+3. **Resolve each hunk.** Preserve both intents where possible. Where incompatible, pick the one matching the merge's stated goal and note the trade-off. Do **not** invent new behaviour. If intent is unclear or resolution is unsafe, stop and report; do not abort or continue a merge/rebase without user authorization.
 
 4. Discover the project's **automated checks** and run them, typically typecheck, then tests, then format. Fix anything the merge broke.
 
-5. **Finish the merge/rebase.** Stage everything and commit. If rebasing, continue the rebase process until all commits are rebased.
+5. **Report the result.** Do not stage, commit, push, or continue beyond the authorized operation unless the current user explicitly authorizes it. Follow `AGENTS.md` Git policy.
