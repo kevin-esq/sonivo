@@ -6,10 +6,10 @@
 
 ```text
 Implementation: COMPLETE (T-CI-PK: fix passkeys E2E on CI — WebAuthn origin + virtual authenticator)
-Human approval: PENDING
-Git checkpoint: PENDING
-Remote: NOT PUSHED
-CI: NOT RUN (fix must be pushed to GitHub to validate the Playwright job)
+Human approval: APPROVED (user authorized commit + push)
+Git checkpoint: COMMITTED (54fabc0 on develop)
+Remote: PUSHED
+CI: PASSING (run 36493568962 — backend, frontend, Playwright 35/35 green)
 ```
 
 ## Current state
