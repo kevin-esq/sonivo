@@ -6,10 +6,10 @@
 
 ```text
 Implementation: COMPLETE (revert payments scaffold per ADR-0042 + auditor review)
-Human approval: PENDING (human review of the revert)
-Git checkpoint: COMMITTED (0a1f3be on fix/revert-payments)
-Remote: PUSHED (origin/fix/revert-payments verified via ls-remote)
-CI: NOT RUN (no PR yet — PR and merge NOT authorized; local build green, suites per builder run)
+Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green)
+Git checkpoint: COMMITTED + MERGED to develop (PR #108, 9f8cd85; branch deleted)
+Remote: PUSHED + MERGED (CI: Backend + Frontend + Playwright E2E green)
+CI: PASSING (run 36498206129)
 ```
 
 ## Current state
