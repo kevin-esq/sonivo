@@ -43,6 +43,8 @@ graph TD
   2. `T-PAY-02` (Worker Backend): Definir la interfaz `IPaymentGateway` y las clases adaptadoras `StripePaymentGateway` y `MercadoPagoPaymentGateway`.
   3. `T-PAY-03` (Worker Backend): Implementar `WebhooksController` con verificación criptográfica HMAC SHA-256 (`Stripe-Signature` / `X-Signature`), validación temporal contra *Replay Attacks* (tolerancia de 300s) e Idempotencia en BD.
 
+> **REVERTED per ADR-0042 (2026-09-28):** Fase 2 billing scaffold removed — no ADR ever authorized it; Q10 billing is Deferred.
+
 ---
 
 ### 🎨 Fase 3: Refactorización UI/UX Frontend (React 19 + Tailwind v4)
