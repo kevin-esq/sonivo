@@ -36,50 +36,6 @@ export function SettingsProfilePage({ user }: { user: { email?: string | null; i
   )
 }
 
-export function SettingsBillingPage() {
-  const plans = [
-    { name: 'Free', price: '$0', desc: 'Hasta 1 grupo y 20 canciones en repertorio', current: false },
-    { name: 'Pro', price: '$9.99/mes', desc: 'Repertorio ilimitado, audio HD y 5 miembros', current: true },
-    { name: 'Band', price: '$24.99/mes', desc: 'Múltiples bandas, almacenamiento R2 y SignalR live', current: false },
-  ]
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Planes y Facturación</h2>
-        <p className="text-sm text-slate-500">Administra tu suscripción y métodos de pago guardados.</p>
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-6">
-        {plans.map((p) => (
-          <div
-            key={p.name}
-            className={`p-6 rounded-2xl border ${
-              p.current
-                ? 'border-indigo-600 bg-indigo-50/30 dark:bg-indigo-950/20 ring-2 ring-indigo-600'
-                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
-            }`}
-          >
-            <h3 className="font-bold text-lg text-slate-900 dark:text-white">{p.name}</h3>
-            <p className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">{p.price}</p>
-            <p className="text-sm text-slate-500 mt-2">{p.desc}</p>
-            <button
-              type="button"
-              className={`w-full mt-6 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${
-                p.current
-                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-default'
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white'
-              }`}
-            >
-              {p.current ? 'Plan Actual' : 'Seleccionar Plan'}
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export function SettingsTeamPage() {
   return (
     <div className="space-y-6">

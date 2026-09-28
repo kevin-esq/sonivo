@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (T-CI-PK: fix passkeys E2E on CI — WebAuthn origin + virtual authenticator)
-Human approval: APPROVED (user authorized commit + push)
-Git checkpoint: COMMITTED (54fabc0 on develop)
-Remote: PUSHED
-CI: PASSING (run 36493568962 — backend, frontend, Playwright 35/35 green)
+Implementation: COMPLETE (revert payments scaffold per ADR-0042 + auditor review)
+Human approval: PENDING (human review of the revert; standing order covers commit+push only)
+Git checkpoint: PENDING (commit+push authorized as standing order; PR and merge NOT authorized)
+Remote: NOT PUSHED
+CI: NOT RUN (no PR yet; local build green, backend suites green per builder run except 1 env-gated R2 live test)
 ```
 
 ## Current state

@@ -96,7 +96,6 @@ public static class DependencyInjection
         services.Configure<DigitizeOptions>(configuration.GetSection("Whisper"));
         services.Configure<WhisperOptions>(configuration.GetSection("Whisper"));
         services.AddSingleton<IAudioTranscriber, WhisperAudioTranscriber>();
-        services.AddScoped<Sonivo.Application.Payments.IPaymentGateway, Sonivo.Infrastructure.Payments.StripePaymentGateway>();
 
         return services;
     }

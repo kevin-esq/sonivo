@@ -8,6 +8,26 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0042 — Payments OUT — revert of unaccepted billing scaffold
+
+- **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-09-28.
+- **Date:** 2026-09-28
+
+### Rationale
+
+- No ADR ever authorized payment/billing code; it contradicts PRODUCT.md exclusions and the TECHNICAL-SPEC "Q10 billing Deferred; no payment code" position.
+- The scaffold was dead and insecure: `IPaymentGateway` registered but never injected; `StripePaymentGateway`/`MercadoPagoPaymentGateway` were stub/mock; `WebhooksController` (public anonymous Stripe + MercadoPago actions) only wrote `WebhookEventLog` rows with stub-secret fallback, missing-signature bypass, and no MercadoPago signature at all; only one table existed (`WebhookEventLogs`); zero payment keys in render.yaml/appsettings; UI `/settings/billing` was mock pricing cards with no API wiring.
+
+### Scope
+
+- Removed `WebhooksController`, `PaymentGateways` + `IPaymentGateway` (dirs + DI line), `WebhookEventLog` (entity + `DbSet`) with a `RemovePaymentWebhookLog` migration dropping the table, the `/settings/billing` route + nav tab + `SettingsBillingPage` mock cards, and adjusted payment/webhook test references.
+
+### Firewall (restated)
+
+- Payments/billing remain OUT. Any future billing work requires a new explicit human decision and ADR; do not reintroduce Stripe/MercadoPago/webhook/payment scaffolding without one.
+
+---
+
 ## ADR-0041 — Single project-local agent customization tree
 
 - **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-09-28.

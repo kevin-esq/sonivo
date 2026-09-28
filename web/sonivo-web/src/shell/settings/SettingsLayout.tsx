@@ -1,11 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { User, ShieldCheck, CreditCard, Users } from 'lucide-react'
+import { User, ShieldCheck, Users } from 'lucide-react'
 
 export function SettingsLayout() {
   const tabs = [
     { label: 'Perfil', path: '/settings/profile', icon: User },
     { label: 'Seguridad & 2FA', path: '/settings/security', icon: ShieldCheck },
-    { label: 'Facturación & Planes', path: '/settings/billing', icon: CreditCard },
     { label: 'Equipo & Roles', path: '/settings/team', icon: Users },
   ]
 
