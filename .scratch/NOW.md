@@ -6,10 +6,10 @@
 
 ```text
 Implementation: COMPLETE (revert payments scaffold per ADR-0042 + auditor review)
-Human approval: PENDING (human review of the revert; standing order covers commit+push only)
-Git checkpoint: PENDING (commit+push authorized as standing order; PR and merge NOT authorized)
-Remote: NOT PUSHED
-CI: NOT RUN (no PR yet; local build green, backend suites green per builder run except 1 env-gated R2 live test)
+Human approval: PENDING (human review of the revert)
+Git checkpoint: COMMITTED (0a1f3be on fix/revert-payments)
+Remote: PUSHED (origin/fix/revert-payments verified via ls-remote)
+CI: NOT RUN (no PR yet — PR and merge NOT authorized; local build green, suites per builder run)
 ```
 
 ## Current state
