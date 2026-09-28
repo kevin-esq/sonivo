@@ -104,4 +104,4 @@ See [`docs/03-architecture/TESTING.md`](docs/03-architecture/TESTING.md).
 
 ## Docs
 
-Start at [`docs/00-context/CONTEXT.md`](docs/00-context/CONTEXT.md) and [`AGENTS.md`](AGENTS.md).
+Start Obsidian navigation at [`docs/00-context/INDEX.md`](docs/00-context/INDEX.md). Project context is in [`docs/00-context/CONTEXT.md`](docs/00-context/CONTEXT.md); agent instructions are consolidated in [`AGENTS.md`](AGENTS.md).

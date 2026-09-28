@@ -153,7 +153,12 @@ jobs:
         working-directory: e2e
         env:
           CI: true
-          SONIVO_E2E_BASE_URL: http://127.0.0.1:5173
+          # WebAuthn fix: headless Chromium rejects navigator.credentials.* on
+          # IP-literal origins (SecurityError "invalid domain"), so the passkey
+          # journey must browse via localhost (Chromium treats it as a
+          # potentially trustworthy origin). Vite stays bound to 127.0.0.1 —
+          # localhost resolves there on the runners.
+          SONIVO_E2E_BASE_URL: http://localhost:5173
         run: npm test
       - name: Upload Playwright report
         if: failure()

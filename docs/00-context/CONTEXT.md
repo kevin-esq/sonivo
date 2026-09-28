@@ -2,23 +2,26 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-09-21 (Waves A–F + R2 prod-live: ADR-0032–0037 decided; follow-along, Whisper digitizer, suggest, Q9 conductor, tuner, YouTube embed shipped; LLM closed Option C; scoring OUT)  
-**Phase:** Phase 0–3.1 **CLOSED**. Phase 3.2–3.9 **COMPLETED** including **T-3.2.06**. **Google OAuth** thin **COMPLETED** (ADR-0026; PR #40). **Thin Practice / karaoke** **COMPLETED** (ADR-0027; PR [#45](https://github.com/kevin-esq/sonivo/pull/45)) — read-only Practicar + optional audio. ChordPro formats + player + ADR-0030 tooling **COMPLETED**. **ADR-0031** follow-along **SHIPPED** (Owner time marks + Practice highlight “Seguir letra”, T-SYNC-01–03, PRs #81–82). **ADR-0032** Whisper digitizer thin **SHIPPED** (transcribe job + Owner review + TC-WSP-01, PR #84) + **ADR-0034** review-gated suggest + TC-WSP-02 (PR #86). **ADR-0033** LLM **CLOSED without cloud** (Option C, SUPERSEDED). **ADR-0035** R2 blob backend **SHIPPED + LIVE in prod** (dual-read, PR #92). **ADR-0036** Q9 conductor **SHIPPED** (SignalR room + presence + TC-Q9-01, PR #90). **ADR-0037** extras **SHIPPED** (tuner + YouTube reference embed + TC-PITCH-01/TC-YT-01, PR #91; scoring OUT). T-OPS-01/02 done. Live: https://sonivo.onrender.com (R2 backend active). Gate B **CLOSED**.  
+**Last updated:** 2026-09-28 (ADR-0039/0041: canonical docs and single `.agents/` customization tree)
+**Delivery:** Phases 0–3.9 **CLOSED/COMPLETED**. ADR-0031–0032 and 0034–0038 are shipped; ADR-0033 is superseded (cloud LLM closed), and karaoke scoring is OUT. ADR-0039/0041 govern local Obsidian knowledge and the sole project-local skills tree. Gate B **CLOSED**.
+**Active work:** T-R2-04 on `feature/t-r2-drop-postgres`; dropping `ResourceBlobs` is gated on verified R2 backfill. See [`../03-architecture/PHASE-R2-SPEC.md`](../03-architecture/PHASE-R2-SPEC.md). Current checkout may differ from that branch.
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
 
 ## How to read this file
 
-| Label | Meaning |
-| ----- | ------- |
-| **FACT** | Confirmed product or engineering decision |
-| **ASSUMPTION** | Believed but not validated |
-| **OPEN QUESTION** | Requires an explicit decision |
-| **PROHIBITION** | Explicitly out of scope or forbidden |
-| **FUTURE** | Possible later; must not drive current build |
+| Label             | Meaning                                      |
+| ----------------- | -------------------------------------------- |
+| **FACT**          | Confirmed product or engineering decision    |
+| **ASSUMPTION**    | Believed but not validated                   |
+| **OPEN QUESTION** | Requires an explicit decision                |
+| **PROHIBITION**   | Explicitly out of scope or forbidden         |
+| **FUTURE**        | Possible later; must not drive current build |
 
 Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.md`](../03-architecture/DECISIONS.md) · Model: [`../02-domain/DOMAIN-MODEL.md`](../02-domain/DOMAIN-MODEL.md)
+
+Knowledge navigation: [`INDEX.md`](INDEX.md) · Current task/checkpoint: [`../../.scratch/NOW.md`](../../.scratch/NOW.md)
 
 ---
 
@@ -46,69 +49,69 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 ### Domain / tenancy (0005–0014 + Phase 1 package)
 
-8. **Group** is MVP tenant; multi-Group Users; no Workspace/Organization (ADR-0005).  
-9. Roles **Owner** \| **Member** only (ADR-0012).  
-10. Multi-owner lifecycle; soft-delete Group (ADR-0013).  
-11. Song = identity; Arrangement = playable aggregate; Resources on Arrangement (ADR-0007, 0008, 0014).  
-12. Song may have zero Arrangements (ADR-0017). Song create does **not** require an Arrangement (**ADR-0025 ACCEPTED**).  
-13. Resource purpose: `chart`\|`lyrics`\|`audio`\|`click`\|`reference`\|`practice`\|`other`; required Label; optional free-text Part (ADR-0017 revised by **ADR-0024 ACCEPTED**).  
-13a. Song Title duplicates ALLOWED; Attribution free text; OriginKind `original`\|`cover`\|`other`; Arrangement Label required; no `IsDefault`; Key free text; BPM optional int 1–400; lyrics/chords/structure/notes plain text; Song soft-delete cascades live Arr soft-delete with Song `expectedVersion` / one tx / 409 on conflict (**ADR-0025 ACCEPTED**).  
-14. Setlist = reusable template; apply = copy to EventSetlistItems; `sourceSetlistId` provenance only (ADR-0016, 0017).  
-15. Duplicate Arrangement appearances ALLOWED (ADR-0016).  
-16. Event types: `rehearsal`\|`performance`\|`other`; cancel + soft-hide (ADR-0016).  
-17. EventSetlistItem: ArrangementId + copied display labels + order + overrides; tombstones not content snapshots (ADR-0018).  
-18. Historical contract: plan/RSVP/labels MUST stable; Arrangement body & Resources NOT GUARANTEED (ADR-0016–0018).  
-19. Deletes: soft Group/Song/Arrangement; hard Resource & Setlist template; Event cancel+soft-hide (ADR-0016–0017).
+1. **Group** is MVP tenant; multi-Group Users; no Workspace/Organization (ADR-0005).
+2. Roles **Owner** \| **Member** only (ADR-0012).
+3. Multi-owner lifecycle; soft-delete Group (ADR-0013).
+4. Song = identity; Arrangement = playable aggregate; Resources on Arrangement (ADR-0007, 0008, 0014).
+5. Song may have zero Arrangements (ADR-0017). Song create does **not** require an Arrangement (**ADR-0025 ACCEPTED**).
+6. Resource purpose: `chart`\|`lyrics`\|`audio`\|`click`\|`reference`\|`practice`\|`other`; required Label; optional free-text Part (ADR-0017 revised by **ADR-0024 ACCEPTED**).  
+   13a. Song Title duplicates ALLOWED; Attribution free text; OriginKind `original`\|`cover`\|`other`; Arrangement Label required; no `IsDefault`; Key free text; BPM optional int 1–400; lyrics/chords/structure/notes plain text; Song soft-delete cascades live Arr soft-delete with Song `expectedVersion` / one tx / 409 on conflict (**ADR-0025 ACCEPTED**).
+7. Setlist = reusable template; apply = copy to EventSetlistItems; `sourceSetlistId` provenance only (ADR-0016, 0017).
+8. Duplicate Arrangement appearances ALLOWED (ADR-0016).
+9. Event types: `rehearsal`\|`performance`\|`other`; cancel + soft-hide (ADR-0016).
+10. EventSetlistItem: ArrangementId + copied display labels + order + overrides; tombstones not content snapshots (ADR-0018).
+11. Historical contract: plan/RSVP/labels MUST stable; Arrangement body & Resources NOT GUARANTEED (ADR-0016–0018).
+12. Deletes: soft Group/Song/Arrangement; hard Resource & Setlist template; Event cancel+soft-hide (ADR-0016–0017).
 
 ### Engineering
 
-20. Stack/auth/session per ADR-0009–0011; modular monolith; no microservices/CQRS/ES.  
-21. Tooling ADR-0002 ACCEPTED; Phase 0 CLOSED.  
-22. Application foundation (Phase 2.3) + Group slice + Phase 3.2 approved repertoire slice + Phase 3.3 thin S2 (Setlist → Event apply + UI + E2E) + Phase 3.4 thin invites (link token; PR [#8](https://github.com/kevin-esq/sonivo/pull/8), merge `8db0714`) + Phase 3.5 thin RSVP (T-3.5.01–03; PR [#10](https://github.com/kevin-esq/sonivo/pull/10), merge `cbc8824`) + Phase 3.6 Event PATCH/cancel (T-3.6.01–03) + Phase 3.7 People (T-3.7.01–03, PR [#15](https://github.com/kevin-esq/sonivo/pull/15), merge `0e0de72`) + Phase 3.8 invite hygiene (T-3.8.01–03) + Phase 3.9 optional invite email (T-3.9.01–04; link still canonical; Gmail API HTTPS best-effort) exist. File Resource (T-3.2.06) **COMPLETED** (PR [#35](https://github.com/kevin-esq/sonivo/pull/35)). Event/RSVP notification mail remains **DEFERRED**.  
-23. Phase 2 technical docs under `docs/03-architecture/` (ARCHITECTURE, TECHNICAL-SPEC, API, SECURITY, TESTING, PERSISTENCE).  
-24. ADR-0019–0021 **ACCEPTED** — Phase 2.1.  
-25. ADR-0022–0023 **ACCEPTED** — Phase 2.2; integer `Version` concurrency ACCEPTED.  
-26. Phase 2.3 foundation: `Sonivo.slnx`, Domain/Application/Infrastructure/Api, React web shell, initial EF migration `InitialFoundation`.  
-27. Phase 3.0–3.0.2.1 CLOSED (Group slice; Compose Postgres; CI/Playwright; public repo audit).  
-28. Phase 3.0.3 **CLOSED** — ADR-0024 **ACCEPTED** (practice Resources / Part metadata).  
-29. Phase 3.1 **CLOSED** — ADR-0025 **ACCEPTED**.  
-30. Phase 3.2 approved scope **COMPLETED** (T-3.2.01–05, 07, 08): Song / Arrangement / **Link** Resource with **nested** Resource routes; migration `AlignRepertoireToAdr0024And0025`; React Library Shell (Owner mutate / Member read UX, expectedVersion conflict UX); sparse Playwright TC-LIB-01/02/03 (Member browser E2E and 409 E2E deferred). File Resource / blob / `IBlobStore` / upload / content (**T-3.2.06**) **COMPLETED** (PR #35). Phase 3.3 thin S2 **COMPLETED** on `develop` (T-3.3.01–05, PR #6 / `80f5f63`): Setlist → Event apply → React UI → Playwright (TC-EVT-01/02). Phase 3.4 thin invites **COMPLETED** on `develop` (T-3.4.01–03, PR #8 / `8db0714`): link token, no email. Phase 3.5 thin RSVP **COMPLETED** on `develop` (T-3.5.01–03, PR [#10](https://github.com/kevin-esq/sonivo/pull/10) / `cbc8824`) per [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md): Event `yes`/`no`/`maybe` upsert + Attendance UI + TC-RSVP-01. Phase 3.6 thin Event PATCH/cancel **COMPLETED** (T-3.6.01–03) per [`PHASE-3.6-EVENT-SPEC.md`](../03-architecture/PHASE-3.6-EVENT-SPEC.md): Owner title/type/startsAt PATCH + cancel/soft-hide + TC-EVT-03. Phase 3.7 thin People **COMPLETED** (T-3.7.01–03) per [`PHASE-3.7-PEOPLE-SPEC.md`](../03-architecture/PHASE-3.7-PEOPLE-SPEC.md): members list/remove/role/leave + People UI + Group rename/soft-delete + TC-PPL-01. Phase 3.8 thin invite hygiene **COMPLETED** (T-3.8.01–03) per [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md): outstanding invite list/revoke + TC-INV-02. Phase 3.9 optional invite email **COMPLETED** (T-3.9.01–04) per [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md): Gmail API HTTPS (`users.messages.send`) outbound of the join URL; config `Gmail:ClientId` / `ClientSecret` / `RefreshToken` / `From` + `PublicOrigin`; `emailed` best-effort; TC-INV-03. Event/RSVP mail remains **DEFERRED**. No merge to `main`.
+1. Stack/auth/session per ADR-0009–0011; modular monolith; no microservices/CQRS/ES.
+2. Tooling policy ADR-0002 and project-local knowledge workflows/adapters ADR-0039/0040 ACCEPTED; Phase 0 CLOSED.
+3. Application foundation (Phase 2.3) + Group slice + Phase 3.2 approved repertoire slice + Phase 3.3 thin S2 (Setlist → Event apply + UI + E2E) + Phase 3.4 thin invites (link token; PR [#8](https://github.com/kevin-esq/sonivo/pull/8), merge `8db0714`) + Phase 3.5 thin RSVP (T-3.5.01–03; PR [#10](https://github.com/kevin-esq/sonivo/pull/10), merge `cbc8824`) + Phase 3.6 Event PATCH/cancel (T-3.6.01–03) + Phase 3.7 People (T-3.7.01–03, PR [#15](https://github.com/kevin-esq/sonivo/pull/15), merge `0e0de72`) + Phase 3.8 invite hygiene (T-3.8.01–03) + Phase 3.9 optional invite email (T-3.9.01–04; link still canonical; Gmail API HTTPS best-effort) exist. File Resource (T-3.2.06) **COMPLETED** (PR [#35](https://github.com/kevin-esq/sonivo/pull/35)). Event/RSVP notification mail remains **DEFERRED**.
+4. Phase 2 technical docs under `docs/03-architecture/` (ARCHITECTURE, TECHNICAL-SPEC, API, SECURITY, TESTING, PERSISTENCE).
+5. ADR-0019–0021 **ACCEPTED** — Phase 2.1.
+6. ADR-0022–0023 **ACCEPTED** — Phase 2.2; integer `Version` concurrency ACCEPTED.
+7. Phase 2.3 foundation: `Sonivo.slnx`, Domain/Application/Infrastructure/Api, React web shell, initial EF migration `InitialFoundation`.
+8. Phase 3.0–3.0.2.1 CLOSED (Group slice; Compose Postgres; CI/Playwright; public repo audit).
+9. Phase 3.0.3 **CLOSED** — ADR-0024 **ACCEPTED** (practice Resources / Part metadata).
+10. Phase 3.1 **CLOSED** — ADR-0025 **ACCEPTED**.
+11. Phase 3.2 approved scope **COMPLETED** (T-3.2.01–05, 07, 08): Song / Arrangement / **Link** Resource with **nested** Resource routes; migration `AlignRepertoireToAdr0024And0025`; React Library Shell (Owner mutate / Member read UX, expectedVersion conflict UX); sparse Playwright TC-LIB-01/02/03 (Member browser E2E and 409 E2E deferred). File Resource / blob / `IBlobStore` / upload / content (**T-3.2.06**) **COMPLETED** (PR #35). Phase 3.3 thin S2 **COMPLETED** on `develop` (T-3.3.01–05, PR #6 / `80f5f63`): Setlist → Event apply → React UI → Playwright (TC-EVT-01/02). Phase 3.4 thin invites **COMPLETED** on `develop` (T-3.4.01–03, PR #8 / `8db0714`): link token, no email. Phase 3.5 thin RSVP **COMPLETED** on `develop` (T-3.5.01–03, PR [#10](https://github.com/kevin-esq/sonivo/pull/10) / `cbc8824`) per [`PHASE-3.5-RSVP-SPEC.md`](../03-architecture/PHASE-3.5-RSVP-SPEC.md): Event `yes`/`no`/`maybe` upsert + Attendance UI + TC-RSVP-01. Phase 3.6 thin Event PATCH/cancel **COMPLETED** (T-3.6.01–03) per [`PHASE-3.6-EVENT-SPEC.md`](../03-architecture/PHASE-3.6-EVENT-SPEC.md): Owner title/type/startsAt PATCH + cancel/soft-hide + TC-EVT-03. Phase 3.7 thin People **COMPLETED** (T-3.7.01–03) per [`PHASE-3.7-PEOPLE-SPEC.md`](../03-architecture/PHASE-3.7-PEOPLE-SPEC.md): members list/remove/role/leave + People UI + Group rename/soft-delete + TC-PPL-01. Phase 3.8 thin invite hygiene **COMPLETED** (T-3.8.01–03) per [`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](../03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md): outstanding invite list/revoke + TC-INV-02. Phase 3.9 optional invite email **COMPLETED** (T-3.9.01–04) per [`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md): Gmail API HTTPS (`users.messages.send`) outbound of the join URL; config `Gmail:ClientId` / `ClientSecret` / `RefreshToken` / `From` + `PublicOrigin`; `emailed` best-effort; TC-INV-03. Event/RSVP mail remains **DEFERRED**. No merge to `main`.
 
 ---
 
 ## ASSUMPTIONS
 
-1. Responsive web; organizer desktop-first; member mobile-usable.  
-2. English-first UI.  
-3. Song create does not require an Arrangement (ADR-0025); optional convenience “Song + initial Arrangement” use-case only.  
-4. Progressive UI may hide Arrangement chrome when only one Arrangement exists (**count-based**, not `IsDefault` — ADR-0025).  
-5. Soft-delete + later blob GC acceptable.  
+1. Responsive web; organizer desktop-first; member mobile-usable.
+2. English-first UI.
+3. Song create does not require an Arrangement (ADR-0025); optional convenience “Song + initial Arrangement” use-case only.
+4. Progressive UI may hide Arrangement chrome when only one Arrangement exists (**count-based**, not `IsDefault` — ADR-0025).
+5. Soft-delete + later blob GC acceptable.
 6. Soft-deleting a Song soft-deletes its **live** Arrangements in the same Application transaction (ADR-0025); SetlistItems remain; Event history uses copied labels.
 
 ---
 
 ## OPEN QUESTIONS
 
-| ID | Question |
-| -- | -------- |
-| **Q8** | Chart format — **CLOSED** by **ADR-0028** (hybrid ChordPro in Arrangement + file `chart` Resource) |
-| **Q9** | Realtime — conductor thin **ANSWERED** by **ADR-0036** (self-hosted SignalR Event room + Owner `BroadcastPosition`, PR #90); full multi-device sync (audio/clock/chat) stays FUTURE |
-| **Q10** | Billing |
-| **Q11** | Native mobile / PWA |
-| — | Hosting · account-deletion product |
-| — | Invite mechanics: thin 3.4 freeze **Q-I1–I8** (link canonical); thin 3.9 optional Gmail API HTTPS outbound ([`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md) Q-M2/Q-M3); Event/RSVP mail remains **FUTURE** |
-| — | Blob vendor — **DECIDED**: Cloudflare R2 alternate backend, Postgres default (ADR-0035, live in prod) · exact session TTLs · upload size caps (5 MiB kept, raises need their own ADR) |
+| ID      | Question                                                                                                                                                                                                                         |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Q8**  | Chart format — **CLOSED** by **ADR-0028** (hybrid ChordPro in Arrangement + file `chart` Resource)                                                                                                                               |
+| **Q9**  | Realtime — conductor thin **ANSWERED** by **ADR-0036** (self-hosted SignalR Event room + Owner `BroadcastPosition`, PR #90); full multi-device sync (audio/clock/chat) stays FUTURE                                              |
+| **Q10** | Billing                                                                                                                                                                                                                          |
+| **Q11** | Native mobile / PWA                                                                                                                                                                                                              |
+| —       | Hosting · account-deletion product                                                                                                                                                                                               |
+| —       | Invite mechanics: thin 3.4 freeze **Q-I1–I8** (link canonical); thin 3.9 optional Gmail API HTTPS outbound ([`PHASE-3.9-SMTP-SPEC.md`](../03-architecture/PHASE-3.9-SMTP-SPEC.md) Q-M2/Q-M3); Event/RSVP mail remains **FUTURE** |
+| —       | Blob vendor — **DECIDED**: Cloudflare R2 alternate backend, Postgres default (ADR-0035, live in prod) · exact session TTLs · upload size caps (5 MiB kept, raises need their own ADR)                                            |
 
 ---
 
 ## PROHIBITIONS
 
-1. Church-only / DAW / streaming / social / distributor / church-CMS.  
-2. Implement/scaffold/install without explicit approval.  
-3. Workspace/Organization; Recording/Performance aggregates in MVP.  
-4. Organizer/Guest roles; ACL engines; JWT web; BFF; Supabase Auth.  
-5. Silently reopen ACCEPTED ADRs 0001–0037 without a superseding ADR.  
-6. Content versioning / DAM / Event body snapshots in MVP.  
+1. Church-only / DAW / streaming / social / distributor / church-CMS.
+2. Implement/scaffold/install without explicit approval.
+3. Workspace/Organization; Recording/Performance aggregates in MVP.
+4. Organizer/Guest roles; ACL engines; JWT web; BFF; Supabase Auth.
+5. Silently reopen ACCEPTED ADRs 0001–0037 without a superseding ADR.
+6. Content versioning / DAM / Event body snapshots in MVP.
 7. Unauthorized user-global tooling as Sonivo dependency.
 
 ---
@@ -117,12 +120,12 @@ Glossary: [`GLOSSARY.md`](GLOSSARY.md) · ADRs: [`../03-architecture/DECISIONS.m
 
 Organization · Event resources · Member edits · albums · live tools · mobile bearer · blob GC · account deletion · Event/RSVP notification mail · MusicXML / Guitar Pro · full realtime multi-device (beyond Q9 conductor thin) · billing · duration/transitions · Arrangement status · Resource soft-delete undo · `ResourceBlobs` table drop (after verified R2 backfill, ADR-0035) · 5 MiB raise · cloud LLM reopen (usage evidence, ADR-0033)
 
-*(Shipped, not FUTURE: Owner-authored Practice ChordPro follow-along / highlight — **ADR-0031**; Whisper digitizer + review-gated suggest — **ADR-0032/0034**; Q9 conductor thin — **ADR-0036**; tuner + YouTube reference embed — **ADR-0037**; R2 blob backend — **ADR-0035**. Karaoke scoring is OUT per **ADR-0037**.)*
+_(Shipped, not FUTURE: Owner-authored Practice ChordPro follow-along / highlight — **ADR-0031**; Whisper digitizer + review-gated suggest — **ADR-0032/0034**; Q9 conductor thin — **ADR-0036**; tuner + YouTube reference embed — **ADR-0037**; R2 blob backend — **ADR-0035**. Karaoke scoring is OUT per **ADR-0037**.)_
 
 ---
 
 ## Change protocol
 
-1. Material decisions → ADR → update FACTS when ACCEPTED.  
-2. Glossary ↔ domain docs together.  
+1. Material decisions → ADR → update FACTS when ACCEPTED.
+2. Glossary ↔ domain docs together.
 3. Phase 1 package (0015–0018) and Phase 2.1–2.2 packages (0019–0023) are **CLOSED** — do not reopen without superseding ADR.

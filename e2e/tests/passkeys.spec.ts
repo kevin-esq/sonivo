@@ -6,6 +6,22 @@ test.describe('Passkeys / WebAuthn', () => {
     const email = uniqueEmail('passkey')
     await register(page, email)
 
+    // Headless Chromium has no platform authenticator, and WebAuthn on an
+    // IP-literal origin throws SecurityError — hence CI browses via
+    // http://localhost (see ci.yml). Attach a CDP virtual authenticator so
+    // navigator.credentials.create() is deterministic on any runner.
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('WebAuthn.enable')
+    await cdp.send('WebAuthn.addVirtualAuthenticator', {
+      options: {
+        protocol: 'ctap2',
+        transport: 'usb',
+        hasResidentKey: true,
+        hasUserVerification: true,
+        isUserVerified: true,
+      },
+    })
+
     await page.goto('/security')
     await expect(page.getByRole('heading', { name: 'Seguridad' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Llaves de acceso (Passkeys)' })).toBeVisible()

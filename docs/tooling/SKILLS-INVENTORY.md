@@ -1,7 +1,7 @@
 # SKILLS-INVENTORY.md — Sonivo
 
 **Phase 0 status:** **CLOSED** (Phase 0.9, 2026-09-15)  
-**Allowlist:** **AUTHORIZED** (ADR-0002 **ACCEPTED**; Phase 0.8 prune verified)
+**Allowlist:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041)
 
 Distinguish: **PRESENT** (on disk) · **AUTHORIZED** (Sonivo allowlist) · **DEFERRED** · **REJECTED** · **USER-GLOBAL**
 
@@ -17,6 +17,10 @@ Distinguish: **PRESENT** (on disk) · **AUTHORIZED** (Sonivo allowlist) · **DEF
 
 `impeccable` · `grilling` · `prototype` · `research` · `resolving-merge-conflicts`
 
+### KNOWLEDGE WORKFLOWS — PROJECT-LOCAL (ADR-0039)
+
+`knowledge-architecture` · `knowledge-retrieval` · `memory-writeback` · `knowledge-maintenance` · `context-optimization` · `project-documentation` · `decision-record` · `session-handoff`
+
 ### DEFERRED (not installed project-local; do not invoke/depend)
 
 `setup-matt-pocock-skills` · `handoff` · `product-marketing` · Context7 · surplus Matt skills
@@ -29,37 +33,46 @@ Distinguish: **PRESENT** (on disk) · **AUTHORIZED** (Sonivo allowlist) · **DEF
 
 ## PRESENT project-local skills (filesystem = allowlist)
 
-Exactly **14** directories under `.agents/skills/`:
+Exactly **22** directories under `.agents/skills/`:
 
-| Directory | Role |
-| --------- | ---- |
-| `codebase-design` | CORE |
-| `code-review` | CORE |
-| `diagnosing-bugs` | CORE |
-| `domain-modeling` | CORE |
-| `grilling` | SPECIALIZED |
-| `grill-with-docs` | CORE |
-| `impeccable` | SPECIALIZED |
-| `implement` | CORE |
-| `prototype` | SPECIALIZED |
-| `research` | SPECIALIZED |
+| Directory                   | Role        |
+| --------------------------- | ----------- |
+| `codebase-design`           | CORE        |
+| `code-review`               | CORE        |
+| `diagnosing-bugs`           | CORE        |
+| `domain-modeling`           | CORE        |
+| `grilling`                  | SPECIALIZED |
+| `grill-with-docs`           | CORE        |
+| `impeccable`                | SPECIALIZED |
+| `implement`                 | CORE        |
+| `prototype`                 | SPECIALIZED |
+| `research`                  | SPECIALIZED |
 | `resolving-merge-conflicts` | SPECIALIZED |
-| `tdd` | CORE |
-| `to-spec` | CORE |
-| `to-tickets` | CORE |
+| `tdd`                       | CORE        |
+| `to-spec`                   | CORE        |
+| `to-tickets`                | CORE        |
+| `context-optimization`      | KNOWLEDGE   |
+| `decision-record`           | KNOWLEDGE   |
+| `knowledge-architecture`    | KNOWLEDGE   |
+| `knowledge-maintenance`     | KNOWLEDGE   |
+| `knowledge-retrieval`       | KNOWLEDGE   |
+| `memory-writeback`          | KNOWLEDGE   |
+| `project-documentation`     | KNOWLEDGE   |
+| `session-handoff`           | KNOWLEDGE   |
 
-= **13** Matt Pocock (**AUTHORIZED**) + **1** Impeccable (**AUTHORIZED**)
+= **13** Matt Pocock + **1** Impeccable + **8** ADR-0039 knowledge workflows (**AUTHORIZED**)
 
 Removed skills are **not** listed as installed.
 
-### Related project-local config (PRESENT, supports AUTHORIZED Impeccable)
+### Related project-local config
 
-| Path | Notes |
-| ---- | ----- |
-| `.cursor/skills/impeccable/` | Engine **0.1.5**; skill metadata **4.3.1** |
-| `.cursor/agents/impeccable-*.md` | Agent stubs |
-| `.cursor/hooks.json` / `.codex/hooks.json` | Impeccable hooks |
-| `skills-lock.json` | **13** Matt entries only |
+| Path               | Notes                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| `.agents/skills/`  | Sole project-local skills directory; contains all 22 authorized `SKILL.md` procedures |
+| `.obsidian/`       | Local vault configuration; intentionally not modified                                 |
+| `skills-lock.json` | **13** Matt entries only; local memory workflows are not external packages            |
+
+Root `AGENTS.md` is the shared project instruction file. `.cursor/`, `.codex/`, and `.claude/` customizations are absent by ADR-0041.
 
 ### ABSENT project-local (verified)
 
@@ -69,19 +82,21 @@ Graphify rule / `graphify-out/` · watermarks project rule · `product-marketing
 
 ## USER-GLOBAL (PRESENT ambient; not AUTHORIZED Sonivo deps)
 
-| Item | Status |
-| ---- | ------ |
-| Taste / Emil / design cluster | USER-GLOBAL ambient — do not depend |
-| Graphify CLI | USER-GLOBAL — UNAUTHORIZED for Sonivo |
-| Context7 | USER-GLOBAL — UNAUTHORIZED / DEFERRED |
-| watermarks-remover | USER-GLOBAL — UNAUTHORIZED |
+| Item                          | Status                                |
+| ----------------------------- | ------------------------------------- |
+| Taste / Emil / design cluster | USER-GLOBAL ambient — do not depend   |
+| Graphify CLI                  | USER-GLOBAL — UNAUTHORIZED for Sonivo |
+| Context7                      | USER-GLOBAL — UNAUTHORIZED / DEFERRED |
+| watermarks-remover            | USER-GLOBAL — UNAUTHORIZED            |
 
 ---
 
 ## Provenance
 
-| Item | Evidence |
-| ---- | -------- |
-| Matt skills | `mattpocock/skills` via lock hashes; git commit **UNKNOWN** |
-| Impeccable | Project-local; not in lockfile; commit **UNKNOWN** |
-| Taste/Emil | USER-GLOBAL; **UNKNOWN ORIGIN**; created 2026-09-03 |
+| Item                | Evidence                                                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Matt skills         | `mattpocock/skills` via lock hashes; git commit **UNKNOWN**                                                                   |
+| Impeccable          | Project-local; not in lockfile; commit **UNKNOWN**                                                                            |
+| Knowledge workflows | Adapted from user-provided `opencode-obsidian-memory-full.zip`; project-local under `.agents/skills/`; authorized by ADR-0039 |
+| Layout decision     | Root `AGENTS.md` plus sole project-local `.agents/skills/` tree; vendor customizations removed by ADR-0041                    |
+| Taste/Emil          | USER-GLOBAL; **UNKNOWN ORIGIN**; created 2026-09-03                                                                           |

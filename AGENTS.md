@@ -8,45 +8,20 @@ This file is **not** the product requirements document. Product truth lives unde
 
 ## Phase gate (hard)
 
-**Phase 0 is CLOSED.** **Phase 1 — product & domain specification is CLOSED** (ADR-0015–0018 HUMAN-ACCEPTED).  
-**Phase 2.0–2.2 technical specification is CLOSED** (ADR-0019–0023 HUMAN-ACCEPTED).  
-**Phase 2.3 scaffold & foundation is CLOSED.**  
-**Phase 3.0 Group & Membership vertical slice is CLOSED.**  
-**Phase 3.0.1 development infrastructure (local PostgreSQL Compose) is CLOSED.**  
-**Phase 3.0.2 engineering workflow & CI/CD foundation is CLOSED.**  
-**Phase 3.0.3 Resource & rehearsal domain clarification is CLOSED** (ADR-0024 HUMAN-ACCEPTED).  
-**Phase 3.1 Song & Arrangement domain specification is CLOSED** (ADR-0025 HUMAN-ACCEPTED).
+Phases **0–3.9 are CLOSED/COMPLETED**. The current delivery summary is in [`CONTEXT.md`](docs/00-context/CONTEXT.md); accepted decisions and their scope firewalls are in [`DECISIONS.md`](docs/03-architecture/DECISIONS.md). ADR-0033 is **SUPERSEDED**; do not implement FUTURE scope.
 
-ADRs **0001–0031** are **ACCEPTED** (including tooling ADR-0002; Google OAuth ADR-0026; Practice ADR-0027; formats/Q8 ADR-0028; Practice player ADR-0029; ChordPro assisted tooling ADR-0030; Practice ChordPro follow-along ADR-0031).  
-**Phase 3.2 approved scope:** **COMPLETED** (T-3.2.01–05, 07, 08) — `Song → Arrangement → Link Resource` + React Library Shell + sparse Playwright ([`PHASE-3.2-REPERTOIRE-SPEC.md`](docs/03-architecture/PHASE-3.2-REPERTOIRE-SPEC.md)). Nested Resource routes are authoritative. **T-3.2.06 File Resource** **COMPLETED** on `develop` (PR [#35](https://github.com/kevin-esq/sonivo/pull/35)) — `IBlobStore` + Postgres `ResourceBlobs`, multipart upload, `GET .../content`, TC-LIB-04 ([`PHASE-3.2.06-FILE-RESOURCE-SPEC.md`](docs/03-architecture/PHASE-3.2.06-FILE-RESOURCE-SPEC.md)).  
-**Google OAuth thin:** **CLOSED** / **COMPLETED** (T-OAUTH-01–03; ADR-0026) on `develop` (PR [#40](https://github.com/kevin-esq/sonivo/pull/40)) ([`PHASE-OAUTH-GOOGLE-SPEC.md`](docs/03-architecture/PHASE-OAUTH-GOOGLE-SPEC.md)).  
-**Thin Practice / karaoke:** **CLOSED** / **COMPLETED** (T-KARAOKE-01–02; ADR-0027).  
-**Formats (Q8):** **CLOSED** / **COMPLETED** (ADR-0028; T-FMT-01–06; PRs #48–#51).  
-**Practice player Wave 2:** **CLOSED** / **COMPLETED** (ADR-0029; T-PLAY-01–05; PR [#54](https://github.com/kevin-esq/sonivo/pull/54)).  
-**Practice player Wave 3 (Event/Setlist queue):** **CLOSED** / **COMPLETED** (ADR-0029 §6; T-PLAY-06–08; PR [#58](https://github.com/kevin-esq/sonivo/pull/58)).  
-**UX journeys Wave 4:** **CLOSED** / **COMPLETED** ([`PHASE-UX-SPEC.md`](docs/03-architecture/PHASE-UX-SPEC.md) T-UX-10–13, 20–22, 30–32; PR [#62](https://github.com/kevin-esq/sonivo/pull/62)).  
-**ChordPro assisted tooling (ADR-0030):** **CLOSED** / **COMPLETED** — P0 transpose/views (#71), P1 text digitizer (#74), P2 compose assist (#76) ([`PHASE-CHORDPRO-IA-SPEC.md`](docs/03-architecture/PHASE-CHORDPRO-IA-SPEC.md)). Whisper / cloud LLM / audio digitizer / Q9 remain **DEFERRED**.  
-**Practice ChordPro follow-along (ADR-0031):** **AUTHORIZED** — Owner time marks + Practice highlight (“Seguir letra”); docs T-SYNC-00 then T-SYNC-01–03 ([`PHASE-PLAY-SYNC-SPEC.md`](docs/03-architecture/PHASE-PLAY-SYNC-SPEC.md)). Implementation not started until tickets ship.  
-**Phase 3.3 thin S2:** **CLOSED** (T-3.3.01–05) — Setlist → Event apply → React UI → Playwright ([`PHASE-3.3-THIN-SPEC.md`](docs/03-architecture/PHASE-3.3-THIN-SPEC.md)). Merged to `develop` (PR [#6](https://github.com/kevin-esq/sonivo/pull/6), `80f5f63`).  
-**Phase 3.4 thin invites:** **CLOSED** / **COMPLETED** (T-3.4.01–03) — link token, no email ([`PHASE-3.4-INVITE-SPEC.md`](docs/03-architecture/PHASE-3.4-INVITE-SPEC.md)). Merged to `develop` (PR [#8](https://github.com/kevin-esq/sonivo/pull/8), `8db0714`).  
-**Phase 3.5 thin RSVP:** **CLOSED** / **COMPLETED** (T-3.5.01–03) — Event yes/no/maybe + Attendance UI + Playwright ([`PHASE-3.5-RSVP-SPEC.md`](docs/03-architecture/PHASE-3.5-RSVP-SPEC.md)). Merged to `develop` (PR [#10](https://github.com/kevin-esq/sonivo/pull/10), `cbc8824`).  
-**Phase 3.6 thin Event PATCH/cancel:** **CLOSED** / **COMPLETED** (T-3.6.01–03) — Owner metadata PATCH + cancel/soft-hide ([`PHASE-3.6-EVENT-SPEC.md`](docs/03-architecture/PHASE-3.6-EVENT-SPEC.md)).  
-**Phase 3.7 thin People:** **CLOSED** / **COMPLETED** (T-3.7.01–03) — members list/remove/role/leave + People UI + Group rename/soft-delete ([`PHASE-3.7-PEOPLE-SPEC.md`](docs/03-architecture/PHASE-3.7-PEOPLE-SPEC.md)). Merged to `develop` (PR [#15](https://github.com/kevin-esq/sonivo/pull/15), `0e0de72`).  
-**Phase 3.8 thin invite hygiene:** **CLOSED** / **COMPLETED** (T-3.8.01–03) — list/revoke outstanding invites ([`PHASE-3.8-INVITE-HYGIENE-SPEC.md`](docs/03-architecture/PHASE-3.8-INVITE-HYGIENE-SPEC.md)). Merged to `develop` (PR [#16](https://github.com/kevin-esq/sonivo/pull/16)).  
-**T-OPS-01:** **COMPLETED** — ASP.NET DataProtection keys persist in Postgres (`DataProtectionKeys`).  
-**Phase 3.9 thin invite email:** **CLOSED** / **COMPLETED** (T-3.9.01–04 Gmail HTTPS) on `develop` (PR [#19](https://github.com/kevin-esq/sonivo/pull/19), `468517c`) ([`PHASE-3.9-SMTP-SPEC.md`](docs/03-architecture/PHASE-3.9-SMTP-SPEC.md)).  
-**System close plan:** [`docs/01-product/SYSTEM-CLOSE-PLAN.md`](docs/01-product/SYSTEM-CLOSE-PLAN.md) — Gate A **CLOSED**. Gate B UI redesign **ACCEPTED / CLOSED** ([`PHASE-GATE-B-UI-SPEC.md`](docs/03-architecture/PHASE-GATE-B-UI-SPEC.md); T-GATE-B-01–05, PRs #22–#27).  
-**Next:** ADR-0031 follow-along thin (T-SYNC-00 docs → T-SYNC-01–03). Whisper / cloud LLM / audio digitizer, Event/RSVP mail, Q9 realtime, S3 blob adapter remain **DEFERRED** until their ADRs.
+Treat the active ticket and branch in [`.scratch/NOW.md`](.scratch/NOW.md) as operational state, not permanent project truth. Read its linked phase spec before working; do not bypass ticket gates or expand accepted scope.
 
 Until the user explicitly authorizes additional work:
 
 - Do **not** expand SMTP beyond the closed thin 3.9 spec (Gmail API HTTPS only; no Event/RSVP mail, no generic SMTP server) — diagnose live send is allowed as T-OPS-MAIL
 - Do **not** expand Event PATCH/cancel beyond the closed thin 3.6 spec (no location/notes, no includeCancelled)
 - Do **not** expand RSVP beyond the closed thin 3.5 spec without further approval
-- Do **not** expand Practice beyond ADR-0027 + ADR-0028 ChordPro + ADR-0029 player + ADR-0030 assisted tooling + **ADR-0031 follow-along** thin (no realtime, pitch, YouTube, Whisper, cloud LLM). ADR-0031 authorized by [`PHASE-PLAY-SYNC-SPEC.md`](docs/03-architecture/PHASE-PLAY-SYNC-SPEC.md). ADR-0030 P0–P2 authorized by [`PHASE-CHORDPRO-IA-SPEC.md`](docs/03-architecture/PHASE-CHORDPRO-IA-SPEC.md).
-- Do **not** install skills or non-stack tooling without approval (Gate B npm: lucide / shadcn primitives / motion / optional morphicons only — see Gate B spec)
+- Do **not** add Practice scope beyond accepted ADRs. Follow-on work is shipped; cloud LLM remains closed and karaoke scoring remains OUT. Honor the explicit firewalls in ADR-0032–0037.
+- Do **not** bypass the T-R2-04 verified-backfill merge gate or change its approved scope.
+- Do **not** install additional skills or tooling without explicit approval. ADR-0039/0041 authorize only the documented project-local workflows; user-global tooling must not become a project dependency.
+- Do **not** recreate `.cursor/`, `.codex/`, or `.claude/` project customization trees unless a superseding decision explicitly authorizes them.
 - Do **not** push / create GitHub remotes / change branch protection unless explicitly authorized
-- Foundation + Group/Membership + repertoire (incl. T-3.2.06) + Phase 3.3–3.9 + Gate B + Google OAuth + **thin Practice** are closed on `develop`. Merge to `main` is **authorized**.
 - Local PostgreSQL: repository `compose.yaml` (host port **5433**)
 - Google user sign-in config: `Authentication:Google:ClientId` / `ClientSecret` — **never** reuse `Gmail:*`
 
@@ -54,11 +29,11 @@ Until the user explicitly authorizes additional work:
 
 ## Before doing anything
 
-1. Read [`docs/00-context/CONTEXT.md`](docs/00-context/CONTEXT.md).
-2. Read **ACCEPTED** entries in [`docs/03-architecture/DECISIONS.md`](docs/03-architecture/DECISIONS.md).
-3. Do not reopen ACCEPTED ADRs 0001–0031 without a superseding ADR.
-4. Do not invent FUTURE features or reopen closed Q8 (ADR-0028). Do not prematurely “solve” Q9–Q11.
-5. Check [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md) for the **AUTHORIZED** project-local allowlist (**ADR-0002 ACCEPTED**). Present tooling ≠ authorized.
+1. Read the relevant sections of [`docs/00-context/CONTEXT.md`](docs/00-context/CONTEXT.md).
+2. Read the relevant accepted ADR(s) in [`docs/03-architecture/DECISIONS.md`](docs/03-architecture/DECISIONS.md).
+3. Do not reopen accepted ADRs without a superseding decision; ADR-0033 is superseded.
+4. Do not invent FUTURE features or reopen closed Q8 (ADR-0028); Q9's thin conductor is answered by ADR-0036.
+5. Check [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md) for the **AUTHORIZED** project-local allowlist (ADR-0002, 0039, and 0040). Present tooling ≠ authorized.
 
 ---
 
@@ -71,6 +46,22 @@ Until the user explicitly authorizes additional work:
 5. `docs/03-architecture/ARCHITECTURE.md`
 6. Specs/tickets (when they exist)
 7. Conversation history — ephemeral
+
+## Obsidian knowledge model
+
+- Start navigation at [`docs/00-context/INDEX.md`](docs/00-context/INDEX.md); it points to canonical Markdown under `docs/`.
+- `AGENTS.md` holds stable rules; `.agents/skills/` is the only project-local skills directory; `.scratch/NOW.md` holds current work/checkpoint state.
+- Do not create parallel vendor-specific customization trees or a parallel `knowledge/` tree. Keep `.obsidian/` as local vault configuration.
+- For current behavior, verify source code and tests; accepted ADRs record intentional decisions.
+
+## Technical context
+
+- **Backend:** .NET 9 / ASP.NET Core Web API, EF Core, Identity, PostgreSQL; modular monolith.
+- **Frontend:** React 19, TypeScript 6, Vite 8, Tailwind CSS 4; Node.js 20. `oxlint` is the frontend lint tool.
+- **Testing:** .NET unit/integration/API tests, PostgreSQL-backed CI, and Playwright critical journeys. See [`README.md`](README.md) and [`TESTING.md`](docs/03-architecture/TESTING.md) for commands and setup.
+- **C# conventions:** nullable reference types and implicit usings are enabled. Follow nearby code and repository analyzers rather than inventing a style guide.
+- **Tenancy/auth:** Group-scoped authorization is server-enforced; client-supplied Group IDs are never authorization. Web auth uses Identity cookies plus antiforgery; no web JWT/BFF.
+- **Local database:** `compose.yaml`, host port 5433. CI uses PostgreSQL 16.
 
 ---
 
@@ -102,32 +93,32 @@ Ticket completion does **not** authorize commit or push.
 IMPLEMENT → REPORT → HUMAN REVIEW → HUMAN APPROVAL → GIT CHECKPOINT → PUSH/PR → CI VERIFICATION
 ```
 
-1. Agent completes the ticket and **reports** (include Git state — see below).  
-2. Human **reviews**.  
-3. Human **approves** the implementation (product/behavior acceptance).  
-4. Repository enters **`Git checkpoint: PENDING`**.  
-5. **Separate** explicit authorization is required for **commit**.  
+1. Agent completes the ticket and **reports** (include Git state — see below).
+2. Human **reviews**.
+3. Human **approves** the implementation (product/behavior acceptance).
+4. Repository enters **`Git checkpoint: PENDING`**.
+5. **Separate** explicit authorization is required for **commit**.
 6. **Separate** explicit authorization is required for **push** and/or **PR**, unless the human’s authorization text **explicitly combines** them with commit.
 
 Do **not** infer commit/push/PR authorization from: “ticket complete”, “approved”, “looks good”, “continue”, or authorization of the **next** ticket — unless the user explicitly includes commit/push/PR in that message.
 
 ### Checkpoint policy
 
-- **Normal ticket:** after human approval → `Git checkpoint: PENDING`; next operational step is normally a dedicated Git checkpoint authorization.  
-- **Batching:** several tightly related, **human-approved** tickets may share one commit/PR when they form one coherent vertical slice — only if the human **explicitly** chooses to batch; `.scratch/NOW.md` must list which approved tickets are included; do not mix unrelated work.  
+- **Normal ticket:** after human approval → `Git checkpoint: PENDING`; next operational step is normally a dedicated Git checkpoint authorization.
+- **Batching:** several tightly related, **human-approved** tickets may share one commit/PR when they form one coherent vertical slice — only if the human **explicitly** chooses to batch; `.scratch/NOW.md` must list which approved tickets are included; do not mix unrelated work.
 - **Phase transition:** a Git checkpoint is **mandatory** before treating a major implementation phase as operationally closed. Do not leave approved phase work silently uncommitted.
 
 ### Commit quality (when commit is authorized)
 
-- Intended branch; approved scope only; Conventional Commits; concise meaningful message.  
-- No secrets, `.env`, generated junk, or unrelated files.  
+- Intended branch; approved scope only; Conventional Commits; concise meaningful message.
+- No secrets, `.env`, generated junk, or unrelated files.
 - Run relevant local build/tests before commit; never claim they passed if not run.
 - **PROHIBITION:** Never add `Co-authored-by: Cursor`, `Made with Cursor`, `cursoragent`, or any AI/tool co-author trailer or credit in commits, squash messages, or PR bodies. Commits are authored as **Kevin Esquivel** only. If the IDE injects a trailer, remove it before push.
 
 ### Push / PR / CI (when authorized)
 
-- Push ≠ commit unless combined in the authorization.  
-- PR creation ≠ push unless combined; **merge is never implied** by PR creation.  
+- Push ≠ commit unless combined in the authorization.
+- PR creation ≠ push unless combined; **merge is never implied** by PR creation.
 - After push, check GitHub CI; **do not ignore failing CI**.
 
 ### No automatic Git action
@@ -153,18 +144,11 @@ Pyramid + Playwright policy: [`docs/03-architecture/TESTING.md`](docs/03-archite
 
 Critical journeys live in `e2e/` and must hit the real React → API → Identity cookie → PostgreSQL path.
 
-## Binding ACCEPTED decisions (do not reinterpret)
+## Binding decisions
 
-- Group tenancy; Owner\|Member; multi-owner lifecycle; soft-delete (0005, 0012, 0013)
-- Song work vs Arrangement realization (separate aggregate); Resources on Arrangement (0007, 0008, 0014)
-- Identity + HTTP-only cookie; same-site SPA+API; API first-class; no web JWT/BFF (0009, 0011)
-- Stack: React/Vite/TS/Tailwind + ASP.NET + EF + Postgres (0010)
-- Organizer persona → Owner role; Member first-class read UX (0006, 0012)
-- Phase 1 MVP spine & semantics (0015–0018)
-- Phase 2.1 security/workflow (0019–0021): antiforgery CSRF; Replace Event Plan + `confirmReplace`
-- Phase 2.2 persistence (0022–0023): composite tenant FKs; soft-delete filters; integer `Version` → 409
-- Phase 3.0.3 rehearsal Resources (0024): purpose `practice`; required Label; optional free-text Part; no Part entity; no Member→Part; no Event Resource snapshots
-- Phase 3.1 Song/Arrangement fields (0025): OriginKind; duplicate titles ALLOWED; no IsDefault; Song soft-delete cascades live Arrs; Song DELETE expectedVersion + one tx + 409
+[`docs/03-architecture/DECISIONS.md`](docs/03-architecture/DECISIONS.md) is canonical; only **ACCEPTED** ADRs bind, and superseded decisions must not be treated as current.
+
+Always preserve these invariants: Group-scoped server-side authorization (never trust a client Group ID); Owner/Member roles; Identity cookie authentication with antiforgery (no web JWT/BFF); and the separate Song, Arrangement, and Arrangement Resource concepts. Consult the relevant ADR and domain docs for details rather than copying the decision ledger here.
 
 ---
 
@@ -188,7 +172,11 @@ Critical journeys live in `e2e/` and must hit the real React → API → Identit
 
 ## Agent behavior
 
+- This file and current user authorization override conflicting skill instructions; skills cannot grant themselves authority.
+- Keep project agent instructions and skills in root `AGENTS.md` and `.agents/`; do not recreate vendor-specific folders without explicit authorization.
 - Inspect before changing; respect accepted ADRs; stop on conflicts
+- Do not delegate to subagents unless the current user explicitly authorizes it.
+- Do not publish issues/specs, install tools, or perform Git actions unless their required explicit authorization is present.
 - Avoid installing unnecessary tools; avoid unrelated file churn
 - Report exact validation results
 - Do not invent product scope beyond the authorized phase
@@ -199,8 +187,8 @@ Critical journeys live in `e2e/` and must hit the real React → API → Identit
 
 ## Tooling
 
-Authoritative policy: [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md) and **ADR-0002 (ACCEPTED)**.
+Authoritative policy: [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md), ADR-0002, ADR-0039, and ADR-0041.
 
-- **AUTHORIZED project-local:** CORE + SPECIALIZED allowlist only (14 skill directories). Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md).
+- **AUTHORIZED project-local:** 22 skills under `.agents/skills/`. Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md).
 - **PRESENT ≠ AUTHORIZED.** User-global ambient tooling must **not** become a Sonivo dependency.
 - Do not install further skills/tooling without explicit approval.
