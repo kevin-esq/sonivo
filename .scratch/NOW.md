@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (UI shell consolidation R1–R4 + auditor review)
-Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green, continue to completion)
-Git checkpoint: PENDING (commit+push authorized; PR and merge follow on green CI per standing order)
-Remote: NOT PUSHED
-CI: NOT RUN (no PR yet; local build green, backend suites green per builder run, oxlint clean)
+Implementation: COMPLETE (UI shell consolidation R1–R4)
+Human approval: APPROVED (explicit full-flow order + UI plan approval)
+Git checkpoint: COMMITTED + MERGED to develop (PR #109, b795b07; branch deleted)
+Remote: PUSHED + MERGED
+CI: PASSING (Backend + Frontend + Playwright E2E green on PR #109)
 ```
 
 ## Current state
