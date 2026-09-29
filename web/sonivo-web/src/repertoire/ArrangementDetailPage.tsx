@@ -26,6 +26,7 @@ import {
   PageBreadcrumb,
   PurposeHeading,
   RESOURCE_PURPOSE_ORDER,
+  ReadinessChip,
   groupResourcesByPurpose,
 } from './chrome'
 import { ChordProView } from './ChordProView'
@@ -58,6 +59,7 @@ import {
   ProblemAlert,
   useGroupContext,
 } from './ui'
+import { useT } from '../i18n'
 
 export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const { groupId, arrangementId } = useParams()
@@ -75,6 +77,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const [deletingArrangement, setDeletingArrangement] = useState(false)
   const [resourceToDelete, setResourceToDelete] = useState<ResourceSummary | null>(null)
   const [deletingResource, setDeletingResource] = useState(false)
+  const { t } = useT()
 
   const isOwner = isOwnerRole(group?.role)
 
@@ -199,35 +202,64 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const grouped = groupResourcesByPurpose(arrangement.resources)
   const showAddResource = isOwner && !creatingResource && !creatingFileResource
   const songHref = `/groups/${group.id}/songs/${arrangement.songId}`
+  const hasChart = arrangement.resources.some((resource) => resource.purpose === 'chart')
+  const resourceCountLabel =
+    arrangement.resources.length === 0
+      ? t('listas.noResources')
+      : arrangement.resources.length === 1
+        ? `1 ${t('listas.resourceOne')}`
+        : `${arrangement.resources.length} ${t('listas.resourcesMany')}`
 
   return (
     <section className="space-y-6" aria-labelledby="arrangement-heading">
-      <div className="space-y-3">
-        <PageBreadcrumb
-          items={[
-            { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/library`, label: 'Biblioteca' },
-            { to: songHref, label: songTitle ?? 'Canción' },
-            { label: arrangement.label },
-          ]}
-        />
-        <div className="space-y-2">
-          <h1 id="arrangement-heading" className="text-2xl font-bold tracking-tight">
-            {arrangement.label}
-          </h1>
-          <p className="text-sm text-slate-500">
-            Arreglo de {songTitle ? <Link className="font-medium text-primary no-underline hover:underline" to={songHref}>{songTitle}</Link> : 'esta canción'}
-            {arrangement.defaultKey ? ` · ${arrangement.defaultKey}` : ''}
-            {arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm} BPM` : ''}
-            {!isOwner ? ' · Solo lectura' : ''}
-          </p>
-          <div className="pt-1">
-            <Link
-              className={buttonVariants({ variant: 'primary' })}
-              to={`/groups/${group.id}/arrangements/${arrangement.id}/practice`}
-            >
-              Practicar
-            </Link>
+      <div
+        data-testid="arrangement-hero"
+        className="overflow-hidden rounded-2xl"
+        style={{
+          background:
+            'linear-gradient(120deg, color-mix(in srgb, var(--group-accent, #8366f1) 88%, #1e1b4b), color-mix(in srgb, var(--group-accent, #8366f1) 45%, transparent))',
+        }}
+      >
+        <div className="space-y-3 px-5 py-6">
+          <div className="[&_a]:text-white [&_nav]:text-white/70 [&_span]:text-white/70">
+            <PageBreadcrumb
+              items={[
+                { to: `/groups/${group.id}`, label: group.name },
+                { to: `/groups/${group.id}/library`, label: t('listas.title') },
+                { to: songHref, label: songTitle ?? 'Canción' },
+                { label: arrangement.label },
+              ]}
+            />
+          </div>
+          <div className="space-y-2">
+            <h1 id="arrangement-heading" className="text-3xl font-bold tracking-tight text-white">
+              {arrangement.label}
+            </h1>
+            <p className="text-sm text-white/80">
+              Arreglo de {songTitle ? <Link className="font-medium text-white no-underline hover:underline" to={songHref}>{songTitle}</Link> : 'esta canción'}
+              {arrangement.defaultKey ? ` · ${arrangement.defaultKey}` : ''}
+              {arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm} BPM` : ''}
+              {!isOwner ? ' · Solo lectura' : ''}
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <ReadinessChip
+                testId="arrangement-resource-count"
+                tone={arrangement.resources.length === 0 ? 'neutral' : 'ok'}
+              >
+                {resourceCountLabel}
+              </ReadinessChip>
+              <ReadinessChip testId="arrangement-chart-chip" tone={hasChart ? 'accent' : 'neutral'}>
+                {hasChart ? t('listas.hasChart') : t('listas.noChart')}
+              </ReadinessChip>
+            </div>
+            <div className="pt-1">
+              <Link
+                className={buttonVariants({ variant: 'primary' })}
+                to={`/groups/${group.id}/arrangements/${arrangement.id}/practice`}
+              >
+                Practicar
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -341,7 +373,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           ) : null}
         </section>
 
-        <aside className="space-y-4 rounded-2xl bg-neutral-light p-5">
+        <aside className="space-y-4 rounded-2xl border border-slate-100 bg-neutral-light p-5 shadow-sm">
           {editing && isOwner ? (
             <ArrangementEditForm
               arrangement={arrangement}
@@ -363,32 +395,46 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               }}
             />
           ) : (
-            <dl className="space-y-3 text-sm">
-              <div>
-                <dt className="text-slate-500">Tonalidad</dt>
-                <dd className="font-medium">{arrangement.defaultKey ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Tempo</dt>
-                <dd className="font-medium">{arrangement.defaultBpm ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Letra</dt>
-                <dd className="whitespace-pre-wrap font-medium">{arrangement.lyrics ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Acordes (ChordPro)</dt>
-                <dd className="whitespace-pre-wrap font-medium">{arrangement.chords ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Estructura</dt>
-                <dd className="whitespace-pre-wrap font-medium">{arrangement.structure ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Notas</dt>
-                <dd className="whitespace-pre-wrap font-medium">{arrangement.notes ?? '—'}</dd>
-              </div>
-            </dl>
+            <div className="space-y-5 text-sm">
+              <section aria-labelledby="arrangement-tuning-heading" className="space-y-3">
+                <h3 id="arrangement-tuning-heading" className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  {t('listas.tuningTitle')}
+                </h3>
+                <dl className="space-y-3">
+                  <div>
+                    <dt className="text-slate-500">Tonalidad</dt>
+                    <dd className="font-medium">{arrangement.defaultKey ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Tempo</dt>
+                    <dd className="font-medium">{arrangement.defaultBpm ?? '—'}</dd>
+                  </div>
+                </dl>
+              </section>
+              <section aria-labelledby="arrangement-music-heading" className="space-y-3">
+                <h3 id="arrangement-music-heading" className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  {t('listas.musicTitle')}
+                </h3>
+                <dl className="space-y-3">
+                  <div>
+                    <dt className="text-slate-500">Letra</dt>
+                    <dd className="whitespace-pre-wrap font-medium">{arrangement.lyrics ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Acordes (ChordPro)</dt>
+                    <dd className="whitespace-pre-wrap font-medium">{arrangement.chords ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Estructura</dt>
+                    <dd className="whitespace-pre-wrap font-medium">{arrangement.structure ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Notas</dt>
+                    <dd className="whitespace-pre-wrap font-medium">{arrangement.notes ?? '—'}</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
           )}
 
           {isOwner && !editing ? (
