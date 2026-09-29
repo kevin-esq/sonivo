@@ -21,6 +21,6 @@ CI: PASSING (Backend + Frontend + Playwright E2E green, run 36506787416)
 
 ## Next authorized work
 
-T-R2-04 PR #95 is MERGED (d7e3340, 2026-09-27 — gate bypassed, needs post-hoc subset verification with the 3 live keys + Neon backup confirmation). UI shell slice (R1–R4) implemented on `feature/ui-shell-consolidation`, pending commit/push/PR/CI/merge. See [`PHASE-R2-SPEC.md`](../docs/03-architecture/PHASE-R2-SPEC.md).
+T-R2-04 PR #95 is MERGED (d7e3340, 2026-09-27) and post-hoc subset verification is COMPLETE 2026-09-29: 4 live keys, 2/2 present in R2, 2/2 missing bytes explained (never backfilled; parents soft-deleted by Owner 2026-09-21; remedy = Owner re-upload of dexter-meme.mp3 + images.pdf). UI shell slice (R1–R4) MERGED (PR #109). See [`PHASE-R2-SPEC.md`](../docs/03-architecture/PHASE-R2-SPEC.md).
 
 Completed wave history belongs in ADRs, phase specs, commits, and PRs rather than this current-state note.
