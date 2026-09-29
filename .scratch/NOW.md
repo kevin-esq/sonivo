@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (UI shell consolidation R1–R4)
-Human approval: APPROVED (explicit full-flow order + UI plan approval)
-Git checkpoint: COMMITTED + MERGED to develop (PR #109, b795b07; branch deleted)
+Implementation: COMPLETE (closeout sweep C7: doc statuses synced to shipped reality)
+Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green)
+Git checkpoint: COMMITTED + MERGED to develop (PR #110, 3a25aa8; branch deleted)
 Remote: PUSHED + MERGED
-CI: PASSING (Backend + Frontend + Playwright E2E green on PR #109)
+CI: PASSING (Backend + Frontend + Playwright E2E green, run 36506787416)
 ```
 
 ## Current state
