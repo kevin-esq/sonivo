@@ -32,15 +32,15 @@
 
 ---
 
-## Tickets (ACTIVE — ADR-0037 ACCEPTED 2026-09-21, HUMAN-DELEGATED)
+## Tickets (all shipped, PR #91)
 
 | ID | Work | Status |
 | -- | ---- | ------ |
 | **T-FX-00** | Docs: ADR-0037 ACCEPTED (HUMAN-DELEGATED 2026-09-21) + this spec frozen (tickets active) | DONE |
-| **T-FX-01** | Tuner: mic-gated Afinador UX (AudioWorklet + hand-rolled autocorrelation, no deps/server/recording) + sparse Playwright TC-PITCH-01 | ACTIVE |
-| **T-FX-02** | Reference embed: nocookie iframe for `purpose=reference` YouTube links + minimal CSP + sparse Playwright TC-YT-01; follow-along hidden/disabled on YouTube-sourced Practice | ACTIVE |
-| **TC-PITCH-01** | Tuner: mic-gated Afinador UX asserts note display + mic-denied Spanish copy | ACTIVE (ships with T-FX-01) |
-| **TC-YT-01** | Reference embed: nocookie iframe render + follow-toggle hidden with explanation | ACTIVE (ships with T-FX-02) |
+| **T-FX-01** | Tuner: mic-gated Afinador UX (AudioWorklet + hand-rolled autocorrelation, no deps/server/recording) + sparse Playwright TC-PITCH-01 | MERGED (PR #91) |
+| **T-FX-02** | Reference embed: nocookie iframe for `purpose=reference` YouTube links + minimal CSP + sparse Playwright TC-YT-01; follow-along hidden/disabled on YouTube-sourced Practice | MERGED (PR #91) |
+| **TC-PITCH-01** | Tuner: mic-gated Afinador UX asserts note display + mic-denied Spanish copy | MERGED (PR #91) |
+| **TC-YT-01** | Reference embed: nocookie iframe render + follow-toggle hidden with explanation | MERGED (PR #91) |
 | **TC-KAR-01** | (name reserved) Scoring — OUT confirmed; no work authorized | RESERVED — explicitly OUT, zero work |
 
 Implementation branch naming: `feature/t-fx-*` (one coherent vertical slice per ticket or batched only with explicit approval).
