@@ -15,7 +15,7 @@ test.describe('UX journeys Wave 4', () => {
     await createGroup(page, groupName)
     await openLibrary(page)
 
-    await expect(page.getByText('La biblioteca está vacía')).toBeVisible()
+    await expect(page.getByText('Aún no hay canciones')).toBeVisible()
     const cta = page.getByTestId('library-empty-add-song')
     await expect(cta).toBeVisible()
     await cta.click()

@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (revert payments scaffold per ADR-0042 + auditor review)
-Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green)
-Git checkpoint: COMMITTED + MERGED to develop (PR #108, 9f8cd85; branch deleted)
-Remote: PUSHED + MERGED (CI: Backend + Frontend + Playwright E2E green)
-CI: PASSING (run 36498206129)
+Implementation: COMPLETE (UI shell consolidation R1–R4 + auditor review)
+Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green, continue to completion)
+Git checkpoint: PENDING (commit+push authorized; PR and merge follow on green CI per standing order)
+Remote: NOT PUSHED
+CI: NOT RUN (no PR yet; local build green, backend suites green per builder run, oxlint clean)
 ```
 
 ## Current state
@@ -21,6 +21,6 @@ CI: PASSING (run 36498206129)
 
 ## Next authorized work
 
-T-R2-04 remains active on the existing `feature/t-r2-drop-postgres` branch. The current checkout is `develop`; do not switch branches implicitly. The merge gate is verification that R2 object count matches the Postgres rows before dropping `ResourceBlobs`. See [`PHASE-R2-SPEC.md`](../docs/03-architecture/PHASE-R2-SPEC.md).
+T-R2-04 PR #95 is MERGED (d7e3340, 2026-09-27 — gate bypassed, needs post-hoc subset verification with the 3 live keys + Neon backup confirmation). UI shell slice (R1–R4) implemented on `feature/ui-shell-consolidation`, pending commit/push/PR/CI/merge. See [`PHASE-R2-SPEC.md`](../docs/03-architecture/PHASE-R2-SPEC.md).
 
 Completed wave history belongs in ADRs, phase specs, commits, and PRs rather than this current-state note.

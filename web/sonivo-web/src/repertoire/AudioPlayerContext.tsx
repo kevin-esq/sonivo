@@ -15,6 +15,7 @@ interface AudioPlayerContextType {
   volume: number
   playTrack: (track: Track) => void
   togglePlay: () => void
+  closeTrack: () => void
   seek: (seconds: number) => void
   setVolume: (vol: number) => void
 }
@@ -61,6 +62,17 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     if (audioRef.current) audioRef.current.volume = vol
   }
 
+  const closeTrack = () => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.removeAttribute('src')
+      audioRef.current.load()
+    }
+    setCurrentTrack(null)
+    setIsPlaying(false)
+    setProgress(0)
+  }
+
   return (
     <AudioPlayerContext.Provider
       value={{
@@ -71,6 +83,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         volume,
         playTrack,
         togglePlay,
+        closeTrack,
         seek,
         setVolume,
       }}

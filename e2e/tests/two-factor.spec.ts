@@ -50,6 +50,7 @@ test.describe('Two-factor authentication', () => {
     await register(page, email)
 
     await page.goto('/security')
+    await expect(page).toHaveURL(/\/settings\/security/)
     await expect(page.getByRole('heading', { name: 'Seguridad' })).toBeVisible()
     await page.getByRole('button', { name: 'Activar verificación en dos pasos' }).click()
     await expect(page.getByText('Ingresa esta clave en tu app')).toBeVisible()
@@ -100,6 +101,7 @@ test.describe('Two-factor authentication', () => {
     const email = uniqueEmail('2fa-pre')
     await register(page, email)
     await page.goto('/security')
+    await expect(page).toHaveURL(/\/settings\/security/)
     await page.getByRole('button', { name: 'Activar verificación en dos pasos' }).click()
     const manualKey = await page.getByLabel('Clave manual').inputValue()
     await page.getByLabel('Código de 6 dígitos').fill(totpCode(manualKey))

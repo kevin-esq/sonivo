@@ -108,7 +108,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
       ) : songs.length === 0 ? (
         showCreate ? null : (
         <EmptyPanel
-          title="La biblioteca está vacía"
+          title="Aún no hay canciones"
           description={
             isOwner
               ? 'Agrega la primera canción para empezar el repertorio, ensayar y armar listas.'

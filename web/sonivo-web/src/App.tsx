@@ -211,16 +211,7 @@ export default function App() {
       <Route path="/confirm" element={<ConfirmPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route
-        path="/security"
-        element={
-          <RequireAuth user={user}>
-            <GroupsChrome user={user!} onLogout={onLogout}>
-              <SecurityPage />
-            </GroupsChrome>
-          </RequireAuth>
-        }
-      />
+      <Route path="/security" element={<Navigate to="/settings/security" replace />} />
       <Route
         path="/settings"
         element={
