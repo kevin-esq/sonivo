@@ -20,6 +20,7 @@ import {
 import { ConductorPanel } from './ConductorPanel'
 import { ReferenceEmbed } from './ReferenceEmbed'
 import { TunerPanel } from './TunerPanel'
+import { AudioDigitizer } from './AudioDigitizer'
 import { isYouTubeReference } from './youtubeRef'
 import {
   readConductorFollow,
@@ -47,6 +48,15 @@ import {
 } from './ui'
 import { Button } from '../ui/button'
 import { Skeleton } from '../ui/skeleton'
+import { cn } from '../ui/cn'
+import { useT } from '../i18n'
+
+type PracticeTab = 'estudiar' | 'avanzado' | 'afinar'
+
+function parsePracticeTab(value: string | null): PracticeTab {
+  if (value === 'avanzado' || value === 'afinar') return value
+  return 'estudiar'
+}
 
 function resolveQueueItem(
   items: EventPlanItem[],
@@ -107,9 +117,11 @@ function QueueSkeleton() {
 
 export function PracticePage({ user }: { user: CurrentUser }) {
   const { groupId, arrangementId } = useParams()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const eventId = searchParams.get('eventId')
   const planItemId = searchParams.get('item')
+  const tab = parsePracticeTab(searchParams.get('tab'))
+  const { t } = useT()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const isOwner = isOwnerRole(group?.role)
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
@@ -126,6 +138,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const [savingTone, setSavingTone] = useState(false)
   const [followAlong, setFollowAlong] = useState(false)
   const [audioSeconds, setAudioSeconds] = useState(0)
+  const [reloadNonce, setReloadNonce] = useState(0)
   // ADR-0036 conductor follow (Event rooms only).
   const conductor = useConductorRoom(eventId)
   const [followDirector, setFollowDirector] = useState(false)
@@ -181,7 +194,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     return () => {
       cancelled = true
     }
-  }, [groupId, arrangementId, group])
+  }, [groupId, arrangementId, group, reloadNonce])
 
   useEffect(() => {
     if (!groupId || !group || !eventId) {
@@ -347,6 +360,17 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     writePracticeFollowAlong(liveGroup.id, liveArrangement.id, enabled)
   }
 
+  function setTabPersist(next: PracticeTab) {
+    if (next === tab) return
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('tab', next)
+    setSearchParams(nextParams)
+  }
+
+  async function reloadForDigitizer(): Promise<void> {
+    setReloadNonce((n) => n + 1)
+  }
+
   async function handleSaveTone() {
     if (!isOwner || semitoneOffset === 0 || !liveArrangement.chords?.trim()) return
     setSavingTone(true)
@@ -391,6 +415,13 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         { to: arrangementHref, label: liveArrangement.label },
         { label: 'Practicar' },
       ]
+
+  const tabLabels: Record<PracticeTab, string> = {
+    estudiar: t('practica.tabs.estudiar'),
+    avanzado: t('practica.tabs.avanzado'),
+    afinar: t('practica.tabs.afinar'),
+  }
+  const tabOrder: PracticeTab[] = ['estudiar', 'avanzado', 'afinar']
 
   return (
     <section className="space-y-7" aria-labelledby="practice-heading">
@@ -446,6 +477,41 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         />
       ) : null}
 
+      <div
+        className="flex gap-1 rounded-xl bg-neutral-light p-1"
+        role="tablist"
+        aria-label={t('practica.tabs.label')}
+      >
+        {tabOrder.map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            id={`practice-tab-${id}`}
+            aria-selected={tab === id}
+            aria-controls={`practice-panel-${id}`}
+            data-testid={`practice-tab-${id}`}
+            className={cn(
+              'min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+              tab === id
+                ? 'bg-white text-neutral-dark shadow-sm'
+                : 'text-slate-500 hover:text-neutral-dark',
+            )}
+            onClick={() => setTabPersist(id)}
+          >
+            {tabLabels[id]}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'estudiar' ? (
+        <div
+          className="space-y-7"
+          role="tabpanel"
+          id="practice-panel-estudiar"
+          aria-labelledby="practice-tab-estudiar"
+          data-testid="practice-panel-estudiar"
+        >
       {eventId ? (
         <ConductorPanel
           presence={conductor.presence}
@@ -632,6 +698,109 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           )
         })()}
       </section>
+        </div>
+      ) : null}
+
+      {tab === 'avanzado' ? (
+        <div
+          className="space-y-7"
+          role="tabpanel"
+          id="practice-panel-avanzado"
+          aria-labelledby="practice-tab-avanzado"
+          data-testid="practice-panel-avanzado"
+        >
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold tracking-tight text-neutral-dark">
+              {t('practica.avanzado.title')}
+            </h2>
+            <p className="text-sm text-slate-600">{t('practica.avanzado.hint')}</p>
+          </div>
+
+          <section
+            className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+            aria-labelledby="practice-advanced-timing-heading"
+          >
+            <h3
+              id="practice-advanced-timing-heading"
+              className="text-base font-semibold tracking-tight text-neutral-dark"
+            >
+              {t('practica.avanzado.timingTitle')}
+            </h3>
+            <p className="text-sm text-slate-600">{t('practica.avanzado.timingHint')}</p>
+            <p>
+              <Link
+                className="inline-flex min-h-11 items-center font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                to={arrangementHref}
+                data-testid="practice-advanced-timing-link"
+              >
+                {t('practica.avanzado.timingLink')}
+              </Link>
+            </p>
+          </section>
+
+          <section
+            className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+            aria-labelledby="practice-advanced-digitize-heading"
+          >
+            <h3
+              id="practice-advanced-digitize-heading"
+              className="text-base font-semibold tracking-tight text-neutral-dark"
+            >
+              {t('practica.avanzado.digitizeTitle')}
+            </h3>
+            <p className="text-sm text-slate-600">{t('practica.avanzado.digitizeHint')}</p>
+            <p>
+              <Link
+                className="inline-flex min-h-11 items-center font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                to={arrangementHref}
+                data-testid="practice-advanced-digitize-link"
+              >
+                {t('practica.avanzado.digitizeLink')}
+              </Link>
+            </p>
+            {isOwner ? (
+              <AudioDigitizer
+                key={liveArrangement.id}
+                groupId={liveGroup.id}
+                arrangement={liveArrangement}
+                onChanged={reloadForDigitizer}
+              />
+            ) : null}
+          </section>
+
+          {eventId ? (
+            <ConductorPanel
+              presence={conductor.presence}
+              connectionState={conductor.connectionState}
+              isOwner={isOwner}
+              followEnabled={followDirector}
+              onToggleFollow={toggleFollowDirector}
+              isLive={conductorLive}
+              error={conductor.error}
+            />
+          ) : (
+            <p className="text-sm text-slate-600" data-testid="practice-advanced-conductor-hint">
+              {t('practica.avanzado.conductorHint')}
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {tab === 'afinar' ? (
+        <section
+          className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+          role="tabpanel"
+          id="practice-panel-afinar"
+          aria-labelledby="practice-tab-afinar"
+          data-testid="practice-panel-afinar"
+        >
+          <h2 className="text-lg font-semibold tracking-tight text-neutral-dark">
+            {t('practica.afinar.title')}
+          </h2>
+          <p className="text-sm text-slate-600">{t('practica.afinar.hint')}</p>
+          <TunerPanel />
+        </section>
+      ) : null}
 
       <p>
         {eventId ? (
