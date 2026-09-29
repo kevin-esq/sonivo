@@ -5,7 +5,7 @@
 ## Checkpoint state
 
 ```text
-Implementation: IN PROGRESS (UI/UX redesign authorized: W0 MERGED PR #115; W1 shell split active)
+Implementation: IN PROGRESS (UI/UX redesign authorized: W0 MERGED PR #115; W1 MERGED PR #116; W2 Listas active)
 Human approval: APPROVED (explicit full-flow order: delegate to agents, audit per wave, push + merge when green, delete branches, continue to completion)
 Git checkpoint: COMMITTED + MERGED to develop (PR #115 ecb0cdb; branch deleted)
 Remote: PUSHED + MERGED
