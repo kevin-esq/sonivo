@@ -12,10 +12,38 @@
   --color-neutral-dark: #0f172a;
   --color-neutral-light: #f8fafc;
   --color-canvas: #0b1220;
+  --color-shell: #0f172a;
+  --color-shell-foreground: #f8fafc;
+  --color-surface: #ffffff;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
   --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
   --radius-xl: 1.25rem;
+}
+
+:root,
+:root[data-theme="dark"] {
+  --color-canvas: #0b1220;
+  --color-shell: #0f172a;
+  --color-shell-foreground: #f8fafc;
+  --color-surface: #ffffff;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+}
+
+:root[data-theme="light"] {
+  --color-canvas: #f1f5f9;
+  --color-shell: #ffffff;
+  --color-shell-foreground: #0f172a;
+  --color-surface: #ffffff;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+}
+
+:root[data-theme="light"] body {
+  color: var(--color-ink);
 }
 
 html,

@@ -3,6 +3,7 @@ import { Link, NavLink, useParams } from 'react-router-dom'
 import { LogOut, Menu, X } from 'lucide-react'
 import { ApiError, getGroup, problemDetail, type CurrentUser, type GroupDetail } from '../api/client'
 import { BrandLockup, SonivoMark } from '../brand/SonivoMark'
+import { useT } from '../i18n'
 import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { Button } from '../ui/button'
@@ -22,6 +23,7 @@ export function GroupWorkspace({
   const [error, setError] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const drawerTitleId = useId()
+  const { t } = useT()
 
   useEffect(() => {
     let cancelled = false
@@ -58,7 +60,7 @@ export function GroupWorkspace({
     return () => window.removeEventListener('keydown', onKey)
   }, [drawerOpen])
 
-  const accountLabel = user.displayName || user.email || 'Cuenta'
+  const accountLabel = user.displayName || user.email || t('workspace.account')
 
   return (
     <div className="min-h-screen bg-canvas md:flex">
@@ -67,7 +69,7 @@ export function GroupWorkspace({
           <BrandLockup to="/" light />
         </div>
         {group ? (
-          <nav className="flex flex-1 flex-col gap-1 px-3" aria-label="Grupo">
+          <nav className="flex flex-1 flex-col gap-1 px-3" aria-label={t('workspace.groupNav')}>
             {groupNavItems.map((item) => {
               const Icon = item.icon
               return (
@@ -85,7 +87,7 @@ export function GroupWorkspace({
                   }
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  {item.label}
+                  {t(`nav.${item.id}`)}
                 </NavLink>
               )
             })}
@@ -93,8 +95,8 @@ export function GroupWorkspace({
         ) : (
           <div className="flex-1 px-5 text-sm text-slate-400">
             {group === undefined ? (
-              <div className="space-y-2" role="status" aria-live="polite" aria-label="Cargando grupo">
-                <span className="sr-only">Cargando grupo…</span>
+              <div className="space-y-2" role="status" aria-live="polite" aria-label={t('workspace.loadingGroup')}>
+                <span className="sr-only">{t('workspace.loadingGroupEllipsis')}</span>
                 <div className="h-3 w-28 animate-pulse rounded bg-white/10" />
                 <div className="h-3 w-20 animate-pulse rounded bg-white/10" />
               </div>
@@ -112,7 +114,7 @@ export function GroupWorkspace({
             to="/"
             className="block text-sm font-medium text-secondary no-underline hover:underline"
           >
-            Mis grupos
+            {t('workspace.myGroups')}
           </Link>
           <div className="flex items-start justify-between gap-2">
             <p className="min-w-0 truncate text-xs text-slate-400">{accountLabel}</p>
@@ -123,7 +125,7 @@ export function GroupWorkspace({
               onClick={onLogout}
             >
               <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-              Cerrar sesión
+              {t('workspace.logout')}
             </Button>
           </div>
         </div>
@@ -143,7 +145,7 @@ export function GroupWorkspace({
             onClick={() => setDrawerOpen(true)}
           >
             <Menu className="h-5 w-5" aria-hidden="true" />
-            <span className="sr-only">Abrir menú</span>
+            <span className="sr-only">{t('workspace.openMenu')}</span>
           </button>
         </header>
 
@@ -155,7 +157,7 @@ export function GroupWorkspace({
                   {error}
                 </p>
                 <Link className="font-semibold text-primary no-underline hover:underline" to="/">
-                  Mis grupos
+                  {t('workspace.myGroups')}
                 </Link>
               </div>
             ) : (
@@ -168,7 +170,7 @@ export function GroupWorkspace({
       {group ? (
         <nav
           className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-neutral-dark md:hidden"
-          aria-label="Secciones"
+          aria-label={t('workspace.sections')}
         >
           <ul className="grid grid-cols-4">
             {mobileTabItems.map((item) => {
@@ -186,7 +188,7 @@ export function GroupWorkspace({
                     }
                   >
                     <Icon className="h-5 w-5" aria-hidden="true" />
-                    {item.label}
+                    {t(`nav.${item.id}`)}
                   </NavLink>
                 </li>
               )
@@ -200,7 +202,7 @@ export function GroupWorkspace({
           <button
             type="button"
             className="absolute inset-0 bg-black/50"
-            aria-label="Cerrar menú"
+            aria-label={t('workspace.closeMenu')}
             onClick={() => setDrawerOpen(false)}
           />
           <div
@@ -211,11 +213,11 @@ export function GroupWorkspace({
           >
             <div className="mb-6 flex items-center justify-between">
               <p id={drawerTitleId} className="font-semibold">
-                Cuenta
+                {t('workspace.account')}
               </p>
               <button type="button" className="rounded-lg p-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary" onClick={() => setDrawerOpen(false)}>
                 <X className="h-5 w-5" aria-hidden="true" />
-                <span className="sr-only">Cerrar menú</span>
+                <span className="sr-only">{t('workspace.closeMenu')}</span>
               </button>
             </div>
             {group ? (
@@ -230,7 +232,7 @@ export function GroupWorkspace({
                 className="rounded-xl px-3 py-2 text-sm font-medium text-white no-underline hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
                 onClick={() => setDrawerOpen(false)}
               >
-                Miembros
+                {t('nav.people')}
               </Link>
             ) : null}
             <Link
@@ -238,13 +240,13 @@ export function GroupWorkspace({
               className="rounded-xl px-3 py-2 text-sm font-medium text-secondary no-underline hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
               onClick={() => setDrawerOpen(false)}
             >
-              Mis grupos
+              {t('workspace.myGroups')}
             </Link>
             <div className="mt-auto space-y-3 border-t border-white/10 pt-4">
               <p className="truncate text-sm text-slate-300">{user.email}</p>
               <Button variant="ghost" className="justify-start px-0 text-secondary" onClick={onLogout}>
                 <LogOut className="h-4 w-4" aria-hidden="true" />
-                Cerrar sesión
+                {t('workspace.logout')}
               </Button>
             </div>
           </div>
