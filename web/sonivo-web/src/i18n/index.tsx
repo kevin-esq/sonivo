@@ -75,6 +75,21 @@ const es = {
   'listas.songFacts': 'Datos de la canción',
   'listas.tuningTitle': 'Afinación',
   'listas.musicTitle': 'Letra y acordes',
+  'practica.tabs.label': 'Secciones de práctica',
+  'practica.tabs.estudiar': 'Estudiar',
+  'practica.tabs.avanzado': 'Avanzado',
+  'practica.tabs.afinar': 'Afinar',
+  'practica.avanzado.title': 'Herramientas avanzadas',
+  'practica.avanzado.hint': 'Tiempos de seguimiento, digitalizador de audio y ensayo en vivo. Cada herramienta confirma antes de guardar.',
+  'practica.avanzado.timingTitle': 'Tiempos y mapeo',
+  'practica.avanzado.timingHint': 'Marca en qué milisegundo empieza cada línea. Se edita en el arreglo.',
+  'practica.avanzado.timingLink': 'Editar tiempos en el arreglo',
+  'practica.avanzado.digitizeTitle': 'Digitalizador de audio',
+  'practica.avanzado.digitizeHint': 'Convierte un audio en borrador de marcas y letra. Revísalo y aplícalo aquí o desde el arreglo.',
+  'practica.avanzado.digitizeLink': 'Abrir en el arreglo',
+  'practica.avanzado.conductorHint': 'El ensayo en vivo aparece al ensayar desde un evento.',
+  'practica.afinar.title': 'Afinar',
+  'practica.afinar.hint': 'Afina tu instrumento con el micrófono antes de ensayar.',
 } as const
 
 export type I18nKey = keyof typeof es
@@ -150,6 +165,21 @@ const en: Record<I18nKey, string> = {
   'listas.songFacts': 'Song details',
   'listas.tuningTitle': 'Tuning',
   'listas.musicTitle': 'Lyrics and chords',
+  'practica.tabs.label': 'Practice sections',
+  'practica.tabs.estudiar': 'Study',
+  'practica.tabs.avanzado': 'Advanced',
+  'practica.tabs.afinar': 'Tune',
+  'practica.avanzado.title': 'Advanced tools',
+  'practica.avanzado.hint': 'Follow timing, audio digitizer, and live rehearsal. Each tool confirms before saving.',
+  'practica.avanzado.timingTitle': 'Timing and mapping',
+  'practica.avanzado.timingHint': 'Mark at which millisecond each line starts. Edited on the arrangement.',
+  'practica.avanzado.timingLink': 'Edit timing on the arrangement',
+  'practica.avanzado.digitizeTitle': 'Audio digitizer',
+  'practica.avanzado.digitizeHint': 'Turn audio into a marks and lyrics draft. Review and apply here or from the arrangement.',
+  'practica.avanzado.digitizeLink': 'Open on the arrangement',
+  'practica.avanzado.conductorHint': 'Live rehearsal appears when rehearsing from an event.',
+  'practica.afinar.title': 'Tune',
+  'practica.afinar.hint': 'Tune your instrument with the microphone before rehearsing.',
 }
 
 const dictionaries: Record<Language, Record<I18nKey, string>> = { es, en }
