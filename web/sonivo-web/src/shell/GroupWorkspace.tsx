@@ -77,7 +77,7 @@ export function GroupWorkspace({
                   end={item.end}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium no-underline transition duration-150',
+                      'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium no-underline transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none',
                       isActive
                         ? 'bg-white/10 text-white'
                         : 'text-slate-400 hover:bg-white/5 hover:text-white',
@@ -137,7 +137,7 @@ export function GroupWorkspace({
           </Link>
           <button
             type="button"
-            className="rounded-lg p-2 text-white"
+            className="rounded-lg p-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             aria-expanded={drawerOpen}
             aria-controls="account-drawer"
             onClick={() => setDrawerOpen(true)}
@@ -180,7 +180,7 @@ export function GroupWorkspace({
                     end={item.end}
                     className={({ isActive }) =>
                       cn(
-                        'flex flex-col items-center gap-1 px-2 py-2.5 text-[11px] font-medium no-underline transition duration-150',
+                        'flex flex-col items-center gap-1 px-2 py-2.5 text-[11px] font-medium no-underline transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none',
                         isActive ? 'text-white' : 'text-slate-400',
                       )
                     }
@@ -213,7 +213,7 @@ export function GroupWorkspace({
               <p id={drawerTitleId} className="font-semibold">
                 Cuenta
               </p>
-              <button type="button" className="rounded-lg p-1" onClick={() => setDrawerOpen(false)}>
+              <button type="button" className="rounded-lg p-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary" onClick={() => setDrawerOpen(false)}>
                 <X className="h-5 w-5" aria-hidden="true" />
                 <span className="sr-only">Cerrar menú</span>
               </button>
@@ -227,7 +227,7 @@ export function GroupWorkspace({
             {group ? (
               <Link
                 to={`/groups/${group.id}/people`}
-                className="rounded-xl px-3 py-2 text-sm font-medium text-white no-underline hover:bg-white/10"
+                className="rounded-xl px-3 py-2 text-sm font-medium text-white no-underline hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
                 onClick={() => setDrawerOpen(false)}
               >
                 Miembros
@@ -235,7 +235,7 @@ export function GroupWorkspace({
             ) : null}
             <Link
               to="/"
-              className="rounded-xl px-3 py-2 text-sm font-medium text-secondary no-underline hover:bg-white/10"
+              className="rounded-xl px-3 py-2 text-sm font-medium text-secondary no-underline hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
               onClick={() => setDrawerOpen(false)}
             >
               Mis grupos

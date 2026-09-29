@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (T-CI-PK: fix passkeys E2E on CI — WebAuthn origin + virtual authenticator)
-Human approval: PENDING
-Git checkpoint: PENDING
-Remote: NOT PUSHED
-CI: NOT RUN (fix must be pushed to GitHub to validate the Playwright job)
+Implementation: COMPLETE (T-R2-04 post-hoc closeout docs + auditor review)
+Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green)
+Git checkpoint: COMMITTED + MERGED to develop (PR #110, 3a25aa8; branch deleted)
+Remote: PUSHED + MERGED
+CI: PASSING (Backend + Frontend + Playwright E2E green, run 36506787416)
 ```
 
 ## Current state
@@ -21,6 +21,6 @@ CI: NOT RUN (fix must be pushed to GitHub to validate the Playwright job)
 
 ## Next authorized work
 
-T-R2-04 remains active on the existing `feature/t-r2-drop-postgres` branch. The current checkout is `develop`; do not switch branches implicitly. The merge gate is verification that R2 object count matches the Postgres rows before dropping `ResourceBlobs`. See [`PHASE-R2-SPEC.md`](../docs/03-architecture/PHASE-R2-SPEC.md).
+T-R2-04 PR #95 is MERGED (d7e3340, 2026-09-27) and post-hoc subset verification is COMPLETE 2026-09-29: 4 live keys, 2/2 present in R2, 2/2 missing bytes explained (never backfilled; parents soft-deleted by Owner 2026-09-21; remedy = Owner re-upload of dexter-meme.mp3 + images.pdf). UI shell slice (R1–R4) MERGED (PR #109). See [`PHASE-R2-SPEC.md`](../docs/03-architecture/PHASE-R2-SPEC.md).
 
 Completed wave history belongs in ADRs, phase specs, commits, and PRs rather than this current-state note.

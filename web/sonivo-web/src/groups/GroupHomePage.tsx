@@ -417,7 +417,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             </div>
           ) : (
             <EmptyPanel
-              title="No hay eventos programados"
+              title="Aún no hay eventos"
               description={
                 isOwner
                   ? 'Crea un ensayo o concierto para que el grupo se prepare.'

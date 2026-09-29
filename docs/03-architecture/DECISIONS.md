@@ -8,6 +8,26 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0042 — Payments OUT — revert of unaccepted billing scaffold
+
+- **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-09-28.
+- **Date:** 2026-09-28
+
+### Rationale
+
+- No ADR ever authorized payment/billing code; it contradicts PRODUCT.md exclusions and the TECHNICAL-SPEC "Q10 billing Deferred; no payment code" position.
+- The scaffold was dead and insecure: `IPaymentGateway` registered but never injected; `StripePaymentGateway`/`MercadoPagoPaymentGateway` were stub/mock; `WebhooksController` (public anonymous Stripe + MercadoPago actions) only wrote `WebhookEventLog` rows with stub-secret fallback, missing-signature bypass, and no MercadoPago signature at all; only one table existed (`WebhookEventLogs`); zero payment keys in render.yaml/appsettings; UI `/settings/billing` was mock pricing cards with no API wiring.
+
+### Scope
+
+- Removed `WebhooksController`, `PaymentGateways` + `IPaymentGateway` (dirs + DI line), `WebhookEventLog` (entity + `DbSet`) with a `RemovePaymentWebhookLog` migration dropping the table, the `/settings/billing` route + nav tab + `SettingsBillingPage` mock cards, and adjusted payment/webhook test references.
+
+### Firewall (restated)
+
+- Payments/billing remain OUT. Any future billing work requires a new explicit human decision and ADR; do not reintroduce Stripe/MercadoPago/webhook/payment scaffolding without one.
+
+---
+
 ## ADR-0041 — Single project-local agent customization tree
 
 - **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-09-28.
@@ -145,14 +165,14 @@ Password policy: min 8 chars with upper + lower + digit required, non-alphanumer
 
 S38-Q1 → (b); S38-Q2 → (b); S38-Q3 → config RP ID + manual support; S38-Q4 → (a) sequential. Quick wins: HSTS + rate limits in S1; absolute cap deferred; register-409 kept. Transport: Gmail API reuse, best-effort + warning (T-3.9 pattern). E2E determinism: API white-box token for the confirm happy path; E2E covers denial + resend-accepted + copy. S2/S3 proposals stay open until their waves; their recorded answers above bind those waves unless a later ADR says otherwise.
 
-### Tickets (gated on ACCEPTANCE — no branches until Kevin ACCEPTS + resolves S38-Q1–Q4)
+### Tickets (waves shipped; recorded for history)
 
 | ID          | Sketch                                                                                     | Gates                                            |
 | ----------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------ |
-| **T-AU-00** | Docs: this ADR PROPOSED + PHASE-AUTH-SPEC skeleton + NOW update                            | This PR (docs only)                              |
-| **T-AU-01** | S1 implementation: verification endpoints + login gate + quick wins + tests                | ACTIVE on `feature/t-au-01-verify` (this branch) |
-| **T-AU-02** | S2 implementation: TOTP enroll/verify/disable + recovery codes + second-step login + tests | ACCEPTANCE + S38-Q2 (+ S38-Q4 order)             |
-| **T-AU-03** | S3 implementation: passkeys (verified .NET 9 surface) + RP ID config + fallback + tests    | ACCEPTANCE + S38-Q3 (+ S38-Q4 order)             |
+| **T-AU-00** | Docs: ADR-0038 PROPOSED + PHASE-AUTH-SPEC skeleton + NOW update                            | MERGED (PR #96)                                  |
+| **T-AU-01** | S1 implementation: verification endpoints + login gate + quick wins + tests                | MERGED (PR #97)                                  |
+| **T-AU-02** | S2 implementation: TOTP enroll/verify/disable + recovery codes + second-step login + tests | MERGED (PR #98)                                  |
+| **T-AU-03** | S3 implementation: passkeys (verified .NET 9 surface) + RP ID config + fallback + tests    | MERGED (passkeys E2E + CI fix)                   |
 
 ### Consequences (if ACCEPTED as proposed)
 

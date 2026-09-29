@@ -200,7 +200,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
             <p aria-live="polite">Cargando arreglos…</p>
           ) : arrangements.length === 0 && !creatingArrangement ? (
             <EmptyPanel
-              title="Esta canción aún no tiene arreglos"
+              title="Aún no hay arreglos en esta canción"
               description="Un arreglo es la realización que se lleva a ensayo y a una lista. La canción puede existir sin arreglos."
               action={
                 showAddArrangement ? (

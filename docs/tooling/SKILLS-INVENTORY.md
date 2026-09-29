@@ -88,6 +88,7 @@ Graphify rule / `graphify-out/` · watermarks project rule · `product-marketing
 | Graphify CLI                  | USER-GLOBAL — UNAUTHORIZED for Sonivo |
 | Context7                      | USER-GLOBAL — UNAUTHORIZED / DEFERRED |
 | watermarks-remover            | USER-GLOBAL — UNAUTHORIZED            |
+| webappsec-review              | USER-GLOBAL ambient — do not depend   |
 
 ---
 

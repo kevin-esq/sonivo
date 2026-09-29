@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Sonivo.Domain.Payments;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Scheduling;
 using Sonivo.Domain.Tenancy;
@@ -29,7 +28,6 @@ public sealed class SonivoDbContext : IdentityDbContext<ApplicationUser, Identit
     public DbSet<EventSetlistItem> EventSetlistItems => Set<EventSetlistItem>();
     public DbSet<Rsvp> Rsvps => Set<Rsvp>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
-    public DbSet<WebhookEventLog> WebhookEventLogs => Set<WebhookEventLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

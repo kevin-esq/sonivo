@@ -20,7 +20,7 @@ AuthZ ACCEPTED: Owner \| Member (0012).
 | Cookie | HttpOnly; Secure (prod); Path=/; dedicated name; **SameSite=Lax** (ADR-0020) |
 | Session vs persistent | `rememberMe` → sliding/persistent (exact TTLs OPEN) |
 | Email verify / reset | Single-use tokens; expiry |
-| Lockout / rate limit | Identity lockout ON; rate-limit login/forgot (PROPOSED) |
+| Lockout / rate limit | Identity lockout ON; fixed-window rate limits on register/confirm/resend/forgot/reset/challenge (shipped S1/S2) |
 | Failures | Enumeration-safe messaging where needed (forgot password) |
 
 Mobile bearer: FUTURE ADR.

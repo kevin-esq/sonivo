@@ -22,7 +22,7 @@ import { PeoplePage } from './tenancy/PeoplePage'
 import { AudioPlayerProvider } from './repertoire/AudioPlayerContext'
 import { PersistentGlobalPlayer } from './shell/PersistentGlobalPlayer'
 import { SettingsLayout } from './shell/settings/SettingsLayout'
-import { SettingsProfilePage, SettingsBillingPage, SettingsTeamPage } from './shell/settings/SettingsPages'
+import { SettingsProfilePage, SettingsTeamPage } from './shell/settings/SettingsPages'
 
 function RequireAuth({
   user,
@@ -211,16 +211,7 @@ export default function App() {
       <Route path="/confirm" element={<ConfirmPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route
-        path="/security"
-        element={
-          <RequireAuth user={user}>
-            <GroupsChrome user={user!} onLogout={onLogout}>
-              <SecurityPage />
-            </GroupsChrome>
-          </RequireAuth>
-        }
-      />
+      <Route path="/security" element={<Navigate to="/settings/security" replace />} />
       <Route
         path="/settings"
         element={
@@ -234,7 +225,6 @@ export default function App() {
         <Route index element={<Navigate to="/settings/profile" replace />} />
         <Route path="profile" element={<SettingsProfilePage user={user!} />} />
         <Route path="security" element={<SecurityPage />} />
-        <Route path="billing" element={<SettingsBillingPage />} />
         <Route path="team" element={<SettingsTeamPage />} />
       </Route>
     </Routes>
