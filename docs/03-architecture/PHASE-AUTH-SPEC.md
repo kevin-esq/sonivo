@@ -1,9 +1,9 @@
 # Phase Auth hardening thin (ADR-0038)
 
-**Status:** **ACCEPTED / FROZEN for S1 2026-09-21** (HUMAN-DELEGATED resolutions; S1 mechanics decided, S2/S3 proposals open until their waves). Implementation T-AU-01 **AUTHORIZED** on branch `feature/t-au-01-verify`.
+**Status:** **COMPLETE** — S1 merged (PR #97), S2 merged (PR #98), S3 passkeys merged with E2E (TC-PK-01 + CI virtual-authenticator fix).
 **Product bet:** mailbox-proven accounts, then opt-in second factors, then passkeys — without changing the cookie + CSRF session posture.
 **Date:** 2026-09-21
-**Depends on:** ADR-0038 (PROPOSED), 0009, 0011, 0019, 0020, 0026; Phase 3.9 Gmail API HTTPS sender (candidate verification-mail transport).
+**Depends on:** ADR-0038 (ACCEPTED), 0009, 0011, 0019, 0020, 0026; Phase 3.9 Gmail API HTTPS sender (verification-mail transport).
 
 ---
 
@@ -47,14 +47,14 @@
 
 ---
 
-## Tickets (S1 ACTIVE on `feature/t-au-01-verify`; S2/S3 gated sequential)
+## Tickets (all shipped)
 
 | ID | Work | Status |
 | -- | ---- | ------ |
 | **T-AU-00** | Docs: ADR-0038 PROPOSED + this spec skeleton + NOW update | MERGED (PR #96) |
-| **T-AU-01** | S1: verification endpoints + login gate + HSTS + rate limits + tests | ACTIVE on `feature/t-au-01-verify` (this branch) |
-| **T-AU-02** | S2: TOTP + recovery codes + second step + tests | GATED (starts after S1 ships) |
-| **T-AU-03** | S3: passkeys + RP ID + fallback + tests | GATED (starts after S2 ships) |
+| **T-AU-01** | S1: verification endpoints + login gate + HSTS + rate limits + tests | MERGED (PR #97) |
+| **T-AU-02** | S2: TOTP + recovery codes + second step + tests | MERGED (PR #98) |
+| **T-AU-03** | S3: passkeys + RP ID + fallback + tests | MERGED (passkeys E2E + CI fix) |
 
 Implementation branch naming: `feature/t-au-*` (one coherent vertical slice per ticket or batched only with explicit approval).
 

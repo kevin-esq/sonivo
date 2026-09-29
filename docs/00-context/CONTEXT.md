@@ -3,7 +3,7 @@
 Durable high-level project context.
 
 **Last updated:** 2026-09-28 (ADR-0039/0041: canonical docs and single `.agents/` customization tree)
-**Delivery:** Phases 0–3.9 **CLOSED/COMPLETED**. ADR-0031–0032 and 0034–0038 are shipped; ADR-0033 is superseded (cloud LLM closed), and karaoke scoring is OUT. ADR-0039/0041 govern local Obsidian knowledge and the sole project-local skills tree. Gate B **CLOSED**.
+**Delivery:** Phases 0–3.9 **CLOSED/COMPLETED**. ADR-0031–0032 and 0034–0038 are shipped (incl. S1 verification + S2 TOTP + S3 passkeys, PRs #96–#98); ADR-0033 is superseded (cloud LLM closed), and karaoke scoring is OUT. ADR-0039/0041 govern local Obsidian knowledge and the sole project-local skills tree. Unaccepted billing scaffold reverted (ADR-0042, PR #108); UI shell consolidated R1–R4 (PR #109). Gate B **CLOSED**.
 **Active work:** T-R2-04 on `feature/t-r2-drop-postgres`; dropping `ResourceBlobs` is gated on verified R2 backfill. See [`../03-architecture/PHASE-R2-SPEC.md`](../03-architecture/PHASE-R2-SPEC.md). Current checkout may differ from that branch.
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 

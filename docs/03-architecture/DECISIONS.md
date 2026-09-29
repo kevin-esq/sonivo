@@ -165,14 +165,14 @@ Password policy: min 8 chars with upper + lower + digit required, non-alphanumer
 
 S38-Q1 → (b); S38-Q2 → (b); S38-Q3 → config RP ID + manual support; S38-Q4 → (a) sequential. Quick wins: HSTS + rate limits in S1; absolute cap deferred; register-409 kept. Transport: Gmail API reuse, best-effort + warning (T-3.9 pattern). E2E determinism: API white-box token for the confirm happy path; E2E covers denial + resend-accepted + copy. S2/S3 proposals stay open until their waves; their recorded answers above bind those waves unless a later ADR says otherwise.
 
-### Tickets (gated on ACCEPTANCE — no branches until Kevin ACCEPTS + resolves S38-Q1–Q4)
+### Tickets (waves shipped; recorded for history)
 
 | ID          | Sketch                                                                                     | Gates                                            |
 | ----------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------ |
-| **T-AU-00** | Docs: this ADR PROPOSED + PHASE-AUTH-SPEC skeleton + NOW update                            | This PR (docs only)                              |
-| **T-AU-01** | S1 implementation: verification endpoints + login gate + quick wins + tests                | ACTIVE on `feature/t-au-01-verify` (this branch) |
-| **T-AU-02** | S2 implementation: TOTP enroll/verify/disable + recovery codes + second-step login + tests | ACCEPTANCE + S38-Q2 (+ S38-Q4 order)             |
-| **T-AU-03** | S3 implementation: passkeys (verified .NET 9 surface) + RP ID config + fallback + tests    | ACCEPTANCE + S38-Q3 (+ S38-Q4 order)             |
+| **T-AU-00** | Docs: ADR-0038 PROPOSED + PHASE-AUTH-SPEC skeleton + NOW update                            | MERGED (PR #96)                                  |
+| **T-AU-01** | S1 implementation: verification endpoints + login gate + quick wins + tests                | MERGED (PR #97)                                  |
+| **T-AU-02** | S2 implementation: TOTP enroll/verify/disable + recovery codes + second-step login + tests | MERGED (PR #98)                                  |
+| **T-AU-03** | S3 implementation: passkeys (verified .NET 9 surface) + RP ID config + fallback + tests    | MERGED (passkeys E2E + CI fix)                   |
 
 ### Consequences (if ACCEPTED as proposed)
 
