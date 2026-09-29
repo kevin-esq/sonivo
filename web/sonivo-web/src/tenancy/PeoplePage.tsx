@@ -188,7 +188,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         <ListSkeleton rows={3} label="Cargando miembros…" />
       ) : members.length === 0 ? (
         <EmptyPanel
-          title="No hay miembros"
+          title="Aún no hay miembros"
           description="Cuando haya personas en el grupo, aparecerán aquí."
         />
       ) : (

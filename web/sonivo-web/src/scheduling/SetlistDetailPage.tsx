@@ -279,7 +279,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
 
           {draft.length === 0 ? (
             <EmptyPanel
-              title="Esta lista está vacía"
+              title="Aún no hay arreglos en esta lista"
               description={
                 isOwner
                   ? 'Agrega arreglos de la biblioteca para preparar el repertorio del evento.'
