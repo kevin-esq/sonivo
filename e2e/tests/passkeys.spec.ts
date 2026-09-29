@@ -23,7 +23,7 @@ test.describe('Passkeys / WebAuthn', () => {
     })
 
     await page.goto('/security')
-    await expect(page).toHaveURL(/\/settings\/security/)
+    await expect(page).toHaveURL(/\/cuenta\/seguridad/)
     await expect(page.getByRole('heading', { name: 'Seguridad' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Llaves de acceso (Passkeys)' })).toBeVisible()
     await expect(page.getByText('No tienes llaves de acceso registradas.')).toBeVisible()

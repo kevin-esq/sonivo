@@ -1,13 +1,21 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Link, NavLink, useParams } from 'react-router-dom'
-import { LogOut, Menu, X } from 'lucide-react'
+import { LogOut, Settings2, UserRound } from 'lucide-react'
 import { ApiError, getGroup, problemDetail, type CurrentUser, type GroupDetail } from '../api/client'
 import { BrandLockup, SonivoMark } from '../brand/SonivoMark'
 import { useT } from '../i18n'
 import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { Button } from '../ui/button'
+import { groupCoverStyle, isGradientCover, readGroupAppearance } from './groupAccent'
 import { groupNavItems, mobileTabItems } from './nav'
+
+const railLinkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    'flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium no-underline transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none',
+    isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white',
+  )
 
 export function GroupWorkspace({
   user,
@@ -21,8 +29,6 @@ export function GroupWorkspace({
   const { groupId } = useParams()
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const drawerTitleId = useId()
   const { t } = useT()
 
   useEffect(() => {
@@ -31,7 +37,6 @@ export function GroupWorkspace({
       if (!groupId) return
       setGroup(undefined)
       setError(null)
-      setDrawerOpen(false)
       try {
         const result = await getGroup(groupId)
         if (!cancelled) setGroup(result)
@@ -51,19 +56,15 @@ export function GroupWorkspace({
     }
   }, [groupId, user.id])
 
-  useEffect(() => {
-    if (!drawerOpen) return
-    function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') setDrawerOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [drawerOpen])
-
+  const appearance = readGroupAppearance(group?.id)
   const accountLabel = user.displayName || user.email || t('workspace.account')
 
   return (
-    <div className="min-h-screen bg-canvas md:flex">
+    <div
+      className="min-h-screen bg-canvas md:flex"
+      data-testid="grupo-shell"
+      style={{ '--group-accent': appearance.accent } as CSSProperties}
+    >
       <aside className="hidden w-60 shrink-0 flex-col bg-neutral-dark text-neutral-light md:flex">
         <div className="px-5 py-5">
           <BrandLockup to="/" light />
@@ -73,24 +74,16 @@ export function GroupWorkspace({
             {groupNavItems.map((item) => {
               const Icon = item.icon
               return (
-                <NavLink
-                  key={item.id}
-                  to={item.href(group.id)}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium no-underline transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none',
-                      isActive
-                        ? 'bg-white/10 text-white'
-                        : 'text-slate-400 hover:bg-white/5 hover:text-white',
-                    )
-                  }
-                >
+                <NavLink key={item.id} to={item.href(group.id)} end={item.end} className={railLinkClass}>
                   <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {t(`nav.${item.id}`)}
                 </NavLink>
               )
             })}
+            <NavLink to={`/groups/${group.id}/ajustes`} className={railLinkClass}>
+              <Settings2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {t('grupo.ajustes')}
+            </NavLink>
           </nav>
         ) : (
           <div className="flex-1 px-5 text-sm text-slate-400">
@@ -112,9 +105,16 @@ export function GroupWorkspace({
           ) : null}
           <Link
             to="/"
-            className="block text-sm font-medium text-secondary no-underline hover:underline"
+            className="block text-sm font-medium text-secondary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
           >
             {t('workspace.myGroups')}
+          </Link>
+          <Link
+            to="/cuenta"
+            className="flex min-h-11 items-center gap-2 text-sm font-medium text-secondary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+          >
+            <UserRound className="h-4 w-4" aria-hidden="true" />
+            {t('workspace.accountLink')}
           </Link>
           <div className="flex items-start justify-between gap-2">
             <p className="min-w-0 truncate text-xs text-slate-400">{accountLabel}</p>
@@ -132,22 +132,65 @@ export function GroupWorkspace({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 md:hidden">
-          <Link to="/" className="flex items-center gap-2 no-underline">
+        <header className="flex items-center justify-between gap-2 px-4 py-3 md:hidden">
+          <Link to="/" className="flex min-h-11 items-center gap-2 no-underline">
             <SonivoMark className="h-7 w-7 text-white" />
             <span className="font-semibold text-white">Sonivo</span>
           </Link>
-          <button
-            type="button"
-            className="rounded-lg p-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-            aria-expanded={drawerOpen}
-            aria-controls="account-drawer"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <Menu className="h-5 w-5" aria-hidden="true" />
-            <span className="sr-only">{t('workspace.openMenu')}</span>
-          </button>
+          <div className="flex items-center gap-1">
+            <Link
+              to="/cuenta"
+              aria-label={t('grupo.openAccount')}
+              className="grid min-h-11 min-w-11 place-items-center rounded-lg text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+            >
+              <UserRound className="h-5 w-5" aria-hidden="true" />
+            </Link>
+            <button
+              type="button"
+              aria-label={t('workspace.logout')}
+              onClick={onLogout}
+              className="grid min-h-11 min-w-11 place-items-center rounded-lg text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+            >
+              <LogOut className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
         </header>
+
+        {group ? (
+          <div className="px-4 pt-1 md:px-8 md:pt-6">
+            <div className="overflow-hidden rounded-2xl" style={groupCoverStyle(appearance.cover, appearance.accent)}>
+              <div className="flex items-center gap-4 px-5 py-5">
+                <span
+                  role="img"
+                  aria-label={t('grupo.coverArt')}
+                  className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-black/25 text-3xl font-semibold"
+                >
+                  {isGradientCover(appearance.cover) ? group.name.slice(0, 1).toUpperCase() : appearance.cover}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-2xl font-semibold tracking-tight text-white md:text-3xl">
+                    {group.name}
+                  </p>
+                  <p className="mt-0.5 text-sm text-white/80">{formatMembershipRole(group.role)}</p>
+                </div>
+                <Link
+                  to={`/groups/${group.id}/ajustes`}
+                  className="hidden min-h-11 items-center gap-2 rounded-xl bg-black/25 px-3 text-sm font-medium text-white no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:inline-flex"
+                >
+                  <Settings2 className="h-4 w-4" aria-hidden="true" />
+                  {t('grupo.ajustes')}
+                </Link>
+              </div>
+            </div>
+            <Link
+              to={`/groups/${group.id}/ajustes`}
+              className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-secondary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary md:hidden"
+            >
+              <Settings2 className="h-4 w-4" aria-hidden="true" />
+              {t('grupo.ajustes')}
+            </Link>
+          </div>
+        ) : null}
 
         <main className="flex-1 bg-white text-neutral-dark md:m-3 md:ml-0 md:rounded-2xl">
           <div className="px-5 py-6 pb-24 md:px-8 md:pb-8">
@@ -182,7 +225,7 @@ export function GroupWorkspace({
                     end={item.end}
                     className={({ isActive }) =>
                       cn(
-                        'flex flex-col items-center gap-1 px-2 py-2.5 text-[11px] font-medium no-underline transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none',
+                        'flex min-h-11 flex-col items-center gap-1 px-2 py-2.5 text-[11px] font-medium no-underline transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none',
                         isActive ? 'text-white' : 'text-slate-400',
                       )
                     }
@@ -195,62 +238,6 @@ export function GroupWorkspace({
             })}
           </ul>
         </nav>
-      ) : null}
-
-      {drawerOpen ? (
-        <div className="fixed inset-0 z-50 md:hidden" id="account-drawer">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/50"
-            aria-label={t('workspace.closeMenu')}
-            onClick={() => setDrawerOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={drawerTitleId}
-            className="absolute inset-y-0 right-0 flex w-[min(100%,20rem)] flex-col bg-neutral-dark p-5 text-neutral-light shadow-2xl"
-          >
-            <div className="mb-6 flex items-center justify-between">
-              <p id={drawerTitleId} className="font-semibold">
-                {t('workspace.account')}
-              </p>
-              <button type="button" className="rounded-lg p-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary" onClick={() => setDrawerOpen(false)}>
-                <X className="h-5 w-5" aria-hidden="true" />
-                <span className="sr-only">{t('workspace.closeMenu')}</span>
-              </button>
-            </div>
-            {group ? (
-              <div className="mb-4">
-                <p className="font-semibold">{group.name}</p>
-                <p className="text-sm text-slate-400">{formatMembershipRole(group.role)}</p>
-              </div>
-            ) : null}
-            {group ? (
-              <Link
-                to={`/groups/${group.id}/people`}
-                className="rounded-xl px-3 py-2 text-sm font-medium text-white no-underline hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-                onClick={() => setDrawerOpen(false)}
-              >
-                {t('nav.people')}
-              </Link>
-            ) : null}
-            <Link
-              to="/"
-              className="rounded-xl px-3 py-2 text-sm font-medium text-secondary no-underline hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-              onClick={() => setDrawerOpen(false)}
-            >
-              {t('workspace.myGroups')}
-            </Link>
-            <div className="mt-auto space-y-3 border-t border-white/10 pt-4">
-              <p className="truncate text-sm text-slate-300">{user.email}</p>
-              <Button variant="ghost" className="justify-start px-0 text-secondary" onClick={onLogout}>
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-                {t('workspace.logout')}
-              </Button>
-            </div>
-          </div>
-        </div>
       ) : null}
     </div>
   )

@@ -16,13 +16,14 @@ import { SecurityPage } from './shell/SecurityPage'
 import { ConfirmPage, ForgotPasswordPage, ResetPasswordPage } from './shell/VerifyPages'
 import { GroupsChrome, PublicChrome, SessionScreen } from './shell/GroupsChrome'
 import { GroupWorkspace } from './shell/GroupWorkspace'
+import { GroupSettingsPage } from './shell/GroupSettingsPage'
+import { CuentaPreferencesPage, UserChrome } from './shell/UserChrome'
 import { JoinPage } from './tenancy/JoinPage'
 import { PeoplePage } from './tenancy/PeoplePage'
 
 import { AudioPlayerProvider } from './repertoire/AudioPlayerContext'
 import { PersistentGlobalPlayer } from './shell/PersistentGlobalPlayer'
-import { SettingsLayout } from './shell/settings/SettingsLayout'
-import { SettingsProfilePage, SettingsTeamPage } from './shell/settings/SettingsPages'
+import { SettingsProfilePage } from './shell/settings/SettingsPages'
 
 function RequireAuth({
   user,
@@ -211,22 +212,61 @@ export default function App() {
       <Route path="/confirm" element={<ConfirmPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/security" element={<Navigate to="/settings/security" replace />} />
       <Route
-        path="/settings"
+        path="/groups/:groupId/ajustes"
         element={
           <RequireAuth user={user}>
-            <GroupsChrome user={user!} onLogout={onLogout}>
-              <SettingsLayout />
-            </GroupsChrome>
+            <GroupRoute user={user!} onLogout={onLogout}>
+              <GroupSettingsPage user={user!} />
+            </GroupRoute>
           </RequireAuth>
         }
-      >
-        <Route index element={<Navigate to="/settings/profile" replace />} />
-        <Route path="profile" element={<SettingsProfilePage user={user!} />} />
-        <Route path="security" element={<SecurityPage />} />
-        <Route path="team" element={<SettingsTeamPage />} />
-      </Route>
+      />
+      <Route path="/security" element={<Navigate to="/cuenta/seguridad" replace />} />
+      <Route path="/settings" element={<Navigate to="/cuenta" replace />} />
+      <Route path="/settings/profile" element={<Navigate to="/cuenta" replace />} />
+      <Route path="/settings/security" element={<Navigate to="/cuenta/seguridad" replace />} />
+      <Route path="/settings/team" element={<Navigate to="/cuenta/grupos" replace />} />
+      <Route
+        path="/cuenta"
+        element={
+          <RequireAuth user={user}>
+            <UserChrome user={user!} onLogout={onLogout}>
+              <SettingsProfilePage user={user!} />
+            </UserChrome>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/cuenta/preferencias"
+        element={
+          <RequireAuth user={user}>
+            <UserChrome user={user!} onLogout={onLogout}>
+              <CuentaPreferencesPage />
+            </UserChrome>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/cuenta/seguridad"
+        element={
+          <RequireAuth user={user}>
+            <UserChrome user={user!} onLogout={onLogout}>
+              <SecurityPage />
+            </UserChrome>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/cuenta/grupos"
+        element={
+          <RequireAuth user={user}>
+            <UserChrome user={user!} onLogout={onLogout}>
+              <GroupsPage user={user!} />
+            </UserChrome>
+          </RequireAuth>
+        }
+      />
     </Routes>
     <PersistentGlobalPlayer />
     </AudioPlayerProvider>

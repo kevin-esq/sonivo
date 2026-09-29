@@ -23,7 +23,10 @@ export function GroupsChrome({
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <span className="text-slate-300">{user.email}</span>
-          <Link to="/settings/security" className="font-semibold text-secondary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
+          <Link to="/cuenta" className="font-semibold text-secondary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
+            {t('chrome.account')}
+          </Link>
+          <Link to="/cuenta/seguridad" className="font-semibold text-secondary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
             {t('chrome.security')}
           </Link>
           <Button variant="ghost" className="text-secondary hover:text-white" onClick={onLogout}>
