@@ -7,9 +7,9 @@
 ```text
 Implementation: COMPLETE (final closeout: T-R2-04 remedy declined, SendAs finding recorded, dev-token live-verified)
 Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green, continue to completion)
-Git checkpoint: PENDING (commit+push authorized; PR and merge follow on green CI per standing order)
-Remote: NOT PUSHED
-CI: NOT RUN (docs-only PR pending; backend 401/401 + E2E dev-path TC-LIB-04/WSP green locally)
+Git checkpoint: COMMITTED + MERGED to develop (PR #114; branch deleted)
+Remote: PUSHED + MERGED
+CI: PASSING (Backend + Frontend + Playwright E2E green)
 ```
 
 ## Current state
