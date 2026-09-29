@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (full closeout: T-R2-04 verification PR #111, EXTRAS statuses PR #112, release PR #113 to main, R2 prod purge 58 objects keeping 2 live keys)
+Implementation: COMPLETE (final closeout: T-R2-04 remedy declined, SendAs finding recorded, dev-token live-verified)
 Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green, continue to completion)
-Git checkpoint: COMMITTED + MERGED (PRs #111, #112 to develop; PR #113 develop->main; branches deleted)
-Remote: PUSHED + MERGED
-CI: PASSING (all three PRs: Backend + Frontend + Playwright E2E green)
+Git checkpoint: PENDING (commit+push authorized; PR and merge follow on green CI per standing order)
+Remote: NOT PUSHED
+CI: NOT RUN (docs-only PR pending; backend 401/401 + E2E dev-path TC-LIB-04/WSP green locally)
 ```
 
 ## Current state
@@ -21,6 +21,6 @@ CI: PASSING (all three PRs: Backend + Frontend + Playwright E2E green)
 
 ## Next authorized work
 
-T-R2-04 PR #95 is MERGED (d7e3340, 2026-09-27) and post-hoc subset verification is COMPLETE 2026-09-29: 4 live keys, 2/2 present in R2, 2/2 missing bytes explained (never backfilled; parents soft-deleted by Owner 2026-09-21; remedy = Owner re-upload of dexter-meme.mp3 + images.pdf). UI shell slice (R1–R4) MERGED (PR #109). See [`PHASE-R2-SPEC.md`](../docs/03-architecture/PHASE-R2-SPEC.md).
+T-R2-04 PR #95 is MERGED (d7e3340, 2026-09-27) and post-hoc subset verification is COMPLETE 2026-09-29: 4 live keys, 2/2 present in R2, 2/2 missing bytes explained (never backfilled; parents soft-deleted by Owner 2026-09-21; remedy DECLINED by Owner 2026-09-29 (test files only, dead rows stay as orphans). UI shell slice (R1–R4) MERGED (PR #109). See [`PHASE-R2-SPEC.md`](../docs/03-architecture/PHASE-R2-SPEC.md).
 
 Completed wave history belongs in ADRs, phase specs, commits, and PRs rather than this current-state note.
