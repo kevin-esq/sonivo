@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ChevronRight } from 'lucide-react'
 import {
   createArrangement,
   deleteSong,
@@ -23,6 +24,7 @@ import {
   OriginBadge,
   OriginMark,
   PageBreadcrumb,
+  ReadinessChip,
 } from './chrome'
 import {
   CONFLICT_MESSAGE,
@@ -35,6 +37,7 @@ import {
   ProblemAlert,
   useGroupContext,
 } from './ui'
+import { useT } from '../i18n'
 
 export function SongDetailPage({ user }: { user: CurrentUser }) {
   const { groupId, songId } = useParams()
@@ -48,6 +51,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
   const [creatingArrangement, setCreatingArrangement] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const { t } = useT()
 
   const isOwner = isOwnerRole(group?.role)
 
@@ -155,26 +159,49 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
 
   return (
     <section className="space-y-6" aria-labelledby="song-heading">
-      <div className="space-y-3">
-        <PageBreadcrumb
-          items={[
-            { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/library`, label: 'Biblioteca' },
-            { label: song.title },
-          ]}
-        />
-        <div className="flex flex-wrap items-start gap-3">
-          <OriginMark kind={song.originKind} />
-          <div className="min-w-0 flex-1 space-y-2">
-            <h1 id="song-heading" className="text-2xl font-bold tracking-tight">
-              {song.title}
-            </h1>
-            <p className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-              <OriginBadge kind={song.originKind} />
-              <span>{formatArrangementCount(song.arrangementCount)}</span>
-              {song.attribution ? <span>· {song.attribution}</span> : null}
-              {!isOwner ? <span>· Solo lectura</span> : null}
-            </p>
+      <div
+        data-testid="song-hero"
+        className="overflow-hidden rounded-2xl"
+        style={{
+          background:
+            'linear-gradient(120deg, color-mix(in srgb, var(--group-accent, #8366f1) 88%, #1e1b4b), color-mix(in srgb, var(--group-accent, #8366f1) 45%, transparent))',
+        }}
+      >
+        <div className="space-y-3 px-5 py-6">
+          <div className="[&_a]:text-white [&_nav]:text-white/70 [&_span]:text-white/70">
+            <PageBreadcrumb
+              items={[
+                { to: `/groups/${group.id}`, label: group.name },
+                { to: `/groups/${group.id}/library`, label: t('listas.title') },
+                { label: song.title },
+              ]}
+            />
+          </div>
+          <div className="flex flex-wrap items-start gap-3">
+            <OriginMark kind={song.originKind} />
+            <div className="min-w-0 flex-1 space-y-2">
+              <h1 id="song-heading" className="text-3xl font-bold tracking-tight text-white">
+                {song.title}
+              </h1>
+              <p className="flex flex-wrap items-center gap-2 text-sm text-white/80">
+                <span className="[&_span]:bg-white/15 [&_span]:text-white">
+                  <OriginBadge kind={song.originKind} />
+                </span>
+                <span>{formatArrangementCount(song.arrangementCount)}</span>
+                {song.attribution ? <span>· {song.attribution}</span> : null}
+                {!isOwner ? <span>· Solo lectura</span> : null}
+              </p>
+              <div>
+                <ReadinessChip
+                  testId="song-readiness"
+                  tone={song.arrangementCount === 0 ? 'warn' : 'ok'}
+                >
+                  {song.arrangementCount === 0
+                    ? t('listas.noArrangements')
+                    : formatArrangementCount(song.arrangementCount)}
+                </ReadinessChip>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -209,7 +236,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
               }
             />
           ) : (
-            <ol className="divide-y divide-slate-100">
+            <ol className="space-y-2">
               {arrangements.map((arrangement, index) => (
                 <li
                   key={arrangement.id}
@@ -217,13 +244,13 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
                   <Link
-                    className="flex items-center gap-3 rounded-xl px-2 py-3 no-underline transition duration-150 hover:bg-neutral-light"
+                    className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3 no-underline shadow-sm transition duration-150 hover:border-slate-200 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none"
                     to={`/groups/${group.id}/arrangements/${arrangement.id}`}
                   >
                     <NumberedMark n={index + 1} />
                     <span className="min-w-0 flex-1">
-                      <span className="block font-semibold text-neutral-dark">{arrangement.label}</span>
-                      <span className="text-sm text-slate-500">
+                      <span className="block truncate font-semibold text-neutral-dark">{arrangement.label}</span>
+                      <span className="block truncate text-sm text-slate-500">
                         {arrangement.defaultKey ? arrangement.defaultKey : ''}
                         {arrangement.defaultBpm != null
                           ? `${arrangement.defaultKey ? ' · ' : ''}${arrangement.defaultBpm} BPM`
@@ -232,6 +259,15 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                             : ''}
                       </span>
                     </span>
+                    <ReadinessChip
+                      testId="arrangement-readiness"
+                      tone={arrangement.defaultKey || arrangement.defaultBpm != null ? 'accent' : 'neutral'}
+                    >
+                      {arrangement.defaultKey
+                        ? `${arrangement.defaultKey}${arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm}` : ''}`
+                        : t('listas.noKey')}
+                    </ReadinessChip>
+                    <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" aria-hidden="true" />
                   </Link>
                 </li>
               ))}
@@ -251,7 +287,10 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           ) : null}
         </section>
 
-        <aside className="space-y-4 rounded-2xl bg-neutral-light p-5">
+        <aside className="space-y-4 rounded-2xl border border-slate-100 bg-neutral-light p-5 shadow-sm">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            {t('listas.songFacts')}
+          </h3>
           {editing && isOwner ? (
             <SongEditForm
               song={song}
