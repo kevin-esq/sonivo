@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (final closeout: T-R2-04 remedy declined, SendAs finding recorded, dev-token live-verified)
-Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green, continue to completion)
-Git checkpoint: COMMITTED + MERGED to develop (PR #114; branch deleted)
+Implementation: IN PROGRESS (UI/UX redesign authorized: W0 MERGED PR #115; W1 shell split active)
+Human approval: APPROVED (explicit full-flow order: delegate to agents, audit per wave, push + merge when green, delete branches, continue to completion)
+Git checkpoint: COMMITTED + MERGED to develop (PR #115 ecb0cdb; branch deleted)
 Remote: PUSHED + MERGED
-CI: PASSING (Backend + Frontend + Playwright E2E green)
+CI: PASSING (PR #115: Backend + Frontend + Playwright E2E green; local E2E 35/35 + 1 auditor fix es-default)
 ```
 
 ## Current state
