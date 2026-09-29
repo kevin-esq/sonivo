@@ -5,7 +5,7 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (closeout sweep C7: doc statuses synced to shipped reality)
+Implementation: COMPLETE (T-R2-04 post-hoc closeout docs + auditor review)
 Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green)
 Git checkpoint: COMMITTED + MERGED to develop (PR #110, 3a25aa8; branch deleted)
 Remote: PUSHED + MERGED
