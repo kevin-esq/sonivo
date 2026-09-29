@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (T-R2-04 post-hoc closeout docs + auditor review)
-Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green)
-Git checkpoint: COMMITTED + MERGED to develop (PR #110, 3a25aa8; branch deleted)
+Implementation: COMPLETE (full closeout: T-R2-04 verification PR #111, EXTRAS statuses PR #112, release PR #113 to main, R2 prod purge 58 objects keeping 2 live keys)
+Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green, continue to completion)
+Git checkpoint: COMMITTED + MERGED (PRs #111, #112 to develop; PR #113 develop->main; branches deleted)
 Remote: PUSHED + MERGED
-CI: PASSING (Backend + Frontend + Playwright E2E green, run 36506787416)
+CI: PASSING (all three PRs: Backend + Frontend + Playwright E2E green)
 ```
 
 ## Current state
