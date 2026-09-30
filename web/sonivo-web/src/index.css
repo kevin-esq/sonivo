@@ -16,6 +16,7 @@
   --color-shell-foreground: #f8fafc;
   --color-shell-link: #e8c4f6;
   --color-shell-border: rgba(255, 255, 255, 0.1);
+  --color-shell-edge: rgba(255, 255, 255, 0);
   --color-shell-hover: rgba(255, 255, 255, 0.06);
   --color-surface: #ffffff;
   --color-ink: #0f172a;
@@ -33,6 +34,7 @@
   --color-shell-foreground: #f8fafc;
   --color-shell-link: #e8c4f6;
   --color-shell-border: rgba(255, 255, 255, 0.1);
+  --color-shell-edge: rgba(255, 255, 255, 0);
   --color-shell-hover: rgba(255, 255, 255, 0.06);
   --color-surface: #ffffff;
   --color-ink: #0f172a;
@@ -45,6 +47,7 @@
   --color-shell-foreground: #0f172a;
   --color-shell-link: #6d4ee0;
   --color-shell-border: #e2e8f0;
+  --color-shell-edge: #e2e8f0;
   --color-shell-hover: #f1f5f9;
   --color-surface: #ffffff;
   --color-ink: #0f172a;

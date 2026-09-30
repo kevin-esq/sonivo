@@ -22,7 +22,7 @@ export function GroupsChrome({
           <p className="hidden text-sm text-shell-foreground/70 sm:block">{t('chrome.tagline')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-shell-foreground/70">{user.email}</span>
+          <span className="text-shell-foreground">{user.email}</span>
           <Link to="/cuenta" className="font-semibold text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
             {t('chrome.account')}
           </Link>
@@ -34,8 +34,10 @@ export function GroupsChrome({
           </Button>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-3xl px-6 py-8">
-        <div className="rounded-2xl bg-white p-6 text-neutral-dark shadow-sm">{children}</div>
+      <main className="mx-auto w-full max-w-4xl px-4 py-6 md:px-6 md:py-8">
+        <div className="rounded-2xl border border-slate-200 bg-surface p-5 text-ink shadow-sm sm:p-8">
+          {children}
+        </div>
       </main>
     </div>
   )

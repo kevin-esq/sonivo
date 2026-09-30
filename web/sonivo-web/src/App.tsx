@@ -17,11 +17,13 @@ import {
   useLocation,
   useOutletContext,
 } from "react-router-dom";
+import { Compass, TriangleAlert, WifiOff, type LucideIcon } from "lucide-react";
 import { fetchCurrentUser, logoutUser, type CurrentUser } from "./api/client";
 import {
   AudioPlayerProvider,
   useAudioPlayer,
 } from "./repertoire/AudioPlayerContext";
+import { BrandLockup } from "./brand/SonivoMark";
 import { GuestAuthRoute } from "./shell/AuthScreen";
 import {
   GroupsChrome,
@@ -31,6 +33,8 @@ import {
 import { GroupWorkspace } from "./shell/GroupWorkspace";
 import { PersistentGlobalPlayer } from "./shell/PersistentGlobalPlayer";
 import { UserChrome } from "./shell/UserChrome";
+import { Button, primaryButtonClass } from "./ui/button";
+import { cn } from "./ui/cn";
 
 // ---------- Lazy loading (menos JS inicial) ----------
 const named = <T extends Record<string, any>, K extends keyof T>(
@@ -123,6 +127,43 @@ function RouteFallback() {
   return <SessionScreen message="Cargando…" />;
 }
 
+/**
+ * Shared designed treatment for the 404 and the error fallbacks: brand lockup,
+ * icon, title, message and the page's primary action, on the canvas surface.
+ */
+function FallbackScreen({
+  icon: Icon,
+  title,
+  message,
+  action,
+}: {
+  icon: LucideIcon;
+  title: string;
+  message: string;
+  action: ReactNode;
+}) {
+  return (
+    <div className="grid min-h-screen place-items-center bg-canvas px-6 py-10">
+      <div className="w-full max-w-md space-y-5 rounded-2xl border border-slate-200 bg-surface p-8 text-center text-ink shadow-sm">
+        <div className="flex justify-center">
+          <BrandLockup to="/" />
+        </div>
+        <span
+          className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-primary"
+          aria-hidden="true"
+        >
+          <Icon className="h-7 w-7" />
+        </span>
+        <div className="space-y-1.5">
+          <h1 className="text-2xl font-bold tracking-tight text-ink">{title}</h1>
+          <p className="text-sm text-muted">{message}</p>
+        </div>
+        <div className="flex justify-center">{action}</div>
+      </div>
+    </div>
+  );
+}
+
 class ErrorBoundary extends Component<
   { children: ReactNode },
   { failed: boolean }
@@ -137,12 +178,15 @@ class ErrorBoundary extends Component<
   render() {
     if (!this.state.failed) return this.props.children;
     return (
-      <div role="alert" style={{ padding: 32, textAlign: "center" }}>
-        <h1>Algo salió mal</h1>
-        <p>Ocurrió un error inesperado. Puedes recargar la página.</p>
-        <button type="button" onClick={() => window.location.reload()}>
-          Recargar
-        </button>
+      <div role="alert">
+        <FallbackScreen
+          icon={TriangleAlert}
+          title="Algo salió mal"
+          message="Ocurrió un error inesperado. Puedes recargar la página."
+          action={
+            <Button onClick={() => window.location.reload()}>Recargar</Button>
+          }
+        />
       </div>
     );
   }
@@ -150,11 +194,16 @@ class ErrorBoundary extends Component<
 
 function NotFoundPage() {
   return (
-    <div style={{ padding: 32, textAlign: "center" }}>
-      <h1>Página no encontrada</h1>
-      <p>La dirección que buscas no existe o fue movida.</p>
-      <Link to="/">Volver al inicio</Link>
-    </div>
+    <FallbackScreen
+      icon={Compass}
+      title="Página no encontrada"
+      message="La dirección que buscas no existe o fue movida."
+      action={
+        <Link to="/" className={cn(primaryButtonClass, "no-underline")}>
+          Volver al inicio
+        </Link>
+      }
+    />
   );
 }
 
@@ -175,11 +224,13 @@ function RequireAuth({
 
   if (session.status === "error") {
     return (
-      <div role="alert" style={{ padding: 32, textAlign: "center" }}>
-        <p>No pudimos verificar tu sesión. Revisa tu conexión.</p>
-        <button type="button" onClick={onRetry}>
-          Reintentar
-        </button>
+      <div role="alert">
+        <FallbackScreen
+          icon={WifiOff}
+          title="Sin conexión"
+          message="No pudimos verificar tu sesión. Revisa tu conexión."
+          action={<Button onClick={onRetry}>Reintentar</Button>}
+        />
       </div>
     );
   }

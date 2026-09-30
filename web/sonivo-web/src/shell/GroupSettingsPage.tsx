@@ -10,7 +10,7 @@ import {
   type CurrentUser,
   type GroupDetail,
 } from '../api/client'
-import { useT } from '../i18n'
+import { useT, type I18nKey } from '../i18n'
 import {
   ACCESS_DENIED_MESSAGE,
   CONFLICT_MESSAGE,
@@ -27,13 +27,34 @@ import {
   GROUP_ACCENT_PRESETS,
   GROUP_COVER_EMOJIS,
   GROUP_COVER_GRADIENTS,
+  NO_COVER,
+  coverUsesLightText,
   groupCoverStyle,
   isGradientCover,
+  isNoneCover,
   readGroupAppearance,
   writeGroupAppearance,
   type GroupAppearance,
 } from './groupAccent'
 import { notifyGroupUpdated } from './groupEvents'
+
+/** Accessible colour names for the accent swatches (values stay hex). */
+const ACCENT_NAME_KEYS: Record<string, I18nKey> = {
+  '#8366f1': 'ajustes.accentViolet',
+  '#0ea5e9': 'ajustes.accentSky',
+  '#10b981': 'ajustes.accentEmerald',
+  '#f3b626': 'ajustes.accentAmber',
+  '#ef4444': 'ajustes.accentRed',
+  '#e8c4f6': 'ajustes.accentLilac',
+}
+
+/** Visible/accessible gradient names, translated while the storage id stays English. */
+const GRADIENT_NAME_KEYS: Record<string, I18nKey> = {
+  violet: 'ajustes.coverGradientViolet',
+  ocean: 'ajustes.coverGradientOcean',
+  forest: 'ajustes.coverGradientForest',
+  sunset: 'ajustes.coverGradientSunset',
+}
 
 export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
@@ -213,10 +234,25 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         style={groupCoverStyle(appearance.cover, appearance.accent)}
       >
         <div className="flex items-center gap-4 px-5 py-5">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-black/25 text-3xl font-semibold" aria-hidden="true">
-            {isGradientCover(appearance.cover) ? group.name.slice(0, 1).toUpperCase() : appearance.cover}
+          <span
+            className={cn(
+              'grid h-14 w-14 shrink-0 place-items-center rounded-xl text-3xl font-semibold',
+              isNoneCover(appearance.cover) ? 'bg-black/5 text-ink' : 'bg-black/25',
+            )}
+            aria-hidden="true"
+          >
+            {isGradientCover(appearance.cover) || isNoneCover(appearance.cover)
+              ? group.name.slice(0, 1).toUpperCase()
+              : appearance.cover}
           </span>
-          <p className="truncate text-2xl font-semibold tracking-tight text-white">{group.name}</p>
+          <p
+            className={cn(
+              'truncate text-2xl font-semibold tracking-tight',
+              coverUsesLightText(appearance.cover) ? 'text-white' : 'text-ink',
+            )}
+          >
+            {group.name}
+          </p>
         </div>
       </div>
 
@@ -228,8 +264,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             <button
               key={swatch}
               type="button"
-              aria-label={swatch}
               aria-pressed={appearance.accent === swatch}
+              aria-label={t(ACCENT_NAME_KEYS[swatch] ?? 'ajustes.accent')}
               onClick={() => update({ ...appearance, accent: swatch })}
               className={cn(
                 'h-11 w-11 rounded-full transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
@@ -247,11 +283,25 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         <legend className="font-medium">{t('ajustes.cover')}</legend>
         <p className="text-sm text-slate-500">{t('ajustes.coverHint')}</p>
         <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.cover')}>
+          <button
+            type="button"
+            aria-pressed={appearance.cover === NO_COVER}
+            aria-label={t('ajustes.coverNone')}
+            onClick={() => update({ ...appearance, cover: NO_COVER })}
+            className={cn(
+              'h-11 min-w-11 rounded-xl border px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+              appearance.cover === NO_COVER
+                ? 'border-primary ring-2 ring-primary/25'
+                : 'border-slate-300 hover:border-primary/50',
+            )}
+          >
+            {t('ajustes.coverNone')}
+          </button>
           {GROUP_COVER_EMOJIS.map((emoji) => (
             <button
               key={emoji}
               type="button"
-              aria-label={emoji}
+              aria-label={t('ajustes.coverEmojiLabel', { emoji })}
               aria-pressed={appearance.cover === emoji}
               onClick={() => update({ ...appearance, cover: emoji })}
               className={cn(
@@ -268,6 +318,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             <button
               key={id}
               type="button"
+              aria-label={t(GRADIENT_NAME_KEYS[id] ?? 'ajustes.cover')}
               aria-pressed={appearance.cover === `gradient:${id}`}
               onClick={() => update({ ...appearance, cover: `gradient:${id}` })}
               className={cn(
@@ -278,7 +329,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               )}
               style={groupCoverStyle(`gradient:${id}`, appearance.accent)}
             >
-              {id}
+              {t(GRADIENT_NAME_KEYS[id] ?? 'ajustes.cover')}
             </button>
           ))}
         </div>

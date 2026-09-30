@@ -484,7 +484,11 @@ function AuthScreen({
   }
 
   return (
-    <div className="grid min-h-screen bg-canvas lg:grid-cols-[minmax(0,1.05fr)_minmax(24rem,28rem)]">
+    <div className="grid min-h-screen bg-canvas lg:grid-cols-[minmax(0,1.05fr)_minmax(24rem,30rem)]">
+      {/*
+       * The brand panel is intentionally dark/gradient in BOTH themes: it is the
+       * fixed editorial half of the split. Only the form side is theme-aware.
+       */}
       <section
         className="relative hidden overflow-hidden px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between"
         style={{
@@ -494,175 +498,191 @@ function AuthScreen({
         aria-hidden="false"
       >
         <BrandLockup to="/login" light />
-        <div className="max-w-md space-y-4">
+        <div className="max-w-md space-y-5">
           <h2 className="text-5xl font-extrabold leading-tight tracking-tight text-balance">
             {t("auth.heroTitle")}
           </h2>
           <p className="text-base text-slate-300">{t("auth.heroSubtitle")}</p>
+          <ul className="space-y-2 text-sm text-slate-300">
+            {(["auth.heroPoint1", "auth.heroPoint2", "auth.heroPoint3"] as const).map(
+              (key) => (
+                <li key={key} className="flex items-start gap-2.5">
+                  <span
+                    className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary"
+                    aria-hidden="true"
+                  />
+                  {t(key)}
+                </li>
+              ),
+            )}
+          </ul>
         </div>
         <WaveformHero className="max-w-xl opacity-90" />
       </section>
 
-      <main className="flex flex-col justify-center bg-white px-6 py-10 text-neutral-dark sm:px-10">
-        <div className="mb-8 lg:hidden">
-          <BrandLockup to="/login" />
-        </div>
-
-        {step === "twoFactor" ? (
-          <TwoFactorStep
-            headingId={headingId}
-            headingRef={headingRef}
-            onSuccess={onSuccess}
-            onBack={() => setSecondStep(false)}
-          />
-        ) : step === "registered" ? (
-          <div className="space-y-4" role="region" aria-labelledby={headingId}>
-            <div className="space-y-1">
-              <h1
-                id={headingId}
-                ref={headingRef}
-                tabIndex={-1}
-                className="text-2xl font-bold tracking-tight outline-none"
-              >
-                {t("auth.confirmTitle")}
-              </h1>
-              <p className="text-sm text-slate-600">{t("auth.confirmSent")}</p>
-              <p className="text-sm text-slate-500">{t("auth.confirmHint")}</p>
-            </div>
-            <Link
-              className="inline-block font-semibold text-primary no-underline hover:underline"
-              to={`/login${nextQuery}`}
-            >
-              {t("auth.goLogin")}
-            </Link>
+      <main className="flex flex-col justify-center bg-canvas px-4 py-10 sm:px-8">
+        <div className="mx-auto w-full max-w-md">
+          <div className="mb-6 lg:hidden">
+            <BrandLockup to="/login" shell />
           </div>
-        ) : (
-          <form
-            className="space-y-4"
-            onSubmit={onSubmit}
-            noValidate
-            aria-labelledby={headingId}
-          >
-            <div className="space-y-1">
-              <h1
-                id={headingId}
-                ref={headingRef}
-                tabIndex={-1}
-                className="text-2xl font-bold tracking-tight outline-none"
-              >
-                {mode === "login"
-                  ? t("auth.loginTitle")
-                  : t("auth.registerTitle")}
-              </h1>
-              <p className="text-sm text-slate-500">
-                {mode === "login"
-                  ? t("auth.loginSubtitle")
-                  : t("auth.registerSubtitle")}
-              </p>
-            </div>
-
-            <ErrorBanner message={error} />
-
-            {mode === "register" ? (
-              <TextField
-                label={t("auth.nameLabel")}
-                value={displayName}
-                onChange={setDisplayName}
-                autoComplete="nickname"
-                maxLength={80}
-                disabled={pending}
+          <div className="rounded-2xl border border-slate-200 bg-surface p-6 text-ink shadow-sm sm:p-8">
+            {step === "twoFactor" ? (
+              <TwoFactorStep
+                headingId={headingId}
+                headingRef={headingRef}
+                onSuccess={onSuccess}
+                onBack={() => setSecondStep(false)}
               />
-            ) : null}
-            <TextField
-              label={t("auth.emailLabel")}
-              type="email"
-              value={email}
-              onChange={setEmail}
-              autoComplete="email"
-              error={errors.email}
-              autoFocus
-              disabled={pending}
-            />
-            <TextField
-              label={t("auth.passwordLabel")}
-              type="password"
-              value={password}
-              onChange={setPassword}
-              autoComplete={
-                mode === "login" ? "current-password" : "new-password"
-              }
-              error={errors.password}
-              disabled={pending}
-            />
-            {mode === "register" ? (
-              <p className="-mt-2 text-xs text-slate-500">
-                {t("auth.passwordHint")}
-              </p>
-            ) : null}
-
-            <Button type="submit" className="w-full" disabled={pending}>
-              {pending
-                ? t("auth.working")
-                : mode === "login"
-                  ? t("auth.loginTitle")
-                  : t("auth.registerTitle")}
-            </Button>
-
-            {(mode === "login" && passkeySupported) || googleEnabled ? (
-              <div className="relative py-1 text-center text-xs font-medium uppercase tracking-wide text-slate-400">
-                <span className="relative z-10 bg-white px-2">
-                  {t("auth.orWord")}
-                </span>
-                <span
-                  className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-slate-200"
-                  aria-hidden
-                />
+            ) : step === "registered" ? (
+              <div className="space-y-4" role="region" aria-labelledby={headingId}>
+                <div className="space-y-1">
+                  <h1
+                    id={headingId}
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-2xl font-bold tracking-tight outline-none"
+                  >
+                    {t("auth.confirmTitle")}
+                  </h1>
+                  <p className="text-sm text-slate-600">{t("auth.confirmSent")}</p>
+                  <p className="text-sm text-slate-500">{t("auth.confirmHint")}</p>
+                </div>
+                <Link
+                  className="inline-block font-semibold text-primary no-underline hover:underline"
+                  to={`/login${nextQuery}`}
+                >
+                  {t("auth.goLogin")}
+                </Link>
               </div>
-            ) : null}
-
-            {mode === "login" && passkeySupported ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                disabled={pending}
-                onClick={() => void onPasskeyLogin()}
+            ) : (
+              <form
+                className="space-y-4"
+                onSubmit={onSubmit}
+                noValidate
+                aria-labelledby={headingId}
               >
-                {t("auth.passkeyButton")}
-              </Button>
-            ) : null}
+                <div className="space-y-1">
+                  <h1
+                    id={headingId}
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-2xl font-bold tracking-tight outline-none"
+                  >
+                    {mode === "login"
+                      ? t("auth.loginTitle")
+                      : t("auth.registerTitle")}
+                  </h1>
+                  <p className="text-sm text-slate-500">
+                    {mode === "login"
+                      ? t("auth.loginSubtitle")
+                      : t("auth.registerSubtitle")}
+                  </p>
+                </div>
 
-            {googleEnabled ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                disabled={pending}
-                onClick={() =>
-                  window.location.assign(googleChallengeHref(next))
-                }
-              >
-                {t("auth.googleButton")}
-              </Button>
-            ) : null}
+                <ErrorBanner message={error} />
 
-            {mode === "login" ? <ResendBlock initialEmail={email} /> : null}
+                {mode === "register" ? (
+                  <TextField
+                    label={t("auth.nameLabel")}
+                    value={displayName}
+                    onChange={setDisplayName}
+                    autoComplete="nickname"
+                    maxLength={80}
+                    disabled={pending}
+                  />
+                ) : null}
+                <TextField
+                  label={t("auth.emailLabel")}
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  autoComplete="email"
+                  error={errors.email}
+                  autoFocus
+                  disabled={pending}
+                />
+                <TextField
+                  label={t("auth.passwordLabel")}
+                  type="password"
+                  value={password}
+                  onChange={setPassword}
+                  autoComplete={
+                    mode === "login" ? "current-password" : "new-password"
+                  }
+                  error={errors.password}
+                  disabled={pending}
+                />
+                {mode === "register" ? (
+                  <p className="-mt-2 text-xs text-slate-500">
+                    {t("auth.passwordHint")}
+                  </p>
+                ) : null}
 
-            <p className="text-sm text-slate-600">
-              {mode === "login"
-                ? t("auth.noAccountPrefix")
-                : t("auth.hasAccountPrefix")}
-              <Link
-                className="font-semibold text-primary no-underline hover:underline"
-                to={otherModeTo}
-              >
-                {mode === "login"
-                  ? t("auth.registerLink")
-                  : t("auth.loginLink")}
-              </Link>
-            </p>
-          </form>
-        )}
+                <Button type="submit" className="w-full" disabled={pending}>
+                  {pending
+                    ? t("auth.working")
+                    : mode === "login"
+                      ? t("auth.loginTitle")
+                      : t("auth.registerTitle")}
+                </Button>
+
+                {(mode === "login" && passkeySupported) || googleEnabled ? (
+                  <div className="relative py-1 text-center text-xs font-medium uppercase tracking-wide text-slate-400">
+                    <span className="relative z-10 bg-surface px-2">
+                      {t("auth.orWord")}
+                    </span>
+                    <span
+                      className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-slate-200"
+                      aria-hidden
+                    />
+                  </div>
+                ) : null}
+
+                {mode === "login" && passkeySupported ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={pending}
+                    onClick={() => void onPasskeyLogin()}
+                  >
+                    {t("auth.passkeyButton")}
+                  </Button>
+                ) : null}
+
+                {googleEnabled ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={pending}
+                    onClick={() =>
+                      window.location.assign(googleChallengeHref(next))
+                    }
+                  >
+                    {t("auth.googleButton")}
+                  </Button>
+                ) : null}
+
+                {mode === "login" ? <ResendBlock initialEmail={email} /> : null}
+
+                <p className="text-sm text-slate-600">
+                  {mode === "login"
+                    ? t("auth.noAccountPrefix")
+                    : t("auth.hasAccountPrefix")}
+                  <Link
+                    className="font-semibold text-primary no-underline hover:underline"
+                    to={otherModeTo}
+                  >
+                    {mode === "login"
+                      ? t("auth.registerLink")
+                      : t("auth.loginLink")}
+                  </Link>
+                </p>
+              </form>
+            )}
+          </div>
+        </div>
       </main>
     </div>
   );
