@@ -20,6 +20,7 @@ import {
   useGroupContext,
 } from '../repertoire/ui'
 import { useT } from '../i18n'
+import { plural } from '../ui/plural'
 import { formatEventType, formatStartsAt, fromDatetimeLocalValue } from './datetime'
 
 const EVENT_TILES = [
@@ -107,37 +108,25 @@ export function EventListPage({ user }: { user: CurrentUser }) {
 
   return (
     <section className="space-y-6" aria-labelledby="events-heading">
-      <div
-        data-testid="events-hero"
-        className="overflow-hidden rounded-2xl"
-        style={{
-          background:
-            'linear-gradient(120deg, color-mix(in srgb, var(--group-accent, #8366f1) 88%, #1e1b4b), color-mix(in srgb, var(--group-accent, #8366f1) 45%, transparent))',
-        }}
-      >
-        <div className="space-y-3 px-5 py-6">
-          <div className="[&_a]:text-white [&_nav]:text-white/70 [&_span]:text-white/70">
-            <PageBreadcrumb
-              items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('agenda.eventsTitle') }]}
-            />
+      <header data-testid="events-hero" className="space-y-3">
+        <PageBreadcrumb
+          items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('agenda.eventsTitle') }]}
+        />
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0 space-y-1">
+            <h1 id="events-heading" className="text-3xl font-bold tracking-tight text-ink">
+              {t('agenda.eventsTitle')}
+            </h1>
+            <p className="max-w-lg text-sm text-muted">{t('agenda.eventsSubtitle')}</p>
+            {!isOwner ? <p className="text-sm text-muted">Solo lectura</p> : null}
           </div>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="min-w-0 space-y-1">
-              <h1 id="events-heading" className="text-3xl font-bold tracking-tight text-white">
-                {t('agenda.eventsTitle')}
-              </h1>
-              <p className="max-w-lg text-sm text-white/80">{t('agenda.eventsSubtitle')}</p>
-              {!isOwner ? <p className="text-sm text-white/80">Solo lectura</p> : null}
-            </div>
-            {events !== null ? (
-              <p data-testid="events-count" aria-live="polite" className="flex items-baseline gap-2 text-white">
-                <span className="text-3xl font-bold">{events.length}</span>
-                <span className="text-sm text-white/80">{t('agenda.eventsCountLabel')}</span>
-              </p>
-            ) : null}
-          </div>
+          {events !== null ? (
+            <ReadinessChip testId="events-count" tone="neutral">
+              {plural(events.length, t('common.eventOne'), t('common.eventMany'))}
+            </ReadinessChip>
+          ) : null}
         </div>
-      </div>
+      </header>
 
       {events !== null && events.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
@@ -165,7 +154,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       ) : null}
       {searching && filtered !== null ? (
         <p role="status" aria-live="polite" data-testid="events-results" className="text-sm text-slate-500">
-          {filtered.length} {t('agenda.resultsWord')}
+          {plural(filtered.length, t('common.resultOne'), t('common.resultMany'))}
         </p>
       ) : null}
 

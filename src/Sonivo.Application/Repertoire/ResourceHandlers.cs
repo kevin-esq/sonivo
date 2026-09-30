@@ -496,6 +496,12 @@ public sealed class DeleteResourceHandler
         await _resources.RemoveAsync(resource, cancellationToken);
         await _resources.SaveChangesAsync(cancellationToken);
 
+        _logger.LogWarning(
+            "Security event: resource deleted. ActorUserId: {ActorUserId}, GroupId: {GroupId}, ResourceId: {ResourceId}",
+            userId,
+            groupId,
+            resourceId);
+
         if (!string.IsNullOrWhiteSpace(objectKey))
         {
             try

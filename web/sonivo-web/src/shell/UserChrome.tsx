@@ -35,19 +35,19 @@ export function UserChrome({
   const { t } = useT()
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-4">
-        <BrandLockup to="/" light />
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-shell-border px-6 py-4">
+        <BrandLockup to="/" shell />
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-slate-300">{user.email}</span>
-          <Button variant="ghost" className="text-secondary hover:text-white" onClick={onLogout}>
+          <span className="text-shell-foreground/70">{user.email}</span>
+          <Button variant="ghost" className="text-shell-link hover:text-shell-foreground" onClick={onLogout}>
             {t('chrome.logout')}
           </Button>
         </div>
       </header>
       <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6 md:py-8">
-        <h1 className="text-2xl font-bold tracking-tight text-white">{t('cuenta.title')}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-shell-foreground">{t('cuenta.title')}</h1>
         <nav
-          className="mt-4 flex gap-2 overflow-x-auto border-b border-white/10"
+          className="mt-4 flex gap-2 overflow-x-auto border-b border-shell-border"
           aria-label={t('cuenta.nav')}
         >
           {cuentaTabs.map((tab) => {
@@ -61,8 +61,8 @@ export function UserChrome({
                   cn(
                     'flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium no-underline transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none',
                     isActive
-                      ? 'border-secondary text-white'
-                      : 'border-transparent text-slate-400 hover:text-white',
+                      ? 'border-secondary text-shell-foreground'
+                      : 'border-transparent text-shell-foreground/70 hover:text-shell-foreground',
                   )
                 }
               >

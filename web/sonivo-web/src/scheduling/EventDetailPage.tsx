@@ -40,6 +40,7 @@ import {
   toDatetimeLocalValue,
 } from './datetime'
 import { useT } from '../i18n'
+import { plural } from '../ui/plural'
 
 const RSVP_CHOICES: { value: EventRsvpResponse; label: string }[] = [
   { value: 'yes', label: 'Sí' },
@@ -283,74 +284,62 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
 
   return (
     <section className="space-y-6" aria-labelledby="event-heading">
-      <div
-        data-testid="event-hero"
-        className="overflow-hidden rounded-2xl"
-        style={{
-          background:
-            'linear-gradient(120deg, color-mix(in srgb, var(--group-accent, #8366f1) 88%, #1e1b4b), color-mix(in srgb, var(--group-accent, #8366f1) 45%, transparent))',
-        }}
-      >
-        <div className="space-y-3 px-5 py-6">
-          <div className="[&_a]:text-white [&_nav]:text-white/70 [&_span]:text-white/70">
-            <PageBreadcrumb
-              items={[
-                { to: `/groups/${group.id}`, label: group.name },
-                { to: `/groups/${group.id}/events`, label: t('agenda.eventsTitle') },
-                { label: musicalEvent.title },
-              ]}
-            />
+      <header data-testid="event-hero" className="space-y-3">
+        <PageBreadcrumb
+          items={[
+            { to: `/groups/${group.id}`, label: group.name },
+            { to: `/groups/${group.id}/events`, label: t('agenda.eventsTitle') },
+            { label: musicalEvent.title },
+          ]}
+        />
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
+            <span
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
+              aria-hidden="true"
+            >
+              <CalendarDays className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 space-y-1">
+              <h1 id="event-heading" className="text-3xl font-bold tracking-tight text-ink">
+                {musicalEvent.title}
+              </h1>
+              <p className="text-sm text-muted">
+                {formatEventType(musicalEvent.type)} · {formatStartsAt(musicalEvent.startsAt)}
+                {!isOwner ? <span> · Solo lectura</span> : null}
+              </p>
+            </div>
           </div>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
-              <span
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white"
-                aria-hidden="true"
-              >
-                <CalendarDays className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 space-y-1">
-                <h1 id="event-heading" className="text-3xl font-bold tracking-tight text-white">
-                  {musicalEvent.title}
-                </h1>
-                <p className="text-sm text-white/80">
-                  {formatEventType(musicalEvent.type)} · {formatStartsAt(musicalEvent.startsAt)} ·{' '}
-                  {formatEventStatus(musicalEvent.status)} · v{musicalEvent.version}
-                  {!isOwner ? <span> · Solo lectura</span> : null}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <ReadinessChip
-                tone={!isLive ? 'warn' : hasPlan ? 'ok' : 'neutral'}
-                testId="event-status-chip"
-              >
-                {!isLive
-                  ? t('agenda.statusCancelled')
-                  : hasPlan
-                    ? t('agenda.statusPlan')
-                    : t('agenda.statusDraft')}
-              </ReadinessChip>
-              {isOwner && isLive && !editing ? (
-                <>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setTab('details')
-                      setEditing(true)
-                    }}
-                  >
-                    Editar evento
-                  </Button>
-                  <Button variant="danger" onClick={() => setConfirmCancel(true)}>
-                    Cancelar evento
-                  </Button>
-                </>
-              ) : null}
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <ReadinessChip
+              tone={!isLive ? 'warn' : hasPlan ? 'ok' : 'neutral'}
+              testId="event-status-chip"
+            >
+              {!isLive
+                ? t('agenda.statusCancelled')
+                : hasPlan
+                  ? t('agenda.statusPlan')
+                  : t('agenda.statusDraft')}
+            </ReadinessChip>
+            {isOwner && isLive && !editing ? (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setTab('details')
+                    setEditing(true)
+                  }}
+                >
+                  Editar evento
+                </Button>
+                <Button variant="danger" onClick={() => setConfirmCancel(true)}>
+                  Cancelar evento
+                </Button>
+              </>
+            ) : null}
           </div>
         </div>
-      </div>
+      </header>
 
       <ProblemAlert message={error} />
       <ConflictAlert message={conflict} />
@@ -525,8 +514,8 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     >
                       {setlists.map((setlist) => (
                         <option key={setlist.id} value={setlist.id}>
-                          {setlist.name} ({setlist.itemCount}{' '}
-                          {setlist.itemCount === 1 ? 'canción' : 'canciones'})
+                          {setlist.name} (
+                          {plural(setlist.itemCount, t('common.songOne'), t('common.songMany'))})
                         </option>
                       ))}
                     </select>

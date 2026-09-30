@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Sonivo.Application.Abstractions;
 using Sonivo.Domain.Common;
 using Sonivo.Domain.Tenancy;
@@ -11,12 +12,18 @@ public sealed class UpdateGroupHandler
     private readonly GroupAccessService _access;
     private readonly IGroupStore _store;
     private readonly IClock _clock;
+    private readonly ILogger<UpdateGroupHandler>? _logger;
 
-    public UpdateGroupHandler(GroupAccessService access, IGroupStore store, IClock clock)
+    public UpdateGroupHandler(
+        GroupAccessService access,
+        IGroupStore store,
+        IClock clock,
+        ILogger<UpdateGroupHandler>? logger = null)
     {
         _access = access;
         _store = store;
         _clock = clock;
+        _logger = logger;
     }
 
     public async Task<GroupDto> HandleAsync(UpdateGroupCommand command, CancellationToken cancellationToken)
@@ -38,6 +45,11 @@ public sealed class UpdateGroupHandler
 
         await _store.UpdateAsync(group, cancellationToken);
         await _store.SaveChangesAsync(cancellationToken);
+
+        _logger?.LogWarning(
+            "Security event: group renamed. ActorUserId: {ActorUserId}, GroupId: {GroupId}",
+            command.UserId,
+            command.GroupId);
 
         return new GroupDto(group.Id, group.Name, group.Version, membership.Role, group.CreatedAt, group.UpdatedAt);
     }

@@ -16,6 +16,12 @@ services:
         sync: false
       - key: PublicOrigin
         value: https://sonivo.onrender.com
+      # WebAuthn relying-party + origin allow-list (T-SEC-01). Plain values —
+      # the passkey ceremony must bind to the exact public origin.
+      - key: Passkeys__RelyingPartyId
+        value: sonivo.onrender.com
+      - key: Passkeys__AllowedOrigins
+        value: https://sonivo.onrender.com
       - key: Gmail__ClientId
         sync: false
       - key: Gmail__ClientSecret

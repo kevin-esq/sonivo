@@ -22,7 +22,9 @@ import {
   OriginBadge,
   OriginMark,
   PageBreadcrumb,
+  ReadinessChip,
 } from './chrome'
+import { plural } from '../ui/plural'
 import {
   isOwnerRole,
   mutationErrorMessage,
@@ -104,37 +106,23 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
 
   return (
     <section className="space-y-6" aria-labelledby="library-heading">
-      <div
-        data-testid="library-hero"
-        className="overflow-hidden rounded-2xl"
-        style={{
-          background:
-            'linear-gradient(120deg, color-mix(in srgb, var(--group-accent, #8366f1) 88%, #1e1b4b), color-mix(in srgb, var(--group-accent, #8366f1) 45%, transparent))',
-        }}
-      >
-        <div className="space-y-3 px-5 py-6">
-          <div className="[&_a]:text-white [&_nav]:text-white/70 [&_span]:text-white/70">
-            <PageBreadcrumb items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('listas.title') }]} />
+      <header data-testid="library-hero" className="space-y-3">
+        <PageBreadcrumb items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('listas.title') }]} />
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0 space-y-1">
+            <h1 id="library-heading" className="text-3xl font-bold tracking-tight text-ink">
+              {t('listas.title')}
+            </h1>
+            <p className="max-w-lg text-sm text-muted">{t('listas.subtitle')}</p>
+            {!isOwner ? <p className="text-sm text-muted">{t('canciones.readonly')}</p> : null}
           </div>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="min-w-0 space-y-1">
-              <h1 id="library-heading" className="text-3xl font-bold tracking-tight text-white">
-                {t('listas.title')}
-              </h1>
-              <p className="max-w-lg text-sm text-white/80">
-                {t('listas.subtitle')}
-              </p>
-              {!isOwner ? <p className="text-sm text-white/80">{t('canciones.readonly')}</p> : null}
-            </div>
-            {songs !== null ? (
-              <p data-testid="library-count" className="flex items-baseline gap-2 text-white">
-                <span className="text-3xl font-bold">{songs.length}</span>
-                <span className="text-sm text-white/80">{t('listas.songsLabel')}</span>
-              </p>
-            ) : null}
-          </div>
+          {songs !== null ? (
+            <ReadinessChip testId="library-count" tone="neutral">
+              {plural(songs.length, t('common.songOne'), t('common.songMany'))}
+            </ReadinessChip>
+          ) : null}
         </div>
-      </div>
+      </header>
 
       {songs !== null && songs.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
@@ -159,7 +147,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
       ) : null}
       {searching && filtered !== null ? (
         <p role="status" aria-live="polite" data-testid="library-results" className="text-sm text-slate-500">
-          {filtered.length} {t('listas.resultsWord')}
+          {plural(filtered.length, t('common.resultOne'), t('common.resultMany'))}
         </p>
       ) : null}
 

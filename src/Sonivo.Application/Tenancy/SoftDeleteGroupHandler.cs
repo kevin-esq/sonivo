@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Sonivo.Application.Abstractions;
 using Sonivo.Domain.Common;
 
@@ -10,12 +11,18 @@ public sealed class SoftDeleteGroupHandler
     private readonly GroupAccessService _access;
     private readonly IGroupStore _store;
     private readonly IClock _clock;
+    private readonly ILogger<SoftDeleteGroupHandler>? _logger;
 
-    public SoftDeleteGroupHandler(GroupAccessService access, IGroupStore store, IClock clock)
+    public SoftDeleteGroupHandler(
+        GroupAccessService access,
+        IGroupStore store,
+        IClock clock,
+        ILogger<SoftDeleteGroupHandler>? logger = null)
     {
         _access = access;
         _store = store;
         _clock = clock;
+        _logger = logger;
     }
 
     public async Task HandleAsync(SoftDeleteGroupCommand command, CancellationToken cancellationToken)
@@ -33,5 +40,10 @@ public sealed class SoftDeleteGroupHandler
 
         await _store.UpdateAsync(group, cancellationToken);
         await _store.SaveChangesAsync(cancellationToken);
+
+        _logger?.LogWarning(
+            "Security event: group soft-deleted. ActorUserId: {ActorUserId}, GroupId: {GroupId}",
+            command.UserId,
+            command.GroupId);
     }
 }

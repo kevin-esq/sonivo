@@ -9,12 +9,15 @@ import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { Button } from '../ui/button'
 import { groupCoverStyle, isGradientCover, readGroupAppearance } from './groupAccent'
+import { GROUP_UPDATED_EVENT } from './groupEvents'
 import { groupNavItems, mobileTabItems } from './nav'
 
 const railLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
     'flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium no-underline transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none',
-    isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white',
+    isActive
+      ? 'bg-shell-hover text-shell-foreground'
+      : 'text-shell-foreground/70 hover:bg-shell-hover hover:text-shell-foreground',
   )
 
 export function GroupWorkspace({
@@ -33,9 +36,9 @@ export function GroupWorkspace({
 
   useEffect(() => {
     let cancelled = false
-    async function load() {
+    async function load(reset: boolean) {
       if (!groupId) return
-      setGroup(undefined)
+      if (reset) setGroup(undefined)
       setError(null)
       try {
         const result = await getGroup(groupId)
@@ -50,9 +53,14 @@ export function GroupWorkspace({
         }
       }
     }
-    void load()
+    void load(true)
+    function onGroupUpdated() {
+      void load(false)
+    }
+    window.addEventListener(GROUP_UPDATED_EVENT, onGroupUpdated)
     return () => {
       cancelled = true
+      window.removeEventListener(GROUP_UPDATED_EVENT, onGroupUpdated)
     }
   }, [groupId, user.id])
 
@@ -65,9 +73,9 @@ export function GroupWorkspace({
       data-testid="grupo-shell"
       style={{ '--group-accent': appearance.accent } as CSSProperties}
     >
-      <aside className="hidden w-60 shrink-0 flex-col bg-neutral-dark text-neutral-light md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col bg-shell text-shell-foreground md:flex">
         <div className="px-5 py-5">
-          <BrandLockup to="/" light />
+          <BrandLockup to="/" shell />
         </div>
         {group ? (
           <nav className="flex flex-1 flex-col gap-1 px-3" aria-label={t('workspace.groupNav')}>
@@ -86,42 +94,42 @@ export function GroupWorkspace({
             </NavLink>
           </nav>
         ) : (
-          <div className="flex-1 px-5 text-sm text-slate-400">
+          <div className="flex-1 px-5 text-sm text-shell-foreground/70">
             {group === undefined ? (
               <div className="space-y-2" role="status" aria-live="polite" aria-label={t('workspace.loadingGroup')}>
                 <span className="sr-only">{t('workspace.loadingGroupEllipsis')}</span>
-                <div className="h-3 w-28 animate-pulse rounded bg-white/10" />
-                <div className="h-3 w-20 animate-pulse rounded bg-white/10" />
+                <div className="h-3 w-28 animate-pulse rounded bg-shell-hover" />
+                <div className="h-3 w-20 animate-pulse rounded bg-shell-hover" />
               </div>
             ) : null}
           </div>
         )}
-        <div className="mt-auto space-y-3 border-t border-white/10 px-5 py-4">
+        <div className="mt-auto space-y-3 border-t border-shell-border px-5 py-4">
           {group ? (
             <div>
-              <p className="truncate text-sm font-semibold text-white">{group.name}</p>
-              <p className="text-xs text-slate-400">{formatMembershipRole(group.role)}</p>
+              <p className="truncate text-sm font-semibold text-shell-foreground">{group.name}</p>
+              <p className="text-xs text-shell-foreground/70">{formatMembershipRole(group.role)}</p>
             </div>
           ) : null}
           <Link
             to="/"
-            className="block text-sm font-medium text-secondary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+            className="block text-sm font-medium text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
           >
             {t('workspace.myGroups')}
           </Link>
           <Link
             to="/cuenta"
-            className="flex min-h-11 items-center gap-2 text-sm font-medium text-secondary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+            className="flex min-h-11 items-center gap-2 text-sm font-medium text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
           >
             <UserRound className="h-4 w-4" aria-hidden="true" />
             {t('workspace.accountLink')}
           </Link>
           <div className="flex items-start justify-between gap-2">
-            <p className="min-w-0 truncate text-xs text-slate-400">{accountLabel}</p>
+            <p className="min-w-0 truncate text-xs text-shell-foreground/70">{accountLabel}</p>
             <Button
               variant="ghost"
               size="sm"
-              className="h-auto px-0 text-xs text-secondary hover:text-white"
+              className="h-auto px-0 text-xs text-shell-link hover:text-shell-foreground"
               onClick={onLogout}
             >
               <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
@@ -134,14 +142,14 @@ export function GroupWorkspace({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between gap-2 px-4 py-3 md:hidden">
           <Link to="/" className="flex min-h-11 items-center gap-2 no-underline">
-            <SonivoMark className="h-7 w-7 text-white" />
-            <span className="font-semibold text-white">Sonivo</span>
+            <SonivoMark className="h-7 w-7 text-primary" />
+            <span className="font-semibold text-shell-foreground">Sonivo</span>
           </Link>
           <div className="flex items-center gap-1">
             <Link
               to="/cuenta"
               aria-label={t('grupo.openAccount')}
-              className="grid min-h-11 min-w-11 place-items-center rounded-lg text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+              className="grid min-h-11 min-w-11 place-items-center rounded-lg text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             >
               <UserRound className="h-5 w-5" aria-hidden="true" />
             </Link>
@@ -149,7 +157,7 @@ export function GroupWorkspace({
               type="button"
               aria-label={t('workspace.logout')}
               onClick={onLogout}
-              className="grid min-h-11 min-w-11 place-items-center rounded-lg text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+              className="grid min-h-11 min-w-11 place-items-center rounded-lg text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             >
               <LogOut className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -157,8 +165,12 @@ export function GroupWorkspace({
         </header>
 
         {group ? (
-          <div className="px-4 pt-1 md:px-8 md:pt-6">
-            <div className="overflow-hidden rounded-2xl" style={groupCoverStyle(appearance.cover, appearance.accent)}>
+          <div className="px-3 pt-3">
+            <div
+              data-testid="group-bar"
+              className="overflow-hidden rounded-2xl"
+              style={groupCoverStyle(appearance.cover, appearance.accent)}
+            >
               <div className="flex items-center gap-4 px-5 py-5">
                 <span
                   role="img"
@@ -184,7 +196,7 @@ export function GroupWorkspace({
             </div>
             <Link
               to={`/groups/${group.id}/ajustes`}
-              className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-secondary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary md:hidden"
+              className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary md:hidden"
             >
               <Settings2 className="h-4 w-4" aria-hidden="true" />
               {t('grupo.ajustes')}
@@ -192,7 +204,10 @@ export function GroupWorkspace({
           </div>
         ) : null}
 
-        <main className="flex-1 bg-white text-neutral-dark md:m-3 md:ml-0 md:rounded-2xl">
+        <main
+          data-testid="group-content"
+          className="m-3 flex-1 rounded-2xl bg-white text-neutral-dark"
+        >
           <div className="px-5 py-6 pb-24 md:px-8 md:pb-8">
             {group === null ? (
               <div className="space-y-3">
@@ -212,7 +227,7 @@ export function GroupWorkspace({
 
       {group ? (
         <nav
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-neutral-dark md:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-shell-border bg-shell md:hidden"
           aria-label={t('workspace.sections')}
         >
           <ul className="grid grid-cols-4">
@@ -226,7 +241,7 @@ export function GroupWorkspace({
                     className={({ isActive }) =>
                       cn(
                         'flex min-h-11 flex-col items-center gap-1 px-2 py-2.5 text-[11px] font-medium no-underline transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none',
-                        isActive ? 'text-white' : 'text-slate-400',
+                        isActive ? 'text-shell-foreground' : 'text-shell-foreground/70',
                       )
                     }
                   >

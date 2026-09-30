@@ -1,0 +1,60 @@
+name: Security
+
+# DevSecOps SCA gate (ADR-0044, SECURITY-AUDIT-2026-09):
+# independent, explicit vulnerable-dependency check for every csproj in the
+# repo (direct + transitive). This is defense-in-depth on top of the
+# restore-time NuGetAudit errors (NU1902/NU1903 via Directory.Build.props)
+# already enforced by the CI backend job — two independent mechanisms, same
+# advisory database.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  sca:
+    name: SCA gate (NuGet vulnerabilities)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: dotnet restore Sonivo.slnx
+
+      - name: Fail on any vulnerable package (direct or transitive)
+        run: |
+          set -euo pipefail
+          failed=0
+          for proj in $(git ls-files 'src/*.csproj' 'src/*/*.csproj' 'tests/*.csproj' 'tests/*/*.csproj'); do
+            echo "Scanning $proj"
+            json=$(dotnet list package --project "$proj" --vulnerable --include-transitive --format json --output-version 1)
+            count=$(jq '[.projects[]?.frameworks[]? | (.topLevelPackages // []) + (.transitivePackages // []) | .[]] | length' <<< "$json")
+            if [ "$count" -gt 0 ]; then
+              echo "::error file=${proj}::$proj has $count vulnerable package reference(s)"
+              jq '[.projects[]?.frameworks[]? | (.topLevelPackages // []) + (.transitivePackages // []) | .[]] | .[]' <<< "$json"
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "SCA gate FAILED — update the flagged packages before merging."
+            exit 1
+          fi
+          echo "SCA gate PASSED — no known-vulnerable packages."

@@ -14,6 +14,9 @@
   --color-canvas: #0b1220;
   --color-shell: #0f172a;
   --color-shell-foreground: #f8fafc;
+  --color-shell-link: #e8c4f6;
+  --color-shell-border: rgba(255, 255, 255, 0.1);
+  --color-shell-hover: rgba(255, 255, 255, 0.06);
   --color-surface: #ffffff;
   --color-ink: #0f172a;
   --color-muted: #64748b;
@@ -28,6 +31,9 @@
   --color-canvas: #0b1220;
   --color-shell: #0f172a;
   --color-shell-foreground: #f8fafc;
+  --color-shell-link: #e8c4f6;
+  --color-shell-border: rgba(255, 255, 255, 0.1);
+  --color-shell-hover: rgba(255, 255, 255, 0.06);
   --color-surface: #ffffff;
   --color-ink: #0f172a;
   --color-muted: #64748b;
@@ -37,13 +43,12 @@
   --color-canvas: #f1f5f9;
   --color-shell: #ffffff;
   --color-shell-foreground: #0f172a;
+  --color-shell-link: #6d4ee0;
+  --color-shell-border: #e2e8f0;
+  --color-shell-hover: #f1f5f9;
   --color-surface: #ffffff;
   --color-ink: #0f172a;
   --color-muted: #64748b;
-}
-
-:root[data-theme="light"] body {
-  color: var(--color-ink);
 }
 
 html,
@@ -55,7 +60,7 @@ body,
 body {
   margin: 0;
   background: var(--color-canvas);
-  color: var(--color-neutral-light);
+  color: var(--color-shell-foreground);
   font-family: var(--font-sans);
   line-height: 1.5;
 }

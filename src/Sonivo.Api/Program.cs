@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -49,6 +50,36 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.SlidingExpiration = true;
     options.ExpireTimeSpan = TimeSpan.FromDays(14);
+    // L1 (SECURITY-AUDIT-2026-09): absolute session cap. Record the original
+    // sign-in instant exactly once — sliding renewal re-issues the cookie (and
+    // re-raises OnSigningIn), but it must never refresh this stamp.
+    options.Events.OnSigningIn = context =>
+    {
+        if (!context.Properties.Items.ContainsKey(SessionAbsolutePolicy.IssuedUtcProperty))
+        {
+            context.Properties.Items[SessionAbsolutePolicy.IssuedUtcProperty] =
+                DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+        }
+
+        return Task.CompletedTask;
+    };
+    options.Events.OnValidatePrincipal = context =>
+    {
+        // Reject (and clear) sessions that have outlived the 30-day absolute
+        // cap measured from the original sign-in. Sliding renewal still
+        // extends ExpireTimeSpan (14 days) as long as the cap has not passed.
+        if (context.Properties.Items.TryGetValue(
+                SessionAbsolutePolicy.IssuedUtcProperty, out var issuedRaw)
+            && DateTimeOffset.TryParse(
+                issuedRaw, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var issuedUtc)
+            && SessionAbsolutePolicy.IsExpired(issuedUtc, DateTimeOffset.UtcNow))
+        {
+            context.RejectPrincipal();
+            return context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+        }
+
+        return Task.CompletedTask;
+    };
     options.Events.OnRedirectToLogin = context =>
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -74,13 +105,13 @@ builder.Services.AddAntiforgery(options =>
 });
 
 // T-AU-01: fixed-window rate limits on register + verification endpoints
-// (modest per-IP budgets; absolute session cap stays DEFERRED per ADR-0038).
+// (modest per-IP budgets; absolute session cap implemented separately per L1).
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     static RateLimitPartition<string> PerIp(HttpContext http, int permits) =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            partitionKey: ClientIpPartitionKey.Normalize(http.Connection.RemoteIpAddress),
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = permits,
@@ -88,7 +119,12 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0
             });
+
+    // SECURITY-AUDIT-2026-09 M2 (residual): per-IP partition key hardening
+    // (IPv6 /64 truncation, IPv4-mapped normalization) lives in
+    // ClientIpPartitionKey; trusted-proxy pinning remains a follow-up.
     options.AddPolicy("auth-register", http => PerIp(http, 30));
+    options.AddPolicy("auth-login", http => PerIp(http, 30));
     options.AddPolicy("auth-confirm", http => PerIp(http, 30));
     options.AddPolicy("auth-resend", http => PerIp(http, 10));
     options.AddPolicy("auth-forgot", http => PerIp(http, 10));
@@ -197,13 +233,26 @@ app.Use(async (context, next) =>
     await next();
 });
 
-// ADR-0037 T-FX-02: minimal embed policy for YouTube reference iframes.
-// Only frame-src (nocookie player) + img-src (thumbnails) are declared;
-// no other directive is loosened (no script/style/object changes).
+// ADR-0037 T-FX-02 + L2 (SECURITY-AUDIT-2026-09): defense-in-depth CSP.
+// YouTube reference iframes (nocookie player) and thumbnails stay allowlisted.
+// style-src keeps 'unsafe-inline' because React inline style attributes and
+// Vite dev style injection require it; fonts.googleapis.com/fonts.gstatic.com
+// are the only external origins actually used by the SPA (web/sonivo-web/index.html).
+// connect-src 'self' covers the same-origin API + SignalR /hubs WebSocket.
 app.Use(async (context, next) =>
 {
     context.Response.Headers.TryAdd("Content-Security-Policy",
-        "frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: https://i.ytimg.com");
+        "default-src 'self'; " +
+        "script-src 'self'; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com; " +
+        "img-src 'self' data: https://i.ytimg.com; " +
+        "frame-src 'self' https://www.youtube-nocookie.com; " +
+        "connect-src 'self'; " +
+        "frame-ancestors 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self'; " +
+        "object-src 'none'");
     await next();
 });
 
@@ -351,6 +400,9 @@ app.MapPost("/api/auth/login", async (
 
     if (result.IsLockedOut)
     {
+        app.Logger.LogWarning(
+            "Security event: account lockout (login). UserId: {UserId}",
+            user.Id);
         return Results.Problem(
             detail: "Account temporarily locked.",
             statusCode: StatusCodes.Status401Unauthorized,
@@ -395,7 +447,8 @@ app.MapPost("/api/auth/login", async (
 })
 .WithName("Login")
 .AllowAnonymous()
-.DisableAntiforgery();
+.DisableAntiforgery()
+.RequireRateLimiting("auth-login");
 
 app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<ApplicationUser> users) =>
 {
@@ -484,7 +537,7 @@ app.MapPost("/api/auth/resend-confirmation", async (
 {
     var mailed = false;
     var normalized = request.Email?.Trim() ?? string.Empty;
-    if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim(normalized))
+    if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim("resend:" + normalized))
     {
         var user = await users.FindByEmailAsync(normalized);
         if (user is not null && !user.EmailConfirmed)
@@ -503,17 +556,19 @@ app.MapPost("/api/auth/resend-confirmation", async (
 .RequireRateLimiting("auth-resend");
 
 // T-AU-01 (Q-AU-2): ALWAYS 202 — silent for unknown emails (no oracle),
-// best-effort mail + mailed flag.
+// best-effort mail + mailed flag. L4 (SECURITY-AUDIT-2026-09): per-email
+// 60 s cooldown (distinct "forgot:" namespace so it never blocks resend).
 app.MapPost("/api/auth/forgot-password", async (
     ForgotPasswordRequest request,
     UserManager<ApplicationUser> users,
     IEmailSender email,
     IPublicOrigin origin,
+    VerificationThrottle throttle,
     CancellationToken cancellationToken) =>
 {
     var mailed = false;
     var normalized = request.Email?.Trim() ?? string.Empty;
-    if (!string.IsNullOrWhiteSpace(normalized))
+    if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim("forgot:" + normalized))
     {
         var user = await users.FindByEmailAsync(normalized);
         if (user is not null)
@@ -757,6 +812,9 @@ app.MapPost("/api/auth/2fa/challenge", async (
 
     if (result.IsLockedOut)
     {
+        app.Logger.LogWarning(
+            "Security event: account lockout (2fa). UserId: {UserId}",
+            user.Id);
         return Results.Problem(
             detail: "Account temporarily locked.",
             statusCode: StatusCodes.Status401Unauthorized,
@@ -804,6 +862,9 @@ app.MapPost("/api/auth/2fa/recover", async (
 
     if (result.IsLockedOut)
     {
+        app.Logger.LogWarning(
+            "Security event: account lockout (2fa recovery). UserId: {UserId}",
+            user.Id);
         return Results.Problem(
             detail: "Account temporarily locked.",
             statusCode: StatusCodes.Status401Unauthorized,
@@ -874,11 +935,7 @@ app.MapPost("/api/auth/2fa/recovery-codes/regenerate", async (
 
 // T-AU-03 (ADR-0038 S3): Passkeys / WebAuthn API endpoints
 static string GetRelyingPartyId(HttpContext http, IConfiguration config)
-{
-    var configured = config["Passkeys:RelyingPartyId"];
-    if (!string.IsNullOrWhiteSpace(configured)) return configured.Trim();
-    return http.Request.Host.Host;
-}
+    => PasskeyOrigins.GetRelyingPartyId(http, config);
 
 app.MapGet("/api/auth/passkeys", async (
     ClaimsPrincipal principal,
@@ -950,7 +1007,10 @@ app.MapPost("/api/auth/passkeys/register-start", async (
 app.MapPost("/api/auth/passkeys/register-finish", async (
     PasskeyRegistrationFinishRequest request,
     ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users) =>
+    UserManager<ApplicationUser> users,
+    IPublicOrigin origin,
+    HttpContext http,
+    IConfiguration config) =>
 {
     var user = await users.GetUserAsync(principal);
     if (user is null)
@@ -958,26 +1018,34 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
         return Results.Unauthorized();
     }
 
-    var credId = request.CredentialId?.Trim();
-    if (string.IsNullOrWhiteSpace(credId))
+    var rpId = PasskeyOrigins.GetRelyingPartyId(http, config);
+    try
     {
-        return Results.Problem(
-            detail: "Identificador de llave de acceso inválido",
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Validation failed");
+        var cd = PasskeyVerifier.ParseClientData(request.ClientData);
+        // 1. type + origin allow-list + challenge single-use + user binding
+        PasskeyVerifier.EnsureClientData(cd, "webauthn.create", cd.Challenge,
+            PasskeyOrigins.Allowed(http, config, origin));
+        if (!PasskeyChallengeStore.ConsumeChallenge(cd.Challenge, expectedUserId: user.Id))
+            return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
+        // 2. attestation: rpIdHash, UP/AT flags, credentialId + COSE key extracted (not trusted)
+        var proof = PasskeyVerifier.ParseAttestation(request.AttestationObject, rpId);
+        // 3. self-attestation signature (fmt "none" passes through by design)
+        PasskeyVerifier.VerifyPackedSelfAttestation(request.AttestationObject, request.ClientData, proof.CoseKey);
+
+        var cred = new PasskeyCredential(
+            proof.CredentialId,
+            PasskeyVerifier.Base64UrlEncode(proof.CoseKey),   // store the SERVER-EXTRACTED key
+            string.IsNullOrWhiteSpace(request.DeviceName) ? "Llave de acceso" : request.DeviceName.Trim(),
+            DateTimeOffset.UtcNow,
+            proof.SignCount);
+        await users.SetAuthenticationTokenAsync(user, "Passkeys",
+            "Credential_" + cred.CredentialId, System.Text.Json.JsonSerializer.Serialize(cred));
+        return Results.Ok(new { registered = true, credentialId = cred.CredentialId });
     }
-
-    var deviceName = string.IsNullOrWhiteSpace(request.DeviceName) ? "Llave de acceso" : request.DeviceName.Trim();
-    var cred = new PasskeyCredential(
-        credId,
-        request.PublicKey ?? string.Empty,
-        deviceName,
-        DateTimeOffset.UtcNow);
-
-    var json = System.Text.Json.JsonSerializer.Serialize(cred);
-    await users.SetAuthenticationTokenAsync(user, "Passkeys", "Credential_" + credId, json);
-
-    return Results.Ok(new { registered = true, credentialId = credId });
+    catch (PasskeyVerifier.PasskeyVerificationException)
+    {
+        return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
+    }
 })
 .WithName("PasskeysRegisterFinish")
 .RequireAuthorization()
@@ -1021,22 +1089,16 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
     PasskeyLoginFinishRequest request,
     UserManager<ApplicationUser> users,
     SignInManager<ApplicationUser> signInManager,
-    SonivoDbContext db) =>
+    SonivoDbContext db,
+    IPublicOrigin origin,
+    HttpContext http,
+    IConfiguration config) =>
 {
-    var credId = request.CredentialId?.Trim();
-    if (string.IsNullOrWhiteSpace(credId))
-    {
-        return Results.Problem(
-            detail: "Llave de acceso inválida o no registrada",
-            statusCode: StatusCodes.Status401Unauthorized,
-            title: "Unauthorized");
-    }
-
-    var tokenName = "Credential_" + credId;
+    var tokenName = "Credential_" + (request.CredentialId ?? "").Trim();
     var token = await db.UserTokens
         .FirstOrDefaultAsync(t => t.LoginProvider == "Passkeys" && t.Name == tokenName);
 
-    if (token is null)
+    if (token is null || string.IsNullOrWhiteSpace(token.Value))
     {
         return Results.Problem(
             detail: "Llave de acceso no registrada",
@@ -1044,8 +1106,12 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
             title: "Unauthorized");
     }
 
+    var stored = System.Text.Json.JsonSerializer.Deserialize<PasskeyCredential>(token.Value);
     var user = await users.FindByIdAsync(token.UserId.ToString());
-    if (user is null)
+    // SECURITY-AUDIT-2026-09 (C1, auditor): rows written before T-SEC-01 carry
+    // the old shape (client-supplied PublicKey, no PublicKeyCose). They must
+    // fail closed with the uniform 401 — never reach the verifier (or a 500).
+    if (user is null || stored is null || string.IsNullOrWhiteSpace(stored.PublicKeyCose))
     {
         return Results.Problem(
             detail: "Llave de acceso no registrada",
@@ -1053,15 +1119,41 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
             title: "Unauthorized");
     }
 
-    await signInManager.SignInAsync(user, isPersistent: true);
-
-    return Results.Ok(new
+    var rpId = PasskeyOrigins.GetRelyingPartyId(http, config);
+    try
     {
-        id = user.Id,
-        email = user.Email,
-        displayName = user.DisplayName,
-        emailConfirmed = user.EmailConfirmed
-    });
+        // 1. clientData: type=webauthn.get + origin allow-list + single-use challenge
+        var cd = PasskeyVerifier.ParseClientData(request.ClientData);
+        PasskeyVerifier.EnsureClientData(cd, "webauthn.get", cd.Challenge,
+            PasskeyOrigins.Allowed(http, config, origin));
+        if (!PasskeyChallengeStore.ConsumeChallenge(cd.Challenge))
+            return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+        // 2. authenticatorData: rpIdHash + UP; counter regression check (clone detection)
+        var proof = PasskeyVerifier.ParseAssertionAuthenticatorData(request.AuthenticatorData, rpId);
+        if (stored.SignCount > 0 && proof.SignCount > 0 && proof.SignCount <= stored.SignCount)
+            return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+        // 3. the actual cryptographic proof — the missing line that C1 exists for
+        if (!PasskeyVerifier.VerifyAssertion(
+                PasskeyVerifier.Base64UrlDecode(stored.PublicKeyCose), request.AuthenticatorData,
+                request.ClientData, request.Signature))
+            return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+
+        // 4. persist the advanced counter, then sign in
+        stored = stored with { SignCount = proof.SignCount };
+        await users.SetAuthenticationTokenAsync(user, "Passkeys", tokenName, System.Text.Json.JsonSerializer.Serialize(stored));
+        await signInManager.SignInAsync(user, isPersistent: true);
+        return Results.Ok(new
+        {
+            id = user.Id,
+            email = user.Email,
+            displayName = user.DisplayName,
+            emailConfirmed = user.EmailConfirmed
+        });
+    }
+    catch (PasskeyVerifier.PasskeyVerificationException)
+    {
+        return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+    }
 })
 .WithName("PasskeysLoginFinish")
 .AllowAnonymous()
