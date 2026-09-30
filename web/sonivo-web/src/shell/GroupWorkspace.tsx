@@ -9,6 +9,7 @@ import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { Button } from '../ui/button'
 import { groupCoverStyle, isGradientCover, readGroupAppearance } from './groupAccent'
+import { GROUP_UPDATED_EVENT } from './groupEvents'
 import { groupNavItems, mobileTabItems } from './nav'
 
 const railLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -35,9 +36,9 @@ export function GroupWorkspace({
 
   useEffect(() => {
     let cancelled = false
-    async function load() {
+    async function load(reset: boolean) {
       if (!groupId) return
-      setGroup(undefined)
+      if (reset) setGroup(undefined)
       setError(null)
       try {
         const result = await getGroup(groupId)
@@ -52,9 +53,14 @@ export function GroupWorkspace({
         }
       }
     }
-    void load()
+    void load(true)
+    function onGroupUpdated() {
+      void load(false)
+    }
+    window.addEventListener(GROUP_UPDATED_EVENT, onGroupUpdated)
     return () => {
       cancelled = true
+      window.removeEventListener(GROUP_UPDATED_EVENT, onGroupUpdated)
     }
   }, [groupId, user.id])
 
@@ -159,8 +165,12 @@ export function GroupWorkspace({
         </header>
 
         {group ? (
-          <div className="px-4 pt-1 md:px-8 md:pt-6">
-            <div className="overflow-hidden rounded-2xl" style={groupCoverStyle(appearance.cover, appearance.accent)}>
+          <div className="px-3 pt-3">
+            <div
+              data-testid="group-bar"
+              className="overflow-hidden rounded-2xl"
+              style={groupCoverStyle(appearance.cover, appearance.accent)}
+            >
               <div className="flex items-center gap-4 px-5 py-5">
                 <span
                   role="img"
@@ -194,7 +204,10 @@ export function GroupWorkspace({
           </div>
         ) : null}
 
-        <main className="flex-1 bg-white text-neutral-dark md:m-3 md:ml-0 md:rounded-2xl">
+        <main
+          data-testid="group-content"
+          className="m-3 flex-1 rounded-2xl bg-white text-neutral-dark"
+        >
           <div className="px-5 py-6 pb-24 md:px-8 md:pb-8">
             {group === null ? (
               <div className="space-y-3">

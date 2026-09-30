@@ -1,8 +1,26 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ApiError, getGroup, problemDetail, type CurrentUser, type GroupDetail } from '../api/client'
+import type { FormEvent } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  ApiError,
+  deleteGroup,
+  getGroup,
+  problemDetail,
+  updateGroup,
+  type CurrentUser,
+  type GroupDetail,
+} from '../api/client'
 import { useT } from '../i18n'
-import { ACCESS_DENIED_MESSAGE, isOwnerRole } from '../repertoire/ui'
+import {
+  ACCESS_DENIED_MESSAGE,
+  CONFLICT_MESSAGE,
+  ConfirmDialog,
+  ConflictAlert,
+  isOwnerRole,
+  mutationErrorMessage,
+  ProblemAlert,
+} from '../repertoire/ui'
+import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
 import {
@@ -15,14 +33,23 @@ import {
   writeGroupAppearance,
   type GroupAppearance,
 } from './groupAccent'
+import { notifyGroupUpdated } from './groupEvents'
 
 export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
+  const navigate = useNavigate()
   const { t } = useT()
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [appearance, setAppearance] = useState<GroupAppearance>(() => readGroupAppearance(groupId))
   const [saved, setSaved] = useState(false)
+  const [renameName, setRenameName] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [renameError, setRenameError] = useState<string | null>(null)
+  const [renameConflict, setRenameConflict] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -34,7 +61,10 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       setAppearance(readGroupAppearance(groupId))
       try {
         const result = await getGroup(groupId)
-        if (!cancelled) setGroup(result)
+        if (!cancelled) {
+          setGroup(result)
+          setRenameName(result.name)
+        }
       } catch (err) {
         if (cancelled) return
         setGroup(null)
@@ -56,6 +86,64 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     setAppearance(next)
     writeGroupAppearance(groupId, next)
     setSaved(true)
+  }
+
+  async function onRename(event: FormEvent) {
+    event.preventDefault()
+    if (!groupId || !group) return
+    setRenaming(true)
+    setRenameError(null)
+    setRenameConflict(null)
+    try {
+      const updated = await updateGroup(group.id, {
+        name: renameName,
+        expectedVersion: group.version,
+      })
+      setGroup(updated)
+      setRenameName(updated.name)
+      notifyGroupUpdated()
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setRenameConflict(CONFLICT_MESSAGE)
+        try {
+          const latest = await getGroup(group.id)
+          setGroup(latest)
+          setRenameName(latest.name)
+        } catch (reloadErr) {
+          setRenameError(mutationErrorMessage(reloadErr))
+        }
+      } else {
+        setRenameError(mutationErrorMessage(err))
+      }
+    } finally {
+      setRenaming(false)
+    }
+  }
+
+  async function onConfirmDelete() {
+    if (!groupId || !group) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteGroup(group.id, group.version)
+      setDeleteOpen(false)
+      navigate('/')
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setDeleteError(CONFLICT_MESSAGE)
+        try {
+          const latest = await getGroup(group.id)
+          setGroup(latest)
+          setRenameName(latest.name)
+        } catch (reloadErr) {
+          setDeleteError(mutationErrorMessage(reloadErr))
+        }
+      } else {
+        setDeleteError(mutationErrorMessage(err))
+      }
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (group === undefined) {
@@ -94,6 +182,30 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         </p>
       )}
 
+      <form className="space-y-3" onSubmit={(event) => void onRename(event)} noValidate>
+        <h2 className="text-lg font-semibold">{t('inicio.renameTitle')}</h2>
+        <ConflictAlert message={renameConflict} />
+        <ProblemAlert message={renameError} />
+        <label className="block space-y-1.5">
+          <span className="text-sm font-medium text-slate-700">{t('ajustes.name')}</span>
+          <input
+            className={fieldClass}
+            type="text"
+            required
+            value={renameName}
+            disabled={!isOwner}
+            aria-readonly={!isOwner}
+            onChange={(e) => setRenameName(e.target.value)}
+            maxLength={200}
+          />
+        </label>
+        {isOwner ? (
+          <Button variant="secondary" type="submit" disabled={renaming}>
+            {renaming ? t('inicio.working') : t('inicio.saveName')}
+          </Button>
+        ) : null}
+      </form>
+
       <div
         className="overflow-hidden rounded-2xl"
         role="img"
@@ -106,14 +218,6 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </span>
           <p className="truncate text-2xl font-semibold tracking-tight text-white">{group.name}</p>
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-slate-700">{t('ajustes.name')}</span>
-          <input className={fieldClass} type="text" value={group.name} disabled readOnly aria-readonly="true" />
-        </label>
-        <p className="text-sm text-slate-500">{t('ajustes.nameReadonly')}</p>
       </div>
 
       <fieldset className="space-y-3" disabled={!isOwner}>
@@ -186,6 +290,37 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         <p aria-live="polite" className="text-sm text-slate-600">
           {t('ajustes.saved')}
         </p>
+      ) : null}
+
+      {isOwner ? (
+        <section
+          aria-labelledby="ajustes-danger-heading"
+          className="mt-4 space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
+        >
+          <h2 id="ajustes-danger-heading" className="text-lg font-semibold text-error">
+            {t('inicio.deleteTitle')}
+          </h2>
+          <ProblemAlert message={deleteError} />
+          <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+            {t('inicio.deleteTitle')}
+          </Button>
+          <ConfirmDialog
+            open={deleteOpen}
+            title={t('inicio.deleteDialogTitle')}
+            confirmLabel={t('inicio.deleteTitle')}
+            cancelLabel={t('inicio.cancel')}
+            pendingLabel={t('inicio.deleting')}
+            pending={deleting}
+            onConfirm={() => void onConfirmDelete()}
+            onCancel={() => {
+              if (!deleting) setDeleteOpen(false)
+            }}
+          >
+            <p>
+              {t('inicio.deleteBody')}
+            </p>
+          </ConfirmDialog>
+        </section>
       ) : null}
     </section>
   )

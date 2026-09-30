@@ -30,13 +30,13 @@ import {
   CONFLICT_MESSAGE,
   ConfirmDialog,
   ConflictAlert,
-  formatArrangementCount,
   formatOriginKind,
   isOwnerRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
 } from './ui'
+import { plural } from '../ui/plural'
 import { useT } from '../i18n'
 
 export function SongDetailPage({ user }: { user: CurrentUser }) {
@@ -157,54 +157,49 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
   const showAddArrangement =
     isOwner && !creatingArrangement && arrangements !== null
 
+  const arrangementCountLabel =
+    song.arrangementCount === 0
+      ? t('listas.noArrangements')
+      : plural(
+          song.arrangementCount,
+          t('agenda.setlistArrangementsOne'),
+          t('agenda.setlistArrangementsMany'),
+        )
+
   return (
     <section className="space-y-6" aria-labelledby="song-heading">
-      <div
-        data-testid="song-hero"
-        className="overflow-hidden rounded-2xl"
-        style={{
-          background:
-            'linear-gradient(120deg, color-mix(in srgb, var(--group-accent, #8366f1) 88%, #1e1b4b), color-mix(in srgb, var(--group-accent, #8366f1) 45%, transparent))',
-        }}
-      >
-        <div className="space-y-3 px-5 py-6">
-          <div className="[&_a]:text-white [&_nav]:text-white/70 [&_span]:text-white/70">
-            <PageBreadcrumb
-              items={[
-                { to: `/groups/${group.id}`, label: group.name },
-                { to: `/groups/${group.id}/library`, label: t('listas.title') },
-                { label: song.title },
-              ]}
-            />
-          </div>
-          <div className="flex flex-wrap items-start gap-3">
-            <OriginMark kind={song.originKind} />
-            <div className="min-w-0 flex-1 space-y-2">
-              <h1 id="song-heading" className="text-3xl font-bold tracking-tight text-white">
-                {song.title}
-              </h1>
-              <p className="flex flex-wrap items-center gap-2 text-sm text-white/80">
-                <span className="[&_span]:bg-white/15 [&_span]:text-white">
-                  <OriginBadge kind={song.originKind} />
-                </span>
-                <span>{formatArrangementCount(song.arrangementCount)}</span>
-                {song.attribution ? <span>· {song.attribution}</span> : null}
-                {!isOwner ? <span>· {t('cancion.readonly')}</span> : null}
+      <header data-testid="song-hero" className="space-y-3">
+        <PageBreadcrumb
+          items={[
+            { to: `/groups/${group.id}`, label: group.name },
+            { to: `/groups/${group.id}/library`, label: t('listas.title') },
+            { label: song.title },
+          ]}
+        />
+        <div className="flex flex-wrap items-start gap-3">
+          <OriginMark kind={song.originKind} />
+          <div className="min-w-0 flex-1 space-y-2">
+            <h1 id="song-heading" className="text-3xl font-bold tracking-tight text-ink">
+              {song.title}
+            </h1>
+            {song.attribution || !isOwner ? (
+              <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
+                {song.attribution ? <span>{song.attribution}</span> : null}
+                {!isOwner ? <span>{t('cancion.readonly')}</span> : null}
               </p>
-              <div>
-                <ReadinessChip
-                  testId="song-readiness"
-                  tone={song.arrangementCount === 0 ? 'warn' : 'ok'}
-                >
-                  {song.arrangementCount === 0
-                    ? t('listas.noArrangements')
-                    : formatArrangementCount(song.arrangementCount)}
-                </ReadinessChip>
-              </div>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <OriginBadge kind={song.originKind} />
+              <ReadinessChip
+                testId="song-readiness"
+                tone={song.arrangementCount === 0 ? 'warn' : 'ok'}
+              >
+                {arrangementCountLabel}
+              </ReadinessChip>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       <ProblemAlert message={error} />
       <ConflictAlert message={conflict} />
@@ -325,10 +320,6 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
               <div>
                 <dt className="text-slate-500">{t('cancion.rightsLabel')}</dt>
                 <dd className="whitespace-pre-wrap font-medium">{song.rightsNotes ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">{t('cancion.arrangementsLabel')}</dt>
-                <dd className="font-medium">{formatArrangementCount(song.arrangementCount)}</dd>
               </div>
             </dl>
           )}

@@ -1,18 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { CalendarDays, ListMusic, Music2 } from 'lucide-react'
 import {
   ApiError,
   createInvitation,
-  deleteGroup,
   getGroup,
   listEventRsvps,
   listEvents,
   listSetlists,
   listSongs,
   problemDetail,
-  updateGroup,
   type CurrentUser,
   type EventListItem,
   type EventRsvpResponse,
@@ -20,9 +17,6 @@ import {
   type SetlistListItem,
 } from '../api/client'
 import {
-  ConfirmDialog,
-  CONFLICT_MESSAGE,
-  ConflictAlert,
   fieldClass,
   formatMembershipRole,
   isOwnerRole,
@@ -34,14 +28,10 @@ import { Button, primaryButtonClass, secondaryButtonClass } from '../ui/button'
 import { cn } from '../ui/cn'
 import { useT } from '../i18n'
 import { Skeleton } from '../ui/skeleton'
+import { plural } from '../ui/plural'
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
 
 const RECENT_SETLIST_LIMIT = 5
-
-function greetingName(user: CurrentUser): string {
-  const raw = user.displayName?.trim() || user.email?.split('@')[0] || 'allí'
-  return raw
-}
 
 function pickUpcomingEvent(events: EventListItem[]): EventListItem | null {
   const now = Date.now()
@@ -58,14 +48,6 @@ function pickUpcomingEvent(events: EventListItem[]): EventListItem | null {
     .filter((event) => event.status === 'scheduled')
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
   return scheduled[0] ?? null
-}
-
-function formatSongCount(count: number): string {
-  return count === 1 ? '1 canción' : `${count} canciones`
-}
-
-function formatSetlistItemCount(count: number): string {
-  return count === 1 ? '1 canción' : `${count} canciones`
 }
 
 function formatRelativeUpdated(iso: string): string {
@@ -109,14 +91,6 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   const [inviteEmailWarning, setInviteEmailWarning] = useState(false)
   const [inviting, setInviting] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [renameName, setRenameName] = useState('')
-  const [renaming, setRenaming] = useState(false)
-  const [renameError, setRenameError] = useState<string | null>(null)
-  const [renameConflict, setRenameConflict] = useState<string | null>(null)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
-  const navigate = useNavigate()
   const { t } = useT()
 
   useEffect(() => {
@@ -136,10 +110,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       setComposeError(null)
       try {
         const result = await getGroup(groupId)
-        if (!cancelled) {
-          setGroup(result)
-          setRenameName(result.name)
-        }
+        if (!cancelled) setGroup(result)
       } catch (err) {
         if (cancelled) return
         setGroup(null)
@@ -239,63 +210,6 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
     }
   }
 
-  async function onRename(event: FormEvent) {
-    event.preventDefault()
-    if (!group) return
-    setRenaming(true)
-    setRenameError(null)
-    setRenameConflict(null)
-    try {
-      const updated = await updateGroup(group.id, {
-        name: renameName,
-        expectedVersion: group.version,
-      })
-      setGroup(updated)
-      setRenameName(updated.name)
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setRenameConflict(CONFLICT_MESSAGE)
-        try {
-          const latest = await getGroup(group.id)
-          setGroup(latest)
-          setRenameName(latest.name)
-        } catch (reloadErr) {
-          setRenameError(mutationErrorMessage(reloadErr))
-        }
-      } else {
-        setRenameError(mutationErrorMessage(err))
-      }
-    } finally {
-      setRenaming(false)
-    }
-  }
-
-  async function onConfirmDelete() {
-    if (!group) return
-    setDeleting(true)
-    setDeleteError(null)
-    try {
-      await deleteGroup(group.id, group.version)
-      setDeleteOpen(false)
-      navigate('/')
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setDeleteError(CONFLICT_MESSAGE)
-        try {
-          const latest = await getGroup(group.id)
-          setGroup(latest)
-          setRenameName(latest.name)
-        } catch (reloadErr) {
-          setDeleteError(mutationErrorMessage(reloadErr))
-        }
-      } else {
-        setDeleteError(mutationErrorMessage(err))
-      }
-    } finally {
-      setDeleting(false)
-    }
-  }
-
   async function onCopyInviteLink() {
     if (!inviteUrl) return
     try {
@@ -323,19 +237,12 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
     )
   }
 
-  const hello = greetingName(user)
-
   return (
-    <section className="space-y-8" aria-labelledby="group-heading">
+    <section className="space-y-8" aria-label={group.name}>
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">{t('inicio.helloPrefix')}{hello}{t('inicio.helloSuffix')}</h1>
-        <h2 id="group-heading" className="text-lg font-semibold text-neutral-dark">
-          {group.name}
-        </h2>
-        <p className="text-sm text-slate-500">
-          {t('inicio.summary')}
-        </p>
-        <p className="text-sm text-slate-500">
+        <h1 className="sr-only">{group.name}</h1>
+        <p className="text-sm text-muted">{t('inicio.summary')}</p>
+        <p className="text-sm text-muted">
           {t('inicio.rolePrefix')}<strong>{formatMembershipRole(group.role)}</strong>.
         </p>
       </div>
@@ -360,9 +267,6 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           <p className="mt-1 text-2xl font-bold text-neutral-dark">
             {songCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : songCount}
           </p>
-          {songCount !== null ? (
-            <p className="mt-0.5 text-xs text-slate-400">{formatSongCount(songCount)}</p>
-          ) : null}
         </div>
       </div>
 
@@ -485,7 +389,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                         {setlist.name}
                       </span>
                       <span className="mt-0.5 block text-sm text-slate-500">
-                        {formatSetlistItemCount(setlist.itemCount)} ·{' '}
+                        {plural(setlist.itemCount, t('common.songOne'), t('common.songMany'))} ·{' '}
                         {formatRelativeUpdated(setlist.updatedAt)}
                       </span>
                     </span>
@@ -508,7 +412,9 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           <div>
             <p className="font-semibold text-neutral-dark">{t('inicio.libraryTitle')}</p>
             <p className="text-sm text-slate-500">
-              {songCount === null ? t('inicio.loadingDots') : formatSongCount(songCount)}
+              {songCount === null
+                ? t('inicio.loadingDots')
+                : plural(songCount, t('common.songOne'), t('common.songMany'))}
               {' · '}
               <Link
                 className="font-semibold text-primary no-underline hover:underline"
@@ -575,49 +481,6 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                 ) : null}
               </div>
             ) : null}
-          </div>
-
-          <form className="max-w-md space-y-3 border-t border-slate-200 pt-6" onSubmit={onRename}>
-            <h3 className="font-medium">{t('inicio.renameTitle')}</h3>
-            <ConflictAlert message={renameConflict} />
-            <ProblemAlert message={renameError} />
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">{t('inicio.nameLabel')}</span>
-              <input
-                className={fieldClass}
-                required
-                value={renameName}
-                onChange={(e) => setRenameName(e.target.value)}
-                maxLength={200}
-              />
-            </label>
-            <Button variant="secondary" type="submit" disabled={renaming}>
-              {renaming ? t('inicio.working') : t('inicio.saveName')}
-            </Button>
-          </form>
-
-          <div className="space-y-3 border-t border-slate-200 pt-6">
-            <h3 className="font-medium">{t('inicio.deleteTitle')}</h3>
-            <ProblemAlert message={deleteError} />
-            <Button variant="danger" onClick={() => setDeleteOpen(true)}>
-              {t('inicio.deleteTitle')}
-            </Button>
-            <ConfirmDialog
-              open={deleteOpen}
-              title={t('inicio.deleteDialogTitle')}
-              confirmLabel={t('inicio.deleteTitle')}
-              cancelLabel={t('inicio.cancel')}
-              pendingLabel={t('inicio.deleting')}
-              pending={deleting}
-              onConfirm={() => void onConfirmDelete()}
-              onCancel={() => {
-                if (!deleting) setDeleteOpen(false)
-              }}
-            >
-              <p>
-                {t('inicio.deleteBody')}
-              </p>
-            </ConfirmDialog>
           </div>
         </section>
       ) : null}
