@@ -36,6 +36,14 @@ Future tooling installations still require explicit human authorization.
 
 ---
 
+## SECURITY TOOLING — AUTHORIZED (ADR-0044, user-authorized 2026-09-30 DevSecOps engagement)
+
+Zero-install gates (SDK built-ins, project-local config): **NuGetAudit** (`all` mode, NU1902/NU1903 as build errors — `Directory.Build.props`) · **Roslyn security analyzers** (surgical curated ruleset — root `.editorconfig`).
+CI workflows: **CodeQL C#** (`.github/workflows/codeql.yml`) · **SCA gate** (`.github/workflows/security.yml`) · **Dependabot** (`.github/dependabot.yml`: nuget ×8 dirs, npm ×2, github-actions).
+Audit method: existing project-local `webappsec-review` skill (two-pass) — no new skills installed.
+Rejected as redundant (see [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md) §8): Security Code Scan, OWASP Dependency-Check. `System.Formats.Cbor` for the Critical C1 passkey fix: **PENDING explicit approval**.
+Findings/plan of record: [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md).
+
 ## Project-local verified state (22 skill directories)
 
 **13 Matt Pocock + 1 Impeccable + 8 knowledge workflows** under `.agents/skills/`:

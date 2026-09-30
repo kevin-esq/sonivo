@@ -1,0 +1,61 @@
+name: CodeQL
+
+# DevSecOps SAST gate (ADR-0044, SECURITY-AUDIT-2026-09):
+# semantic code analysis for C# on every PR/push to the protected branches,
+# plus a weekly scheduled deep scan. Results upload as SARIF to GitHub
+# Security > Code scanning alerts.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Mondays 06:00 UTC — catches new queries/alerts between releases.
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: read code, write SARIF findings only.
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  analyze:
+    name: Analyze (C#)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          build-mode: manual
+
+      - name: Build for analysis
+        # Traced build. The restore-time NuGetAudit gate
+        # (Directory.Build.props: NU1902/NU1903 as errors) is enforced here too.
+        run: |
+          dotnet restore Sonivo.slnx
+          dotnet build Sonivo.slnx --no-restore --configuration Release
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:csharp"

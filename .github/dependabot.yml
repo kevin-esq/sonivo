@@ -1,0 +1,50 @@
+# Dependabot (ADR-0044, SECURITY-AUDIT-2026-09): version updates + security
+# updates for every ecosystem in the repo. Security alerts and auto-PRs are
+# enabled in GitHub Settings → Code security (repo setting, not a file).
+
+version: 2
+
+updates:
+  # .NET backend + test projects (each project dir is an explicit manifest root).
+  - package-ecosystem: "nuget"
+    directories:
+      - "/src/Sonivo.Api"
+      - "/src/Sonivo.Application"
+      - "/src/Sonivo.Domain"
+      - "/src/Sonivo.Infrastructure"
+      - "/tests/Sonivo.Api.Tests"
+      - "/tests/Sonivo.Application.Tests"
+      - "/tests/Sonivo.Domain.Tests"
+      - "/tests/Sonivo.Integration.Tests"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+
+  # React SPA.
+  - package-ecosystem: "npm"
+    directory: "/web/sonivo-web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Playwright E2E suite.
+  - package-ecosystem: "npm"
+    directory: "/e2e"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  # GitHub Actions workflows themselves.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"

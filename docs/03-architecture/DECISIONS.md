@@ -8,6 +8,35 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0044 — DevSecOps baseline: SAST/SCA gates, CodeQL + Dependabot CI, backend security audit
+
+- **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-09-30 (DevSecOps engagement: audit, secure, and automate backend security).
+- **Date:** 2026-09-30
+- **See:** [`SECURITY-AUDIT-2026-09.md`](SECURITY-AUDIT-2026-09.md) (audit report, findings, remediation plan).
+
+### Decision (proposed)
+
+- **Build-time gates (zero new packages):**
+  - `Directory.Build.props`: NuGetAudit in `all` mode (direct + transitive); NU1902/NU1903 escalate to **build errors**.
+  - Root `.editorconfig`: surgical, security-only Roslyn ruleset — deterministic dangerous-API rules (CA3061/75/76/77, CA3147, CA5350/51/58, CA5374, CA5390/91/94/98/99, CA5400) at `error`; heuristic taint-review rules (CA3001–CA3006) at `warning` (triaged in review, never ignored). No repo-wide AnalysisLevel change.
+- **CI security automation:** `.github/workflows/codeql.yml` (CodeQL C# SAST, PR/push + weekly schedule, SARIF upload) and `.github/workflows/security.yml` (explicit per-project vulnerable-package gate, defense-in-depth over NuGetAudit). Existing `ci.yml` backend job automatically enforces the build-time gates. **Tests already block CI**; with required checks after merge (commands in the audit report §7) merges and Render deploys are gated by the full suite.
+- **Dependency updates:** `.github/dependabot.yml` — nuget (all 8 project dirs), npm (`/web/sonivo-web`, `/e2e`), github-actions.
+- **Audit delivery:** `docs/03-architecture/SECURITY-AUDIT-2026-09.md` — full two-pass audit (`webappsec-review`: repo gates + OWASP ASVS-lite) with findings (1 Critical / 5 Medium / 4 Low), root causes, risk vectors, and a prioritized remediation plan with complete code.
+- **M4 applied with the gates:** EF/ASP.NET servicing train 9.0.9 → 9.0.18 (clears all 8 High advisories on the `System.Security.Cryptography.Xml` transitive chain); verified: build green, 444/444 backend tests vs live PostgreSQL, `dotnet list package --vulnerable` clean.
+
+### Firewall
+
+- **No code-level auth fixes applied in this engagement.** The Critical passkey finding (C1) and Medium findings M1/M2/M3/M5 are **PLAN ONLY** (complete code in the audit report §6) — they require explicit approval + ticketed TDD implementation (the C1 fix additionally requires approving the one new dependency `System.Formats.Cbor`).
+- No new skills or user-global tooling (ADR-0002/0039/0041 stand); Security Code Scan and OWASP Dependency-Check rejected as redundant (audit report §8).
+- No branch-protection/GitHub-settings changes made — required-checks commands are documented for the owner to run after the workflows land on the default branch.
+
+### Deltas vs current docs (flagged, not silent)
+
+- `docs/03-architecture/SECURITY.md` remains the design spec; SECURITY-AUDIT-2026-09.md is the as-built audit layer above it. SECURITY.md §8 logging remains aspirational → tracked as finding M5.
+- `docs/tooling/TOOLING-AUDIT.md` updated with the security-tooling authorization block.
+
+---
+
 ## ADR-0043 — Total visual redesign: immersive × precise, Grupo/Cuenta IA, frontend es/en
 
 - **Status:** **ACCEPTED** — owner-authorized 2026-09-29 ("Acepto todo"); waves W0–W5 shipped 2026-09-30 (PRs #115–#120, see [`PHASE-UI-UX-SPEC.md`](PHASE-UI-UX-SPEC.md)).
