@@ -231,8 +231,13 @@ public static class PasskeyVerifier
             throw new PasskeyVerificationException("attestationObject is malformed.", ex);
         }
 
-        if (fmt is not ("none" or "packed"))
-            throw new PasskeyVerificationException($"unsupported attestation fmt '{fmt}'.");
+        // SECURITY-AUDIT-2026-09 (C1 follow-up, 2026-09-30): attestation conveyance
+        // is "none" (the SPA requests it) and the relying party does not consume
+        // attestation trust, so ANY fmt is accepted and the attestation statement is
+        // NOT verified. Registration integrity comes from the challenge/origin/
+        // rpIdHash/flags checks below plus the login assertion; rejecting
+        // provider-specific fmts (apple, android-key, tpm, packed+x5c) locked out
+        // legitimate authenticators such as password-manager passkeys (Bitwarden).
 
         var (rpIdHash, flags, signCount) = ReadAuthDataHeader(authData);
         EnsureRpIdHash(rpIdHash, rpId);
@@ -258,55 +263,6 @@ public static class PasskeyVerifier
         }
 
         return new RegistrationProof(Base64UrlEncode(credId), coseKey, signCount, fmt);
-    }
-
-    /// <summary>packed self-attestation: sig over authData || SHA256(clientDataJSON) with the COSE key.</summary>
-    public static void VerifyPackedSelfAttestation(
-        string attestationBase64Url, string clientDataBase64Url, byte[] coseKey)
-    {
-        byte[] authData;
-        byte[] sig;
-        try
-        {
-            var reader = new CborReader(Base64UrlDecode(attestationBase64Url), CborConformanceMode.Lax);
-            reader.ReadStartMap();
-            authData = [];
-            sig = [];
-            var hasAttStmt = false;
-            while (reader.PeekState() != CborReaderState.EndMap)
-            {
-                var key = reader.ReadTextString();
-                switch (key)
-                {
-                    case "fmt": reader.SkipValue(); break;
-                    case "authData": authData = reader.ReadByteString().ToArray(); break;
-                    case "attStmt":
-                        hasAttStmt = true;
-                        var s = new CborReader(reader.ReadEncodedValue().ToArray(), CborConformanceMode.Lax);
-                        s.ReadStartMap();
-                        while (s.PeekState() != CborReaderState.EndMap)
-                        {
-                            var k2 = s.ReadTextString();
-                            if (k2 == "sig") sig = s.ReadByteString().ToArray(); else s.SkipValue();
-                        }
-                        break;
-                }
-            }
-            reader.ReadEndMap();
-
-            if (!hasAttStmt || sig.Length == 0) return;  // fmt "none" — nothing to verify
-            var message = authData.Concat(SHA256.HashData(Base64UrlDecode(clientDataBase64Url))).ToArray();
-            if (!VerifyWithCoseKey(coseKey, message, sig))
-                throw new PasskeyVerificationException("packed self-attestation signature invalid.");
-        }
-        catch (PasskeyVerificationException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is CborContentException or InvalidOperationException or FormatException)
-        {
-            throw new PasskeyVerificationException("attestationObject is malformed.", ex);
-        }
     }
 
     // ---- assertion verification (login) -------------------------------------

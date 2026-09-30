@@ -1027,10 +1027,9 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
             PasskeyOrigins.Allowed(http, config, origin));
         if (!PasskeyChallengeStore.ConsumeChallenge(cd.Challenge, expectedUserId: user.Id))
             return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
-        // 2. attestation: rpIdHash, UP/AT flags, credentialId + COSE key extracted (not trusted)
+        // 2. attestation: rpIdHash, UP/AT flags, credentialId + COSE key extracted
+        // (attestation statement not verified — conveyance is "none"; see PasskeysAuth)
         var proof = PasskeyVerifier.ParseAttestation(request.AttestationObject, rpId);
-        // 3. self-attestation signature (fmt "none" passes through by design)
-        PasskeyVerifier.VerifyPackedSelfAttestation(request.AttestationObject, request.ClientData, proof.CoseKey);
 
         var cred = new PasskeyCredential(
             proof.CredentialId,
@@ -1042,8 +1041,10 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
             "Credential_" + cred.CredentialId, System.Text.Json.JsonSerializer.Serialize(cred));
         return Results.Ok(new { registered = true, credentialId = cred.CredentialId });
     }
-    catch (PasskeyVerifier.PasskeyVerificationException)
+    catch (PasskeyVerifier.PasskeyVerificationException ex)
     {
+        // Diagnostics only: the verifier's fixed reason, never the payload or secrets.
+        app.Logger.LogWarning("Passkey registration verification failed: {Reason}", ex.Message);
         return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
     }
 })
@@ -1150,8 +1151,10 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
             emailConfirmed = user.EmailConfirmed
         });
     }
-    catch (PasskeyVerifier.PasskeyVerificationException)
+    catch (PasskeyVerifier.PasskeyVerificationException ex)
     {
+        // Diagnostics only: the verifier's fixed reason, never the payload or secrets.
+        app.Logger.LogWarning("Passkey login verification failed: {Reason}", ex.Message);
         return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
     }
 })
