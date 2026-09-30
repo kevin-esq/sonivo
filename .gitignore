@@ -39,3 +39,9 @@ Thumbs.db
 *.swp
 *~
 *.log
+
+# Visual/UX audit evidence (FASE 2 harness)
+.visual-audit/
+
+e2e/visual-audit/audit-output/
+
