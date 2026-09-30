@@ -1,28 +1,28 @@
 # NOW — agent focus
 
-**Updated:** 2026-09-28
+**Updated:** 2026-09-30
 
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (UI/UX redesign ADR-0043: waves W0-W5 all MERGED — PRs #115, #116, #117, #118, #119, #120; branches deleted; phase CLOSED)
-Human approval: APPROVED (explicit full-flow order: delegate to agents, audit per wave, push + merge when green, delete branches, continue to completion; plus explicit "es mío, consérvalo e intégralo" for the parallel hardening)
-Git checkpoint: COMMITTED + MERGED (develop: PRs #115-#120; release develop->main: PR #121, main cd540ef; main == develop)
-Remote: PUSHED + MERGED
-CI: PASSING (all seven PRs: Backend + Frontend + Playwright E2E green; local E2E 46/46, Impeccable detector no findings)
+Implementation: COMPLETE (DevSecOps audit P0 batch: gates + CI security + M4 fix; P1/P2 remediation PLAN ONLY — no auth code changes applied)
+Human approval: PENDING (P0 batch + P1 plan review)
+Git checkpoint: PENDING (uncommitted on fix/ui-polish-w7-hierarchy, alongside pre-existing user UI-polish changes — untouched)
+Remote: NOT PUSHED
+CI: NOT RUN locally on GH (local: build green 0/0, 444/444 backend tests vs live PG 5433, SCA clean)
 ```
 
 ## Current state
 
-- **UI/UX redesign (ADR-0043, ACCEPTED 2026-09-29; SHIPPED 2026-09-30):** waves W0–W4 merged (#115–#119). **W5** = full frontend es/en i18n sweep + a11y/hygiene + integrated structural hardening (route code-splitting, error boundary, `/login?next=` via `safeNextPath`, authenticated-player gating) + [`PHASE-UI-UX-SPEC.md`](../docs/03-architecture/PHASE-UI-UX-SPEC.md). Auditor fixes in W5: `AuthenticatedPlayer` used a non-existent `stop()` → real `closeTrack()`; resend-confirmation copy restored so `auth.spec.ts` contract holds. Local E2E **46/46**.
-- **W5 known limitation (explicit):** Practice's default Estudiar tab keeps conductor+tuner visible because `TC-Q9-01`/`TC-PITCH-01` assert them; Avanzado/Afinar give progressive access. Slimming the default would require changing those specs' contract — deliberately not done.
-- **Passkeys E2E CI fix:** `e2e/tests/passkeys.spec.ts` attaches a CDP virtual authenticator, and `.github/workflows/ci.yml` browses via `http://localhost:5173` instead of `127.0.0.1`. Root cause: commit `51bcb9e` wired real `navigator.credentials.create()`; headless Chromium throws `SecurityError` on IP-literal origins.
-- Prior ADR-0041 work: `.cursor/`, `.codex/`, and `.claude/` customizations were removed by explicit user authorization.
-- The worktree already had changes in `docs/00-context/GLOSSARY.md`, API/spec docs, local vault files, and the original ZIP; preserve them.
-- Root `.obsidian/` is local configuration and was not modified.
+- **DevSecOps engagement (user-authorized 2026-09-30; ADR-0044 ACCEPTED):** full backend security audit + tooling + CI automation delivered as [`SECURITY-AUDIT-2026-09.md`](../docs/03-architecture/SECURITY-AUDIT-2026-09.md).
+  - **Findings:** 1 Critical (C1: passkey login-finish verifies nothing — signature/challenge/origin/rpIdHash/counter all unverified; credentialId = bearer string), 5 Medium (M1 login rate-limit gap, M2 XFF-spoofable rate limits, M3 single-gated Google test hook, M4 vulnerable transitive crypto chain, M5 §8 security logging not implemented), 4 Low.
+  - **Applied (P0):** servicing bump 9.0.9→9.0.18 (M4, 8 High GHSAs cleared), `Directory.Build.props` NuGetAudit-all + NU1902/1903-as-errors (gate proven: 32 errors pre-fix), surgical security `.editorconfig` (CA5350 HMAC-SHA1 TOTP triaged with documented suppression), `codeql.yml`, `security.yml`, `dependabot.yml`, ADR-0044, TOOLING-AUDIT update.
+  - **PLAN ONLY (pending approval + tickets):** C1 full server-side WebAuthn verifier (complete drop-in code in audit §6.1; needs `System.Formats.Cbor` approval), M3 (1 line), M1 (2 lines), M2/M5/L1–L4. Required-checks branch-protection commands documented (audit §7) to run AFTER workflows land on default branch.
+- **UI/UX redesign (ADR-0043): CLOSED 2026-09-30** (PRs #115–#120 + release #121; main == develop). W5 limitation (Estudiar tab keeps conductor+tuner per TC-Q9-01/TC-PITCH-01 contract) stands.
+- Passkeys E2E CI note: `.github/workflows/ci.yml` browses via `http://localhost:5173` (WebAuthn trustworthy-origin fix) — keep when changing E2E.
 
 ## Next authorized work
 
-T-R2-04 PR #95 is MERGED (d7e3340, 2026-09-27) and post-hoc subset verification is COMPLETE 2026-09-29: 4 live keys, 2/2 present in R2, 2/2 missing bytes explained (never backfilled; parents soft-deleted by Owner 2026-09-21; remedy DECLINED by Owner 2026-09-29 (test files only, dead rows stay as orphans). UI shell slice (R1–R4) MERGED (PR #109). See [`PHASE-R2-SPEC.md`](../docs/03-architecture/PHASE-R2-SPEC.md).
+1. Owner reviews the audit report + P0 batch; approve P1 remediation (recommend starting with C1 — ticketed T-SEC-01..03, TDD per audit §6.1.4; requires approving `System.Formats.Cbor`).
+2. After P0 lands on the default branch: run the §7 branch-protection commands to make all five checks required.
 
-Completed wave history belongs in ADRs, phase specs, commits, and PRs rather than this current-state note.

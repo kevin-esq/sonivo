@@ -1,0 +1,45 @@
+# Sonivo security analyzer baseline (ADR-0044, SECURITY-AUDIT-2026-09).
+#
+# SURGICAL SCOPE: only Roslyn SECURITY-category analyzers are configured here.
+# There is deliberately no repo-wide AnalysisLevel/AnalysisMode change, so no
+# style noise is introduced; everything else stays with per-project SDK defaults.
+#
+# These rules are disabled by default in the .NET 9 SDK and are enabled
+# explicitly below so they actually run at build time (compiler analyzers honor
+# .editorconfig severities during `dotnet build`).
+#
+# Triage levels:
+#   error   = deterministic dangerous-API usage -> blocks build and CI.
+#   warning = heuristic "review" taint rules -> must be triaged in PR review,
+#             never silently ignored. Current Sonivo codebases carry known-safe
+#             handling for the flows these rules review (documented in
+#             SECURITY-AUDIT-2026-09.md § Pass 1).
+
+root = true
+
+[*.cs]
+
+# --- Heuristic taint-review rules (warning: triage, do not ignore) ---------
+dotnet_diagnostic.CA3001.severity = warning   # Review code for SQL injection
+dotnet_diagnostic.CA3002.severity = warning   # Review code for XSS
+dotnet_diagnostic.CA3003.severity = warning   # Review code for file path injection
+dotnet_diagnostic.CA3004.severity = warning   # Review code for information disclosure
+dotnet_diagnostic.CA3005.severity = warning   # Review code for LDAP injection
+dotnet_diagnostic.CA3006.severity = warning   # Review code for process command injection
+
+# --- Deterministic dangerous-API rules (error: blocks the build) ----------
+dotnet_diagnostic.CA3061.severity = error     # Insecure DTD processing in XML
+dotnet_diagnostic.CA3075.severity = error     # Insecure DTD processing in XML
+dotnet_diagnostic.CA3076.severity = error     # Insecure XSLT script processing
+dotnet_diagnostic.CA3077.severity = error     # Insecure processing in API design / XML
+dotnet_diagnostic.CA3147.severity = error     # Missing ValidateAntiForgeryToken (MVC)
+dotnet_diagnostic.CA5350.severity = error     # Weak cryptographic algorithms
+dotnet_diagnostic.CA5351.severity = error     # Broken cryptographic algorithms
+dotnet_diagnostic.CA5358.severity = error     # Weak cipher modes
+dotnet_diagnostic.CA5374.severity = error     # Formatter-based deserialization
+dotnet_diagnostic.CA5390.severity = error     # Hardcoded encryption key
+dotnet_diagnostic.CA5391.severity = error     # Missing antiforgery on unsafe MVC actions
+dotnet_diagnostic.CA5394.severity = error     # Non-secure Random in security contexts
+dotnet_diagnostic.CA5398.severity = error     # Hardcoded SslProtocols values
+dotnet_diagnostic.CA5399.severity = error     # Certificate revocation skipped
+dotnet_diagnostic.CA5400.severity = error     # HttpClient issuer validation skipped

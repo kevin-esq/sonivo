@@ -476,6 +476,12 @@ public class TwoFactorApiTests : IClassFixture<GoogleAuthApiFactory>
 /// RFC 6238 TOTP (SHA-1, 30 s step, 6 digits) — the same parameters as the
 /// Identity authenticator provider. Test-only deterministic code source.
 /// </summary>
+// SECURITY-AUDIT-2026-09 (gate CA5350, .editorconfig): HMAC-SHA1 is REQUIRED
+// by RFC 6238 and by ASP.NET Identity's default AuthenticatorTokenProvider
+// (HMAC-SHA1 remains cryptographically sound for TOTP; SHA-1's collision
+// weakness applies to signatures, not to this HMAC construction). Test-only
+// helper — intentional, documented exception to the weak-crypto gate.
+#pragma warning disable CA5350
 internal static class TotpHelper
 {
     internal static string ComputeCode(string base32Secret, long stepOffset = 0)

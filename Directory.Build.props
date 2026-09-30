@@ -1,0 +1,15 @@
+<Project>
+
+  <!-- Sonivo DevSecOps baseline (ADR-0044, SECURITY-AUDIT-2026-09):
+       - NuGetAudit audits DIRECT + TRANSITIVE packages (NuGetAuditMode=all).
+       - High (NU1902) and Critical (NU1903) vulnerability advisories FAIL the
+         build; Low (NU1901) and Deprecated (NU1904) stay visible warnings.
+       - Roslyn security-analyzer gates live in the root .editorconfig
+         (surgical, security-only; no style-wide AnalysisLevel change). -->
+  <PropertyGroup>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1902;NU1903</WarningsAsErrors>
+  </PropertyGroup>
+
+</Project>
