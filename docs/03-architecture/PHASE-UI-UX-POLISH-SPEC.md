@@ -60,3 +60,10 @@ Native app (Q11 FUTURE) · backend i18n · scoring (ADR-0037) · new product sur
 ## Verification
 
 Each wave: `npm run build`, `oxlint`, the full Playwright critical-journey suite against the real React → API → Identity cookie → PostgreSQL path, plus the Impeccable detector on the touched UI. Local baseline at program start: **46/46**.
+
+---
+
+## Related
+
+The manual + automated UI/UX audit that produced the P0-P3 findings and this program's waves, including the refactor plan: [UI-UX-AUDIT-2026-09.md](UI-UX-AUDIT-2026-09.md).
+

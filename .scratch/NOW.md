@@ -27,3 +27,5 @@ CI: waves 1-2 PASSING (all checks incl. CodeQL + SCA gates); wave 3 local valida
 1. Owner reviews the audit report + P0 batch; approve P1 remediation (recommend starting with C1 — ticketed T-SEC-01..03, TDD per audit §6.1.4; requires approving `System.Formats.Cbor`).
 2. After P0 lands on the default branch: run the §7 branch-protection commands to make all five checks required.
 
+- **UI/UX audit (2026-09) COMPLETE:** harness \2e/visual-audit\ (axe-core + 3 viewports, 102 screens) and the prioritised report with a step-by-step refactor plan: [\UI-UX-AUDIT-2026-09.md\](../docs/03-architecture/UI-UX-AUDIT-2026-09.md). Headline finding: the brand palette fails AA (primary 4.09:1, primary button 3.91:1, error 3.76:1) — ~128 contrast nodes, fixable in the token layer. Also: sub-44px targets, Miembros unreachable on mobile, thin async feedback.
+
