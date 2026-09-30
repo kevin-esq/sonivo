@@ -1,0 +1,81 @@
+import type { CSSProperties } from 'react'
+
+export const DEFAULT_GROUP_ACCENT = '#8366f1'
+
+export const GROUP_ACCENT_PRESETS = [
+  '#8366f1',
+  '#0ea5e9',
+  '#10b981',
+  '#f3b626',
+  '#ef4444',
+  '#e8c4f6',
+] as const
+
+export const GROUP_COVER_EMOJIS = ['🎵', '🎸', '🥁', '🎹', '🎺', '🎤'] as const
+
+export const GROUP_COVER_GRADIENTS = ['violet', 'ocean', 'forest', 'sunset'] as const
+
+export type GroupAppearance = {
+  accent: string
+  cover: string
+}
+
+export function groupAppearanceKey(groupId: string): string {
+  return `sonivo:group-accent:${groupId}`
+}
+
+export function defaultAppearance(): GroupAppearance {
+  return { accent: DEFAULT_GROUP_ACCENT, cover: GROUP_COVER_EMOJIS[0] ?? '🎵' }
+}
+
+export function readGroupAppearance(groupId: string | undefined): GroupAppearance {
+  const fallback = defaultAppearance()
+  if (!groupId) return fallback
+  try {
+    const raw = window.localStorage.getItem(groupAppearanceKey(groupId))
+    if (!raw) return fallback
+    const parsed = JSON.parse(raw) as Partial<GroupAppearance>
+    return {
+      accent: typeof parsed.accent === 'string' && parsed.accent ? parsed.accent : fallback.accent,
+      cover: typeof parsed.cover === 'string' && parsed.cover ? parsed.cover : fallback.cover,
+    }
+  } catch {
+    return fallback
+  }
+}
+
+export function writeGroupAppearance(groupId: string, appearance: GroupAppearance): void {
+  try {
+    window.localStorage.setItem(groupAppearanceKey(groupId), JSON.stringify(appearance))
+  } catch {
+    // persist best-effort only
+  }
+}
+
+export function isGradientCover(cover: string): boolean {
+  return cover.startsWith('gradient:')
+}
+
+function withAlpha(hex: string, alpha: string): string {
+  return /^#[0-9a-fA-F]{6}$/.test(hex) ? `${hex}${alpha}` : hex
+}
+
+export function groupCoverStyle(cover: string, accent: string): CSSProperties {
+  if (isGradientCover(cover)) {
+    const id = cover.slice('gradient:'.length)
+    const stops: Record<string, string> = {
+      violet: `${accent}, #2b1a5e`,
+      ocean: `${accent}, #0ea5e9`,
+      forest: `${accent}, #10b981`,
+      sunset: `${accent}, #f3b626`,
+    }
+    return {
+      backgroundImage: `linear-gradient(135deg, ${stops[id] ?? stops.violet})`,
+      color: '#ffffff',
+    }
+  }
+  return {
+    backgroundImage: `linear-gradient(120deg, ${withAlpha(accent, 'cc')}, ${withAlpha(accent, '33')})`,
+    color: '#ffffff',
+  }
+}

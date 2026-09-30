@@ -8,6 +8,7 @@ import {
   type PasskeyItem,
 } from '../../api/client'
 import { Button } from '../../ui/button'
+import { useT } from '../../i18n'
 import { performWebAuthnRegistration } from '../webauthn'
 
 const fieldClass = 'w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25'
@@ -17,6 +18,7 @@ export function PasskeysSection() {
   const [passkeyName, setPasskeyName] = useState('')
   const [passkeyPending, setPasskeyPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useT()
 
   useEffect(() => {
     let cancelled = false
@@ -76,9 +78,9 @@ export function PasskeysSection() {
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
       <div className="space-y-1">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Llaves de acceso (Passkeys)</h2>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('seguridad.passkeysTitle')}</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Inicia sesión sin contraseña usando Touch ID, Face ID, Windows Hello o tu administrador de contraseñas.
+          {t('seguridad.passkeysHint')}
         </p>
       </div>
 
@@ -93,8 +95,8 @@ export function PasskeysSection() {
           {passkeys.map((pk) => (
             <li key={pk.id} className="flex items-center justify-between p-3.5">
               <div>
-                <p className="font-semibold text-slate-800 dark:text-slate-200">{pk.name || 'Llave de acceso'}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Agregada el {new Date(pk.createdAt).toLocaleDateString()}</p>
+                <p className="font-semibold text-slate-800 dark:text-slate-200">{pk.name || t('seguridad.passkeyFallbackName')}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t('seguridad.addedOnPrefix')}{new Date(pk.createdAt).toLocaleDateString()}</p>
               </div>
               <Button
                 type="button"
@@ -103,27 +105,27 @@ export function PasskeysSection() {
                 disabled={passkeyPending}
                 onClick={() => void onDeletePasskey(pk.id)}
               >
-                Eliminar
+                {t('seguridad.deletePasskey')}
               </Button>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-slate-500 italic">No tienes llaves de acceso registradas.</p>
+        <p className="text-sm text-slate-500 italic">{t('seguridad.noPasskeys')}</p>
       )}
 
       <form onSubmit={onRegisterPasskey} className="flex flex-wrap items-end gap-3 max-w-xl">
         <label className="block flex-1 min-w-[200px] space-y-1.5">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Nombre del dispositivo</span>
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('seguridad.deviceName')}</span>
           <input
             className={fieldClass}
-            placeholder="Ej. Mi Laptop, iPhone"
+            placeholder={t('seguridad.devicePlaceholder')}
             value={passkeyName}
             onChange={(e) => setPasskeyName(e.target.value)}
           />
         </label>
         <Button type="submit" disabled={passkeyPending}>
-          {passkeyPending ? 'Agregando…' : 'Agregar llave de acceso'}
+          {passkeyPending ? t('seguridad.addingPasskey') : t('seguridad.addPasskey')}
         </Button>
       </form>
     </section>

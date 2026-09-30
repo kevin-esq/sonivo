@@ -22,7 +22,7 @@ import { practiceQueueHref } from '../repertoire/PracticeEventQueue'
 import { Button, buttonVariants } from '../ui/button'
 import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
-import { EmptyPanel, Field, FormActions, PageBreadcrumb } from '../repertoire/chrome'
+import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '../repertoire/chrome'
 import {
   CONFLICT_MESSAGE,
   ConfirmDialog,
@@ -39,6 +39,7 @@ import {
   fromDatetimeLocalValue,
   toDatetimeLocalValue,
 } from './datetime'
+import { useT } from '../i18n'
 
 const RSVP_CHOICES: { value: EventRsvpResponse; label: string }[] = [
   { value: 'yes', label: 'Sí' },
@@ -94,6 +95,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [tab, setTab] = useState<DetailTab>('plan')
+  const { t } = useT()
 
   const isOwner = isOwnerRole(group?.role)
   const isLive = musicalEvent != null && isLiveEvent(musicalEvent.status)
@@ -281,49 +283,72 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
 
   return (
     <section className="space-y-6" aria-labelledby="event-heading">
-      <div className="space-y-3">
-        <PageBreadcrumb
-          items={[
-            { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/events`, label: 'Eventos' },
-            { label: musicalEvent.title },
-          ]}
-        />
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
-            <span
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
-              aria-hidden="true"
-            >
-              <CalendarDays className="h-5 w-5" />
-            </span>
-            <div className="min-w-0 space-y-1">
-              <h1 id="event-heading" className="text-2xl font-bold tracking-tight">
-                {musicalEvent.title}
-              </h1>
-              <p className="text-sm text-slate-500">
-                {formatEventType(musicalEvent.type)} · {formatStartsAt(musicalEvent.startsAt)} ·{' '}
-                {formatEventStatus(musicalEvent.status)} · v{musicalEvent.version}
-                {!isOwner ? <span> · Solo lectura</span> : null}
-              </p>
+      <div
+        data-testid="event-hero"
+        className="overflow-hidden rounded-2xl"
+        style={{
+          background:
+            'linear-gradient(120deg, color-mix(in srgb, var(--group-accent, #8366f1) 88%, #1e1b4b), color-mix(in srgb, var(--group-accent, #8366f1) 45%, transparent))',
+        }}
+      >
+        <div className="space-y-3 px-5 py-6">
+          <div className="[&_a]:text-white [&_nav]:text-white/70 [&_span]:text-white/70">
+            <PageBreadcrumb
+              items={[
+                { to: `/groups/${group.id}`, label: group.name },
+                { to: `/groups/${group.id}/events`, label: t('agenda.eventsTitle') },
+                { label: musicalEvent.title },
+              ]}
+            />
+          </div>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
+              <span
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white"
+                aria-hidden="true"
+              >
+                <CalendarDays className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 space-y-1">
+                <h1 id="event-heading" className="text-3xl font-bold tracking-tight text-white">
+                  {musicalEvent.title}
+                </h1>
+                <p className="text-sm text-white/80">
+                  {formatEventType(musicalEvent.type)} · {formatStartsAt(musicalEvent.startsAt)} ·{' '}
+                  {formatEventStatus(musicalEvent.status)} · v{musicalEvent.version}
+                  {!isOwner ? <span> · Solo lectura</span> : null}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <ReadinessChip
+                tone={!isLive ? 'warn' : hasPlan ? 'ok' : 'neutral'}
+                testId="event-status-chip"
+              >
+                {!isLive
+                  ? t('agenda.statusCancelled')
+                  : hasPlan
+                    ? t('agenda.statusPlan')
+                    : t('agenda.statusDraft')}
+              </ReadinessChip>
+              {isOwner && isLive && !editing ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setTab('details')
+                      setEditing(true)
+                    }}
+                  >
+                    Editar evento
+                  </Button>
+                  <Button variant="danger" onClick={() => setConfirmCancel(true)}>
+                    Cancelar evento
+                  </Button>
+                </>
+              ) : null}
             </div>
           </div>
-          {isOwner && isLive && !editing ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setTab('details')
-                  setEditing(true)
-                }}
-              >
-                Editar evento
-              </Button>
-              <Button variant="danger" onClick={() => setConfirmCancel(true)}>
-                Cancelar evento
-              </Button>
-            </div>
-          ) : null}
         </div>
       </div>
 
@@ -425,11 +450,20 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               }
             />
           ) : (
-            <ol className="space-y-1.5">
+            <div className="space-y-1">
+              <div
+                aria-hidden="true"
+                className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:grid sm:grid-cols-[2.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
+              >
+                <span>N.º</span>
+                <span>Canción</span>
+                <span>Acción</span>
+              </div>
+              <ol className="space-y-1.5 sm:space-y-0 sm:divide-y sm:divide-slate-100 sm:rounded-2xl sm:border sm:border-slate-100 sm:bg-white">
               {plan.map((item, index) => (
                 <li
                   key={item.id}
-                  className="library-enter flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5"
+                  className="library-enter flex min-h-[44px] flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 shadow-sm transition duration-150 hover:border-primary/25 hover:bg-neutral-light motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
                   <PlanNumber n={item.sortOrder} />
@@ -459,7 +493,8 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   ) : null}
                 </li>
               ))}
-            </ol>
+              </ol>
+            </div>
           )}
 
           {isOwner && isLive ? (

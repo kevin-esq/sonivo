@@ -26,6 +26,7 @@ import {
   PageBreadcrumb,
   PurposeHeading,
   RESOURCE_PURPOSE_ORDER,
+  ReadinessChip,
   groupResourcesByPurpose,
 } from './chrome'
 import { ChordProView } from './ChordProView'
@@ -58,6 +59,7 @@ import {
   ProblemAlert,
   useGroupContext,
 } from './ui'
+import { useT } from '../i18n'
 
 export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const { groupId, arrangementId } = useParams()
@@ -75,6 +77,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const [deletingArrangement, setDeletingArrangement] = useState(false)
   const [resourceToDelete, setResourceToDelete] = useState<ResourceSummary | null>(null)
   const [deletingResource, setDeletingResource] = useState(false)
+  const { t } = useT()
 
   const isOwner = isOwnerRole(group?.role)
 
@@ -164,7 +167,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando arreglo…</p>
+    return <p aria-live="polite">{t('arreglo.loading')}</p>
   }
 
   if (group === null) {
@@ -172,25 +175,25 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
         <Link className="font-semibold text-primary no-underline hover:underline" to="/">
-          Mis grupos
+          {t('arreglo.myGroups')}
         </Link>
       </div>
     )
   }
 
   if (arrangement === undefined) {
-    return <p aria-live="polite">Cargando arreglo…</p>
+    return <p aria-live="polite">{t('arreglo.loading')}</p>
   }
 
   if (arrangement === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? 'No se encontró el arreglo o no tienes acceso.'} />
+        <ProblemAlert message={error ?? t('arreglo.notFound')} />
         <Link
           className="font-semibold text-primary no-underline hover:underline"
           to={`/groups/${group.id}/library`}
         >
-          Biblioteca
+          {t('arreglo.library')}
         </Link>
       </div>
     )
@@ -199,35 +202,64 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const grouped = groupResourcesByPurpose(arrangement.resources)
   const showAddResource = isOwner && !creatingResource && !creatingFileResource
   const songHref = `/groups/${group.id}/songs/${arrangement.songId}`
+  const hasChart = arrangement.resources.some((resource) => resource.purpose === 'chart')
+  const resourceCountLabel =
+    arrangement.resources.length === 0
+      ? t('listas.noResources')
+      : arrangement.resources.length === 1
+        ? `1 ${t('listas.resourceOne')}`
+        : `${arrangement.resources.length} ${t('listas.resourcesMany')}`
 
   return (
     <section className="space-y-6" aria-labelledby="arrangement-heading">
-      <div className="space-y-3">
-        <PageBreadcrumb
-          items={[
-            { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/library`, label: 'Biblioteca' },
-            { to: songHref, label: songTitle ?? 'Canción' },
-            { label: arrangement.label },
-          ]}
-        />
-        <div className="space-y-2">
-          <h1 id="arrangement-heading" className="text-2xl font-bold tracking-tight">
-            {arrangement.label}
-          </h1>
-          <p className="text-sm text-slate-500">
-            Arreglo de {songTitle ? <Link className="font-medium text-primary no-underline hover:underline" to={songHref}>{songTitle}</Link> : 'esta canción'}
-            {arrangement.defaultKey ? ` · ${arrangement.defaultKey}` : ''}
-            {arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm} BPM` : ''}
-            {!isOwner ? ' · Solo lectura' : ''}
-          </p>
-          <div className="pt-1">
-            <Link
-              className={buttonVariants({ variant: 'primary' })}
-              to={`/groups/${group.id}/arrangements/${arrangement.id}/practice`}
-            >
-              Practicar
-            </Link>
+      <div
+        data-testid="arrangement-hero"
+        className="overflow-hidden rounded-2xl"
+        style={{
+          background:
+            'linear-gradient(120deg, color-mix(in srgb, var(--group-accent, #8366f1) 88%, #1e1b4b), color-mix(in srgb, var(--group-accent, #8366f1) 45%, transparent))',
+        }}
+      >
+        <div className="space-y-3 px-5 py-6">
+          <div className="[&_a]:text-white [&_nav]:text-white/70 [&_span]:text-white/70">
+            <PageBreadcrumb
+              items={[
+                { to: `/groups/${group.id}`, label: group.name },
+                { to: `/groups/${group.id}/library`, label: t('listas.title') },
+                { to: songHref, label: songTitle ?? t('arreglo.songFallback') },
+                { label: arrangement.label },
+              ]}
+            />
+          </div>
+          <div className="space-y-2">
+            <h1 id="arrangement-heading" className="text-3xl font-bold tracking-tight text-white">
+              {arrangement.label}
+            </h1>
+            <p className="text-sm text-white/80">
+              {t('arreglo.ofPrefix')}{songTitle ? <Link className="font-medium text-white no-underline hover:underline" to={songHref}>{songTitle}</Link> : t('arreglo.thisSong')}
+              {arrangement.defaultKey ? ` · ${arrangement.defaultKey}` : ''}
+              {arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm} BPM` : ''}
+              {!isOwner ? ` · ${t('arreglo.readonly')}` : ''}
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <ReadinessChip
+                testId="arrangement-resource-count"
+                tone={arrangement.resources.length === 0 ? 'neutral' : 'ok'}
+              >
+                {resourceCountLabel}
+              </ReadinessChip>
+              <ReadinessChip testId="arrangement-chart-chip" tone={hasChart ? 'accent' : 'neutral'}>
+                {hasChart ? t('listas.hasChart') : t('listas.noChart')}
+              </ReadinessChip>
+            </div>
+            <div className="pt-1">
+              <Link
+                className={buttonVariants({ variant: 'primary' })}
+                to={`/groups/${group.id}/arrangements/${arrangement.id}/practice`}
+              >
+                {t('arreglo.practice')}
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -239,32 +271,31 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
         <section className="space-y-4" aria-labelledby="resources-heading">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="resources-heading" className="text-lg font-semibold">
-              Recursos
+              {t('arreglo.resourcesTitle')}
             </h2>
             {showAddResource && arrangement.resources.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => setCreatingResource(true)}>Agregar enlace</Button>
+                <Button onClick={() => setCreatingResource(true)}>{t('arreglo.addLink')}</Button>
                 <Button variant="secondary" onClick={() => setCreatingFileResource(true)}>
-                  Subir archivo
+                  {t('arreglo.uploadFile')}
                 </Button>
               </div>
             ) : null}
           </div>
           <p className="text-sm text-slate-500">
-            Materiales de este arreglo, agrupados por propósito. Puedes enlazar o subir un archivo
-            pequeño (hasta 5&nbsp;MiB).
+            {t('arreglo.resourcesHint')}
           </p>
 
           {arrangement.resources.length === 0 && !creatingResource && !creatingFileResource ? (
             <EmptyPanel
-              title="Aún no hay materiales"
-              description="Enlaza o sube partituras, letra, audio, click u otro material de ensayo para este arreglo."
+              title={t('arreglo.noMaterialsTitle')}
+              description={t('arreglo.noMaterialsBody')}
               action={
                 showAddResource ? (
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => setCreatingResource(true)}>Agregar enlace</Button>
+                    <Button onClick={() => setCreatingResource(true)}>{t('arreglo.addLink')}</Button>
                     <Button variant="secondary" onClick={() => setCreatingFileResource(true)}>
-                      Subir archivo
+                      {t('arreglo.uploadFile')}
                     </Button>
                   </div>
                 ) : null
@@ -341,7 +372,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           ) : null}
         </section>
 
-        <aside className="space-y-4 rounded-2xl bg-neutral-light p-5">
+        <aside className="space-y-4 rounded-2xl border border-slate-100 bg-neutral-light p-5 shadow-sm">
           {editing && isOwner ? (
             <ArrangementEditForm
               arrangement={arrangement}
@@ -363,41 +394,55 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               }}
             />
           ) : (
-            <dl className="space-y-3 text-sm">
-              <div>
-                <dt className="text-slate-500">Tonalidad</dt>
-                <dd className="font-medium">{arrangement.defaultKey ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Tempo</dt>
-                <dd className="font-medium">{arrangement.defaultBpm ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Letra</dt>
-                <dd className="whitespace-pre-wrap font-medium">{arrangement.lyrics ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Acordes (ChordPro)</dt>
-                <dd className="whitespace-pre-wrap font-medium">{arrangement.chords ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Estructura</dt>
-                <dd className="whitespace-pre-wrap font-medium">{arrangement.structure ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Notas</dt>
-                <dd className="whitespace-pre-wrap font-medium">{arrangement.notes ?? '—'}</dd>
-              </div>
-            </dl>
+            <div className="space-y-5 text-sm">
+              <section aria-labelledby="arrangement-tuning-heading" className="space-y-3">
+                <h3 id="arrangement-tuning-heading" className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  {t('listas.tuningTitle')}
+                </h3>
+                <dl className="space-y-3">
+                  <div>
+                    <dt className="text-slate-500">{t('arreglo.keyLabel')}</dt>
+                    <dd className="font-medium">{arrangement.defaultKey ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">{t('arreglo.tempoLabel')}</dt>
+                    <dd className="font-medium">{arrangement.defaultBpm ?? '—'}</dd>
+                  </div>
+                </dl>
+              </section>
+              <section aria-labelledby="arrangement-music-heading" className="space-y-3">
+                <h3 id="arrangement-music-heading" className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  {t('listas.musicTitle')}
+                </h3>
+                <dl className="space-y-3">
+                  <div>
+                    <dt className="text-slate-500">{t('arreglo.lyricsLabel')}</dt>
+                    <dd className="whitespace-pre-wrap font-medium">{arrangement.lyrics ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">{t('arreglo.chordsLabel')}</dt>
+                    <dd className="whitespace-pre-wrap font-medium">{arrangement.chords ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">{t('arreglo.structureLabel')}</dt>
+                    <dd className="whitespace-pre-wrap font-medium">{arrangement.structure ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">{t('arreglo.notesLabel')}</dt>
+                    <dd className="whitespace-pre-wrap font-medium">{arrangement.notes ?? '—'}</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
           )}
 
           {isOwner && !editing ? (
             <div className="flex flex-wrap gap-3 pt-2">
               <Button variant="secondary" onClick={() => setEditing(true)}>
-                Editar arreglo
+                {t('arreglo.editArrangement')}
               </Button>
               <Button variant="danger" onClick={() => setConfirmDeleteArrangement(true)}>
-                Eliminar arreglo
+                {t('arreglo.deleteArrangement')}
               </Button>
             </div>
           ) : null}
@@ -406,33 +451,32 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
 
       <ConfirmDialog
         open={confirmDeleteArrangement}
-        title="¿Eliminar arreglo?"
-        confirmLabel="Eliminar arreglo"
-        cancelLabel="Cancelar"
-        pendingLabel="Eliminando…"
+        title={t('arreglo.deleteArrTitle')}
+        confirmLabel={t('arreglo.deleteArrangement')}
+        cancelLabel={t('arreglo.cancel')}
+        pendingLabel={t('arreglo.deleting')}
         pending={deletingArrangement}
         onCancel={() => setConfirmDeleteArrangement(false)}
         onConfirm={() => void handleDeleteArrangement()}
       >
         <p>
-          Esto oculta el arreglo de las vistas activas. Los enlaces se conservan en el
-          servidor.
+          {t('arreglo.deleteArrBody')}
         </p>
       </ConfirmDialog>
 
       <ConfirmDialog
         open={resourceToDelete != null}
-        title="¿Eliminar recurso?"
-        confirmLabel="Eliminar recurso"
-        cancelLabel="Cancelar"
-        pendingLabel="Eliminando…"
+        title={t('arreglo.deleteResTitle')}
+        confirmLabel={t('arreglo.deleteResConfirm')}
+        cancelLabel={t('arreglo.cancel')}
+        pendingLabel={t('arreglo.deleting')}
         pending={deletingResource}
         onCancel={() => setResourceToDelete(null)}
         onConfirm={() => void handleDeleteResource()}
       >
         <p>
-          Esto elimina de forma permanente el recurso
-          {resourceToDelete ? ` “${resourceToDelete.label}”` : ''}. No se puede deshacer.
+          {t('arreglo.deleteResPrefix')}
+          {resourceToDelete ? ` “${resourceToDelete.label}”` : ''}{t('arreglo.deleteResSuffix')}
         </p>
       </ConfirmDialog>
     </section>
@@ -458,11 +502,12 @@ function ResourceRow({
   const downloadHref = isFile
     ? resourceContentUrl(groupId, arrangementId, resource.id)
     : null
+  const { t } = useT()
 
   return (
     <div className="space-y-2">
       <p className="font-semibold text-neutral-dark">{resource.label}</p>
-      {resource.part ? <p className="text-sm text-slate-500">Parte: {resource.part}</p> : null}
+      {resource.part ? <p className="text-sm text-slate-500">{t('arreglo.partPrefix')}{resource.part}</p> : null}
       {resource.note ? <p className="text-sm text-slate-600">{resource.note}</p> : null}
       {resource.url ? (
         <p>
@@ -478,23 +523,23 @@ function ResourceRow({
       ) : null}
       {isFile && downloadHref ? (
         <p className="text-sm text-slate-500">
-          {resource.originalFileName ?? 'Archivo'}
+          {resource.originalFileName ?? t('arreglo.fileFallback')}
           {resource.byteSize != null ? ` · ${formatByteSize(resource.byteSize)}` : ''}
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">
         {downloadHref ? (
           <a className={buttonVariants({ variant: 'primary', size: 'sm' })} href={downloadHref}>
-            Descargar
+            {t('arreglo.download')}
           </a>
         ) : null}
         {isOwner ? (
           <>
             <Button variant="secondary" size="sm" onClick={onEdit}>
-              Editar
+              {t('arreglo.edit')}
             </Button>
             <Button variant="danger" size="sm" onClick={onDelete}>
-              Eliminar
+              {t('arreglo.delete')}
             </Button>
           </>
         ) : null}
@@ -534,7 +579,7 @@ function ArrangementEditForm({
   const [timingMarks, setTimingMarks] = useState<ChordTimingMark[]>(() =>
     parseChordTimingJson(arrangement.chordTimingJson),
   )
-  const [importError, setImportError] = useState<string | null>(null)
+  const [importError, setImportError] = useState(false)
   const [digitizerLyrics, setDigitizerLyrics] = useState('')
   const [digitizerChords, setDigitizerChords] = useState('')
   const [selectedChordIndex, setSelectedChordIndex] = useState(0)
@@ -544,6 +589,7 @@ function ArrangementEditForm({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [maxMs, setMaxMs] = useState<number | undefined>(undefined)
+  const { t } = useT()
 
   // Load practice audio tracks to get duration for timing validation
   useEffect(() => {
@@ -596,17 +642,17 @@ function ArrangementEditForm({
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    setImportError(null)
+    setImportError(false)
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result !== 'string') {
-        setImportError('No se pudo leer el archivo.')
+        setImportError(true)
         return
       }
       setChords(reader.result)
     }
     reader.onerror = () => {
-      setImportError('No se pudo leer el archivo.')
+      setImportError(true)
     }
     reader.readAsText(file)
   }
@@ -656,9 +702,9 @@ function ArrangementEditForm({
 
   return (
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
-      <h3 className="font-semibold">Editar arreglo</h3>
+      <h3 className="font-semibold">{t('arreglo.editArrangement')}</h3>
       <ProblemAlert message={error} />
-      <Field label="Etiqueta">
+      <Field label={t('arreglo.labelLabel')}>
         <input
           className={fieldClass}
           required
@@ -667,7 +713,7 @@ function ArrangementEditForm({
           maxLength={200}
         />
       </Field>
-      <Field label="Tonalidad (opcional)" hint="Vacía el campo para quitar la tonalidad.">
+      <Field label={t('arreglo.keyOptional')} hint={t('arreglo.clearKeyHint')}>
         <input
           className={fieldClass}
           value={defaultKey}
@@ -676,8 +722,8 @@ function ArrangementEditForm({
         />
       </Field>
       <Field
-        label="Tempo / BPM (opcional, 1–400)"
-        hint="Déjalo en blanco para conservar el tempo actual."
+        label={t('arreglo.bpmLabel')}
+        hint={t('arreglo.keepTempoHint')}
       >
         <input
           className={fieldClass}
@@ -689,12 +735,12 @@ function ArrangementEditForm({
           onChange={(e) => setDefaultBpm(e.target.value)}
         />
       </Field>
-      <Field label="Letra (opcional)">
+      <Field label={t('arreglo.lyricsOptional')}>
         <textarea className={fieldClass} rows={3} value={lyrics} onChange={(e) => setLyrics(e.target.value)} />
       </Field>
       <div className="space-y-1.5">
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-slate-700">Acordes (ChordPro)</span>
+          <span className="text-sm font-medium text-slate-700">{t('arreglo.chordsLabel')}</span>
           <textarea
             className={fieldClass}
             rows={5}
@@ -706,7 +752,7 @@ function ArrangementEditForm({
         </label>
         <label className="block space-y-1.5">
           <span className="text-sm font-medium text-slate-700">
-            Importar archivo (.cho, .chordpro, .txt)
+            {t('arreglo.importLabel')}
           </span>
           <input
             className={fieldClass}
@@ -716,18 +762,17 @@ function ArrangementEditForm({
             data-testid="arrangement-chords-import"
           />
         </label>
-        {importError ? <p className="text-sm text-red-600">{importError}</p> : null}
+        {importError ? <p className="text-sm text-red-600">{t('arreglo.importError')}</p> : null}
 
         <div
           className="space-y-3 rounded-xl border border-slate-200 bg-neutral-light p-3"
           data-testid="chordpro-digitizer"
         >
-          <p className="text-sm font-semibold text-neutral-dark">Digitalizar texto</p>
+          <p className="text-sm font-semibold text-neutral-dark">{t('arreglo.digitizeTitle')}</p>
           <p className="text-xs text-slate-500">
-            Pega la letra y una lista de acordes. Sonivo los reparte de forma automática; luego
-            puedes mover un acorde con las flechas.
+            {t('arreglo.digitizeHint')}
           </p>
-          <Field label="Letra para digitalizar">
+          <Field label={t('arreglo.digitizeLyrics')}>
             <textarea
               className={fieldClass}
               rows={3}
@@ -737,7 +782,7 @@ function ArrangementEditForm({
               spellCheck={false}
             />
           </Field>
-          <Field label="Acordes (separados por espacio o coma)" hint="Ejemplo: Am G C F">
+          <Field label={t('arreglo.digitizeChords')} hint={t('arreglo.digitizeExample')}>
             <textarea
               className={fieldClass}
               rows={2}
@@ -754,12 +799,12 @@ function ArrangementEditForm({
             onClick={onGenerateDigitizer}
             data-testid="digitizer-generate"
           >
-            Generar ChordPro
+            {t('arreglo.generateChordPro')}
           </Button>
           {chordCursors.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2 pt-1" data-testid="digitizer-studio">
               <label className="text-sm text-slate-700">
-                Acorde seleccionado{' '}
+                {t('arreglo.selectedChord')}{' '}
                 <select
                   className={fieldClass}
                   value={selectedChordIndex}
@@ -781,7 +826,7 @@ function ArrangementEditForm({
                 type="button"
                 variant="secondary"
                 size="sm"
-                aria-label="Mover acorde a la izquierda"
+                aria-label={t('arreglo.nudgeLeft')}
                 onClick={() => onNudgeSelected(-1)}
                 data-testid="digitizer-nudge-left"
               >
@@ -791,7 +836,7 @@ function ArrangementEditForm({
                 type="button"
                 variant="secondary"
                 size="sm"
-                aria-label="Mover acorde a la derecha"
+                aria-label={t('arreglo.nudgeRight')}
                 onClick={() => onNudgeSelected(1)}
                 data-testid="digitizer-nudge-right"
               >
@@ -805,11 +850,11 @@ function ArrangementEditForm({
           className="space-y-3 rounded-xl border border-slate-200 bg-neutral-light p-3"
           data-testid="chordpro-compose"
         >
-          <p className="text-sm font-semibold text-neutral-dark">Asistente de composición</p>
+          <p className="text-sm font-semibold text-neutral-dark">{t('arreglo.composeTitle')}</p>
           <p className="text-xs text-slate-500">
-            Genera una plantilla ChordPro con estrofa y coro a partir de género, tonalidad e idea.
+            {t('arreglo.composeHint')}
           </p>
-          <Field label="Género">
+          <Field label={t('arreglo.genreLabel')}>
             <input
               className={fieldClass}
               value={composeGenre}
@@ -818,7 +863,7 @@ function ArrangementEditForm({
               maxLength={64}
             />
           </Field>
-          <Field label="Tonalidad">
+          <Field label={t('arreglo.keyFieldLabel')}>
             <input
               className={fieldClass}
               value={composeKey}
@@ -827,7 +872,7 @@ function ArrangementEditForm({
               maxLength={16}
             />
           </Field>
-          <Field label="Idea base">
+          <Field label={t('arreglo.ideaLabel')}>
             <input
               className={fieldClass}
               value={composeIdea}
@@ -844,7 +889,7 @@ function ArrangementEditForm({
               onClick={onComposeGenerate}
               data-testid="compose-generate"
             >
-              Generar canción
+              {t('arreglo.generateSong')}
             </Button>
             <Button
               type="button"
@@ -854,7 +899,7 @@ function ArrangementEditForm({
               data-testid="compose-vary-progression"
               disabled={!chords.includes('{start_of_')}
             >
-              Variar progresión
+              {t('arreglo.varyProgression')}
             </Button>
             <Button
               type="button"
@@ -864,7 +909,7 @@ function ArrangementEditForm({
               data-testid="compose-rewrite-verse"
               disabled={!chords.includes('{start_of_verse}')}
             >
-              Reescribir estrofa
+              {t('arreglo.rewriteVerse')}
             </Button>
           </div>
         </div>
@@ -873,7 +918,7 @@ function ArrangementEditForm({
 
         {chords.trim() ? (
           <div className="space-y-2 pt-1">
-            <p className="text-sm font-medium text-slate-700">Vista previa</p>
+            <p className="text-sm font-medium text-slate-700">{t('arreglo.previewLabel')}</p>
             {looksLikeChordPro(chords) ? (
               <ChordProView
                 text={chords}
@@ -891,7 +936,7 @@ function ArrangementEditForm({
           </div>
         ) : null}
       </div>
-      <Field label="Estructura (opcional)">
+      <Field label={t('arreglo.structureOptional')}>
         <textarea
           className={fieldClass}
           rows={2}
@@ -899,15 +944,15 @@ function ArrangementEditForm({
           onChange={(e) => setStructure(e.target.value)}
         />
       </Field>
-      <Field label="Notas (opcional)">
+      <Field label={t('arreglo.notesOptional')}>
         <textarea className={fieldClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? 'Guardando…' : 'Guardar cambios'}
+          {pending ? t('arreglo.saving') : t('arreglo.save')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          Cancelar
+          {t('arreglo.cancel')}
         </Button>
       </FormActions>
     </form>
@@ -932,6 +977,7 @@ function ResourceCreateForm({
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const { t } = useT()
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -955,9 +1001,9 @@ function ResourceCreateForm({
 
   return (
     <form className="space-y-4 border-t border-slate-200 pt-4" onSubmit={onSubmit} noValidate>
-      <h3 className="font-semibold">Agregar enlace</h3>
+      <h3 className="font-semibold">{t('arreglo.addLink')}</h3>
       <ProblemAlert message={error} />
-      <Field label="Propósito">
+      <Field label={t('arreglo.purposeLabel')}>
         <select
           className={fieldClass}
           required
@@ -971,7 +1017,7 @@ function ResourceCreateForm({
           ))}
         </select>
       </Field>
-      <Field label="Etiqueta">
+      <Field label={t('arreglo.labelLabel')}>
         <input
           className={fieldClass}
           required
@@ -980,7 +1026,7 @@ function ResourceCreateForm({
           maxLength={200}
         />
       </Field>
-      <Field label="URL">
+      <Field label={t('arreglo.urlLabel')}>
         <input
           className={fieldClass}
           type="url"
@@ -990,18 +1036,18 @@ function ResourceCreateForm({
           placeholder="https://"
         />
       </Field>
-      <Field label="Parte (opcional)">
+      <Field label={t('arreglo.partOptional')}>
         <input className={fieldClass} value={part} onChange={(e) => setPart(e.target.value)} maxLength={100} />
       </Field>
-      <Field label="Nota (opcional)">
+      <Field label={t('arreglo.noteOptional')}>
         <textarea className={fieldClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? 'Creando…' : 'Crear enlace'}
+          {pending ? t('arreglo.creating') : t('arreglo.createLink')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          Cancelar
+          {t('arreglo.cancel')}
         </Button>
       </FormActions>
     </form>
@@ -1026,6 +1072,7 @@ function FileResourceCreateForm({
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const { t } = useT()
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -1063,7 +1110,7 @@ function FileResourceCreateForm({
       noValidate
       aria-busy={pending}
     >
-      <h3 className="font-semibold">Subir archivo</h3>
+      <h3 className="font-semibold">{t('arreglo.uploadFile')}</h3>
       <ProblemAlert message={error} />
       {pending ? (
         <p
@@ -1072,10 +1119,10 @@ function FileResourceCreateForm({
           className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-neutral-dark"
           data-testid="file-upload-pending"
         >
-          Subiendo archivo… Espera un momento.
+          {t('arreglo.uploadPending')}
         </p>
       ) : null}
-      <Field label="Propósito">
+      <Field label={t('arreglo.purposeLabel')}>
         <select
           className={fieldClass}
           required
@@ -1090,7 +1137,7 @@ function FileResourceCreateForm({
           ))}
         </select>
       </Field>
-      <Field label="Etiqueta">
+      <Field label={t('arreglo.labelLabel')}>
         <input
           className={fieldClass}
           required
@@ -1101,8 +1148,8 @@ function FileResourceCreateForm({
         />
       </Field>
       <Field
-        label="Archivo"
-        hint="PDF, imagen (PNG, JPEG, WebP), audio (MP3, WAV, M4A) o texto plano. Máximo 5 MiB."
+        label={t('arreglo.fileLabel')}
+        hint={t('arreglo.fileHint')}
       >
         <input
           className={fieldClass}
@@ -1116,7 +1163,7 @@ function FileResourceCreateForm({
           }}
         />
       </Field>
-      <Field label="Parte (opcional)">
+      <Field label={t('arreglo.partOptional')}>
         <input
           className={fieldClass}
           value={part}
@@ -1125,7 +1172,7 @@ function FileResourceCreateForm({
           maxLength={100}
         />
       </Field>
-      <Field label="Nota (opcional)">
+      <Field label={t('arreglo.noteOptional')}>
         <textarea
           className={fieldClass}
           rows={2}
@@ -1136,10 +1183,10 @@ function FileResourceCreateForm({
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? 'Subiendo…' : 'Subir archivo'}
+          {pending ? t('arreglo.uploading') : t('arreglo.uploadFile')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          Cancelar
+          {t('arreglo.cancel')}
         </Button>
       </FormActions>
     </form>
@@ -1169,6 +1216,7 @@ function ResourceEditForm({
   const [note, setNote] = useState(resource.note ?? '')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const { t } = useT()
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -1191,10 +1239,10 @@ function ResourceEditForm({
 
   return (
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
-      <h4 className="font-semibold">Editar datos del recurso</h4>
+      <h4 className="font-semibold">{t('arreglo.editResourceTitle')}</h4>
       {resource.url ? (
         <p className="text-sm text-slate-500">
-          URL (no se puede cambiar):{' '}
+          {t('arreglo.urlLockedPrefix')}{' '}
           <a
             className="break-all font-medium text-primary no-underline hover:underline"
             href={resource.url}
@@ -1207,11 +1255,11 @@ function ResourceEditForm({
       ) : null}
       {resource.kind === 'file' && resource.originalFileName ? (
         <p className="text-sm text-slate-500">
-          Archivo (no se puede cambiar): {resource.originalFileName}
+          {t('arreglo.fileLockedPrefix')} {resource.originalFileName}
         </p>
       ) : null}
       <ProblemAlert message={error} />
-      <Field label="Propósito">
+      <Field label={t('arreglo.purposeLabel')}>
         <select
           className={fieldClass}
           required
@@ -1225,7 +1273,7 @@ function ResourceEditForm({
           ))}
         </select>
       </Field>
-      <Field label="Etiqueta">
+      <Field label={t('arreglo.labelLabel')}>
         <input
           className={fieldClass}
           required
@@ -1234,18 +1282,18 @@ function ResourceEditForm({
           maxLength={200}
         />
       </Field>
-      <Field label="Parte (opcional)" hint="Vacía el campo para quitar la parte.">
+      <Field label={t('arreglo.partOptional')} hint={t('arreglo.clearPartHint')}>
         <input className={fieldClass} value={part} onChange={(e) => setPart(e.target.value)} maxLength={100} />
       </Field>
-      <Field label="Nota (opcional)" hint="Vacía el campo para quitar la nota.">
+      <Field label={t('arreglo.noteOptional')} hint={t('arreglo.clearNoteHint')}>
         <textarea className={fieldClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? 'Guardando…' : 'Guardar'}
+          {pending ? t('arreglo.saving') : t('arreglo.saveShort')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          Cancelar
+          {t('arreglo.cancel')}
         </Button>
       </FormActions>
     </form>

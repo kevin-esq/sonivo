@@ -5,22 +5,24 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (T-R2-04 post-hoc closeout docs + auditor review)
-Human approval: APPROVED (explicit full-flow order: review via gh + push + merge when green)
-Git checkpoint: COMMITTED + MERGED to develop (PR #110, 3a25aa8; branch deleted)
+Implementation: COMPLETE (UI/UX redesign ADR-0043: waves W0-W5 all MERGED — PRs #115, #116, #117, #118, #119, #120; branches deleted)
+Human approval: APPROVED (explicit full-flow order: delegate to agents, audit per wave, push + merge when green, delete branches, continue to completion; plus explicit "es mío, consérvalo e intégralo" for the parallel hardening)
+Git checkpoint: COMMITTED + MERGED to develop (PR #120 0c98ddd); release develop->main in progress
 Remote: PUSHED + MERGED
-CI: PASSING (Backend + Frontend + Playwright E2E green, run 36506787416)
+CI: PASSING (all six PRs: Backend + Frontend + Playwright E2E green; local E2E 46/46, detector no findings)
 ```
 
 ## Current state
 
-- **Passkeys E2E CI fix (current focus):** `e2e/tests/passkeys.spec.ts` now attaches a CDP virtual authenticator, and `.github/workflows/ci.yml` browses via `http://localhost:5173` instead of `127.0.0.1`. Root cause: commit `51bcb9e` wired real `navigator.credentials.create()` into the Security page; headless Chromium throws `SecurityError` on IP-literal origins, so CI's `127.0.0.1` baseURL made TC-PK-01 fail deterministically (previously the UI faked the credential). Verified locally against the real stack: TC-PK-01 passes on `localhost`; it still fails on `127.0.0.1` (reproduction pinned). oxlint clean. No commit/push performed.
-- Prior ADR-0041 work: `.cursor/`, `.codex/`, and `.claude/` customizations were removed by explicit user authorization; no commit, push, or PR was performed.
+- **UI/UX redesign (ADR-0043, ACCEPTED 2026-09-29; SHIPPED 2026-09-30):** waves W0–W4 merged (#115–#119). **W5** = full frontend es/en i18n sweep + a11y/hygiene + integrated structural hardening (route code-splitting, error boundary, `/login?next=` via `safeNextPath`, authenticated-player gating) + [`PHASE-UI-UX-SPEC.md`](../docs/03-architecture/PHASE-UI-UX-SPEC.md). Auditor fixes in W5: `AuthenticatedPlayer` used a non-existent `stop()` → real `closeTrack()`; resend-confirmation copy restored so `auth.spec.ts` contract holds. Local E2E **46/46**.
+- **W5 known limitation (explicit):** Practice's default Estudiar tab keeps conductor+tuner visible because `TC-Q9-01`/`TC-PITCH-01` assert them; Avanzado/Afinar give progressive access. Slimming the default would require changing those specs' contract — deliberately not done.
+- **Passkeys E2E CI fix:** `e2e/tests/passkeys.spec.ts` attaches a CDP virtual authenticator, and `.github/workflows/ci.yml` browses via `http://localhost:5173` instead of `127.0.0.1`. Root cause: commit `51bcb9e` wired real `navigator.credentials.create()`; headless Chromium throws `SecurityError` on IP-literal origins.
+- Prior ADR-0041 work: `.cursor/`, `.codex/`, and `.claude/` customizations were removed by explicit user authorization.
 - The worktree already had changes in `docs/00-context/GLOSSARY.md`, API/spec docs, local vault files, and the original ZIP; preserve them.
 - Root `.obsidian/` is local configuration and was not modified.
 
 ## Next authorized work
 
-T-R2-04 PR #95 is MERGED (d7e3340, 2026-09-27) and post-hoc subset verification is COMPLETE 2026-09-29: 4 live keys, 2/2 present in R2, 2/2 missing bytes explained (never backfilled; parents soft-deleted by Owner 2026-09-21; remedy = Owner re-upload of dexter-meme.mp3 + images.pdf). UI shell slice (R1–R4) MERGED (PR #109). See [`PHASE-R2-SPEC.md`](../docs/03-architecture/PHASE-R2-SPEC.md).
+T-R2-04 PR #95 is MERGED (d7e3340, 2026-09-27) and post-hoc subset verification is COMPLETE 2026-09-29: 4 live keys, 2/2 present in R2, 2/2 missing bytes explained (never backfilled; parents soft-deleted by Owner 2026-09-21; remedy DECLINED by Owner 2026-09-29 (test files only, dead rows stay as orphans). UI shell slice (R1–R4) MERGED (PR #109). See [`PHASE-R2-SPEC.md`](../docs/03-architecture/PHASE-R2-SPEC.md).
 
 Completed wave history belongs in ADRs, phase specs, commits, and PRs rather than this current-state note.

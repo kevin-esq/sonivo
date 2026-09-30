@@ -13,7 +13,7 @@ import {
 } from '../api/client'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
-import { EmptyPanel, Field, FormActions, PageBreadcrumb } from '../repertoire/chrome'
+import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '../repertoire/chrome'
 import {
   CONFLICT_MESSAGE,
   ConflictAlert,
@@ -27,6 +27,7 @@ import {
   loadLiveArrangementOptions,
   type LiveArrangementOption,
 } from './liveArrangements'
+import { useT } from '../i18n'
 
 type DraftItem = {
   key: string
@@ -72,6 +73,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   const [saving, setSaving] = useState(false)
   const [selectedArrangementId, setSelectedArrangementId] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const { t } = useT()
 
   const isOwner = isOwnerRole(group?.role)
 
@@ -223,37 +225,62 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
 
   return (
     <section className="space-y-6" aria-labelledby="setlist-heading">
-      <div className="space-y-3">
-        <PageBreadcrumb
-          items={[
-            { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/setlists`, label: 'Listas' },
-            { label: setlist.name },
-          ]}
-        />
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
-            <span
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
-              aria-hidden="true"
-            >
-              <ListMusic className="h-5 w-5" />
-            </span>
-            <div className="min-w-0 space-y-1">
-              <h1 id="setlist-heading" className="text-2xl font-bold tracking-tight">
-                {setlist.name}
-              </h1>
-              <p className="text-sm text-slate-500">
-                {formatSongCount(draft.length)}
-                {!isOwner ? <span> · Solo lectura</span> : null}
-              </p>
+      <div
+        data-testid="setlist-hero"
+        className="overflow-hidden rounded-2xl"
+        style={{
+          background:
+            'linear-gradient(120deg, color-mix(in srgb, var(--group-accent, #8366f1) 88%, #1e1b4b), color-mix(in srgb, var(--group-accent, #8366f1) 45%, transparent))',
+        }}
+      >
+        <div className="space-y-3 px-5 py-6">
+          <div className="[&_a]:text-white [&_nav]:text-white/70 [&_span]:text-white/70">
+            <PageBreadcrumb
+              items={[
+                { to: `/groups/${group.id}`, label: group.name },
+                { to: `/groups/${group.id}/setlists`, label: t('agenda.setlistsTitle') },
+                { label: setlist.name },
+              ]}
+            />
+          </div>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
+              <span
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white"
+                aria-hidden="true"
+              >
+                <ListMusic className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 space-y-1">
+                <h1 id="setlist-heading" className="text-3xl font-bold tracking-tight text-white">
+                  {setlist.name}
+                </h1>
+                <p className="text-sm text-white/80">
+                  {formatSongCount(draft.length)}
+                  {!isOwner ? <span> · Solo lectura</span> : null}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <ReadinessChip
+                tone={draft.length === 0 ? 'neutral' : 'ok'}
+                testId="setlist-status-chip"
+              >
+                {draft.length === 0
+                  ? t('agenda.setlistVacant')
+                  : `${draft.length} ${t('agenda.setlistArrangementsMany')}`}
+              </ReadinessChip>
+              {isOwner ? (
+                <Button
+                  variant="secondary"
+                  disabled={saving}
+                  onClick={() => void saveItems()}
+                >
+                  {saving ? 'Guardando…' : 'Guardar orden'}
+                </Button>
+              ) : null}
             </div>
           </div>
-          {isOwner ? (
-            <Button disabled={saving} onClick={() => void saveItems()}>
-              {saving ? 'Guardando…' : 'Guardar orden'}
-            </Button>
-          ) : null}
         </div>
       </div>
 
@@ -287,11 +314,20 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
               }
             />
           ) : (
-            <ol className="space-y-2">
+            <div className="space-y-1">
+              <div
+                aria-hidden="true"
+                className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:grid sm:grid-cols-[2.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
+              >
+                <span>N.º</span>
+                <span>Arreglo</span>
+                <span>Acciones</span>
+              </div>
+              <ol className="space-y-2 sm:space-y-0 sm:divide-y sm:divide-slate-100 sm:rounded-2xl sm:border sm:border-slate-100 sm:bg-white">
               {draft.map((item, index) => (
                 <li
                   key={item.key}
-                  className="library-enter flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3"
+                  className="library-enter flex min-h-[44px] flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3 shadow-sm transition duration-150 hover:border-primary/25 hover:bg-neutral-light motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
                   <SetlistNumber n={item.sortOrder} />
@@ -340,7 +376,8 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                   ) : null}
                 </li>
               ))}
-            </ol>
+              </ol>
+            </div>
           )}
 
           {addPanelOpen ? (

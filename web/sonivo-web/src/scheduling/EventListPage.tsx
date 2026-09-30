@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Calendar, CalendarDays, Mic2, Search, Sparkles } from 'lucide-react'
+import { Calendar, CalendarDays, ChevronRight, Mic2, Search, Sparkles } from 'lucide-react'
 import {
   createEvent,
   listEvents,
@@ -12,13 +12,14 @@ import {
 import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
-import { EmptyPanel, Field, FormActions, PageBreadcrumb } from '../repertoire/chrome'
+import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '../repertoire/chrome'
 import {
   isOwnerRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
 } from '../repertoire/ui'
+import { useT } from '../i18n'
 import { formatEventType, formatStartsAt, fromDatetimeLocalValue } from './datetime'
 
 const EVENT_TILES = [
@@ -35,6 +36,7 @@ function eventTile(index: number) {
 export function EventListPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
+  const { t } = useT()
   const [events, setEvents] = useState<EventListItem[] | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -86,7 +88,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
   }, [groupId, group])
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando eventos…</p>
+    return <p aria-live="polite">{t('agenda.loadingEvents')}</p>
   }
 
   if (group === null) {
@@ -94,52 +96,80 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
         <Link className="font-semibold text-primary no-underline hover:underline" to="/">
-          Mis grupos
+          {t('agenda.myGroups')}
         </Link>
       </div>
     )
   }
 
   const showHeaderAdd = isOwner && !showCreate && events !== null && events.length > 0
+  const searching = query.trim().length > 0
 
   return (
     <section className="space-y-6" aria-labelledby="events-heading">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <PageBreadcrumb
-            items={[{ to: `/groups/${group.id}`, label: group.name }, { label: 'Eventos' }]}
-          />
-          <h1 id="events-heading" className="text-2xl font-bold tracking-tight">
-            Eventos
-          </h1>
-          <p className="text-sm text-slate-500">
-            Ensaya y toca con un plan copiado para cada ocasión.
-          </p>
-          {!isOwner ? <p className="text-sm text-slate-500">Solo lectura</p> : null}
+      <div
+        data-testid="events-hero"
+        className="overflow-hidden rounded-2xl"
+        style={{
+          background:
+            'linear-gradient(120deg, color-mix(in srgb, var(--group-accent, #8366f1) 88%, #1e1b4b), color-mix(in srgb, var(--group-accent, #8366f1) 45%, transparent))',
+        }}
+      >
+        <div className="space-y-3 px-5 py-6">
+          <div className="[&_a]:text-white [&_nav]:text-white/70 [&_span]:text-white/70">
+            <PageBreadcrumb
+              items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('agenda.eventsTitle') }]}
+            />
+          </div>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="min-w-0 space-y-1">
+              <h1 id="events-heading" className="text-3xl font-bold tracking-tight text-white">
+                {t('agenda.eventsTitle')}
+              </h1>
+              <p className="max-w-lg text-sm text-white/80">{t('agenda.eventsSubtitle')}</p>
+              {!isOwner ? <p className="text-sm text-white/80">Solo lectura</p> : null}
+            </div>
+            {events !== null ? (
+              <p data-testid="events-count" aria-live="polite" className="flex items-baseline gap-2 text-white">
+                <span className="text-3xl font-bold">{events.length}</span>
+                <span className="text-sm text-white/80">{t('agenda.eventsCountLabel')}</span>
+              </p>
+            ) : null}
+          </div>
         </div>
-        {showHeaderAdd ? (
-          <Button onClick={() => setShowCreate(true)}>Nuevo evento</Button>
-        ) : null}
       </div>
 
-      <ProblemAlert message={listError} />
-
       {events !== null && events.length > 0 ? (
-        <div className="relative max-w-md">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
-            aria-hidden="true"
-          />
-          <input
-            className={cn(fieldClass, 'pl-9')}
-            type="search"
-            placeholder="Buscar eventos…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Buscar eventos"
-          />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-52 flex-1">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
+              aria-hidden="true"
+            />
+            <label className="sr-only" htmlFor="events-search">
+              {t('agenda.eventsSearchLabel')}
+            </label>
+            <input
+              id="events-search"
+              data-testid="events-search"
+              className={cn(fieldClass, 'min-h-11 pl-9')}
+              type="search"
+              placeholder={t('agenda.eventsSearchPlaceholder')}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label={t('agenda.eventsSearchLabel')}
+            />
+          </div>
+          {showHeaderAdd ? <Button onClick={() => setShowCreate(true)}>Nuevo evento</Button> : null}
         </div>
       ) : null}
+      {searching && filtered !== null ? (
+        <p role="status" aria-live="polite" data-testid="events-results" className="text-sm text-slate-500">
+          {filtered.length} {t('agenda.resultsWord')}
+        </p>
+      ) : null}
+
+      <ProblemAlert message={listError} />
 
       {events === null ? (
         <p aria-live="polite">Cargando eventos…</p>
@@ -171,41 +201,60 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       ) : filtered && filtered.length === 0 ? (
         <p className="text-sm text-slate-500">Ningún evento coincide con «{query.trim()}».</p>
       ) : (
-        <ul className="space-y-1.5">
-          {filtered!.map((musicalEvent, index) => {
-            const { Icon, tileClass } = eventTile(index)
-            return (
-              <li
-                key={musicalEvent.id}
-                className="library-enter"
-                style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
-              >
-                <Link
-                  className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light"
-                  to={`/groups/${group.id}/events/${musicalEvent.id}`}
+        <div className="space-y-1">
+          <div
+            aria-hidden="true"
+            className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto_1.5rem] sm:items-center sm:gap-3"
+          >
+            <span>{t('agenda.eventsColEvent')}</span>
+            <span>{t('agenda.eventsColWhen')}</span>
+            <span>{t('agenda.eventsColStatus')}</span>
+            <span />
+          </div>
+          <ul className="space-y-1 sm:space-y-0 sm:divide-y sm:divide-slate-100 sm:rounded-2xl sm:border sm:border-slate-100 sm:bg-white">
+            {filtered!.map((musicalEvent, index) => {
+              const { Icon, tileClass } = eventTile(index)
+              const cancelled = musicalEvent.status === 'cancelled'
+              return (
+                <li
+                  key={musicalEvent.id}
+                  className="library-enter"
+                  style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
-                  <span
-                    className={cn(
-                      'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
-                      tileClass,
-                    )}
-                    aria-hidden="true"
+                  <Link
+                    className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 no-underline shadow-sm transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
+                    to={`/groups/${group.id}/events/${musicalEvent.id}`}
                   >
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold text-neutral-dark">
-                      {musicalEvent.title}
+                    <span
+                      className={cn(
+                        'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11',
+                        tileClass,
+                      )}
+                      aria-hidden="true"
+                    >
+                      <Icon className="h-5 w-5" />
                     </span>
-                    <span className="mt-0.5 block text-sm text-slate-500">
-                      {formatEventType(musicalEvent.type)} · {formatStartsAt(musicalEvent.startsAt)}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-neutral-dark">
+                        {musicalEvent.title}
+                      </span>
+                      <span className="mt-0.5 block text-sm text-slate-500">
+                        {formatEventType(musicalEvent.type)} · {formatStartsAt(musicalEvent.startsAt)}
+                      </span>
                     </span>
-                  </span>
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
+                    <ReadinessChip
+                      tone={cancelled ? 'warn' : 'ok'}
+                      testId={`event-status-${musicalEvent.id}`}
+                    >
+                      {cancelled ? t('agenda.statusCancelled') : t('agenda.statusScheduled')}
+                    </ReadinessChip>
+                    <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" aria-hidden="true" />
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       )}
 
       {isOwner && showCreate ? (

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createGroup, listMyGroups, problemDetail, type CurrentUser, type GroupSummary } from '../api/client'
+import { useT } from '../i18n'
 import { formatMembershipRole } from '../repertoire/ui'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
@@ -13,6 +14,7 @@ export function GroupsPage({ user }: { user: CurrentUser }) {
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(false)
   const navigate = useNavigate()
+  const { t } = useT()
 
   async function reload() {
     setError(null)
@@ -47,10 +49,10 @@ export function GroupsPage({ user }: { user: CurrentUser }) {
     <section className="space-y-6" aria-labelledby="groups-heading">
       <div>
         <h1 id="groups-heading" className="text-2xl font-bold tracking-tight">
-          Mis grupos
+          {t('grupos.title')}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Crea y elige un grupo musical. Abre un grupo para preparar listas y eventos.
+          {t('grupos.subtitle')}
         </p>
       </div>
 
@@ -61,9 +63,9 @@ export function GroupsPage({ user }: { user: CurrentUser }) {
       ) : null}
 
       {groups === null ? (
-        <ListSkeleton rows={3} label="Cargando grupos…" />
+        <ListSkeleton rows={3} label={t('grupos.loading')} />
       ) : groups.length === 0 ? (
-        <p>Aún no tienes grupos. Crea uno para empezar.</p>
+        <p>{t('grupos.empty')}</p>
       ) : (
         <ul className="space-y-2">
           {groups.map((group) => (
@@ -81,9 +83,9 @@ export function GroupsPage({ user }: { user: CurrentUser }) {
       )}
 
       <form className="space-y-3 border-t border-slate-200 pt-6" onSubmit={onCreate}>
-        <h2 className="font-semibold">Crear grupo</h2>
+        <h2 className="font-semibold">{t('grupos.createTitle')}</h2>
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-slate-700">Nombre</span>
+          <span className="text-sm font-medium text-slate-700">{t('grupos.nameLabel')}</span>
           <input
             className={fieldClass}
             required
@@ -93,7 +95,7 @@ export function GroupsPage({ user }: { user: CurrentUser }) {
           />
         </label>
         <Button type="submit" disabled={creating}>
-          {creating ? 'Creando…' : 'Crear grupo'}
+          {creating ? t('grupos.creating') : t('grupos.create')}
         </Button>
       </form>
     </section>

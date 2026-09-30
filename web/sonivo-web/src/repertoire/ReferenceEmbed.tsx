@@ -1,4 +1,5 @@
 import { parseYouTubeVideoId, youTubeNocookieEmbedUrl } from './youtubeRef'
+import { useT } from '../i18n'
 import type { ResourceSummary } from '../api/client'
 
 /**
@@ -11,6 +12,7 @@ import type { ResourceSummary } from '../api/client'
 
 
 export function ReferenceEmbed({ resource }: { resource: ResourceSummary }) {
+  const { t } = useT()
   const videoId = parseYouTubeVideoId(resource.url)
 
   if (videoId == null) {
@@ -39,7 +41,7 @@ export function ReferenceEmbed({ resource }: { resource: ResourceSummary }) {
           className="h-full w-full"
           data-testid="reference-iframe"
           src={youTubeNocookieEmbedUrl(videoId)}
-          title={`Referencia: ${resource.label}`}
+          title={`${t('referencia.titlePrefix')}${resource.label}`}
           loading="lazy"
           referrerPolicy="strict-origin-when-cross-origin"
           allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

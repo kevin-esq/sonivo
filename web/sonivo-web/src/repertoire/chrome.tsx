@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
+import { useT } from '../i18n'
 import { formatOriginKind, formatPurpose } from './ui'
 import type { ResourcePurpose, ResourceSummary, SongOriginKind } from '../api/client'
 
@@ -180,9 +181,10 @@ export function NumberedMark({ n }: { n: number }) {
 }
 
 export function AddSongButton({ onClick }: { onClick: () => void }) {
+  const { t } = useT()
   return (
     <Button onClick={onClick}>
-      Agregar canción
+      {t('canciones.addSong')}
     </Button>
   )
 }
@@ -193,5 +195,37 @@ export function PurposeHeading({ purpose }: { purpose: string }) {
       <PurposeMark purpose={purpose} />
       {formatPurpose(purpose)}
     </h4>
+  )
+}
+
+type ReadinessTone = 'neutral' | 'ok' | 'warn' | 'accent'
+
+const READINESS_TONE_CLASS: Record<ReadinessTone, string> = {
+  neutral: 'bg-slate-100 text-slate-600',
+  ok: 'bg-success/20 text-neutral-dark',
+  warn: 'bg-warning/25 text-neutral-dark',
+  accent: 'bg-primary/15 text-primary',
+}
+
+/** Operate status chip: icon/label pair, never the sole carrier of status (paired with nearby text). */
+export function ReadinessChip({
+  tone = 'neutral',
+  testId,
+  children,
+}: {
+  tone?: ReadinessTone
+  testId?: string
+  children: ReactNode
+}) {
+  return (
+    <span
+      data-testid={testId}
+      className={cn(
+        'inline-flex min-h-11 shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-semibold sm:min-h-0',
+        READINESS_TONE_CLASS[tone],
+      )}
+    >
+      {children}
+    </span>
   )
 }

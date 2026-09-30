@@ -3,7 +3,7 @@
 Product definition. Complements `docs/00-context/CONTEXT.md`.
 
 **Status:** ACCEPTED ADRs 0001, 0005–0025. Phase 1–2.3 + 3.0–3.1 **CLOSED**. Song/Arrangement/Resource code not started (requires explicit implementation authorization).
-**Visual direction:** Not finalized.
+**Visual direction:** Defined by root [`DESIGN.md`](../../DESIGN.md) — "Apple Music immersive × Supabase precise", SonivoMark retained, light/dark day-1 (ADR-0043 ACCEPTED).
 
 Personas → [`PERSONAS.md`](PERSONAS.md) · Jobs → [`JTBD.md`](JTBD.md) · Sequencing → [`ROADMAP.md`](ROADMAP.md)
 

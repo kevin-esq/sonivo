@@ -8,6 +8,39 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0043 — Total visual redesign: immersive × precise, Grupo/Cuenta IA, frontend es/en
+
+- **Status:** **ACCEPTED** — owner-authorized 2026-09-29 ("Acepto todo"); waves W0–W5 shipped 2026-09-30 (PRs #115–#120, see [`PHASE-UI-UX-SPEC.md`](PHASE-UI-UX-SPEC.md)).
+- **Date:** 2026-09-29
+
+### Decision (proposed)
+
+- Replace the current dark-shell visual world with a **total redesign** fusing two references: **Apple Music–like immersion** (artwork-grade group headers, ambient accent washes, large display type) with **Supabase-like precision** (dense tables, disciplined forms, clear empty states) for Operate surfaces.
+- **SonivoMark retained** as the brand anchor: 4-bar waveform SVG (`web/sonivo-web/src/brand/SonivoMark.tsx`), currentColor so it inherits the active accent; `BrandLockup` + `WaveformHero` gradient (`#8366F1` → `#E8C4F6`) carry over.
+- **Light/dark day-1:** both themes ship with the redesign (no dark-only interim). Current `index.css` is dark-only (`--color-canvas: #0b1220`, white-on-dark body) — W1 must introduce light surface tokens and a persisted theme switcher.
+- **IA split** (replaces single group-nav + account drawer in `GroupWorkspace.tsx`):
+  - **Grupo** (`/groups/:id`): Listas · Setlists · Eventos · Personas · Ajustes grupo (incl. optional per-group accent / cover / logo onboarding, **Owner-only** mutate, Member read).
+  - **Cuenta** (`/cuenta`): perfil · preferencias + idioma · seguridad · mis grupos.
+- **Frontend-only es/en i18n (phase 1):** `es` default, persisted switcher in `/cuenta` preferencias. Backend strings, validation messages, and mails stay as-is (**phase 2**, separate ADR).
+- **Strangler waves W0–W5:** W0 foundations (this ADR + PRODUCT.md + DESIGN.md + tokens/theme + i18n scaffold) → W1 shell IA split (Grupo vs Cuenta) → W2 Listas → W3 Practice progresivo → W4 Scheduling → W5 i18n-100 + a11y/polish + E2E + cleanup. Each wave ships behind existing routes; no big-bang rewrite.
+- **E2E gates:** each wave extends Playwright critical journeys (real React → API → Identity cookie → PostgreSQL); existing TC-LIB/TC-EVT/TC-RSVP/TC-PPL/TC-INV suites must stay green.
+
+### Firewall
+
+- No karaoke-style scoring (ADR-0037 OUT stands).
+- No native app; Q11 stays FUTURE — responsive web now, native later.
+- No backend i18n now (no API/message/mail string changes).
+- No S3/blob, 5 MiB upload cap, or payments/billing changes (ADR-0035, ADR-0042 stand).
+- No AuthZ/auth/session changes: Owner/Member, server-enforced Group scope, Identity cookie + antiforgery (ADR-0009–0012, 0019–0020).
+- **ACCEPTED 2026-09-29**; implemented as waves **W0–W5** with each wave merged only on green CI. Owner also authorized keeping the parallel structural hardening (route code-splitting, error boundary, `/login?next=` return handling) integrated in W5.
+
+### Deltas vs current docs (flagged, not silent)
+
+- CONTEXT.md ASSUMPTION "English-first UI" → superseded by **es-default es/en**; CONTEXT updated 2026-09-30.
+- `docs/01-product/PRODUCT.md` "Visual direction: Not finalized" → direction now defined by root `DESIGN.md`; that line updated 2026-09-30.
+
+---
+
 ## ADR-0042 — Payments OUT — revert of unaccepted billing scaffold
 
 - **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-09-28.

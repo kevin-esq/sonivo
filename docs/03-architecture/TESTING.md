@@ -52,6 +52,12 @@ cd web/sonivo-web; npm run dev
 cd e2e; npm ci; npx playwright install chromium; npm test
 ```
 
+Notes from the UI/UX redesign wave runs:
+
+- `npm run dev` is interactive and can be killed externally (IDE tooling such as Console Ninja attaches to Vite); for a deterministic full-suite run, serve the production build instead — `cd web/sonivo-web; npm run build; npx vite preview --port 5173 --strictPort` — and keep that server alive for the whole run.
+- The API needs the test hook for journeys that confirm users out of band: `$env:Auth__EnableTestHook='true'` before `dotnet run`.
+- Exercising the R2 blob path locally requires the dev-bucket credentials in the process environment (`R2__AccountId`, `R2__AccessKey`, `R2__Secret`, `R2__BucketName=sonivo-blobs-dev`); otherwise the API falls back to the filesystem store and file-Resource journeys run against disk.
+
 ### CI
 
 GitHub Actions (`.github/workflows/ci.yml`) starts PostgreSQL, applies migrations, runs API + Vite, then Playwright.
