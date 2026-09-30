@@ -24,4 +24,7 @@ COPY --from=build /app/publish .
 COPY --from=web /web/dist ./wwwroot
 ENV ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 8080
+# L3 (SECURITY-AUDIT-2026-09): run as the non-root `app` user (UID 1654) that
+# the aspnet:9.0 image ships, instead of root.
+USER app
 ENTRYPOINT ["dotnet", "Sonivo.Api.dll"]

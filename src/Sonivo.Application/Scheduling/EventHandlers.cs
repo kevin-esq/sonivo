@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Common;
@@ -309,6 +310,7 @@ public sealed class ReplaceEventPlanFromSetlistHandler
     private readonly ISongStore _songs;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
+    private readonly ILogger<ReplaceEventPlanFromSetlistHandler>? _logger;
 
     public ReplaceEventPlanFromSetlistHandler(
         GroupAccessService access,
@@ -317,7 +319,8 @@ public sealed class ReplaceEventPlanFromSetlistHandler
         IArrangementStore arrangements,
         ISongStore songs,
         IUnitOfWork unitOfWork,
-        IClock clock)
+        IClock clock,
+        ILogger<ReplaceEventPlanFromSetlistHandler>? logger = null)
     {
         _access = access;
         _events = events;
@@ -326,6 +329,7 @@ public sealed class ReplaceEventPlanFromSetlistHandler
         _songs = songs;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _logger = logger;
     }
 
     public async Task<EventDetailDto> HandleAsync(
@@ -442,6 +446,13 @@ public sealed class ReplaceEventPlanFromSetlistHandler
         await _events.AddItemsAsync(created, cancellationToken);
         await _events.UpdateAsync(musicalEvent, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger?.LogWarning(
+            "Security event: event plan replaced from setlist. ActorUserId: {ActorUserId}, GroupId: {GroupId}, EventId: {EventId}, SetlistId: {SetlistId}",
+            command.UserId,
+            command.GroupId,
+            command.EventId,
+            command.SetlistId);
 
         return CreateEventHandler.ToDetail(musicalEvent);
     }

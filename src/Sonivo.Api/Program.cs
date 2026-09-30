@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -49,6 +50,36 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.SlidingExpiration = true;
     options.ExpireTimeSpan = TimeSpan.FromDays(14);
+    // L1 (SECURITY-AUDIT-2026-09): absolute session cap. Record the original
+    // sign-in instant exactly once — sliding renewal re-issues the cookie (and
+    // re-raises OnSigningIn), but it must never refresh this stamp.
+    options.Events.OnSigningIn = context =>
+    {
+        if (!context.Properties.Items.ContainsKey(SessionAbsolutePolicy.IssuedUtcProperty))
+        {
+            context.Properties.Items[SessionAbsolutePolicy.IssuedUtcProperty] =
+                DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+        }
+
+        return Task.CompletedTask;
+    };
+    options.Events.OnValidatePrincipal = context =>
+    {
+        // Reject (and clear) sessions that have outlived the 30-day absolute
+        // cap measured from the original sign-in. Sliding renewal still
+        // extends ExpireTimeSpan (14 days) as long as the cap has not passed.
+        if (context.Properties.Items.TryGetValue(
+                SessionAbsolutePolicy.IssuedUtcProperty, out var issuedRaw)
+            && DateTimeOffset.TryParse(
+                issuedRaw, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var issuedUtc)
+            && SessionAbsolutePolicy.IsExpired(issuedUtc, DateTimeOffset.UtcNow))
+        {
+            context.RejectPrincipal();
+            return context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+        }
+
+        return Task.CompletedTask;
+    };
     options.Events.OnRedirectToLogin = context =>
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -74,13 +105,13 @@ builder.Services.AddAntiforgery(options =>
 });
 
 // T-AU-01: fixed-window rate limits on register + verification endpoints
-// (modest per-IP budgets; absolute session cap stays DEFERRED per ADR-0038).
+// (modest per-IP budgets; absolute session cap implemented separately per L1).
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     static RateLimitPartition<string> PerIp(HttpContext http, int permits) =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            partitionKey: ClientIpPartitionKey.Normalize(http.Connection.RemoteIpAddress),
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = permits,
@@ -88,6 +119,10 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0
             });
+
+    // SECURITY-AUDIT-2026-09 M2 (residual): per-IP partition key hardening
+    // (IPv6 /64 truncation, IPv4-mapped normalization) lives in
+    // ClientIpPartitionKey; trusted-proxy pinning remains a follow-up.
     options.AddPolicy("auth-register", http => PerIp(http, 30));
     options.AddPolicy("auth-login", http => PerIp(http, 30));
     options.AddPolicy("auth-confirm", http => PerIp(http, 30));
@@ -198,13 +233,26 @@ app.Use(async (context, next) =>
     await next();
 });
 
-// ADR-0037 T-FX-02: minimal embed policy for YouTube reference iframes.
-// Only frame-src (nocookie player) + img-src (thumbnails) are declared;
-// no other directive is loosened (no script/style/object changes).
+// ADR-0037 T-FX-02 + L2 (SECURITY-AUDIT-2026-09): defense-in-depth CSP.
+// YouTube reference iframes (nocookie player) and thumbnails stay allowlisted.
+// style-src keeps 'unsafe-inline' because React inline style attributes and
+// Vite dev style injection require it; fonts.googleapis.com/fonts.gstatic.com
+// are the only external origins actually used by the SPA (web/sonivo-web/index.html).
+// connect-src 'self' covers the same-origin API + SignalR /hubs WebSocket.
 app.Use(async (context, next) =>
 {
     context.Response.Headers.TryAdd("Content-Security-Policy",
-        "frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: https://i.ytimg.com");
+        "default-src 'self'; " +
+        "script-src 'self'; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com; " +
+        "img-src 'self' data: https://i.ytimg.com; " +
+        "frame-src 'self' https://www.youtube-nocookie.com; " +
+        "connect-src 'self'; " +
+        "frame-ancestors 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self'; " +
+        "object-src 'none'");
     await next();
 });
 
@@ -352,6 +400,9 @@ app.MapPost("/api/auth/login", async (
 
     if (result.IsLockedOut)
     {
+        app.Logger.LogWarning(
+            "Security event: account lockout (login). UserId: {UserId}",
+            user.Id);
         return Results.Problem(
             detail: "Account temporarily locked.",
             statusCode: StatusCodes.Status401Unauthorized,
@@ -486,7 +537,7 @@ app.MapPost("/api/auth/resend-confirmation", async (
 {
     var mailed = false;
     var normalized = request.Email?.Trim() ?? string.Empty;
-    if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim(normalized))
+    if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim("resend:" + normalized))
     {
         var user = await users.FindByEmailAsync(normalized);
         if (user is not null && !user.EmailConfirmed)
@@ -505,17 +556,19 @@ app.MapPost("/api/auth/resend-confirmation", async (
 .RequireRateLimiting("auth-resend");
 
 // T-AU-01 (Q-AU-2): ALWAYS 202 — silent for unknown emails (no oracle),
-// best-effort mail + mailed flag.
+// best-effort mail + mailed flag. L4 (SECURITY-AUDIT-2026-09): per-email
+// 60 s cooldown (distinct "forgot:" namespace so it never blocks resend).
 app.MapPost("/api/auth/forgot-password", async (
     ForgotPasswordRequest request,
     UserManager<ApplicationUser> users,
     IEmailSender email,
     IPublicOrigin origin,
+    VerificationThrottle throttle,
     CancellationToken cancellationToken) =>
 {
     var mailed = false;
     var normalized = request.Email?.Trim() ?? string.Empty;
-    if (!string.IsNullOrWhiteSpace(normalized))
+    if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim("forgot:" + normalized))
     {
         var user = await users.FindByEmailAsync(normalized);
         if (user is not null)
@@ -759,6 +812,9 @@ app.MapPost("/api/auth/2fa/challenge", async (
 
     if (result.IsLockedOut)
     {
+        app.Logger.LogWarning(
+            "Security event: account lockout (2fa). UserId: {UserId}",
+            user.Id);
         return Results.Problem(
             detail: "Account temporarily locked.",
             statusCode: StatusCodes.Status401Unauthorized,
@@ -806,6 +862,9 @@ app.MapPost("/api/auth/2fa/recover", async (
 
     if (result.IsLockedOut)
     {
+        app.Logger.LogWarning(
+            "Security event: account lockout (2fa recovery). UserId: {UserId}",
+            user.Id);
         return Results.Problem(
             detail: "Account temporarily locked.",
             statusCode: StatusCodes.Status401Unauthorized,

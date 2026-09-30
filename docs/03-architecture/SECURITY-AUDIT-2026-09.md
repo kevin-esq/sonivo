@@ -82,7 +82,7 @@ Severity classification: **Critical** (exploitable authentication/authorization 
 - **Root cause:** Render does not publish static proxy egress IPs, so the integration was configured trust-all.
 - **Risk:** one header per request rotates the partition key → the register/confirm/resend/forgot/reset/2FA/passkeys budgets (10-30/min) are **unlimited** for scripted callers. Compounding: IPv6 clients can also rotate inside a /64. Per-account Identity lockout still stands (the residual mitigations are real but per-account only), and `forgot-password` has **no per-email cooldown** (unlike resend, `VerificationThrottle` is only wired into resend `Program.cs:482-487`) → unbounded mail-bombing of arbitrary addresses is possible via `forgot-password` + spoofed XFF.
 - **Fix:** (a) constrain `KnownProxies`/`KnownNetworks` to the effective hosting proxy range(s) once known, or at minimum keep trust-all **documented as a residual risk** while adding per-account budgets that do not depend on IP: (b) per-email cooldown for `forgot-password` (reuse `VerificationThrottle`), (c) `auth-login` per-IP policy (M1). Also consider an IPv6 /64-truncating partition key.
-- **Status:** PLAN READY.
+- **Status:** **FIXED-in-part** — IPv6 rate-limit partition keys are now truncated to their /64 network (an attacker can no longer rotate the partition key within a /64), and `forgot-password` now has a per-email cooldown (see L4). **Residual:** `KnownProxies`/`KnownNetworks` remain unpinned (Render publishes no static egress IPs), so `X-Forwarded-For` stays trust-all; absolute per-account budgets that do not depend on IP remain a follow-up.
 
 #### M3 — Google test-callback hook is single-gated (config flag only); the email test hook is double-gated — inconsistent backstop
 
@@ -106,7 +106,7 @@ Severity classification: **Critical** (exploitable authentication/authorization 
 - **Evidence:** SECURITY.md §8 (`SECURITY.md:184-186`) specifies logging auth failures, lockouts, 403 denials, ownership changes, Group delete, Resource delete, apply-setlist replace — **none instrumented** (`AppExceptionHandler` `Program.cs:2642-2708` maps AppExceptions to responses without logging; handlers raise `ForbiddenException` without a log call; grep confirms no security-event logger anywhere).
 - **Risk:** intrusions (role-change abuse, lockout storms as recon) leave no server-side trail; incident response impossible today.
 - **Fix:** structured warning-level audit lines at: `GroupAccessService.RequireOwnerAsync` 403 path, lockout branches (`Program.cs:352-358,758-764,805-811`), `ChangeMemberRoleHandler`/`RemoveMemberHandler`/`SoftDeleteGroupHandler` mutations, `DeleteResourceHandler`, `ReplaceEventPlanFromSetlistHandler` — always `(actorUserId, groupId, targetId)`, never tokens/PII payloads (per SECURITY.md §8 and ASVS 2.6).
-- **Status:** PLAN READY.
+- **Status:** **FIXED** — structured warning-level security-event lines at the three lockout branches (login/2FA/2FA recovery), `GroupAccessService.RequireOwnerAsync` 403 path, `ChangeMemberRoleHandler`/`RemoveMemberHandler`/`LeaveGroupHandler`, `UpdateGroupHandler`/`SoftDeleteGroupHandler`, `ReplaceEventPlanFromSetlistHandler`, and `DeleteResourceHandler`. Identifiers only (actor/group/target/role); no tokens, passwords, or PII payloads.
 
 ### LOW
 
@@ -115,23 +115,27 @@ Severity classification: **Critical** (exploitable authentication/authorization 
 - **OWASP/CWE:** A07 · ASVS 2.2.2
 - **Evidence:** `Program.cs:50-51`; SECURITY.md already lists exact TTLs as OPEN.
 - **Fix:** absolute cap via `Events.OnValidatePrincipal` (e.g., reject stamps older than 30 days since issued) when the TTL decision is made. **Do not silently pick a TTL** — it is a product decision already tracked as OPEN.
+- **Status:** **FIXED** — product decision implemented: **30-day** absolute session cap. `OnSigningIn` stamps the original sign-in instant exactly once (never refreshed by sliding renewal); `OnValidatePrincipal` rejects and signs out when the stamp is older than 30 days. The 14-day sliding `ExpireTimeSpan` is preserved.
 
 #### L2 — CSP is minimal (frame/img only); no `default-src`, no `frame-ancestors`
 
 - **OWASP/CWE:** A05 · CWE-693
 - **Evidence:** `Program.cs:203-208` — deliberate minimal policy (T-FX-02, ADR-0037) to allow YouTube embeds; `X-Frame-Options: DENY` (`Program.cs:196`) covers framing in modern browsers but the CSP has no `frame-ancestors 'none'` and no `default-src 'self'` script containment for the SPA.
 - **Fix (after visual QA):** `default-src 'self'; frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: https://i.ytimg.com; frame-ancestors 'none';` — verify Vite asset serving (hashed same-origin assets) stays green in Playwright. Extend `SecurityHeadersTests`.
+- **Status:** **FIXED** — policy: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://i.ytimg.com; frame-src 'self' https://www.youtube-nocookie.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`. `style-src 'unsafe-inline'` is required by React inline style attributes + Vite dev style injection; Google Fonts are the only external origins the SPA actually loads.
 
 #### L3 — Production container runs as root
 
 - **OWASP/CWE:** A05 · CWE-250
 - **Evidence:** `Dockerfile:21-27` — no `USER` directive (aspnet:9.0 default is root).
 - **Fix:** `USER app` (aspnet image ships the non-root `app` user, UID 1654) before `ENTRYPOINT`, after the `COPY` steps.
+- **Status:** **FIXED** — `USER app` added after the COPY layers and before `ENTRYPOINT` in the final stage.
 
 #### L4 — `forgot-password` has no per-email cooldown (mail-bombing vector, compounded by M2)
 
 - **Evidence:** `Program.cs:507-532` — per-IP budget only; `VerificationThrottle` exists but is wired solely into resend (`Program.cs:482-487`).
 - **Fix:** `throttle.TryClaim(normalized)` around the `GeneratePasswordResetTokenAsync` block (same 60s per-email shape as resend) — bounded email-bombing even under IP spoofing.
+- **Status:** **FIXED** — `forgot-password` now claims `VerificationThrottle` under a distinct `"forgot:"` key namespace (resend uses `"resend:"`), so the two never block each other for the same email; behavior stays always-202 / send-only-on-claim.
 
 ---
 

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Sonivo.Application.Abstractions;
 using Sonivo.Domain.Tenancy;
 
@@ -56,15 +57,18 @@ public sealed class RemoveMemberHandler
     private readonly GroupAccessService _access;
     private readonly IMembershipStore _memberships;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<RemoveMemberHandler>? _logger;
 
     public RemoveMemberHandler(
         GroupAccessService access,
         IMembershipStore memberships,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<RemoveMemberHandler>? logger = null)
     {
         _access = access;
         _memberships = memberships;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task HandleAsync(RemoveMemberCommand command, CancellationToken cancellationToken)
@@ -93,6 +97,12 @@ public sealed class RemoveMemberHandler
 
         await _memberships.RemoveAsync(target, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger?.LogWarning(
+            "Security event: member removed. ActorUserId: {ActorUserId}, GroupId: {GroupId}, TargetUserId: {TargetUserId}",
+            command.ActorUserId,
+            command.GroupId,
+            command.TargetUserId);
     }
 }
 
@@ -107,15 +117,18 @@ public sealed class ChangeMemberRoleHandler
     private readonly GroupAccessService _access;
     private readonly IMembershipStore _memberships;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<ChangeMemberRoleHandler>? _logger;
 
     public ChangeMemberRoleHandler(
         GroupAccessService access,
         IMembershipStore memberships,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<ChangeMemberRoleHandler>? logger = null)
     {
         _access = access;
         _memberships = memberships;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task HandleAsync(ChangeMemberRoleCommand command, CancellationToken cancellationToken)
@@ -153,6 +166,13 @@ public sealed class ChangeMemberRoleHandler
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger?.LogWarning(
+            "Security event: member role changed. ActorUserId: {ActorUserId}, GroupId: {GroupId}, TargetUserId: {TargetUserId}, Role: {Role}",
+            command.ActorUserId,
+            command.GroupId,
+            command.TargetUserId,
+            role);
     }
 }
 
@@ -163,15 +183,18 @@ public sealed class LeaveGroupHandler
     private readonly GroupAccessService _access;
     private readonly IMembershipStore _memberships;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<LeaveGroupHandler>? _logger;
 
     public LeaveGroupHandler(
         GroupAccessService access,
         IMembershipStore memberships,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<LeaveGroupHandler>? logger = null)
     {
         _access = access;
         _memberships = memberships;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task HandleAsync(LeaveGroupCommand command, CancellationToken cancellationToken)
@@ -194,5 +217,10 @@ public sealed class LeaveGroupHandler
 
         await _memberships.RemoveAsync(tracked, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger?.LogWarning(
+            "Security event: member left group. ActorUserId: {ActorUserId}, GroupId: {GroupId}",
+            command.UserId,
+            command.GroupId);
     }
 }
