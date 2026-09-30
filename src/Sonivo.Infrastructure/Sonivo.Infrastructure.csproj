@@ -10,12 +10,12 @@
          clearing all 8 High advisories (CVE-2026-26171/33116/47304 et al., GHSA-37gx/w3x6/cvvh/g8r8/23rf/8q5v/mmjf/6588). -->
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="9.0.18" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.18" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.18" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.20" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.18">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.18" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.20" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="9.0.18" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.18" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
