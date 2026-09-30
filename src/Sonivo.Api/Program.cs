@@ -1026,11 +1026,13 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
         PasskeyVerifier.EnsureClientData(cd, "webauthn.create", cd.Challenge,
             PasskeyOrigins.Allowed(http, config, origin));
         if (!PasskeyChallengeStore.ConsumeChallenge(cd.Challenge, expectedUserId: user.Id))
+        {
+            app.Logger.LogWarning("Passkey registration: challenge was not issued for this user, expired, or already used.");
             return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
-        // 2. attestation: rpIdHash, UP/AT flags, credentialId + COSE key extracted (not trusted)
+        }
+        // 2. attestation: rpIdHash, UP/AT flags, credentialId + COSE key extracted
+        // (attestation statement not verified — conveyance is "none"; see PasskeysAuth)
         var proof = PasskeyVerifier.ParseAttestation(request.AttestationObject, rpId);
-        // 3. self-attestation signature (fmt "none" passes through by design)
-        PasskeyVerifier.VerifyPackedSelfAttestation(request.AttestationObject, request.ClientData, proof.CoseKey);
 
         var cred = new PasskeyCredential(
             proof.CredentialId,
@@ -1042,8 +1044,10 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
             "Credential_" + cred.CredentialId, System.Text.Json.JsonSerializer.Serialize(cred));
         return Results.Ok(new { registered = true, credentialId = cred.CredentialId });
     }
-    catch (PasskeyVerifier.PasskeyVerificationException)
+    catch (PasskeyVerifier.PasskeyVerificationException ex)
     {
+        // Diagnostics only: the verifier's fixed reason, never the payload or secrets.
+        app.Logger.LogWarning("Passkey registration verification failed: {Reason}", ex.Message);
         return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
     }
 })
@@ -1100,6 +1104,7 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
 
     if (token is null || string.IsNullOrWhiteSpace(token.Value))
     {
+        app.Logger.LogWarning("Passkey login: credential not found (no stored credential for the presented id).");
         return Results.Problem(
             detail: "Llave de acceso no registrada",
             statusCode: StatusCodes.Status401Unauthorized,
@@ -1113,6 +1118,7 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
     // fail closed with the uniform 401 — never reach the verifier (or a 500).
     if (user is null || stored is null || string.IsNullOrWhiteSpace(stored.PublicKeyCose))
     {
+        app.Logger.LogWarning("Passkey login: credential row is unusable (legacy pre-T-SEC-01 row or missing stored key).");
         return Results.Problem(
             detail: "Llave de acceso no registrada",
             statusCode: StatusCodes.Status401Unauthorized,
@@ -1127,16 +1133,26 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
         PasskeyVerifier.EnsureClientData(cd, "webauthn.get", cd.Challenge,
             PasskeyOrigins.Allowed(http, config, origin));
         if (!PasskeyChallengeStore.ConsumeChallenge(cd.Challenge))
+        {
+            app.Logger.LogWarning("Passkey login: challenge was not issued, expired, or already used.");
             return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+        }
         // 2. authenticatorData: rpIdHash + UP; counter regression check (clone detection)
         var proof = PasskeyVerifier.ParseAssertionAuthenticatorData(request.AuthenticatorData, rpId);
         if (stored.SignCount > 0 && proof.SignCount > 0 && proof.SignCount <= stored.SignCount)
+        {
+            app.Logger.LogWarning("Passkey login: sign-counter regression (possible cloned authenticator).");
             return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+        }
         // 3. the actual cryptographic proof — the missing line that C1 exists for
-        if (!PasskeyVerifier.VerifyAssertion(
-                PasskeyVerifier.Base64UrlDecode(stored.PublicKeyCose), request.AuthenticatorData,
-                request.ClientData, request.Signature))
+        var (assertionOk, assertionReason) = PasskeyVerifier.VerifyAssertion(
+            PasskeyVerifier.Base64UrlDecode(stored.PublicKeyCose), request.AuthenticatorData,
+            request.ClientData, request.Signature);
+        if (!assertionOk)
+        {
+            app.Logger.LogWarning("Passkey login: assertion signature verification failed ({Reason}).", assertionReason);
             return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+        }
 
         // 4. persist the advanced counter, then sign in
         stored = stored with { SignCount = proof.SignCount };
@@ -1150,8 +1166,10 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
             emailConfirmed = user.EmailConfirmed
         });
     }
-    catch (PasskeyVerifier.PasskeyVerificationException)
+    catch (PasskeyVerifier.PasskeyVerificationException ex)
     {
+        // Diagnostics only: the verifier's fixed reason, never the payload or secrets.
+        app.Logger.LogWarning("Passkey login verification failed: {Reason}", ex.Message);
         return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
     }
 })
