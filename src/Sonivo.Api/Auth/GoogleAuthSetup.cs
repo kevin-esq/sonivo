@@ -45,7 +45,11 @@ public static class GoogleAuthSetup
     public static void MapGoogleAuthEndpoints(this WebApplication app)
     {
         var googleConfigured = IsGoogleConfigured(app.Configuration);
-        var testHook = app.Configuration.GetValue("Authentication:Google:EnableTestHook", false);
+        // T-SEC-01 (M3): double-gate the test hook — config flag AND Development
+        // environment. Mirrors the email hook backstop: a misconfigured prod flag
+        // alone can never enable it (returns 404 when disabled).
+        var testHook = app.Configuration.GetValue("Authentication:Google:EnableTestHook", false)
+            && app.Environment.IsDevelopment();
 
         app.MapGet("/api/auth/providers", () => Results.Ok(new { google = googleConfigured }))
             .WithName("AuthProviders")

@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (DevSecOps audit P0 batch: gates + CI security + M4 fix; P1/P2 remediation PLAN ONLY — no auth code changes applied)
-Human approval: PENDING (P0 batch + P1 plan review)
-Git checkpoint: PENDING (uncommitted on fix/ui-polish-w7-hierarchy, alongside pre-existing user UI-polish changes — untouched)
-Remote: NOT PUSHED
-CI: NOT RUN locally on GH (local: build green 0/0, 444/444 backend tests vs live PG 5433, SCA clean)
+Implementation: COMPLETE — wave 1 (baseline) MERGED; wave 2 (auth hardening C1+M1+M3) implemented + locally verified; wave 3 hardening pending
+Human approval: APPROVED (explicit full-flow order 2026-09-30: delegate, review, audit, merge when green, delete branches, continue to completion)
+Git checkpoint: wave 1 COMMITTED + MERGED (develop, PR #124 / a8b2684); wave 2 PENDING
+Remote: wave 1 PUSHED + MERGED; wave 2 NOT PUSHED
+CI: wave 1 PASSING (all checks incl. new CodeQL + SCA gates); wave 2 NOT RUN on GH
 ```
 
 ## Current state
