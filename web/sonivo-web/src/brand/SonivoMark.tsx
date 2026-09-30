@@ -45,14 +45,21 @@ export function WaveformHero({ className }: { className?: string }) {
 export function BrandLockup({
   to,
   light = false,
+  shell = false,
 }: {
   to: string
   light?: boolean
+  shell?: boolean
 }) {
   return (
     <Link to={to} className="flex items-center gap-2 no-underline">
       <SonivoMark className={light ? 'text-white' : 'text-primary'} />
-      <span className={cn('text-lg font-semibold tracking-tight', light ? 'text-white' : 'text-neutral-dark')}>
+      <span
+        className={cn(
+          'text-lg font-semibold tracking-tight',
+          light ? 'text-white' : shell ? 'text-shell-foreground' : 'text-neutral-dark',
+        )}
+      >
         Sonivo
       </span>
     </Link>
