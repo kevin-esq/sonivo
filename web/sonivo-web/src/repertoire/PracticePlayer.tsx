@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Button } from '../ui/button'
+import { useAudioPlayer } from './AudioPlayerContext'
 import type { PracticeAudioSource } from './pickPracticeAudio'
 import {
   readPracticePlayerPrefs,
@@ -25,6 +26,11 @@ function resolveInitialTrack(
   return tracks[0]!
 }
 
+/**
+ * Reproductor de práctica. Ya no crea su propio <audio>: publica la pista en el
+ * AudioPlayerContext compartido, así el rail (y la barra inferior en móvil)
+ * muestran y controlan la MISMA reproducción.
+ */
 export function PracticePlayer({
   groupId,
   arrangementId,
@@ -41,18 +47,25 @@ export function PracticePlayer({
   /** ADR-0036: conductor follow — when set, the playhead jumps here. */
   followSeekMs?: number | null
 }) {
+  const {
+    currentTrack,
+    isPlaying,
+    progress,
+    duration,
+    volume,
+    loadTrack,
+    togglePlay,
+    seek,
+    setVolume,
+  } = useAudioPlayer()
+  const prefs = useMemo(
+    () => readPracticePlayerPrefs(groupId, arrangementId),
+    [groupId, arrangementId],
+  )
   const [selectedId, setSelectedId] = useState(() => {
-    const prefs = readPracticePlayerPrefs(groupId, arrangementId)
-    return resolveInitialTrack(tracks, prefs.resourceId).resourceId
+    const initial = readPracticePlayerPrefs(groupId, arrangementId)
+    return resolveInitialTrack(tracks, initial.resourceId).resourceId
   })
-  const [volume, setVolume] = useState(() => {
-    const prefs = readPracticePlayerPrefs(groupId, arrangementId)
-    return prefs.volume
-  })
-  const [playing, setPlaying] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
   const appliedFollowSeekMs = useRef<number | null>(null)
   const seekId = useId()
   const volumeId = useId()
@@ -60,6 +73,18 @@ export function PracticePlayer({
 
   const selected =
     tracks.find((t) => t.resourceId === selectedId) ?? resolveInitialTrack(tracks, null)
+
+  // Cue de la pista elegida en el motor compartido (en pausa).
+  useEffect(() => {
+    loadTrack({ id: selected.resourceId, title: selected.label, url: selected.src })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected.resourceId, selected.src])
+
+  // El volumen de práctica es por arreglo; se aplica al motor al entrar.
+  useEffect(() => {
+    setVolume(prefs.volume)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId, arrangementId])
 
   useEffect(() => {
     writePracticePlayerPrefs(groupId, arrangementId, {
@@ -69,103 +94,40 @@ export function PracticePlayer({
   }, [groupId, arrangementId, volume, selected.resourceId])
 
   useEffect(() => {
-    onCurrentTimeChange?.(currentTime)
-  }, [currentTime, onCurrentTimeChange])
+    onCurrentTimeChange?.(progress)
+  }, [progress, onCurrentTimeChange])
 
   useEffect(() => {
-    onPlayingChange?.(playing)
-  }, [playing, onPlayingChange])
+    onPlayingChange?.(isPlaying)
+  }, [isPlaying, onPlayingChange])
 
-  // ADR-0036 conductor follow: jump the local playhead to the broadcast
+  // ADR-0036 conductor follow: jump the shared playhead to the broadcast
   // position (only when it actually moved, and only when it differs enough
   // to avoid fighting local playback second by second).
   useEffect(() => {
     if (followSeekMs == null || appliedFollowSeekMs.current === followSeekMs) return
     appliedFollowSeekMs.current = followSeekMs
-    const el = audioRef.current
-    if (!el) return
     const next = followSeekMs / 1000
     if (!Number.isFinite(next) || next < 0) return
-    if (Math.abs(el.currentTime - next) > 1) {
-      el.currentTime = next
-      setCurrentTime(next)
+    if (Math.abs(progress - next) > 1) {
+      seek(next)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [followSeekMs])
 
-  useEffect(() => {
-    const el = audioRef.current
-    if (!el) return
-    el.volume = volume
-  }, [volume])
-
-  useEffect(() => {
-    const el = audioRef.current
-    if (!el) return
-
-    const onTimeUpdate = () => setCurrentTime(el.currentTime)
-    const onDurationChange = () => setDuration(Number.isFinite(el.duration) ? el.duration : 0)
-    const onLoadedMetadata = () => {
-      setDuration(Number.isFinite(el.duration) ? el.duration : 0)
-      setCurrentTime(el.currentTime)
-    }
-    const onPlay = () => setPlaying(true)
-    const onPause = () => setPlaying(false)
-    const onEnded = () => setPlaying(false)
-
-    el.addEventListener('timeupdate', onTimeUpdate)
-    el.addEventListener('durationchange', onDurationChange)
-    el.addEventListener('loadedmetadata', onLoadedMetadata)
-    el.addEventListener('play', onPlay)
-    el.addEventListener('pause', onPause)
-    el.addEventListener('ended', onEnded)
-
-    return () => {
-      el.removeEventListener('timeupdate', onTimeUpdate)
-      el.removeEventListener('durationchange', onDurationChange)
-      el.removeEventListener('loadedmetadata', onLoadedMetadata)
-      el.removeEventListener('play', onPlay)
-      el.removeEventListener('pause', onPause)
-      el.removeEventListener('ended', onEnded)
-    }
-  }, [selected.src])
-
-  async function togglePlay() {
-    const el = audioRef.current
-    if (!el) return
-    if (el.paused) {
-      try {
-        await el.play()
-      } catch {
-        // Autoplay / decode errors surface via UI state staying paused
-      }
-    } else {
-      el.pause()
-    }
-  }
-
   function onSeek(value: number) {
-    const el = audioRef.current
-    if (!el) return
     const next = Number.isFinite(value) ? value : 0
-    el.currentTime = next
-    setCurrentTime(next)
+    seek(next)
   }
 
   function onTrackChange(resourceId: string) {
     if (resourceId === selected.resourceId) return
-    const el = audioRef.current
-    if (el) {
-      el.pause()
-      el.currentTime = 0
-    }
-    setPlaying(false)
-    setCurrentTime(0)
-    setDuration(0)
     setSelectedId(resourceId)
   }
 
   const seekMax = duration > 0 ? duration : 0
   const volumePct = Math.round(volume * 100)
+  const hasTrack = currentTrack?.id === selected.resourceId
 
   return (
     <section
@@ -179,18 +141,6 @@ export function PracticePlayer({
         </h2>
         <p className="text-sm text-slate-600">Elige una pista y ensaya con la letra abajo.</p>
       </div>
-
-      <audio
-        ref={audioRef}
-        key={selected.src}
-        preload="auto"
-        src={selected.src}
-        className="sr-only"
-        aria-hidden="true"
-        tabIndex={-1}
-      >
-        Tu navegador no admite reproducción de audio.
-      </audio>
 
       <div className="space-y-1.5">
         <label htmlFor={trackId} className="block text-sm font-medium text-slate-800">
@@ -217,17 +167,18 @@ export function PracticePlayer({
           variant="secondary"
           className="min-h-11 min-w-28"
           onClick={() => void togglePlay()}
-          aria-label={playing ? 'Pausar' : 'Reproducir'}
+          aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
+          disabled={!hasTrack}
           data-testid="practice-play-pause"
         >
-          {playing ? 'Pausar' : 'Reproducir'}
+          {isPlaying ? 'Pausar' : 'Reproducir'}
         </Button>
         <p
           className="tabular-nums text-sm font-medium text-slate-700"
           aria-live="off"
-          aria-label={`Tiempo ${formatTime(currentTime)} de ${formatTime(duration)}`}
+          aria-label={`Tiempo ${formatTime(progress)} de ${formatTime(duration)}`}
         >
-          <span data-testid="practice-current-time">{formatTime(currentTime)}</span>
+          <span data-testid="practice-current-time">{formatTime(progress)}</span>
           {' / '}
           <span data-testid="practice-duration">{formatTime(duration)}</span>
         </p>
@@ -243,12 +194,12 @@ export function PracticePlayer({
           min={0}
           max={seekMax || 1}
           step={0.1}
-          value={Math.min(currentTime, seekMax || 1)}
+          value={Math.min(progress, seekMax || 1)}
           disabled={seekMax <= 0}
           onInput={(e) => onSeek(Number((e.target as HTMLInputElement).value))}
           onChange={(e) => onSeek(Number(e.target.value))}
           className="h-11 w-full accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-valuetext={`${formatTime(currentTime)} de ${formatTime(duration)}`}
+          aria-valuetext={`${formatTime(progress)} de ${formatTime(duration)}`}
           data-testid="practice-seek"
         />
       </div>

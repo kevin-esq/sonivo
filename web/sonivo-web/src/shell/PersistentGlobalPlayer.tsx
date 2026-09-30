@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useT } from '../i18n'
 import { useAudioPlayer } from '../repertoire/AudioPlayerContext'
 import { Play, Pause, Volume2, Music2, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { useRailPresence } from './railPresence'
 
 const focusRing =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary'
@@ -10,6 +11,10 @@ export function PersistentGlobalPlayer() {
   const { currentTrack, isPlaying, progress, duration, volume, togglePlay, seek, setVolume, closeTrack } =
     useAudioPlayer()
   const { t } = useT()
+  const { railPresent } = useRailPresence()
+  // Con un rail visible en >=768px, la barra inferior no se duplica; en móvil
+  // (rail oculto) y en rutas sin rail sigue igual que siempre.
+  const railHidden = railPresent ? 'md:hidden' : ''
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('sonivo_player_collapsed') === 'true'
@@ -51,7 +56,7 @@ export function PersistentGlobalPlayer() {
 
   if (collapsed) {
     return (
-      <div className="fixed inset-x-0 bottom-16 z-50 flex items-center gap-3 border-t border-shell-border bg-shell/95 px-4 py-2 text-shell-foreground shadow-2xl backdrop-blur-md motion-reduce:transition-none md:bottom-0 md:px-6">
+      <div className={`fixed inset-x-0 bottom-16 z-50 flex items-center gap-3 border-t border-shell-border bg-shell/95 px-4 py-2 text-shell-foreground shadow-2xl backdrop-blur-md motion-reduce:transition-none md:bottom-0 md:px-6 ${railHidden}`} data-testid="global-player">
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-shell-link"
           aria-hidden="true"
@@ -89,7 +94,7 @@ export function PersistentGlobalPlayer() {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-16 z-50 flex h-20 items-center justify-between gap-3 border-t border-shell-border bg-shell/95 px-4 text-shell-foreground shadow-2xl backdrop-blur-md motion-reduce:transition-none md:bottom-0 md:px-6">
+    <div className={`fixed inset-x-0 bottom-16 z-50 flex h-20 items-center justify-between gap-3 border-t border-shell-border bg-shell/95 px-4 text-shell-foreground shadow-2xl backdrop-blur-md motion-reduce:transition-none md:bottom-0 md:px-6 ${railHidden}`} data-testid="global-player">
       <div className="flex w-1/4 min-w-0 items-center gap-3">
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-shell-link"
