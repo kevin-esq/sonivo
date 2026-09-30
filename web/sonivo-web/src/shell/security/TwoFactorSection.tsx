@@ -9,6 +9,7 @@ import {
   type TwoFactorStatus,
 } from '../../api/client'
 import { Button } from '../../ui/button'
+import { useT } from '../../i18n'
 
 const fieldClass = 'w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25'
 
@@ -37,6 +38,7 @@ export function TwoFactorSection({
   const [copiedUri, setCopiedUri] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useT()
 
   async function onStartEnroll() {
     setPending(true)
@@ -113,16 +115,16 @@ export function TwoFactorSection({
       {status === null || !status.enabled ? (
         enroll ? (
           <form className="space-y-4 max-w-lg" onSubmit={onConfirmEnroll} noValidate>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Verificación en dos pasos</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('seguridad.totpTitle')}</h2>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Ingresa esta clave en tu app de autenticación (o escanea el código QR a continuación):
+              {t('seguridad.totpEnrollHint')}
             </p>
             <div className="flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
               <QRCodeSVG value={enroll.uri} size={180} level="M" className="rounded-lg border bg-white p-2 shadow-sm" />
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Código QR para aplicación de autenticación</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('seguridad.totpQrCaption')}</p>
             </div>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Clave manual</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('seguridad.manualKey')}</span>
               <input className={fieldClass} readOnly value={enroll.manualKey} />
             </label>
             <div className="flex flex-wrap gap-2">
@@ -133,7 +135,7 @@ export function TwoFactorSection({
                   void copyText(enroll.manualKey).then((ok) => setCopiedKey(ok))
                 }}
               >
-                {copiedKey ? 'Clave copiada' : 'Copiar clave'}
+                {copiedKey ? t('seguridad.keyCopied') : t('seguridad.copyKey')}
               </Button>
               <Button
                 type="button"
@@ -142,11 +144,11 @@ export function TwoFactorSection({
                   void copyText(enroll.uri).then((ok) => setCopiedUri(ok))
                 }}
               >
-                {copiedUri ? 'Enlace copiado' : 'Copiar enlace'}
+                {copiedUri ? t('seguridad.linkCopied') : t('seguridad.copyLink')}
               </Button>
             </div>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Código de 6 dígitos</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('seguridad.sixDigitCode')}</span>
               <input
                 className={fieldClass}
                 required
@@ -157,34 +159,33 @@ export function TwoFactorSection({
               />
             </label>
             <Button type="submit" disabled={pending}>
-              {pending ? 'Verificando…' : 'Confirmar y activar'}
+              {pending ? t('seguridad.verifying') : t('seguridad.confirmActivate')}
             </Button>
           </form>
         ) : (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Verificación en dos pasos</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('seguridad.totpTitle')}</h2>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Cada inicio de sesión pedirá además un código de 6 dígitos de tu app
-              de autenticación. Recibirás códigos de recuperación por si pierdes el acceso.
+              {t('seguridad.totpOffHint')}
             </p>
             <Button type="button" onClick={() => void onStartEnroll()} disabled={pending}>
-              {pending ? 'Trabajando…' : 'Activar verificación en dos pasos'}
+              {pending ? t('seguridad.working') : t('seguridad.activateTotp')}
             </Button>
           </div>
         )
       ) : (
         <div className="space-y-6">
           <div className="space-y-1">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Verificación en dos pasos</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('seguridad.totpTitle')}</h2>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              La verificación en dos pasos está activada para tu cuenta.
+              {t('seguridad.totpOnHint')}
             </p>
           </div>
           <form className="space-y-3 max-w-md" onSubmit={onRegenerate} noValidate>
-            <h3 className="font-semibold text-slate-900 dark:text-white">Códigos de recuperación</h3>
+            <h3 className="font-semibold text-slate-900 dark:text-white">{t('seguridad.recoveryCodes')}</h3>
             {status.hasPassword ? (
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Contraseña para regenerar</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('seguridad.regenPasswordLabel')}</span>
                 <input
                   type="password"
                   className={fieldClass}
@@ -195,15 +196,15 @@ export function TwoFactorSection({
               </label>
             ) : null}
             <Button type="submit" variant="outline" disabled={pending}>
-              {pending ? 'Generando…' : 'Generar nuevos códigos de recuperación'}
+              {pending ? t('seguridad.generating') : t('seguridad.regenCodes')}
             </Button>
           </form>
 
           <form className="space-y-3 max-w-md pt-4 border-t border-slate-200 dark:border-slate-800" onSubmit={onDisable} noValidate>
-            <h3 className="font-semibold text-red-600 dark:text-red-400">Desactivar 2FA</h3>
+            <h3 className="font-semibold text-red-600 dark:text-red-400">{t('seguridad.disableTotp')}</h3>
             {status.hasPassword ? (
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Contraseña</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('seguridad.passwordLabel')}</span>
                 <input
                   type="password"
                   className={fieldClass}
@@ -214,7 +215,7 @@ export function TwoFactorSection({
               </label>
             ) : null}
             <Button type="submit" variant="outline" disabled={pending}>
-              {pending ? 'Desactivando…' : 'Desactivar verificación en dos pasos'}
+              {pending ? t('seguridad.disabling') : t('seguridad.disableTotpLong')}
             </Button>
           </form>
         </div>
@@ -222,13 +223,13 @@ export function TwoFactorSection({
 
       {codes ? (
         <section
-          aria-label="Códigos de recuperación"
+          aria-label={t('seguridad.recoveryCodes')}
           role="region"
           className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4 mt-6"
         >
-          <h3 className="font-semibold text-primary">Guarda estos códigos de recuperación</h3>
+          <h3 className="font-semibold text-primary">{t('seguridad.saveCodesTitle')}</h3>
           <p className="text-xs text-slate-600 dark:text-slate-300">
-            Se muestran una sola vez. Si pierdes el teléfono, necesitarás uno para entrar.
+            {t('seguridad.saveCodesHint')}
           </p>
           <ul className="grid grid-cols-2 gap-2 text-center font-mono text-sm">
             {codes.map((code) => (
@@ -238,7 +239,7 @@ export function TwoFactorSection({
             ))}
           </ul>
           <Button type="button" onClick={() => setCodes(null)}>
-            He guardado mis códigos
+            {t('seguridad.codesSaved')}
           </Button>
         </section>
       ) : null}

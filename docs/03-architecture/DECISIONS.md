@@ -10,7 +10,7 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ## ADR-0043 — Total visual redesign: immersive × precise, Grupo/Cuenta IA, frontend es/en
 
-- **Status:** **PROPOSED**
+- **Status:** **ACCEPTED** — owner-authorized 2026-09-29 ("Acepto todo"); waves W0–W5 shipped 2026-09-30 (PRs #115–#120, see [`PHASE-UI-UX-SPEC.md`](PHASE-UI-UX-SPEC.md)).
 - **Date:** 2026-09-29
 
 ### Decision (proposed)
@@ -32,12 +32,12 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 - No backend i18n now (no API/message/mail string changes).
 - No S3/blob, 5 MiB upload cap, or payments/billing changes (ADR-0035, ADR-0042 stand).
 - No AuthZ/auth/session changes: Owner/Member, server-enforced Group scope, Identity cookie + antiforgery (ADR-0009–0012, 0019–0020).
-- PROPOSED only: binds nothing until ACCEPTED; waves W1+ require acceptance.
+- **ACCEPTED 2026-09-29**; implemented as waves **W0–W5** with each wave merged only on green CI. Owner also authorized keeping the parallel structural hardening (route code-splitting, error boundary, `/login?next=` return handling) integrated in W5.
 
 ### Deltas vs current docs (flagged, not silent)
 
-- CONTEXT.md ASSUMPTION "English-first UI" → this ADR proposes **es-default es/en**; CONTEXT updates only on ACCEPTANCE.
-- `docs/01-product/PRODUCT.md` "Visual direction: Not finalized" → this ADR + root DESIGN.md propose the direction; that line updates only on ACCEPTANCE.
+- CONTEXT.md ASSUMPTION "English-first UI" → superseded by **es-default es/en**; CONTEXT updated 2026-09-30.
+- `docs/01-product/PRODUCT.md` "Visual direction: Not finalized" → direction now defined by root `DESIGN.md`; that line updated 2026-09-30.
 
 ---
 

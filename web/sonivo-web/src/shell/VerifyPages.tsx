@@ -9,6 +9,7 @@ import {
   resendConfirmation,
 } from '../api/client'
 import { BrandLockup } from '../brand/SonivoMark'
+import { useT } from '../i18n'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
 
@@ -34,6 +35,7 @@ function VerifyShell({
 
 export function ConfirmPage() {
   const [searchParams] = useSearchParams()
+  const { t } = useT()
   const email = searchParams.get('email') ?? ''
   const token = searchParams.get('token') ?? ''
   const [status, setStatus] = useState<'pending' | 'ok' | 'error'>('pending')
@@ -60,26 +62,26 @@ export function ConfirmPage() {
   }, [email, token])
 
   return (
-    <VerifyShell title="Confirma tu correo">
-      {status === 'pending' ? <p className="text-sm text-slate-600">Confirmando…</p> : null}
+    <VerifyShell title={t('verify.confirmTitle')}>
+      {status === 'pending' ? <p className="text-sm text-slate-600">{t('verify.confirming')}</p> : null}
       {status === 'ok' ? (
         <div className="space-y-3">
-          <p className="text-sm text-slate-600">¡Correo confirmado! Ya puedes iniciar sesión.</p>
+          <p className="text-sm text-slate-600">{t('verify.confirmed')}</p>
           <Link
             className="inline-block font-semibold text-primary no-underline hover:underline"
             to="/login"
           >
-            Ir a iniciar sesión
+            {t('verify.goLogin')}
           </Link>
         </div>
       ) : null}
       {status === 'error' ? (
         <div className="space-y-3">
           <p role="alert" className="text-sm text-error">
-            Enlace expirado o inválido — solicita uno nuevo
+            {t('verify.linkInvalid')}
           </p>
           {resent ? (
-            <p className="text-sm text-slate-600">Te enviamos un enlace de confirmación</p>
+            <p className="text-sm text-slate-600">{t('verify.linkSent')}</p>
           ) : (
             <Button
               type="button"
@@ -89,7 +91,7 @@ export function ConfirmPage() {
               }}
               disabled={!email}
             >
-              Reenviar correo
+              {t('verify.resend')}
             </Button>
           )}
         </div>
@@ -103,6 +105,7 @@ export function ForgotPasswordPage() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
+  const { t } = useT()
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -119,10 +122,10 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <VerifyShell title="Restablecer contraseña">
+    <VerifyShell title={t('verify.forgotTitle')}>
       {sent ? (
         <p className="text-sm text-slate-600">
-          Si el correo está registrado, te enviamos un enlace para restablecer tu contraseña.
+          {t('verify.forgotSent')}
         </p>
       ) : (
         <form className="space-y-4" onSubmit={onSubmit} noValidate>
@@ -132,7 +135,7 @@ export function ForgotPasswordPage() {
             </p>
           ) : null}
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-700">Correo electrónico</span>
+            <span className="text-sm font-medium text-slate-700">{t('verify.emailLabel')}</span>
             <input
               className={fieldClass}
               type="email"
@@ -143,7 +146,7 @@ export function ForgotPasswordPage() {
             />
           </label>
           <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? 'Enviando…' : 'Restablecer contraseña'}
+            {pending ? t('verify.sending') : t('verify.resetSubmit')}
           </Button>
         </form>
       )}
@@ -159,6 +162,7 @@ export function ResetPasswordPage() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  const { t } = useT()
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -175,19 +179,19 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <VerifyShell title="Restablecer contraseña">
+    <VerifyShell title={t('verify.resetTitle')}>
       {!email || !token ? (
         <p role="alert" className="text-sm text-error">
-          Enlace expirado o inválido — solicita uno nuevo
+          {t('verify.linkInvalid')}
         </p>
       ) : done ? (
         <div className="space-y-3">
-          <p className="text-sm text-slate-600">Contraseña actualizada. Ya puedes iniciar sesión.</p>
+          <p className="text-sm text-slate-600">{t('verify.resetDone')}</p>
           <Link
             className="inline-block font-semibold text-primary no-underline hover:underline"
             to="/login"
           >
-            Ir a iniciar sesión
+            {t('verify.goLogin')}
           </Link>
         </div>
       ) : (
@@ -198,7 +202,7 @@ export function ResetPasswordPage() {
             </p>
           ) : null}
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-700">Nueva contraseña</span>
+            <span className="text-sm font-medium text-slate-700">{t('verify.newPasswordLabel')}</span>
             <input
               className={fieldClass}
               type="password"
@@ -210,7 +214,7 @@ export function ResetPasswordPage() {
             />
           </label>
           <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? 'Guardando…' : 'Restablecer contraseña'}
+            {pending ? t('verify.saving') : t('verify.resetSubmit')}
           </Button>
         </form>
       )}

@@ -59,7 +59,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando grupo…</p>
+    return <p aria-live="polite">{t('workspace.loadingGroupEllipsis')}</p>
   }
 
   if (group === null) {
@@ -69,7 +69,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           {error}
         </p>
         <Link className="font-semibold text-primary no-underline hover:underline" to="/">
-          Mis grupos
+          {t('workspace.myGroups')}
         </Link>
       </div>
     )

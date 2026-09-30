@@ -13,6 +13,7 @@ import {
   type OutstandingInvitation,
 } from '../api/client'
 import { EmptyPanel, PageBreadcrumb } from '../repertoire/chrome'
+import { useT } from '../i18n'
 import {
   isOwnerRole,
   formatMembershipRole,
@@ -41,6 +42,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
   const [invites, setInvites] = useState<OutstandingInvitation[] | null>(null)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [revokingId, setRevokingId] = useState<string | null>(null)
+  const { t } = useT()
 
   const isOwner = isOwnerRole(group?.role)
 
@@ -152,7 +154,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <PageSkeleton label="Cargando miembros…" />
+    return <PageSkeleton label={t('gente.loading')} />
   }
 
   if (group === null) {
@@ -160,7 +162,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
         <Link className="font-semibold text-primary no-underline hover:underline" to="/">
-          Mis grupos
+          {t('gente.myGroups')}
         </Link>
       </div>
     )
@@ -170,13 +172,13 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     <section className="space-y-6" aria-labelledby="people-heading">
       <div className="space-y-2">
         <PageBreadcrumb
-          items={[{ to: `/groups/${group.id}`, label: group.name }, { label: 'Miembros' }]}
+          items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('gente.title') }]}
         />
         <h1 id="people-heading" className="text-2xl font-bold tracking-tight">
-          Miembros
+          {t('gente.title')}
         </h1>
         <p className="text-sm text-slate-500">
-          Quién forma el grupo, roles y invitaciones pendientes.
+          {t('gente.subtitle')}
         </p>
       </div>
 
@@ -185,11 +187,11 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       <ProblemAlert message={inviteError} />
 
       {members === null ? (
-        <ListSkeleton rows={3} label="Cargando miembros…" />
+        <ListSkeleton rows={3} label={t('gente.loading')} />
       ) : members.length === 0 ? (
         <EmptyPanel
-          title="Aún no hay miembros"
-          description="Cuando haya personas en el grupo, aparecerán aquí."
+          title={t('gente.emptyTitle')}
+          description={t('gente.emptyBody')}
         />
       ) : (
         <ul className="space-y-2">
@@ -222,7 +224,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                     <p className="truncate font-semibold text-neutral-dark">
                       {member.displayName}
                       {isSelf ? (
-                        <span className="ml-2 text-sm font-normal text-slate-500">(tú)</span>
+                        <span className="ml-2 text-sm font-normal text-slate-500">{t('gente.you')}</span>
                       ) : null}
                     </p>
                     <p className="text-sm text-slate-500">({formatRole(member.role)})</p>
@@ -231,10 +233,10 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                 {isOwner ? (
                   <div className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-3">
                     <label className="block space-y-1.5">
-                      <span className="text-sm font-medium text-slate-700">Rol</span>
+                      <span className="text-sm font-medium text-slate-700">{t('gente.roleLabel')}</span>
                       <select
                         className={fieldClass}
-                        aria-label={`Rol de ${member.displayName}`}
+                        aria-label={`${t('gente.roleOfPrefix')}${member.displayName}`}
                         value={member.role}
                         disabled={busy}
                         onChange={(event) => {
@@ -244,18 +246,18 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                           }
                         }}
                       >
-                        <option value="Owner">Organizador</option>
-                        <option value="Member">Miembro</option>
+                        <option value="Owner">{t('gente.roleOwner')}</option>
+                        <option value="Member">{t('gente.roleMember')}</option>
                       </select>
                     </label>
                     {isSelf ? null : (
                       <Button
                         variant="danger"
                         disabled={busy}
-                        aria-label={`Eliminar ${member.displayName}`}
+                        aria-label={`${t('gente.removePrefix')}${member.displayName}`}
                         onClick={() => void onRemove(member.userId)}
                       >
-                        Eliminar
+                        {t('gente.remove')}
                       </Button>
                     )}
                   </div>
@@ -269,12 +271,12 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       {isOwner ? (
         <section className="space-y-3" aria-labelledby="invites-heading">
           <h2 id="invites-heading" className="text-lg font-semibold">
-            Invitaciones pendientes
+            {t('gente.invitesTitle')}
           </h2>
           {invites === null ? (
-            <ListSkeleton rows={2} label="Cargando invitaciones…" />
+            <ListSkeleton rows={2} label={t('gente.loadingInvites')} />
           ) : invites.length === 0 ? (
-            <p className="text-sm text-slate-500">No hay invitaciones pendientes.</p>
+            <p className="text-sm text-slate-500">{t('gente.noInvites')}</p>
           ) : (
             <ul className="space-y-2">
               {invites.map((invite) => (
@@ -283,16 +285,16 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                   className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3"
                 >
                   <p className="text-sm text-slate-600">
-                    Caduca {new Date(invite.expiresAt).toLocaleString('es')}
+                    {t('gente.expiresPrefix')}{new Date(invite.expiresAt).toLocaleString('es')}
                   </p>
                   <Button
                     variant="danger"
                     size="sm"
                     disabled={revokingId === invite.id}
-                    aria-label={`Revocar invitación que caduca ${invite.expiresAt}`}
+                    aria-label={`${t('gente.revokePrefix')}${invite.expiresAt}`}
                     onClick={() => void onRevoke(invite.id)}
                   >
-                    Revocar
+                    {t('gente.revoke')}
                   </Button>
                 </li>
               ))}
@@ -303,7 +305,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
 
       {isOwner ? null : (
         <Button variant="secondary" disabled={leaving} onClick={() => void onLeave()}>
-          {leaving ? 'Trabajando…' : 'Salir del grupo'}
+          {leaving ? t('gente.leaving') : t('gente.leave')}
         </Button>
       )}
     </section>

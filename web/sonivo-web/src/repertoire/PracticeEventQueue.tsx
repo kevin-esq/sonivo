@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { EventPlanItem } from '../api/client'
+import { useT } from '../i18n'
 import { buttonVariants } from '../ui/button'
 import { cn } from '../ui/cn'
 
@@ -33,6 +34,7 @@ export function PracticeEventQueue({
 }) {
   const indexByItem =
     currentItemId != null ? items.findIndex((item) => item.id === currentItemId) : -1
+  const { t } = useT()
   const currentIndex = indexByItem >= 0 ? indexByItem : 0
   const current = items[currentIndex]
   const prev = currentIndex > 0 ? items[currentIndex - 1] : null
@@ -48,13 +50,13 @@ export function PracticeEventQueue({
     >
       <div className="space-y-1">
         <p className="text-sm font-medium uppercase tracking-wide text-slate-600">
-          Cola del plan
+          {t('cola.title')}
         </p>
         <h2 id="practice-queue-heading" className="text-lg font-semibold tracking-tight text-neutral-dark">
           {eventTitle}
         </h2>
         <p className="text-sm text-slate-600" aria-live="polite">
-          Canción {currentIndex + 1} de {items.length}
+          {t('cola.songPrefix')}{currentIndex + 1}{t('cola.songMiddle')}{items.length}
         </p>
       </div>
 
@@ -70,43 +72,43 @@ export function PracticeEventQueue({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3" role="group" aria-label="Navegación del plan">
+      <div className="flex flex-wrap gap-3" role="group" aria-label={t('cola.navLabel')}>
         {prev ? (
           <Link
             className={navLinkClass}
             to={practiceQueueHref(groupId, eventId, prev)}
-            aria-label={`Anterior: ${prev.displaySongTitle}`}
+            aria-label={`${t('cola.prevPrefix')}${prev.displaySongTitle}`}
             data-testid="practice-queue-prev"
           >
-            Anterior
+            {t('cola.prev')}
           </Link>
         ) : (
           <span
             className={navDisabledClass}
             aria-disabled="true"
-            aria-label="Anterior (no disponible)"
+            aria-label={t('cola.prevDisabled')}
             data-testid="practice-queue-prev"
           >
-            Anterior
+            {t('cola.prev')}
           </span>
         )}
         {next ? (
           <Link
             className={navLinkClass}
             to={practiceQueueHref(groupId, eventId, next)}
-            aria-label={`Siguiente: ${next.displaySongTitle}`}
+            aria-label={`${t('cola.nextPrefix')}${next.displaySongTitle}`}
             data-testid="practice-queue-next"
           >
-            Siguiente
+            {t('cola.next')}
           </Link>
         ) : (
           <span
             className={navDisabledClass}
             aria-disabled="true"
-            aria-label="Siguiente (no disponible)"
+            aria-label={t('cola.nextDisabled')}
             data-testid="practice-queue-next"
           >
-            Siguiente
+            {t('cola.next')}
           </span>
         )}
       </div>
@@ -116,7 +118,7 @@ export function PracticeEventQueue({
           className="inline-flex min-h-11 items-center text-sm font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           to={`/groups/${groupId}/events/${eventId}`}
         >
-          Volver al evento
+          {t('cola.backToEvent')}
         </Link>
       </p>
     </section>

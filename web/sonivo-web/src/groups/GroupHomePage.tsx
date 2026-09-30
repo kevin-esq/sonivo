@@ -32,6 +32,7 @@ import {
 import { EmptyPanel } from '../repertoire/chrome'
 import { Button, primaryButtonClass, secondaryButtonClass } from '../ui/button'
 import { cn } from '../ui/cn'
+import { useT } from '../i18n'
 import { Skeleton } from '../ui/skeleton'
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
 
@@ -105,7 +106,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteEmailWarning, setInviteEmailWarning] = useState<string | null>(null)
+  const [inviteEmailWarning, setInviteEmailWarning] = useState(false)
   const [inviting, setInviting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [renameName, setRenameName] = useState('')
@@ -116,6 +117,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const { t } = useT()
 
   useEffect(() => {
     let cancelled = false
@@ -126,7 +128,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       setInviteUrl(null)
       setInviteError(null)
       setInviteEmail('')
-      setInviteEmailWarning(null)
+      setInviteEmailWarning(false)
       setCopied(false)
       setEvents(null)
       setSetlists(null)
@@ -142,7 +144,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
         if (cancelled) return
         setGroup(null)
         if (err instanceof ApiError && err.status === 404) {
-          setError('Group not found or you do not have access.')
+          setError(t('inicio.notFound'))
         } else {
           setError(problemDetail(err))
         }
@@ -222,15 +224,13 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
     if (!group) return
     setInviting(true)
     setInviteError(null)
-    setInviteEmailWarning(null)
+    setInviteEmailWarning(false)
     setCopied(false)
     try {
       const created = await createInvitation(group.id, inviteEmail)
       setInviteUrl(`${window.location.origin}/join/${created.token}`)
       if (inviteEmail.trim() && !created.emailed) {
-        setInviteEmailWarning(
-          'Invitación creada, pero el correo no se envió. Copia el enlace y compártelo tú.',
-        )
+        setInviteEmailWarning(true)
       }
     } catch (err) {
       setInviteError(mutationErrorMessage(err))
@@ -307,7 +307,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando grupo…</p>
+    return <p aria-live="polite">{t('inicio.loading')}</p>
   }
 
   if (group === null) {
@@ -317,7 +317,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           {error}
         </p>
         <Link className="font-semibold text-primary no-underline hover:underline" to="/">
-          Mis grupos
+          {t('inicio.myGroups')}
         </Link>
       </div>
     )
@@ -328,15 +328,15 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   return (
     <section className="space-y-8" aria-labelledby="group-heading">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">¡Hola, {hello}!</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t('inicio.helloPrefix')}{hello}{t('inicio.helloSuffix')}</h1>
         <h2 id="group-heading" className="text-lg font-semibold text-neutral-dark">
           {group.name}
         </h2>
         <p className="text-sm text-slate-500">
-          Aquí tienes un resumen de tu música y próximos eventos.
+          {t('inicio.summary')}
         </p>
         <p className="text-sm text-slate-500">
-          Tu rol en este grupo: <strong>{formatMembershipRole(group.role)}</strong>.
+          {t('inicio.rolePrefix')}<strong>{formatMembershipRole(group.role)}</strong>.
         </p>
       </div>
 
@@ -344,19 +344,19 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-          <p className="text-sm text-slate-500">Listas</p>
+          <p className="text-sm text-slate-500">{t('inicio.statSetlists')}</p>
           <p className="mt-1 text-2xl font-bold text-neutral-dark">
             {setlists === null ? <Skeleton className="mt-2 h-8 w-10" /> : setlists.length}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-          <p className="text-sm text-slate-500">Eventos</p>
+          <p className="text-sm text-slate-500">{t('inicio.statEvents')}</p>
           <p className="mt-1 text-2xl font-bold text-neutral-dark">
             {scheduledCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : scheduledCount}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-          <p className="text-sm text-slate-500">Canciones</p>
+          <p className="text-sm text-slate-500">{t('inicio.statSongs')}</p>
           <p className="mt-1 text-2xl font-bold text-neutral-dark">
             {songCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : songCount}
           </p>
@@ -369,11 +369,11 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="space-y-3" aria-labelledby="next-event-heading">
           <h3 id="next-event-heading" className="font-semibold">
-            Próximo evento
+            {t('inicio.nextEvent')}
           </h3>
           {events === null ? (
             <p aria-live="polite" className="text-sm text-slate-500">
-              Cargando eventos…
+              {t('inicio.loadingEvents')}
             </p>
           ) : nextEvent ? (
             <div
@@ -394,7 +394,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                 </div>
               </div>
               <p className="text-sm text-slate-600" data-testid="home-next-event-rsvp">
-                Mi asistencia:{' '}
+                {t('inicio.myRsvp')}{' '}
                 <strong>
                   {myRsvp === undefined ? '…' : formatRsvpLabel(myRsvp)}
                 </strong>
@@ -405,23 +405,21 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                   to={`/groups/${group.id}/events/${nextEvent.id}`}
                   data-testid="home-next-event-plan"
                 >
-                  Ver plan y materiales
+                  {t('inicio.viewPlan')}
                 </Link>
                 <Link
                   className={cn(secondaryButtonClass, 'min-h-11 no-underline')}
                   to={`/groups/${group.id}/events/${nextEvent.id}`}
                 >
-                  Confirmar asistencia
+                  {t('inicio.confirmRsvp')}
                 </Link>
               </div>
             </div>
           ) : (
             <EmptyPanel
-              title="Aún no hay eventos"
+              title={t('inicio.noEventsTitle')}
               description={
-                isOwner
-                  ? 'Crea un ensayo o concierto para que el grupo se prepare.'
-                  : 'Cuando haya un evento, verás aquí la fecha, tu asistencia y el plan.'
+                isOwner ? t('inicio.noEventsOwner') : t('inicio.noEventsMember')
               }
               action={
                 <Link
@@ -429,7 +427,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                   to={`/groups/${group.id}/events`}
                   data-testid="home-empty-events"
                 >
-                  Ir a Eventos
+                  {t('inicio.goEvents')}
                 </Link>
               }
             />
@@ -439,33 +437,31 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
         <section className="space-y-3" aria-labelledby="recent-setlists-heading">
           <div className="flex items-baseline justify-between gap-3">
             <h3 id="recent-setlists-heading" className="font-semibold">
-              Listas recientes
+              {t('inicio.recentSetlists')}
             </h3>
             <Link
               className="text-sm font-semibold text-primary no-underline hover:underline"
               to={`/groups/${group.id}/setlists`}
             >
-              Ver todos
+              {t('inicio.viewAll')}
             </Link>
           </div>
           {recentSetlists === null ? (
             <p aria-live="polite" className="text-sm text-slate-500">
-              Cargando listas…
+              {t('inicio.loadingSetlists')}
             </p>
           ) : recentSetlists.length === 0 ? (
             <EmptyPanel
-              title="Aún no hay listas"
+              title={t('inicio.noSetlistsTitle')}
               description={
-                isOwner
-                  ? 'Crea una lista con arreglos de la biblioteca y aplícala a un evento.'
-                  : 'Cuando haya listas, aparecerán aquí.'
+                isOwner ? t('inicio.noSetlistsOwner') : t('inicio.noSetlistsMember')
               }
               action={
                 <Link
                   className="font-semibold text-primary no-underline hover:underline"
                   to={`/groups/${group.id}/setlists`}
                 >
-                  Ir a Listas
+                  {t('inicio.goSetlists')}
                 </Link>
               }
             />
@@ -510,15 +506,15 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             <Music2 className="h-5 w-5" />
           </span>
           <div>
-            <p className="font-semibold text-neutral-dark">Biblioteca</p>
+            <p className="font-semibold text-neutral-dark">{t('inicio.libraryTitle')}</p>
             <p className="text-sm text-slate-500">
-              {songCount === null ? 'Cargando…' : formatSongCount(songCount)}
+              {songCount === null ? t('inicio.loadingDots') : formatSongCount(songCount)}
               {' · '}
               <Link
                 className="font-semibold text-primary no-underline hover:underline"
                 to={`/groups/${group.id}/library`}
               >
-                Abrir biblioteca
+                {t('inicio.openLibrary')}
               </Link>
             </p>
           </div>
@@ -528,26 +524,26 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       {isOwner ? (
         <section className="space-y-6 border-t border-slate-200 pt-6" aria-labelledby="admin-heading">
           <h2 id="admin-heading" className="text-lg font-semibold">
-            Administrar
+            {t('inicio.admin')}
           </h2>
 
           <div className="space-y-3">
-            <h3 className="font-medium">Invitar miembro</h3>
+            <h3 className="font-medium">{t('inicio.inviteTitle')}</h3>
             <label className="block max-w-md space-y-1.5">
               <span className="text-sm font-medium text-slate-700">
-                Correo del invitado (opcional)
+                {t('inicio.inviteEmail')}
               </span>
               <input
                 className={fieldClass}
                 type="email"
                 autoComplete="off"
-                aria-label="Correo del invitado (opcional)"
+                aria-label={t('inicio.inviteEmail')}
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
               />
             </label>
             <Button disabled={inviting} onClick={() => void onInviteMember()}>
-              {inviting ? 'Trabajando…' : 'Invitar miembro'}
+              {inviting ? t('inicio.working') : t('inicio.invite')}
             </Button>
             <ProblemAlert message={inviteError} />
             {inviteEmailWarning ? (
@@ -555,26 +551,26 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                 role="status"
                 className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-neutral-dark"
               >
-                {inviteEmailWarning}
+                {t('inicio.inviteMailWarning')}
               </p>
             ) : null}
             {inviteUrl ? (
               <div className="max-w-md space-y-2">
                 <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-slate-700">Enlace de invitación</span>
+                  <span className="text-sm font-medium text-slate-700">{t('inicio.inviteLinkLabel')}</span>
                   <input
                     className={fieldClass}
                     readOnly
-                    aria-label="Enlace de invitación"
+                    aria-label={t('inicio.inviteLinkLabel')}
                     value={inviteUrl}
                   />
                 </label>
                 <Button variant="secondary" onClick={() => void onCopyInviteLink()}>
-                  Copiar enlace
+                  {t('inicio.copyLink')}
                 </Button>
                 {copied ? (
                   <p aria-live="polite" className="text-sm text-slate-600">
-                    Copiado
+                    {t('inicio.copied')}
                   </p>
                 ) : null}
               </div>
@@ -582,11 +578,11 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           </div>
 
           <form className="max-w-md space-y-3 border-t border-slate-200 pt-6" onSubmit={onRename}>
-            <h3 className="font-medium">Renombrar grupo</h3>
+            <h3 className="font-medium">{t('inicio.renameTitle')}</h3>
             <ConflictAlert message={renameConflict} />
             <ProblemAlert message={renameError} />
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">Nombre</span>
+              <span className="text-sm font-medium text-slate-700">{t('inicio.nameLabel')}</span>
               <input
                 className={fieldClass}
                 required
@@ -596,20 +592,22 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               />
             </label>
             <Button variant="secondary" type="submit" disabled={renaming}>
-              {renaming ? 'Trabajando…' : 'Guardar nombre'}
+              {renaming ? t('inicio.working') : t('inicio.saveName')}
             </Button>
           </form>
 
           <div className="space-y-3 border-t border-slate-200 pt-6">
-            <h3 className="font-medium">Eliminar grupo</h3>
+            <h3 className="font-medium">{t('inicio.deleteTitle')}</h3>
             <ProblemAlert message={deleteError} />
             <Button variant="danger" onClick={() => setDeleteOpen(true)}>
-              Eliminar grupo
+              {t('inicio.deleteTitle')}
             </Button>
             <ConfirmDialog
               open={deleteOpen}
-              title="¿Eliminar grupo?"
-              confirmLabel="Eliminar grupo"
+              title={t('inicio.deleteDialogTitle')}
+              confirmLabel={t('inicio.deleteTitle')}
+              cancelLabel={t('inicio.cancel')}
+              pendingLabel={t('inicio.deleting')}
               pending={deleting}
               onConfirm={() => void onConfirmDelete()}
               onCancel={() => {
@@ -617,8 +615,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               }}
             >
               <p>
-                Esto oculta el grupo para todos sus miembros. No puedes deshacerlo desde esta
-                pantalla.
+                {t('inicio.deleteBody')}
               </p>
             </ConfirmDialog>
           </div>

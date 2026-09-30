@@ -95,15 +95,16 @@ function PracticePageSkeleton({ label }: { label: string }) {
 }
 
 function QueueSkeleton() {
+  const { t } = useT()
   return (
     <div
       className="space-y-3 rounded-xl border border-slate-200 bg-neutral-light p-4"
       role="status"
       aria-live="polite"
-      aria-label="Cargando plan del evento…"
+      aria-label={t('practica.queueLoading')}
       data-testid="practice-queue-skeleton"
     >
-      <span className="sr-only">Cargando plan del evento…</span>
+      <span className="sr-only">{t('practica.queueLoading')}</span>
       <Skeleton className="h-4 w-28" />
       <Skeleton className="h-6 w-48" />
       <Skeleton className="h-4 w-32" />
@@ -248,7 +249,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   }, [isOwner, eventId, conductor.connectionState, arrangementId])
 
   if (group === undefined) {
-    return <PracticePageSkeleton label="Cargando práctica…" />
+    return <PracticePageSkeleton label={t('practica.loading')} />
   }
 
   if (group === null) {
@@ -256,25 +257,25 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
         <Link className="font-semibold text-primary no-underline hover:underline" to="/">
-          Mis grupos
+          {t('practica.myGroups')}
         </Link>
       </div>
     )
   }
 
   if (arrangement === undefined) {
-    return <PracticePageSkeleton label="Cargando práctica…" />
+    return <PracticePageSkeleton label={t('practica.loading')} />
   }
 
   if (arrangement === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? 'No se encontró el arreglo o no tienes acceso.'} />
+        <ProblemAlert message={error ?? t('practica.notFound')} />
         <Link
           className="font-semibold text-primary no-underline hover:underline"
           to={`/groups/${group.id}/library`}
         >
-          Biblioteca
+          {t('practica.library')}
         </Link>
       </div>
     )
@@ -291,7 +292,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     eventDetail && arrangementId
       ? resolveQueueItem(queueItems, arrangementId, planItemId)
       : null
-  const displayTitle = queueItem?.displaySongTitle ?? songTitle ?? 'Canción'
+  const displayTitle = queueItem?.displaySongTitle ?? songTitle ?? t('practica.songFallback')
   const displayLabel = queueItem?.displayArrangementLabel ?? liveArrangement.label
 
   const sourceBody = liveArrangement.chords?.trim() || liveArrangement.lyrics?.trim() || ''
@@ -401,19 +402,19 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const breadcrumbItems = eventId
     ? [
         { to: `/groups/${liveGroup.id}`, label: liveGroup.name },
-        { to: `/groups/${liveGroup.id}/events`, label: 'Eventos' },
+        { to: `/groups/${liveGroup.id}/events`, label: t('agenda.eventsTitle') },
         {
           to: `/groups/${liveGroup.id}/events/${eventId}`,
-          label: eventDetail?.title ?? 'Evento',
+          label: eventDetail?.title ?? t('practica.eventFallback'),
         },
-        { label: 'Ensayar plan' },
+        { label: t('practica.rehearsePlan') },
       ]
     : [
         { to: `/groups/${liveGroup.id}`, label: liveGroup.name },
-        { to: `/groups/${liveGroup.id}/library`, label: 'Biblioteca' },
-        { to: songHref, label: songTitle ?? 'Canción' },
+        { to: `/groups/${liveGroup.id}/library`, label: t('practica.library') },
+        { to: songHref, label: songTitle ?? t('practica.songFallback') },
         { to: arrangementHref, label: liveArrangement.label },
-        { label: 'Practicar' },
+        { label: t('practica.kicker') },
       ]
 
   const tabLabels: Record<PracticeTab, string> = {
@@ -429,7 +430,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         <PageBreadcrumb items={breadcrumbItems} />
         <div className="space-y-2">
           <p className="text-sm font-medium uppercase tracking-wide text-slate-600">
-            {eventId ? 'Ensayar plan' : 'Practicar'}
+            {eventId ? t('practica.rehearsePlan') : t('practica.kicker')}
           </p>
           <h1 id="practice-heading" className="text-2xl font-bold tracking-tight text-neutral-dark sm:text-[1.75rem]">
             {displayTitle}
@@ -437,12 +438,12 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           <p className="text-base text-slate-700">{displayLabel}</p>
           <p className="text-sm text-slate-600">
             {liveArrangement.defaultKey
-              ? `Tonalidad: ${liveArrangement.defaultKey}`
-              : 'Tonalidad: —'}
+              ? `${t('practica.keyPrefix')}${liveArrangement.defaultKey}`
+              : t('practica.keyEmpty')}
             {' · '}
             {liveArrangement.defaultBpm != null
-              ? `Tempo: ${liveArrangement.defaultBpm} BPM`
-              : 'Tempo: —'}
+              ? `${t('practica.tempoPrefix')}${liveArrangement.defaultBpm}${t('practica.bpmSuffix')}`
+              : t('practica.tempoEmpty')}
           </p>
         </div>
       </div>
@@ -464,14 +465,14 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       {eventId && eventDetail && queueItems.length === 0 ? (
         <EmptyPanel
-          title="Este evento aún no tiene plan"
-          description="Cuando el organizador aplique una lista, podrás ensayar las canciones en orden."
+          title={t('practica.noPlanTitle')}
+          description={t('practica.noPlanBody')}
           action={
             <Link
               className="font-semibold text-primary no-underline hover:underline"
               to={`/groups/${liveGroup.id}/events/${eventId}`}
             >
-              Volver al evento
+              {t('practica.backToEvent')}
             </Link>
           }
         />
@@ -537,7 +538,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="practice-tuner-heading">
         <h2 id="practice-tuner-heading" className="text-base font-semibold tracking-tight text-neutral-dark">
-          Afinador
+          {t('practica.tunerTitle')}
         </h2>
         <TunerPanel />
       </section>
@@ -545,7 +546,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       {referenceResources.length > 0 ? (
         <section className="space-y-4" aria-labelledby="practice-reference-heading">
           <h2 id="practice-reference-heading" className="text-lg font-semibold tracking-tight text-neutral-dark">
-            Referencia
+            {t('practica.referenceTitle')}
           </h2>
           {referenceResources.map((resource) => (
             <ReferenceEmbed key={resource.id} resource={resource} />
@@ -562,7 +563,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             id="practice-transpose-heading"
             className="text-base font-semibold tracking-tight text-neutral-dark"
           >
-            Tono y vista
+            {t('practica.toneViewTitle')}
           </h2>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -571,7 +572,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               data-testid="practice-transpose-down"
               onClick={() => setSemitoneOffset((n) => n - 1)}
             >
-              Tono −1
+              {t('practica.toneDown')}
             </Button>
             <Button
               variant="secondary"
@@ -579,7 +580,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               data-testid="practice-transpose-up"
               onClick={() => setSemitoneOffset((n) => n + 1)}
             >
-              Tono +1
+              {t('practica.toneUp')}
             </Button>
             <Button
               variant="secondary"
@@ -588,15 +589,15 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               disabled={semitoneOffset === 0}
               onClick={() => setSemitoneOffset(0)}
             >
-              Restablecer preview
+              {t('practica.toneReset')}
             </Button>
           </div>
           <p className="text-sm text-slate-600" data-testid="practice-transpose-offset">
-            Desplazamiento:{' '}
+            {t('practica.offsetPrefix')}
             {semitoneOffset > 0 ? `+${semitoneOffset}` : String(semitoneOffset)}
-            {effectiveKeyHint ? ` · Efectiva: ${effectiveKeyHint}` : null}
+            {effectiveKeyHint ? `${t('practica.effectivePrefix')}${effectiveKeyHint}` : null}
           </p>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Vista de ensayo">
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t('practica.viewGroupLabel')}>
             <Button
               variant={viewMode === 'singer' ? 'primary' : 'secondary'}
               size="sm"
@@ -604,7 +605,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               aria-pressed={viewMode === 'singer'}
               onClick={() => setViewModePersist('singer')}
             >
-              Vista Cantante
+              {t('practica.viewSinger')}
             </Button>
             <Button
               variant={viewMode === 'guitarist' ? 'primary' : 'secondary'}
@@ -613,7 +614,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               aria-pressed={viewMode === 'guitarist'}
               onClick={() => setViewModePersist('guitarist')}
             >
-              Vista Guitarrista
+              {t('practica.viewGuitarist')}
             </Button>
             {timingMarks.length > 0 ? (
               youTubeOnlyPractice ? (
@@ -626,14 +627,13 @@ export function PracticePage({ user }: { user: CurrentUser }) {
                     aria-pressed={false}
                     disabled
                   >
-                    Seguir letra
+                    {t('practica.followLyrics')}
                   </Button>
                   <p
                     className="text-xs text-slate-500"
                     data-testid="practice-follow-along-youtube-note"
                   >
-                    «Seguir letra» solo funciona con audio subido a Sonivo. Los videos de
-                    YouTube no permiten sincronizar la letra.
+                    {t('practica.youtubeNote')}
                   </p>
                 </div>
               ) : (
@@ -644,7 +644,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
                   aria-pressed={followAlong}
                   onClick={() => setFollowAlongPersist(!followAlong)}
                 >
-                  Seguir letra
+                  {t('practica.followLyrics')}
                 </Button>
               )
             ) : null}
@@ -658,7 +658,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
                 disabled={semitoneOffset === 0 || savingTone}
                 onClick={() => setConfirmSaveTone(true)}
               >
-                Guardar tono
+                {t('practica.saveTone')}
               </Button>
             </div>
           ) : null}
@@ -667,20 +667,20 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       <section className="space-y-3" aria-labelledby="practice-lyrics-heading">
         <h2 id="practice-lyrics-heading" className="text-lg font-semibold tracking-tight text-neutral-dark">
-          Letra
+          {t('practica.lyricsTitle')}
         </h2>
         {(() => {
           if (!sourceBody) {
             return (
               <EmptyPanel
-                title="Sin letra ni acordes"
-                description="Este arreglo aún no tiene letra ni acordes para ensayar."
+                title={t('practica.noLyricsTitle')}
+                description={t('practica.noLyricsBody')}
                 action={
                   <Link
                     className="font-semibold text-primary no-underline hover:underline"
                     to={arrangementHref}
                   >
-                    Ver el arreglo
+                    {t('practica.viewArrangement')}
                   </Link>
                 }
               />
@@ -808,32 +808,31 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             className="inline-flex min-h-11 items-center font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             to={`/groups/${group.id}/events/${eventId}`}
           >
-            Volver al evento
+            {t('practica.backToEvent')}
           </Link>
         ) : (
           <Link
             className="inline-flex min-h-11 items-center font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             to={arrangementHref}
           >
-            Volver al arreglo
+            {t('practica.backToArrangement')}
           </Link>
         )}
       </p>
 
       <ConfirmDialog
         open={confirmSaveTone}
-        title="¿Guardar tono?"
-        confirmLabel="Guardar tono"
-        cancelLabel="Cancelar"
-        pendingLabel="Guardando…"
+        title={t('practica.saveToneTitle')}
+        confirmLabel={t('practica.saveTone')}
+        cancelLabel={t('practica.cancel')}
+        pendingLabel={t('practica.saving')}
         pending={savingTone}
         onCancel={() => setConfirmSaveTone(false)}
         onConfirm={() => void handleSaveTone()}
       >
         <p>
-          Se actualizarán los acordes ChordPro del arreglo
-          {effectiveKeyHint ? ` y la tonalidad a ${effectiveKeyHint}` : ''}. Esta
-          acción no se puede deshacer con Restablecer preview.
+          {t('practica.saveToneBody')}
+          {effectiveKeyHint ? `${t('practica.saveToneBodyKey')}${effectiveKeyHint}` : ''}{t('practica.saveToneBodySuffix')}
         </p>
       </ConfirmDialog>
     </section>

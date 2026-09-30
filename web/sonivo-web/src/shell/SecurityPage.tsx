@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchTwoFactorStatus, problemDetail, type TwoFactorStatus } from '../api/client'
+import { useT } from '../i18n'
 import { PasswordSection } from './security/PasswordSection'
 import { TwoFactorSection } from './security/TwoFactorSection'
 import { PasskeysSection } from './security/PasskeysSection'
@@ -7,6 +8,7 @@ import { PasskeysSection } from './security/PasskeysSection'
 export function SecurityPage() {
   const [status, setStatus] = useState<TwoFactorStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useT()
 
   async function refresh() {
     try {
@@ -24,9 +26,9 @@ export function SecurityPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Seguridad</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{t('seguridad.title')}</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Protege tu cuenta con un segundo paso al iniciar sesión y administra tus credenciales.
+          {t('seguridad.subtitle')}
         </p>
       </div>
 

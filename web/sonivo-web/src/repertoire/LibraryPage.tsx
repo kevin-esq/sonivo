@@ -77,7 +77,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
   }, [groupId, group])
 
   if (group === undefined) {
-    return <PageSkeleton label="Cargando biblioteca…" />
+    return <PageSkeleton label={t('canciones.loadingLibrary')} />
   }
 
   if (group === null) {
@@ -85,7 +85,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
         <Link className="font-semibold text-primary no-underline hover:underline" to="/">
-          Mis grupos
+          {t('canciones.myGroups')}
         </Link>
       </div>
     )
@@ -124,7 +124,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
               <p className="max-w-lg text-sm text-white/80">
                 {t('listas.subtitle')}
               </p>
-              {!isOwner ? <p className="text-sm text-white/80">Solo lectura</p> : null}
+              {!isOwner ? <p className="text-sm text-white/80">{t('canciones.readonly')}</p> : null}
             </div>
             {songs !== null ? (
               <p data-testid="library-count" className="flex items-baseline gap-2 text-white">
@@ -166,27 +166,25 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
       <ProblemAlert message={listError} />
 
       {songs === null || filtered === null ? (
-        <ListSkeleton rows={4} label="Cargando canciones…" />
+        <ListSkeleton rows={4} label={t('canciones.loadingSongs')} />
       ) : songs.length === 0 ? (
         showCreate ? null : (
         <EmptyPanel
-          title="Aún no hay canciones"
+          title={t('canciones.emptyTitle')}
           description={
-            isOwner
-              ? 'Agrega la primera canción para empezar el repertorio, ensayar y armar listas.'
-              : 'Aún no hay canciones en el repertorio.'
+            isOwner ? t('canciones.emptyOwner') : t('canciones.emptyMember')
           }
           action={
             isOwner ? (
               <Button data-testid="library-empty-add-song" onClick={() => setShowCreate(true)}>
-                Agregar canción
+                {t('canciones.addSong')}
               </Button>
             ) : (
               <Link
                 className="font-semibold text-primary no-underline hover:underline"
                 to={`/groups/${group.id}`}
               >
-                Volver al inicio
+                {t('canciones.backHome')}
               </Link>
             )
           }
@@ -269,6 +267,7 @@ function SongCreateForm({
   const [rightsNotes, setRightsNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const { t } = useT()
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -291,9 +290,9 @@ function SongCreateForm({
 
   return (
     <form className="max-w-lg space-y-4 border-t border-slate-200 pt-6" onSubmit={onSubmit} noValidate>
-      <h2 className="text-lg font-semibold">Crear canción</h2>
+      <h2 className="text-lg font-semibold">{t('canciones.createTitle')}</h2>
       <ProblemAlert message={error} />
-      <Field label="Título">
+      <Field label={t('canciones.titleLabel')}>
         <input
           className={fieldClass}
           required
@@ -302,19 +301,19 @@ function SongCreateForm({
           maxLength={200}
         />
       </Field>
-      <Field label="Origen">
+      <Field label={t('canciones.originLabel')}>
         <select
           className={fieldClass}
           required
           value={originKind}
           onChange={(e) => setOriginKind(e.target.value as SongOriginKind)}
         >
-          <option value="original">Propia</option>
-          <option value="cover">Versión</option>
-          <option value="other">Otro</option>
+          <option value="original">{t('canciones.originOriginal')}</option>
+          <option value="cover">{t('canciones.originCover')}</option>
+          <option value="other">{t('canciones.originOther')}</option>
         </select>
       </Field>
-      <Field label="Atribución (opcional)">
+      <Field label={t('canciones.attributionLabel')}>
         <input
           className={fieldClass}
           value={attribution}
@@ -322,7 +321,7 @@ function SongCreateForm({
           maxLength={500}
         />
       </Field>
-      <Field label="Notas de derechos (opcional)">
+      <Field label={t('canciones.rightsLabel')}>
         <textarea
           className={fieldClass}
           rows={3}
@@ -333,10 +332,10 @@ function SongCreateForm({
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? 'Creando…' : 'Crear canción'}
+          {pending ? t('canciones.creating') : t('canciones.create')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          Cancelar
+          {t('canciones.cancel')}
         </Button>
       </FormActions>
     </form>
