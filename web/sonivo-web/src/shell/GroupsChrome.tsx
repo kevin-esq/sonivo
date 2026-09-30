@@ -16,20 +16,20 @@ export function GroupsChrome({
   const { t } = useT()
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-4">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-shell-border px-6 py-4">
         <div className="flex items-center gap-4">
-          <BrandLockup to="/" light />
-          <p className="hidden text-sm text-slate-400 sm:block">{t('chrome.tagline')}</p>
+          <BrandLockup to="/" shell />
+          <p className="hidden text-sm text-shell-foreground/70 sm:block">{t('chrome.tagline')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-slate-300">{user.email}</span>
-          <Link to="/cuenta" className="font-semibold text-secondary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
+          <span className="text-shell-foreground/70">{user.email}</span>
+          <Link to="/cuenta" className="font-semibold text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
             {t('chrome.account')}
           </Link>
-          <Link to="/cuenta/seguridad" className="font-semibold text-secondary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
+          <Link to="/cuenta/seguridad" className="font-semibold text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
             {t('chrome.security')}
           </Link>
-          <Button variant="ghost" className="text-secondary hover:text-white" onClick={onLogout}>
+          <Button variant="ghost" className="text-shell-link hover:text-shell-foreground" onClick={onLogout}>
             {t('chrome.logout')}
           </Button>
         </div>
@@ -52,11 +52,11 @@ export function PublicChrome({
   return (
     <div className="min-h-screen bg-canvas">
       <header className="flex items-center justify-between px-6 py-4">
-        <BrandLockup to={user ? '/' : '/login'} light />
+        <BrandLockup to={user ? '/' : '/login'} shell />
         {user ? null : (
           <Link
             to="/login"
-            className="text-sm font-semibold text-secondary no-underline hover:underline"
+            className="text-sm font-semibold text-shell-link no-underline hover:underline"
           >
             {t('chrome.login')}
           </Link>
@@ -71,7 +71,7 @@ export function PublicChrome({
 
 export function SessionScreen({ message }: { message: string }) {
   return (
-    <div className="grid min-h-screen place-items-center bg-canvas text-neutral-light">
+    <div className="grid min-h-screen place-items-center bg-canvas text-shell-foreground">
       <p aria-live="polite">{message}</p>
     </div>
   )
