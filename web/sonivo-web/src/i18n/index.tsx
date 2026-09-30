@@ -92,6 +92,7 @@ const es = {
   "common.eventMany": "eventos",
   "common.resultOne": "resultado",
   "common.resultMany": "resultados",
+  "common.dangerZone": "Zona de peligro",
   "listas.title": "Biblioteca",
   "listas.subtitle":
     "El repertorio del grupo: canciones para ensayar, arreglar y llevar a un evento.",
@@ -119,17 +120,21 @@ const es = {
   "practica.tabs.estudiar": "Estudiar",
   "practica.tabs.avanzado": "Avanzado",
   "practica.tabs.afinar": "Afinar",
+  "practica.chordpro.chorus": "Coro",
+  "practica.chordpro.verse": "Verso",
   "practica.avanzado.title": "Herramientas avanzadas",
   "practica.avanzado.hint":
     "Tiempos de seguimiento, digitalizador de audio y ensayo en vivo. Cada herramienta confirma antes de guardar.",
   "practica.avanzado.timingTitle": "Tiempos y mapeo",
   "practica.avanzado.timingHint":
-    "Marca en qué milisegundo empieza cada línea. Se edita en el arreglo.",
+    "Los tiempos se editan en el borrador del arreglo, no aquí. Abre el editor para marcar en qué milisegundo empieza cada línea.",
   "practica.avanzado.timingLink": "Editar tiempos en el arreglo",
   "practica.avanzado.digitizeTitle": "Digitalizador de audio",
   "practica.avanzado.digitizeHint":
     "Convierte un audio en borrador de marcas y letra. Revísalo y aplícalo aquí o desde el arreglo.",
   "practica.avanzado.digitizeLink": "Abrir en el arreglo",
+  "practica.avanzado.digitizeEmpty":
+    "Aún no hay audio para digitalizar. Agrega un recurso de audio o de práctica («audio»/«practice») en el arreglo y vuelve aquí.",
   "practica.avanzado.conductorHint":
     "El ensayo en vivo aparece al ensayar desde un evento.",
   "practica.afinar.title": "Afinar",
@@ -802,6 +807,7 @@ const en: Record<I18nKey, string> = {
   "common.eventMany": "events",
   "common.resultOne": "result",
   "common.resultMany": "results",
+  "common.dangerZone": "Danger zone",
   "listas.title": "Library",
   "listas.subtitle":
     "The group repertoire: songs to rehearse, arrange, and bring to an event.",
@@ -828,17 +834,21 @@ const en: Record<I18nKey, string> = {
   "practica.tabs.estudiar": "Study",
   "practica.tabs.avanzado": "Advanced",
   "practica.tabs.afinar": "Tune",
+  "practica.chordpro.chorus": "Chorus",
+  "practica.chordpro.verse": "Verse",
   "practica.avanzado.title": "Advanced tools",
   "practica.avanzado.hint":
     "Follow timing, audio digitizer, and live rehearsal. Each tool confirms before saving.",
   "practica.avanzado.timingTitle": "Timing and mapping",
   "practica.avanzado.timingHint":
-    "Mark at which millisecond each line starts. Edited on the arrangement.",
+    "Timing is edited on the arrangement draft, not here. Open the editor to mark where each line begins.",
   "practica.avanzado.timingLink": "Edit timing on the arrangement",
   "practica.avanzado.digitizeTitle": "Audio digitizer",
   "practica.avanzado.digitizeHint":
     "Turn audio into a marks and lyrics draft. Review and apply here or from the arrangement.",
   "practica.avanzado.digitizeLink": "Open on the arrangement",
+  "practica.avanzado.digitizeEmpty":
+    "No audio to digitize yet. Add an audio or practice resource (“audio”/“practice”) in the arrangement and come back.",
   "practica.avanzado.conductorHint":
     "Live rehearsal appears when rehearsing from an event.",
   "practica.afinar.title": "Tune",

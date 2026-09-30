@@ -322,20 +322,15 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   : t('agenda.statusDraft')}
             </ReadinessChip>
             {isOwner && isLive && !editing ? (
-              <>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setTab('details')
-                    setEditing(true)
-                  }}
-                >
-                  Editar evento
-                </Button>
-                <Button variant="danger" onClick={() => setConfirmCancel(true)}>
-                  Cancelar evento
-                </Button>
-              </>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setTab('details')
+                  setEditing(true)
+                }}
+              >
+                Editar evento
+              </Button>
             ) : null}
           </div>
         </div>
@@ -622,6 +617,21 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               ))}
             </ul>
           )}
+        </section>
+      ) : null}
+
+      {isOwner && isLive && !editing ? (
+        <section
+          aria-labelledby="event-danger-heading"
+          data-testid="danger-zone"
+          className="space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
+        >
+          <h2 id="event-danger-heading" className="text-lg font-semibold text-error">
+            {t('common.dangerZone')}
+          </h2>
+          <Button variant="danger" onClick={() => setConfirmCancel(true)}>
+            Cancelar evento
+          </Button>
         </section>
       ) : null}
 

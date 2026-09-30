@@ -39,6 +39,7 @@ import {
   type PracticeViewMode,
 } from './practiceViewPrefs'
 import { listPracticeAudioTracks, type PracticeAudioSource } from './pickPracticeAudio'
+import { isDigitizableResource } from './digitize'
 import {
   ConfirmDialog,
   isOwnerRole,
@@ -312,6 +313,9 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const referenceResources = liveArrangement.resources.filter(
     (r) => r.purpose === 'reference' && r.kind === 'link',
   )
+  // The inline digitizer needs a WAV audio/practice/click resource; say why when
+  // there is none instead of rendering an empty section (W8 P2).
+  const digitizableResources = liveArrangement.resources.filter(isDigitizableResource)
   // ADR-0037 / ADR-0031: cross-origin YouTube iframes expose no timeupdate,
   // so follow-along stays file-audio-only. When Practice has timing marks but
   // no file audio and only a YouTube reference to play from, the toggle is
@@ -759,12 +763,21 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               </Link>
             </p>
             {isOwner ? (
-              <AudioDigitizer
-                key={liveArrangement.id}
-                groupId={liveGroup.id}
-                arrangement={liveArrangement}
-                onChanged={reloadForDigitizer}
-              />
+              digitizableResources.length > 0 ? (
+                <AudioDigitizer
+                  key={liveArrangement.id}
+                  groupId={liveGroup.id}
+                  arrangement={liveArrangement}
+                  onChanged={reloadForDigitizer}
+                />
+              ) : (
+                <p
+                  className="rounded-xl border border-slate-200 bg-neutral-light px-3 py-2 text-sm text-slate-600"
+                  data-testid="practice-advanced-digitize-empty"
+                >
+                  {t('practica.avanzado.digitizeEmpty')}
+                </p>
+              )
             ) : null}
           </section>
 
