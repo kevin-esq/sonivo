@@ -47,4 +47,15 @@ public class VerificationThrottleTests
         Assert.False(throttle.TryClaim("SINGER@example.com"));
         Assert.True(throttle.TryClaim("other@example.com"));
     }
+
+    // L4 (SECURITY-AUDIT-2026-09): forgot-password and resend-confirmation use
+    // distinct key namespaces so one never blocks the other for the same email.
+    [Fact]
+    public void Forgot_and_resend_namespaces_are_independent()
+    {
+        var throttle = new VerificationThrottle(new MutableClock());
+        Assert.True(throttle.TryClaim("forgot:singer@example.com"));
+        Assert.True(throttle.TryClaim("resend:singer@example.com"));
+        Assert.False(throttle.TryClaim("forgot:singer@example.com"));
+    }
 }

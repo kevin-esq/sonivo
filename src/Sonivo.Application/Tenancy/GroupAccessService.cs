@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Sonivo.Application.Abstractions;
 using Sonivo.Domain.Tenancy;
 
@@ -6,10 +7,12 @@ namespace Sonivo.Application.Tenancy;
 public sealed class GroupAccessService
 {
     private readonly IGroupStore _store;
+    private readonly ILogger<GroupAccessService>? _logger;
 
-    public GroupAccessService(IGroupStore store)
+    public GroupAccessService(IGroupStore store, ILogger<GroupAccessService>? logger = null)
     {
         _store = store;
+        _logger = logger;
     }
 
     public async Task<(Group Group, Membership Membership)> RequireMemberAsync(
@@ -41,6 +44,11 @@ public sealed class GroupAccessService
         var (group, membership) = await RequireMemberAsync(groupId, userId, cancellationToken);
         if (!membership.IsOwner)
         {
+            // M5 (SECURITY-AUDIT-2026-09): security event logging — identifiers only.
+            _logger?.LogWarning(
+                "Security event: authz denied (owner required). ActorUserId: {ActorUserId}, GroupId: {GroupId}",
+                userId,
+                groupId);
             throw new ForbiddenException("Owner role required.");
         }
 
