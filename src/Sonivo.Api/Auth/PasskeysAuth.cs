@@ -266,16 +266,18 @@ public static class PasskeyVerifier
     }
 
     // ---- assertion verification (login) -------------------------------------
-    public static bool VerifyAssertion(
+    public static (bool Ok, string Reason) VerifyAssertion(
         byte[] coseKey, string authDataBase64Url, string clientDataBase64Url, string signatureBase64Url)
     {
         // WebAuthn: signature over authenticatorData || SHA256(clientDataJSON)
         var message = Base64UrlDecode(authDataBase64Url)
             .Concat(SHA256.HashData(Base64UrlDecode(clientDataBase64Url))).ToArray();
-        return VerifyWithCoseKey(coseKey, message, Base64UrlDecode(signatureBase64Url));
+        var reason = VerifyWithCoseKey(coseKey, message, Base64UrlDecode(signatureBase64Url));
+        return (reason is null, reason ?? "ok");
     }
 
-    private static bool VerifyWithCoseKey(byte[] coseKeyCbor, byte[] message, byte[] signature)
+    /// <summary>Returns null when the signature verifies; otherwise a short, secret-free reason.</summary>
+    private static string? VerifyWithCoseKey(byte[] coseKeyCbor, byte[] message, byte[] signature)
     {
         try
         {
@@ -311,16 +313,43 @@ public static class PasskeyVerifier
                     Curve = ECCurve.NamedCurves.nistP256,
                     Q = new ECPoint { X = x, Y = y }
                 });
-                // ECDsa hashes internally; the to-be-signed bytes already embed SHA256(clientData),
-                // so verify over the SHA-256 of the full message.
-                return ec.VerifyData(message, signature, HashAlgorithmName.SHA256);
+                // The signature format is platform-dependent in .NET (raw IEEE P1363 on
+                // Windows/CNG, ASN.1 DER on Unix/OpenSSL), while authenticators may send
+                // either (WebAuthn mandates DER; WebCrypto-based software authenticators
+                // emit raw r||s). Try every plausible encoding so real credentials verify.
+                var asDer = signature.Length == 64 ? TryConvertRawEcdsaToDer(signature) : signature;
+                var asRaw = signature.Length == 64 ? signature : TryConvertDerEcdsaToRaw(signature);
+
+                foreach (var candidate in new[] { asDer, asRaw, signature })
+                {
+                    if (candidate is null)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        if (ec.VerifyData(message, candidate, HashAlgorithmName.SHA256))
+                        {
+                            return null;
+                        }
+                    }
+                    catch (CryptographicException)
+                    {
+                        // malformed encoding for this platform — try the next candidate
+                    }
+                }
+
+                return $"ES256 signature invalid (len={signature.Length})";
             }
             if (kty == 3 && alg == Rs256 && n is not null && e is not null)                 // RSA
             {
                 using var rsa = RSA.Create(new RSAParameters { Modulus = n, Exponent = e });
-                return rsa.VerifyData(message, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                return rsa.VerifyData(message, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1)
+                    ? null
+                    : "RS256 signature invalid";
             }
-            return false;                                    // reject unknown alg/kty — deny by default
+            return $"unsupported credential alg/kty (alg={alg}, kty={kty}, crv={crv})";   // deny by default
         }
         catch (PasskeyVerificationException)
         {
@@ -328,8 +357,110 @@ public static class PasskeyVerifier
         }
         catch (Exception ex) when (ex is CborContentException or InvalidOperationException or ArgumentException or CryptographicException)
         {
-            return false;                                    // malformed key/signature — deny by default
+            return $"malformed credential key or signature ({ex.GetType().Name})";        // deny by default
         }
+    }
+
+    /// <summary>
+    /// Converts a raw 64-byte P-256 ECDSA signature (r||s) to ASN.1 DER. Returns null
+    /// for anything that is not a raw pair.
+    /// </summary>
+    private static byte[]? TryConvertRawEcdsaToDer(byte[] signature)
+    {
+        if (signature.Length != 64)
+        {
+            return null;
+        }
+
+        static byte[] DerInteger(byte[] value)
+        {
+            var start = 0;
+            while (start < value.Length - 1 && value[start] == 0)
+            {
+                start++;
+            }
+
+            var magnitude = value[start..];
+            var pad = magnitude[0] >= 0x80 ? 1 : 0;      // keep the DER integer positive
+            var body = new byte[magnitude.Length + pad];
+            if (pad == 1)
+            {
+                magnitude.AsSpan().CopyTo(body.AsSpan(1));
+            }
+            else
+            {
+                magnitude.AsSpan().CopyTo(body);
+            }
+
+            return [0x02, (byte)body.Length, .. body];
+        }
+
+        var r = DerInteger(signature[..32]);
+        var s = DerInteger(signature[32..]);
+        var inner = r.Concat(s).ToArray();
+        return [0x30, (byte)inner.Length, .. inner];     // P-256 parts stay < 128 bytes -> DER short form
+    }
+
+    /// <summary>
+    /// Converts an ASN.1 DER ECDSA signature to the raw 64-byte r||s pair (P-256).
+    /// Returns null for anything that is not a parseable DER signature.
+    /// </summary>
+    private static byte[]? TryConvertDerEcdsaToRaw(byte[] der)
+    {
+        try
+        {
+            var offset = 0;
+            if (der[offset++] != 0x30)
+            {
+                return null;
+            }
+
+            offset += DerLengthBytes(der[offset]);
+            var r = ReadDerInteger(der, ref offset);
+            var s = ReadDerInteger(der, ref offset);
+            if (r.Length > 32 || s.Length > 32)
+            {
+                return null;
+            }
+
+            var raw = new byte[64];
+            r.CopyTo(raw, 32 - r.Length);
+            s.CopyTo(raw, 64 - s.Length);
+            return raw;
+        }
+        catch (Exception ex) when (ex is IndexOutOfRangeException or InvalidOperationException or ArgumentOutOfRangeException)
+        {
+            return null;
+        }
+    }
+
+    private static int DerLengthBytes(byte first) => (first & 0x80) == 0 ? 1 : 1 + (first & 0x7F);
+
+    private static byte[] ReadDerInteger(byte[] der, ref int offset)
+    {
+        if (der[offset++] != 0x02)
+        {
+            throw new InvalidOperationException("Unexpected DER encoding.");
+        }
+
+        var lengthBytes = DerLengthBytes(der[offset]);
+        var length = 0;
+        if (lengthBytes == 1)
+        {
+            length = der[offset];
+        }
+        else
+        {
+            for (var i = 1; i < lengthBytes; i++)
+            {
+                length = (length << 8) | der[offset + i];
+            }
+        }
+
+        offset += lengthBytes;
+        var value = der[offset..(offset + length)];
+        offset += length;
+        return value.Length > 0 && value[0] == 0 ? value[1..] : value;   // drop the sign pad
     }
 }
 
