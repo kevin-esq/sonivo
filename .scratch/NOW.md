@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE (UI/UX redesign ADR-0043: waves W0-W5 all MERGED — PRs #115, #116, #117, #118, #119, #120; branches deleted)
+Implementation: COMPLETE (UI/UX redesign ADR-0043: waves W0-W5 all MERGED — PRs #115, #116, #117, #118, #119, #120; branches deleted; phase CLOSED)
 Human approval: APPROVED (explicit full-flow order: delegate to agents, audit per wave, push + merge when green, delete branches, continue to completion; plus explicit "es mío, consérvalo e intégralo" for the parallel hardening)
-Git checkpoint: COMMITTED + MERGED to develop (PR #120 0c98ddd); release develop->main in progress
+Git checkpoint: COMMITTED + MERGED (develop: PRs #115-#120; release develop->main: PR #121, main cd540ef; main == develop)
 Remote: PUSHED + MERGED
-CI: PASSING (all six PRs: Backend + Frontend + Playwright E2E green; local E2E 46/46, detector no findings)
+CI: PASSING (all seven PRs: Backend + Frontend + Playwright E2E green; local E2E 46/46, Impeccable detector no findings)
 ```
 
 ## Current state
