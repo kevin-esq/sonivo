@@ -1,32 +1,23 @@
 import { useEffect, useRef } from 'react'
 import { cn } from '../ui/cn'
+import { useT } from '../i18n'
 import { looksLikeChordPro, parseChordPro, type ChordProLine } from './chordPro'
 
-function directiveLabel(name: string, value: string | null): string {
+/**
+ * Known ChordPro section openers → the eyebrow shown in the lyric flow.
+ * Every other directive (`{title:}`, `{key:}`, `{comment:}` values, unknown
+ * `{...}`) is consumed silently so raw braces never leak into the lyrics.
+ */
+function sectionKey(name: string): 'chorus' | 'verse' | null {
   switch (name) {
     case 'soc':
     case 'start_of_chorus':
-      return 'Estribillo'
-    case 'eoc':
-    case 'end_of_chorus':
-      return 'Fin del estribillo'
+      return 'chorus'
     case 'sov':
     case 'start_of_verse':
-      return 'Verso'
-    case 'eov':
-    case 'end_of_verse':
-      return 'Fin del verso'
-    case 'title':
-    case 't':
-      return value ? `Título: ${value}` : 'Título'
-    case 'subtitle':
-    case 'st':
-      return value ? `Subtítulo: ${value}` : 'Subtítulo'
-    case 'key':
-    case 'k':
-      return value ? `Tonalidad: ${value}` : 'Tonalidad'
+      return 'verse'
     default:
-      return value ? `${name}: ${value}` : name
+      return null
   }
 }
 
@@ -37,6 +28,8 @@ function ChordProLineView({
   line: ChordProLine
   hideChords: boolean
 }) {
+  const { t } = useT()
+
   if (line.kind === 'empty') {
     return <div className="h-3" aria-hidden />
   }
@@ -46,9 +39,11 @@ function ChordProLineView({
   }
 
   if (line.kind === 'directive') {
+    const section = sectionKey(line.name)
+    if (section == null) return null
     return (
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-        {directiveLabel(line.name, line.value)}
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {t(section === 'chorus' ? 'practica.chordpro.chorus' : 'practica.chordpro.verse')}
       </p>
     )
   }

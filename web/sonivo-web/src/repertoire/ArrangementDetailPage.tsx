@@ -436,13 +436,25 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               <Button variant="secondary" onClick={() => setEditing(true)}>
                 {t('arreglo.editArrangement')}
               </Button>
-              <Button variant="danger" onClick={() => setConfirmDeleteArrangement(true)}>
-                {t('arreglo.deleteArrangement')}
-              </Button>
             </div>
           ) : null}
         </aside>
       </div>
+
+      {isOwner ? (
+        <section
+          aria-labelledby="arrangement-danger-heading"
+          data-testid="danger-zone"
+          className="space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
+        >
+          <h2 id="arrangement-danger-heading" className="text-lg font-semibold text-error">
+            {t('common.dangerZone')}
+          </h2>
+          <Button variant="danger" onClick={() => setConfirmDeleteArrangement(true)}>
+            {t('arreglo.deleteArrangement')}
+          </Button>
+        </section>
+      ) : null}
 
       <ConfirmDialog
         open={confirmDeleteArrangement}
@@ -533,7 +545,12 @@ function ResourceRow({
             <Button variant="secondary" size="sm" onClick={onEdit}>
               {t('arreglo.edit')}
             </Button>
-            <Button variant="danger" size="sm" onClick={onDelete}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-error hover:text-error"
+              onClick={onDelete}
+            >
               {t('arreglo.delete')}
             </Button>
           </>

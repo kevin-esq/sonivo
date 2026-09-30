@@ -282,7 +282,10 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           ) : null}
         </section>
 
-        <aside className="space-y-4 rounded-2xl border border-slate-100 bg-neutral-light p-5 shadow-sm">
+        <aside
+          data-testid="song-facts"
+          className="space-y-4 rounded-2xl border border-slate-100 bg-neutral-light p-5 shadow-sm"
+        >
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
             {t('listas.songFacts')}
           </h3>
@@ -329,13 +332,25 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
               <Button variant="secondary" onClick={() => setEditing(true)}>
                 {t('cancion.editSong')}
               </Button>
-              <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-                {t('cancion.deleteSong')}
-              </Button>
             </div>
           ) : null}
         </aside>
       </div>
+
+      {isOwner ? (
+        <section
+          aria-labelledby="song-danger-heading"
+          data-testid="danger-zone"
+          className="space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
+        >
+          <h2 id="song-danger-heading" className="text-lg font-semibold text-error">
+            {t('common.dangerZone')}
+          </h2>
+          <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+            {t('cancion.deleteSong')}
+          </Button>
+        </section>
+      ) : null}
 
       <ConfirmDialog
         open={confirmDelete}

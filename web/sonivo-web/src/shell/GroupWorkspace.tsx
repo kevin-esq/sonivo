@@ -8,7 +8,7 @@ import { useT } from '../i18n'
 import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { Button } from '../ui/button'
-import { groupCoverStyle, isGradientCover, readGroupAppearance } from './groupAccent'
+import { coverUsesLightText, groupCoverStyle, isGradientCover, isNoneCover, readGroupAppearance } from './groupAccent'
 import { GROUP_UPDATED_EVENT } from './groupEvents'
 import { groupNavItems, mobileTabItems } from './nav'
 
@@ -66,6 +66,7 @@ export function GroupWorkspace({
 
   const appearance = readGroupAppearance(group?.id)
   const accountLabel = user.displayName || user.email || t('workspace.account')
+  const plainCover = isNoneCover(appearance.cover)
 
   return (
     <div
@@ -73,7 +74,7 @@ export function GroupWorkspace({
       data-testid="grupo-shell"
       style={{ '--group-accent': appearance.accent } as CSSProperties}
     >
-      <aside className="hidden w-60 shrink-0 flex-col bg-shell text-shell-foreground md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-shell-edge bg-shell text-shell-foreground md:flex">
         <div className="px-5 py-5">
           <BrandLockup to="/" shell />
         </div>
@@ -175,19 +176,41 @@ export function GroupWorkspace({
                 <span
                   role="img"
                   aria-label={t('grupo.coverArt')}
-                  className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-black/25 text-3xl font-semibold"
+                  className={cn(
+                    'grid h-14 w-14 shrink-0 place-items-center rounded-xl text-3xl font-semibold',
+                    plainCover ? 'bg-black/5 text-ink' : 'bg-black/25',
+                  )}
                 >
-                  {isGradientCover(appearance.cover) ? group.name.slice(0, 1).toUpperCase() : appearance.cover}
+                  {isGradientCover(appearance.cover) || plainCover
+                    ? group.name.slice(0, 1).toUpperCase()
+                    : appearance.cover}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-2xl font-semibold tracking-tight text-white md:text-3xl">
+                  <p
+                    className={cn(
+                      'truncate text-2xl font-semibold tracking-tight md:text-3xl',
+                      coverUsesLightText(appearance.cover) ? 'text-white' : 'text-ink',
+                    )}
+                  >
                     {group.name}
                   </p>
-                  <p className="mt-0.5 text-sm text-white/80">{formatMembershipRole(group.role)}</p>
+                  <p
+                    className={cn(
+                      'mt-0.5 text-sm',
+                      coverUsesLightText(appearance.cover) ? 'text-white/80' : 'text-slate-600',
+                    )}
+                  >
+                    {formatMembershipRole(group.role)}
+                  </p>
                 </div>
                 <Link
                   to={`/groups/${group.id}/ajustes`}
-                  className="hidden min-h-11 items-center gap-2 rounded-xl bg-black/25 px-3 text-sm font-medium text-white no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:inline-flex"
+                  className={cn(
+                    'hidden min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium no-underline focus-visible:outline-2 focus-visible:outline-offset-2 md:inline-flex',
+                    coverUsesLightText(appearance.cover)
+                      ? 'bg-black/25 text-white focus-visible:outline-white'
+                      : 'bg-black/5 text-ink focus-visible:outline-secondary',
+                  )}
                 >
                   <Settings2 className="h-4 w-4" aria-hidden="true" />
                   {t('grupo.ajustes')}

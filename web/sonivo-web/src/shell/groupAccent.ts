@@ -15,6 +15,9 @@ export const GROUP_COVER_EMOJIS = ['🎵', '🎸', '🥁', '🎹', '🎺', '🎤
 
 export const GROUP_COVER_GRADIENTS = ['violet', 'ocean', 'forest', 'sunset'] as const
 
+/** Stored cover value for the "no cover" choice: a plain surfaced tile, never a gradient. */
+export const NO_COVER = 'none'
+
 export type GroupAppearance = {
   accent: string
   cover: string
@@ -56,11 +59,24 @@ export function isGradientCover(cover: string): boolean {
   return cover.startsWith('gradient:')
 }
 
+export function isNoneCover(cover: string): boolean {
+  return cover === NO_COVER
+}
+
+/** True when the cover needs light text on top; the plain "no cover" tile needs dark text. */
+export function coverUsesLightText(cover: string): boolean {
+  return !isNoneCover(cover)
+}
+
 function withAlpha(hex: string, alpha: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(hex) ? `${hex}${alpha}` : hex
 }
 
 export function groupCoverStyle(cover: string, accent: string): CSSProperties {
+  if (isNoneCover(cover)) {
+    // Plain surfaced tile: no gradient, readable in both themes.
+    return { backgroundColor: '#e2e8f0', color: '#0f172a' }
+  }
   if (isGradientCover(cover)) {
     const id = cover.slice('gradient:'.length)
     const stops: Record<string, string> = {
