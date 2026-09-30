@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: IN PROGRESS (UI/UX redesign: W0-W4 MERGED PRs #115-#119; W5 integrated — full frontend i18n, a11y, plus owner's structural hardening kept per explicit decision; 46/46 local E2E green)
+Implementation: COMPLETE (UI/UX redesign ADR-0043: waves W0-W5 all MERGED — PRs #115, #116, #117, #118, #119, #120; branches deleted)
 Human approval: APPROVED (explicit full-flow order: delegate to agents, audit per wave, push + merge when green, delete branches, continue to completion; plus explicit "es mío, consérvalo e intégralo" for the parallel hardening)
-Git checkpoint: PENDING (W5 commit + PR + merge on green)
-Remote: NOT PUSHED (W5)
-CI: NOT RUN (W5; local: build + oxlint clean, E2E 46/46)
+Git checkpoint: COMMITTED + MERGED to develop (PR #120 0c98ddd); release develop->main in progress
+Remote: PUSHED + MERGED
+CI: PASSING (all six PRs: Backend + Frontend + Playwright E2E green; local E2E 46/46, detector no findings)
 ```
 
 ## Current state
