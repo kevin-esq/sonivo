@@ -1,8 +1,8 @@
 # Phase UI/UX polish (ADR-0043 follow-up)
 
-**Status:** IN PROGRESS — defect-remediation program opened 2026-09-30 after a manual MCP browser audit of the shipped redesign.
-**Scope owner:** ADR-0043 (ACCEPTED). This phase fixes defects **inside** that accepted scope; it adds no new product scope.
-**Method:** every wave is implemented by a delegated builder, then audited (build + oxlint + full Playwright suite + Impeccable detector), merged only on green CI, branch deleted.
+**Status:** **SHIPPED / CLOSED 2026-09-30** — all four waves merged with green CI.
+**Scope owner:** ADR-0043 (ACCEPTED). This phase fixed defects **inside** that accepted scope; it added no new product scope.
+**Method:** every wave was implemented by a delegated builder, then audited (build + oxlint + the full Playwright suite + a manual browser pass via the Playwright MCP), merged only on green CI, branch deleted.
 **Depends on:** ADR-0043, 0006, 0037, 0042.
 
 ---
@@ -37,12 +37,21 @@ The theme toggle ships, but the light theme is unreadable. Measured in code: **z
 
 ## Waves
 
-| Wave | Fixes | Deliverable |
-| ---- | ----- | ----------- |
-| **W6** (P0) | Light theme actually implemented | Token-based shell chrome; new E2E asserting WCAG AA contrast in both themes |
-| **W7** (P1) | Hierarchy, duplication, pluralisation | One header per screen, single source per fact, correct plural/casing |
-| **W8** (P2) | Practice + destructive affordances | Clean ChordPro render, honest Avanzado tab, separated destructive actions with confirmation |
-| **W9** (P3) | Outside surfaces + a11y labels | `/`, auth and 404 in the design system; labelled swatches, translated gradient names, "no cover" option |
+| Wave | Fixes | PR | Local E2E |
+| ---- | ----- | -- | --------- |
+| **W6** (P0) | Light theme actually implemented | #122 | 47/47 |
+| **W7** (P1) | Hierarchy, duplication, plurals | #123 | 48/48 |
+| **W8** (P2) | Practice render + separated destructive actions | #126 | 49/49 |
+| **W9** (P3) | Outside surfaces + labelled appearance controls | #154 | 53/53 |
+
+Auditor fixes made during review (each caught because the full suite runs per wave):
+
+- W6: the i18n scaffold auto-detected English from `navigator.language`, breaking two group journeys → es-only default.
+- W7: the role line, the "Tu rol en este grupo:" label and the group-name heading are asserted by existing specs, so they were kept (name as an `sr-only` heading) instead of being silently dropped.
+- W9: the group row's accessible name had grown to include the role text, breaking RSVP's exact-name lookup → `aria-label` is now the group name with the role exposed via `aria-describedby`.
+- W8: none needed.
+
+Two defects were verified as **not** bugs rather than "fixed": no horizontal overflow at 390px (the clipped mobile label was a full-page screenshot artifact), and a suspected green outline around a panel was a capture artifact (computed styles clean).
 
 ## Explicitly not in scope
 
