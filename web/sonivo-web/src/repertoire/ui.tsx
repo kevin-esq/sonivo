@@ -66,10 +66,6 @@ export function formatPurpose(purpose: string): string {
   }
 }
 
-export function formatArrangementCount(count: number): string {
-  return count === 1 ? '1 arreglo' : `${count} arreglos`
-}
-
 export function authzErrorMessage(error: unknown): string | null {
   if (!(error instanceof ApiError)) return null
   if (error.status === 403) {

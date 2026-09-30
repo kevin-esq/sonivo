@@ -60,6 +60,7 @@ import {
   useGroupContext,
 } from './ui'
 import { useT } from '../i18n'
+import { plural } from '../ui/plural'
 
 export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const { groupId, arrangementId } = useParams()
@@ -206,63 +207,57 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const resourceCountLabel =
     arrangement.resources.length === 0
       ? t('listas.noResources')
-      : arrangement.resources.length === 1
-        ? `1 ${t('listas.resourceOne')}`
-        : `${arrangement.resources.length} ${t('listas.resourcesMany')}`
+      : plural(arrangement.resources.length, t('listas.resourceOne'), t('listas.resourcesMany'))
 
   return (
     <section className="space-y-6" aria-labelledby="arrangement-heading">
-      <div
-        data-testid="arrangement-hero"
-        className="overflow-hidden rounded-2xl"
-        style={{
-          background:
-            'linear-gradient(120deg, color-mix(in srgb, var(--group-accent, #8366f1) 88%, #1e1b4b), color-mix(in srgb, var(--group-accent, #8366f1) 45%, transparent))',
-        }}
-      >
-        <div className="space-y-3 px-5 py-6">
-          <div className="[&_a]:text-white [&_nav]:text-white/70 [&_span]:text-white/70">
-            <PageBreadcrumb
-              items={[
-                { to: `/groups/${group.id}`, label: group.name },
-                { to: `/groups/${group.id}/library`, label: t('listas.title') },
-                { to: songHref, label: songTitle ?? t('arreglo.songFallback') },
-                { label: arrangement.label },
-              ]}
-            />
-          </div>
-          <div className="space-y-2">
-            <h1 id="arrangement-heading" className="text-3xl font-bold tracking-tight text-white">
-              {arrangement.label}
-            </h1>
-            <p className="text-sm text-white/80">
-              {t('arreglo.ofPrefix')}{songTitle ? <Link className="font-medium text-white no-underline hover:underline" to={songHref}>{songTitle}</Link> : t('arreglo.thisSong')}
-              {arrangement.defaultKey ? ` · ${arrangement.defaultKey}` : ''}
-              {arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm} BPM` : ''}
-              {!isOwner ? ` · ${t('arreglo.readonly')}` : ''}
-            </p>
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <ReadinessChip
-                testId="arrangement-resource-count"
-                tone={arrangement.resources.length === 0 ? 'neutral' : 'ok'}
-              >
-                {resourceCountLabel}
-              </ReadinessChip>
-              <ReadinessChip testId="arrangement-chart-chip" tone={hasChart ? 'accent' : 'neutral'}>
-                {hasChart ? t('listas.hasChart') : t('listas.noChart')}
-              </ReadinessChip>
-            </div>
-            <div className="pt-1">
-              <Link
-                className={buttonVariants({ variant: 'primary' })}
-                to={`/groups/${group.id}/arrangements/${arrangement.id}/practice`}
-              >
-                {t('arreglo.practice')}
+      <header data-testid="arrangement-hero" className="space-y-3">
+        <PageBreadcrumb
+          items={[
+            { to: `/groups/${group.id}`, label: group.name },
+            { to: `/groups/${group.id}/library`, label: t('listas.title') },
+            { to: songHref, label: songTitle ?? t('arreglo.songFallback') },
+            { label: arrangement.label },
+          ]}
+        />
+        <div className="space-y-2">
+          <h1 id="arrangement-heading" className="text-3xl font-bold tracking-tight text-ink">
+            {arrangement.label}
+          </h1>
+          <p className="text-sm text-muted">
+            {t('arreglo.ofPrefix')}
+            {songTitle ? (
+              <Link className="font-medium text-primary no-underline hover:underline" to={songHref}>
+                {songTitle}
               </Link>
-            </div>
+            ) : (
+              t('arreglo.thisSong')
+            )}
+            {arrangement.defaultKey ? ` · ${arrangement.defaultKey}` : ''}
+            {arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm} BPM` : ''}
+            {!isOwner ? ` · ${t('arreglo.readonly')}` : ''}
+          </p>
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <ReadinessChip
+              testId="arrangement-resource-count"
+              tone={arrangement.resources.length === 0 ? 'neutral' : 'ok'}
+            >
+              {resourceCountLabel}
+            </ReadinessChip>
+            <ReadinessChip testId="arrangement-chart-chip" tone={hasChart ? 'accent' : 'neutral'}>
+              {hasChart ? t('listas.hasChart') : t('listas.noChart')}
+            </ReadinessChip>
+          </div>
+          <div className="pt-1">
+            <Link
+              className={buttonVariants({ variant: 'primary' })}
+              to={`/groups/${group.id}/arrangements/${arrangement.id}/practice`}
+            >
+              {t('arreglo.practice')}
+            </Link>
           </div>
         </div>
-      </div>
+      </header>
 
       <ProblemAlert message={error} />
       <ConflictAlert message={conflict} />
