@@ -375,4 +375,30 @@ public class PasskeysApiTests
             Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         }
     }
+
+    [Fact]
+    public async Task Login_finish_accepts_raw_r_s_ecdsa_signatures()
+    {
+        await using var factory = new GoogleAuthApiFactory();
+        var (_, auth, credId) = await RegisterPasskeyAsync(factory);
+
+        var client = CreateAnonymousClient(factory);
+        var (challenge, rpId) = await StartLoginAsync(client);
+
+        // Password-manager authenticators (WebCrypto based, e.g. Bitwarden) emit the
+        // raw r||s ECDSA pair; the verifier must accept it as well as DER.
+        var (clientData, authenticatorData, signature) =
+            auth.BuildAssertion(rpId, challenge, DevOrigin, signCount: 1, rawSignature: true);
+
+        await EnsureCsrfAsync(client);
+        var res = await client.PostAsJsonAsync("/api/auth/passkeys/login-finish", new
+        {
+            credentialId = credId,
+            clientData,
+            authenticatorData,
+            signature
+        });
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+    }
 }

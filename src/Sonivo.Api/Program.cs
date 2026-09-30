@@ -1145,11 +1145,12 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
             return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
         }
         // 3. the actual cryptographic proof — the missing line that C1 exists for
-        if (!PasskeyVerifier.VerifyAssertion(
-                PasskeyVerifier.Base64UrlDecode(stored.PublicKeyCose), request.AuthenticatorData,
-                request.ClientData, request.Signature))
+        var (assertionOk, assertionReason) = PasskeyVerifier.VerifyAssertion(
+            PasskeyVerifier.Base64UrlDecode(stored.PublicKeyCose), request.AuthenticatorData,
+            request.ClientData, request.Signature);
+        if (!assertionOk)
         {
-            app.Logger.LogWarning("Passkey login: assertion signature verification failed.");
+            app.Logger.LogWarning("Passkey login: assertion signature verification failed ({Reason}).", assertionReason);
             return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
         }
 

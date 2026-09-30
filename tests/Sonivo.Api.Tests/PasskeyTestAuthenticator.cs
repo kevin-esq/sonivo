@@ -51,7 +51,7 @@ internal sealed class FakeAuthenticator
     }
 
     public (string ClientData, string AuthenticatorData, string Signature) BuildAssertion(
-        string rpId, string challenge, string origin, long signCount = 1)
+        string rpId, string challenge, string origin, long signCount = 1, bool rawSignature = false)
     {
         var clientDataJson = ClientData("webauthn.get", challenge, origin);
         var clientDataBytes = Encoding.UTF8.GetBytes(clientDataJson);
@@ -62,8 +62,65 @@ internal sealed class FakeAuthenticator
         // signature over authenticatorData || SHA256(clientDataJSON)
         var message = authData.Concat(SHA256.HashData(clientDataBytes)).ToArray();
         var signature = _ecdsa.SignData(message, HashAlgorithmName.SHA256);
+        if (rawSignature)
+        {
+            // WebCrypto-based software authenticators (password managers) emit the
+            // raw r||s pair instead of the ASN.1 DER form the spec mandates. .NET's
+            // own SignData output is already raw on Windows and DER on Unix, so
+            // normalise to raw.
+            signature = AsRaw(signature);
+        }
 
         return (Base64Url(clientDataBytes), Base64Url(authData), Base64Url(signature));
+    }
+
+    private static byte[] AsRaw(byte[] signature) =>
+        signature.Length == 64 ? signature : DerToRaw(signature);
+
+    private static byte[] DerToRaw(byte[] der)
+    {
+        var offset = 0;
+        if (der[offset++] != 0x30)
+        {
+            throw new InvalidOperationException("Unexpected DER encoding.");
+        }
+
+        offset += LengthBytes(der[offset]);      // SEQUENCE length (short or long form)
+        var r = ReadDerInteger(der, ref offset);
+        var s = ReadDerInteger(der, ref offset);
+        var raw = new byte[64];
+        Array.Copy(r, 0, raw, 32 - r.Length, r.Length);
+        Array.Copy(s, 0, raw, 64 - s.Length, s.Length);
+        return raw;
+    }
+
+    private static int LengthBytes(byte first) => (first & 0x80) == 0 ? 1 : 1 + (first & 0x7F);
+
+    private static byte[] ReadDerInteger(byte[] der, ref int offset)
+    {
+        if (der[offset++] != 0x02)
+        {
+            throw new InvalidOperationException("Unexpected DER encoding.");
+        }
+
+        var lengthBytes = LengthBytes(der[offset]);
+        var length = 0;
+        if (lengthBytes == 1)
+        {
+            length = der[offset];
+        }
+        else
+        {
+            for (var i = 1; i < lengthBytes; i++)
+            {
+                length = (length << 8) | der[offset + i];
+            }
+        }
+
+        offset += lengthBytes;
+        var value = der[offset..(offset + length)];
+        offset += length;
+        return value.Length > 0 && value[0] == 0 ? value[1..] : value;   // drop the sign pad
     }
 
     private static string ClientData(string type, string challenge, string origin)
