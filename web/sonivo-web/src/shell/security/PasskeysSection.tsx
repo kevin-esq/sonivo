@@ -49,8 +49,8 @@ export function PasskeysSection() {
         opts.user,
       )
       await finishPasskeyRegistration({
-        credentialId: reg.credentialId,
-        publicKey: reg.publicKey,
+        attestationObject: reg.attestationObject ?? '',
+        clientData: reg.clientDataJSON ?? '',
         deviceName: passkeyName.trim() || undefined,
       })
       setPasskeyName('')

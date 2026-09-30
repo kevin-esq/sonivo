@@ -296,8 +296,8 @@ export async function startPasskeyRegistration(): Promise<PasskeyRegistrationOpt
 }
 
 export async function finishPasskeyRegistration(input: {
-  credentialId: string
-  publicKey?: string
+  attestationObject: string
+  clientData: string
   deviceName?: string
 }): Promise<{ registered: boolean; credentialId: string }> {
   return apiRequest<{ registered: boolean; credentialId: string }>('/api/auth/passkeys/register-finish', {
@@ -321,8 +321,9 @@ export async function startPasskeyLogin(): Promise<PasskeyLoginOptions> {
 
 export async function finishPasskeyLogin(input: {
   credentialId: string
-  signature?: string
-  clientData?: string
+  clientData: string
+  authenticatorData: string
+  signature: string
 }): Promise<CurrentUser> {
   clearCsrfToken()
   await ensureCsrfToken()

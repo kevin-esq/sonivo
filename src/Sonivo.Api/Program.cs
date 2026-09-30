@@ -89,6 +89,7 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             });
     options.AddPolicy("auth-register", http => PerIp(http, 30));
+    options.AddPolicy("auth-login", http => PerIp(http, 30));
     options.AddPolicy("auth-confirm", http => PerIp(http, 30));
     options.AddPolicy("auth-resend", http => PerIp(http, 10));
     options.AddPolicy("auth-forgot", http => PerIp(http, 10));
@@ -395,7 +396,8 @@ app.MapPost("/api/auth/login", async (
 })
 .WithName("Login")
 .AllowAnonymous()
-.DisableAntiforgery();
+.DisableAntiforgery()
+.RequireRateLimiting("auth-login");
 
 app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<ApplicationUser> users) =>
 {
@@ -874,11 +876,7 @@ app.MapPost("/api/auth/2fa/recovery-codes/regenerate", async (
 
 // T-AU-03 (ADR-0038 S3): Passkeys / WebAuthn API endpoints
 static string GetRelyingPartyId(HttpContext http, IConfiguration config)
-{
-    var configured = config["Passkeys:RelyingPartyId"];
-    if (!string.IsNullOrWhiteSpace(configured)) return configured.Trim();
-    return http.Request.Host.Host;
-}
+    => PasskeyOrigins.GetRelyingPartyId(http, config);
 
 app.MapGet("/api/auth/passkeys", async (
     ClaimsPrincipal principal,
@@ -950,7 +948,10 @@ app.MapPost("/api/auth/passkeys/register-start", async (
 app.MapPost("/api/auth/passkeys/register-finish", async (
     PasskeyRegistrationFinishRequest request,
     ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users) =>
+    UserManager<ApplicationUser> users,
+    IPublicOrigin origin,
+    HttpContext http,
+    IConfiguration config) =>
 {
     var user = await users.GetUserAsync(principal);
     if (user is null)
@@ -958,26 +959,34 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
         return Results.Unauthorized();
     }
 
-    var credId = request.CredentialId?.Trim();
-    if (string.IsNullOrWhiteSpace(credId))
+    var rpId = PasskeyOrigins.GetRelyingPartyId(http, config);
+    try
     {
-        return Results.Problem(
-            detail: "Identificador de llave de acceso inválido",
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Validation failed");
+        var cd = PasskeyVerifier.ParseClientData(request.ClientData);
+        // 1. type + origin allow-list + challenge single-use + user binding
+        PasskeyVerifier.EnsureClientData(cd, "webauthn.create", cd.Challenge,
+            PasskeyOrigins.Allowed(http, config, origin));
+        if (!PasskeyChallengeStore.ConsumeChallenge(cd.Challenge, expectedUserId: user.Id))
+            return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
+        // 2. attestation: rpIdHash, UP/AT flags, credentialId + COSE key extracted (not trusted)
+        var proof = PasskeyVerifier.ParseAttestation(request.AttestationObject, rpId);
+        // 3. self-attestation signature (fmt "none" passes through by design)
+        PasskeyVerifier.VerifyPackedSelfAttestation(request.AttestationObject, request.ClientData, proof.CoseKey);
+
+        var cred = new PasskeyCredential(
+            proof.CredentialId,
+            PasskeyVerifier.Base64UrlEncode(proof.CoseKey),   // store the SERVER-EXTRACTED key
+            string.IsNullOrWhiteSpace(request.DeviceName) ? "Llave de acceso" : request.DeviceName.Trim(),
+            DateTimeOffset.UtcNow,
+            proof.SignCount);
+        await users.SetAuthenticationTokenAsync(user, "Passkeys",
+            "Credential_" + cred.CredentialId, System.Text.Json.JsonSerializer.Serialize(cred));
+        return Results.Ok(new { registered = true, credentialId = cred.CredentialId });
     }
-
-    var deviceName = string.IsNullOrWhiteSpace(request.DeviceName) ? "Llave de acceso" : request.DeviceName.Trim();
-    var cred = new PasskeyCredential(
-        credId,
-        request.PublicKey ?? string.Empty,
-        deviceName,
-        DateTimeOffset.UtcNow);
-
-    var json = System.Text.Json.JsonSerializer.Serialize(cred);
-    await users.SetAuthenticationTokenAsync(user, "Passkeys", "Credential_" + credId, json);
-
-    return Results.Ok(new { registered = true, credentialId = credId });
+    catch (PasskeyVerifier.PasskeyVerificationException)
+    {
+        return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
+    }
 })
 .WithName("PasskeysRegisterFinish")
 .RequireAuthorization()
@@ -1021,22 +1030,16 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
     PasskeyLoginFinishRequest request,
     UserManager<ApplicationUser> users,
     SignInManager<ApplicationUser> signInManager,
-    SonivoDbContext db) =>
+    SonivoDbContext db,
+    IPublicOrigin origin,
+    HttpContext http,
+    IConfiguration config) =>
 {
-    var credId = request.CredentialId?.Trim();
-    if (string.IsNullOrWhiteSpace(credId))
-    {
-        return Results.Problem(
-            detail: "Llave de acceso inválida o no registrada",
-            statusCode: StatusCodes.Status401Unauthorized,
-            title: "Unauthorized");
-    }
-
-    var tokenName = "Credential_" + credId;
+    var tokenName = "Credential_" + (request.CredentialId ?? "").Trim();
     var token = await db.UserTokens
         .FirstOrDefaultAsync(t => t.LoginProvider == "Passkeys" && t.Name == tokenName);
 
-    if (token is null)
+    if (token is null || string.IsNullOrWhiteSpace(token.Value))
     {
         return Results.Problem(
             detail: "Llave de acceso no registrada",
@@ -1044,8 +1047,12 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
             title: "Unauthorized");
     }
 
+    var stored = System.Text.Json.JsonSerializer.Deserialize<PasskeyCredential>(token.Value);
     var user = await users.FindByIdAsync(token.UserId.ToString());
-    if (user is null)
+    // SECURITY-AUDIT-2026-09 (C1, auditor): rows written before T-SEC-01 carry
+    // the old shape (client-supplied PublicKey, no PublicKeyCose). They must
+    // fail closed with the uniform 401 — never reach the verifier (or a 500).
+    if (user is null || stored is null || string.IsNullOrWhiteSpace(stored.PublicKeyCose))
     {
         return Results.Problem(
             detail: "Llave de acceso no registrada",
@@ -1053,15 +1060,41 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
             title: "Unauthorized");
     }
 
-    await signInManager.SignInAsync(user, isPersistent: true);
-
-    return Results.Ok(new
+    var rpId = PasskeyOrigins.GetRelyingPartyId(http, config);
+    try
     {
-        id = user.Id,
-        email = user.Email,
-        displayName = user.DisplayName,
-        emailConfirmed = user.EmailConfirmed
-    });
+        // 1. clientData: type=webauthn.get + origin allow-list + single-use challenge
+        var cd = PasskeyVerifier.ParseClientData(request.ClientData);
+        PasskeyVerifier.EnsureClientData(cd, "webauthn.get", cd.Challenge,
+            PasskeyOrigins.Allowed(http, config, origin));
+        if (!PasskeyChallengeStore.ConsumeChallenge(cd.Challenge))
+            return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+        // 2. authenticatorData: rpIdHash + UP; counter regression check (clone detection)
+        var proof = PasskeyVerifier.ParseAssertionAuthenticatorData(request.AuthenticatorData, rpId);
+        if (stored.SignCount > 0 && proof.SignCount > 0 && proof.SignCount <= stored.SignCount)
+            return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+        // 3. the actual cryptographic proof — the missing line that C1 exists for
+        if (!PasskeyVerifier.VerifyAssertion(
+                PasskeyVerifier.Base64UrlDecode(stored.PublicKeyCose), request.AuthenticatorData,
+                request.ClientData, request.Signature))
+            return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+
+        // 4. persist the advanced counter, then sign in
+        stored = stored with { SignCount = proof.SignCount };
+        await users.SetAuthenticationTokenAsync(user, "Passkeys", tokenName, System.Text.Json.JsonSerializer.Serialize(stored));
+        await signInManager.SignInAsync(user, isPersistent: true);
+        return Results.Ok(new
+        {
+            id = user.Id,
+            email = user.Email,
+            displayName = user.DisplayName,
+            emailConfirmed = user.EmailConfirmed
+        });
+    }
+    catch (PasskeyVerifier.PasskeyVerificationException)
+    {
+        return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+    }
 })
 .WithName("PasskeysLoginFinish")
 .AllowAnonymous()

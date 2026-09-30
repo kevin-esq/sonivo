@@ -459,13 +459,19 @@ function AuthScreen({
       const { challenge, rpId } = await startPasskeyLogin();
       const result = await performWebAuthnLogin(challenge, rpId);
       // Sin fallback manual: una passkey solo es válida con firma y clientData reales.
-      if (!result.credentialId || !result.signature || !result.clientDataJSON) {
+      if (
+        !result.credentialId ||
+        !result.signature ||
+        !result.clientDataJSON ||
+        !result.authenticatorData
+      ) {
         throw new Error(t("auth.passkeyRequired"));
       }
       const user = await finishPasskeyLogin({
         credentialId: result.credentialId,
-        signature: result.signature,
         clientData: result.clientDataJSON,
+        authenticatorData: result.authenticatorData,
+        signature: result.signature,
       });
       onSuccess(user);
     } catch (err) {
