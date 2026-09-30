@@ -37,14 +37,15 @@ internal sealed class FakeAuthenticator
     public string CredentialId => Base64Url(_credentialId);
 
     public (string ClientDataJson, string AttestationObject) BuildAttestation(
-        string rpId, string challenge, string origin, long signCount = 0)
+        string rpId, string challenge, string origin, long signCount = 0,
+        string fmt = "none", byte[]? attestationStatementSig = null)
     {
         var clientDataJson = ClientData("webauthn.create", challenge, origin);
         var clientDataBytes = Encoding.UTF8.GetBytes(clientDataJson);
 
         // flags: UP(0x01) | UV(0x04) | AT(0x40)
         var authData = BuildAuthData(rpId, flags: 0x45, signCount, includeAttestedData: true);
-        var attestationObject = BuildAttestationObject("none", authData);
+        var attestationObject = BuildAttestationObject(fmt, authData, attestationStatementSig);
 
         return (Base64Url(clientDataBytes), Base64Url(attestationObject));
     }
@@ -110,14 +111,25 @@ internal sealed class FakeAuthenticator
         return writer.Encode();
     }
 
-    private static byte[] BuildAttestationObject(string fmt, byte[] authData)
+    private static byte[] BuildAttestationObject(string fmt, byte[] authData, byte[]? attStmtSig = null)
     {
         var writer = new CborWriter(CborConformanceMode.Lax);
         writer.WriteStartMap(3);
         writer.WriteTextString("fmt");
         writer.WriteTextString(fmt);
         writer.WriteTextString("attStmt");
-        writer.WriteStartMap(0);
+        if (attStmtSig is null)
+        {
+            writer.WriteStartMap(0);
+        }
+        else
+        {
+            // Provider attestation statement (packed/x5c style) that the server must
+            // NOT verify for a "none" conveyance.
+            writer.WriteStartMap(1);
+            writer.WriteTextString("sig");
+            writer.WriteByteString(attStmtSig);
+        }
         writer.WriteEndMap();
         writer.WriteTextString("authData");
         writer.WriteByteString(authData);

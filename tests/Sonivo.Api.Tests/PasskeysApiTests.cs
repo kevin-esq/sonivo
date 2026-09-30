@@ -335,4 +335,44 @@ public class PasskeysApiTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, status);
     }
+
+    [Fact]
+    public async Task Register_finish_accepts_provider_specific_attestation_formats()
+    {
+        await using var factory = new GoogleAuthApiFactory();
+        var email = $"passkey-fmt-{Guid.NewGuid():N}@example.com";
+        var client = await CreateAuthedClientAsync(factory, email);
+        var authenticator = new FakeAuthenticator();
+
+        // Before the C1 follow-up these were rejected (fmt allowlist + packed
+        // self-attestation verification), which locked out real authenticators
+        // (Apple "apple", password managers emitting packed with an attestation
+        // certificate). Conveyance is "none", so any fmt is accepted now.
+        foreach (var (fmt, sig) in new (string, byte[]?)[]
+                 {
+                     ("apple", null),
+                     ("packed", new byte[] { 1, 2, 3, 4 }),
+                     ("tpm", null)
+                 })
+        {
+            await EnsureCsrfAsync(client);
+            var regStartRes = await client.PostAsJsonAsync("/api/auth/passkeys/register-start", new { });
+            Assert.Equal(HttpStatusCode.OK, regStartRes.StatusCode);
+            var regStart = await regStartRes.Content.ReadFromJsonAsync<PasskeyRegistrationStartResponse>(JsonOptions);
+            Assert.NotNull(regStart);
+
+            var (clientData, attestationObject) = authenticator.BuildAttestation(
+                regStart.RpId, regStart.Challenge, DevOrigin, signCount: 0, fmt: fmt, attestationStatementSig: sig);
+
+            await EnsureCsrfAsync(client);
+            var res = await client.PostAsJsonAsync("/api/auth/passkeys/register-finish", new
+            {
+                clientData,
+                attestationObject,
+                deviceName = $"fmt-{fmt}"
+            });
+
+            Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        }
+    }
 }
