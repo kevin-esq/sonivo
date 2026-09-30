@@ -3,8 +3,8 @@
 Durable high-level project context.
 
 **Last updated:** 2026-09-28 (ADR-0039/0041: canonical docs and single `.agents/` customization tree)
-**Delivery:** Phases 0–3.9 **CLOSED/COMPLETED**. ADR-0031–0032 and 0034–0038 are shipped (incl. S1 verification + S2 TOTP + S3 passkeys, PRs #96–#98); ADR-0033 is superseded (cloud LLM closed), and karaoke scoring is OUT. ADR-0039/0041 govern local Obsidian knowledge and the sole project-local skills tree. Unaccepted billing scaffold reverted (ADR-0042, PR #108); UI shell consolidated R1–R4 (PR #109). Gate B **CLOSED**.
-**Active work:** T-R2-04 on `feature/t-r2-drop-postgres`; dropping `ResourceBlobs` is gated on verified R2 backfill. See [`../03-architecture/PHASE-R2-SPEC.md`](../03-architecture/PHASE-R2-SPEC.md). Current checkout may differ from that branch.
+**Delivery:** Phases 0-3.9 **CLOSED/COMPLETED**. ADR-0031-0032 and 0034-0038 are shipped (incl. S1 verification + S2 TOTP + S3 passkeys, PRs #96-#98); ADR-0033 is superseded (cloud LLM closed), and karaoke scoring is OUT. ADR-0039/0041 govern local Obsidian knowledge and the sole project-local skills tree. Unaccepted billing scaffold reverted (ADR-0042, PR #108). **UI/UX redesign (ADR-0043) ACCEPTED and SHIPPED 2026-09-30** as waves W0-W5 (PRs #115-#120): Grupo/Cuenta IA split, light/dark themes, es-default es/en frontend i18n, immersive Listas/Practice/Scheduling surfaces. Gate B **CLOSED**.
+**Active work:** None gated. The redesign phase is closed; see [`../03-architecture/PHASE-UI-UX-SPEC.md`](../03-architecture/PHASE-UI-UX-SPEC.md). Current checkout may differ from `develop`.
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
 ---
@@ -82,7 +82,7 @@ Knowledge navigation: [`INDEX.md`](INDEX.md) · Current task/checkpoint: [`../..
 ## ASSUMPTIONS
 
 1. Responsive web; organizer desktop-first; member mobile-usable.
-2. English-first UI.
+2. Spanish-first UI with full English translation (es default, explicit switch; ADR-0043 ACCEPTED).
 3. Song create does not require an Arrangement (ADR-0025); optional convenience “Song + initial Arrangement” use-case only.
 4. Progressive UI may hide Arrangement chrome when only one Arrangement exists (**count-based**, not `IsDefault` — ADR-0025).
 5. Soft-delete + later blob GC acceptable.
@@ -110,7 +110,7 @@ Knowledge navigation: [`INDEX.md`](INDEX.md) · Current task/checkpoint: [`../..
 2. Implement/scaffold/install without explicit approval.
 3. Workspace/Organization; Recording/Performance aggregates in MVP.
 4. Organizer/Guest roles; ACL engines; JWT web; BFF; Supabase Auth.
-5. Silently reopen ACCEPTED ADRs 0001–0037 without a superseding ADR.
+5. Silently reopen ACCEPTED ADRs 0001-0043 without a superseding ADR.
 6. Content versioning / DAM / Event body snapshots in MVP.
 7. Unauthorized user-global tooling as Sonivo dependency.
 

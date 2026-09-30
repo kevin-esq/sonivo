@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listMyGroups, problemDetail, type GroupSummary } from '../../api/client'
+import { useT } from '../../i18n'
 
 export function SettingsProfilePage({
   user,
@@ -9,17 +10,18 @@ export function SettingsProfilePage({
 }) {
   const sessionName = user?.displayName ?? ''
   const email = user?.email ?? ''
+  const { t } = useT()
 
   return (
     <div className="space-y-6 max-w-xl">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Perfil Personal</h2>
-        <p className="text-sm text-slate-500">Actualiza tus datos personales de contacto y preferencias.</p>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t('perfil.title')}</h2>
+        <p className="text-sm text-slate-500">{t('perfil.subtitle')}</p>
       </div>
 
       <div className="space-y-4">
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Nombre completo</span>
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('perfil.fullName')}</span>
           <input
             key={sessionName}
             type="text"
@@ -29,7 +31,7 @@ export function SettingsProfilePage({
         </label>
 
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Correo electrónico</span>
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('perfil.email')}</span>
           <input
             type="email"
             disabled
@@ -46,6 +48,7 @@ export function SettingsProfilePage({
 export function SettingsTeamPage() {
   const [groups, setGroups] = useState<GroupSummary[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useT()
 
   useEffect(() => {
     let cancelled = false
@@ -64,8 +67,8 @@ export function SettingsTeamPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Miembros del Equipo</h2>
-        <p className="text-sm text-slate-500">Gestiona los roles y miembros activos en tus grupos musicales.</p>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t('equipo.title')}</h2>
+        <p className="text-sm text-slate-500">{t('equipo.subtitle')}</p>
       </div>
 
       {error ? (
@@ -76,7 +79,7 @@ export function SettingsTeamPage() {
 
       {groups === null && !error ? (
         <p aria-live="polite" className="text-sm text-slate-500">
-          Cargando grupos…
+          {t('equipo.loading')}
         </p>
       ) : groups && groups.length > 0 ? (
         <ul className="space-y-2">
@@ -90,15 +93,14 @@ export function SettingsTeamPage() {
                 className="text-sm font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 to={`/groups/${group.id}/people`}
               >
-                Ver miembros
+                {t('equipo.viewMembers')}
               </Link>
             </li>
           ))}
         </ul>
       ) : (
         <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-sm">
-          Aún no perteneces a ningún grupo. Cuando crees o te unas a uno, podrás gestionar a sus
-          miembros desde su página de equipo.
+          {t('equipo.empty')}
         </div>
       )}
     </div>

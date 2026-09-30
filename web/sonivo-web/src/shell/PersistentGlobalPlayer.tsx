@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useT } from '../i18n'
 import { useAudioPlayer } from '../repertoire/AudioPlayerContext'
 import { Play, Pause, Volume2, Music2, ChevronDown, ChevronUp, X } from 'lucide-react'
 
@@ -8,6 +9,7 @@ const focusRing =
 export function PersistentGlobalPlayer() {
   const { currentTrack, isPlaying, progress, duration, volume, togglePlay, seek, setVolume, closeTrack } =
     useAudioPlayer()
+  const { t } = useT()
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('sonivo_player_collapsed') === 'true'
@@ -60,16 +62,16 @@ export function PersistentGlobalPlayer() {
         <button
           type="button"
           onClick={togglePlay}
-          className={`rounded-full p-2 text-white transition-all hover:opacity-90 motion-reduce:transition-none ${focusRing}`}
-          aria-label={isPlaying ? 'Pausar reproducción' : 'Iniciar reproducción'}
+          className={`grid min-h-11 min-w-11 place-items-center rounded-full text-white transition-all hover:opacity-90 motion-reduce:transition-none ${focusRing}`}
+          aria-label={isPlaying ? t('player.pause') : t('player.play')}
         >
           {isPlaying ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
         </button>
         <button
           type="button"
           onClick={() => setCollapsed(false)}
-          className={`rounded-lg p-2 text-slate-300 transition-colors hover:bg-white/10 hover:text-white motion-reduce:transition-none ${focusRing}`}
-          aria-label="Ampliar reproductor"
+          className={`grid min-h-11 min-w-11 place-items-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white motion-reduce:transition-none ${focusRing}`}
+          aria-label={t('player.expand')}
           aria-expanded="false"
         >
           <ChevronUp size={18} />
@@ -77,8 +79,8 @@ export function PersistentGlobalPlayer() {
         <button
           type="button"
           onClick={closeTrack}
-          className={`rounded-lg p-2 text-slate-300 transition-colors hover:bg-white/10 hover:text-white motion-reduce:transition-none ${focusRing}`}
-          aria-label="Cerrar reproductor"
+          className={`grid min-h-11 min-w-11 place-items-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white motion-reduce:transition-none ${focusRing}`}
+          aria-label={t('player.close')}
         >
           <X size={18} />
         </button>
@@ -97,7 +99,7 @@ export function PersistentGlobalPlayer() {
         </span>
         <div className="hidden min-w-0 truncate sm:block">
           <p className="truncate text-sm font-semibold">{currentTrack.title}</p>
-          <p className="truncate text-xs text-slate-400">{currentTrack.artist || 'Ensayo Sonivo'}</p>
+          <p className="truncate text-xs text-slate-400">{currentTrack.artist || t('player.fallbackArtist')}</p>
         </div>
       </div>
 
@@ -106,8 +108,8 @@ export function PersistentGlobalPlayer() {
           <button
             type="button"
             onClick={togglePlay}
-            className={`rounded-full bg-primary p-2.5 text-white shadow-md shadow-primary/30 transition-all hover:opacity-90 motion-reduce:transition-none ${focusRing}`}
-            aria-label={isPlaying ? 'Pausar reproducción' : 'Iniciar reproducción'}
+            className={`grid min-h-11 min-w-11 place-items-center rounded-full bg-primary p-2.5 text-white shadow-md shadow-primary/30 transition-all hover:opacity-90 motion-reduce:transition-none ${focusRing}`}
+            aria-label={isPlaying ? t('player.pause') : t('player.play')}
           >
             {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
           </button>
@@ -121,7 +123,7 @@ export function PersistentGlobalPlayer() {
             value={progress}
             onChange={(e) => seek(Number(e.target.value))}
             className={`h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-white/15 accent-primary ${focusRing}`}
-            aria-label="Progreso de reproducción de audio"
+            aria-label={t('player.progress')}
           />
           <span>{formatTime(duration)}</span>
         </div>
@@ -137,13 +139,13 @@ export function PersistentGlobalPlayer() {
           value={volume}
           onChange={(e) => setVolume(Number(e.target.value))}
           className={`hidden h-1.5 w-24 cursor-pointer appearance-none rounded-lg bg-white/15 accent-primary sm:block ${focusRing}`}
-          aria-label="Control de volumen de audio"
+          aria-label={t('player.volume')}
         />
         <button
           type="button"
           onClick={() => setCollapsed(true)}
-          className={`rounded-lg p-2 text-slate-300 transition-colors hover:bg-white/10 hover:text-white motion-reduce:transition-none ${focusRing}`}
-          aria-label="Contraer reproductor"
+          className={`grid min-h-11 min-w-11 place-items-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white motion-reduce:transition-none ${focusRing}`}
+          aria-label={t('player.collapse')}
           aria-expanded="true"
         >
           <ChevronDown size={18} />
@@ -151,8 +153,8 @@ export function PersistentGlobalPlayer() {
         <button
           type="button"
           onClick={closeTrack}
-          className={`rounded-lg p-2 text-slate-300 transition-colors hover:bg-white/10 hover:text-white motion-reduce:transition-none ${focusRing}`}
-          aria-label="Cerrar reproductor"
+          className={`grid min-h-11 min-w-11 place-items-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white motion-reduce:transition-none ${focusRing}`}
+          aria-label={t('player.close')}
         >
           <X size={18} />
         </button>

@@ -88,7 +88,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
   }, [groupId, group])
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando eventos…</p>
+    return <p aria-live="polite">{t('agenda.loadingEvents')}</p>
   }
 
   if (group === null) {
@@ -96,7 +96,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
         <Link className="font-semibold text-primary no-underline hover:underline" to="/">
-          Mis grupos
+          {t('agenda.myGroups')}
         </Link>
       </div>
     )

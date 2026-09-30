@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
+import { useT } from '../i18n'
 import { formatOriginKind, formatPurpose } from './ui'
 import type { ResourcePurpose, ResourceSummary, SongOriginKind } from '../api/client'
 
@@ -180,9 +181,10 @@ export function NumberedMark({ n }: { n: number }) {
 }
 
 export function AddSongButton({ onClick }: { onClick: () => void }) {
+  const { t } = useT()
   return (
     <Button onClick={onClick}>
-      Agregar canción
+      {t('canciones.addSong')}
     </Button>
   )
 }
