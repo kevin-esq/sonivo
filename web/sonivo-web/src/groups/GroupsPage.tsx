@@ -139,7 +139,7 @@ function Modal({
       onClick={(e) => {
         if (e.target === ref.current) onClose(); // clic en el fondo
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-xl backdrop:bg-slate-900/40"
+      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-border-subtle bg-surface p-0 text-ink shadow-xl backdrop:bg-slate-900/40"
     >
       {open ? (
         <div className="space-y-4 p-5 md:p-6">
@@ -214,7 +214,7 @@ function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
     `flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm no-underline focus-visible:outline-2 focus-visible:outline-primary ${
       danger
         ? "text-error-ink hover:bg-error/10"
-        : "text-ink hover:bg-neutral-light"
+        : "text-ink hover:bg-surface-hover"
     }`;
 
   return (
@@ -234,7 +234,7 @@ function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
         <div
           role="menu"
           aria-label={label}
-          className="absolute right-0 top-full z-30 mt-1 w-60 rounded-xl border border-slate-200 bg-surface p-1 shadow-lg"
+          className="absolute right-0 top-full z-30 mt-1 w-60 rounded-xl border border-border-subtle bg-surface p-1 shadow-lg"
         >
           {items.map((item) => {
             const Icon = item.icon;
@@ -247,7 +247,7 @@ function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
             return (
               <div key={item.key}>
                 {item.separatorBefore ? (
-                  <hr className="my-1 border-slate-200" />
+                  <hr className="my-1 border-border-subtle" />
                 ) : null}
                 {item.to ? (
                   <Link
@@ -600,7 +600,9 @@ function describeActivity(date: Date, lang: string): string | null {
 /** True cuando el usuario ya guardó una identidad para este grupo en el dispositivo. */
 function hasStoredAppearance(groupId: string | number): boolean {
   try {
-    return window.localStorage.getItem(groupAppearanceKey(String(groupId))) !== null;
+    return (
+      window.localStorage.getItem(groupAppearanceKey(String(groupId))) !== null
+    );
   } catch {
     return false;
   }
@@ -681,10 +683,8 @@ function GroupCardItem({
 
   const hasMembers = typeof group.memberCount === "number";
 
-  const cardClass = `group relative rounded-2xl border transition duration-150 focus-within:border-primary/40 hover:border-primary/40 hover:bg-neutral-light hover:shadow-sm active:scale-[0.995] motion-reduce:transform-none motion-reduce:transition-none ${
-    pinned
-      ? "border-primary/30 bg-primary/[0.03]"
-      : "border-slate-200 bg-surface"
+  const cardClass = `group relative rounded-2xl border bg-surface transition duration-150 focus-within:border-primary/40 hover:border-primary/40 hover:bg-surface-hover hover:shadow-sm active:scale-[0.995] motion-reduce:transform-none motion-reduce:transition-none ${
+    pinned ? "border-primary/30" : "border-border-subtle"
   }`;
 
   // Enlace "estirado": toda la tarjeta es clicable sin anidar botones dentro de <a>.
@@ -749,7 +749,9 @@ function GroupCardItem({
         <span className="inline-flex shrink-0 items-center gap-1">
           <Clock className="h-3.5 w-3.5" aria-hidden="true" />
           <span aria-hidden="true">{activity}</span>
-          <span className="sr-only">{t("grupos.activity", { when: activity })}</span>
+          <span className="sr-only">
+            {t("grupos.activity", { when: activity })}
+          </span>
         </span>
       ) : null}
     </span>
@@ -826,7 +828,7 @@ function GroupCardItem({
         </div>
       </div>
 
-      <div className="mt-auto flex min-w-0 items-center gap-3 border-t border-slate-200/70 pt-2.5">
+      <div className="mt-auto flex min-w-0 items-center gap-3 border-t border-border-subtle/70 pt-2.5">
         {meta}
       </div>
     </div>
@@ -847,7 +849,7 @@ function GroupCardSkeleton({ label }: { label: string }) {
       {slots.map((slot) => (
         <div
           key={slot}
-          className="flex h-full flex-col gap-3 rounded-2xl border border-slate-200 bg-surface px-3 py-3.5 sm:px-4"
+          className="flex h-full flex-col gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-3.5 sm:px-4"
         >
           <div className="flex items-start justify-between gap-2">
             <div className="h-12 w-12 animate-pulse rounded-xl bg-slate-200/80 motion-reduce:animate-none" />
@@ -860,7 +862,7 @@ function GroupCardSkeleton({ label }: { label: string }) {
             <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200/80 motion-reduce:animate-none" />
             <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200/80 motion-reduce:animate-none" />
           </div>
-          <div className="mt-auto flex items-center gap-3 border-t border-slate-200/70 pt-2.5">
+          <div className="mt-auto flex items-center gap-3 border-t border-border-subtle/70 pt-2.5">
             <div className="h-3 w-20 animate-pulse rounded bg-slate-200/80 motion-reduce:animate-none" />
             <div className="h-3 w-16 animate-pulse rounded bg-slate-200/80 motion-reduce:animate-none" />
           </div>
@@ -1082,8 +1084,8 @@ export function GroupsPage({
   const chip = (active: boolean) =>
     `inline-flex h-9 items-center rounded-full border px-3 text-sm font-medium transition motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
       active
-        ? "border-primary bg-primary/10 text-primary-ink"
-        : "border-slate-200 bg-surface text-slate-600 hover:border-primary/40"
+        ? "border-primary bg-primary/10 text-shell-link"
+        : "border-border-subtle bg-surface text-slate-600 hover:border-primary/40"
     }`;
 
   const renderCards = (list: GroupCardData[]) => (
@@ -1124,23 +1126,25 @@ export function GroupsPage({
           <div className="flex items-center gap-2">
             <h1
               id="groups-heading"
-              className="text-3xl font-bold tracking-tight text-ink"
+              className="text-3xl font-bold tracking-tight text-shell-foreground"
             >
               {t("grupos.title")}
             </h1>
             {total > 0 ? (
-              <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary-ink">
+              <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-shell-link">
                 {total}
               </span>
             ) : null}
           </div>
-          <p className="max-w-lg text-sm text-muted">{t("grupos.subtitle")}</p>
+          <p className="max-w-lg text-sm text-shell-foreground/70">
+            {t("grupos.subtitle")}
+          </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           {/* Secundaria discreta: unirse con enlace. */}
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             className="w-full justify-center sm:w-auto"
             onClick={() => setDialog({ type: "join" })}
           >
@@ -1174,15 +1178,15 @@ export function GroupsPage({
       {loading ? (
         <GroupCardSkeleton label={t("grupos.loading")} />
       ) : groups && groups.length === 0 ? (
-        <div className="flex flex-col items-start gap-4 rounded-2xl border border-dashed border-slate-300 bg-neutral-light/60 px-5 py-8">
+        <div className="flex flex-col items-start gap-4 rounded-2xl border border-dashed border-slate-300 bg-surface-hover/60 px-5 py-8">
           <span
-            className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary-ink"
+            className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-shell-link"
             aria-hidden="true"
           >
             <Users className="h-6 w-6" />
           </span>
           <div className="space-y-1">
-            <p className="font-semibold text-ink">
+            <p className="font-semibold text-shell-foreground">
               {t("grupos.emptyTitle")}
             </p>
             <p className="max-w-md text-sm text-slate-500">
@@ -1214,15 +1218,15 @@ export function GroupsPage({
               className="flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 no-underline hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <span className="min-w-0">
-                <span className="block text-xs font-medium uppercase tracking-wide text-primary-ink">
+                <span className="block text-xs font-medium uppercase tracking-wide text-shell-link">
                   {t("grupos.continue")}
                 </span>
-                <span className="block truncate font-semibold text-ink">
+                <span className="block truncate font-semibold text-shell-foreground">
                   {lastGroup.name}
                 </span>
               </span>
               <ChevronRight
-                className="h-5 w-5 shrink-0 text-primary-ink"
+                className="h-5 w-5 shrink-0 text-shell-link"
                 aria-hidden="true"
               />
             </Link>
@@ -1278,10 +1282,10 @@ export function GroupsPage({
               <div className="ml-auto flex items-center gap-2">
                 {/* Selector de orden: <select> real (accesible y usable en móvil) con
                     apariencia propia y una etiqueta visible "Ordenar: Nombre". */}
-                <div className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-surface pl-3 pr-2 text-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25">
+                <div className="flex h-9 items-center gap-1.5 rounded-xl border border-border-subtle bg-surface pl-3 pr-2 text-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25">
                   <label
                     htmlFor={`${searchId}-sort`}
-                    className="whitespace-nowrap text-muted"
+                    className="whitespace-nowrap text-shell-foreground/70"
                   >
                     {t("grupos.sortLabel")}:
                   </label>
@@ -1307,7 +1311,7 @@ export function GroupsPage({
                 <div
                   role="group"
                   aria-label={t("grupos.viewLabel")}
-                  className="flex overflow-hidden rounded-xl border border-slate-200"
+                  className="flex overflow-hidden rounded-xl border border-border-subtle"
                 >
                   {(["grid", "list"] as const).map((mode) => {
                     const Icon = mode === "grid" ? LayoutGrid : List;
@@ -1324,7 +1328,7 @@ export function GroupsPage({
                         onClick={() => setView(mode)}
                         className={`grid h-9 w-9 place-items-center transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
                           view === mode
-                            ? "bg-primary/10 text-primary-ink"
+                            ? "bg-primary/10 text-shell-link"
                             : "bg-surface text-slate-500 hover:bg-slate-50"
                         }`}
                       >
@@ -1345,17 +1349,20 @@ export function GroupsPage({
 
           {/* Recuento visible cuando hay búsqueda o filtro activos. */}
           {resultsActive ? (
-            <p className="text-sm font-medium text-muted" aria-hidden="true">
+            <p
+              className="text-sm font-medium text-shell-foreground/70"
+              aria-hidden="true"
+            >
               {t("grupos.resultsCount", { count: visible.length })}
             </p>
           ) : null}
 
           {visible.length === 0 ? (
-            <div className="space-y-2 rounded-2xl border border-dashed border-slate-300 bg-neutral-light/60 px-5 py-6">
+            <div className="space-y-2 rounded-2xl border border-dashed border-slate-300 bg-surface-hover/60 px-5 py-6">
               <p className="text-sm text-slate-600">{t("grupos.noMatches")}</p>
               <button
                 type="button"
-                className="text-sm font-semibold text-primary-ink hover:underline"
+                className="text-sm font-semibold text-shell-link hover:underline"
                 onClick={() => {
                   setQuery("");
                   setFilter("all");
@@ -1373,7 +1380,7 @@ export function GroupsPage({
                 >
                   <h2
                     id="groups-pinned-heading"
-                    className="flex items-center gap-1.5 text-sm font-semibold text-ink"
+                    className="flex items-center gap-1.5 text-sm font-semibold text-shell-foreground"
                   >
                     <Star
                       className="h-4 w-4 text-amber-500"
@@ -1387,7 +1394,7 @@ export function GroupsPage({
               ) : null}
 
               {pinnedGroups.length > 0 && otherGroups.length > 0 ? (
-                <h2 className="text-sm font-semibold text-ink">
+                <h2 className="text-sm font-semibold text-shell-foreground">
                   {t("grupos.allSection")}
                 </h2>
               ) : null}
@@ -1506,7 +1513,6 @@ export function GroupsPage({
           />
         ) : null}
       </Modal>
-
     </section>
   );
 }

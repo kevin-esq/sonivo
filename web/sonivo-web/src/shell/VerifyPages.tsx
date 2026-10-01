@@ -25,7 +25,7 @@ function VerifyShell({
       <div className="mb-10">
         <BrandLockup to="/login" />
       </div>
-      <main className="mx-auto w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-sm">
+      <main id="main" className="mx-auto w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
         {children}
       </main>

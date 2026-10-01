@@ -19,6 +19,10 @@
   --color-error-strong: #dc2626;
   --color-neutral-dark: #0f172a;
   --color-neutral-light: #f8fafc;
+  /* Semantic surface tokens (Phase AppHeader). Light values match the utilities
+     they replace; dark values are set in the theme block below. */
+  --color-surface-hover: #f8fafc;
+  --color-border-subtle: #e2e8f0;
   --color-canvas: #0b1220;
   --color-shell: #0f172a;
   --color-shell-foreground: #f8fafc;
@@ -49,6 +53,8 @@
   --color-surface: #ffffff;
   --color-ink: #0f172a;
   --color-muted: #64748b;
+  --color-surface-hover: rgba(255, 255, 255, 0.04);
+  --color-border-subtle: rgba(255, 255, 255, 0.1);
 }
 
 :root[data-theme="light"] {
@@ -63,6 +69,8 @@
   --color-surface: #ffffff;
   --color-ink: #0f172a;
   --color-muted: #64748b;
+  --color-surface-hover: #f8fafc;
+  --color-border-subtle: #e2e8f0;
 }
 
 html,

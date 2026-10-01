@@ -1,15 +1,15 @@
 # NOW — agent focus
 
-**Updated:** 2026-09-30
+**Updated:** 2026-10-01
 
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE — UI/UX audit remediation Waves A–C (audit Steps 1–8)
-Human approval: APPROVED (explicit build-mode authorization 2026-09-30: execute Fases A–D + full local Playwright; commit/PR authorized for this program)
-Git checkpoint: MERGED — PR **#163** → `develop` (merge commit `b9f30bf`); feature branch deleted (security waves 1-2 MERGED #124/#125, wave 3 COMMITTED)
-Remote: MERGED — PR **#163** → `develop`
-CI: PASSING — GitHub CI on PR #163 green (Frontend build, Backend build & tests, Playwright E2E 4m56s, CodeQL, SCA gate); local Waves A/B/C 57/60/61 + .NET 462/462
+Implementation: IN PROGRESS — Phase AppHeader: **W1 COMPLETE** (surface tokens, panel removed, shared container, AppHeader h-16); W2 user menu next
+Human approval: APPROVED (build-mode authorization 2026-10-01: 9 waves W1–W9 of PHASE-APP-HEADER-SPEC.md; commit/PR/merge authorized per wave)
+Git checkpoint: COMMITTED — `feature/app-header-restructure`: docs (spec) + W1
+Remote: PUSHED — PR per wave
+CI: local W1 green (build ✓, oxlint 0 errors, Playwright 61/61); remote CI pending
 
 ### Fase 0 operational notes (local E2E runner)
 
@@ -19,6 +19,9 @@ CI: PASSING — GitHub CI on PR #163 green (Frontend build, Backend build & test
 ```
 
 ## Current state
+
+- **Phase AppHeader (approved 2026-10-01): W1 foundation in progress.** Full spec + tickets T-HDR-01…20 in [`PHASE-APP-HEADER-SPEC.md`](../docs/03-architecture/PHASE-APP-HEADER-SPEC.md). Waves: W1 tokens+structure+AppHeader, W2 user menu, W3 page/hero/card, W4 group switcher, W5 reduced (FUTURE pill), W6 details (shortcuts/title/footer+version), W7 2FA nudge, W8 ⌘K search, W9 dedicated token migration + lint guard. Locked decisions D1–D9 (dark surfaces, `--color-shell` header, AppHeader in content column, logo stays "Sonivo", checklist stays in the group home, two-time token migration, `__APP_VERSION__`).
+- **UI/UX audit remediation (Steps 1–8): COMPLETE + MERGED** via PR #163 (Waves A–C); see below.
 
 - **DevSecOps engagement (user-authorized 2026-09-30; ADR-0044 ACCEPTED):** full backend security audit + tooling + CI automation delivered as [`SECURITY-AUDIT-2026-09.md`](../docs/03-architecture/SECURITY-AUDIT-2026-09.md).
   - **Findings:** 1 Critical (C1: passkey login-finish verifies nothing — signature/challenge/origin/rpIdHash/counter all unverified; credentialId = bearer string), 5 Medium (M1 login rate-limit gap, M2 XFF-spoofable rate limits, M3 single-gated Google test hook, M4 vulnerable transitive crypto chain, M5 §8 security logging not implemented), 4 Low.
