@@ -1866,7 +1866,6 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     GetArrangementHandler arrangementHandler,
-    IGroupStore groupStore,
     CancellationToken cancellationToken) =>
 {
     if (!app.Configuration.GetValue("Features:Lrc", false))
@@ -1880,13 +1879,8 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/
         return Results.Unauthorized();
     }
 
+    // Read-only export: any member may export; a non-member gets 404 from the handler.
     var arrangement = await arrangementHandler.HandleAsync(userId.Value, groupId, arrangementId, cancellationToken);
-
-    var membership = await groupStore.GetMembershipAsync(groupId, userId.Value, cancellationToken);
-    if (membership is null || !membership.IsOwner)
-    {
-        return Results.StatusCode(StatusCodes.Status403Forbidden);
-    }
 
     try
     {

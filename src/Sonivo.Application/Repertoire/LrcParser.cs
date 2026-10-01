@@ -112,7 +112,10 @@ public static partial class LrcParser
                 continue;
             }
 
-            if (remainder.Contains('[') || remainder.Contains(']'))
+            // Only *unbalanced* brackets are an error: ChordPro chords (e.g. "[Am]") are valid text.
+            var opens = remainder.Count(c => c == '[');
+            var closes = remainder.Count(c => c == ']');
+            if (opens != closes)
             {
                 errors.Add(new LrcError(lineNumber, "unbalanced bracket"));
             }

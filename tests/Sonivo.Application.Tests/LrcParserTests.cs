@@ -163,13 +163,86 @@ public sealed class LrcParserTests
     }
 
     [Fact]
-    public void Applies_the_offset_without_going_negative()
+    public void Subtracts_a_positive_offset_from_the_marks()
     {
-        var parsed = LrcParser.Parse(Utf8("[offset:-5000]\n[00:01.00]Temprano"));
+        // [offset:+500] => 1000 - 500 = 500 ms (the LRC convention subtracts).
+        var parsed = LrcParser.Parse(Utf8("[offset:+500]\n[00:01.00]Hola"));
+
+        var conversion = LrcConverter.ToChordPro(parsed);
+
+        Assert.Contains("\"atMs\":500", conversion.ChordTimingJson);
+    }
+
+    [Fact]
+    public void Subtracts_a_negative_offset_from_the_marks()
+    {
+        // [offset:-500] => 1000 - (-500) = 1500 ms.
+        var parsed = LrcParser.Parse(Utf8("[offset:-500]\n[00:01.00]Hola"));
+
+        var conversion = LrcConverter.ToChordPro(parsed);
+
+        Assert.Contains("\"atMs\":1500", conversion.ChordTimingJson);
+    }
+
+    [Fact]
+    public void Never_goes_negative_when_the_offset_exceeds_the_mark()
+    {
+        var parsed = LrcParser.Parse(Utf8("[offset:+9000]\n[00:01.00]Temprano"));
 
         var conversion = LrcConverter.ToChordPro(parsed);
 
         Assert.Contains("\"atMs\":0", conversion.ChordTimingJson);
+    }
+
+    [Fact]
+    public void Keeps_chords_metadata_and_marks_on_the_same_line()
+    {
+        var parsed = LrcParser.Parse(Utf8("[ti:Titulo]\n[00:12.00][Am]Primera estrofa"));
+
+        Assert.Empty(parsed.Errors);
+        Assert.Equal("Titulo", parsed.Metadata.Title);
+        Assert.Equal("[Am]Primera estrofa", Assert.Single(parsed.Entries).Text);
+
+        var conversion = LrcConverter.ToChordPro(parsed);
+        Assert.Equal("[Am]Primera estrofa", conversion.Lyrics);
+    }
+
+    [Fact]
+    public void Keeps_every_mark_when_a_line_has_several()
+    {
+        var parsed = LrcParser.Parse(Utf8("[00:01.00][00:02.00][00:03.00]Repetida"));
+
+        Assert.Empty(parsed.Errors);
+        Assert.Equal(3, parsed.Entries.Count);
+        Assert.Equal([1_000, 2_000, 3_000], parsed.Entries.Select(e => e.AtMs));
+        Assert.Single(parsed.Entries.Select(e => e.LineIndex).Distinct());
+    }
+
+    [Fact]
+    public void Validates_the_size_before_decoding_utf16()
+    {
+        // Over the cap AND carrying a UTF-16 BOM: the size check must win before decoding.
+        var bytes = new byte[LrcParser.MaxBytes + 2];
+        bytes[0] = 0xFF;
+        bytes[1] = 0xFE;
+
+        var result = LrcParser.Parse(bytes);
+
+        Assert.Single(result.Errors);
+        Assert.Equal(0, result.Errors[0].Line);
+        Assert.Equal("unknown", result.Encoding);
+    }
+
+    [Fact]
+    public void Produces_plain_text_lyrics()
+    {
+        var parsed = LrcParser.Parse(Utf8("[00:12.00]Uno\n[00:15.00]Dos"));
+
+        var conversion = LrcConverter.ToChordPro(parsed);
+
+        Assert.DoesNotContain("\r", conversion.Lyrics);
+        Assert.DoesNotContain("[00:", conversion.Lyrics);
+        Assert.Equal("Uno\nDos", conversion.Lyrics);
     }
 
     [Fact]

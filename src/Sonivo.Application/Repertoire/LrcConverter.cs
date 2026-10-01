@@ -38,7 +38,8 @@ public static class LrcConverter
             lines.Add(parsed.Entries.First(e => e.LineIndex == index).Text);
         }
 
-        var shift = parsed.Metadata.OffsetMs + extraOffsetMs;
+        // LRC convention: the [offset] tag is SUBTRACTED from the marks. The UI offset is added.
+        var shift = -parsed.Metadata.OffsetMs + extraOffsetMs;
         var marks = parsed.Entries
             .Select(e => new
             {
