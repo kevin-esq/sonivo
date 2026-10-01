@@ -1773,6 +1773,137 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", asy
 .RequireAuthorization()
 .DisableAntiforgery();
 
+// ---------- .lrc import / export (ADR-0050). Flag: Features:Lrc (default off). ----------
+app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/import-lrc", async (
+    Guid groupId,
+    Guid arrangementId,
+    ImportLrcRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetArrangementHandler arrangementHandler,
+    IGroupStore groupStore,
+    CancellationToken cancellationToken) =>
+{
+    if (!app.Configuration.GetValue("Features:Lrc", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    // Membership first: a non-member must see 404, never 403 (no existence leak).
+    await arrangementHandler.HandleAsync(userId.Value, groupId, arrangementId, cancellationToken);
+
+    var membership = await groupStore.GetMembershipAsync(groupId, userId.Value, cancellationToken);
+    if (membership is null || !membership.IsOwner)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    byte[] bytes;
+    if (!string.IsNullOrEmpty(request.ContentBase64))
+    {
+        try
+        {
+            bytes = Convert.FromBase64String(request.ContentBase64);
+        }
+        catch (FormatException)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["contentBase64"] = ["must be valid base64"]
+            });
+        }
+    }
+    else if (request.Content is not null)
+    {
+        bytes = System.Text.Encoding.UTF8.GetBytes(request.Content);
+    }
+    else
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["content"] = ["content or contentBase64 is required"]
+        });
+    }
+
+    var parsed = LrcParser.Parse(bytes);
+
+    // Limit violations (line 0) are a hard 400 with the errors[{ line, reason }] contract.
+    if (parsed.Errors.Any(e => e.Line == 0))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["errors"] = parsed.Errors.Select(e => e.Reason).ToArray()
+        });
+    }
+
+    // Preview only: convert, but never persist here.
+    var conversion = LrcConverter.ToChordPro(parsed, request.OffsetMs ?? 0);
+
+    return Results.Ok(new
+    {
+        encoding = parsed.Encoding,
+        lyrics = conversion.Lyrics,
+        chordTimingJson = conversion.ChordTimingJson,
+        markCount = conversion.MarkCount,
+        metadata = parsed.Metadata,
+        warnings = parsed.Warnings,
+        errors = parsed.Errors.Select(e => new { line = e.Line, reason = e.Reason })
+    });
+})
+.WithName("ImportArrangementLyricsLrc")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/export.lrc", async (
+    Guid groupId,
+    Guid arrangementId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetArrangementHandler arrangementHandler,
+    IGroupStore groupStore,
+    CancellationToken cancellationToken) =>
+{
+    if (!app.Configuration.GetValue("Features:Lrc", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var arrangement = await arrangementHandler.HandleAsync(userId.Value, groupId, arrangementId, cancellationToken);
+
+    var membership = await groupStore.GetMembershipAsync(groupId, userId.Value, cancellationToken);
+    if (membership is null || !membership.IsOwner)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    try
+    {
+        var lrc = LrcConverter.ToLrc(arrangement.Lyrics, arrangement.ChordTimingJson);
+        return Results.Text(lrc, "text/plain; charset=utf-8");
+    }
+    catch (ValidationException ex)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["lyrics"] = [ex.Message]
+        });
+    }
+})
+.WithName("ExportArrangementLyricsLrc")
+.RequireAuthorization();
+
 app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", async (
     Guid groupId,
     Guid arrangementId,
@@ -2677,6 +2808,9 @@ static object ToEventDetailResponse(EventDetailDto musicalEvent) => new
 };
 
 internal sealed record RegisterRequest(string? Email, string? Password, string? DisplayName);
+
+/// <summary>LRC import payload. Send <c>contentBase64</c> to exercise BOM/encoding detection.</summary>
+internal sealed record ImportLrcRequest(string? Content, string? ContentBase64, int? OffsetMs);
 internal sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
 internal sealed record ConfirmEmailRequest(string? Email, string? Token);
 internal sealed record ResendConfirmationRequest(string? Email);
