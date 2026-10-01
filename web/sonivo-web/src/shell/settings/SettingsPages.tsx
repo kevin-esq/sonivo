@@ -72,7 +72,7 @@ export function SettingsTeamPage() {
       </div>
 
       {error ? (
-        <p role="alert" className="text-sm text-error">
+        <p role="alert" className="text-sm text-shell-error">
           {error}
         </p>
       ) : null}
@@ -90,7 +90,7 @@ export function SettingsTeamPage() {
             >
               <span className="font-medium text-slate-900 dark:text-white">{group.name}</span>
               <Link
-                className="text-sm font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="text-sm font-semibold text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 to={`/groups/${group.id}/people`}
               >
                 {t('equipo.viewMembers')}

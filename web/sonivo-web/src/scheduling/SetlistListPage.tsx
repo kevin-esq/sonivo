@@ -22,7 +22,7 @@ import { useT } from '../i18n'
 import { plural } from '../ui/plural'
 
 const SETLIST_TILES = [
-  { Icon: ListMusic, tileClass: 'bg-primary/15 text-primary' },
+  { Icon: ListMusic, tileClass: 'bg-primary/15 text-primary-ink' },
   { Icon: Music2, tileClass: 'bg-success/20 text-neutral-dark' },
   { Icon: Star, tileClass: 'bg-accent/20 text-accent' },
   { Icon: ListMusic, tileClass: 'bg-secondary text-neutral-dark' },
@@ -102,7 +102,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           Mis grupos
         </Link>
       </div>
@@ -184,7 +184,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                 </Button>
               ) : (
                 <Link
-                  className="font-semibold text-primary no-underline hover:underline"
+                  className="font-semibold text-primary-ink no-underline hover:underline"
                   to={`/groups/${group.id}/library`}
                 >
                   Ir a la biblioteca

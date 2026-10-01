@@ -161,7 +161,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('gente.myGroups')}
         </Link>
       </div>
@@ -209,7 +209,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                     className={cn(
                       'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
                       member.role === 'Owner'
-                        ? 'bg-primary/15 text-primary'
+                        ? 'bg-primary/15 text-primary-ink'
                         : 'bg-neutral-light text-slate-600',
                     )}
                     aria-hidden="true"

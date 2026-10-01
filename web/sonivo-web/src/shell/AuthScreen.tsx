@@ -86,7 +86,7 @@ function PasswordField({
       trailing={
         <button
           type="button"
-          className="absolute inset-y-0 right-3 my-auto h-fit text-sm font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          className="absolute right-1 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-lg px-2 text-sm font-semibold text-shell-link hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
           aria-pressed={visible}
           onClick={() => setVisible((current) => !current)}
         >
@@ -102,7 +102,7 @@ function ErrorBanner({ message }: { message: string | null }) {
   return (
     <div role="alert" aria-live="assertive">
       {message ? (
-        <p className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error">
+        <p className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-shell-error">
           {message}
         </p>
       ) : null}
@@ -202,7 +202,7 @@ function TwoFactorStep({
       <div className="flex items-center justify-between gap-4">
         <button
           type="button"
-          className="text-sm font-semibold text-primary hover:underline"
+          className="text-sm font-semibold text-shell-link hover:underline"
           onClick={() => {
             setUseRecovery((v) => !v);
             setCode("");
@@ -266,7 +266,7 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
       {!open ? (
         <button
           type="button"
-          className="font-semibold text-primary hover:underline"
+          className="font-semibold text-shell-link hover:underline"
           onClick={() => {
             setOpen(true);
             setEmail((current) => current || initialEmail);
@@ -303,7 +303,7 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
       )}
       <p>
         <Link
-          className="font-semibold text-primary no-underline hover:underline"
+          className="font-semibold text-shell-link no-underline hover:underline"
           to="/forgot-password"
         >
           {t("auth.forgotLink")}
@@ -522,7 +522,7 @@ function AuthScreen({
                   <p className="text-sm text-slate-500">{t("auth.confirmHint")}</p>
                 </div>
                 <Link
-                  className="inline-block font-semibold text-primary no-underline hover:underline"
+                  className="inline-block font-semibold text-shell-link no-underline hover:underline"
                   to={`/login${nextQuery}`}
                 >
                   {t("auth.goLogin")}
@@ -644,7 +644,7 @@ function AuthScreen({
                     ? t("auth.noAccountPrefix")
                     : t("auth.hasAccountPrefix")}
                   <Link
-                    className="font-semibold text-primary no-underline hover:underline"
+                    className="font-semibold text-shell-link no-underline hover:underline"
                     to={otherModeTo}
                   >
                     {mode === "login"

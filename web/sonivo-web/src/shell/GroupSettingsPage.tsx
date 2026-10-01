@@ -174,10 +174,10 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   if (group === null) {
     return (
       <div className="space-y-3">
-        <p role="alert" className="text-error">
+        <p role="alert" className="text-error-ink">
           {error}
         </p>
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('workspace.myGroups')}
         </Link>
       </div>
@@ -348,7 +348,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           aria-labelledby="ajustes-danger-heading"
           className="mt-4 space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
         >
-          <h2 id="ajustes-danger-heading" className="text-lg font-semibold text-error">
+          <h2 id="ajustes-danger-heading" className="text-lg font-semibold text-error-ink">
             {t('inicio.deleteTitle')}
           </h2>
           <ProblemAlert message={deleteError} />

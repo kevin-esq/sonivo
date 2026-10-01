@@ -227,7 +227,7 @@ export function TwoFactorSection({
           role="region"
           className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4 mt-6"
         >
-          <h3 className="font-semibold text-primary">{t('seguridad.saveCodesTitle')}</h3>
+          <h3 className="font-semibold text-shell-link">{t('seguridad.saveCodesTitle')}</h3>
           <p className="text-xs text-slate-600 dark:text-slate-300">
             {t('seguridad.saveCodesHint')}
           </p>

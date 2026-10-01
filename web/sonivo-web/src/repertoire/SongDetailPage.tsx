@@ -93,7 +93,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('cancion.myGroups')}
         </Link>
       </div>
@@ -109,7 +109,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={mutationErrorMessage(surface.error)} />
         <Link
-          className="font-semibold text-primary no-underline hover:underline"
+          className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/library`}
         >
           {t('cancion.library')}
@@ -302,7 +302,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           data-testid="danger-zone"
           className="space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
         >
-          <h2 id="song-danger-heading" className="text-lg font-semibold text-error">
+          <h2 id="song-danger-heading" className="text-lg font-semibold text-error-ink">
             {t('common.dangerZone')}
           </h2>
           <Button variant="danger" onClick={() => setConfirmDelete(true)}>

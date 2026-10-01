@@ -213,7 +213,7 @@ function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
   const itemClass = (danger?: boolean) =>
     `flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm no-underline focus-visible:outline-2 focus-visible:outline-primary ${
       danger
-        ? "text-error hover:bg-error/10"
+        ? "text-error-ink hover:bg-error/10"
         : "text-ink hover:bg-neutral-light"
     }`;
 
@@ -364,7 +364,7 @@ function NameForm({
         />
         <div role="alert">
           {error ? (
-            <p id={`${id}-error`} className="text-sm text-error">
+            <p id={`${id}-error`} className="text-sm text-error-ink">
               {error}
             </p>
           ) : null}
@@ -437,7 +437,7 @@ function JoinForm({ onCancel, t }: { onCancel: () => void; t: TFn }) {
         />
         <div role="alert">
           {error ? (
-            <p id={`${id}-error`} className="text-sm text-error">
+            <p id={`${id}-error`} className="text-sm text-error-ink">
               {error}
             </p>
           ) : null}
@@ -489,7 +489,7 @@ function ConfirmForm({
     <div className="space-y-4">
       <p className="text-sm text-slate-600">{body}</p>
       <div role="alert">
-        {error ? <p className="text-sm text-error">{error}</p> : null}
+        {error ? <p className="text-sm text-error-ink">{error}</p> : null}
       </div>
       <div className="flex justify-end gap-2">
         <Button
@@ -502,7 +502,7 @@ function ConfirmForm({
         </Button>
         <Button
           type="button"
-          className="bg-error text-white hover:bg-error/90"
+          className="bg-error-strong text-white hover:bg-error-strong/90"
           onClick={() => void confirm()}
           disabled={pending}
         >
@@ -521,7 +521,7 @@ function ConfirmForm({
 
 // Clases completas y literales para que Tailwind las detecte.
 const AVATAR_TINTS = [
-  "bg-primary/15 text-primary",
+  "bg-primary/15 text-primary-ink",
   "bg-emerald-100 text-emerald-700",
   "bg-amber-100 text-amber-700",
   "bg-sky-100 text-sky-700",
@@ -690,7 +690,7 @@ function GroupCardItem({
   // Enlace "estirado": toda la tarjeta es clicable sin anidar botones dentro de <a>.
   // El recorte del nombre vive en un <span> interior para no recortar el ::after.
   const linkClass =
-    "block min-w-0 text-base font-semibold text-ink no-underline after:absolute after:inset-0 after:rounded-2xl after:content-[''] group-hover:text-primary focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-primary focus-visible:after:ring-offset-2";
+    "block min-w-0 text-base font-semibold text-ink no-underline after:absolute after:inset-0 after:rounded-2xl after:content-[''] group-hover:text-primary-ink focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-primary focus-visible:after:ring-offset-2";
 
   const stretchyLink = (clamp: "clamp" | "truncate") => (
     <Link
@@ -710,7 +710,7 @@ function GroupCardItem({
     <span
       id={roleId}
       className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 font-medium ${
-        owner ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-600"
+        owner ? "bg-primary/10 text-primary-ink" : "bg-slate-100 text-slate-600"
       }`}
     >
       {owner ? <Crown className="h-3 w-3" aria-hidden="true" /> : null}
@@ -736,7 +736,7 @@ function GroupCardItem({
         <span
           className={`inline-flex shrink-0 items-center gap-1 ${
             nextEvent.soon
-              ? "rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary"
+              ? "rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary-ink"
               : ""
           }`}
         >
@@ -783,7 +783,7 @@ function GroupCardItem({
       {/* La flecha solo acompaña a la fila horizontal; en cuadrícula no aporta. */}
       {view === "list" ? (
         <ChevronRight
-          className="ml-0.5 hidden h-5 w-5 shrink-0 text-slate-300 transition duration-150 group-hover:translate-x-0.5 group-hover:text-primary motion-reduce:transform-none motion-reduce:transition-none sm:block"
+          className="ml-0.5 hidden h-5 w-5 shrink-0 text-slate-300 transition duration-150 group-hover:translate-x-0.5 group-hover:text-primary-ink motion-reduce:transform-none motion-reduce:transition-none sm:block"
           aria-hidden="true"
         />
       ) : null}
@@ -1082,7 +1082,7 @@ export function GroupsPage({
   const chip = (active: boolean) =>
     `inline-flex h-9 items-center rounded-full border px-3 text-sm font-medium transition motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
       active
-        ? "border-primary bg-primary/10 text-primary"
+        ? "border-primary bg-primary/10 text-primary-ink"
         : "border-slate-200 bg-surface text-slate-600 hover:border-primary/40"
     }`;
 
@@ -1129,7 +1129,7 @@ export function GroupsPage({
               {t("grupos.title")}
             </h1>
             {total > 0 ? (
-              <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">
+              <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary-ink">
                 {total}
               </span>
             ) : null}
@@ -1164,7 +1164,7 @@ export function GroupsPage({
           role="alert"
           className="flex flex-col items-start gap-3 rounded-2xl border border-error/20 bg-error/10 px-5 py-4"
         >
-          <p className="text-sm text-error">{loadError}</p>
+          <p className="text-sm text-error-ink">{loadError}</p>
           <Button type="button" variant="outline" onClick={retry}>
             {t("grupos.retry")}
           </Button>
@@ -1176,7 +1176,7 @@ export function GroupsPage({
       ) : groups && groups.length === 0 ? (
         <div className="flex flex-col items-start gap-4 rounded-2xl border border-dashed border-slate-300 bg-neutral-light/60 px-5 py-8">
           <span
-            className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary"
+            className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary-ink"
             aria-hidden="true"
           >
             <Users className="h-6 w-6" />
@@ -1214,7 +1214,7 @@ export function GroupsPage({
               className="flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 no-underline hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <span className="min-w-0">
-                <span className="block text-xs font-medium uppercase tracking-wide text-primary">
+                <span className="block text-xs font-medium uppercase tracking-wide text-primary-ink">
                   {t("grupos.continue")}
                 </span>
                 <span className="block truncate font-semibold text-ink">
@@ -1222,7 +1222,7 @@ export function GroupsPage({
                 </span>
               </span>
               <ChevronRight
-                className="h-5 w-5 shrink-0 text-primary"
+                className="h-5 w-5 shrink-0 text-primary-ink"
                 aria-hidden="true"
               />
             </Link>
@@ -1324,7 +1324,7 @@ export function GroupsPage({
                         onClick={() => setView(mode)}
                         className={`grid h-9 w-9 place-items-center transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
                           view === mode
-                            ? "bg-primary/10 text-primary"
+                            ? "bg-primary/10 text-primary-ink"
                             : "bg-surface text-slate-500 hover:bg-slate-50"
                         }`}
                       >
@@ -1355,7 +1355,7 @@ export function GroupsPage({
               <p className="text-sm text-slate-600">{t("grupos.noMatches")}</p>
               <button
                 type="button"
-                className="text-sm font-semibold text-primary hover:underline"
+                className="text-sm font-semibold text-primary-ink hover:underline"
                 onClick={() => {
                   setQuery("");
                   setFilter("all");

@@ -5,16 +5,17 @@
 ## Checkpoint state
 
 ```text
-Implementation: IN PROGRESS — UI/UX audit remediation Steps 1–8 (Fase 0 baseline GREEN; starting Fase A)
+Implementation: IN PROGRESS — UI/UX audit remediation Steps 1–8 (Waves A + B complete; C/D pending)
 Human approval: APPROVED (explicit build-mode authorization 2026-09-30: execute Fases A–D + full local Playwright; commit/PR authorized for this program)
 Git checkpoint: PENDING — security waves 1-2 MERGED (#124/#125), wave 3 COMMITTED; the UI/UX groups-redesign WIP is UNCOMMITTED on `develop`
 Remote: security waves 1-2 PUSHED + MERGED, wave 3 PUSHED (branch); UI/UX WIP not pushed
-CI: local only — baseline **57/57 passing (4.3m)** on 2026-09-30; remote CI not run
+CI: local only — Wave A **57/57**, Wave B **60/60 (3.2m)** on 2026-09-30; remote CI not run
 
 ### Fase 0 operational notes (local E2E runner)
 
-- **Vite must be launched in the SAME shell command as `npm test`.** A separately-detached `vite dev` is silently terminated mid-run (observed twice: 11 then 3 tests passed before `ERR_CONNECTION_REFUSED`). Working pattern: `Start-Process npm run dev` → wait for :5173 → `npm test` → `taskkill /T` — all in one command. API runs fine as a normal background shell with `Auth__EnableTestHook=true` on :5171; Postgres on :5433.
-- Baseline console error captured: `GroupHomePage` nests `<Skeleton>` (`<div>`) inside a `<p>` → invalid HTML / hydration error (ticket A3).
+- **Serve the E2E SPA with `npm run preview` (static `dist/`), not `npm run dev`.** On this workstation the Vite dev server is silently terminated under test load (reproduced 3×: 11/3/5 tests passed before `ERR_CONNECTION_REFUSED`); it survives 200s idle, so the kill is load-related, not idle. `vite preview` ran the whole suite green (60/60, 3.2m). `vite.config.ts` now exposes the API/Hub proxy under both `server` and `preview`. Run `npm run build` first.
+- API: `dotnet run --project src/Sonivo.Api --launch-profile http` with `$env:Auth__EnableTestHook="true"` on :5171; Postgres on :5433.
+- Fixed in Wave A: `GroupHomePage` nested `<Skeleton>` (`<div>`) inside `<p>` → invalid HTML / hydration error.
 ```
 
 ## Current state

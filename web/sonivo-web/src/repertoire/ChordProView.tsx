@@ -57,7 +57,7 @@ function ChordProLineView({
         <span key={index} className="inline-block whitespace-pre">
           {hasChord ? (
             <span
-              className="block min-h-[1.15em] text-sm font-semibold text-primary"
+              className="block min-h-[1.15em] text-sm font-semibold text-primary-ink"
               data-chord={segment.chord ?? undefined}
             >
               {segment.chord && segment.chord.length > 0 ? segment.chord : '\u00A0'}

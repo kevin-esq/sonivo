@@ -27,7 +27,7 @@ export function SettingsLayout() {
               className={({ isActive }) =>
                 `flex min-h-11 items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-all whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none ${
                   isActive
-                    ? 'border-primary text-primary'
+                    ? 'border-primary text-shell-link'
                     : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 hover:border-slate-300'
                 }`
               }

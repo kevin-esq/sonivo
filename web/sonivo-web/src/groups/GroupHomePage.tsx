@@ -227,10 +227,10 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   if (group === null) {
     return (
       <div className="space-y-3">
-        <p role="alert" className="text-error">
+        <p role="alert" className="text-error-ink">
           {error}
         </p>
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('inicio.myGroups')}
         </Link>
       </div>
@@ -286,7 +286,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             >
               <div className="flex flex-wrap items-center gap-3">
                 <span
-                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
+                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-ink"
                   aria-hidden="true"
                 >
                   <CalendarDays className="h-6 w-6" />
@@ -327,7 +327,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               }
               action={
                 <Link
-                  className="font-semibold text-primary no-underline hover:underline"
+                  className="font-semibold text-primary-ink no-underline hover:underline"
                   to={`/groups/${group.id}/events`}
                   data-testid="home-empty-events"
                 >
@@ -339,12 +339,12 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
         </section>
 
         <section className="space-y-3" aria-labelledby="recent-setlists-heading">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <h3 id="recent-setlists-heading" className="font-semibold">
               {t('inicio.recentSetlists')}
             </h3>
             <Link
-              className="text-sm font-semibold text-primary no-underline hover:underline"
+              className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-ink no-underline hover:underline"
               to={`/groups/${group.id}/setlists`}
             >
               {t('inicio.viewAll')}
@@ -362,7 +362,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               }
               action={
                 <Link
-                  className="font-semibold text-primary no-underline hover:underline"
+                  className="font-semibold text-primary-ink no-underline hover:underline"
                   to={`/groups/${group.id}/setlists`}
                 >
                   {t('inicio.goSetlists')}
@@ -404,7 +404,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       <div className="rounded-2xl border border-slate-100 bg-neutral-light/60 px-4 py-3">
         <div className="flex items-center gap-3">
           <span
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary-ink"
             aria-hidden="true"
           >
             <Music2 className="h-5 w-5" />
@@ -417,7 +417,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                 : plural(songCount, t('common.songOne'), t('common.songMany'))}
               {' · '}
               <Link
-                className="font-semibold text-primary no-underline hover:underline"
+                className="font-semibold text-primary-ink no-underline hover:underline"
                 to={`/groups/${group.id}/library`}
               >
                 {t('inicio.openLibrary')}

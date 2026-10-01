@@ -160,7 +160,7 @@ function FallbackScreen({
           <BrandLockup to="/" />
         </div>
         <span
-          className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-primary"
+          className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-shell-link"
           aria-hidden="true"
         >
           <Icon className="h-7 w-7" />

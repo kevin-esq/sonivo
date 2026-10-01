@@ -3,18 +3,27 @@
 @theme {
   --color-primary: #8366f1;
   --color-primary-foreground: #f8fafc;
+  /* Contrast-safe variants: `ink` for text/icons on light surfaces, `strong`
+     for solid fills that must keep white text at AA (WCAG 4.5:1). The base
+     `primary` stays decorative (fills/rings with no text on top). */
+  --color-primary-ink: #6d4ee0;
+  --color-primary-strong: #6d4ee0;
   --color-secondary: #e8c4f6;
   --color-secondary-foreground: #0f172a;
   --color-accent: #9d8bda;
   --color-success: #7ddb81;
   --color-warning: #f3b626;
   --color-error: #ef4444;
+  --color-error-foreground: #ffffff;
+  --color-error-ink: #dc2626;
+  --color-error-strong: #dc2626;
   --color-neutral-dark: #0f172a;
   --color-neutral-light: #f8fafc;
   --color-canvas: #0b1220;
   --color-shell: #0f172a;
   --color-shell-foreground: #f8fafc;
   --color-shell-link: #e8c4f6;
+  --color-shell-error: #fca5a5;
   --color-shell-border: rgba(255, 255, 255, 0.1);
   --color-shell-edge: rgba(255, 255, 255, 0);
   --color-shell-hover: rgba(255, 255, 255, 0.06);
@@ -33,6 +42,7 @@
   --color-shell: #0f172a;
   --color-shell-foreground: #f8fafc;
   --color-shell-link: #e8c4f6;
+  --color-shell-error: #fca5a5;
   --color-shell-border: rgba(255, 255, 255, 0.1);
   --color-shell-edge: rgba(255, 255, 255, 0);
   --color-shell-hover: rgba(255, 255, 255, 0.06);
@@ -46,6 +56,7 @@
   --color-shell: #ffffff;
   --color-shell-foreground: #0f172a;
   --color-shell-link: #6d4ee0;
+  --color-shell-error: #dc2626;
   --color-shell-border: #e2e8f0;
   --color-shell-edge: #e2e8f0;
   --color-shell-hover: #f1f5f9;

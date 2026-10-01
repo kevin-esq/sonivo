@@ -128,7 +128,7 @@ export function GroupWorkspace({
               aria-label="Sonivo"
               className="grid min-h-11 min-w-11 place-items-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             >
-              <SonivoMark className="h-7 w-7 text-primary" />
+              <SonivoMark className="h-7 w-7 text-shell-link" />
             </Link>
           ) : (
             <BrandLockup to="/" shell />
@@ -230,7 +230,7 @@ export function GroupWorkspace({
             title={collapsed ? t('workspace.myGroups') : undefined}
             className={cn(
               'text-sm font-medium text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
-              collapsed ? 'flex min-h-11 items-center justify-center' : 'block',
+              collapsed ? 'flex min-h-11 items-center justify-center' : 'flex min-h-11 items-center gap-2',
             )}
           >
             <LayoutGrid className={cn('h-4 w-4', collapsed ? '' : 'hidden')} aria-hidden="true" />
@@ -259,7 +259,8 @@ export function GroupWorkspace({
               title={collapsed ? t('workspace.logout') : undefined}
               className={cn(
                 'h-auto px-0 text-xs text-shell-link hover:text-shell-foreground',
-                collapsed ? 'min-h-11 min-w-11 justify-center' : '',
+                'min-h-11',
+                collapsed ? 'min-w-11 justify-center' : '',
               )}
               onClick={onLogout}
             >
@@ -273,7 +274,7 @@ export function GroupWorkspace({
       <div className="flex min-w-0 flex-1 flex-col md:h-screen md:overflow-hidden">
         <header className="flex items-center justify-between gap-2 px-4 py-3 md:hidden">
           <Link to="/" className="flex min-h-11 items-center gap-2 no-underline">
-            <SonivoMark className="h-7 w-7 text-primary" />
+            <SonivoMark className="h-7 w-7 text-shell-link" />
             <span className="font-semibold text-shell-foreground">Sonivo</span>
           </Link>
           <div className="flex items-center gap-1">
@@ -368,10 +369,10 @@ export function GroupWorkspace({
             <div className="px-5 py-6 pb-24 md:px-8 md:pb-8">
               {group === null ? (
                 <div className="space-y-3">
-                  <p role="alert" className="text-error">
+                  <p role="alert" className="text-error-ink">
                     {error}
                   </p>
-                  <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+                  <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
                     {t('workspace.myGroups')}
                   </Link>
                 </div>

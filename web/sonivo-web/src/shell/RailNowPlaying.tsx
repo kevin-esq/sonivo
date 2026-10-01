@@ -50,7 +50,7 @@ export function RailNowPlaying({ collapsed }: { collapsed: boolean }) {
           onClick={togglePlay}
           aria-label={isPlaying ? t('player.pause') : t('player.play')}
           className={cn(
-            'grid min-h-11 min-w-11 place-items-center rounded-full bg-primary text-white transition-all hover:opacity-90 motion-reduce:transition-none',
+            'grid min-h-11 min-w-11 place-items-center rounded-full bg-primary-strong text-white transition-all hover:opacity-90 motion-reduce:transition-none',
             focusRing,
           )}
         >
@@ -106,7 +106,7 @@ export function RailNowPlaying({ collapsed }: { collapsed: boolean }) {
             onClick={togglePlay}
             aria-label={isPlaying ? t('player.pause') : t('player.play')}
             className={cn(
-              'grid min-h-11 min-w-11 place-items-center rounded-full bg-primary text-white transition-all hover:opacity-90 motion-reduce:transition-none',
+              'grid min-h-11 min-w-11 place-items-center rounded-full bg-primary-strong text-white transition-all hover:opacity-90 motion-reduce:transition-none',
               focusRing,
             )}
           >

@@ -16,7 +16,7 @@ const AUTO_DISMISS_MS = 4000
 
 const TOAST_TONE: Record<ToastKind, string> = {
   ok: 'bg-slate-900 text-white',
-  error: 'bg-error text-white',
+  error: 'bg-error-strong text-white',
   info: 'bg-surface text-ink ring-1 ring-slate-200',
 }
 

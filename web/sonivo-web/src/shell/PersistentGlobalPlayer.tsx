@@ -108,7 +108,7 @@ export function PersistentGlobalPlayer() {
           <button
             type="button"
             onClick={togglePlay}
-            className={`grid min-h-11 min-w-11 place-items-center rounded-full bg-primary p-2.5 text-white shadow-md shadow-primary/30 transition-all hover:opacity-90 motion-reduce:transition-none ${focusRing}`}
+            className={`grid min-h-11 min-w-11 place-items-center rounded-full bg-primary-strong p-2.5 text-white shadow-md shadow-primary/30 transition-all hover:opacity-90 motion-reduce:transition-none ${focusRing}`}
             aria-label={isPlaying ? t('player.pause') : t('player.play')}
           >
             {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}

@@ -32,13 +32,13 @@ const ORIGIN_VISUAL: Record<
   SongOriginKind,
   { Icon: LucideIcon; tileClass: string }
 > = {
-  original: { Icon: Music2, tileClass: 'bg-primary/15 text-primary' },
+  original: { Icon: Music2, tileClass: 'bg-primary/15 text-primary-ink' },
   cover: { Icon: Disc3, tileClass: 'bg-accent/20 text-accent' },
   other: { Icon: AudioLines, tileClass: 'bg-secondary text-neutral-dark' },
 }
 
 const PURPOSE_VISUAL: Record<ResourcePurpose, { Icon: LucideIcon; tileClass: string }> = {
-  chart: { Icon: FileText, tileClass: 'bg-primary/15 text-primary' },
+  chart: { Icon: FileText, tileClass: 'bg-primary/15 text-primary-ink' },
   lyrics: { Icon: BookOpen, tileClass: 'bg-secondary text-neutral-dark' },
   audio: { Icon: Headphones, tileClass: 'bg-accent/20 text-accent' },
   click: { Icon: Timer, tileClass: 'bg-warning/20 text-neutral-dark' },
@@ -101,7 +101,7 @@ export function PageBreadcrumb({ items }: { items: { to?: string; label: string 
           <li key={`${item.label}-${index}`} className="flex items-center gap-1">
             {index > 0 ? <span aria-hidden="true">/</span> : null}
             {item.to ? (
-              <Link className="font-medium text-primary no-underline hover:underline" to={item.to}>
+              <Link className="font-medium text-primary-ink no-underline hover:underline" to={item.to}>
                 {item.label}
               </Link>
             ) : (
@@ -125,7 +125,7 @@ export function EmptyPanel({
 }) {
   return (
     <div className="flex flex-col items-start gap-4 rounded-2xl bg-neutral-light px-5 py-8">
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary-ink">
         <Music2 className="h-6 w-6" aria-hidden="true" />
       </span>
       <div className="space-y-1">
@@ -204,7 +204,7 @@ const READINESS_TONE_CLASS: Record<ReadinessTone, string> = {
   neutral: 'bg-slate-100 text-slate-600',
   ok: 'bg-success/20 text-neutral-dark',
   warn: 'bg-warning/25 text-neutral-dark',
-  accent: 'bg-primary/15 text-primary',
+  accent: 'bg-primary/15 text-primary-ink',
 }
 
 /** Operate status chip: icon/label pair, never the sole carrier of status (paired with nearby text). */

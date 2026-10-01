@@ -40,7 +40,7 @@ function useFieldIds(id: string | undefined, hint?: string, error?: string | nul
 function FieldError({ id, message }: { id: string | undefined; message: string | null | undefined }) {
   if (!message) return null
   return (
-    <p id={id} className="text-sm text-error">
+    <p id={id} className="text-sm text-error-ink">
       {message}
     </p>
   )
