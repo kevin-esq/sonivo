@@ -18,6 +18,7 @@ public sealed class SonivoDbContext : IdentityDbContext<ApplicationUser, Identit
 
     public DbSet<Group> Groups => Set<Group>();
     public DbSet<GroupSlugHistory> GroupSlugHistory => Set<GroupSlugHistory>();
+    public DbSet<GroupBranding> GroupBrandings => Set<GroupBranding>();
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
     public DbSet<Song> Songs => Set<Song>();

@@ -192,6 +192,10 @@ Group                 (+) Slug varchar(40) UNIQUE (deleted groups keep a reserve
                             SlugConfirmedAt timestamptz NULL (set on the one allowed change)
 GroupSlugHistory      (new) Id, GroupId FK, Slug varchar(40) UNIQUE, CreatedAt
                             (previous slugs; permanent redirect, never reusable)
+GroupBranding         (new) GroupId PK/FK, DisplayName?, AccentHex char(7)?,
+                            CoverKind?, CoverValue?, ThemeDefault?, DefaultLocale?,
+                            WelcomeText?, LoginHeadline?, LogoBlobKey?, LogoContentType?,
+                            ShowSonivoCredit, Version, CreatedAt, UpdatedAt
 GroupBranding         (new) GroupId PK/FK, DisplayName?, LogoBlobKey?, LogoContentType?,
                             AccentHex char(7)?, CoverKind?, CoverValue?, ThemeDefault,
                             DefaultLocale, WelcomeText?, LoginHeadline?, ShowSonivoCredit, Version
@@ -221,6 +225,9 @@ Handle rules          [a-z0-9._-]{3,32}; stored separately from GroupId (never a
 | --- | --- |
 | `GET/POST /api/groups/{gid}/members` | roster; create with `{ grantAccess, credential: activation_link\|temporary_password }` |
 | `PUT /api/groups/{gid}/slug` | change the slug **once** (Owner, flag `GroupBranding`); previous slug → `GroupSlugHistory` |
+| `GET/PUT /api/groups/{gid}/branding` · `POST …/branding/logo` | per-group branding (flag `GroupBranding`; Owner writes, members read) |
+| `GET /api/groups/by-slug/{slug}/branding` (+ `/logo`) | anonymous, **uniform** read for the branded access screen |
+| `GET /g/{slug}/manifest.webmanifest` | dynamic per-group web app manifest |
 | `POST …/members/{id}/reset-access` | re-issue activation/temp; requires `ManagedByGroupId == gid` |
 | `POST …/members/{id}/link` | link to an existing account by email (no existence leak) |
 | `POST /api/auth/change-password` | enforced before any other mutation while `MustChangePassword` |
