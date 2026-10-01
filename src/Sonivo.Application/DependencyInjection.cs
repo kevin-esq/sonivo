@@ -18,8 +18,7 @@ public static class DependencyInjection
         services.AddScoped<GetGroupHandler>();
         services.AddScoped<GetGroupBySlugHandler>();
         services.AddScoped<ChangeGroupSlugHandler>();
-        services.AddScoped<GetGroupBrandingHandler>();
-        services.AddScoped<UpdateGroupBrandingHandler>();
+        services.AddScoped<GetGroupBrandingHandler>();        services.AddScoped<UpdateGroupBrandingHandler>();
         services.AddScoped<SetGroupLogoHandler>();
         services.AddScoped<GetGroupLogoHandler>();
         services.AddScoped<GetPublicBrandingHandler>();
@@ -27,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<UpdateGroupHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
         services.AddScoped<ListMembersHandler>();
+        services.AddScoped<ListRosterHandler>();
         services.AddScoped<RemoveMemberHandler>();
         services.AddScoped<ChangeMemberRoleHandler>();
         services.AddScoped<LeaveGroupHandler>();

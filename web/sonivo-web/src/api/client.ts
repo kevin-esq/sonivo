@@ -87,6 +87,7 @@ export type CurrentUser = {
   displayName: string | null
   emailConfirmed: boolean
   mustChangePassword?: boolean
+  managedByGroupId?: string | null
 }
 
 export type GroupSummary = {

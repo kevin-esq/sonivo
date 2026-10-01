@@ -505,7 +505,8 @@ app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<Applica
         email = appUser.Email,
         displayName = appUser.DisplayName,
         emailConfirmed = appUser.EmailConfirmed,
-        mustChangePassword = appUser.MustChangePassword
+        mustChangePassword = appUser.MustChangePassword,
+        managedByGroupId = appUser.ManagedByGroupId
     });
 })
 .WithName("GetCurrentUser")
@@ -1703,6 +1704,43 @@ app.MapGet("/api/groups/{groupId:guid}/members", async (
 .WithName("ListGroupMembers")
 .RequireAuthorization();
 
+// Phase 4.1: roster incl. people without an account behind Features:ManagedAccounts.
+app.MapGet("/api/groups/{groupId:guid}/roster", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListRosterHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var roster = await handler.HandleAsync(new ListRosterQuery(userId.Value, groupId), cancellationToken);
+    return Results.Ok(new
+    {
+        items = roster.Items.Select(i => new
+        {
+            memberId = i.MemberId,
+            userId = i.UserId,
+            displayName = i.DisplayName,
+            role = i.Role,
+            hasAccess = i.HasAccess,
+            createdAt = i.CreatedAt
+        })
+    });
+})
+.WithName("ListGroupRoster")
+.RequireAuthorization();
+
 app.MapDelete("/api/groups/{groupId:guid}/members/{targetUserId:guid}", async (
     Guid groupId,
     Guid targetUserId,
@@ -2245,7 +2283,8 @@ app.MapGet("/api/features", (IConfiguration configuration) => Results.Ok(new
     lrc = configuration.GetValue("Features:Lrc", false),
     stageMode = configuration.GetValue("Features:StageMode", false),
     groupBranding = configuration.GetValue("Features:GroupBranding", false),
-    notifications = configuration.GetValue("Features:Notifications", false)
+    notifications = configuration.GetValue("Features:Notifications", false),
+    managedAccounts = configuration.GetValue("Features:ManagedAccounts", false)
 }))
 .WithName("GetFeatures")
 .AllowAnonymous();
