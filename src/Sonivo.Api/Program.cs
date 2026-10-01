@@ -1328,6 +1328,217 @@ app.MapPut("/api/groups/{groupId:guid}/slug", async (
 .RequireAuthorization()
 .DisableAntiforgery();
 
+// ---------- Per-group white label (ADR-0048). Flag: Features:GroupBranding (default off). ----------
+
+app.MapGet("/api/groups/{groupId:guid}/branding", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetGroupBrandingHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(ToBrandingResponse(await handler.HandleAsync(userId.Value, groupId, cancellationToken)));
+})
+.WithName("GetGroupBranding")
+.RequireAuthorization();
+
+app.MapPut("/api/groups/{groupId:guid}/branding", async (
+    Guid groupId,
+    UpdateGroupBrandingRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    UpdateGroupBrandingHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var updated = await handler.HandleAsync(
+        new UpdateGroupBrandingCommand(
+            userId.Value,
+            groupId,
+            request.ExpectedVersion,
+            request.DisplayName,
+            request.AccentHex,
+            request.CoverKind,
+            request.CoverValue,
+            request.ThemeDefault,
+            request.DefaultLocale,
+            request.WelcomeText,
+            request.LoginHeadline,
+            request.ShowSonivoCredit),
+        cancellationToken);
+
+    return Results.Ok(ToBrandingResponse(updated));
+})
+.WithName("UpdateGroupBranding")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapPost("/api/groups/{groupId:guid}/branding/logo", async (
+    Guid groupId,
+    HttpRequest httpRequest,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SetGroupLogoHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!httpRequest.HasFormContentType)
+    {
+        return Results.Problem(detail: "Multipart form is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    var form = await httpRequest.ReadFormAsync(cancellationToken);
+    var file = form.Files.GetFile("file");
+    if (file is null || file.Length <= 0)
+    {
+        return Results.Problem(detail: "Logo file is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    await using var stream = file.OpenReadStream();
+    var updated = await handler.HandleAsync(
+        new SetGroupLogoCommand(userId.Value, groupId, file.ContentType, file.Length, stream),
+        cancellationToken);
+    return Results.Ok(ToBrandingResponse(updated));
+})
+.WithName("SetGroupLogo")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/branding/logo", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetGroupLogoHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var content = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
+    return content is null
+        ? Results.NotFound()
+        : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
+})
+.WithName("GetGroupLogo")
+.RequireAuthorization();
+
+// Anonymous, uniform reads for the branded access screen (never leak existence).
+app.MapGet("/api/groups/by-slug/{slug}/branding", async (
+    string slug,
+    GetPublicBrandingHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    return Results.Ok(await handler.HandleAsync(slug, cancellationToken));
+})
+.WithName("GetPublicGroupBranding")
+.AllowAnonymous();
+
+app.MapGet("/api/groups/by-slug/{slug}/branding/logo", async (
+    string slug,
+    GetPublicBrandingLogoHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var content = await handler.HandleAsync(slug, cancellationToken);
+    return content is null
+        ? Results.NotFound()
+        : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
+})
+.WithName("GetPublicGroupBrandingLogo")
+.AllowAnonymous();
+
+// Dynamic per-group web app manifest (/g/{slug}/manifest.webmanifest), same origin.
+app.MapGet("/g/{slug}/manifest.webmanifest", async (
+    string slug,
+    GetPublicBrandingHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var branding = await handler.HandleAsync(slug, cancellationToken);
+    var productName = configuration.GetValue("Brand:ProductName", "Sonivo") ?? "Sonivo";
+    var name = branding.Name ?? productName;
+
+    var manifest = new
+    {
+        name,
+        short_name = name.Length > 12 ? name[..12] : name,
+        start_url = $"/g/{slug}",
+        scope = $"/g/{slug}",
+        display = "standalone",
+        background_color = "#0b1020",
+        theme_color = branding.AccentHex ?? "#5b4bd6",
+        icons = branding.LogoUrl is null
+            ? Array.Empty<object>()
+            : new object[]
+            {
+                new { src = branding.LogoUrl, sizes = "any", type = "image/png", purpose = "any" }
+            }
+    };
+
+    return Results.Json(manifest, contentType: "application/manifest+json");
+})
+.WithName("GetGroupManifest")
+.AllowAnonymous();
+
 app.MapPatch("/api/groups/{groupId:guid}", async (
     Guid groupId,
     UpdateGroupRequest request,
@@ -2656,6 +2867,23 @@ static object ToGroupBySlugResponse(GroupBySlugResult result) => new
     updatedAt = result.Group.UpdatedAt
 };
 
+static object ToBrandingResponse(GroupBrandingDto branding) => new
+{
+    groupId = branding.GroupId,
+    displayName = branding.DisplayName,
+    accentHex = branding.AccentHex,
+    coverKind = branding.CoverKind,
+    coverValue = branding.CoverValue,
+    themeDefault = branding.ThemeDefault,
+    defaultLocale = branding.DefaultLocale,
+    welcomeText = branding.WelcomeText,
+    loginHeadline = branding.LoginHeadline,
+    hasLogo = branding.HasLogo,
+    logoUrl = branding.HasLogo ? $"/api/groups/{branding.GroupId}/branding/logo" : null,
+    showSonivoCredit = branding.ShowSonivoCredit,
+    version = branding.Version
+};
+
 static object ToGroupListResponse(GroupListItem item) => new
 {
     id = item.Id,
@@ -2890,6 +3118,17 @@ internal sealed record DisableTwoFactorRequest(string? Password);
 internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
 internal sealed record ChangeGroupSlugRequest(string? Slug);
+internal sealed record UpdateGroupBrandingRequest(
+    int ExpectedVersion,
+    string? DisplayName,
+    string? AccentHex,
+    string? CoverKind,
+    string? CoverValue,
+    string? ThemeDefault,
+    string? DefaultLocale,
+    string? WelcomeText,
+    string? LoginHeadline,
+    bool ShowSonivoCredit);
 internal sealed record CreateInvitationRequest(string? Email);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);
 internal sealed record ChangeMemberRoleRequest(string? Role);

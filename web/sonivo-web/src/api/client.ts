@@ -91,6 +91,7 @@ export type CurrentUser = {
 export type GroupSummary = {
   id: string
   name: string
+  slug?: string | null
   role: string
   version: number
   createdAt: string
@@ -370,6 +371,66 @@ export async function getGroup(groupId: string): Promise<GroupDetail> {
   return apiRequest<GroupDetail>(`/api/groups/${groupId}`)
 }
 
+export type GroupBySlug = GroupDetail & { moved?: boolean }
+
+/** Resolves a path slug to its group (current or historical, with `moved`). */
+export async function getGroupBySlug(slug: string): Promise<GroupBySlug> {
+  return apiRequest<GroupBySlug>(`/api/groups/by-slug/${encodeURIComponent(slug)}`)
+}
+
+export type GroupBranding = {
+  groupId: string
+  displayName: string | null
+  accentHex: string | null
+  coverKind: string | null
+  coverValue: string | null
+  themeDefault: string | null
+  defaultLocale: string | null
+  welcomeText: string | null
+  loginHeadline: string | null
+  hasLogo: boolean
+  logoUrl: string | null
+  showSonivoCredit: boolean
+  version: number
+}
+
+export type PublicBranding = {
+  name: string | null
+  logoUrl: string | null
+  accentHex: string | null
+  loginHeadline: string | null
+}
+
+export async function getGroupBranding(groupId: string): Promise<GroupBranding> {
+  return apiRequest<GroupBranding>(`/api/groups/${groupId}/branding`)
+}
+
+export async function updateGroupBranding(
+  groupId: string,
+  input: {
+    expectedVersion: number
+    displayName?: string | null
+    accentHex?: string | null
+    coverKind?: string | null
+    coverValue?: string | null
+    themeDefault?: string | null
+    defaultLocale?: string | null
+    welcomeText?: string | null
+    loginHeadline?: string | null
+    showSonivoCredit?: boolean
+  },
+): Promise<GroupBranding> {
+  return apiRequest<GroupBranding>(`/api/groups/${groupId}/branding`, {
+    method: 'PUT',
+    body: input,
+  })
+}
+
+/** Anonymous, uniform branding read for the branded access screen. */
+export async function getPublicBranding(slug: string): Promise<PublicBranding> {
+  return apiRequest<PublicBranding>(`/api/groups/by-slug/${encodeURIComponent(slug)}/branding`)
+}
+
 export async function updateGroup(
   groupId: string,
   input: { name: string; expectedVersion: number },
@@ -646,6 +707,7 @@ export async function getArrangement(
 export type FeatureFlags = {
   lrc: boolean
   stageMode: boolean
+  groupBranding: boolean
 }
 
 export async function fetchFeatures(): Promise<FeatureFlags> {

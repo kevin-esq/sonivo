@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, NavLink, useParams } from 'react-router-dom'
 import { ChevronsLeft, ChevronsRight, LayoutGrid, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
-import { ApiError, getGroup, problemDetail, type CurrentUser, type GroupDetail } from '../api/client'
+import { ApiError, fetchFeatures, getGroup, problemDetail, type CurrentUser, type GroupDetail } from '../api/client'
 import { BrandLockup, SonivoMark } from '../brand/SonivoMark'
 import { useT } from '../i18n'
 import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
@@ -11,7 +11,10 @@ import { Button } from '../ui/button'
 import { coverUsesLightText, groupCoverStyle, isGradientCover, isNoneCover, readGroupAppearance } from './groupAccent'
 import { GROUP_UPDATED_EVENT } from './groupEvents'
 import { groupNavItems, mobileTabItems } from './nav'
+import { applyDocumentBranding, loadServerBranding, type ServerBranding } from './serverBranding'
+import { rememberLastGroup } from '../tenancy/groupSlug'
 import { RailNowPlaying } from './RailNowPlaying'
+import { GroupSwitcher } from './GroupSwitcher'
 import { useRailPresence } from './railPresence'
 
 const SIDEBAR_KEY = 'sonivo:sidebar'
@@ -49,8 +52,25 @@ export function GroupWorkspace({
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [rail, setRail] = useState<RailState>(() => readRailState())
+  const [brandingEnabled, setBrandingEnabled] = useState(false)
+  const [serverBrand, setServerBrand] = useState<ServerBranding | null>(null)
   const { t } = useT()
   const { setRailPresent } = useRailPresence()
+
+  // Phase 4.3: per-group branding behind Features:GroupBranding.
+  useEffect(() => {
+    let cancelled = false
+    fetchFeatures()
+      .then((flags) => {
+        if (!cancelled) setBrandingEnabled(flags.groupBranding)
+      })
+      .catch(() => {
+        if (!cancelled) setBrandingEnabled(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Registra el rail ante el reproductor global (oculta la barra inferior en >=768px).
   useEffect(() => {
@@ -96,17 +116,53 @@ export function GroupWorkspace({
     }
   }, [groupId, user.id])
 
-  const appearance = readGroupAppearance(group?.id)
+  // Phase 4.3: load server-side branding (best effort) and apply document identity.
+  useEffect(() => {
+    let cancelled = false
+    if (!group || !brandingEnabled) {
+      setServerBrand(null)
+      return
+    }
+    void loadServerBranding(group.id).then((branding) => {
+      if (!cancelled) setServerBrand(branding)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [group?.id, brandingEnabled])
+
+  useEffect(() => {
+    if (!group) return
+    rememberLastGroup(group.id)
+    applyDocumentBranding({
+      name: serverBrand?.displayName ?? group.name,
+      slug: group.slug ?? null,
+      accentHex: serverBrand?.accentHex ?? null,
+      logoUrl: serverBrand?.logoUrl ?? null,
+    })
+  }, [group, serverBrand])
+
+  const deviceAppearance = readGroupAppearance(group?.id)
+  const serverCover =
+    serverBrand?.coverKind === 'gradient' && serverBrand.coverValue
+      ? `gradient:${serverBrand.coverValue}`
+      : serverBrand?.coverKind === 'emoji' && serverBrand.coverValue
+        ? serverBrand.coverValue
+        : null
+  const appearance = serverBrand
+    ? { accent: serverBrand.accentHex ?? deviceAppearance.accent, cover: serverCover ?? deviceAppearance.cover }
+    : deviceAppearance
   const accountLabel = user.displayName || user.email || t('workspace.account')
   const plainCover = isNoneCover(appearance.cover)
   const collapsed = rail === 'collapsed'
   const groupRole = group ? formatMembershipRole(group.role) : ''
+  const accent = appearance.accent
 
   return (
     <div
       className="min-h-screen bg-canvas md:flex md:h-screen md:overflow-hidden"
       data-testid="grupo-shell"
-      style={{ '--group-accent': appearance.accent } as CSSProperties}
+      style={{ '--group-accent': accent } as CSSProperties}
     >
       <aside
         className={cn(
@@ -344,9 +400,13 @@ export function GroupWorkspace({
                       plainCover ? 'bg-black/5 text-ink' : 'bg-black/25',
                     )}
                   >
-                    {isGradientCover(appearance.cover) || plainCover
-                      ? group.name.slice(0, 1).toUpperCase()
-                      : appearance.cover}
+                    {serverBrand?.logoUrl ? (
+                      <img src={serverBrand.logoUrl} alt="" className="h-9 w-9 rounded object-contain" />
+                    ) : isGradientCover(appearance.cover) || plainCover ? (
+                      group.name.slice(0, 1).toUpperCase()
+                    ) : (
+                      appearance.cover
+                    )}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p
@@ -378,6 +438,9 @@ export function GroupWorkspace({
                     <Settings2 className="h-4 w-4" aria-hidden="true" />
                     {t('grupo.ajustes')}
                   </Link>
+                  <div className="hidden md:block">
+                    <GroupSwitcher currentGroupId={group.id} />
+                  </div>
                 </div>
               </div>
               <Link

@@ -40,6 +40,8 @@ import {
   SessionScreen,
 } from "./shell/GroupsChrome";
 import { GroupWorkspace } from "./shell/GroupWorkspace";
+import { GroupSlugResolver } from "./tenancy/GroupSlugResolver";
+import { BrandedLoginPage } from "./shell/BrandedLoginPage";
 import { RailPresenceProvider } from "./shell/railPresence";
 import { PersistentGlobalPlayer } from "./shell/PersistentGlobalPlayer";
 import { UserChrome } from "./shell/UserChrome";
@@ -453,6 +455,11 @@ export default function App() {
                   <Route path="seguridad" element={<SecurityPage />} />
                   <Route path="grupos" element={<GroupsPageWithActions />} />
                 </Route>
+
+                {/* Path tenancy (ADR-0045 D1): /g/{slug} resolves and forwards to the
+                    group workspace keeping the sub-path; it requires membership. */}
+                <Route path="/g/:slug" element={<GroupSlugResolver />} />
+                <Route path="/g/:slug/*" element={<GroupSlugResolver />} />
               </Route>
 
               {/* Rutas públicas */}
@@ -472,6 +479,12 @@ export default function App() {
                     mode="login"
                     onSuccess={onAuthSuccess}
                   />
+                }
+              />
+              <Route
+                path="/g/:slug/login"
+                element={
+                  <BrandedLoginPage user={guestUser} onSuccess={onAuthSuccess} />
                 }
               />
               <Route

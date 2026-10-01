@@ -62,6 +62,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<IGroupStore, EfGroupStore>();
+        services.AddScoped<IGroupBrandingStore, EfGroupBrandingStore>();
         services.AddScoped<IMembershipStore, EfMembershipStore>();
         services.AddScoped<IInvitationStore, EfInvitationStore>();
         services.AddScoped<ISongStore, EfSongStore>();
