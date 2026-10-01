@@ -231,8 +231,10 @@ app.UseAuthorization();
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.Value ?? string.Empty;
+    var guarded = path.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/hubs", StringComparison.OrdinalIgnoreCase);
     if (context.User?.Identity?.IsAuthenticated == true
-        && path.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
+        && guarded
         && !IsMustChangeAllowed(path))
     {
         var users = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
