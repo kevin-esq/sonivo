@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<ListMyGroupsHandler>();
         services.AddScoped<GetGroupHandler>();
         services.AddScoped<GetGroupBySlugHandler>();
+        services.AddScoped<ChangeGroupSlugHandler>();
         services.AddScoped<UpdateGroupHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
         services.AddScoped<ListMembersHandler>();

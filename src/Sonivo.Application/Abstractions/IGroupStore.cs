@@ -10,8 +10,13 @@ public interface IGroupStore
     Task<Group?> GetByIdAsync(Guid groupId, CancellationToken cancellationToken);
     Task<Group?> GetBySlugAsync(string slug, CancellationToken cancellationToken) =>
         Task.FromResult<Group?>(null);
+    /// <summary>Resolves the current slug or a reserved historical slug to its Group.</summary>
+    Task<Group?> GetByAnySlugAsync(string slug, CancellationToken cancellationToken) =>
+        GetBySlugAsync(slug, cancellationToken);
     Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken) =>
         Task.FromResult(false);
+    Task AddSlugHistoryAsync(GroupSlugHistory history, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
     Task<Membership?> GetMembershipAsync(Guid groupId, Guid userId, CancellationToken cancellationToken);
     Task UpdateAsync(Group group, CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);

@@ -1292,11 +1292,41 @@ app.MapGet("/api/groups/by-slug/{slug}", async (
         return Results.Unauthorized();
     }
 
-    var group = await handler.HandleAsync(userId.Value, slug, cancellationToken);
-    return Results.Ok(ToGroupResponse(group));
+    var result = await handler.HandleAsync(userId.Value, slug, cancellationToken);
+    return Results.Ok(ToGroupBySlugResponse(result));
 })
 .WithName("GetGroupBySlug")
 .RequireAuthorization();
+
+app.MapPut("/api/groups/{groupId:guid}/slug", async (
+    Guid groupId,
+    ChangeGroupSlugRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ChangeGroupSlugHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    // Flag off → 404 even for the Owner (feature disabled).
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var updated = await handler.HandleAsync(
+        new ChangeGroupSlugCommand(userId.Value, groupId, request.Slug ?? string.Empty),
+        cancellationToken);
+    return Results.Ok(ToGroupResponse(updated));
+})
+.WithName("ChangeGroupSlug")
+.RequireAuthorization()
+.DisableAntiforgery();
 
 app.MapPatch("/api/groups/{groupId:guid}", async (
     Guid groupId,
@@ -1921,7 +1951,8 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/
 app.MapGet("/api/features", (IConfiguration configuration) => Results.Ok(new
 {
     lrc = configuration.GetValue("Features:Lrc", false),
-    stageMode = configuration.GetValue("Features:StageMode", false)
+    stageMode = configuration.GetValue("Features:StageMode", false),
+    groupBranding = configuration.GetValue("Features:GroupBranding", false)
 }))
 .WithName("GetFeatures")
 .AllowAnonymous();
@@ -2613,6 +2644,18 @@ static object ToGroupResponse(GroupDto group) => new
     updatedAt = group.UpdatedAt
 };
 
+static object ToGroupBySlugResponse(GroupBySlugResult result) => new
+{
+    id = result.Group.Id,
+    name = result.Group.Name,
+    slug = result.Group.Slug,
+    moved = result.Moved,
+    version = result.Group.Version,
+    role = result.Group.Role,
+    createdAt = result.Group.CreatedAt,
+    updatedAt = result.Group.UpdatedAt
+};
+
 static object ToGroupListResponse(GroupListItem item) => new
 {
     id = item.Id,
@@ -2846,6 +2889,7 @@ internal sealed record TwoFactorChallengeRequest(string? Code, bool RememberMe =
 internal sealed record DisableTwoFactorRequest(string? Password);
 internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
+internal sealed record ChangeGroupSlugRequest(string? Slug);
 internal sealed record CreateInvitationRequest(string? Email);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);
 internal sealed record ChangeMemberRoleRequest(string? Role);

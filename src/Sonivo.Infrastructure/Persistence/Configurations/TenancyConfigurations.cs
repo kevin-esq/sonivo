@@ -23,8 +23,23 @@ public sealed class GroupConfiguration : IEntityTypeConfiguration<Group>
     }
 }
 
-public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membership>
+public sealed class GroupSlugHistoryConfiguration : IEntityTypeConfiguration<GroupSlugHistory>
 {
+    public void Configure(EntityTypeBuilder<GroupSlugHistory> builder)
+    {
+        builder.ToTable("GroupSlugHistory");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Slug).IsRequired().HasMaxLength(GroupSlug.MaxLength);
+        builder.HasIndex(x => x.Slug).IsUnique();
+        builder.HasIndex(x => x.GroupId);
+        builder.HasOne<Group>()
+            .WithMany()
+            .HasForeignKey(x => x.GroupId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membership>{
     public void Configure(EntityTypeBuilder<Membership> builder)
     {
         builder.ToTable("Memberships");
