@@ -119,18 +119,27 @@ public sealed class ChangeMemberRoleHandler
     private readonly GroupAccessService _access;
     private readonly IMembershipStore _memberships;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAccountAuditStore? _audit;
+    private readonly IManagedAccountNotifier? _notifier;
+    private readonly IClock? _clock;
     private readonly ILogger<ChangeMemberRoleHandler>? _logger;
 
     public ChangeMemberRoleHandler(
         GroupAccessService access,
         IMembershipStore memberships,
         IUnitOfWork unitOfWork,
-        ILogger<ChangeMemberRoleHandler>? logger = null)
+        ILogger<ChangeMemberRoleHandler>? logger = null,
+        IAccountAuditStore? audit = null,
+        IManagedAccountNotifier? notifier = null,
+        IClock? clock = null)
     {
         _access = access;
         _memberships = memberships;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _audit = audit;
+        _notifier = notifier;
+        _clock = clock;
     }
 
     public async Task HandleAsync(ChangeMemberRoleCommand command, CancellationToken cancellationToken)
@@ -158,6 +167,7 @@ public sealed class ChangeMemberRoleHandler
             }
         }
 
+        var wasOwner = target.IsOwner;
         try
         {
             target.AssignRole(role);
@@ -168,6 +178,29 @@ public sealed class ChangeMemberRoleHandler
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // New Owner inherits the group's reset power over its managed accounts:
+        // audit it and notify the affected members (ADR-0047 / privacy §13).
+        if (!wasOwner && role == MembershipRoles.Owner && target.UserId is { } newOwnerId)
+        {
+            if (_audit is not null)
+            {
+                await _audit.AddAsync(
+                    AccountAudit.Create(
+                        AccountAudit.ActionOwnerTransferred,
+                        _clock?.UtcNow ?? DateTimeOffset.UtcNow,
+                        actorUserId: command.ActorUserId,
+                        targetUserId: newOwnerId,
+                        groupId: command.GroupId),
+                    cancellationToken);
+                await _audit.SaveChangesAsync(cancellationToken);
+            }
+
+            if (_notifier is not null)
+            {
+                await _notifier.NotifyOwnerChangedAsync(command.GroupId, newOwnerId, cancellationToken);
+            }
+        }
 
         _logger?.LogWarning(
             "Security event: member role changed. ActorUserId: {ActorUserId}, GroupId: {GroupId}, TargetUserId: {TargetUserId}, Role: {Role}",

@@ -50,4 +50,52 @@ public class MembershipRosterTests
         Assert.True(membership.HasAccess);
         Assert.Equal(MembershipRoles.Member, membership.Role);
     }
+
+    [Theory]
+    [InlineData("ana", true)]
+    [InlineData("ana.beat_1-2", true)]
+    [InlineData("ab", false)]
+    [InlineData("ANA", false)]
+    [InlineData("ana!", false)]
+    [InlineData("", false)]
+    public void Handle_validation_follows_the_documented_allow_list(string handle, bool valid)
+    {
+        Assert.Equal(valid, MembershipHandles.IsValid(handle));
+    }
+
+    [Fact]
+    public void Assign_handle_normalizes_and_rejects_invalid_values()
+    {
+        var membership = Membership.CreatePerson(Guid.NewGuid(), "Ana", Now);
+
+        membership.AssignHandle("  Ana.Perc  ");
+        Assert.Equal("ana.perc", membership.Handle);
+
+        Assert.Throws<ArgumentException>(() => membership.AssignHandle("no way"));
+    }
+
+    [Fact]
+    public void Derive_handle_folds_accents_and_respects_bounds()
+    {
+        var handle = MembershipHandles.Derive("  José  Pérez  ");
+
+        Assert.True(MembershipHandles.IsValid(handle));
+        Assert.Equal("jose-perez", handle);
+
+        var longName = new string('a', 80);
+        Assert.True(MembershipHandles.IsValid(MembershipHandles.Derive(longName)));
+
+        var shortName = MembershipHandles.Derive("X");
+        Assert.True(MembershipHandles.IsValid(shortName));
+    }
+
+    [Fact]
+    public void With_suffix_keeps_the_handle_within_the_maximum_length()
+    {
+        var handle = MembershipHandles.Derive(new string('b', 40));
+        var suffixed = MembershipHandles.WithSuffix(handle, 12);
+
+        Assert.True(MembershipHandles.IsValid(suffixed));
+        Assert.EndsWith("-12", suffixed);
+    }
 }

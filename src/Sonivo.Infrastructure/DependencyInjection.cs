@@ -92,6 +92,7 @@ public static class DependencyInjection
         services.AddScoped<IEventGroupResolver, EfEventGroupResolver>();
         services.AddScoped<IUserDirectory, EfUserDirectory>();
         services.AddScoped<IEventNotifier, EventNotifier>();
+        services.AddScoped<IManagedAccountNotifier, ManagedAccountNotifier>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddSingleton<IPublicOrigin, ConfigurationPublicOrigin>();
         services.AddHttpClient<IEmailSender, GmailEmailSender>();

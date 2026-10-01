@@ -9,6 +9,7 @@ public sealed record RosterItemDto(
     string DisplayName,
     string Role,
     bool HasAccess,
+    string? Handle,
     DateTimeOffset CreatedAt);
 
 public sealed record RosterDto(IReadOnlyList<RosterItemDto> Items);
@@ -64,6 +65,7 @@ public sealed class ListRosterHandler
                     string.IsNullOrWhiteSpace(name) ? (userId?.ToString("D") ?? "—") : name!,
                     m.Role,
                     m.HasAccess,
+                    m.Handle,
                     m.CreatedAt);
             })
             .OrderByDescending(i => i.Role == MembershipRoles.Owner)

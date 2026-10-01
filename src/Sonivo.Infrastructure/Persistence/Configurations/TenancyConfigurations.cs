@@ -46,7 +46,9 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Role).IsRequired();
         builder.Property(x => x.DisplayName).HasMaxLength(200);
+        builder.Property(x => x.Handle).HasMaxLength(MembershipHandles.MaxLength);
         builder.HasIndex(x => new { x.UserId, x.GroupId }).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
+        builder.HasIndex(x => new { x.GroupId, x.Handle }).IsUnique().HasFilter("\"Handle\" IS NOT NULL");
         builder.HasIndex(x => x.GroupId);
         builder.HasIndex(x => x.UserId);
         builder.HasOne<ApplicationUser>()

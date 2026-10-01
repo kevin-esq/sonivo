@@ -27,6 +27,8 @@ public static class DependencyInjection
         services.AddScoped<SoftDeleteGroupHandler>();
         services.AddScoped<ListMembersHandler>();
         services.AddScoped<ListRosterHandler>();
+        services.AddScoped<ExportGroupHandler>();
+        services.AddScoped<ExportOwnDataHandler>();
         services.AddScoped<RemoveMemberHandler>();
         services.AddScoped<ChangeMemberRoleHandler>();
         services.AddScoped<LeaveGroupHandler>();

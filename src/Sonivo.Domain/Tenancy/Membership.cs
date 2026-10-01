@@ -14,6 +14,12 @@ public sealed class Membership
     public string Role { get; private set; } = string.Empty;
     /// <summary>Person name; required for roster-only rows, optional otherwise.</summary>
     public string? DisplayName { get; private set; }
+    /// <summary>
+    /// Optional login handle (ADR-0047), unique per group and stored separately
+    /// from the GroupId. Used by members without an email to sign in as
+    /// <c>handle@slug</c>. Null when the person has no handle.
+    /// </summary>
+    public string? Handle { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
     public Group? Group { get; private set; }
@@ -76,6 +82,26 @@ public sealed class Membership
         }
 
         UserId = userId;
+    }
+
+    /// <summary>Assigns a validated login handle, or clears it when null.</summary>
+    public void AssignHandle(string? handle)
+    {
+        var normalized = MembershipHandles.Normalize(handle);
+        if (normalized is null)
+        {
+            Handle = null;
+            return;
+        }
+
+        if (!MembershipHandles.IsValid(normalized))
+        {
+            throw new ArgumentException(
+                $"Handle must match [a-z0-9._-]{{{MembershipHandles.MinLength},{MembershipHandles.MaxLength}}}.",
+                nameof(handle));
+        }
+
+        Handle = normalized;
     }
 
     private static Membership Create(

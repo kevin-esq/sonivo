@@ -157,6 +157,27 @@ export async function loginUser(input: {
   return result
 }
 
+/**
+ * ADR-0047: managed members without an email sign in as `handle@slug`. Handle and
+ * slug are sent separately to the dedicated endpoint; it never consults emails.
+ */
+export async function loginWithHandle(input: {
+  slug: string
+  handle: string
+  password: string
+  rememberMe?: boolean
+}): Promise<CurrentUser | { requiresTwoFactor: true }> {
+  clearCsrfToken()
+  await ensureCsrfToken()
+  const result = await apiRequest<CurrentUser | { requiresTwoFactor: true }>(
+    `/api/auth/login/handle/${encodeURIComponent(input.slug)}`,
+    { method: 'POST', body: { handle: input.handle, password: input.password, rememberMe: input.rememberMe } },
+  )
+  clearCsrfToken()
+  await ensureCsrfToken()
+  return result
+}
+
 /** T-AU-02: narrows the login union to the 2FA second-step shape. */
 export function isSecondStepRequired(
   value: CurrentUser | { requiresTwoFactor: true },

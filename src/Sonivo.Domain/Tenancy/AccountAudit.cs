@@ -11,6 +11,7 @@ public sealed class AccountAudit
     public const string ActionLinked = "linked";
     public const string ActionRemoved = "removed";
     public const string ActionPasswordChanged = "password_changed";
+    public const string ActionOwnerTransferred = "owner_transferred";
 
     public Guid Id { get; private set; }
     public Guid? ActorUserId { get; private set; }
