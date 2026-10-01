@@ -86,6 +86,16 @@ Sonivo evolves from "one Group = one tenant with a shared UI" to a **white-label
 
 > Kept here as **drafts**; on approval they move into `DECISIONS.md` per the repo change protocol.
 
+| ADR | Status | Supersedes / amends |
+| --- | --- | --- |
+| ADR-0045 | PROPOSED | **supersedes ADR-0005** (Organization prohibition) |
+| ADR-0046 | PROPOSED | **amends ADR-0005 / ADR-0012** (membership + roles baseline) |
+| ADR-0047 | PROPOSED | **supersedes the "email required for access" part of ADR-0038** |
+| ADR-0048 | PROPOSED | new (per-group white label) |
+| ADR-0049 | PROPOSED | **amends ADR-0020** (cookie posture) |
+| ADR-0051 | PROPOSED | **supersedes the Owner\|Member-only role list of ADR-0012** |
+| ADR-0052 | PROPOSED | **amends the PHASE-3.9 mail firewall** |
+
 ### ADR-0045 — Tenancy: Group as tenant with branding; Organization deferred
 **Options.** A) Group = tenant + branding/domain tables. B) Organization > Group (branding/domain owned by
 the org; AuthZ gains an org layer; "my groups" must group by org). C) realm per group (rejected: duplicates
