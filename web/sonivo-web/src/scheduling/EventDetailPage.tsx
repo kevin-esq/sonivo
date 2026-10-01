@@ -566,10 +566,6 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   {formatEventStatus(musicalEvent.status)}
                 </dd>
               </div>
-              <div>
-                <dt className="text-sm text-slate-500">Versión</dt>
-                <dd className="font-medium text-neutral-dark">v{musicalEvent.version}</dd>
-              </div>
             </dl>
           )}
         </section>

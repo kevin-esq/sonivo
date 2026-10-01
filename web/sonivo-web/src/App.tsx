@@ -46,6 +46,7 @@ import { UserChrome } from "./shell/UserChrome";
 import { Button, primaryButtonClass } from "./ui/button";
 import { cn } from "./ui/cn";
 import { ToastProvider } from "./ui/toast";
+import { PageSkeleton } from "./ui/skeleton";
 
 // ---------- Lazy loading (menos JS inicial) ----------
 const named = <T extends Record<string, any>, K extends keyof T>(
@@ -135,7 +136,15 @@ function useAuth() {
 // ---------- Utilidades ----------
 
 function RouteFallback() {
-  return <SessionScreen message="Cargando…" />;
+  // Route-level loading uses the shared skeleton (Wave C, Step 4) instead of a
+  // bare "Cargando…" screen, so the transition reads as content arriving.
+  return (
+    <div className="min-h-screen bg-canvas px-6 py-10">
+      <div className="mx-auto w-full max-w-4xl">
+        <PageSkeleton />
+      </div>
+    </div>
+  );
 }
 
 /**

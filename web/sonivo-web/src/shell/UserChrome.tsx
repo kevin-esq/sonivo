@@ -47,7 +47,7 @@ export function UserChrome({
       <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6 md:py-8">
         <h1 className="text-2xl font-bold tracking-tight text-shell-foreground">{t('cuenta.title')}</h1>
         <nav
-          className="mt-4 flex gap-2 overflow-x-auto border-b border-shell-border"
+          className="mt-4 flex flex-wrap gap-2 border-b border-shell-border"
           aria-label={t('cuenta.nav')}
         >
           {cuentaTabs.map((tab) => {

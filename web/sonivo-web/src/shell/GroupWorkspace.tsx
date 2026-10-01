@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, NavLink, useParams } from 'react-router-dom'
-import { ChevronsLeft, ChevronsRight, LayoutGrid, LogOut, Settings2, UserRound } from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, LayoutGrid, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
 import { ApiError, getGroup, problemDetail, type CurrentUser, type GroupDetail } from '../api/client'
 import { BrandLockup, SonivoMark } from '../brand/SonivoMark'
 import { useT } from '../i18n'
@@ -278,6 +278,34 @@ export function GroupWorkspace({
             <span className="font-semibold text-shell-foreground">Sonivo</span>
           </Link>
           <div className="flex items-center gap-1">
+            {/* "Más": exposes the desktop-only destinations (Miembros) that the
+                4-tab bottom bar cannot carry, without shrinking its targets. */}
+            {group ? (
+              <details className="relative" data-testid="mobile-more">
+                <summary
+                  aria-label={t('workspace.more')}
+                  className="grid min-h-11 min-w-11 cursor-pointer list-none place-items-center rounded-lg text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary [&::-webkit-details-marker]:hidden"
+                >
+                  <Menu className="h-5 w-5" aria-hidden="true" />
+                </summary>
+                <div className="absolute right-0 z-50 mt-1 w-48 rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg">
+                  <NavLink
+                    to={`/groups/${group.id}/people`}
+                    className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
+                  >
+                    <Users className="h-4 w-4 text-primary-ink" aria-hidden="true" />
+                    {t('nav.people')}
+                  </NavLink>
+                  <NavLink
+                    to={`/groups/${group.id}/ajustes`}
+                    className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
+                  >
+                    <Settings2 className="h-4 w-4 text-primary-ink" aria-hidden="true" />
+                    {t('grupo.ajustes')}
+                  </NavLink>
+                </div>
+              </details>
+            ) : null}
             <Link
               to="/cuenta"
               aria-label={t('grupo.openAccount')}

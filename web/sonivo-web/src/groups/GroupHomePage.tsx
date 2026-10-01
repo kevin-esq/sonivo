@@ -72,7 +72,7 @@ function formatRsvpLabel(response: EventRsvpResponse | string | null): string {
     case 'maybe':
       return 'Quizás'
     default:
-      return 'Sin respuesta'
+      return 'Aún no confirmaste tu asistencia'
   }
 }
 

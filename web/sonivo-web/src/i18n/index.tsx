@@ -25,6 +25,7 @@ const es = {
   "nav.events": "Eventos",
   "nav.library": "Biblioteca",
   "nav.people": "Miembros",
+  "workspace.more": "Más",
   "workspace.myGroups": "Mis grupos",
   "workspace.account": "Cuenta",
   "workspace.accountLink": "Cuenta",
@@ -65,7 +66,7 @@ const es = {
   "ajustes.coverHint":
     "Elige un emoji o un degradado para el encabezado del grupo.",
   "ajustes.logoNote":
-    "Logotipo: marcador de posición. Subir el logo del grupo llega en una próxima oleada.",
+    "Todavía no hay logotipo. Subir el logo del grupo llegará pronto.",
   "ajustes.ownerHint":
     "Como organizador, tus cambios se aplican al instante y se guardan en este dispositivo.",
   "ajustes.memberReadonly":
@@ -826,6 +827,7 @@ const en: Record<I18nKey, string> = {
   "nav.events": "Events",
   "nav.library": "Library",
   "nav.people": "Members",
+  "workspace.more": "More",
   "workspace.myGroups": "My groups",
   "workspace.account": "Account",
   "workspace.accountLink": "Account",
@@ -864,7 +866,7 @@ const en: Record<I18nKey, string> = {
   "ajustes.cover": "Cover",
   "ajustes.coverHint": "Pick an emoji or a gradient for the group header.",
   "ajustes.logoNote":
-    "Logo: placeholder. Uploading the group logo arrives in a later wave.",
+    "No logo yet. Uploading a group logo is coming soon.",
   "ajustes.ownerHint":
     "As an organizer, your changes apply instantly and are saved on this device.",
   "ajustes.memberReadonly":

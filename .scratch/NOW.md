@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: IN PROGRESS — UI/UX audit remediation Steps 1–8 (Waves A + B complete; C/D pending)
+Implementation: IN PROGRESS — UI/UX audit remediation (Waves A+B+C done: Steps 1–6; Steps 7–8 BAJA pending)
 Human approval: APPROVED (explicit build-mode authorization 2026-09-30: execute Fases A–D + full local Playwright; commit/PR authorized for this program)
 Git checkpoint: PENDING — security waves 1-2 MERGED (#124/#125), wave 3 COMMITTED; the UI/UX groups-redesign WIP is UNCOMMITTED on `develop`
 Remote: security waves 1-2 PUSHED + MERGED, wave 3 PUSHED (branch); UI/UX WIP not pushed
-CI: local only — Wave A **57/57**, Wave B **60/60 (3.2m)** on 2026-09-30; remote CI not run
+CI: local only — Wave A **57/57**, Wave B **60/60**, Wave C **61/61 (2.9m)** on 2026-09-30; remote CI not run
 
 ### Fase 0 operational notes (local E2E runner)
 
