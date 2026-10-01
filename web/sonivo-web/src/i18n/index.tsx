@@ -15,6 +15,8 @@ export const LANGUAGES: readonly Language[] = ["es", "en"];
 const STORAGE_KEY = "sonivo:lang";
 
 const es = {
+  "a11y.skipToContent": "Saltar al contenido",
+  "chrome.primaryNav": "Principal",
   "chrome.tagline": "Plan. Play. Together.",
   "chrome.security": "Seguridad",
   "chrome.logout": "Cerrar sesión",
@@ -824,6 +826,8 @@ export type I18nKey = keyof typeof es;
 
 // El tipo Record<I18nKey, string> hace que TypeScript falle si a `en` le falta o le sobra una clave.
 const en: Record<I18nKey, string> = {
+  "a11y.skipToContent": "Skip to content",
+  "chrome.primaryNav": "Main",
   "chrome.tagline": "Plan. Play. Together.",
   "chrome.security": "Security",
   "chrome.logout": "Sign out",

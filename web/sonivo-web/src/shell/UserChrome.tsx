@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { Languages, Palette, ShieldCheck, UserRound, Users } from 'lucide-react'
-import { BrandLockup } from '../brand/SonivoMark'
+import { AppHeader } from './AppHeader'
 import { useTheme, type Theme } from '../brand/theme'
 import { useLanguage, useT, type I18nKey, type Language } from '../i18n'
 import type { CurrentUser } from '../api/client'
@@ -35,15 +35,7 @@ export function UserChrome({
   const { t } = useT()
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-shell-border px-6 py-4">
-        <BrandLockup to="/" shell />
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-shell-foreground/70">{user.email}</span>
-          <Button variant="ghost" className="text-shell-link hover:text-shell-foreground" onClick={onLogout}>
-            {t('chrome.logout')}
-          </Button>
-        </div>
-      </header>
+      <AppHeader user={user} onLogout={onLogout} />
       <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6 md:py-8">
         <h1 className="text-2xl font-bold tracking-tight text-shell-foreground">{t('cuenta.title')}</h1>
         <nav
@@ -72,7 +64,7 @@ export function UserChrome({
             )
           })}
         </nav>
-        <main className="mt-4 rounded-2xl bg-white p-6 text-neutral-dark shadow-sm">{children}</main>
+        <main id="main" className="mt-4 rounded-2xl bg-surface p-6 text-ink shadow-sm">{children}</main>
       </div>
     </div>
   )

@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: IN PROGRESS — Phase AppHeader (W1 foundation); spec docs/03-architecture/PHASE-APP-HEADER-SPEC.md
+Implementation: IN PROGRESS — Phase AppHeader: **W1 COMPLETE** (surface tokens, panel removed, shared container, AppHeader h-16); W2 user menu next
 Human approval: APPROVED (build-mode authorization 2026-10-01: 9 waves W1–W9 of PHASE-APP-HEADER-SPEC.md; commit/PR/merge authorized per wave)
-Git checkpoint: PENDING — branch `feature/app-header-restructure` off `develop` (ebe6889)
-Remote: NOT PUSHED — push + PR per completed wave
-CI: baseline running (previous program: #163 MERGED, develop CI green)
+Git checkpoint: COMMITTED — `feature/app-header-restructure`: docs (spec) + W1
+Remote: PUSHED — PR per wave
+CI: local W1 green (build ✓, oxlint 0 errors, Playwright 61/61); remote CI pending
 
 ### Fase 0 operational notes (local E2E runner)
 
