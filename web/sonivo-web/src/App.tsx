@@ -42,6 +42,7 @@ import {
 import { GroupWorkspace } from "./shell/GroupWorkspace";
 import { GroupSlugResolver } from "./tenancy/GroupSlugResolver";
 import { BrandedLoginPage } from "./shell/BrandedLoginPage";
+import { MustChangePassword } from "./shell/MustChangePassword";
 import { RailPresenceProvider } from "./shell/railPresence";
 import { PersistentGlobalPlayer } from "./shell/PersistentGlobalPlayer";
 import { UserChrome } from "./shell/UserChrome";
@@ -263,6 +264,11 @@ function RequireAuth({
     // Guardamos la ruta para volver después del login
     const next = location.pathname + location.search;
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
+  }
+
+  // ADR-0047: a temporary credential blocks the whole app until replaced.
+  if (session.user.mustChangePassword) {
+    return <MustChangePassword onDone={onRetry} />;
   }
 
   const context: AuthContext = { user: session.user, onLogout };

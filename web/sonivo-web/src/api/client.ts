@@ -86,6 +86,7 @@ export type CurrentUser = {
   email: string | null
   displayName: string | null
   emailConfirmed: boolean
+  mustChangePassword?: boolean
 }
 
 export type GroupSummary = {
@@ -117,6 +118,13 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
     }
     throw error
   }
+}
+
+export async function changePassword(input: {
+  currentPassword: string
+  newPassword: string
+}): Promise<void> {
+  await apiRequest('/api/auth/change-password', { method: 'POST', body: input })
 }
 
 export async function registerUser(input: {

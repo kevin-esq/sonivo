@@ -18,6 +18,7 @@ using Sonivo.Application.Tenancy;
 using Sonivo.Api.Realtime;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Scheduling;
+using Sonivo.Domain.Tenancy;
 using Sonivo.Api.Auth;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Blobs;
@@ -224,6 +225,38 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// ADR-0047: while MustChangePassword is set, block all API calls except the
+// minimum needed to change it (me / logout / change-password / csrf).
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+    if (context.User?.Identity?.IsAuthenticated == true
+        && path.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
+        && !IsMustChangeAllowed(path))
+    {
+        var users = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+        var current = await users.GetUserAsync(context.User);
+        if (current is { MustChangePassword: true })
+        {
+            await Results.Problem(
+                    detail: "Password change required.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    title: "Forbidden",
+                    extensions: new Dictionary<string, object?> { ["code"] = "must_change_password" })
+                .ExecuteAsync(context);
+            return;
+        }
+    }
+
+    await next();
+});
+
+static bool IsMustChangeAllowed(string path) =>
+    path.Equals("/api/auth/me", StringComparison.OrdinalIgnoreCase)
+    || path.Equals("/api/auth/logout", StringComparison.OrdinalIgnoreCase)
+    || path.Equals("/api/auth/change-password", StringComparison.OrdinalIgnoreCase)
+    || path.Equals("/api/auth/csrf", StringComparison.OrdinalIgnoreCase);
 app.UseRateLimiter();
 
 app.Use(async (context, next) =>
@@ -469,11 +502,56 @@ app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<Applica
         id = appUser.Id,
         email = appUser.Email,
         displayName = appUser.DisplayName,
-        emailConfirmed = appUser.EmailConfirmed
+        emailConfirmed = appUser.EmailConfirmed,
+        mustChangePassword = appUser.MustChangePassword
     });
 })
 .WithName("GetCurrentUser")
 .RequireAuthorization();
+
+// ADR-0047: a temporary credential must be replaced before any other API call.
+app.MapPost("/api/auth/change-password", async (
+    ChangePasswordRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SignInManager<ApplicationUser> signInManager,
+    IAccountAuditStore audit,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var appUser = await users.GetUserAsync(principal);
+    if (appUser is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var newPassword = request.NewPassword ?? string.Empty;
+    var result = await users.ChangePasswordAsync(appUser, request.CurrentPassword ?? string.Empty, newPassword);
+    if (!result.Succeeded)
+    {
+        return Results.ValidationProblem(
+            result.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+    }
+
+    if (appUser.MustChangePassword)
+    {
+        appUser.MustChangePassword = false;
+        await users.UpdateAsync(appUser);
+    }
+
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionPasswordChanged, clock.UtcNow, actorUserId: appUser.Id),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    // Rotate the session cookie so the new security stamp is honoured.
+    await signInManager.RefreshSignInAsync(appUser);
+
+    return Results.Ok(new { ok = true });
+})
+.WithName("ChangePassword")
+.RequireAuthorization()
+.DisableAntiforgery();
 
 app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInManager) =>
 {
@@ -3156,6 +3234,7 @@ internal sealed record DisableTwoFactorRequest(string? Password);
 internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
 internal sealed record ChangeGroupSlugRequest(string? Slug);
+internal sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 internal sealed record UpdateGroupBrandingRequest(
     int ExpectedVersion,
     string? DisplayName,
