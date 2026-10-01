@@ -31,6 +31,7 @@ import {
 } from './chrome'
 import { ChordProView } from './ChordProView'
 import { ChordTimingEditor } from './ChordTimingEditor'
+import { LrcPanel } from './LrcPanel'
 import { AudioDigitizer } from './AudioDigitizer'
 import { looksLikeChordPro } from './chordPro'
 import {
@@ -440,6 +441,10 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           ) : null}
         </aside>
       </div>
+
+      {isOwner && arrangement && groupId ? (
+        <LrcPanel groupId={groupId} arrangement={arrangement} onApplied={setArrangement} />
+      ) : null}
 
       {isOwner ? (
         <section

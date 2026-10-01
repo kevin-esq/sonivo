@@ -1898,6 +1898,15 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/
 .WithName("ExportArrangementLyricsLrc")
 .RequireAuthorization();
 
+// Anonymous feature flags: lets the SPA hide unfinished surfaces instead of guessing.
+app.MapGet("/api/features", (IConfiguration configuration) => Results.Ok(new
+{
+    lrc = configuration.GetValue("Features:Lrc", false),
+    stageMode = configuration.GetValue("Features:StageMode", false)
+}))
+.WithName("GetFeatures")
+.AllowAnonymous();
+
 app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", async (
     Guid groupId,
     Guid arrangementId,

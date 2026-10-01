@@ -117,6 +117,25 @@ public class LrcApiTests : IClassFixture<SonivoApiFactory>
     }
 
     [Fact]
+    public async Task Client_supplied_group_id_is_never_authorization()
+    {
+        var (ownerA, _) = await CreateUserAsync("lrc-mix-a@example.com");
+        var (ownerB, _) = await CreateUserAsync("lrc-mix-b@example.com");
+        var (groupA, _) = await SeedSongAndArrangementAsync(ownerA, "LRC Mix A");
+        var (_, arrangementB) = await SeedSongAndArrangementAsync(ownerB, "LRC Mix B");
+
+        // A is a member of group A only and claims group A while targeting B's arrangement.
+        var import = await ownerA.PostAsJsonAsync(
+            $"/api/groups/{groupA}/arrangements/{arrangementB.Id}/lyrics/import-lrc",
+            new { content = "[00:01.00]x" });
+        var export = await ownerA.GetAsync(
+            $"/api/groups/{groupA}/arrangements/{arrangementB.Id}/lyrics/export.lrc");
+
+        Assert.Equal(HttpStatusCode.NotFound, import.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, export.StatusCode);
+    }
+
+    [Fact]
     public async Task Size_limit_returns_400()
     {
         var (owner, _) = await CreateUserAsync("lrc-size@example.com");

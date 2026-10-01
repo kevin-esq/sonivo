@@ -642,6 +642,59 @@ export async function getArrangement(
   )
 }
 
+/** Anonymous feature flags exposed by the API. */
+export type FeatureFlags = {
+  lrc: boolean
+  stageMode: boolean
+}
+
+export async function fetchFeatures(): Promise<FeatureFlags> {
+  return apiRequest<FeatureFlags>('/api/features')
+}
+
+export type LrcPreview = {
+  encoding: string
+  lyrics: string
+  chordTimingJson: string | null
+  markCount: number
+  metadata: {
+    title: string | null
+    artist: string | null
+    album: string | null
+    by: string | null
+    offsetMs: number
+  }
+  warnings: string[]
+  errors: Array<{ line: number; reason: string }>
+}
+
+/** Preview only: the API never persists on import (ADR-0050). */
+export async function importArrangementLrc(
+  groupId: string,
+  arrangementId: string,
+  input: { content?: string; contentBase64?: string; offsetMs?: number },
+): Promise<LrcPreview> {
+  return apiRequest<LrcPreview>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/lyrics/import-lrc`,
+    { method: 'POST', body: input },
+  )
+}
+
+/** Returns the raw .lrc text (plain text, not JSON). */
+export async function exportArrangementLrc(
+  groupId: string,
+  arrangementId: string,
+): Promise<string> {
+  const response = await fetch(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/lyrics/export.lrc`,
+    { credentials: 'include' },
+  )
+  if (!response.ok) {
+    throw new ApiError(`export failed (${response.status})`, response.status)
+  }
+  return response.text()
+}
+
 export async function updateArrangement(
   groupId: string,
   arrangementId: string,
