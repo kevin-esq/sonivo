@@ -29,6 +29,7 @@ import {
 import { useConductorRoom } from './useConductorRoom'
 import { PracticeEventQueue } from './PracticeEventQueue'
 import { PracticePlayer } from './PracticePlayer'
+import { StageModePanel } from './StageModePanel'
 import {
   readPracticeFollowAlong,
   writePracticeFollowAlong,
@@ -667,6 +668,15 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             </div>
           ) : null}
         </section>
+      ) : null}
+
+      {sourceBody ? (
+        <StageModePanel
+          text={displayBody}
+          hideChords={hideChords}
+          timingMarks={timingMarks}
+          currentMs={highlightMs}
+        />
       ) : null}
 
       <section className="space-y-3" aria-labelledby="practice-lyrics-heading">
