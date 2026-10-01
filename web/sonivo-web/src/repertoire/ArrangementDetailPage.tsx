@@ -175,7 +175,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('arreglo.myGroups')}
         </Link>
       </div>
@@ -191,7 +191,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={error ?? t('arreglo.notFound')} />
         <Link
-          className="font-semibold text-primary no-underline hover:underline"
+          className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/library`}
         >
           {t('arreglo.library')}
@@ -227,7 +227,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           <p className="text-sm text-muted">
             {t('arreglo.ofPrefix')}
             {songTitle ? (
-              <Link className="font-medium text-primary no-underline hover:underline" to={songHref}>
+              <Link className="font-medium text-primary-ink no-underline hover:underline" to={songHref}>
                 {songTitle}
               </Link>
             ) : (
@@ -447,7 +447,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           data-testid="danger-zone"
           className="space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
         >
-          <h2 id="arrangement-danger-heading" className="text-lg font-semibold text-error">
+          <h2 id="arrangement-danger-heading" className="text-lg font-semibold text-error-ink">
             {t('common.dangerZone')}
           </h2>
           <Button variant="danger" onClick={() => setConfirmDeleteArrangement(true)}>
@@ -519,7 +519,7 @@ function ResourceRow({
       {resource.url ? (
         <p>
           <a
-            className="break-all font-medium text-primary no-underline hover:underline"
+            className="break-all font-medium text-primary-ink no-underline hover:underline"
             href={resource.url}
             target="_blank"
             rel="noopener noreferrer"
@@ -548,7 +548,7 @@ function ResourceRow({
             <Button
               variant="ghost"
               size="sm"
-              className="text-error hover:text-error"
+              className="text-error-ink hover:text-error-ink"
               onClick={onDelete}
             >
               {t('arreglo.delete')}
@@ -1256,7 +1256,7 @@ function ResourceEditForm({
         <p className="text-sm text-slate-500">
           {t('arreglo.urlLockedPrefix')}{' '}
           <a
-            className="break-all font-medium text-primary no-underline hover:underline"
+            className="break-all font-medium text-primary-ink no-underline hover:underline"
             href={resource.url}
             target="_blank"
             rel="noopener noreferrer"

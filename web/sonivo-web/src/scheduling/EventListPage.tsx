@@ -24,7 +24,7 @@ import { plural } from '../ui/plural'
 import { formatEventType, formatStartsAt, fromDatetimeLocalValue } from './datetime'
 
 const EVENT_TILES = [
-  { Icon: CalendarDays, tileClass: 'bg-primary/15 text-primary' },
+  { Icon: CalendarDays, tileClass: 'bg-primary/15 text-primary-ink' },
   { Icon: Mic2, tileClass: 'bg-accent/20 text-accent' },
   { Icon: Sparkles, tileClass: 'bg-success/20 text-neutral-dark' },
   { Icon: Calendar, tileClass: 'bg-secondary text-neutral-dark' },
@@ -96,7 +96,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('agenda.myGroups')}
         </Link>
       </div>
@@ -178,7 +178,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                 </Button>
               ) : (
                 <Link
-                  className="font-semibold text-primary no-underline hover:underline"
+                  className="font-semibold text-primary-ink no-underline hover:underline"
                   to={`/groups/${group.id}/library`}
                 >
                   Ir a la biblioteca

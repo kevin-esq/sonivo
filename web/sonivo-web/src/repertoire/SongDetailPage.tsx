@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
@@ -9,7 +9,6 @@ import {
   isConflictError,
   listArrangements,
   updateSong,
-  type ArrangementListItem,
   type CurrentUser,
   type SongDetail,
   type SongOriginKind,
@@ -37,89 +36,54 @@ import {
   useGroupContext,
 } from './ui'
 import { plural } from '../ui/plural'
+import { useAction } from '../hooks/useAction'
+import { useResource } from '../hooks/useResource'
 import { useT } from '../i18n'
 
 export function SongDetailPage({ user }: { user: CurrentUser }) {
   const { groupId, songId } = useParams()
   const navigate = useNavigate()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
-  const [song, setSong] = useState<SongDetail | null | undefined>(undefined)
-  const [arrangements, setArrangements] = useState<ArrangementListItem[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [conflict, setConflict] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [creatingArrangement, setCreatingArrangement] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const { t } = useT()
 
   const isOwner = isOwnerRole(group?.role)
 
-  async function reloadSongAndArrangements() {
-    if (!groupId || !songId) return
-    const [nextSong, nextArrangements] = await Promise.all([
-      getSong(groupId, songId),
-      listArrangements(groupId, songId),
-    ])
-    setSong(nextSong)
-    setArrangements(nextArrangements)
-  }
+  // Song + arrangement list load together; stays idle until the group is known.
+  const surface = useResource(
+    group && groupId && songId
+      ? async () => {
+          const [song, arrangements] = await Promise.all([
+            getSong(groupId!, songId!),
+            listArrangements(groupId!, songId!),
+          ])
+          return { song, arrangements }
+        }
+      : null,
+    [groupId, songId, group],
+  )
 
-  useEffect(() => {
-    if (!groupId || !songId || !group) return
-    let cancelled = false
-    async function load() {
-      setSong(undefined)
-      setArrangements(null)
-      setError(null)
-      setConflict(null)
-      try {
-        const [nextSong, nextArrangements] = await Promise.all([
-          getSong(groupId!, songId!),
-          listArrangements(groupId!, songId!),
-        ])
-        if (cancelled) return
-        setSong(nextSong)
-        setArrangements(nextArrangements)
-      } catch (err) {
-        if (cancelled) return
-        setSong(null)
-        setArrangements([])
-        setError(mutationErrorMessage(err))
-      }
-    }
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [groupId, songId, group])
-
-  async function handleDelete() {
-    if (!groupId || !songId || !song) return
-    setDeleting(true)
-    setError(null)
+  const remove = useAction(async () => {
+    const target = surface.data?.song
+    if (!groupId || !songId || !target) return
     setConflict(null)
     try {
-      await deleteSong(groupId, songId, song.version)
+      await deleteSong(groupId, songId, target.version)
       setConfirmDelete(false)
       navigate(`/groups/${groupId}/library`)
     } catch (err) {
+      setConfirmDelete(false)
       if (isConflictError(err)) {
         setConflict(CONFLICT_MESSAGE)
-        setConfirmDelete(false)
-        try {
-          await reloadSongAndArrangements()
-        } catch (reloadErr) {
-          setError(mutationErrorMessage(reloadErr))
-        }
-      } else {
-        setError(mutationErrorMessage(err))
-        setConfirmDelete(false)
+        surface.reload()
+        return
       }
-    } finally {
-      setDeleting(false)
+      throw err
     }
-  }
+  })
 
   if (group === undefined) {
     return <p aria-live="polite">{t('cancion.loading')}</p>
@@ -129,23 +93,23 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('cancion.myGroups')}
         </Link>
       </div>
     )
   }
 
-  if (song === undefined) {
-    return <p aria-live="polite">{t('cancion.loading')}</p>
-  }
-
-  if (song === null) {
+  const loaded = surface.data
+  if (loaded === undefined) {
+    if (surface.error == null) {
+      return <p aria-live="polite">{t('cancion.loading')}</p>
+    }
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? t('cancion.notFound')} />
+        <ProblemAlert message={mutationErrorMessage(surface.error)} />
         <Link
-          className="font-semibold text-primary no-underline hover:underline"
+          className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/library`}
         >
           {t('cancion.library')}
@@ -154,8 +118,10 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
     )
   }
 
-  const showAddArrangement =
-    isOwner && !creatingArrangement && arrangements !== null
+  const { song, arrangements } = loaded
+  const deleteError = remove.error != null ? mutationErrorMessage(remove.error) : null
+
+  const showAddArrangement = isOwner && !creatingArrangement
 
   const arrangementCountLabel =
     song.arrangementCount === 0
@@ -201,7 +167,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
         </div>
       </header>
 
-      <ProblemAlert message={error} />
+      <ProblemAlert message={deleteError} />
       <ConflictAlert message={conflict} />
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
@@ -210,7 +176,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
             <h2 id="arrangements-heading" className="text-lg font-semibold">
               {t('cancion.arrangementsTitle')}
             </h2>
-            {showAddArrangement && (arrangements?.length ?? 0) > 0 ? (
+            {showAddArrangement && arrangements.length > 0 ? (
               <Button onClick={() => setCreatingArrangement(true)}>{t('cancion.addArrangement')}</Button>
             ) : null}
           </div>
@@ -218,9 +184,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
             {t('cancion.arrangementsHint')}
           </p>
 
-          {arrangements === null ? (
-            <p aria-live="polite">{t('cancion.loadingArrangements')}</p>
-          ) : arrangements.length === 0 && !creatingArrangement ? (
+          {arrangements.length === 0 && !creatingArrangement ? (
             <EmptyPanel
               title={t('cancion.noArrangementsTitle')}
               description={t('cancion.noArrangementsBody')}
@@ -294,20 +258,15 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
               song={song}
               groupId={group.id}
               onCancel={() => setEditing(false)}
-              onSaved={async (next) => {
-                setSong(next)
+              onSaved={async () => {
                 setEditing(false)
                 setConflict(null)
-                setArrangements(await listArrangements(group.id, next.id))
+                surface.reload()
               }}
               onConflict={async () => {
                 setConflict(CONFLICT_MESSAGE)
                 setEditing(false)
-                try {
-                  await reloadSongAndArrangements()
-                } catch (err) {
-                  setError(mutationErrorMessage(err))
-                }
+                surface.reload()
               }}
             />
           ) : (
@@ -343,7 +302,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           data-testid="danger-zone"
           className="space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
         >
-          <h2 id="song-danger-heading" className="text-lg font-semibold text-error">
+          <h2 id="song-danger-heading" className="text-lg font-semibold text-error-ink">
             {t('common.dangerZone')}
           </h2>
           <Button variant="danger" onClick={() => setConfirmDelete(true)}>
@@ -358,9 +317,9 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
         confirmLabel={t('cancion.deleteSong')}
         cancelLabel={t('cancion.cancel')}
         pendingLabel={t('cancion.deleting')}
-        pending={deleting}
+        pending={remove.pending}
         onCancel={() => setConfirmDelete(false)}
-        onConfirm={() => void handleDelete()}
+        onConfirm={() => void remove.run()}
       >
         <p>
           {t('cancion.deleteBody')}
@@ -387,14 +346,9 @@ function SongEditForm({
   const [originKind, setOriginKind] = useState<SongOriginKind>(song.originKind as SongOriginKind)
   const [attribution, setAttribution] = useState(song.attribution ?? '')
   const [rightsNotes, setRightsNotes] = useState(song.rightsNotes ?? '')
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
   const { t } = useT()
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    setPending(true)
-    setError(null)
+  const save = useAction(async () => {
     try {
       const updated = await updateSong(groupId, song.id, {
         expectedVersion: song.version,
@@ -407,18 +361,23 @@ function SongEditForm({
     } catch (err) {
       if (isConflictError(err)) {
         await onConflict()
-      } else {
-        setError(mutationErrorMessage(err))
+        return
       }
-    } finally {
-      setPending(false)
+      throw err
     }
-  }
+  })
 
   return (
-    <form className="space-y-4" onSubmit={onSubmit} noValidate>
+    <form
+      className="space-y-4"
+      onSubmit={(event: FormEvent) => {
+        event.preventDefault()
+        void save.run()
+      }}
+      noValidate
+    >
       <h3 className="font-semibold">{t('cancion.editSong')}</h3>
-      <ProblemAlert message={error} />
+      <ProblemAlert message={save.error != null ? mutationErrorMessage(save.error) : null} />
       <Field label={t('canciones.titleLabel')}>
         <input
           className={fieldClass}
@@ -458,10 +417,10 @@ function SongEditForm({
         />
       </Field>
       <FormActions>
-        <Button type="submit" disabled={pending}>
-          {pending ? t('cancion.saving') : t('cancion.save')}
+        <Button type="submit" disabled={save.pending}>
+          {save.pending ? t('cancion.saving') : t('cancion.save')}
         </Button>
-        <Button variant="secondary" disabled={pending} onClick={onCancel}>
+        <Button variant="secondary" disabled={save.pending} onClick={onCancel}>
           {t('cancion.cancel')}
         </Button>
       </FormActions>

@@ -1,6 +1,6 @@
 # UI/UX audit 2026-09 — evidence, heuristics and refactor plan
 
-**Status:** audit **COMPLETE** — findings and plan ready for the owner's prioritisation. Fixes are not started (see "Plan" for sequencing).
+**Status:** audit **COMPLETE**; remediation **SHIPPED 2026-10-01** in PR #163 — Waves A–C deliver Steps 1–8 (token-layer AA palette, ≥44px targets, mobile "Más" nav, async feedback, copy pass, account tabs, density, first-steps help). The "Plan" below is kept as the original sequencing.
 **Scope:** the shipped web app (ADR-0043 redesign + the W6–W10 polish waves) at `develop`.
 **Method:** reproducible — every number below comes from the harness in [`e2e/visual-audit`](../../e2e/visual-audit/README.md) or from a measured computation in the page, never from impression.
 

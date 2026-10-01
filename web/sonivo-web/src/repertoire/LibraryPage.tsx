@@ -86,7 +86,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('canciones.myGroups')}
         </Link>
       </div>
@@ -169,7 +169,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
               </Button>
             ) : (
               <Link
-                className="font-semibold text-primary no-underline hover:underline"
+                className="font-semibold text-primary-ink no-underline hover:underline"
                 to={`/groups/${group.id}`}
               >
                 {t('canciones.backHome')}

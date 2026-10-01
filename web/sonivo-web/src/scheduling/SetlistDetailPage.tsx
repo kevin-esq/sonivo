@@ -193,7 +193,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           Mis grupos
         </Link>
       </div>
@@ -209,7 +209,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={error ?? 'No se encontró la lista o no tienes acceso.'} />
         <Link
-          className="font-semibold text-primary no-underline hover:underline"
+          className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/setlists`}
         >
           Listas
@@ -233,7 +233,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
             <span
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-ink"
               aria-hidden="true"
             >
               <ListMusic className="h-5 w-5" />

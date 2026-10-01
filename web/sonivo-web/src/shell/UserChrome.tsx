@@ -47,7 +47,7 @@ export function UserChrome({
       <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6 md:py-8">
         <h1 className="text-2xl font-bold tracking-tight text-shell-foreground">{t('cuenta.title')}</h1>
         <nav
-          className="mt-4 flex gap-2 overflow-x-auto border-b border-shell-border"
+          className="mt-4 flex flex-wrap gap-2 border-b border-shell-border"
           aria-label={t('cuenta.nav')}
         >
           {cuentaTabs.map((tab) => {
@@ -95,7 +95,7 @@ export function CuentaPreferencesPage() {
     <div className="max-w-xl space-y-8">
       <section className="space-y-3" aria-labelledby="prefs-language-heading">
         <div className="flex items-center gap-2">
-          <Languages className="h-5 w-5 text-primary" aria-hidden="true" />
+          <Languages className="h-5 w-5 text-shell-link" aria-hidden="true" />
           <h2 id="prefs-language-heading" className="text-lg font-semibold">
             {t('cuenta.language')}
           </h2>
@@ -116,7 +116,7 @@ export function CuentaPreferencesPage() {
       </section>
       <section className="space-y-3" aria-labelledby="prefs-theme-heading">
         <div className="flex items-center gap-2">
-          <Palette className="h-5 w-5 text-primary" aria-hidden="true" />
+          <Palette className="h-5 w-5 text-shell-link" aria-hidden="true" />
           <h2 id="prefs-theme-heading" className="text-lg font-semibold">
             {t('cuenta.theme')}
           </h2>

@@ -18,7 +18,7 @@ import {
 import { performWebAuthnLogin } from "./webauthn";
 import { BrandLockup, WaveformHero } from "../brand/SonivoMark";
 import { Button } from "../ui/button";
-import { fieldClass } from "../ui/field";
+import { TextField } from "../ui/text-field";
 import { SessionScreen } from "./GroupsChrome";
 import { safeNextPath } from "../tenancy/safeNextPath";
 import { useT } from "../i18n";
@@ -54,76 +54,46 @@ export function GuestAuthRoute({
 }
 
 /* ------------------------------------------------------------------ */
-/* Campo de texto accesible (label enlazado, error inline, ver clave)  */
+/* Campo de contraseña: TextField compartido + botón de ver la clave.  */
 /* ------------------------------------------------------------------ */
-function TextField({
+function PasswordField({
   label,
   value,
   onChange,
   error,
-  type = "text",
   autoComplete,
-  inputMode,
-  maxLength,
-  autoFocus,
   disabled,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   error?: string | null;
-  type?: "text" | "email" | "password";
   autoComplete?: string;
-  inputMode?: "text" | "numeric";
-  maxLength?: number;
-  autoFocus?: boolean;
   disabled?: boolean;
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
   const [visible, setVisible] = useState(false);
   const { t } = useT();
-  const isPassword = type === "password";
 
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-medium text-slate-700">
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          id={id}
-          className={`${fieldClass} ${isPassword ? "pr-24" : ""}`}
-          type={isPassword && visible ? "text" : type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          autoComplete={autoComplete}
-          inputMode={inputMode}
-          maxLength={maxLength}
-          autoFocus={autoFocus}
-          disabled={disabled}
-          autoCapitalize="none"
-          spellCheck={false}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : undefined}
-        />
-        {isPassword ? (
-          <button
-            type="button"
-            className="absolute inset-y-0 right-3 my-auto h-fit text-sm font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-            aria-pressed={visible}
-            onClick={() => setVisible((v) => !v)}
-          >
-            {visible ? t("auth.hidePassword") : t("auth.showPassword")}
-          </button>
-        ) : null}
-      </div>
-      {error ? (
-        <p id={errorId} className="text-sm text-error">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <TextField
+      label={label}
+      type={visible ? "text" : "password"}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      autoComplete={autoComplete}
+      disabled={disabled}
+      error={error}
+      trailing={
+        <button
+          type="button"
+          className="absolute right-1 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-lg px-2 text-sm font-semibold text-shell-link hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          aria-pressed={visible}
+          onClick={() => setVisible((current) => !current)}
+        >
+          {visible ? t("auth.hidePassword") : t("auth.showPassword")}
+        </button>
+      }
+    />
   );
 }
 
@@ -132,7 +102,7 @@ function ErrorBanner({ message }: { message: string | null }) {
   return (
     <div role="alert" aria-live="assertive">
       {message ? (
-        <p className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error">
+        <p className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-shell-error">
           {message}
         </p>
       ) : null}
@@ -213,8 +183,12 @@ function TwoFactorStep({
           useRecovery ? t("auth.recoveryCodeLabel") : t("auth.sixDigitLabel")
         }
         value={code}
-        onChange={(v) =>
-          setCode(useRecovery ? v : v.replace(/\D/g, "").slice(0, 6))
+        onChange={(event) =>
+          setCode(
+            useRecovery
+              ? event.target.value
+              : event.target.value.replace(/\D/g, "").slice(0, 6),
+          )
         }
         autoComplete="one-time-code"
         inputMode={useRecovery ? "text" : "numeric"}
@@ -228,7 +202,7 @@ function TwoFactorStep({
       <div className="flex items-center justify-between gap-4">
         <button
           type="button"
-          className="text-sm font-semibold text-primary hover:underline"
+          className="text-sm font-semibold text-shell-link hover:underline"
           onClick={() => {
             setUseRecovery((v) => !v);
             setCode("");
@@ -292,7 +266,7 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
       {!open ? (
         <button
           type="button"
-          className="font-semibold text-primary hover:underline"
+          className="font-semibold text-shell-link hover:underline"
           onClick={() => {
             setOpen(true);
             setEmail((current) => current || initialEmail);
@@ -306,7 +280,7 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
             label={t("auth.emailLabel")}
             type="email"
             value={email}
-            onChange={setEmail}
+            onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
             error={fieldError}
           />
@@ -329,7 +303,7 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
       )}
       <p>
         <Link
-          className="font-semibold text-primary no-underline hover:underline"
+          className="font-semibold text-shell-link no-underline hover:underline"
           to="/forgot-password"
         >
           {t("auth.forgotLink")}
@@ -548,7 +522,7 @@ function AuthScreen({
                   <p className="text-sm text-slate-500">{t("auth.confirmHint")}</p>
                 </div>
                 <Link
-                  className="inline-block font-semibold text-primary no-underline hover:underline"
+                  className="inline-block font-semibold text-shell-link no-underline hover:underline"
                   to={`/login${nextQuery}`}
                 >
                   {t("auth.goLogin")}
@@ -585,7 +559,7 @@ function AuthScreen({
                   <TextField
                     label={t("auth.nameLabel")}
                     value={displayName}
-                    onChange={setDisplayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
                     autoComplete="nickname"
                     maxLength={80}
                     disabled={pending}
@@ -595,15 +569,14 @@ function AuthScreen({
                   label={t("auth.emailLabel")}
                   type="email"
                   value={email}
-                  onChange={setEmail}
+                  onChange={(event) => setEmail(event.target.value)}
                   autoComplete="email"
                   error={errors.email}
                   autoFocus
                   disabled={pending}
                 />
-                <TextField
+                <PasswordField
                   label={t("auth.passwordLabel")}
-                  type="password"
                   value={password}
                   onChange={setPassword}
                   autoComplete={
@@ -671,7 +644,7 @@ function AuthScreen({
                     ? t("auth.noAccountPrefix")
                     : t("auth.hasAccountPrefix")}
                   <Link
-                    className="font-semibold text-primary no-underline hover:underline"
+                    className="font-semibold text-shell-link no-underline hover:underline"
                     to={otherModeTo}
                   >
                     {mode === "login"

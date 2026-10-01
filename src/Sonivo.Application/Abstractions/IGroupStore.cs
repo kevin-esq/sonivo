@@ -18,4 +18,13 @@ public sealed record GroupListItem(
     string Name,
     string Role,
     int Version,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    /// <summary>Live membership count, including the requesting user.</summary>
+    int MemberCount,
+    /// <summary>Earliest upcoming, non-hidden event, or null when the group has none.</summary>
+    DateTimeOffset? NextEventAt,
+    /// <summary>
+    /// Most recent activity: the group row itself or its live repertoire (songs) and agenda (events).
+    /// Used only for the "recent activity" ordering on the groups list.
+    /// </summary>
+    DateTimeOffset? LastActivityAt);

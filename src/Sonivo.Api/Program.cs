@@ -2465,7 +2465,10 @@ static object ToGroupListResponse(GroupListItem item) => new
     name = item.Name,
     role = item.Role,
     version = item.Version,
-    createdAt = item.CreatedAt
+    createdAt = item.CreatedAt,
+    memberCount = item.MemberCount,
+    nextEventAt = item.NextEventAt,
+    lastActivityAt = item.LastActivityAt
 };
 
 static object ToInvitationCreatedResponse(InvitationCreatedDto invitation) => new
