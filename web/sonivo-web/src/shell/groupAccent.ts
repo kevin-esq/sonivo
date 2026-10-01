@@ -74,8 +74,13 @@ function withAlpha(hex: string, alpha: string): string {
 
 export function groupCoverStyle(cover: string, accent: string): CSSProperties {
   if (isNoneCover(cover)) {
-    // Plain surfaced tile: no gradient, readable in both themes.
-    return { backgroundColor: '#e2e8f0', color: '#0f172a' }
+    // Subtle accent wash over a light surface (dark ink stays readable) instead
+    // of a flat neutral block, so "no cover" still reads as the group's colour.
+    return {
+      backgroundImage: `linear-gradient(135deg, ${withAlpha(accent, '26')}, ${withAlpha(accent, '0a')})`,
+      backgroundColor: '#ffffff',
+      color: '#0f172a',
+    }
   }
   if (isGradientCover(cover)) {
     const id = cover.slice('gradient:'.length)

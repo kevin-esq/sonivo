@@ -411,6 +411,13 @@ const es = {
   "inicio.goEvents": "Ir a Eventos",
   "inicio.recentSetlists": "Listas recientes",
   "inicio.viewAll": "Ver todos",
+  "inicio.getStartedTitle": "Primeros pasos",
+  "inicio.getStartedIntro": "Tu grupo está listo. Empieza por aquí:",
+  "inicio.getStartedSongs": "Añade canciones y arreglos a la biblioteca",
+  "inicio.getStartedSetlists": "Arma una lista con lo que vais a tocar",
+  "inicio.getStartedEvents": "Crea una tocada y aplica la lista",
+  "agenda.statusHint":
+    "Borrador: aún no has fijado la lista del evento. Plan aplicado: la lista está fijada y el repertorio queda congelado.",
   "inicio.loadingSetlists": "Cargando listas…",
   "inicio.noSetlistsTitle": "Aún no hay listas",
   "inicio.noSetlistsOwner":
@@ -1205,6 +1212,13 @@ const en: Record<I18nKey, string> = {
   "inicio.goEvents": "Go to Events",
   "inicio.recentSetlists": "Recent setlists",
   "inicio.viewAll": "View all",
+  "inicio.getStartedTitle": "First steps",
+  "inicio.getStartedIntro": "Your group is ready. Start here:",
+  "inicio.getStartedSongs": "Add songs and arrangements to the library",
+  "inicio.getStartedSetlists": "Build a setlist of what you'll play",
+  "inicio.getStartedEvents": "Create a gig and apply the setlist",
+  "agenda.statusHint":
+    "Draft: the event setlist is not pinned yet. Plan applied: the setlist is pinned and the repertoire is frozen.",
   "inicio.loadingSetlists": "Loading setlists…",
   "inicio.noSetlistsTitle": "No setlists yet",
   "inicio.noSetlistsOwner":

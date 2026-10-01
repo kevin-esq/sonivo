@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: IN PROGRESS — UI/UX audit remediation (Waves A+B+C done: Steps 1–6; Steps 7–8 BAJA pending)
+Implementation: COMPLETE — UI/UX audit remediation Waves A–C (audit Steps 1–8); merging via PR #163
 Human approval: APPROVED (explicit build-mode authorization 2026-09-30: execute Fases A–D + full local Playwright; commit/PR authorized for this program)
 Git checkpoint: COMMITTED — branch `feature/ui-ux-audit-remediation`: Wave A `6c7a7f0`, Wave B `3ab005a`, Wave C `d0c1f2e` (security waves 1-2 MERGED #124/#125, wave 3 COMMITTED)
-Remote: PUSHED — PR **#163** (draft) → `develop`; awaiting human review / merge decision
-CI: local only — Wave A **57/57**, Wave B **60/60**, Wave C **61/61 (2.9m)** on 2026-09-30; remote CI not run
+Remote: PUSHED — PR **#163** → `develop`; merging 2026-10-01
+CI: local only — Wave A **57/57**, Wave B **60/60**, Wave C **61/61** (Steps 1–8) on 2026-09-30/10-01; .NET **462/462**; remote CI not run
 
 ### Fase 0 operational notes (local E2E runner)
 

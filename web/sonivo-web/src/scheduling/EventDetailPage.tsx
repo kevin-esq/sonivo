@@ -562,7 +562,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               </div>
               <div>
                 <dt className="text-sm text-slate-500">Estado</dt>
-                <dd className="font-medium text-neutral-dark">
+                <dd className="font-medium text-neutral-dark" title={t('agenda.statusHint')}>
                   {formatEventStatus(musicalEvent.status)}
                 </dd>
               </div>

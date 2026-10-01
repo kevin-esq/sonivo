@@ -250,25 +250,82 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       <ProblemAlert message={composeError} />
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+        <Link
+          to={`/groups/${group.id}/setlists`}
+          data-testid="home-stat-setlists"
+          className="block rounded-2xl border border-slate-100 bg-white px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+        >
           <p className="text-sm text-slate-500">{t('inicio.statSetlists')}</p>
           <div className="mt-1 text-2xl font-bold text-neutral-dark">
             {setlists === null ? <Skeleton className="mt-2 h-8 w-10" /> : setlists.length}
           </div>
-        </div>
-        <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+          <p className="mt-1 text-xs font-medium text-primary-ink">{t('inicio.viewAll')}</p>
+        </Link>
+        <Link
+          to={`/groups/${group.id}/events`}
+          data-testid="home-stat-events"
+          className="block rounded-2xl border border-slate-100 bg-white px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+        >
           <p className="text-sm text-slate-500">{t('inicio.statEvents')}</p>
           <div className="mt-1 text-2xl font-bold text-neutral-dark">
             {scheduledCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : scheduledCount}
           </div>
-        </div>
-        <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+          <p className="mt-1 text-xs font-medium text-primary-ink">{t('inicio.viewAll')}</p>
+        </Link>
+        <Link
+          to={`/groups/${group.id}/library`}
+          data-testid="home-stat-songs"
+          className="block rounded-2xl border border-slate-100 bg-white px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+        >
           <p className="text-sm text-slate-500">{t('inicio.statSongs')}</p>
           <div className="mt-1 text-2xl font-bold text-neutral-dark">
             {songCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : songCount}
           </div>
-        </div>
+          <p className="mt-1 text-xs font-medium text-primary-ink">{t('inicio.viewAll')}</p>
+        </Link>
       </div>
+
+      {isOwner && setlists?.length === 0 && events?.length === 0 && songCount === 0 ? (
+        <section
+          className="rounded-2xl border border-primary/25 bg-primary/5 p-5"
+          aria-labelledby="home-start-heading"
+          data-testid="home-get-started"
+        >
+          <h3 id="home-start-heading" className="font-semibold text-neutral-dark">
+            {t('inicio.getStartedTitle')}
+          </h3>
+          <p className="mt-1 text-sm text-slate-600">{t('inicio.getStartedIntro')}</p>
+          <ol className="mt-3 space-y-1.5">
+            <li>
+              <Link
+                to={`/groups/${group.id}/library`}
+                className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline"
+              >
+                <Music2 className="h-4 w-4" aria-hidden="true" />
+                {t('inicio.getStartedSongs')}
+              </Link>
+            </li>
+            <li>
+              <Link
+                to={`/groups/${group.id}/setlists`}
+                className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline"
+              >
+                <ListMusic className="h-4 w-4" aria-hidden="true" />
+                {t('inicio.getStartedSetlists')}
+              </Link>
+            </li>
+            <li>
+              <Link
+                to={`/groups/${group.id}/events`}
+                className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline"
+              >
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                {t('inicio.getStartedEvents')}
+              </Link>
+            </li>
+          </ol>
+        </section>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="space-y-3" aria-labelledby="next-event-heading">

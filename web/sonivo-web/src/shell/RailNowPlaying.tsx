@@ -83,8 +83,8 @@ export function RailNowPlaying({ collapsed }: { collapsed: boolean }) {
           </p>
           <p className="truncate text-xs text-shell-foreground/70">{artist}</p>
         </div>
-        <div className="flex items-center gap-2 text-[11px] tabular-nums text-shell-foreground/70">
-          <span>{formatTime(progress)}</span>
+        <div className="space-y-1">
+          {/* Full-width scrubber: the card is narrow, so the track owns its own row. */}
           <input
             type="range"
             min={0}
@@ -98,7 +98,10 @@ export function RailNowPlaying({ collapsed }: { collapsed: boolean }) {
             aria-label={t('player.progress')}
             data-testid="rail-seek"
           />
-          <span>{formatTime(duration)}</span>
+          <div className="flex items-center justify-between text-[11px] tabular-nums text-shell-foreground/70">
+            <span>{formatTime(progress)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <button
