@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import {
   createArrangement,
@@ -31,8 +32,11 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     // The panel only renders when the server flag is on.
     await expect(page.getByRole('heading', { name: 'Importar .lrc' })).toBeVisible()
 
+    // A realistic file: metadata tags, chords inside a line and a repeated mark.
     const textarea = page.getByLabel('Contenido .lrc')
-    await textarea.fill('[00:12.00]Hola\n[00:15.50]Dos')
+    await textarea.fill(
+      '[ti:Prueba]\n[ar:Banda]\n[00:12.00]Hola\n[00:15.50][Am]Dos\n[00:15.50]Dos otra vez',
+    )
 
     // Preview: assert the conversion the server returned.
     const [previewResponse] = await Promise.all([
@@ -41,9 +45,10 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     ])
     expect(previewResponse.ok()).toBeTruthy()
     const preview = await previewResponse.json()
-    expect(preview.lyrics).toBe('Hola\nDos')
-    expect(preview.markCount).toBe(2)
-    await expect(page.getByText(/2 marcas/)).toBeVisible()
+    expect(preview.lyrics).toBe('Hola\n[Am]Dos\nDos otra vez')
+    expect(preview.markCount).toBe(3)
+    expect(preview.errors).toEqual([])
+    await expect(page.getByText(/3 marcas/)).toBeVisible()
 
     // Offset: the UI offset is ADDED to the marks (12000 + 1000 = 13000).
     await page.getByLabel('Desfase (ms)').fill('1000')
@@ -68,5 +73,11 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
       page.getByRole('button', { name: 'Exportar .lrc' }).click(),
     ])
     expect(download.suggestedFilename()).toMatch(/\.lrc$/)
+
+    // Read the real exported file: the offset must be baked into the timestamps.
+    const exported = readFileSync((await download.path())!, 'utf8')
+    console.log(`EXPORTED_LRC_START\n${exported}EXPORTED_LRC_END`)
+    expect(exported).toContain('[00:13.00]Hola')
+    expect(exported).toContain('[00:16.50][Am]Dos')
   })
 })
