@@ -29,16 +29,18 @@ public sealed class ListMembersHandler
     public async Task<MemberListDto> HandleAsync(ListMembersQuery query, CancellationToken cancellationToken)
     {
         await _access.RequireMemberAsync(query.GroupId, query.UserId, cancellationToken);
-        var rows = await _memberships.ListByGroupAsync(query.GroupId, cancellationToken);
-        var names = (await _directory.GetByIdsAsync(rows.Select(r => r.UserId).ToList(), cancellationToken))
+        var rows = (await _memberships.ListByGroupAsync(query.GroupId, cancellationToken))
+            .Where(r => r.UserId.HasValue)
+            .ToList();
+        var names = (await _directory.GetByIdsAsync(rows.Select(r => r.UserId!.Value).ToList(), cancellationToken))
             .ToDictionary(e => e.UserId, e => e.DisplayName);
 
         var items = rows
             .Select(m => new MemberListItemDto(
-                m.UserId,
-                names.TryGetValue(m.UserId, out var name) && !string.IsNullOrWhiteSpace(name)
+                m.UserId!.Value,
+                names.TryGetValue(m.UserId!.Value, out var name) && !string.IsNullOrWhiteSpace(name)
                     ? name
-                    : m.UserId.ToString("D"),
+                    : m.UserId!.Value.ToString("D"),
                 m.Role,
                 m.CreatedAt))
             .OrderBy(i => i.Role == MembershipRoles.Owner ? 0 : 1)

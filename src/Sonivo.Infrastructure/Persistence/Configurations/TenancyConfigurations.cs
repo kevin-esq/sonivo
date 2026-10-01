@@ -45,7 +45,8 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
         builder.ToTable("Memberships");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Role).IsRequired();
-        builder.HasIndex(x => new { x.UserId, x.GroupId }).IsUnique();
+        builder.Property(x => x.DisplayName).HasMaxLength(200);
+        builder.HasIndex(x => new { x.UserId, x.GroupId }).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
         builder.HasIndex(x => x.GroupId);
         builder.HasIndex(x => x.UserId);
         builder.HasOne<ApplicationUser>()
@@ -55,6 +56,9 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
         builder.ToTable(t => t.HasCheckConstraint(
             "CK_Memberships_Role",
             $"\"Role\" IN ('{MembershipRoles.Owner}', '{MembershipRoles.Member}')"));
+        builder.ToTable(t => t.HasCheckConstraint(
+            "CK_Memberships_OwnerHasUser",
+            "\"Role\" <> 'Owner' OR \"UserId\" IS NOT NULL"));
     }
 }
 
