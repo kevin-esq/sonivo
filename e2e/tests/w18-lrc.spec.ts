@@ -29,7 +29,7 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     await createArrangement(page, 'Acoustic')
 
     // The panel only renders when the server flag is on.
-    await expect(page.getByRole('heading', { name: 'Letras .lrc' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Importar .lrc' })).toBeVisible()
 
     const textarea = page.getByLabel('Contenido .lrc')
     await textarea.fill('[00:12.00]Hola\n[00:15.50]Dos')
