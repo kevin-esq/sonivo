@@ -45,3 +45,6 @@ Thumbs.db
 
 e2e/visual-audit/audit-output/
 
+
+# Throwaway Playwright profile from .scratch spikes (may hold cookies)
+.scratch/spikes/.pwprofile/
