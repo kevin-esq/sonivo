@@ -8,6 +8,10 @@ public interface IGroupStore
     Task AddMembershipAsync(Membership membership, CancellationToken cancellationToken);
     Task<IReadOnlyList<GroupListItem>> ListForUserAsync(Guid userId, CancellationToken cancellationToken);
     Task<Group?> GetByIdAsync(Guid groupId, CancellationToken cancellationToken);
+    Task<Group?> GetBySlugAsync(string slug, CancellationToken cancellationToken) =>
+        Task.FromResult<Group?>(null);
+    Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken) =>
+        Task.FromResult(false);
     Task<Membership?> GetMembershipAsync(Guid groupId, Guid userId, CancellationToken cancellationToken);
     Task UpdateAsync(Group group, CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
@@ -16,6 +20,8 @@ public interface IGroupStore
 public sealed record GroupListItem(
     Guid Id,
     string Name,
+    /// <summary>Immutable path slug (ADR-0048 D1); null only while backfill is pending.</summary>
+    string? Slug,
     string Role,
     int Version,
     DateTimeOffset CreatedAt,
