@@ -94,6 +94,9 @@ export type GroupSummary = {
   role: string
   version: number
   createdAt: string
+  memberCount?: number
+  nextEventAt?: string | null
+  lastActivityAt?: string | null
 }
 
 export type GroupDetail = GroupSummary & {

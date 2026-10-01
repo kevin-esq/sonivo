@@ -252,21 +252,21 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
           <p className="text-sm text-slate-500">{t('inicio.statSetlists')}</p>
-          <p className="mt-1 text-2xl font-bold text-neutral-dark">
+          <div className="mt-1 text-2xl font-bold text-neutral-dark">
             {setlists === null ? <Skeleton className="mt-2 h-8 w-10" /> : setlists.length}
-          </p>
+          </div>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
           <p className="text-sm text-slate-500">{t('inicio.statEvents')}</p>
-          <p className="mt-1 text-2xl font-bold text-neutral-dark">
+          <div className="mt-1 text-2xl font-bold text-neutral-dark">
             {scheduledCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : scheduledCount}
-          </p>
+          </div>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
           <p className="text-sm text-slate-500">{t('inicio.statSongs')}</p>
-          <p className="mt-1 text-2xl font-bold text-neutral-dark">
+          <div className="mt-1 text-2xl font-bold text-neutral-dark">
             {songCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : songCount}
-          </p>
+          </div>
         </div>
       </div>
 

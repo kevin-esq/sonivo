@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useT } from '../i18n'
+import { formatTime } from '../lib/format'
 import { useAudioPlayer } from '../repertoire/AudioPlayerContext'
 import { Play, Pause, Volume2, Music2, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useRailPresence } from './railPresence'
@@ -47,12 +48,6 @@ export function PersistentGlobalPlayer() {
   }, [currentTrack, collapsed, closeTrack])
 
   if (!currentTrack) return null
-
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60)
-    const s = Math.floor(secs % 60)
-    return `${m}:${s < 10 ? '0' : ''}${s}`
-  }
 
   if (collapsed) {
     return (

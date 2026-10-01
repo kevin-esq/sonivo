@@ -88,11 +88,16 @@ test.describe('W9 outside surfaces', () => {
     await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
     await expect(page.getByText('Aún no tienes grupos', { exact: true })).toBeVisible()
 
+    // La creación vive ahora en un modal ("Nuevo grupo"); el flujo completo se cubre en el spec de grupos.
+    await expect(page.getByRole('button', { name: 'Nuevo grupo' })).toBeVisible()
+    await page.getByRole('button', { name: 'Nuevo grupo' }).click()
     const nameInput = page.getByLabel('Nombre')
     await expect(nameInput).toBeVisible()
     await expect(page.getByRole('button', { name: 'Crear grupo' })).toBeVisible()
     await nameInput.fill('W9 Draft')
     await expect(nameInput).toHaveValue('W9 Draft')
+    await page.keyboard.press('Escape')
+    await expect(nameInput).toBeHidden()
 
     await setTheme(page, 'light')
     await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
