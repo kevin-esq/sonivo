@@ -196,7 +196,7 @@ export function LrcPanel({
             {t('lrc.summary', { marks: preview.markCount, encoding: preview.encoding })}
           </p>
           {preview.warnings.map((warning) => (
-            <p key={warning} role="status" className="text-sm text-warning">
+            <p key={warning} role="status" className="rounded-lg bg-warning/15 px-2 py-1 text-sm text-ink">
               {t('lrc.warning')}: {warning}
             </p>
           ))}
