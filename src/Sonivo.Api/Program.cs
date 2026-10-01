@@ -1279,6 +1279,25 @@ app.MapGet("/api/groups/{groupId:guid}", async (
 .WithName("GetGroup")
 .RequireAuthorization();
 
+app.MapGet("/api/groups/by-slug/{slug}", async (
+    string slug,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetGroupBySlugHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var group = await handler.HandleAsync(userId.Value, slug, cancellationToken);
+    return Results.Ok(ToGroupResponse(group));
+})
+.WithName("GetGroupBySlug")
+.RequireAuthorization();
+
 app.MapPatch("/api/groups/{groupId:guid}", async (
     Guid groupId,
     UpdateGroupRequest request,
@@ -2587,6 +2606,7 @@ static object ToGroupResponse(GroupDto group) => new
 {
     id = group.Id,
     name = group.Name,
+    slug = group.Slug,
     version = group.Version,
     role = group.Role,
     createdAt = group.CreatedAt,
@@ -2597,6 +2617,7 @@ static object ToGroupListResponse(GroupListItem item) => new
 {
     id = item.Id,
     name = item.Name,
+    slug = item.Slug,
     role = item.Role,
     version = item.Version,
     createdAt = item.CreatedAt,

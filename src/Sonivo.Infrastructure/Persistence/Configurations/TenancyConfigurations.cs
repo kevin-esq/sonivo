@@ -12,6 +12,8 @@ public sealed class GroupConfiguration : IEntityTypeConfiguration<Group>
         builder.ToTable("Groups");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Name).IsRequired();
+        builder.Property(x => x.Slug).HasMaxLength(GroupSlug.MaxLength);
+        builder.HasIndex(x => x.Slug).IsUnique().HasFilter("\"Slug\" IS NOT NULL");
         builder.Property(x => x.Version).IsConcurrencyToken();
         builder.HasQueryFilter(x => x.DeletedAt == null);
         builder.HasMany(x => x.Memberships)

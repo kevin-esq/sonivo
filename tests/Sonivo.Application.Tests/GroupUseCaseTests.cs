@@ -172,6 +172,7 @@ public class GroupUseCaseTests
                     (m, g) => new GroupListItem(
                         g.Id,
                         g.Name,
+                        g.Slug,
                         m.Role,
                         g.Version,
                         g.CreatedAt,

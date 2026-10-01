@@ -141,6 +141,63 @@ public class GroupApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(HttpStatusCode.BadRequest, create.StatusCode);
     }
 
+    [Fact]
+    public async Task Create_returns_slug_and_by_slug_resolves_for_member()
+    {
+        var client = await CreateAuthenticatedClientAsync("slug-owner@example.com");
+        var create = await client.PostAsJsonAsync("/api/groups", new { name = "White Label Band" });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var created = await create.Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(created);
+        Assert.Equal("white-label-band", created.Slug);
+
+        var bySlug = await client.GetAsync($"/api/groups/by-slug/{created.Slug}");
+        Assert.Equal(HttpStatusCode.OK, bySlug.StatusCode);
+        var resolved = await bySlug.Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(resolved);
+        Assert.Equal(created.Id, resolved.Id);
+    }
+
+    [Fact]
+    public async Task By_slug_is_404_for_non_member_and_for_unknown_slug()
+    {
+        var owner = await CreateAuthenticatedClientAsync("slug-owner2@example.com");
+        var create = await owner.PostAsJsonAsync("/api/groups", new { name = "Hidden Band" });
+        var created = await create.Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(created);
+
+        var stranger = await CreateAuthenticatedClientAsync("slug-stranger@example.com");
+        var asStranger = await stranger.GetAsync($"/api/groups/by-slug/{created.Slug}");
+        Assert.Equal(HttpStatusCode.NotFound, asStranger.StatusCode);
+
+        // Same response for an unknown slug: no enumeration.
+        var unknown = await stranger.GetAsync("/api/groups/by-slug/does-not-exist-xyz");
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+    }
+
+    [Fact]
+    public async Task Duplicate_names_receive_distinct_slugs()
+    {
+        var client = await CreateAuthenticatedClientAsync("slug-dup@example.com");
+        var first = await (await client.PostAsJsonAsync("/api/groups", new { name = "Eco" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        var second = await (await client.PostAsJsonAsync("/api/groups", new { name = "Eco" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.NotEqual(first.Slug, second.Slug);
+        Assert.StartsWith("eco", first.Slug);
+        Assert.StartsWith("eco", second.Slug);
+    }
+
+    [Fact]
+    public async Task By_slug_is_anonymous_401()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var response = await client.GetAsync("/api/groups/by-slug/night-owls");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password = "Password1")
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -238,7 +295,7 @@ public class GroupApiTests : IClassFixture<SonivoApiFactory>
         client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", token);
     }
 
-    private sealed record GroupResponse(Guid Id, string Name, int Version, string? Role);
+    private sealed record GroupResponse(Guid Id, string Name, string? Slug, int Version, string? Role);
     private sealed record GroupListResponse(Guid Id, string Name, string Role, int Version);
 }
 

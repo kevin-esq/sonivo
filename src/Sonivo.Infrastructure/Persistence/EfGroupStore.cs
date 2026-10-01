@@ -43,6 +43,7 @@ public sealed class EfGroupStore : IGroupStore
             {
                 x.Group.Id,
                 x.Group.Name,
+                x.Group.Slug,
                 x.Membership.Role,
                 x.Group.Version,
                 x.Group.CreatedAt,
@@ -64,6 +65,7 @@ public sealed class EfGroupStore : IGroupStore
             .Select(row => new GroupListItem(
                 row.Id,
                 row.Name,
+                row.Slug,
                 row.Role,
                 row.Version,
                 row.CreatedAt,
@@ -90,6 +92,16 @@ public sealed class EfGroupStore : IGroupStore
 
     public Task<Group?> GetByIdAsync(Guid groupId, CancellationToken cancellationToken)
         => _db.Groups.FirstOrDefaultAsync(g => g.Id == groupId, cancellationToken);
+
+    public Task<Group?> GetBySlugAsync(string slug, CancellationToken cancellationToken)
+        => _db.Groups.FirstOrDefaultAsync(g => g.Slug == slug, cancellationToken);
+
+    /// <summary>
+    /// Includes soft-deleted rows on purpose: a deleted Group keeps its slug
+    /// reserved (ADR-0048 D1), so the slug can never be reused.
+    /// </summary>
+    public Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken)
+        => _db.Groups.IgnoreQueryFilters().AnyAsync(g => g.Slug == slug, cancellationToken);
 
     public Task<Membership?> GetMembershipAsync(Guid groupId, Guid userId, CancellationToken cancellationToken)
         => _db.Memberships.AsNoTracking()

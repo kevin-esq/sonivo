@@ -12,9 +12,11 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<GroupAccessService>();
+        services.AddScoped<ITenantResolver, PathTenantResolver>();
         services.AddScoped<CreateGroupHandler>();
         services.AddScoped<ListMyGroupsHandler>();
         services.AddScoped<GetGroupHandler>();
+        services.AddScoped<GetGroupBySlugHandler>();
         services.AddScoped<UpdateGroupHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
         services.AddScoped<ListMembersHandler>();
