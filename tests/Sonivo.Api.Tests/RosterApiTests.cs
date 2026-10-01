@@ -59,6 +59,84 @@ public class RosterApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<Gro
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Owner_provisions_access_with_a_one_use_temporary_password()
+    {
+        var client = await CreateAuthenticatedClientAsync(_factory, "roster-prov@example.com");
+        var created = await (await client.PostAsJsonAsync("/api/groups", new { name = "Prov Band" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(created);
+
+        var response = await client.PostAsJsonAsync($"/api/groups/{created.Id}/roster",
+            new { displayName = "Sin Correo", grantAccess = true });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ProvisionResponse>();
+        Assert.NotNull(body);
+        Assert.Equal("temporary_password", body.Credential);
+        Assert.False(string.IsNullOrWhiteSpace(body.TemporaryPassword));
+
+        var roster = await client.GetFromJsonAsync<RosterResponse>($"/api/groups/{created.Id}/roster");
+        var person = roster!.Items.Single(i => i.DisplayName == "Sin Correo");
+        Assert.True(person.HasAccess);
+
+        // The provisioned account is owned by this group (resettable by its Owner).
+        using var scope = _factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var account = await users.FindByIdAsync(person.UserId!.Value.ToString("D"));
+        Assert.NotNull(account);
+        Assert.Equal(created.Id, account!.ManagedByGroupId);
+        Assert.True(account.MustChangePassword);
+    }
+
+    [Fact]
+    public async Task Provisioning_never_takes_over_an_existing_account()
+    {
+        await CreateAuthenticatedClientAsync(_factory, "existing-account@example.com");
+        var client = await CreateAuthenticatedClientAsync(_factory, "roster-clash@example.com");
+        var created = await (await client.PostAsJsonAsync("/api/groups", new { name = "Clash Band" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(created);
+
+        var response = await client.PostAsJsonAsync($"/api/groups/{created.Id}/roster",
+            new { displayName = "Intruso", email = "existing-account@example.com", grantAccess = true });
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Only_accounts_created_by_the_group_are_resettable()
+    {
+        // A pre-existing account (no ManagedByGroupId) linked as a member must not be resettable.
+        var userId = Guid.NewGuid();
+        var email = $"preexisting-{userId:N}@example.com";
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            var user = new ApplicationUser { Id = userId, Email = email, UserName = email, DisplayName = email, EmailConfirmed = true };
+            var created = await users.CreateAsync(user, "Password1");
+            Assert.True(created.Succeeded, string.Join(", ", created.Errors.Select(e => e.Description)));
+        }
+
+        var client = await CreateAuthenticatedClientAsync(_factory, "roster-reset@example.com");
+        var group = await (await client.PostAsJsonAsync("/api/groups", new { name = "Reset Band" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(group);
+
+        Guid memberId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            var membership = Membership.CreateMember(group.Id, userId, DateTimeOffset.UtcNow);
+            await db.Memberships.AddAsync(membership);
+            await db.SaveChangesAsync();
+            memberId = membership.Id;
+        }
+
+        var response = await client.PostAsJsonAsync($"/api/groups/{group.Id}/roster/{memberId}/reset-access", new { });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+
     private static async Task<HttpClient> CreateAuthenticatedClientAsync(
         WebApplicationFactory<Program> factory,
         string email,
@@ -93,4 +171,5 @@ public class RosterApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<Gro
     private sealed record GroupResponse(Guid Id, string Name, string? Slug);
     private sealed record RosterItem(Guid MemberId, Guid? UserId, string DisplayName, string Role, bool HasAccess);
     private sealed record RosterResponse(List<RosterItem> Items);
+    private sealed record ProvisionResponse(string Credential, string? TemporaryPassword, bool Mailed);
 }

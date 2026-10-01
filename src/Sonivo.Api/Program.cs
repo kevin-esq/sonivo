@@ -502,7 +502,7 @@ app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<Applica
     return Results.Ok(new
     {
         id = appUser.Id,
-        email = appUser.Email,
+        email = appUser.Email is { } mail && mail.EndsWith("@managed.invalid", StringComparison.Ordinal) ? null : appUser.Email,
         displayName = appUser.DisplayName,
         emailConfirmed = appUser.EmailConfirmed,
         mustChangePassword = appUser.MustChangePassword,
@@ -721,6 +721,9 @@ app.MapPost("/api/auth/reset-password", async (
 // (and on explicit regenerate), single-use enforced by UserManager.
 // No new tables: AspNetUserTokens already stores the authenticator key +
 // recovery codes (verified — no migration).
+// Temporary password that satisfies the Identity password policy; shown once.
+static string GenerateTemporaryPassword() => "Tmp1!" + Guid.NewGuid().ToString("N");
+
 static string SanitizeTotpCode(string? code) =>
     (code ?? string.Empty).Replace(" ", string.Empty, StringComparison.Ordinal)
         .Replace("-", string.Empty, StringComparison.Ordinal);
@@ -1740,6 +1743,218 @@ app.MapGet("/api/groups/{groupId:guid}/roster", async (
 })
 .WithName("ListGroupRoster")
 .RequireAuthorization();
+
+// Phase 4.1: Owner provisions access. With email → single-use activation link
+// (the Owner never sees a password); without email → one-use temporary password
+// shown exactly once (never logged). Anti-pre-hijacking: an existing account is
+// never taken over (409) and only accounts created by this group are resettable.
+app.MapPost("/api/groups/{groupId:guid}/roster", async (
+    Guid groupId,
+    CreateRosterMemberRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupStore groups,
+    IAccountAuditStore audit,
+    IEmailSender email,
+    IPublicOrigin origin,
+    IClock clock,
+    IConfiguration configuration,
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+
+    var displayName = request.DisplayName?.Trim();
+    if (string.IsNullOrWhiteSpace(displayName) || displayName.Length > 200)
+    {
+        return Results.Problem(detail: "Display name is required (200 chars max).", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    var now = clock.UtcNow;
+    ApplicationUser? account = null;
+    string credential = "none";
+    var mailed = false;
+    string? temporaryPassword = null;
+
+    if (request.GrantAccess)
+    {
+        var emailAddress = request.Email?.Trim();
+        if (!string.IsNullOrWhiteSpace(emailAddress))
+        {
+            if (await users.FindByEmailAsync(emailAddress) is not null)
+            {
+                // Anti-pre-hijacking: never take over an existing account.
+                return Results.Conflict(new { detail = "That email already has an account." });
+            }
+
+            account = new ApplicationUser
+            {
+                Email = emailAddress,
+                UserName = emailAddress,
+                DisplayName = displayName,
+                EmailConfirmed = false,
+                ManagedByGroupId = groupId
+            };
+            var created = await users.CreateAsync(account, GenerateTemporaryPassword());
+            if (!created.Succeeded)
+            {
+                return Results.ValidationProblem(created.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+            }
+
+            var token = await users.GeneratePasswordResetTokenAsync(account);
+            mailed = await VerificationMail.TrySendPasswordResetAsync(
+                email, origin, loggerFactory.CreateLogger("ManagedAccounts"), emailAddress, token, cancellationToken);
+            credential = "activation_link";
+        }
+        else
+        {
+            // Identity requires a non-empty unique email; use a reserved, non-routable
+            // placeholder so no-email accounts never expose a usable address.
+            var placeholderEmail = $"managed-{Guid.NewGuid():N}@managed.invalid";
+            account = new ApplicationUser
+            {
+                Email = placeholderEmail,
+                UserName = placeholderEmail,
+                DisplayName = displayName,
+                EmailConfirmed = false,
+                ManagedByGroupId = groupId,
+                MustChangePassword = true
+            };
+            temporaryPassword = GenerateTemporaryPassword();
+            var created = await users.CreateAsync(account, temporaryPassword);
+            if (!created.Succeeded)
+            {
+                return Results.ValidationProblem(created.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+            }
+
+            credential = "temporary_password";
+        }
+    }
+
+    var membership = Membership.CreatePerson(groupId, displayName, now);
+    if (account is not null)
+    {
+        membership.ClaimAccount(account.Id);
+    }
+
+    await groups.AddMembershipAsync(membership, cancellationToken);
+    await groups.SaveChangesAsync(cancellationToken);
+
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionAccessCreated, now, actorId, account?.Id, groupId),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    return Results.Created($"/api/groups/{groupId}/roster/{membership.Id}", new
+    {
+        memberId = membership.Id,
+        userId = account?.Id,
+        credential,
+        mailed,
+        temporaryPassword
+    });
+})
+.WithName("CreateRosterMember")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapPost("/api/groups/{groupId:guid}/roster/{memberId:guid}/reset-access", async (
+    Guid groupId,
+    Guid memberId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IMembershipStore memberships,
+    IAccountAuditStore audit,
+    IEmailSender email,
+    IPublicOrigin origin,
+    IClock clock,
+    IConfiguration configuration,
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+
+    var target = (await memberships.ListByGroupAsync(groupId, cancellationToken))
+        .FirstOrDefault(m => m.Id == memberId);
+    if (target?.UserId is null)
+    {
+        return Results.NotFound();
+    }
+
+    var account = await users.FindByIdAsync(target.UserId.Value.ToString("D"));
+    if (account is null)
+    {
+        return Results.NotFound();
+    }
+
+    // Only accounts this group created can be reset by its Owner.
+    if (account.ManagedByGroupId != groupId)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var now = clock.UtcNow;
+    var mailed = false;
+    string credential;
+    string? temporaryPassword = null;
+
+    if (!string.IsNullOrWhiteSpace(account.Email)
+        && !account.Email.EndsWith("@managed.invalid", StringComparison.Ordinal))
+    {
+        var token = await users.GeneratePasswordResetTokenAsync(account);
+        mailed = await VerificationMail.TrySendPasswordResetAsync(
+            email, origin, loggerFactory.CreateLogger("ManagedAccounts"), account.Email!, token, cancellationToken);
+        credential = "activation_link";
+    }
+    else
+    {
+        var resetToken = await users.GeneratePasswordResetTokenAsync(account);
+        temporaryPassword = GenerateTemporaryPassword();
+        var result = await users.ResetPasswordAsync(account, resetToken, temporaryPassword);
+        if (!result.Succeeded)
+        {
+            return Results.ValidationProblem(result.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+        }
+
+        account.MustChangePassword = true;
+        await users.UpdateAsync(account);
+        credential = "temporary_password";
+    }
+
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionAccessReset, now, actorId, account.Id, groupId),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    return Results.Ok(new { memberId, userId = account.Id, credential, mailed, temporaryPassword });
+})
+.WithName("ResetRosterAccess")
+.RequireAuthorization()
+.DisableAntiforgery();
 
 app.MapDelete("/api/groups/{groupId:guid}/members/{targetUserId:guid}", async (
     Guid groupId,
@@ -2990,8 +3205,7 @@ if (!app.Environment.IsDevelopment())
 
 app.Run();
 
-static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users)
-{
+static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users){
     if (principal.Identity?.IsAuthenticated != true)
     {
         return null;
@@ -3276,6 +3490,7 @@ internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
 internal sealed record ChangeGroupSlugRequest(string? Slug);
 internal sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
+internal sealed record CreateRosterMemberRequest(string? DisplayName, string? Email, bool GrantAccess);
 internal sealed record UpdateGroupBrandingRequest(
     int ExpectedVersion,
     string? DisplayName,
