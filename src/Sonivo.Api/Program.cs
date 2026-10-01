@@ -672,7 +672,10 @@ app.MapPost("/api/auth/forgot-password", async (
 // Invalid/expired/unknown → 400 with the frozen Spanish copy.
 app.MapPost("/api/auth/reset-password", async (
     ResetPasswordRequest request,
-    UserManager<ApplicationUser> users) =>
+    UserManager<ApplicationUser> users,
+    IAccountAuditStore audit,
+    IClock clock,
+    CancellationToken cancellationToken) =>
 {
     var email = request.Email?.Trim();
     if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(request.Token))
@@ -707,6 +710,18 @@ app.MapPost("/api/auth/reset-password", async (
             detail: string.Join(" ", result.Errors.Select(e => e.Description)),
             statusCode: StatusCodes.Status400BadRequest,
             title: "Validation failed");
+    }
+
+    // ADR-0047: a verified-email reset makes the account self-owned.
+    if (user.ManagedByGroupId is not null || user.MustChangePassword)
+    {
+        user.ManagedByGroupId = null;
+        user.MustChangePassword = false;
+        await users.UpdateAsync(user);
+        await audit.AddAsync(
+            AccountAudit.Create(AccountAudit.ActionLinked, clock.UtcNow, targetUserId: user.Id),
+            cancellationToken);
+        await audit.SaveChangesAsync(cancellationToken);
     }
 
     return Results.Ok(new { passwordReset = true });
@@ -2115,6 +2130,16 @@ app.MapPost("/api/invitations/{token}/accept", async (
     var accepted = await handler.HandleAsync(
         new AcceptInvitationCommand(userId.Value, token),
         cancellationToken);
+
+    // ADR-0047: joining another group drops the managed-account mark.
+    var account = await users.GetUserAsync(principal);
+    if (account is not null
+        && account.ManagedByGroupId is not null
+        && account.ManagedByGroupId != accepted.GroupId)
+    {
+        account.ManagedByGroupId = null;
+        await users.UpdateAsync(account);
+    }
 
     return Results.Ok(ToInvitationAcceptedResponse(accepted));
 })

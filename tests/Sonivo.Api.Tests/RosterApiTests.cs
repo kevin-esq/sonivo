@@ -137,6 +137,46 @@ public class RosterApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<Gro
     }
 
 
+    [Fact]
+    public async Task Verified_reset_makes_a_managed_account_self_owned()
+    {
+        var client = await CreateAuthenticatedClientAsync(_factory, "roster-lifecycle@example.com");
+        var created = await (await client.PostAsJsonAsync("/api/groups", new { name = "Lifecycle Band" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(created);
+
+        await client.PostAsJsonAsync($"/api/groups/{created.Id}/roster",
+            new { displayName = "Auto", grantAccess = true });
+
+        Guid userId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var roster = await client.GetFromJsonAsync<RosterResponse>($"/api/groups/{created.Id}/roster");
+            var person = roster!.Items.Single(i => i.DisplayName == "Auto");
+            var account = await users.FindByIdAsync(person.UserId!.Value.ToString("D"));
+            Assert.NotNull(account);
+            Assert.Equal(created.Id, account!.ManagedByGroupId);
+            userId = account.Id;
+
+            var token = await users.GeneratePasswordResetTokenAsync(account);
+            var anon = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            await EnsureCsrfAsync(anon);
+            var reset = await anon.PostAsJsonAsync("/api/auth/reset-password",
+                new { email = account.Email, token, newPassword = "NuevaClave1" });
+            Assert.Equal(HttpStatusCode.OK, reset.StatusCode);
+        }
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var account = await users.FindByIdAsync(userId.ToString("D"));
+            Assert.NotNull(account);
+            Assert.Null(account!.ManagedByGroupId);
+            Assert.False(account.MustChangePassword);
+        }
+    }
+
     private static async Task<HttpClient> CreateAuthenticatedClientAsync(
         WebApplicationFactory<Program> factory,
         string email,
