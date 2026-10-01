@@ -11,6 +11,22 @@
 
 ---
 
+## 0. Context update (2026-10-01) — supersedes earlier statements
+
+The owner updated the context; where this section conflicts with the rest of the document, **this section wins**.
+
+- **D1 — Tenancy by path.** Each Group gets an immutable `Slug` (3–40 chars, lowercase, **no dots**, reserved list, **never reused** after deletion) served at **`/g/{slug}`** on the **same origin**, coexisting with today's id routes. A new abstraction **`ITenantResolver`** starts as **`PathTenantResolver`**; a future `HostTenantResolver` can arrive **without changing the data model**.
+- **D2 — No subdomain / custom-domain work.** There is **no owned domain**; the only host is `sonivo.onrender.com` and the brand name may change. Phases **4.6 and 4.7 are BLOCKED**. The central-auth + one-time-code flow stays **documented (ADR-0049) but not implemented**, and **no `GroupDomain` table** or speculative migration is created.
+- **D3 — Host- and brand-agnostic.** No host is hard-coded in code or copy: every absolute URL is built from **`PublicOrigin`**. The product name comes from a single setting **`Brand:ProductName`**, used in emails, the WebAuthn **relying-party name**, titles and the `{brand}` i18n parameter. **Technical identifiers are NOT renamed** (`sonivo.auth`, `sonivo.csrf`, `sonivo:*` localStorage keys, namespaces): renaming would close sessions and wipe preferences with no benefit.
+- **D4 — Passkeys.** `rpId` = the current host (`Passkeys:RelyingPartyId` empty). Changing host **invalidates existing credentials**; the Security screen shows a visible notice that passkeys are bound to this address. Managed accounts always keep a password and are never pushed to passkeys.
+- **D5 — Invitations.** The database stores **only the token**, never an absolute URL; the URL is built at send time from `PublicOrigin`. Changing host breaks already-sent links unless the old host stays active.
+- **D6 — Domain-change runbook:** [`DOMAIN-CHANGE-RUNBOOK.md`](DOMAIN-CHANGE-RUNBOOK.md).
+- **D7 — Revised phase order:** 4.0 docs · 4.2 `.lrc` · 4.1 managed accounts · 4.3 per-group branding (`slug`, `/g/{slug}`, branded access screen by path) · 4.4 roles · 4.5 stage mode · 4.8 email notifications · **4.6 and 4.7 BLOCKED** · 4.9 and 4.10 optional.
+
+**Revised total effort without 4.6/4.7: ~13–18 weeks** (1 senior dev) — see §9.
+
+---
+
 ## 1. Executive summary
 
 Sonivo evolves from "one Group = one tenant with a shared UI" to a **white-label platform** with
@@ -28,7 +44,7 @@ Sonivo evolves from "one Group = one tenant with a shared UI" to a **white-label
    **subdomain later** for branded/public surfaces with **central auth + one-time code**; **custom domain
    last**. `onrender.com` is a public suffix, so white-label subdomains/passkeys require a **real domain**.
 
-**Effort:** ~**17–23 weeks** (1 senior dev) for phases 4.0–4.8; 4.9–4.10 optional. §9.
+**Effort:** ~**13–18 weeks** (1 senior dev) for the unblocked phases 4.0–4.5 + 4.8; **4.6/4.7 blocked** on owning a domain; 4.9–4.10 optional. §9.
 
 ---
 
@@ -100,9 +116,15 @@ Sonivo evolves from "one Group = one tenant with a shared UI" to a **white-label
 **Options.** A) Group = tenant + branding/domain tables. B) Organization > Group (branding/domain owned by
 the org; AuthZ gains an org layer; "my groups" must group by org). C) realm per group (rejected: duplicates
 identity, kills multi-group users that ADR-0005 protects).
-**Decision.** **A**, with `GroupBranding`/`GroupDomain` keyed by `GroupId` so they can be re-keyed to
-`OrganizationId` later. B only when a real customer needs several groups under one brand.
-**Consequences.** AuthZ untouched; no rewrite; B is one `ALTER TABLE` away.
+**Decision.** **A**, with per-group tables keyed by `GroupId` so they can be re-keyed to `OrganizationId`
+later. B only when a real customer needs several groups under one brand.
+**D1 — tenancy by path (2026-10-01).** Each Group gets an immutable **`Slug`** (3–40 chars, lowercase,
+**no dots**, reserved list, **never reused** after deletion) served at **`/g/{slug}`** on the **same origin**,
+coexisting with the current id routes. A new abstraction **`ITenantResolver`** ships as **`PathTenantResolver`**;
+a future `HostTenantResolver` can be added **without changing the data model**.
+**Explicitly NOT created (D2):** the `GroupDomain` table. Domain/subdomain work is blocked until a verified
+domain exists.
+**Consequences.** AuthZ untouched; no rewrite; slug + resolver is additive. B is one `ALTER TABLE` away.
 
 ### ADR-0046 — Roster + optional managed account (hybrid)
 `Membership` absorbs the person (one entity: **see §4.b of the correction list**); `UserId` becomes nullable;
@@ -118,17 +140,32 @@ an Identity account is created only when access is granted, tracked by `Applicat
 - `MustChangePassword` blocks the whole API except `me` / `logout` / `change-password`.
 - Rate limit + lockout + `AccountAudit` (IDs only).
 
-### ADR-0048 — Per-group white label
-`GroupBranding` table; strict colour validation (hex only, AA contrast computed server-side, never free CSS);
-sanitised texts; logo via `IBlobStore` with size limit + image re-encode; per-group CSS variables; optional
-"Con tecnología de Sonivo".
+### ADR-0048 — Per-group white label (same origin, by path)
+`GroupBranding` table keyed by `GroupId` (name, logo, accent, cover, theme, locale, welcome/login copy,
+`ShowSonivoCredit`); strict colour validation (hex only, AA contrast computed server-side, never free CSS);
+sanitised texts; logo via `IBlobStore` with size limit + image re-encode; per-group CSS variables.
+**D1/D3 (2026-10-01).** White label is delivered **on the same origin by path** — `slug` + `/g/{slug}` and a
+**branded access screen by path** — not by subdomain. The **product** name comes from a single setting
+**`Brand:ProductName`** and appears in emails, titles and the `{brand}` i18n parameter; **no host is written
+into code or copy** (all absolute URLs use `PublicOrigin`). **Technical identifiers are not renamed**
+(`sonivo.auth`, `sonivo.csrf`, `sonivo:*` localStorage keys): renaming would close sessions and wipe
+preferences without benefit.
 
-### ADR-0049 — Public hosts and custom domains
-1. Branding in-app, single origin. 2. Subdomain for branded/public surfaces with **central auth + one-time
-code** (never a parent-domain cookie). 3. Custom domain last: Host resolution + **host-only cookie** +
-ownership verification (TXT/CNAME) + per-domain TLS; **passkeys disabled by default** (different rpId).
-`onrender.com` is a **public suffix** → white-label subdomains require a **real domain**. **PREGUNTA**: Render's
-custom-domain/wildcard capabilities could not be verified from this machine.
+### ADR-0049 — Public hosts and custom domains — 🚫 **NOT IMPLEMENTED (blocked by D2)**
+**Status: documentation only.** The design below is kept so the door stays open, but **nothing is built**
+until a verified domain exists.
+1. Branding in-app, **single origin** (this is what ships: ADR-0048). 2. Subdomain for branded/public
+surfaces with **central auth + one-time code** (never a parent-domain cookie). 3. Custom domain last: Host
+resolution + **host-only cookie** + ownership verification (TXT/CNAME) + per-domain TLS; **passkeys disabled
+by default** (different rpId).
+**D4 — passkeys (2026-10-01).** `Passkeys:RelyingPartyId` stays **empty** ⇒ rpId = the **current host**.
+Changing host **invalidates existing credentials**; the Security screen shows a visible notice that passkeys
+are bound to this address. Managed accounts always keep a password and are never pushed to passkeys.
+**D5 — invitations (2026-10-01).** The DB stores **only the token**, never an absolute URL; the URL is built
+at send time from `PublicOrigin`. Changing host breaks already-sent links unless the old host stays active.
+**Why blocked:** `onrender.com` is a **public suffix**, so white-label subdomains/domains are impossible on
+it. **PREGUNTA**: whether the current host (Render) keeps the old host reachable alongside a new custom
+domain — unverifiable from this machine (see the runbook).
 
 ### ADR-0050 — `.lrc` as an import/export format
 `.lrc` is **not** a stored format: it is parsed into **ChordPro + ADR-0031 line marks**, and exported back.
@@ -224,8 +261,9 @@ redirect is **immediate and parameter-free** (`303 → /app`). Errors: `400 csrf
 
 ## 9. Phases
 
-> Numbering continues the repo (last closed: 3.9 + ADR-0044). Order validates the brief's suggestion
-> (LRC + managed accounts first, domains last) with one change: **branding before domains**.
+> Numbering continues the repo (last closed: 3.9 + ADR-0044). Order per **D7**: 4.0 docs → 4.2 `.lrc`
+> → 4.1 managed accounts → 4.3 per-group branding (by path) → 4.4 roles → 4.5 stage mode → 4.8 email
+> notifications. **4.6 and 4.7 are BLOCKED** until a verified custom domain exists (D2). 4.9/4.10 optional.
 
 | Phase | Goal | Depends | Acceptance |
 | --- | --- | --- | --- |
@@ -235,8 +273,8 @@ redirect is **immediate and parameter-free** (`303 → /app`). Errors: `400 csrf
 | **4.3** Branding | `GroupBranding` + tokens + logo | 4.1 | accent/cover persist server-side and appear on another device; invalid colour → 400; AA ≥ 4.5 |
 | **4.4** Roles | `Owner\|Manager\|Member\|Viewer` + musical role | 4.1 | section permissions + 403 tests |
 | **4.5** Stage mode | large lyrics/chords, autoscroll on LRC, wake lock | 4.2 | autoscroll follows the track; legible at 3 m |
-| **4.6** Branded subdomain | Host resolution (read), central auth + code exchange | 4.3 | `slug.domain` shows the brand; auth central; no cross-group cookie; exchange verified (SPIKE-4) |
-| **4.7** Custom domain | Host↔tenant + verification + TLS + passkeys per host | 4.6 | verified domain serves the group; host-only cookie; passkeys re-registered or disabled |
+| **4.6** Branded subdomain | 🚫 **BLOCKED** — needs an owned domain (D2) | — | **Unblocks when a verified custom domain exists.** Flow stays documented in ADR-0049; **not implemented** |
+| **4.7** Custom domain | 🚫 **BLOCKED** — needs an owned domain (D2) | 4.6 | **Unblocks when a verified custom domain exists.** No `GroupDomain` table is created meanwhile |
 | **4.8** Notifications | event/RSVP email + ICS | 4.1 | member with email gets it; without email → in-app |
 | **4.9** Organization (opt) | re-key branding/domain | 4.4 | only with a multi-group customer |
 | **4.10** Billing (opt) | plans + quotas | 4.9 | reopens ADR-0042 |
@@ -363,6 +401,20 @@ this is logged in `AccountAudit` and the member is notified (risk of one person 
 | Q15 | Are managed accounts deletable without the group? | Only if the mark is active and there is no other group |
 
 ---
+
+## 14.1 Owner decision pending: when to buy the domain
+
+**HECHO:** the only host today is `sonivo.onrender.com` and the brand name may change (D2/D3). No code depends
+on the host (`PublicOrigin` + `Brand:ProductName`), so this is a **timing** decision, not a code decision.
+
+| Option | Consequences |
+| --- | --- |
+| **Buy before external users** | Passkeys and invitation links are born on the final host: **no re-enrolment, no broken links**, one Google redirect URI. The brand can still change later (only `Brand:ProductName`). Cheapest overall. |
+| **Buy after external users** | Users who created passkeys on `sonivo.onrender.com` must **re-register** (rpId is the host, D4). Invitations already sent keep working **only while the old host stays reachable** (D5); otherwise re-invite. The Google redirect URI must be added and the old one removed after cut-over. A permanent redirect from the old host reduces impact but **does not avoid passkey re-enrolment**. |
+
+**Recommendation (default):** if white label or passkeys will matter, pin the domain **before inviting people
+outside the group**; otherwise stay on the current host until 4.6/4.7 are actually needed. Because the code
+stays host-agnostic (D3), postponing costs nothing except the user-facing items above.
 
 ## 15. Appendix
 
