@@ -32,6 +32,6 @@ public sealed class PathTenantResolver : ITenantResolver
             return Task.FromResult<Group?>(null);
         }
 
-        return _store.GetBySlugAsync(normalized, cancellationToken);
+        return _store.GetByAnySlugAsync(normalized, cancellationToken);
     }
 }

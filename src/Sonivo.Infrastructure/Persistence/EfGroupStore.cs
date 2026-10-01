@@ -96,12 +96,44 @@ public sealed class EfGroupStore : IGroupStore
     public Task<Group?> GetBySlugAsync(string slug, CancellationToken cancellationToken)
         => _db.Groups.FirstOrDefaultAsync(g => g.Slug == slug, cancellationToken);
 
+    public async Task<Group?> GetByAnySlugAsync(string slug, CancellationToken cancellationToken)
+    {
+        var current = await _db.Groups.FirstOrDefaultAsync(g => g.Slug == slug, cancellationToken);
+        if (current is not null)
+        {
+            return current;
+        }
+
+        var groupId = await _db.GroupSlugHistory
+            .AsNoTracking()
+            .Where(h => h.Slug == slug)
+            .Select(h => (Guid?)h.GroupId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (groupId is null)
+        {
+            return null;
+        }
+
+        return await _db.Groups.FirstOrDefaultAsync(g => g.Id == groupId.Value, cancellationToken);
+    }
+
     /// <summary>
-    /// Includes soft-deleted rows on purpose: a deleted Group keeps its slug
-    /// reserved (ADR-0048 D1), so the slug can never be reused.
+    /// Includes soft-deleted groups and historical slugs on purpose: a deleted
+    /// group keeps its slug reserved and a historical slug can never be reused
+    /// (ADR-0045 D1).
     /// </summary>
-    public Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken)
-        => _db.Groups.IgnoreQueryFilters().AnyAsync(g => g.Slug == slug, cancellationToken);
+    public async Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken)
+    {
+        if (await _db.Groups.IgnoreQueryFilters().AnyAsync(g => g.Slug == slug, cancellationToken))
+        {
+            return true;
+        }
+
+        return await _db.GroupSlugHistory.AnyAsync(h => h.Slug == slug, cancellationToken);
+    }
+
+    public async Task AddSlugHistoryAsync(GroupSlugHistory history, CancellationToken cancellationToken)
+        => await _db.GroupSlugHistory.AddAsync(history, cancellationToken);
 
     public Task<Membership?> GetMembershipAsync(Guid groupId, Guid userId, CancellationToken cancellationToken)
         => _db.Memberships.AsNoTracking()

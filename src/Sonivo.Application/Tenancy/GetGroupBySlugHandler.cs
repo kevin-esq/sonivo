@@ -19,14 +19,15 @@ public sealed class GetGroupBySlugHandler
         _store = store;
     }
 
-    public async Task<GroupDto> HandleAsync(Guid userId, string slug, CancellationToken cancellationToken)
+    public async Task<GroupBySlugResult> HandleAsync(Guid userId, string slug, CancellationToken cancellationToken)
     {
         if (userId == Guid.Empty)
         {
             throw new ValidationException("Authenticated user is required.");
         }
 
-        var group = await _resolver.ResolveAsync(slug, cancellationToken);
+        var normalized = (slug ?? string.Empty).Trim().ToLowerInvariant();
+        var group = await _resolver.ResolveAsync(normalized, cancellationToken);
         if (group is null)
         {
             throw new NotFoundException("Group not found.");
@@ -39,7 +40,7 @@ public sealed class GetGroupBySlugHandler
             throw new NotFoundException("Group not found.");
         }
 
-        return new GroupDto(
+        var dto = new GroupDto(
             group.Id,
             group.Name,
             group.Version,
@@ -47,5 +48,12 @@ public sealed class GetGroupBySlugHandler
             group.CreatedAt,
             group.UpdatedAt,
             group.Slug);
+
+        // A historical slug resolves to the same group: the caller should redirect
+        // permanently to the current slug.
+        return new GroupBySlugResult(dto, !string.Equals(group.Slug, normalized, StringComparison.Ordinal));
     }
 }
+
+/// <summary>Result of resolving a path slug; <c>Moved</c> marks a permanent redirect.</summary>
+public sealed record GroupBySlugResult(GroupDto Group, bool Moved);
