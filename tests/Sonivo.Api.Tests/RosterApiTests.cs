@@ -177,6 +177,31 @@ public class RosterApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<Gro
         }
     }
 
+    [Fact]
+    public async Task Deleting_a_roster_row_removes_the_managed_account_used_only_here()
+    {
+        var client = await CreateAuthenticatedClientAsync(_factory, "roster-delete@example.com");
+        var created = await (await client.PostAsJsonAsync("/api/groups", new { name = "Delete Band" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(created);
+
+        var provision = await client.PostAsJsonAsync($"/api/groups/{created.Id}/roster",
+            new { displayName = "Temp", grantAccess = true });
+        var body = await provision.Content.ReadFromJsonAsync<ProvisionResponse>();
+        Assert.NotNull(body);
+        Assert.NotNull(body.UserId);
+
+        var del = await client.DeleteAsync($"/api/groups/{created.Id}/roster/{body.MemberId}");
+        Assert.Equal(HttpStatusCode.NoContent, del.StatusCode);
+
+        var roster = await client.GetFromJsonAsync<RosterResponse>($"/api/groups/{created.Id}/roster");
+        Assert.DoesNotContain(roster!.Items, i => i.DisplayName == "Temp");
+
+        using var scope = _factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        Assert.Null(await users.FindByIdAsync(body.UserId!.Value.ToString("D")));
+    }
+
     private static async Task<HttpClient> CreateAuthenticatedClientAsync(
         WebApplicationFactory<Program> factory,
         string email,
@@ -211,5 +236,5 @@ public class RosterApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<Gro
     private sealed record GroupResponse(Guid Id, string Name, string? Slug);
     private sealed record RosterItem(Guid MemberId, Guid? UserId, string DisplayName, string Role, bool HasAccess);
     private sealed record RosterResponse(List<RosterItem> Items);
-    private sealed record ProvisionResponse(string Credential, string? TemporaryPassword, bool Mailed);
+    private sealed record ProvisionResponse(Guid MemberId, Guid? UserId, string Credential, string? TemporaryPassword, bool Mailed);
 }

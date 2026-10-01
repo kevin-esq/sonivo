@@ -131,6 +131,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("auth-resend", http => PerIp(http, 10));
     options.AddPolicy("auth-forgot", http => PerIp(http, 10));
     options.AddPolicy("auth-reset", http => PerIp(http, 30));
+    options.AddPolicy("auth-change-password", http => PerIp(http, 20));
     // T-AU-02: TOTP codes are 6 digits (brute-forceable) — the challenge
     // endpoints get the strictest budget; management is session-authed.
     options.AddPolicy("auth-2fa-challenge", http => PerIp(http, 10));
@@ -554,7 +555,8 @@ app.MapPost("/api/auth/change-password", async (
 })
 .WithName("ChangePassword")
 .RequireAuthorization()
-.DisableAntiforgery();
+.DisableAntiforgery()
+.RequireRateLimiting("auth-change-password");
 
 app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInManager) =>
 {
@@ -1968,6 +1970,79 @@ app.MapPost("/api/groups/{groupId:guid}/roster/{memberId:guid}/reset-access", as
     return Results.Ok(new { memberId, userId = account.Id, credential, mailed, temporaryPassword });
 })
 .WithName("ResetRosterAccess")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+// Phase 4.1: delete a roster row. A managed account created by this group and used
+// only here is deleted with it; otherwise the managed mark is cleared.
+app.MapDelete("/api/groups/{groupId:guid}/roster/{memberId:guid}", async (
+    Guid groupId,
+    Guid memberId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IMembershipStore memberships,
+    IGroupStore groups,
+    IUnitOfWork unitOfWork,
+    IAccountAuditStore audit,
+    IClock clock,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+
+    var target = (await memberships.ListByGroupAsync(groupId, cancellationToken))
+        .FirstOrDefault(m => m.Id == memberId);
+    if (target is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (target.IsOwner)
+    {
+        return Results.Conflict(new { detail = "Cannot delete the Owner." });
+    }
+
+    if (target.UserId is { } targetUserId)
+    {
+        var account = await users.FindByIdAsync(targetUserId.ToString("D"));
+        if (account is not null && account.ManagedByGroupId == groupId)
+        {
+            var belongsElsewhere = (await groups.ListForUserAsync(targetUserId, cancellationToken))
+                .Any(g => g.Id != groupId);
+            if (!belongsElsewhere)
+            {
+                await users.DeleteAsync(account);
+            }
+            else
+            {
+                account.ManagedByGroupId = null;
+                await users.UpdateAsync(account);
+            }
+        }
+    }
+
+    await memberships.RemoveAsync(target, cancellationToken);
+    await unitOfWork.SaveChangesAsync(cancellationToken);
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionRemoved, clock.UtcNow, actorId, target.UserId, groupId),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    return Results.NoContent();
+})
+.WithName("DeleteRosterMember")
 .RequireAuthorization()
 .DisableAntiforgery();
 
