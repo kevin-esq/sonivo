@@ -169,7 +169,16 @@ public class GroupUseCaseTests
             var items = Memberships
                 .Where(m => m.UserId == userId)
                 .Join(Groups.Where(g => !g.IsDeleted), m => m.GroupId, g => g.Id,
-                    (m, g) => new GroupListItem(g.Id, g.Name, m.Role, g.Version, g.CreatedAt))
+                    (m, g) => new GroupListItem(
+                        g.Id,
+                        g.Name,
+                        g.Slug,
+                        m.Role,
+                        g.Version,
+                        g.CreatedAt,
+                        Memberships.Count(other => other.GroupId == g.Id),
+                        null,
+                        g.UpdatedAt))
                 .OrderBy(x => x.Name)
                 .ToList();
             return Task.FromResult<IReadOnlyList<GroupListItem>>(items);

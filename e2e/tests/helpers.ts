@@ -64,6 +64,8 @@ export async function logout(page: Page) {
 }
 
 export async function createGroup(page: Page, name: string) {
+  // La creación vive en un modal desde el refactor de la página de grupos.
+  await page.getByRole('button', { name: 'Nuevo grupo' }).click()
   await page.getByLabel('Nombre').fill(name)
   await page.getByRole('button', { name: 'Crear grupo' }).click()
   await expect(page.getByRole('heading', { name })).toBeVisible()

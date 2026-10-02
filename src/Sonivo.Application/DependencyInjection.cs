@@ -12,14 +12,26 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<GroupAccessService>();
+        services.AddScoped<ITenantResolver, PathTenantResolver>();
         services.AddScoped<CreateGroupHandler>();
         services.AddScoped<ListMyGroupsHandler>();
         services.AddScoped<GetGroupHandler>();
+        services.AddScoped<GetGroupBySlugHandler>();
+        services.AddScoped<ChangeGroupSlugHandler>();
+        services.AddScoped<GetGroupBrandingHandler>();        services.AddScoped<UpdateGroupBrandingHandler>();
+        services.AddScoped<SetGroupLogoHandler>();
+        services.AddScoped<GetGroupLogoHandler>();
+        services.AddScoped<GetPublicBrandingHandler>();
+        services.AddScoped<GetPublicBrandingLogoHandler>();
         services.AddScoped<UpdateGroupHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
         services.AddScoped<ListMembersHandler>();
+        services.AddScoped<ListRosterHandler>();
+        services.AddScoped<ExportGroupHandler>();
+        services.AddScoped<ExportOwnDataHandler>();
         services.AddScoped<RemoveMemberHandler>();
         services.AddScoped<ChangeMemberRoleHandler>();
+        services.AddScoped<SetMusicalRoleHandler>();
         services.AddScoped<LeaveGroupHandler>();
         services.AddScoped<CreateInvitationHandler>();
         services.AddScoped<AcceptInvitationHandler>();
