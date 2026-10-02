@@ -44,7 +44,7 @@ Replacement visual direction per ADR-0043 (PROPOSED). Current evidence: dark-onl
 - **Immersive header:** cover/accent wash → group name (display) → role + next-event strip → section tabs. Replaces flat sidebar title block.
 - **Operate tables/forms:** sticky header row, row hover, inline status chips (ready/missing/tombstone), explicit empty states with one primary action.
 - **PersistentGlobalPlayer:** fixed bottom bar (above mobile tabs), accent glow on play, aria-live track/position announcements; never unmounts on route change.
-- **Nav:** app sidebar for signed-in non-group routes (Inicio · Mis grupos · Unirse · Cuenta) · group workspace rail (Grupo sections + Cuenta footer) · mobile bottom tabs/drawer. `/` is the Inicio dashboard (ADR-0053); the group list lives at `/grupos`.
+- **Nav:** app sidebar for signed-in non-group routes (Inicio · Mis grupos · Unirse · Cuenta) · group workspace rail (Grupo sections + Cuenta footer) · mobile bottom tabs/drawer. `/` is the Inicio dashboard (ADR-0053); the group list lives at `/grupos`; a read-only general month calendar lives at `/calendario` (reached from "Ver calendario").
 
 ---
 

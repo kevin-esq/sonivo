@@ -105,3 +105,30 @@ No schema changes, no migrations, **no new dependencies**.
 ## 7. Out of scope
 
 Billing/payments and usage limits (placeholders only) · in-app notification center and bell backend · real image cover upload · backend i18n · auth/session changes · new dependencies.
+
+---
+
+## 8. Addendum — Cuenta completa + calendario general (2026-10-02)
+
+Owner follow-up: `/cuenta` must match the account reference; Inicio drops "Explorar recursos" and "Buscar"; the top search is groups-only; "Ver calendario" opens a general month calendar of all groups.
+
+### Route added
+
+```
+/calendario   General calendar (AppShell) — read-only, all my groups
+```
+
+### Tickets
+
+- **T-HOME-09** Cuenta redesign (`shell/account/*`): user card + *Editar perfil*; cards *Información personal* / *Seguridad* / *Notificaciones* / *Preferencias* / *Plan y facturación* / *Uso y límites*. Real data only; Plan/Uso/Notificaciones/Sesiones are disabled placeholders.
+- **T-HOME-10** `PATCH /api/auth/me { displayName }` + API test + *Editar perfil* dialog.
+- **T-HOME-11** Inicio cleanup: only *Crear grupo* + *Unirse a grupo*; remove the learning banner; groups-only search ("Buscar grupos"); drop dead i18n keys and `searchFocus.ts`.
+- **T-HOME-12** `GET /api/activity/calendar?from&to` (auth, group-scoped, scheduled/non-hidden, range ≤ 62 days) + handler/store + API tests.
+- **T-HOME-13** `calendar/CalendarPage.tsx` (`/calendario`): month grid, prev/next/today, per-group colors, event → detail; "Ver calendario" links here.
+- **T-HOME-14** i18n/a11y/dark for all of the above.
+- **T-HOME-15** E2E: update `home-dashboard`; new `calendar` + `cuenta`; Playwright MCP visual pass.
+- **T-HOME-16** Docs + Git (branch → PR to `develop`).
+
+### Addendum firewall
+
+Plan/Uso/Notificaciones/Sesiones activas are visual placeholders only (ADR-0042 stands). The calendar is read-only (no event creation). `PATCH /api/auth/me` changes only the display name; no AuthZ/session change.
