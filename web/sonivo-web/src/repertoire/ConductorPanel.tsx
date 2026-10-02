@@ -72,7 +72,7 @@ export function ConductorPanel({
       </p>
 
       {error ? (
-        <p role="alert" className="text-sm text-error" data-testid="conductor-error">
+        <p role="alert" className="text-sm text-error-ink" data-testid="conductor-error">
           {error}
         </p>
       ) : null}

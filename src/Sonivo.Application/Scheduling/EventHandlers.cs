@@ -47,17 +47,23 @@ public sealed class CreateEventHandler
     private readonly GroupAccessService _access;
     private readonly IEventStore _events;
     private readonly IClock _clock;
+    private readonly IEventNotifier? _notifier;
 
-    public CreateEventHandler(GroupAccessService access, IEventStore events, IClock clock)
+    public CreateEventHandler(
+        GroupAccessService access,
+        IEventStore events,
+        IClock clock,
+        IEventNotifier? notifier = null)
     {
         _access = access;
         _events = events;
         _clock = clock;
+        _notifier = notifier;
     }
 
     public async Task<EventDetailDto> HandleAsync(CreateEventCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         try
         {
@@ -70,6 +76,18 @@ public sealed class CreateEventHandler
 
             await _events.AddAsync(musicalEvent, cancellationToken);
             await _events.SaveChangesAsync(cancellationToken);
+
+            if (_notifier is not null)
+            {
+                await _notifier.EventChangedAsync(
+                    musicalEvent.GroupId,
+                    musicalEvent.Id,
+                    musicalEvent.Title,
+                    musicalEvent.StartsAt,
+                    EventNotificationChanges.Created,
+                    cancellationToken);
+            }
+
             return ToDetail(musicalEvent);
         }
         catch (ArgumentException ex)
@@ -163,7 +181,7 @@ public sealed class GetEventHandler
         }
 
         if ((musicalEvent.Status == EventStatuses.Cancelled || musicalEvent.IsHidden)
-            && !membership.IsOwner)
+            && !membership.CanManageContent)
         {
             throw new NotFoundException("Event not found.");
         }
@@ -186,12 +204,18 @@ public sealed class UpdateEventHandler
     private readonly GroupAccessService _access;
     private readonly IEventStore _events;
     private readonly IClock _clock;
+    private readonly IEventNotifier? _notifier;
 
-    public UpdateEventHandler(GroupAccessService access, IEventStore events, IClock clock)
+    public UpdateEventHandler(
+        GroupAccessService access,
+        IEventStore events,
+        IClock clock,
+        IEventNotifier? notifier = null)
     {
         _access = access;
         _events = events;
         _clock = clock;
+        _notifier = notifier;
     }
 
     public async Task<EventDetailDto> HandleAsync(UpdateEventCommand command, CancellationToken cancellationToken)
@@ -201,7 +225,7 @@ public sealed class UpdateEventHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(
             command.GroupId,
@@ -235,6 +259,18 @@ public sealed class UpdateEventHandler
 
         await _events.UpdateAsync(musicalEvent, cancellationToken);
         await _events.SaveChangesAsync(cancellationToken);
+
+        if (_notifier is not null)
+        {
+            await _notifier.EventChangedAsync(
+                musicalEvent.GroupId,
+                musicalEvent.Id,
+                musicalEvent.Title,
+                musicalEvent.StartsAt,
+                EventNotificationChanges.Updated,
+                cancellationToken);
+        }
+
         return CreateEventHandler.ToDetail(musicalEvent);
     }
 }
@@ -246,12 +282,18 @@ public sealed class CancelEventHandler
     private readonly GroupAccessService _access;
     private readonly IEventStore _events;
     private readonly IClock _clock;
+    private readonly IEventNotifier? _notifier;
 
-    public CancelEventHandler(GroupAccessService access, IEventStore events, IClock clock)
+    public CancelEventHandler(
+        GroupAccessService access,
+        IEventStore events,
+        IClock clock,
+        IEventNotifier? notifier = null)
     {
         _access = access;
         _events = events;
         _clock = clock;
+        _notifier = notifier;
     }
 
     public async Task HandleAsync(CancelEventCommand command, CancellationToken cancellationToken)
@@ -261,7 +303,7 @@ public sealed class CancelEventHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(
             command.GroupId,
@@ -287,6 +329,17 @@ public sealed class CancelEventHandler
 
         await _events.UpdateAsync(musicalEvent, cancellationToken);
         await _events.SaveChangesAsync(cancellationToken);
+
+        if (_notifier is not null)
+        {
+            await _notifier.EventChangedAsync(
+                musicalEvent.GroupId,
+                musicalEvent.Id,
+                musicalEvent.Title,
+                musicalEvent.StartsAt,
+                EventNotificationChanges.Cancelled,
+                cancellationToken);
+        }
     }
 }
 
@@ -346,7 +399,7 @@ public sealed class ReplaceEventPlanFromSetlistHandler
             throw new ValidationException("Setlist id is required.");
         }
 
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(
             command.GroupId,

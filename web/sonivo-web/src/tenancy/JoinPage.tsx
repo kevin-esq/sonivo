@@ -63,7 +63,7 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
       {alreadyMember ? (
         <div className="space-y-2" role="alert">
           <p>{t('unirse.alreadyMember')}</p>
-          <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+          <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
             {t('unirse.home')}
           </Link>
         </div>
