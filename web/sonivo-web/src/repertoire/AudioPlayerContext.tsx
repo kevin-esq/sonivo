@@ -14,6 +14,8 @@ interface AudioPlayerContextType {
   duration: number
   volume: number
   playTrack: (track: Track) => void
+  /** Carga una pista en pausa (sin autoplay); la usan superficies como Practicar. */
+  loadTrack: (track: Track) => void
   togglePlay: () => void
   closeTrack: () => void
   seek: (seconds: number) => void
@@ -36,6 +38,19 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     if (audioRef.current) {
       audioRef.current.src = track.url
       void audioRef.current.play()
+    }
+  }
+
+  const loadTrack = (track: Track) => {
+    setCurrentTrack(track)
+    setIsPlaying(false)
+    setProgress(0)
+    setDuration(0)
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.src = track.url
+      audioRef.current.load()
+      audioRef.current.currentTime = 0
     }
   }
 
@@ -82,6 +97,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         duration,
         volume,
         playTrack,
+        loadTrack,
         togglePlay,
         closeTrack,
         seek,
@@ -91,6 +107,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       {children}
       <audio
         ref={audioRef}
+        preload="metadata"
         onTimeUpdate={() => setProgress(audioRef.current?.currentTime || 0)}
         onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
         onEnded={() => setIsPlaying(false)}
