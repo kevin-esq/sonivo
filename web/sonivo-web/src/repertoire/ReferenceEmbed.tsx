@@ -21,7 +21,7 @@ export function ReferenceEmbed({ resource }: { resource: ResourceSummary }) {
         <p className="text-sm font-semibold text-neutral-dark">{resource.label}</p>
         {resource.url ? (
           <a
-            className="break-all font-medium text-primary no-underline hover:underline"
+            className="break-all font-medium text-primary-ink no-underline hover:underline"
             href={resource.url}
             target="_blank"
             rel="noreferrer noopener"
