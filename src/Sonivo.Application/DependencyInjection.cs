@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<ITenantResolver, PathTenantResolver>();
         services.AddScoped<CreateGroupHandler>();
         services.AddScoped<ListMyGroupsHandler>();
+        services.AddScoped<ListUpcomingActivityHandler>();
         services.AddScoped<GetGroupHandler>();
         services.AddScoped<GetGroupBySlugHandler>();
         services.AddScoped<ChangeGroupSlugHandler>();

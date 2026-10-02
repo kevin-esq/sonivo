@@ -29,6 +29,52 @@ public sealed class EfEventStore : IEventStore
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<UpcomingActivityItem>> ListUpcomingForUserAsync(
+        Guid userId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return await _db.Memberships
+            .AsNoTracking()
+            .Where(m => m.UserId == userId)
+            .Join(
+                _db.Groups.AsNoTracking(),
+                m => m.GroupId,
+                g => g.Id,
+                (m, g) => new { GroupId = g.Id, GroupName = g.Name })
+            .Join(
+                _db.Events.AsNoTracking(),
+                x => x.GroupId,
+                e => e.GroupId,
+                (x, e) => new
+                {
+                    x.GroupId,
+                    x.GroupName,
+                    e.Id,
+                    e.Title,
+                    e.Type,
+                    e.StartsAt,
+                    e.Status,
+                    e.IsHidden,
+                })
+            .Where(x =>
+                x.Status == EventStatuses.Scheduled
+                && !x.IsHidden
+                && x.StartsAt >= now)
+            .OrderBy(x => x.StartsAt)
+            .ThenBy(x => x.Id)
+            .Take(limit)
+            .Select(x => new UpcomingActivityItem(
+                x.GroupId,
+                x.GroupName,
+                x.Id,
+                x.Title,
+                x.Type,
+                x.StartsAt))
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Event?> GetByIdWithItemsAsync(Guid groupId, Guid eventId, CancellationToken cancellationToken)
         => _db.Events
             .Include(e => e.Items)

@@ -1470,6 +1470,25 @@ app.MapGet("/api/groups", async (
 .WithName("ListMyGroups")
 .RequireAuthorization();
 
+// ADR-0053: upcoming events across the caller's groups (Inicio dashboard).
+app.MapGet("/api/activity/upcoming", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListUpcomingActivityHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var items = await handler.HandleAsync(userId.Value, cancellationToken);
+    return Results.Ok(items.Select(ToUpcomingActivityResponse));
+})
+.WithName("ListUpcomingActivity")
+.RequireAuthorization();
+
 app.MapPost("/api/groups", async (
     CreateGroupRequest request,
     ClaimsPrincipal principal,
@@ -3713,6 +3732,16 @@ static object ToGroupListResponse(GroupListItem item) => new
     memberCount = item.MemberCount,
     nextEventAt = item.NextEventAt,
     lastActivityAt = item.LastActivityAt
+};
+
+static object ToUpcomingActivityResponse(UpcomingActivityItem item) => new
+{
+    groupId = item.GroupId,
+    groupName = item.GroupName,
+    eventId = item.EventId,
+    title = item.Title,
+    type = item.Type,
+    startsAt = item.StartsAt
 };
 
 static object ToInvitationCreatedResponse(InvitationCreatedDto invitation) => new

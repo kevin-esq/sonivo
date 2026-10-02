@@ -390,6 +390,20 @@ export async function listMyGroups(): Promise<GroupSummary[]> {
   return apiRequest<GroupSummary[]>('/api/groups')
 }
 
+export type UpcomingActivity = {
+  groupId: string
+  groupName: string
+  eventId: string
+  title: string
+  type: string
+  startsAt: string
+}
+
+/** Upcoming events across every group the caller belongs to (ADR-0053). */
+export async function listUpcomingActivity(): Promise<UpcomingActivity[]> {
+  return apiRequest<UpcomingActivity[]>('/api/activity/upcoming')
+}
+
 export async function createGroup(name: string): Promise<GroupDetail> {
   return apiRequest<GroupDetail>('/api/groups', {
     method: 'POST',

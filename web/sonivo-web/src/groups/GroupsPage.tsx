@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpen,
   CalendarDays,
@@ -46,6 +46,7 @@ import {
 import { Button } from "../ui/button";
 import { fieldClass } from "../ui/field";
 import { useToast } from "../ui/toast";
+import { parseInviteToken } from "../tenancy/inviteToken";
 
 /* ================================================================== */
 /* Tipos y contrato de integración                                     */
@@ -93,15 +94,6 @@ const TOOLBAR_THRESHOLD = 4; // desde aquí aparecen filtros, orden y vista
 
 const isOwner = (group: GroupCardData) =>
   String(group.role).toLowerCase() === "owner";
-
-/** Acepta un enlace completo (https://…/join/TOKEN) o solo el código. */
-function parseInviteToken(raw: string): string | null {
-  const value = raw.trim();
-  if (!value) return null;
-  const fromUrl = value.match(/\/join\/([A-Za-z0-9._~-]+)/);
-  if (fromUrl) return fromUrl[1];
-  return /^[A-Za-z0-9._~-]{8,}$/.test(value) ? value : null;
-}
 
 /* ================================================================== */
 /* Piezas reutilizables: Modal, menú de acciones                       */
@@ -884,6 +876,7 @@ export function GroupsPage({
 }) {
   const { t, lang } = useT();
   const navigate = useNavigate();
+  const location = useLocation();
   const searchId = useId();
 
   const [groups, setGroups] = useState<GroupCardData[] | null>(null);
@@ -903,7 +896,11 @@ export function GroupsPage({
     null,
   );
 
-  const [dialog, setDialog] = useState<DialogState>(null);
+  const [dialog, setDialog] = useState<DialogState>(() =>
+    (location.state as { create?: boolean } | null)?.create
+      ? { type: "create" }
+      : null,
+  );
   const { showToast } = useToast();
   const { copy } = useCopyToClipboard();
 

@@ -94,12 +94,14 @@ test.describe('W6 light theme: shell contrast', () => {
 
     await page.goto('/cuenta')
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
-    await expect(page.getByRole('heading', { name: 'Cuenta', exact: true, level: 1 })).toBeVisible()
-    const cuentaNav = page.getByRole('navigation', { name: 'Secciones de la cuenta' })
+    await expect(page.getByRole('heading', { name: 'Mi cuenta', exact: true, level: 1 })).toBeVisible()
+    const cuentaNav = page
+      .getByTestId('app-sidebar')
+      .getByRole('navigation', { name: 'Secciones' })
 
     const brand = page.getByText('Sonivo', { exact: true })
     const logout = page.getByRole('button', { name: 'Cerrar sesión' })
-    const title = page.getByRole('heading', { name: 'Cuenta', exact: true, level: 1 })
+    const title = page.getByRole('heading', { name: 'Mi cuenta', exact: true, level: 1 })
     const activeTab = cuentaNav.getByRole('link', { name: 'Perfil' })
 
     await expectReadableText(brand)
@@ -131,7 +133,7 @@ test.describe('W6 light theme: shell contrast', () => {
     await page.getByRole('button', { name: 'Claro', exact: true }).click()
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
 
-    await page.goto('/')
+    await page.goto('/grupos')
     await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
     await expectReadableText(page.getByRole('button', { name: 'Nuevo grupo' }))
     await expectReadableText(page.getByRole('button', { name: 'Unirme con enlace' }).first())
@@ -140,7 +142,7 @@ test.describe('W6 light theme: shell contrast', () => {
     await page.getByRole('button', { name: 'Oscuro', exact: true }).click()
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark')
 
-    await page.goto('/')
+    await page.goto('/grupos')
     await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
     await expectReadableText(page.getByRole('button', { name: 'Nuevo grupo' }))
     await expectReadableText(page.getByRole('button', { name: 'Unirme con enlace' }).first())

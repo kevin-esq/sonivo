@@ -2,33 +2,6 @@ import type { ReactNode } from 'react'
 import type { CurrentUser } from '../api/client'
 import { AppHeader } from './AppHeader'
 
-/**
- * Chrome for the signed-in, non-group pages (My groups, account is separate).
- * The old white panel was removed in W1: content sits on the canvas and only
- * cards carry their own surface, aligned with the header container.
- */
-export function GroupsChrome({
-  user,
-  onLogout,
-  children,
-}: {
-  user: CurrentUser
-  onLogout: () => void
-  children: ReactNode
-}) {
-  return (
-    <div className="min-h-screen bg-canvas">
-      <AppHeader user={user} onLogout={onLogout} />
-      <main
-        id="main"
-        className="mx-auto w-full max-w-6xl px-4 py-8 text-ink sm:px-6 sm:py-10"
-      >
-        {children}
-      </main>
-    </div>
-  )
-}
-
 export function PublicChrome({
   children,
   user,

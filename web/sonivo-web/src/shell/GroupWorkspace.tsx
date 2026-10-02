@@ -281,7 +281,7 @@ export function GroupWorkspace({
             )
           ) : null}
           <Link
-            to="/"
+            to="/grupos"
             aria-label={collapsed ? t('workspace.myGroups') : undefined}
             title={collapsed ? t('workspace.myGroups') : undefined}
             className={cn(

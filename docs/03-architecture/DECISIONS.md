@@ -8,6 +8,39 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0053 — Inicio dashboard + app-shell sidebar (home redesign)
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-02 ("luz verde total … implementación completa respetando las fases, Playwright MCP y Git con `gh` a `develop`").
+- **Date:** 2026-10-02
+- **Amends:** ADR-0043 (visual direction stands; the information architecture of the signed-in, non-group routes changes).
+- **Reconciles / supersedes:** `PHASE-APP-HEADER-SPEC.md` decision **D4** ("AppHeader in the content column; no left rail on `/`") for `/` and the account routes. The state touched by the shipped W1 is reused; W2–W8 are absorbed into this phase where they still apply.
+- **See:** [`PHASE-HOME-DASHBOARD-SPEC.md`](PHASE-HOME-DASHBOARD-SPEC.md).
+
+### Decision
+
+- **`/` becomes the Inicio dashboard** (greeting, quick actions, "Tus grupos", "Tu próxima actividad", learning banner). The group list moves to **`/grupos`**. `Unirse a grupo` is a first-class nav route (`/unirse`).
+- **Persistent left sidebar** for authenticated, non-group routes, replacing the top-only chrome on `/` and `/cuenta`: Principal (`Inicio`, `Mis grupos`, `Unirse a grupo`), Cuenta (`Perfil`, `Notificaciones`, `Preferencias`), plus `Plan y facturación` and `Ayuda`, and a user card footer. The group workspace rail (`/groups/:id`) is unchanged. Mobile gets a drawer/bottom navigation; the layout is responsive.
+- **Top bar** carries the global search field, a notification bell and the user avatar → menu (Cuenta sections, Seguridad, Cerrar sesión).
+- **Search** filters the already-loaded groups and navigation actions on the client (no cross-entity backend search in this phase).
+- **New authenticated, group-scoped endpoint** `GET /api/activity/upcoming` returns the next events across the caller's groups (group id/name, title, type, `startsAt`), excluding cancelled/hidden events. Never trusts a client group id.
+- **Covers** stay emoji/gradient (device or server branding). Real per-group logo/cover upload is **FUTURE**; the card is built so a logo can replace the emoji without a layout change.
+- **i18n** es/en for every new string; **a11y** floor (focus-visible, ≥44px targets, `aria-live`, AA contrast) and light/dark parity per ADR-0043.
+
+### Firewall (explicit)
+
+- **No billing/payments** (ADR-0042 stands). `Plan y facturación` and `Uso y límites` are **disabled placeholders** ("Próximamente"); no gateway, no webhook, no plan/usage tables.
+- **No in-app notification center** and no bell backend — the bell and `Notificaciones` are **disabled placeholders** (FUTURE).
+- **No AuthZ/session/cookie changes**: server-enforced Group scope, Identity cookie + antiforgery (ADR-0009–0012, 0019–0020) stay untouched.
+- **No new dependencies**; **no real image cover upload** in this phase.
+- No change to the accepted brand mark or the es-default language policy.
+
+### Deltas vs current docs (flagged, not silent)
+
+- `PHASE-APP-HEADER-SPEC.md` D4 is superseded for `/` and account routes; its W2–W8 items are re-homed here where still wanted (bandeja de usuario, conmutador de grupo, búsqueda, footer/versión).
+- `CONTEXT.md` and `DESIGN.md` route/IA wording updated to match (`/` = Inicio, `/grupos` = Mis grupos).
+
+---
+
 ## ADR-0044 — DevSecOps baseline: SAST/SCA gates, CodeQL + Dependabot CI, backend security audit
 
 - **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-09-30 (DevSecOps engagement: audit, secure, and automate backend security).

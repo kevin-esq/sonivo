@@ -17,11 +17,16 @@ test.describe('W1 shell: Grupo vs Cuenta', () => {
     await expect(groupNav.getByRole('link', { name: 'Ajustes del grupo' })).toBeVisible()
 
     await page.goto('/cuenta')
-    await expect(page.getByRole('heading', { name: 'Cuenta', exact: true })).toBeVisible()
-    const cuentaNav = page.getByRole('navigation', { name: 'Secciones de la cuenta' })
-    for (const tab of ['Perfil', 'Preferencias', 'Seguridad', 'Mis grupos']) {
+    await expect(page.getByRole('heading', { name: 'Mi cuenta' })).toBeVisible()
+    const cuentaNav = page
+      .getByTestId('app-sidebar')
+      .getByRole('navigation', { name: 'Secciones' })
+    for (const tab of ['Perfil', 'Preferencias']) {
       await expect(cuentaNav.getByRole('link', { name: tab })).toBeVisible()
     }
+    // Notifications / plan are disabled placeholders (ADR-0053 H4).
+    await expect(page.getByTestId('nav-disabled-notifications')).toBeVisible()
+    await expect(page.getByTestId('nav-disabled-plan')).toBeVisible()
   })
 
   test('/settings/security redirects to /cuenta/seguridad with passkey section', async ({ page }) => {
@@ -49,13 +54,12 @@ test.describe('W1 shell: Grupo vs Cuenta', () => {
   test('language switcher flips chrome strings es<->en', async ({ page }) => {
     await register(page, uniqueEmail('w1lang'))
     await page.goto('/cuenta/preferencias')
-    const cuentaNav = page.getByRole('navigation', { name: 'Secciones de la cuenta' })
     await page.getByRole('button', { name: 'Inglés' }).click()
-    await expect(page.getByRole('navigation', { name: 'Account sections' })).toBeVisible()
-    await expect(
-      page.getByRole('navigation', { name: 'Account sections' }).getByRole('link', { name: 'My groups' }),
-    ).toBeVisible()
+    const enNav = page.getByRole('navigation', { name: 'Sections' })
+    await expect(enNav.getByRole('link', { name: 'My groups' })).toBeVisible()
     await page.getByRole('button', { name: 'Spanish', exact: true }).click()
-    await expect(cuentaNav.getByRole('link', { name: 'Mis grupos' })).toBeVisible()
+    await expect(
+      page.getByRole('navigation', { name: 'Secciones' }).getByRole('link', { name: 'Mis grupos' }),
+    ).toBeVisible()
   })
 })

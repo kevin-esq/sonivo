@@ -50,10 +50,12 @@
   --color-shell-border: rgba(255, 255, 255, 0.1);
   --color-shell-edge: rgba(255, 255, 255, 0);
   --color-shell-hover: rgba(255, 255, 255, 0.06);
-  --color-surface: #ffffff;
-  --color-ink: #0f172a;
-  --color-muted: #64748b;
-  --color-surface-hover: rgba(255, 255, 255, 0.04);
+  /* Real dark surfaces (ADR-0053 / PHASE-APP-HEADER-SPEC D1): content cards follow
+     the dark theme instead of staying white. */
+  --color-surface: #111a2e;
+  --color-ink: #e2e8f0;
+  --color-muted: #94a3b8;
+  --color-surface-hover: rgba(255, 255, 255, 0.06);
   --color-border-subtle: rgba(255, 255, 255, 0.1);
 }
 

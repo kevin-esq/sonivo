@@ -59,5 +59,5 @@ test('managed account is forced to change its temporary password', async ({ page
   await page.getByTestId('must-change-submit').click()
 
   await expect(dialog).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
 })
