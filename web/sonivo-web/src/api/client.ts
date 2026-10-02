@@ -86,14 +86,20 @@ export type CurrentUser = {
   email: string | null
   displayName: string | null
   emailConfirmed: boolean
+  mustChangePassword?: boolean
+  managedByGroupId?: string | null
 }
 
 export type GroupSummary = {
   id: string
   name: string
+  slug?: string | null
   role: string
   version: number
   createdAt: string
+  memberCount?: number
+  nextEventAt?: string | null
+  lastActivityAt?: string | null
 }
 
 export type GroupDetail = GroupSummary & {
@@ -113,6 +119,13 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
     }
     throw error
   }
+}
+
+export async function changePassword(input: {
+  currentPassword: string
+  newPassword: string
+}): Promise<void> {
+  await apiRequest('/api/auth/change-password', { method: 'POST', body: input })
 }
 
 export async function registerUser(input: {
@@ -139,6 +152,27 @@ export async function loginUser(input: {
     method: 'POST',
     body: input,
   })
+  clearCsrfToken()
+  await ensureCsrfToken()
+  return result
+}
+
+/**
+ * ADR-0047: managed members without an email sign in as `handle@slug`. Handle and
+ * slug are sent separately to the dedicated endpoint; it never consults emails.
+ */
+export async function loginWithHandle(input: {
+  slug: string
+  handle: string
+  password: string
+  rememberMe?: boolean
+}): Promise<CurrentUser | { requiresTwoFactor: true }> {
+  clearCsrfToken()
+  await ensureCsrfToken()
+  const result = await apiRequest<CurrentUser | { requiresTwoFactor: true }>(
+    `/api/auth/login/handle/${encodeURIComponent(input.slug)}`,
+    { method: 'POST', body: { handle: input.handle, password: input.password, rememberMe: input.rememberMe } },
+  )
   clearCsrfToken()
   await ensureCsrfToken()
   return result
@@ -367,6 +401,66 @@ export async function getGroup(groupId: string): Promise<GroupDetail> {
   return apiRequest<GroupDetail>(`/api/groups/${groupId}`)
 }
 
+export type GroupBySlug = GroupDetail & { moved?: boolean }
+
+/** Resolves a path slug to its group (current or historical, with `moved`). */
+export async function getGroupBySlug(slug: string): Promise<GroupBySlug> {
+  return apiRequest<GroupBySlug>(`/api/groups/by-slug/${encodeURIComponent(slug)}`)
+}
+
+export type GroupBranding = {
+  groupId: string
+  displayName: string | null
+  accentHex: string | null
+  coverKind: string | null
+  coverValue: string | null
+  themeDefault: string | null
+  defaultLocale: string | null
+  welcomeText: string | null
+  loginHeadline: string | null
+  hasLogo: boolean
+  logoUrl: string | null
+  showSonivoCredit: boolean
+  version: number
+}
+
+export type PublicBranding = {
+  name: string | null
+  logoUrl: string | null
+  accentHex: string | null
+  loginHeadline: string | null
+}
+
+export async function getGroupBranding(groupId: string): Promise<GroupBranding> {
+  return apiRequest<GroupBranding>(`/api/groups/${groupId}/branding`)
+}
+
+export async function updateGroupBranding(
+  groupId: string,
+  input: {
+    expectedVersion: number
+    displayName?: string | null
+    accentHex?: string | null
+    coverKind?: string | null
+    coverValue?: string | null
+    themeDefault?: string | null
+    defaultLocale?: string | null
+    welcomeText?: string | null
+    loginHeadline?: string | null
+    showSonivoCredit?: boolean
+  },
+): Promise<GroupBranding> {
+  return apiRequest<GroupBranding>(`/api/groups/${groupId}/branding`, {
+    method: 'PUT',
+    body: input,
+  })
+}
+
+/** Anonymous, uniform branding read for the branded access screen. */
+export async function getPublicBranding(slug: string): Promise<PublicBranding> {
+  return apiRequest<PublicBranding>(`/api/groups/by-slug/${encodeURIComponent(slug)}/branding`)
+}
+
 export async function updateGroup(
   groupId: string,
   input: { name: string; expectedVersion: number },
@@ -388,6 +482,7 @@ export type MemberListItem = {
   userId: string
   displayName: string
   role: string
+  musicalRole?: string | null
   createdAt: string
 }
 
@@ -403,11 +498,23 @@ export async function removeMember(groupId: string, userId: string): Promise<voi
 export async function changeMemberRole(
   groupId: string,
   userId: string,
-  role: 'Owner' | 'Member',
+  role: 'Owner' | 'Manager' | 'Member' | 'Viewer',
 ): Promise<void> {
   await apiRequest<void>(`/api/groups/${groupId}/members/${userId}/role`, {
     method: 'POST',
     body: { role },
+  })
+}
+
+/** ADR-0051: Owner or Manager sets a member's descriptive musical role (null clears it). */
+export async function setMemberMusicalRole(
+  groupId: string,
+  userId: string,
+  musicalRole: string | null,
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/members/${userId}/musical-role`, {
+    method: 'PUT',
+    body: { musicalRole },
   })
 }
 
@@ -637,6 +744,61 @@ export async function getArrangement(
   return apiRequest<ArrangementDetail>(
     `/api/groups/${groupId}/arrangements/${arrangementId}`,
   )
+}
+
+/** Anonymous feature flags exposed by the API. */
+export type FeatureFlags = {
+  lrc: boolean
+  stageMode: boolean
+  groupBranding: boolean
+  notifications: boolean
+}
+
+export async function fetchFeatures(): Promise<FeatureFlags> {
+  return apiRequest<FeatureFlags>('/api/features')
+}
+
+export type LrcPreview = {
+  encoding: string
+  lyrics: string
+  chordTimingJson: string | null
+  markCount: number
+  metadata: {
+    title: string | null
+    artist: string | null
+    album: string | null
+    by: string | null
+    offsetMs: number
+  }
+  warnings: string[]
+  errors: Array<{ line: number; reason: string }>
+}
+
+/** Preview only: the API never persists on import (ADR-0050). */
+export async function importArrangementLrc(
+  groupId: string,
+  arrangementId: string,
+  input: { content?: string; contentBase64?: string; offsetMs?: number },
+): Promise<LrcPreview> {
+  return apiRequest<LrcPreview>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/lyrics/import-lrc`,
+    { method: 'POST', body: input },
+  )
+}
+
+/** Returns the raw .lrc text (plain text, not JSON). */
+export async function exportArrangementLrc(
+  groupId: string,
+  arrangementId: string,
+): Promise<string> {
+  const response = await fetch(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/lyrics/export.lrc`,
+    { credentials: 'include' },
+  )
+  if (!response.ok) {
+    throw new ApiError(`export failed (${response.status})`, response.status)
+  }
+  return response.text()
 }
 
 export async function updateArrangement(

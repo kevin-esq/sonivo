@@ -63,7 +63,7 @@ Severity classification: **Critical** (exploitable authentication/authorization 
 - **Root cause:** S3 (ADR-0038) implemented the WebAuthn *ceremony transport* (challenge generation, SPA `navigator.credentials.*`) but never the *verifier* — the server side of WebAuthn. The browser-side plumbing is real (`web/sonivo-web/src/shell/webauthn.ts:70,105,111` already base64url-encodes `attestationObject`, `clientDataJSON`, `authenticatorData`, `signature`), which makes the flaw invisible in E2E: the real ceremony passes because nothing is checked.
 - **Risk vector:** In the WebAuthn model, credential IDs are **non-secret identifiers** (they appear in assertions and allow-lists by design). Any single leak of a victim's credential ID — a log line, a future API that ever returns them to other actors, a phishing page relaying the flow, a Referer, support tooling — yields **permanent, silent account takeover**: no signature check, no challenge binding (replay is unbounded), no origin/RP-ID binding, no sign-counter (authenticator cloning undetectable). Meanwhile users believe they hold phishing-resistant MFA. This defeats the security posture of every other control in the auth stack for passkey-registered accounts.
 - **Fix:** implement the server-side verifier (challenge consumption + origin allow-list + RP-ID hash + user-present/verified flags + ES256/RS256 assertion signature + sign-counter regression + attestation parse). **Complete drop-in implementation below (§ 6.1).** Requires the one new (Microsoft, dotnet/runtime-repo) dependency `System.Formats.Cbor` — **pending explicit approval** per repo dependency policy.
-- **Status:** **FIXED** — T-SEC-01/02/03 implemented: server-side verifier (`PasskeyVerifier`: challenge single-use, origin allow-list, rpIdHash, UP/AT flags, sign-counter regression, ES256/RS256 assertion signatures, `none`/`packed` attestation), frontend pass-through, RED→GREEN fake-authenticator matrix; legacy pre-fix rows fail closed (uniform 401). See §6.1.
+- **Status:** **FIXED** — T-SEC-01/02/03 implemented: server-side verifier (`PasskeyVerifier`: challenge single-use, origin allow-list, rpIdHash, UP/AT flags, sign-counter regression, ES256/RS256 assertion signatures), frontend pass-through, RED→GREEN fake-authenticator matrix; legacy pre-fix rows fail closed (uniform 401). **C1 follow-up (2026-09-30):** attestation statements are no longer verified and **any `fmt` is accepted** — conveyance is `none` and registration integrity comes from the challenge/origin/rpIdHash/flags checks plus the login assertion. The earlier `none`/`packed` allowlist + packed-self-attestation verification locked out real authenticators (Apple `apple`, password-manager `packed` with an attestation certificate, e.g. Bitwarden). Verification failures are now logged at Warning (the verifier's fixed reason only — never payloads or secrets). **Second C1 follow-up (2026-09-30):** the ES256 assertion verifier now accepts **both ASN.1 DER and raw `r||s`** signatures (authenticators emit either, and .NET's own ECDSA format is platform-dependent) — real password-manager passkeys (WebCrypto-based) were rejected by the DER-only path. See §6.1.
 
 ### MEDIUM
 
@@ -73,16 +73,17 @@ Severity classification: **Critical** (exploitable authentication/authorization 
 - **Evidence:** `Program.cs:320-398` — no `RequireRateLimiting`; every sibling auth endpoint has one (`Program.cs:318,473,503,532,580,654,695,737,785,832,873,948,985,1005,1018,1069`).
 - **Root cause / risk:** Identity lockout (5/15 min, `lockoutOnFailure: true`) protects *per account*; multi-account **credential stuffing** rotates victim emails to stay under lockout. Combined with M2 (spoofable per-IP key), the defense-in-depth layer is weaker than designed.
 - **Fix (surgical):** add `options.AddPolicy("auth-login", http => PerIp(http, 20));` and `.RequireRateLimiting("auth-login")` on the login endpoint.
-- **Status:** PLAN READY — 2 lines.
+- **Status:** **FIXED** (wave 2) — the `auth-login` fixed-window policy is added and applied to the login endpoint. Implemented at **30/min** (matching the register/confirm budgets, which the sequential E2E suite stays well under); the 20/min in the fix note above was the initial estimate.
 
-#### M2 — Forwarded headers trust **any** proxy in production → every per-IP rate limit is bypassable via `X-Forwarded-For` spoofing
+#### M2 — Forwarded headers trust **any** proxy in production — **spoofing vector REFUTED by live verification; retained as a documented config-hygiene residual**
 
 - **OWASP/CWE:** A05:2021 Security Misconfiguration · CWE-348 (Trust of Unintended Proxy)
-- **Evidence:** `Program.cs:106-114` — non-dev clears `KnownNetworks` **and** `KnownProxies` (trust-all); rate partitions key on `http.Connection.RemoteIpAddress` (`Program.cs:81-90`), which after `UseForwardedHeaders` (`Program.cs:166-168`) reflects the client-supplied (unvalidated) `X-Forwarded-For` chain.
-- **Root cause:** Render does not publish static proxy egress IPs, so the integration was configured trust-all.
-- **Risk:** one header per request rotates the partition key → the register/confirm/resend/forgot/reset/2FA/passkeys budgets (10-30/min) are **unlimited** for scripted callers. Compounding: IPv6 clients can also rotate inside a /64. Per-account Identity lockout still stands (the residual mitigations are real but per-account only), and `forgot-password` has **no per-email cooldown** (unlike resend, `VerificationThrottle` is only wired into resend `Program.cs:482-487`) → unbounded mail-bombing of arbitrary addresses is possible via `forgot-password` + spoofed XFF.
-- **Fix:** (a) constrain `KnownProxies`/`KnownNetworks` to the effective hosting proxy range(s) once known, or at minimum keep trust-all **documented as a residual risk** while adding per-account budgets that do not depend on IP: (b) per-email cooldown for `forgot-password` (reuse `VerificationThrottle`), (c) `auth-login` per-IP policy (M1). Also consider an IPv6 /64-truncating partition key.
-- **Status:** **FIXED-in-part** — IPv6 rate-limit partition keys are now truncated to their /64 network (an attacker can no longer rotate the partition key within a /64), and `forgot-password` now has a per-email cooldown (see L4). **Residual:** `KnownProxies`/`KnownNetworks` remain unpinned (Render publishes no static egress IPs), so `X-Forwarded-For` stays trust-all; absolute per-account budgets that do not depend on IP remain a follow-up.
+- **Original evidence / hypothesis:** `Program.cs:106-114` clears `KnownNetworks` **and** `KnownProxies` (trust-all); rate partitions key on `http.Connection.RemoteIpAddress` after `UseForwardedHeaders`. The audit hypothesised that a client-supplied `X-Forwarded-For` would therefore control the partition key and allow rate-limit evasion.
+- **Live verification (2026-09-30, owner-authorized, against production `sonivo.onrender.com`):** a **parallel burst of 40 login attempts carrying 40 distinct client-supplied `X-Forwarded-For` values** still exhausted the per-IP budget — **29× HTTP 400 + 11× HTTP 429** — proving the partition key is **not** the client-controlled value. Root cause of the refuted hypothesis: ASP.NET's `ForwardedHeadersMiddleware`, with empty `KnownProxies`/`KnownNetworks`, sets `checkKnownIps = false`, consumes the whole XFF list right-to-left and keeps the **leftmost** entry as `RemoteIpAddress` (verified in the middleware source); Render **prepends the true client IP** as the first XFF entry, so a client cannot control it.
+- **Conclusion:** the per-IP budgets (register / confirm / resend / forgot / reset / 2FA / passkeys / login) are keyed on the **true client IP** and are **not spoofable via `X-Forwarded-For`** in this topology. The vector as originally described does not reproduce.
+- **Kept hardening:** IPv6 partition keys are truncated to their /64 (wave 3); `forgot-password` has a per-email cooldown (L4, wave 3).
+- **Residual (documented, accepted):** the trust-all `KnownProxies`/`KnownNetworks` relies on Render's edge prepending the real client IP (Render-documented + verified live above). A `CF-Connecting-IP`-based configuration was evaluated as defense-in-depth and **withdrawn**: it is unnecessary given the verified behaviour and would add coupling plus a failure mode (if that header were ever absent, `RemoteIpAddress` would fall back to the proxy peer → a shared/global budget).
+- **Status:** **VERIFIED-NOT-EXPLOITABLE** (spoofing refuted by live test); IPv6 /64 + per-email cooldown hardening retained; trust-all documented as an accepted residual.
 
 #### M3 — Google test-callback hook is single-gated (config flag only); the email test hook is double-gated — inconsistent backstop
 
@@ -90,7 +91,7 @@ Severity classification: **Critical** (exploitable authentication/authorization 
 - **Evidence:** `GoogleAuthSetup.cs:48,115-172` — `/api/auth/google/test-callback` fabricates an `ExternalLoginInfo` from **arbitrary** `ProviderKey`/`Email`/`EmailVerified` and signs the user in, gated only by `Authentication:Google:EnableTestHook`. Contrast the email hook, double-gated flag **AND** `IsDevelopment()` (`Program.cs:1075-1076`).
 - **Risk:** a single misconfigured prod flag = unauthenticated full account takeover for any email. The email hook's own comment explains why the env gate is the backstop ("a misconfigured prod flag alone can never enable it") — the Google hook lacks exactly that backstop.
 - **Fix (surgical):** `var testHook = app.Configuration.GetValue("Authentication:Google:EnableTestHook", false) && app.Environment.IsDevelopment();` — mirrors the documented pattern.
-- **Status:** PLAN READY — 1 line.
+- **Status:** **FIXED** (wave 2) — the Google test-callback hook is now double-gated (config flag **AND** `IsDevelopment()`), mirroring the email-hook backstop; `GoogleAuthApiTests`/`TwoFactorApiTests` stay green (their factory runs in Development).
 
 #### M4 — Vulnerable transitive dependency chain `System.Security.Cryptography.Xml` 9.0.9 (8 × High advisories)
 
@@ -139,7 +140,7 @@ Severity classification: **Critical** (exploitable authentication/authorization 
 
 ---
 
-## 5. Applied in this engagement (P0 — already in the working tree)
+## 5. Applied in this engagement (all **MERGED**: PRs #124, #125, #127; release #128 → `main`)
 
 | # | Change | File |
 | - | ------ | ---- |
@@ -153,13 +154,15 @@ Severity classification: **Critical** (exploitable authentication/authorization 
 | 8 | This audit report | `docs/03-architecture/SECURITY-AUDIT-2026-09.md` (new) |
 | 9 | Tooling decision record | ADR-0044 in `DECISIONS.md`; `docs/tooling/TOOLING-AUDIT.md` |
 
-**Verification of the applied batch:** build Release **green (0 warnings / 0 errors)**; gates empirically proven (pre-fix build failed with 32 NU1903 errors; CA5350 caught and triaged); full backend suite **444/444** vs live PostgreSQL; `dotnet list package --vulnerable --include-transitive` clean on all 8 projects.
+**Verification of the applied batch:** build Release **green (0 warnings / 0 errors)**; gates empirically proven (pre-fix build failed with 32 NU1903 errors; CA5350 caught and triaged); full backend suite **460/460** vs live PostgreSQL (Domain 80 · Application 176 · Integration 57 · API 147); Playwright **48/48** in CI; `dotnet list package --vulnerable --include-transitive` clean on all 8 projects.
 
 ---
 
-## 6. Remediation plan (prioritized; P1/P2 pending explicit approval — no code-level auth changes applied in this engagement)
+## 6. Remediation plan (prioritized) — **implemented in waves 2–3 (PRs #125, #127) and verified in production (§ 9)**
 
 ### P1-A (CRITICAL C1) — Full server-side WebAuthn verification
+
+> **Superseded by the shipped implementation (wave 2, PR #125).** The code below is the approved plan; the shipped `PasskeyVerifier` (`src/Sonivo.Api/Auth/PasskeysAuth.cs`) differs in three reviewed ways: (1) the COSE EC2 layout was corrected (`-1`=crv, `-2`=x, `-3`=y; the plan's version conflated `crv`/`x`), (2) legacy pre-fix credential rows now fail closed with the uniform 401 (auditor-added guard + regression test), and (3) parse failures are wrapped into the uniform 401 (no 500 oracle). Treat the shipped code and its tests as the source of truth.
 
 **Decision needed first:** add `System.Formats.Cbor` (Microsoft, maintained in the dotnet/runtime repo; verified NOT inbox on net9.0) to `Sonivo.Api.csproj`. Hand-rolling CBOR parsing for crypto structures is rejected (home-rolled parsing of attestation data is exactly what C1 exists to remove).
 
@@ -520,31 +523,17 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
 
 ---
 
-## 7. GitHub automation & PR gating (applied + required sequence)
+## 7. GitHub automation & PR gating (**applied and verified 2026-09-30**)
 
-**Applied now (files in working tree):** `codeql.yml` (SAST), `security.yml` (SCA gate), `dependabot.yml` (updates + security PRs), plus the build-time gates (Directory.Build.props NuGetAudit-as-errors; `.editorconfig` security analyzers) that the **existing** `ci.yml` backend job enforces automatically — CI already blocks: failing tests, vulnerable dependencies (restore-time), security-analyzer findings, broken builds.
+**Applied:** `codeql.yml` (SAST), `security.yml` (SCA gate), `dependabot.yml` (updates + security PRs), plus the build-time gates (`Directory.Build.props` NuGetAudit-as-errors; `.editorconfig` security analyzers) that the **existing** `ci.yml` backend job enforces automatically — CI blocks: failing tests, vulnerable dependencies (restore-time), security-analyzer findings, broken builds. **Dependabot alerts and automated security updates are enabled** (verified via API: `automated-security-fixes.enabled = true`; version-update PRs #129–#151 opened by the config).
 
-**Required checks (run AFTER the workflows land on the default branch — required status checks resolve only from workflows on the default branch; setting them today would leave PRs pending forever).** With `gh` authenticated as `kevin-esq` (scopes `repo`+`workflow` present), run:
+**Required checks — APPLIED to both `main` and `develop`** (verified: 5 contexts, `strict: true`, `enforce_admins: true`, no force-pushes, no deletions):
 
-```bash
-gh api -X PUT repos/kevin-esq/sonivo/branches/main/protection --input - <<'JSON'
-{
-  "required_status_checks": {
-    "strict": true,
-    "contexts": ["Backend build & tests", "Frontend build", "Playwright E2E",
-                 "Analyze (C#)", "SCA gate (NuGet vulnerabilities)"]
-  },
-  "enforce_admins": true,
-  "required_pull_request_reviews": { "dismiss_stale_reviews": true },
-  "restrictions": null,
-  "allow_force_pushes": false,
-  "allow_deletions": false
-}
-JSON
-# Repeat for `develop` (PRs merge into develop first per repo flow).
+```
+Backend build & tests · Frontend build · Playwright E2E · Analyze (C#) · SCA gate (NuGet vulnerabilities)
 ```
 
-**Deploy gating:** Render deploys on push to `main` (`render.yaml`); with the above protection on `main`, merges require all five checks green → deploys are gated by the same security suite. Optionally configure Render's deploy hook to require CI completion. **GitHub Settings to enable once (UI, no file equivalent):** Settings → Code security → Dependabot alerts + security updates; Code scanning results appear automatically from CodeQL SARIF.
+**Deploy gating (verified):** the Render service builds the **`develop`** branch with **Auto-Deploy = On Commit** (the service is configured manually; `render.yaml` is not the applied source). Therefore **branch protection on `develop` is what gates production** — every merge to `develop` must pass the five checks before it can auto-deploy. `main` is protected identically as the stable/release branch.
 
 ---
 
@@ -558,6 +547,28 @@ JSON
 | Dependabot (nuget/npm/actions) | **ADOPTED** | Continuous updates + security PRs; complements the audit gates |
 | Security Code Scan (Roslyn SAST NuGet) | **REJECTED** | Redundant with NetAnalyzers + CodeQL; low maintenance activity; a new compile-time dependency |
 | OWASP Dependency-Check (local/CI) | **REJECTED** | Requires a Java runtime + NVD API key plumbing; redundant with NuGetAudit + Dependabot (same advisory DB, already gated twice) |
-| `System.Formats.Cbor` (for C1 fix) | **PENDING APPROVAL** | Required for CBOR attestation parsing; Microsoft-maintained in dotnet/runtime; verified NOT inbox on net9.0 |
+| `System.Formats.Cbor` (for C1 fix) | **ADOPTED** | Approved with the remediation plan and shipped in wave 2 (`Sonivo.Api.csproj`, v9.0.20); Microsoft-maintained in dotnet/runtime; verified NOT inbox on net9.0 |
 
 **Auditor capability:** no new skills installed — the authorized project-local `webappsec-review` skill (two-pass method) was the audit engine; `decision-record` documents the tooling outcome (ADR-0044). Per ADR-0002/0039/0041 no additional skills or user-global tooling were introduced.
+
+---
+
+## 9. Production verification (2026-09-30, owner-authorized Render session)
+
+Performed against the live service (`sonivo.onrender.com`, Render service `srv-dalt5oad0e5s738i5ldg`), **read-only** unless noted. **No secrets were read or recorded** — env-var verification checked key **presence only**.
+
+| Check | Result |
+| ----- | ------ |
+| Deployed revision | **`develop` @ `bb4b8a0`** — the service builds **`develop`** with Auto-Deploy On Commit (configured manually; `render.yaml` is not the applied source). Deploy history confirms waves #124/#125/#127 auto-deployed and **Live** → production carries the full remediation. |
+| Security headers (live HTML) | `Content-Security-Policy` = the wave-3 hardened policy ✓; `Strict-Transport-Security: max-age=2592000` ✓; `X-Content-Type-Options: nosniff` ✓; `X-Frame-Options: DENY` ✓; `X-Request-Id` ✓. Edge: `Server: cloudflare`, `x-render-origin-server: Kestrel`. |
+| CSP under the real SPA (browser) | App renders (`#root` populated), **Google Fonts load**, **0 console errors / 0 warnings → no CSP violations** ✓ (closes the earlier "CSP statically verified only" residual). |
+| Env vars (presence only) | **Present:** `ASPNETCORE_ENVIRONMENT`, `SONIVO_MIGRATE_ON_START`, `PublicOrigin`, `ConnectionStrings__Default`, `Gmail__*` (4), `R2__*` (4). **Absent:** `Passkeys__RelyingPartyId`, `Passkeys__AllowedOrigins` (passkeys still work via the `PublicOrigin`/`Host` fallbacks) and `Authentication__Google__*` (**Google sign-in is not configured in production** — a feature gap, not a security issue; the button self-hides via `/api/auth/providers`). |
+| M2 (rate-limit keying) | **Live test REFUTED the `X-Forwarded-For` spoofing vector** (see the M2 finding): a parallel burst of 40 distinct spoofed XFF values still exhausted the 30/min budget (29×400 + 11×429) → the key is the true client IP. |
+| L3 (non-root container) | Direct `whoami` not possible (Render Shell requires a paid plan). Indirect: the wave-3 deploy (which adds `USER app`) is **Live and serving requests** with no permission failures. |
+| Render settings reviewed | Branch = `develop`; **Auto-Deploy On Commit**; PR Previews **Off**; failure notifications **on** (workspace default); deploy hook present (secret — keep private); Edge Caching / Maintenance Mode unavailable on Free. |
+
+**Recommendations (not applied — require owner action):**
+1. Add `Passkeys__RelyingPartyId=sonivo.onrender.com` and `Passkeys__AllowedOrigins=https://sonivo.onrender.com` to the Render env (robustness; current fallbacks work).
+2. Configure Google sign-in (`Authentication__Google__ClientId/ClientSecret`) if that feature is intended in production (currently unconfigured).
+3. Review the Dependabot major-version PRs (#129–#151) selectively — the required checks block any that break the build.
+4. A live passkey ceremony against production was **not** performed: it needs a confirmed account, and email confirmation requires mailbox access. The deployed revision + the CI E2E ceremony (48/48) cover the code path.

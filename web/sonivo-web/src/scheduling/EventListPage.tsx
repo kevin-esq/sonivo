@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Calendar, CalendarDays, ChevronRight, Mic2, Search, Sparkles } from 'lucide-react'
 import {
   createEvent,
+  fetchFeatures,
   listEvents,
   type CurrentUser,
   type EventListItem,
@@ -14,7 +15,7 @@ import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
 import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '../repertoire/chrome'
 import {
-  isOwnerRole,
+  canManageContentRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -24,7 +25,7 @@ import { plural } from '../ui/plural'
 import { formatEventType, formatStartsAt, fromDatetimeLocalValue } from './datetime'
 
 const EVENT_TILES = [
-  { Icon: CalendarDays, tileClass: 'bg-primary/15 text-primary' },
+  { Icon: CalendarDays, tileClass: 'bg-primary/15 text-primary-ink' },
   { Icon: Mic2, tileClass: 'bg-accent/20 text-accent' },
   { Icon: Sparkles, tileClass: 'bg-success/20 text-neutral-dark' },
   { Icon: Calendar, tileClass: 'bg-secondary text-neutral-dark' },
@@ -42,8 +43,23 @@ export function EventListPage({ user }: { user: CurrentUser }) {
   const [listError, setListError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [query, setQuery] = useState('')
+  const [calendarEnabled, setCalendarEnabled] = useState(false)
 
-  const isOwner = isOwnerRole(group?.role)
+  useEffect(() => {
+    let cancelled = false
+    void fetchFeatures()
+      .then((flags) => {
+        if (!cancelled) setCalendarEnabled(flags.notifications === true)
+      })
+      .catch(() => {
+        if (!cancelled) setCalendarEnabled(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const isOwner = canManageContentRole(group?.role)
 
   const filtered = useMemo(() => {
     if (!events) return null
@@ -96,7 +112,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('agenda.myGroups')}
         </Link>
       </div>
@@ -121,9 +137,20 @@ export function EventListPage({ user }: { user: CurrentUser }) {
             {!isOwner ? <p className="text-sm text-muted">Solo lectura</p> : null}
           </div>
           {events !== null ? (
-            <ReadinessChip testId="events-count" tone="neutral">
-              {plural(events.length, t('common.eventOne'), t('common.eventMany'))}
-            </ReadinessChip>
+            <div className="flex items-center gap-4">
+              <ReadinessChip testId="events-count" tone="neutral">
+                {plural(events.length, t('common.eventOne'), t('common.eventMany'))}
+              </ReadinessChip>
+              {calendarEnabled && groupId ? (
+                <a
+                  data-testid="events-calendar-feed"
+                  className="text-sm font-semibold text-primary-ink no-underline hover:underline"
+                  href={`/api/groups/${groupId}/calendar.ics`}
+                >
+                  {t('agenda.calendarFeed')}
+                </a>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </header>
@@ -178,7 +205,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                 </Button>
               ) : (
                 <Link
-                  className="font-semibold text-primary no-underline hover:underline"
+                  className="font-semibold text-primary-ink no-underline hover:underline"
                   to={`/groups/${group.id}/library`}
                 >
                   Ir a la biblioteca

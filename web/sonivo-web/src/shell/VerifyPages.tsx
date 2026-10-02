@@ -25,7 +25,7 @@ function VerifyShell({
       <div className="mb-10">
         <BrandLockup to="/login" />
       </div>
-      <main className="mx-auto w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-sm">
+      <main id="main" className="mx-auto w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
         {children}
       </main>
@@ -68,7 +68,7 @@ export function ConfirmPage() {
         <div className="space-y-3">
           <p className="text-sm text-slate-600">{t('verify.confirmed')}</p>
           <Link
-            className="inline-block font-semibold text-primary no-underline hover:underline"
+            className="inline-block font-semibold text-shell-link no-underline hover:underline"
             to="/login"
           >
             {t('verify.goLogin')}
@@ -77,7 +77,7 @@ export function ConfirmPage() {
       ) : null}
       {status === 'error' ? (
         <div className="space-y-3">
-          <p role="alert" className="text-sm text-error">
+          <p role="alert" className="text-sm text-shell-error">
             {t('verify.linkInvalid')}
           </p>
           {resent ? (
@@ -130,7 +130,7 @@ export function ForgotPasswordPage() {
       ) : (
         <form className="space-y-4" onSubmit={onSubmit} noValidate>
           {error ? (
-            <p role="alert" className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error">
+            <p role="alert" className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-shell-error">
               {error}
             </p>
           ) : null}
@@ -181,14 +181,14 @@ export function ResetPasswordPage() {
   return (
     <VerifyShell title={t('verify.resetTitle')}>
       {!email || !token ? (
-        <p role="alert" className="text-sm text-error">
+        <p role="alert" className="text-sm text-shell-error">
           {t('verify.linkInvalid')}
         </p>
       ) : done ? (
         <div className="space-y-3">
           <p className="text-sm text-slate-600">{t('verify.resetDone')}</p>
           <Link
-            className="inline-block font-semibold text-primary no-underline hover:underline"
+            className="inline-block font-semibold text-shell-link no-underline hover:underline"
             to="/login"
           >
             {t('verify.goLogin')}
@@ -197,7 +197,7 @@ export function ResetPasswordPage() {
       ) : (
         <form className="space-y-4" onSubmit={onSubmit} noValidate>
           {error ? (
-            <p role="alert" className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error">
+            <p role="alert" className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-shell-error">
               {error}
             </p>
           ) : null}
