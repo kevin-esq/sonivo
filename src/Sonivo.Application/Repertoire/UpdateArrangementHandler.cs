@@ -45,7 +45,7 @@ public sealed class UpdateArrangementHandler
         UpdateArrangementCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var arrangement = await _arrangements.GetByIdWithResourcesAsync(
             command.GroupId,

@@ -23,5 +23,13 @@ Working ubiquitous language. ACCEPTED ADRs 0005–0025.
 | **Member → Part assignment**                        | OUT OF MVP                                                                                            | OUT / FUTURE |
 | **Arrangement version history / duplicate**         | OUT OF MVP                                                                                            | OUT / FUTURE |
 | **Practice player**                                 | IN (Wave 2 Arrangement; Wave 3 Event/Setlist queue)                                                   | ADR-0029     |
+| **White label (group branding)**                    | Per-group name, logo, accent, cover, theme, copy stored server-side (`GroupBranding`)                 | PROPOSED (ADR-0048) |
+| **Member roster**                                   | The people of a group; the unified `Membership` row, which may have no linked `UserId`                | PROPOSED (ADR-0046) |
+| **Managed account**                                 | Account created by a group and resettable by that Owner while `ManagedByGroupId` matches               | PROPOSED (ADR-0046/0047) |
+| **Activation link**                                 | Single-use, expiring link that lets a member set their own credential (used when an email exists)      | PROPOSED (ADR-0047) |
+| **Temporary password / MustChangePassword**          | One-time credential shown once, plus a server-enforced flag that blocks the API until changed         | PROPOSED (ADR-0047) |
+| **Handle**                                          | The access identifier of an account without email; stored separately from `GroupId`                    | PROPOSED (ADR-0046) |
+| **Public host / tenant host**                       | The DNS host that serves a group's branded surface; resolved from `GroupDomain`                        | PROPOSED (ADR-0049) |
+| **One-time code (exchange)**                        | Short-lived, host-bound, single-use code that turns a central-auth session into a host-only session    | PROPOSED (ADR-0049) |
 
 Update when ADRs change.

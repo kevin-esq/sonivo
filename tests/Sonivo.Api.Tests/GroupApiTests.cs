@@ -12,13 +12,15 @@ using Sonivo.Infrastructure.Persistence;
 
 namespace Sonivo.Api.Tests;
 
-public class GroupApiTests : IClassFixture<SonivoApiFactory>
+public class GroupApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<GroupBrandingOffFactory>
 {
     private readonly SonivoApiFactory _factory;
+    private readonly GroupBrandingOffFactory _factoryOff;
 
-    public GroupApiTests(SonivoApiFactory factory)
+    public GroupApiTests(SonivoApiFactory factory, GroupBrandingOffFactory factoryOff)
     {
         _factory = factory;
+        _factoryOff = factoryOff;
     }
 
     [Fact]
@@ -141,6 +143,181 @@ public class GroupApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(HttpStatusCode.BadRequest, create.StatusCode);
     }
 
+    [Fact]
+    public async Task Create_returns_slug_and_by_slug_resolves_for_member()
+    {
+        var client = await CreateAuthenticatedClientAsync("slug-owner@example.com");
+        var create = await client.PostAsJsonAsync("/api/groups", new { name = "White Label Band" });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var created = await create.Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(created);
+        Assert.Equal("white-label-band", created.Slug);
+
+        var bySlug = await client.GetAsync($"/api/groups/by-slug/{created.Slug}");
+        Assert.Equal(HttpStatusCode.OK, bySlug.StatusCode);
+        var resolved = await bySlug.Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(resolved);
+        Assert.Equal(created.Id, resolved.Id);
+    }
+
+    [Fact]
+    public async Task By_slug_is_404_for_non_member_and_for_unknown_slug()
+    {
+        var owner = await CreateAuthenticatedClientAsync("slug-owner2@example.com");
+        var create = await owner.PostAsJsonAsync("/api/groups", new { name = "Hidden Band" });
+        var created = await create.Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(created);
+
+        var stranger = await CreateAuthenticatedClientAsync("slug-stranger@example.com");
+        var asStranger = await stranger.GetAsync($"/api/groups/by-slug/{created.Slug}");
+        Assert.Equal(HttpStatusCode.NotFound, asStranger.StatusCode);
+
+        // Same response for an unknown slug: no enumeration.
+        var unknown = await stranger.GetAsync("/api/groups/by-slug/does-not-exist-xyz");
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+    }
+
+    [Fact]
+    public async Task Duplicate_names_receive_distinct_slugs()
+    {
+        var client = await CreateAuthenticatedClientAsync("slug-dup@example.com");
+        var first = await (await client.PostAsJsonAsync("/api/groups", new { name = "Eco" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        var second = await (await client.PostAsJsonAsync("/api/groups", new { name = "Eco" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.NotEqual(first.Slug, second.Slug);
+        Assert.StartsWith("eco", first.Slug);
+        Assert.StartsWith("eco", second.Slug);
+    }
+
+    [Fact]
+    public async Task By_slug_is_anonymous_401()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var response = await client.GetAsync("/api/groups/by-slug/night-owls");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Owner_changes_slug_once_and_old_slug_redirects()
+    {
+        var client = await CreateAuthenticatedClientAsync("slug-change@example.com");
+        var created = await (await client.PostAsJsonAsync("/api/groups", new { name = "Cambio Band" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(created);
+        var original = created.Slug!;
+
+        var change = await client.PutAsJsonAsync($"/api/groups/{created.Id}/slug", new { slug = "mi-banda" });
+        Assert.Equal(HttpStatusCode.OK, change.StatusCode);
+        var updated = await change.Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(updated);
+        Assert.Equal("mi-banda", updated.Slug);
+
+        // The previous slug still resolves to the group and is marked as moved.
+        var old = await client.GetFromJsonAsync<GroupBySlugResponse>($"/api/groups/by-slug/{original}");
+        Assert.NotNull(old);
+        Assert.Equal(created.Id, old.Id);
+        Assert.Equal("mi-banda", old.Slug);
+        Assert.True(old.Moved);
+
+        var current = await client.GetFromJsonAsync<GroupBySlugResponse>("/api/groups/by-slug/mi-banda");
+        Assert.NotNull(current);
+        Assert.False(current.Moved);
+
+        // The change is allowed only once.
+        var second = await client.PutAsJsonAsync($"/api/groups/{created.Id}/slug", new { slug = "otra-vez" });
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_foreign_group_cannot_claim_a_previous_slug()
+    {
+        var ownerA = await CreateAuthenticatedClientAsync("slug-a@example.com");
+        var a = await (await ownerA.PostAsJsonAsync("/api/groups", new { name = "Alfa Band" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(a);
+        var previousSlug = a.Slug!;
+        var changeA = await ownerA.PutAsJsonAsync($"/api/groups/{a.Id}/slug", new { slug = "alfa-nueva" });
+        Assert.Equal(HttpStatusCode.OK, changeA.StatusCode);
+
+        var ownerB = await CreateAuthenticatedClientAsync("slug-b@example.com");
+        var b = await (await ownerB.PostAsJsonAsync("/api/groups", new { name = "Beta Band" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(b);
+        var claim = await ownerB.PutAsJsonAsync($"/api/groups/{b.Id}/slug", new { slug = previousSlug });
+        Assert.Equal(HttpStatusCode.Conflict, claim.StatusCode);
+    }
+
+    [Fact]
+    public async Task Slug_change_rejects_reserved_and_invalid()
+    {
+        var client = await CreateAuthenticatedClientAsync("slug-invalid@example.com");
+        var created = await (await client.PostAsJsonAsync("/api/groups", new { name = "Valid Band" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(created);
+
+        var reserved = await client.PutAsJsonAsync($"/api/groups/{created.Id}/slug", new { slug = "admin" });
+        Assert.Equal(HttpStatusCode.BadRequest, reserved.StatusCode);
+
+        var invalid = await client.PutAsJsonAsync($"/api/groups/{created.Id}/slug", new { slug = "a..b" });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+
+        // Unchanged slug is rejected and does not consume the one allowed change.
+        var same = await client.PutAsJsonAsync($"/api/groups/{created.Id}/slug", new { slug = created.Slug });
+        Assert.Equal(HttpStatusCode.BadRequest, same.StatusCode);
+
+        var ok = await client.PutAsJsonAsync($"/api/groups/{created.Id}/slug", new { slug = "valid-band-2" });
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+    }
+
+    [Fact]
+    public async Task Member_cannot_change_slug()
+    {
+        var ownerId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        await SeedUsersAndMembershipAsync(
+            ("slug-owner-d@example.com", "OwnerD1!", ownerId),
+            ("slug-member-d@example.com", "MemberD1!", memberId),
+            groupId,
+            "Shared Slug",
+            ownerId,
+            memberId);
+
+        var member = await CreateAuthenticatedClientAsync("slug-member-d@example.com", "MemberD1!");
+        var response = await member.PutAsJsonAsync($"/api/groups/{groupId}/slug", new { slug = "hijack" });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Slug_change_is_404_when_the_flag_is_off()
+    {
+        var client = _factoryOff.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        await EnsureCsrfAsync(client);
+
+        var email = $"slug-off-{Guid.NewGuid():N}@example.com";
+        var register = await client.PostAsJsonAsync("/api/auth/register", new { email, password = "Password1", displayName = email });
+        Assert.Equal(HttpStatusCode.Created, register.StatusCode);
+        await AuthTestHelper.ConfirmEmailAsync(_factoryOff.Services, email);
+        await EnsureCsrfAsync(client);
+        var login = await client.PostAsJsonAsync("/api/auth/login", new { email, password = "Password1", rememberMe = false });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        await EnsureCsrfAsync(client);
+
+        var created = await (await client.PostAsJsonAsync("/api/groups", new { name = "Off Band" }))
+            .Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(created);
+
+        var response = await client.PutAsJsonAsync($"/api/groups/{created.Id}/slug", new { slug = "no-permitido" });
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password = "Password1")
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -238,7 +415,8 @@ public class GroupApiTests : IClassFixture<SonivoApiFactory>
         client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", token);
     }
 
-    private sealed record GroupResponse(Guid Id, string Name, int Version, string? Role);
+    private sealed record GroupResponse(Guid Id, string Name, string? Slug, int Version, string? Role);
+    private sealed record GroupBySlugResponse(Guid Id, string Name, string? Slug, bool Moved, int Version, string? Role);
     private sealed record GroupListResponse(Guid Id, string Name, string Role, int Version);
 }
 
@@ -260,7 +438,41 @@ public sealed class SonivoApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Authentication:Google:ClientId", "");
         builder.UseSetting("Authentication:Google:ClientSecret", "");
         builder.UseSetting("Authentication:Google:EnableTestHook", "false");
+        // Phase 4.3: the slug-change endpoint is behind this flag; the API tests
+        // exercise it enabled. A dedicated factory keeps the off case covered.
+        builder.UseSetting("Features:GroupBranding", "true");
+        builder.UseSetting("Features:ManagedAccounts", "true");
         // Hermetic blob backend: ambient R2__* creds must never leak into tests.
+        builder.UseSetting("R2:AccountId", "");
+        builder.UseSetting("R2:AccessKey", "");
+        builder.UseSetting("R2:Secret", "");
+        builder.UseSetting("R2:BucketName", "");
+    }
+}
+
+/// <summary>Phase 4.3 flag-off factory: the slug-change endpoint must 404.</summary>
+public sealed class GroupBrandingOffFactory : WebApplicationFactory<Program>
+{
+    private readonly string _dbName = $"sonivo-api-branding-off-{Guid.NewGuid()}";
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Development");
+        builder.UseSetting("UseInMemoryDatabase", "true");
+        builder.UseSetting("InMemoryDatabaseName", _dbName);
+        builder.UseSetting("ConnectionStrings:Default", "Host=unused;Database=unused;Username=unused;Password=unused");
+        builder.UseSetting("Gmail:ClientId", "");
+        builder.UseSetting("Gmail:ClientSecret", "");
+        builder.UseSetting("Gmail:RefreshToken", "");
+        builder.UseSetting("Gmail:From", "");
+        builder.UseSetting("PublicOrigin", "");
+        builder.UseSetting("Authentication:Google:ClientId", "");
+        builder.UseSetting("Authentication:Google:ClientSecret", "");
+        builder.UseSetting("Authentication:Google:EnableTestHook", "false");
+        builder.UseSetting("Features:GroupBranding", "false");
+        // Phases 4.1 / 4.8 default ON in appsettings; the "off" fixtures must be explicit.
+        builder.UseSetting("Features:ManagedAccounts", "false");
+        builder.UseSetting("Features:Notifications", "false");
         builder.UseSetting("R2:AccountId", "");
         builder.UseSetting("R2:AccessKey", "");
         builder.UseSetting("R2:Secret", "");

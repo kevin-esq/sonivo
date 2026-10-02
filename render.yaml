@@ -22,6 +22,11 @@ services:
         value: sonivo.onrender.com
       - key: Passkeys__AllowedOrigins
         value: https://sonivo.onrender.com
+      # Phase 4.1 / 4.8 feature flags (defaults are ON in appsettings.json too).
+      - key: Features__ManagedAccounts
+        value: "true"
+      - key: Features__Notifications
+        value: "true"
       - key: Gmail__ClientId
         sync: false
       - key: Gmail__ClientSecret
