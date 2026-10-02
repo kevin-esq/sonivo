@@ -102,7 +102,8 @@ public class GoogleAuthApiTests : IClassFixture<GoogleAuthApiFactory>
                 Id = Guid.NewGuid(),
                 Email = email,
                 UserName = email,
-                EmailConfirmed = false,
+                // ADR-0047: only an already-verified account may be auto-linked.
+                EmailConfirmed = true,
                 DisplayName = "Password User"
             };
             var created = await users.CreateAsync(user, "Password1a");
@@ -138,6 +139,50 @@ public class GoogleAuthApiTests : IClassFixture<GoogleAuthApiFactory>
     }
 
     [Fact]
+    public async Task Test_callback_blocks_auto_link_to_unverified_local_account()
+    {
+        // ADR-0047 pre-hijacking defence: an attacker can create an unverified
+        // account with a victim's email; a verified provider login must not be
+        // auto-linked into it.
+        var email = $"google-prehijack-{Guid.NewGuid():N}@example.com";
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                UserName = email,
+                EmailConfirmed = false,
+                DisplayName = "Unverified"
+            };
+            var created = await users.CreateAsync(user, "Password1a");
+            Assert.True(created.Succeeded, string.Join(", ", created.Errors.Select(e => e.Description)));
+        }
+
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await EnsureCsrfAsync(client);
+
+        var response = await client.PostAsJsonAsync("/api/auth/google/test-callback", new
+        {
+            providerKey = $"gk-prehijack-{Guid.NewGuid():N}",
+            email,
+            emailVerified = true,
+            displayName = "Google Name",
+            next = (string?)null
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        using var verifyScope = _factory.Services.CreateScope();
+        var userManager = verifyScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var stored = await userManager.FindByEmailAsync(email);
+        Assert.NotNull(stored);
+        Assert.False(stored!.EmailConfirmed);
+        var logins = await userManager.GetLoginsAsync(stored);
+        Assert.DoesNotContain(logins, l => l.LoginProvider == "Google");
+    }
+
+    [Fact]
     public async Task Test_callback_rejects_unverified_link_to_existing_user()
     {
         var email = $"google-unverified-{Guid.NewGuid():N}@example.com";
@@ -148,7 +193,8 @@ public class GoogleAuthApiTests : IClassFixture<GoogleAuthApiFactory>
             {
                 Id = Guid.NewGuid(),
                 Email = email,
-                UserName = email
+                UserName = email,
+                EmailConfirmed = true
             };
             var created = await users.CreateAsync(user, "Password1a");
             Assert.True(created.Succeeded);

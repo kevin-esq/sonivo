@@ -31,6 +31,24 @@ public sealed class EfMembershipStore : IMembershipStore
             m => m.GroupId == groupId && m.UserId == userId,
             cancellationToken);
 
+    public Task<Membership?> GetByHandleAsync(
+        Guid groupId,
+        string handle,
+        CancellationToken cancellationToken)
+        => _db.Memberships
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                m => m.GroupId == groupId && m.Handle == handle,
+                cancellationToken);
+
+    public Task<bool> HandleExistsAsync(
+        Guid groupId,
+        string handle,
+        CancellationToken cancellationToken)
+        => _db.Memberships.AnyAsync(
+            m => m.GroupId == groupId && m.Handle == handle,
+            cancellationToken);
+
     public Task RemoveAsync(Membership membership, CancellationToken cancellationToken)
     {
         _db.Memberships.Remove(membership);
