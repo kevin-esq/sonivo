@@ -115,7 +115,7 @@ export function PracticeEventQueue({
 
       <p>
         <Link
-          className="inline-flex min-h-11 items-center text-sm font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           to={`/groups/${groupId}/events/${eventId}`}
         >
           {t('cola.backToEvent')}

@@ -33,7 +33,7 @@ public sealed class UpdateSongHandler
 
     public async Task<SongDetailDto> HandleAsync(UpdateSongCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var song = await _songs.GetByIdAsync(command.GroupId, command.SongId, cancellationToken);
         if (song is null)
