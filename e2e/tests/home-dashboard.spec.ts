@@ -9,7 +9,9 @@ import {
 
 /**
  * ADR-0053: `/` is the Inicio dashboard (greeting, quick actions, my groups,
- * next activity, learning banner) and the group list lives at `/grupos`.
+ * next activity) and the group list lives at `/grupos`. Addendum: only
+ * "Crear grupo"/"Unirse a grupo" remain, the top search is groups-only and
+ * "Ver calendario" opens the general calendar.
  */
 test.describe('Home dashboard (ADR-0053)', () => {
   test('shows greeting, quick actions, groups and upcoming activity', async ({ page }) => {
@@ -31,8 +33,13 @@ test.describe('Home dashboard (ADR-0053)', () => {
 
     await expect(page.getByTestId('home-action-create')).toBeVisible()
     await expect(page.getByTestId('home-action-join')).toBeVisible()
-    await expect(page.getByTestId('home-action-explore')).toBeVisible()
-    await expect(page.getByTestId('home-action-search')).toBeVisible()
+    // Addendum: explore/search quick actions and the learning banner are gone.
+    await expect(page.getByTestId('home-action-explore')).toHaveCount(0)
+    await expect(page.getByTestId('home-action-search')).toHaveCount(0)
+    await expect(page.getByTestId('home-learn-cta')).toHaveCount(0)
+
+    // The top search is groups-only.
+    await expect(page.getByPlaceholder('Buscar grupos')).toBeVisible()
 
     await expect(page.getByRole('heading', { name: 'Tus grupos' })).toBeVisible()
     await expect(
@@ -43,8 +50,6 @@ test.describe('Home dashboard (ADR-0053)', () => {
     await expect(
       page.getByTestId('home-activity-item').filter({ hasText: 'Ensayo general' }),
     ).toBeVisible()
-
-    await expect(page.getByTestId('home-learn-cta')).toBeVisible()
 
     // "Ver todos" moves to the dedicated group list route.
     await page.getByTestId('home-view-all').click()
