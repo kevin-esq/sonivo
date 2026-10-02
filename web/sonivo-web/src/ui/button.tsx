@@ -7,12 +7,12 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90',
+        primary: 'bg-primary-strong text-primary-foreground shadow-sm hover:bg-primary-strong/90',
         secondary:
           'border border-slate-200 bg-white text-neutral-dark hover:bg-neutral-light',
-        outline: 'border-2 border-primary bg-transparent text-primary hover:bg-primary/10',
-        ghost: 'bg-transparent text-primary hover:underline',
-        danger: 'bg-error text-white hover:bg-error/90',
+        outline: 'border-2 border-primary bg-transparent text-primary-ink hover:bg-primary/10',
+        ghost: 'bg-transparent text-primary-ink hover:underline',
+        danger: 'bg-error-strong text-white hover:bg-error-strong/90',
       },
       size: {
         default: 'h-11 px-4',
