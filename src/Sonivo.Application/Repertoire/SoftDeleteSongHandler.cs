@@ -43,7 +43,7 @@ public sealed class SoftDeleteSongHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var song = await _songs.GetByIdAsync(command.GroupId, command.SongId, cancellationToken);
         if (song is null)

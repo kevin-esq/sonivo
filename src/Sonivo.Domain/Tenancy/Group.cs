@@ -6,6 +6,13 @@ public sealed class Group : IVersionedEntity
 {
     public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
+    /// <summary>Current path slug (ADR-0048 D1). Null only for rows awaiting backfill.</summary>
+    public string? Slug { get; private set; }
+    /// <summary>
+    /// Set the first (and only) time the Owner changes the slug. Null means the
+    /// auto-generated slug is still changeable; non-null means the slug is final.
+    /// </summary>
+    public DateTimeOffset? SlugConfirmedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? DeletedAt { get; private set; }
@@ -17,17 +24,72 @@ public sealed class Group : IVersionedEntity
     {
     }
 
-    public static Group Create(string name, DateTimeOffset now, Guid? id = null)
+    public static Group Create(string name, DateTimeOffset now, Guid? id = null, string? slug = null)
     {
         var trimmed = NormalizeName(name);
+        var resolvedSlug = slug ?? GroupSlug.Slugify(trimmed);
+        if (!GroupSlug.IsValid(resolvedSlug))
+        {
+            throw new ArgumentException("Slug is invalid.", nameof(slug));
+        }
+
         return new Group
         {
             Id = id ?? Guid.NewGuid(),
             Name = trimmed,
+            Slug = resolvedSlug,
             CreatedAt = now,
             UpdatedAt = now,
             Version = 1
         };
+    }
+
+    /// <summary>Assigns the slug once (used by the migration backfill). Never overwrites.</summary>
+    public void AssignSlug(string slug)
+    {
+        if (Slug is { Length: > 0 })
+        {
+            return;
+        }
+
+        if (!GroupSlug.IsValid(slug))
+        {
+            throw new ArgumentException("Slug is invalid.", nameof(slug));
+        }
+
+        Slug = slug;
+    }
+
+    /// <summary>True while the auto-generated slug can still be changed once.</summary>
+    public bool CanChangeSlug => SlugConfirmedAt is null;
+
+    /// <summary>
+    /// Changes the slug once. Returns the previous slug so the caller can keep it
+    /// reserved in <see cref="GroupSlugHistory"/> (permanent redirect, no reuse).
+    /// </summary>
+    public string ChangeSlug(string newSlug, DateTimeOffset now)
+    {
+        EnsureNotDeleted();
+        if (SlugConfirmedAt is not null)
+        {
+            throw new InvalidOperationException("Slug already confirmed.");
+        }
+
+        if (!GroupSlug.IsValid(newSlug))
+        {
+            throw new ArgumentException("Slug is invalid.", nameof(newSlug));
+        }
+
+        if (string.Equals(Slug, newSlug, StringComparison.Ordinal))
+        {
+            throw new ArgumentException("New slug must differ from the current slug.", nameof(newSlug));
+        }
+
+        var previous = Slug ?? string.Empty;
+        Slug = newSlug;
+        SlugConfirmedAt = now;
+        Touch(now);
+        return previous;
     }
 
     public void Rename(string name, int expectedVersion, DateTimeOffset now)

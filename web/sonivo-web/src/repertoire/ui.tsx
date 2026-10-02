@@ -20,13 +20,27 @@ export function isOwnerRole(role: string | undefined): boolean {
   return role === 'Owner'
 }
 
-/** API role → Spanish label for musicians (values stay Owner|Member on the wire). */
+/** ADR-0051: Owner or Manager may manage repertoire, setlists and events. */
+export function canManageContentRole(role: string | undefined): boolean {
+  return role === 'Owner' || role === 'Manager'
+}
+
+/** ADR-0051: Owner, Manager or Member may RSVP and take part in practice. */
+export function canParticipateRole(role: string | undefined): boolean {
+  return role === 'Owner' || role === 'Manager' || role === 'Member'
+}
+
+/** API role → Spanish label for musicians (values stay Owner|Manager|Member|Viewer on the wire). */
 export function formatMembershipRole(role: string | undefined): string {
   switch (role) {
     case 'Owner':
       return 'Organizador'
+    case 'Manager':
+      return 'Encargado'
     case 'Member':
       return 'Miembro'
+    case 'Viewer':
+      return 'Lector'
     default:
       return role ?? ''
   }
