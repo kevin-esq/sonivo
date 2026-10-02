@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<CreateGroupHandler>();
         services.AddScoped<ListMyGroupsHandler>();
         services.AddScoped<ListUpcomingActivityHandler>();
+        services.AddScoped<ListCalendarEventsHandler>();
         services.AddScoped<GetGroupHandler>();
         services.AddScoped<GetGroupBySlugHandler>();
         services.AddScoped<ChangeGroupSlugHandler>();

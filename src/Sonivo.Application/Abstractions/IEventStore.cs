@@ -17,6 +17,17 @@ public interface IEventStore
         CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<UpcomingActivityItem>>(Array.Empty<UpcomingActivityItem>());
 
+    /// <summary>
+    /// Events across the caller's groups within <c>[from, to)</c> (ADR-0053 addendum,
+    /// general calendar). Excludes hidden/cancelled events; earliest first.
+    /// </summary>
+    Task<IReadOnlyList<UpcomingActivityItem>> ListForUserInRangeAsync(
+        Guid userId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<UpcomingActivityItem>>(Array.Empty<UpcomingActivityItem>());
+
     Task<Event?> GetByIdWithItemsAsync(Guid groupId, Guid eventId, CancellationToken cancellationToken);
     Task<Event?> GetByIdWithRsvpsAsync(Guid groupId, Guid eventId, CancellationToken cancellationToken);
     Task AddRsvpAsync(Rsvp rsvp, CancellationToken cancellationToken);
