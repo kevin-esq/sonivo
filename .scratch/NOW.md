@@ -8,8 +8,8 @@
 Implementation: COMPLETE — Phase Home dashboard (ADR-0053): T-HOME-01…07 done; T-HOME-08 git in progress
 Human approval: APPROVED (user: "luz verde total … implementación completa", 2026-10-02)
 Git checkpoint: COMMITTED — 3 atomic commits on feature/home-dashboard
-Remote: NOT PUSHED (PR pending)
-CI: NOT RUN — local evidence: backend 596 tests ✓; web build + oxlint (0 errors) ✓;
+Remote: PUSHED · PR #181 (feature/home-dashboard → develop)
+CI: RUNNING — local evidence: backend 596 tests ✓; web build + oxlint (0 errors) ✓;
     E2E shards 66 passed / 3 skipped (practice TC-PLAY-SYNC-01 flake re-ran green);
     Playwright MCP visual pass (light/dark, desktop/mobile, drawer, search focus) ✓
 ```
