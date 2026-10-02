@@ -54,4 +54,42 @@ public sealed class GroupAccessService
 
         return (group, membership);
     }
+
+    /// <summary>Owner or Manager: repertoire, setlists and events (ADR-0051).</summary>
+    public async Task<(Group Group, Membership Membership)> RequireManagerAsync(
+        Guid groupId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var (group, membership) = await RequireMemberAsync(groupId, userId, cancellationToken);
+        if (!membership.CanManageContent)
+        {
+            _logger?.LogWarning(
+                "Security event: authz denied (manager required). ActorUserId: {ActorUserId}, GroupId: {GroupId}",
+                userId,
+                groupId);
+            throw new ForbiddenException("Manager role required.");
+        }
+
+        return (group, membership);
+    }
+
+    /// <summary>Owner, Manager or Member: RSVP and practice (a Viewer cannot).</summary>
+    public async Task<(Group Group, Membership Membership)> RequireParticipantAsync(
+        Guid groupId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var (group, membership) = await RequireMemberAsync(groupId, userId, cancellationToken);
+        if (!membership.CanParticipate)
+        {
+            _logger?.LogWarning(
+                "Security event: authz denied (participant required). ActorUserId: {ActorUserId}, GroupId: {GroupId}",
+                userId,
+                groupId);
+            throw new ForbiddenException("Participant role required.");
+        }
+
+        return (group, membership);
+    }
 }
