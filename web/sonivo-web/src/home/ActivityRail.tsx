@@ -1,6 +1,10 @@
 import { Link } from "react-router-dom";
-import type { UpcomingActivity } from "../api/client";import { useT } from "../i18n";
+import type { UpcomingActivity } from "../api/client";
+import { useT } from "../i18n";
 import { formatEventType } from "../scheduling/datetime";
+
+/** Inicio shows only the next few activities; the calendar shows them all. */
+const MAX_ACTIVITY = 5;
 
 function dayLabel(iso: string, lang: string): string {
   const date = new Date(iso);
@@ -61,7 +65,7 @@ export function ActivityRail({ items }: { items: UpcomingActivity[] | null }) {
         </p>
       ) : (
         <ul className="space-y-1">
-          {items.map((item) => (
+          {items.slice(0, MAX_ACTIVITY).map((item) => (
             <li key={`${item.groupId}-${item.eventId}`}>
               <Link
                 to={`/groups/${item.groupId}/events/${item.eventId}`}

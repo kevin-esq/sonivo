@@ -397,6 +397,8 @@ export type UpcomingActivity = {
   title: string
   type: string
   startsAt: string
+  /** The caller's RSVP response, or null when they have none (ADR-0053 addendum). */
+  myResponse?: string | null
 }
 
 /** Upcoming events across every group the caller belongs to (ADR-0053). */

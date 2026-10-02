@@ -1,222 +1,317 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  SlidersHorizontal,
+} from "lucide-react";
 import {
   listCalendarEvents,
+  listMyGroups,
+  listUpcomingActivity,
   problemDetail,
-  type UpcomingActivity,
+  type GroupSummary,
 } from "../api/client";
 import { useT } from "../i18n";
 import { Button } from "../ui/button";
 import { cn } from "../ui/cn";
+import { CalendarChips, CalendarFilterPanel } from "./CalendarFilters";
+import { CreateEventDialog } from "./CreateEventDialog";
+import { DayView } from "./DayView";
+import { MiniMonth } from "./MiniMonth";
+import { MonthView } from "./MonthView";
+import { UpcomingList } from "./UpcomingList";
+import { WeekView } from "./WeekView";
+import {
+  addDays,
+  addMonths,
+  dayKey,
+  longDate,
+  monthLabel,
+  rangeFor,
+  shortDate,
+  startOfWeek,
+  endOfWeek,
+  type CalendarEvent,
+  type CalendarView,
+} from "./calendarUtils";
 
-const GROUP_COLORS = [
-  "#8366f1",
-  "#0ea5e9",
-  "#10b981",
-  "#f3b626",
-  "#ef4444",
-  "#ec4899",
-  "#14b8a6",
-  "#8b5cf6",
-];
-
-function colorFor(id: string): string {
-  let hash = 0;
-  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return GROUP_COLORS[hash % GROUP_COLORS.length];
-}
-
-const MAX_CHIPS = 3;
-
-function startOfMonth(year: number, month: number): Date {
-  return new Date(year, month, 1);
-}
-
-function addDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-/** Monday-first start of the week containing `date`. */
-function startOfWeek(date: Date): Date {
-  const offset = (date.getDay() + 6) % 7;
-  return addDays(date, -offset);
-}
-
-function endOfWeek(date: Date): Date {
-  const offset = (date.getDay() + 6) % 7;
-  return addDays(date, 6 - offset);
-}
-
-function dayKey(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
-function timeLabel(iso: string, lang: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat(lang, {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
-
-/** Read-only general calendar of every group's events (ADR-0053 addendum). */
 export function CalendarPage() {
   const { t, lang } = useT();
   const navigate = useNavigate();
   const today = useMemo(() => new Date(), []);
-  const [cursor, setCursor] = useState(() => ({
-    year: today.getFullYear(),
-    month: today.getMonth(),
-  }));
-  const [events, setEvents] = useState<UpcomingActivity[] | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const [view, setView] = useState<CalendarView>("month");
+  const [cursor, setCursor] = useState<Date>(today);
+  const [groups, setGroups] = useState<GroupSummary[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[] | null>(null);
+  const [upcoming, setUpcoming] = useState<CalendarEvent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const gridStart = useMemo(
-    () => startOfWeek(startOfMonth(cursor.year, cursor.month)),
-    [cursor],
-  );
-  const gridEnd = useMemo(
-    () => endOfWeek(new Date(cursor.year, cursor.month + 1, 0)),
-    [cursor],
-  );
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [otherOnly, setOtherOnly] = useState(false);
+  const [onlyMine, setOnlyMine] = useState(false);
+  const [allGroups, setAllGroups] = useState(true);
 
-  const days = useMemo(() => {
-    const list: Date[] = [];
-    for (let day = gridStart; day <= gridEnd; day = addDays(day, 1)) {
-      list.push(day);
-    }
-    return list;
-  }, [gridStart, gridEnd]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const { from, to } = useMemo(() => rangeFor(view, cursor), [view, cursor]);
 
   useEffect(() => {
     let cancelled = false;
-    listCalendarEvents(
-      gridStart.toISOString(),
-      addDays(gridEnd, 1).toISOString(),
-    )
-      .then((items) => {
-        if (!cancelled) {
-          setEvents(items);
-          setLoading(false);
-        }
+    void listMyGroups()
+      .then((result) => {
+        if (!cancelled) setGroups(result);
+      })
+      .catch(() => {
+        if (!cancelled) setGroups([]);
+      });
+    void listUpcomingActivity()
+      .then((result) => {
+        if (!cancelled) setUpcoming(result);
+      })
+      .catch(() => {
+        if (!cancelled) setUpcoming([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    listCalendarEvents(from.toISOString(), to.toISOString())
+      .then((result) => {
+        if (!cancelled) setEvents(result);
       })
       .catch((err) => {
         if (!cancelled) {
           setError(problemDetail(err));
           setEvents([]);
-          setLoading(false);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [gridStart, gridEnd, reloadKey]);
+  }, [from, to, reloadKey]);
 
-  const byDay = useMemo(() => {
-    const map = new Map<string, UpcomingActivity[]>();
-    for (const event of events ?? []) {
-      const date = new Date(event.startsAt);
-      if (Number.isNaN(date.getTime())) continue;
-      const key = dayKey(date);
-      const list = map.get(key) ?? [];
-      list.push(event);
-      map.set(key, list);
-    }
-    for (const list of map.values()) {
-      list.sort(
-        (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
-      );
-    }
-    return map;
-  }, [events]);
-
-  const groupsPresent = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const event of events ?? []) map.set(event.groupId, event.groupName);
-    return [...map.entries()];
-  }, [events]);
-
-  const monthLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat(lang, {
-        month: "long",
-        year: "numeric",
-      }).format(startOfMonth(cursor.year, cursor.month)),
-    [cursor, lang],
+  const applyFilters = useMemo(
+    () => (list: CalendarEvent[]) =>
+      list.filter((event) => {
+        if (onlyMine && !event.myResponse) return false;
+        if (otherOnly) return event.type === "other";
+        if (
+          !allGroups &&
+          selectedGroupIds.length > 0 &&
+          !selectedGroupIds.includes(event.groupId)
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    [onlyMine, otherOnly, allGroups, selectedGroupIds],
   );
 
-  const weekdayLabels = useMemo(() => {
-    const formatter = new Intl.DateTimeFormat(lang, { weekday: "short" });
-    const monday = startOfWeek(today);
-    return Array.from({ length: 7 }, (_, index) =>
-      formatter.format(addDays(monday, index)),
-    );
-  }, [lang, today]);
+  const filteredEvents = useMemo(
+    () => applyFilters(events ?? []),
+    [applyFilters, events],
+  );
+  const filteredUpcoming = useMemo(
+    () => applyFilters(upcoming ?? []),
+    [applyFilters, upcoming],
+  );
 
-  function shiftMonth(delta: number) {
-    setLoading(true);
-    setError(null);
+  const eventDays = useMemo(
+    () =>
+      new Set(
+        filteredEvents.map((event) => dayKey(new Date(event.startsAt))),
+      ),
+    [filteredEvents],
+  );
+
+  const navLabel = useMemo(() => {
+    if (view === "month") return monthLabel(cursor, lang);
+    if (view === "week") {
+      return `${shortDate(startOfWeek(cursor), lang)} – ${shortDate(endOfWeek(cursor), lang)}`;
+    }
+    return longDate(cursor, lang);
+  }, [view, cursor, lang]);
+
+  function shift(delta: number) {
     setCursor((current) => {
-      const next = new Date(current.year, current.month + delta, 1);
-      return { year: next.getFullYear(), month: next.getMonth() };
+      if (view === "month") return addMonths(current, delta);
+      if (view === "week") return addDays(current, delta * 7);
+      return addDays(current, delta);
     });
   }
 
   function goToday() {
-    setLoading(true);
-    setError(null);
-    setCursor({ year: today.getFullYear(), month: today.getMonth() });
+    setCursor(new Date());
   }
 
-  const todayKey = dayKey(today);
+  function openEvent(event: CalendarEvent) {
+    navigate(`/groups/${event.groupId}/events/${event.eventId}`);
+  }
+
+  function selectDay(date: Date) {
+    setCursor(date);
+    setView("day");
+  }
+
+  function toggleGroup(id: string) {
+    setOtherOnly(false);
+    setSelectedGroupIds((current) =>
+      current.includes(id)
+        ? current.filter((value) => value !== id)
+        : [...current, id],
+    );
+  }
+
+  function toggleOther() {
+    setOtherOnly((value) => !value);
+  }
+
+  function clearFilters() {
+    setSelectedGroupIds([]);
+    setOtherOnly(false);
+  }
+
+  const views: Array<{ id: CalendarView; label: string }> = [
+    { id: "month", label: t("calendario.month") },
+    { id: "week", label: t("calendario.week") },
+    { id: "day", label: t("calendario.day") },
+  ];
 
   return (
-    <section className="space-y-6" aria-labelledby="calendar-heading">
-      <header className="space-y-1.5">
-        <h1 id="calendar-heading" className="text-3xl font-bold tracking-tight text-ink">
-          {t("calendario.title")}
-        </h1>
-        <p className="text-muted">{t("calendario.subtitle")}</p>
-      </header>
+    <section className="space-y-4" aria-labelledby="calendar-heading">
+      <header className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h1
+              id="calendar-heading"
+              className="text-3xl font-bold tracking-tight text-ink"
+            >
+              {t("calendario.title")}
+            </h1>
+            <p className="text-muted">{t("calendario.subtitle")}</p>
+          </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            aria-label={t("calendario.prev")}
-            onClick={() => shiftMonth(-1)}
+          {/* Desktop controls */}
+          <div className="hidden items-center gap-2 lg:flex">
+            <Button variant="secondary" onClick={goToday}>
+              {t("calendario.today")}
+            </Button>
+            <div className="flex items-center gap-1 rounded-xl border border-border-subtle bg-surface px-1">
+              <button
+                type="button"
+                onClick={() => shift(-1)}
+                aria-label={t("calendario.prev")}
+                className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <p
+                className="min-w-[9rem] text-center text-sm font-semibold text-ink first-letter:uppercase"
+                aria-live="polite"
+              >
+                {navLabel}
+              </p>
+              <button
+                type="button"
+                onClick={() => shift(1)}
+                aria-label={t("calendario.next")}
+                className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="flex rounded-xl border border-border-subtle bg-surface p-0.5">
+              {views.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={view === option.id}
+                  onClick={() => setView(option.id)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                    view === option.id
+                      ? "bg-primary-strong text-primary-foreground"
+                      : "text-muted hover:text-ink",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Mobile filter entry */}
+          <button
+            type="button"
+            onClick={() => setShowFilters(true)}
+            aria-label={t("calendario.filters")}
+            data-testid="calendar-filters-button"
+            className="grid h-11 w-11 place-items-center rounded-xl border border-border-subtle bg-surface text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
           >
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          </Button>
-          <p
-            className="min-w-[10rem] text-center text-lg font-semibold first-letter:uppercase text-ink"
-            aria-live="polite"
-          >
-            {monthLabel}
-          </p>
-          <Button
-            variant="secondary"
-            aria-label={t("calendario.next")}
-            onClick={() => shiftMonth(1)}
-          >
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            <SlidersHorizontal className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+
+        {/* Mobile nav row */}
+        <div className="flex items-center justify-between gap-2 lg:hidden">
+          <div className="flex items-center gap-1 rounded-xl border border-border-subtle bg-surface px-1">
+            <button
+              type="button"
+              onClick={() => shift(-1)}
+              aria-label={t("calendario.prev")}
+              className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <p
+              className="min-w-[8rem] text-center text-sm font-semibold text-ink first-letter:uppercase"
+              aria-live="polite"
+            >
+              {navLabel}
+            </p>
+            <button
+              type="button"
+              onClick={() => shift(1)}
+              aria-label={t("calendario.next")}
+              className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+          <Button variant="secondary" onClick={goToday}>
+            {t("calendario.today")}
           </Button>
         </div>
-        <Button
-          variant="secondary"
-          onClick={goToday}
-        >
-          {t("calendario.today")}
-        </Button>
-      </div>
+
+        {/* Filters + new event */}
+        <div className="flex items-center gap-2">
+          <CalendarChips
+            groups={groups}
+            selectedGroupIds={selectedGroupIds}
+            otherOnly={otherOnly}
+            onClear={clearFilters}
+            onToggleGroup={toggleGroup}
+            onToggleOther={toggleOther}
+          />
+          {groups.length > 0 ? (
+            <Button
+              className="hidden shrink-0 lg:inline-flex"
+              onClick={() => setShowCreate(true)}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {t("calendario.newEvent")}
+            </Button>
+          ) : null}
+        </div>
+      </header>
 
       {error ? (
         <div
@@ -227,8 +322,8 @@ export function CalendarPage() {
           <Button
             variant="outline"
             onClick={() => {
-              setLoading(true);
               setError(null);
+              setEvents(null);
               setReloadKey((key) => key + 1);
             }}
           >
@@ -237,108 +332,104 @@ export function CalendarPage() {
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-2xl border border-border-subtle bg-surface">
-        <div className="min-w-[44rem]">
-          <div className="grid grid-cols-7 border-b border-border-subtle">
-            {weekdayLabels.map((label) => (
-              <div
-                key={label}
-                className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted"
-              >
-                {label}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="space-y-4">
+          {view === "month" ? (
+            <>
+              <div className="hidden lg:block">
+                <MonthView
+                  cursor={cursor}
+                  events={filteredEvents}
+                  onOpen={openEvent}
+                  onSelectDay={selectDay}
+                />
               </div>
-            ))}
-          </div>
+              <div className="space-y-4 lg:hidden">
+                <MiniMonth
+                  cursor={cursor}
+                  selected={cursor}
+                  eventDays={eventDays}
+                  onSelect={selectDay}
+                  onPrev={() => setCursor((current) => addMonths(current, -1))}
+                  onNext={() => setCursor((current) => addMonths(current, 1))}
+                />
+                <UpcomingList
+                  events={filteredUpcoming}
+                  loading={upcoming === null}
+                  onSelectDay={selectDay}
+                  onViewAll={() => setView("week")}
+                />
+              </div>
+            </>
+          ) : view === "week" ? (
+            <WeekView
+              cursor={cursor}
+              events={filteredEvents}
+              onOpen={openEvent}
+              onSelectDay={selectDay}
+            />
+          ) : (
+            <DayView events={filteredEvents} onOpen={openEvent} />
+          )}
+        </div>
 
-          <div className="grid grid-cols-7">
-            {days.map((day) => {
-              const key = dayKey(day);
-              const inMonth = day.getMonth() === cursor.month;
-              const dayEvents = byDay.get(key) ?? [];
-              const isToday = key === todayKey;
-              return (
-                <div
-                  key={key}
-                  data-testid="calendar-day"
-                  className={cn(
-                    "min-h-28 border-b border-r border-border-subtle p-1.5 last:border-r-0",
-                    !inMonth && "bg-surface-hover/40",
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "mb-1 inline-grid h-6 w-6 place-items-center rounded-full text-xs font-semibold",
-                      isToday
-                        ? "bg-primary-strong text-primary-foreground"
-                        : inMonth
-                          ? "text-ink"
-                          : "text-muted",
-                    )}
-                  >
-                    {day.getDate()}
-                  </div>
-                  <ul className="space-y-1">
-                    {dayEvents.slice(0, MAX_CHIPS).map((event) => (
-                      <li key={event.eventId}>
-                        <button
-                          type="button"
-                          data-testid="calendar-event"
-                          onClick={() =>
-                            navigate(
-                              `/groups/${event.groupId}/events/${event.eventId}`,
-                            )
-                          }
-                          title={`${event.title} · ${event.groupName}`}
-                          className="flex w-full items-center gap-1.5 rounded-lg bg-surface-hover px-1.5 py-1 text-left text-xs text-ink hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
-                        >
-                          <span
-                            className="h-2 w-2 shrink-0 rounded-full"
-                            style={{ backgroundColor: colorFor(event.groupId) }}
-                            aria-hidden="true"
-                          />
-                          <span className="shrink-0 font-medium">
-                            {timeLabel(event.startsAt, lang)}
-                          </span>
-                          <span className="truncate">{event.title}</span>
-                        </button>
-                      </li>
-                    ))}
-                    {dayEvents.length > MAX_CHIPS ? (
-                      <li className="px-1.5 text-[11px] font-medium text-muted">
-                        {t("calendario.more", {
-                          count: dayEvents.length - MAX_CHIPS,
-                        })}
-                      </li>
-                    ) : null}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
+        {/* Desktop rail */}
+        <div className="hidden space-y-4 lg:block">
+          <MiniMonth
+            cursor={cursor}
+            selected={cursor}
+            eventDays={eventDays}
+            onSelect={selectDay}
+            onPrev={() => setCursor((current) => addMonths(current, -1))}
+            onNext={() => setCursor((current) => addMonths(current, 1))}
+          />
+          <UpcomingList
+            events={filteredUpcoming}
+            loading={upcoming === null}
+            onSelectDay={selectDay}
+            onViewAll={() => setView("week")}
+          />
         </div>
       </div>
 
-      {loading ? (
-        <p aria-live="polite" className="text-sm text-muted">
-          {t("calendario.loading")}
-        </p>
-      ) : events && events.length === 0 && !error ? (
-        <p className="text-sm text-muted">{t("calendario.noEvents")}</p>
+      {groups.length > 0 ? (
+        <button
+          type="button"
+          onClick={() => setShowCreate(true)}
+          aria-label={t("calendario.newEvent")}
+          data-testid="calendar-fab"
+          className="fixed bottom-20 right-4 z-30 grid h-14 w-14 place-items-center rounded-full bg-primary-strong text-primary-foreground shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
+        >
+          <Plus className="h-6 w-6" aria-hidden="true" />
+        </button>
       ) : null}
 
-      {groupsPresent.length > 0 ? (
-        <ul className="flex flex-wrap gap-x-4 gap-y-2" aria-label={t("sidebar.myGroups")}>
-          {groupsPresent.map(([id, name]) => (
-            <li key={id} className="flex items-center gap-2 text-sm text-muted">
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: colorFor(id) }}
-                aria-hidden="true"
-              />
-              {name}
-            </li>
-          ))}
-        </ul>
+      <CalendarFilterPanel
+        open={showFilters}
+        groups={groups}
+        selectedGroupIds={selectedGroupIds}
+        otherOnly={otherOnly}
+        view={view}
+        onlyMine={onlyMine}
+        allGroups={allGroups}
+        onClose={() => setShowFilters(false)}
+        onToggleGroup={toggleGroup}
+        onToggleOther={toggleOther}
+        onSetView={setView}
+        onSetOnlyMine={setOnlyMine}
+        onSetAllGroups={setAllGroups}
+      />
+
+      {showCreate ? (
+        <CreateEventDialog
+          groups={groups}
+          initialDate={cursor}
+          onClose={() => setShowCreate(false)}
+          onCreated={() => {
+            setShowCreate(false);
+            setReloadKey((key) => key + 1);
+          }}
+        />
       ) : null}
     </section>
   );
