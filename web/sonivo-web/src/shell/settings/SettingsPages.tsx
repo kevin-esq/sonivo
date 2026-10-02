@@ -15,15 +15,15 @@ export function SettingsProfilePage({
   return (
     <div className="space-y-6 max-w-xl">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t('perfil.title')}</h2>
-        <p className="text-sm text-slate-500">{t('perfil.subtitle')}</p>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">{t('perfil.title')}</h1>
+        <p className="text-sm text-muted">{t('perfil.subtitle')}</p>
       </div>
 
       {user?.managedByGroupId ? (
         <p
           role="status"
           data-testid="managed-account-notice"
-          className="rounded-xl bg-neutral-light px-3 py-2 text-sm text-slate-700 dark:text-slate-300"
+          className="rounded-xl bg-surface-hover px-3 py-2 text-sm text-ink"
         >
           {t('perfil.managedNotice')}
         </p>
@@ -31,22 +31,22 @@ export function SettingsProfilePage({
 
       <div className="space-y-4">
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('perfil.fullName')}</span>
+          <span className="text-sm font-medium text-ink">{t('perfil.fullName')}</span>
           <input
             key={sessionName}
             type="text"
             defaultValue={sessionName}
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
+            className="w-full rounded-xl border border-border-subtle bg-surface px-3 py-2 text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
           />
         </label>
 
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('perfil.email')}</span>
+          <span className="text-sm font-medium text-ink">{t('perfil.email')}</span>
           <input
             type="email"
             disabled
             readOnly
-            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 text-slate-500 cursor-not-allowed"
+            className="w-full cursor-not-allowed rounded-xl border border-border-subtle bg-surface-hover px-3 py-2 text-muted"
             value={email}
           />
         </label>

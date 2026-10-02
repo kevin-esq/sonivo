@@ -34,18 +34,14 @@ import {
 } from "./repertoire/AudioPlayerContext";
 import { BrandLockup } from "./brand/SonivoMark";
 import { GuestAuthRoute } from "./shell/AuthScreen";
-import {
-  GroupsChrome,
-  PublicChrome,
-  SessionScreen,
-} from "./shell/GroupsChrome";
+import { PublicChrome, SessionScreen } from "./shell/GroupsChrome";
+import { AppShell } from "./shell/AppShell";
 import { GroupWorkspace } from "./shell/GroupWorkspace";
 import { GroupSlugResolver } from "./tenancy/GroupSlugResolver";
 import { BrandedLoginPage } from "./shell/BrandedLoginPage";
 import { MustChangePassword } from "./shell/MustChangePassword";
 import { RailPresenceProvider } from "./shell/railPresence";
 import { PersistentGlobalPlayer } from "./shell/PersistentGlobalPlayer";
-import { UserChrome } from "./shell/UserChrome";
 import { Button, primaryButtonClass } from "./ui/button";
 import { cn } from "./ui/cn";
 import { ToastProvider } from "./ui/toast";
@@ -57,7 +53,16 @@ const named = <T extends Record<string, any>, K extends keyof T>(
   key: K,
 ) => lazy(() => loader().then((m) => ({ default: m[key] })));
 
+const HomePage = named(() => import("./home/HomePage"), "HomePage");
 const GroupsPage = named(() => import("./groups/GroupsPage"), "GroupsPage");
+const JoinGroupPage = named(
+  () => import("./tenancy/JoinGroupPage"),
+  "JoinGroupPage",
+);
+const PlaceholderPage = named(
+  () => import("./shell/PlaceholderPage"),
+  "PlaceholderPage",
+);
 const GroupHomePage = named(
   () => import("./groups/GroupHomePage"),
   "GroupHomePage",
@@ -275,12 +280,12 @@ function RequireAuth({
   return <Outlet context={context} />;
 }
 
-function GroupsLayout() {
+function AppLayout() {
   const ctx = useAuth();
   return (
-    <GroupsChrome user={ctx.user} onLogout={ctx.onLogout}>
+    <AppShell user={ctx.user} onLogout={ctx.onLogout}>
       <Outlet context={ctx} />
-    </GroupsChrome>
+    </AppShell>
   );
 }
 
@@ -290,15 +295,6 @@ function GroupLayout() {
     <GroupWorkspace user={ctx.user} onLogout={ctx.onLogout}>
       <Outlet context={ctx} />
     </GroupWorkspace>
-  );
-}
-
-function AccountLayout() {
-  const ctx = useAuth();
-  return (
-    <UserChrome user={ctx.user} onLogout={ctx.onLogout}>
-      <Outlet context={ctx} />
-    </UserChrome>
   );
 }
 
@@ -330,6 +326,7 @@ function GroupsPageWithActions() {
   return <GroupsPage user={useAuth().user} actions={groupsPageActions} />;
 }
 
+const HomePageR = withUser(HomePage);
 const GroupHomePageR = withUser(GroupHomePage);
 const LibraryPageR = withUser(LibraryPage);
 const SetlistListPageR = withUser(SetlistListPage);
@@ -422,8 +419,26 @@ export default function App() {
                   />
                 }
               >
-                <Route element={<GroupsLayout />}>
-                  <Route path="/" element={<GroupsPageWithActions />} />
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<HomePageR />} />
+                  <Route path="/grupos" element={<GroupsPageWithActions />} />
+                  <Route path="/unirse" element={<JoinGroupPage />} />
+                  <Route path="/plan" element={<PlaceholderPage />} />
+                  <Route path="/ayuda" element={<PlaceholderPage />} />
+                  <Route path="/cuenta" element={<SettingsProfilePageR />} />
+                  <Route
+                    path="/cuenta/preferencias"
+                    element={<CuentaPreferencesPage />}
+                  />
+                  <Route path="/cuenta/seguridad" element={<SecurityPage />} />
+                  <Route
+                    path="/cuenta/notificaciones"
+                    element={<PlaceholderPage />}
+                  />
+                  <Route
+                    path="/cuenta/grupos"
+                    element={<Navigate to="/grupos" replace />}
+                  />
                 </Route>
 
                 <Route path="/groups/:groupId" element={<GroupLayout />}>
@@ -450,16 +465,6 @@ export default function App() {
                     element={<PracticePageR />}
                   />
                   <Route path="ajustes" element={<GroupSettingsPageR />} />
-                </Route>
-
-                <Route path="/cuenta" element={<AccountLayout />}>
-                  <Route index element={<SettingsProfilePageR />} />
-                  <Route
-                    path="preferencias"
-                    element={<CuentaPreferencesPage />}
-                  />
-                  <Route path="seguridad" element={<SecurityPage />} />
-                  <Route path="grupos" element={<GroupsPageWithActions />} />
                 </Route>
 
                 {/* Path tenancy (ADR-0045 D1): /g/{slug} resolves and forwards to the
