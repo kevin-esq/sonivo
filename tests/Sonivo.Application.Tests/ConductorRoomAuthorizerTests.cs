@@ -15,9 +15,9 @@ public class ConductorRoomAuthorizerTests
         var authorizer = Build(groupId: null);
 
         await Assert.ThrowsAsync<NotFoundException>(
-            () => authorizer.RequireMemberAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None));
+            () => authorizer.RequireParticipantAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None));
         await Assert.ThrowsAsync<NotFoundException>(
-            () => authorizer.RequireOwnerAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None));
+            () => authorizer.RequireManagerAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None));
     }
 
     [Fact]
@@ -28,11 +28,11 @@ public class ConductorRoomAuthorizerTests
         var authorizer = Build(groupId, membership: null);
 
         var memberEx = await Assert.ThrowsAsync<NotFoundException>(
-            () => authorizer.RequireMemberAsync(Guid.NewGuid(), userId, CancellationToken.None));
+            () => authorizer.RequireParticipantAsync(Guid.NewGuid(), userId, CancellationToken.None));
         Assert.Equal("Event not found.", memberEx.Message);
 
         await Assert.ThrowsAsync<NotFoundException>(
-            () => authorizer.RequireOwnerAsync(Guid.NewGuid(), userId, CancellationToken.None));
+            () => authorizer.RequireManagerAsync(Guid.NewGuid(), userId, CancellationToken.None));
         _ = groupId;
     }
 
@@ -44,13 +44,44 @@ public class ConductorRoomAuthorizerTests
         var membership = Membership.CreateMember(groupId, userId, Now);
         var authorizer = Build(groupId, membership);
 
-        var access = await authorizer.RequireMemberAsync(Guid.NewGuid(), userId, CancellationToken.None);
+        var access = await authorizer.RequireParticipantAsync(Guid.NewGuid(), userId, CancellationToken.None);
         Assert.Equal(groupId, access.GroupId);
         Assert.False(access.IsOwner);
+        Assert.False(access.CanManageContent);
 
         var forbidden = await Assert.ThrowsAsync<ForbiddenException>(
-            () => authorizer.RequireOwnerAsync(Guid.NewGuid(), userId, CancellationToken.None));
-        Assert.Equal("Owner role required.", forbidden.Message);
+            () => authorizer.RequireManagerAsync(Guid.NewGuid(), userId, CancellationToken.None));
+        Assert.Equal("Manager role required.", forbidden.Message);
+    }
+
+    [Fact]
+    public async Task Manager_can_join_and_conduct()
+    {
+        var userId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var membership = Membership.CreateMember(groupId, userId, Now);
+        membership.AssignRole(MembershipRoles.Manager);
+        var authorizer = Build(groupId, membership);
+
+        var access = await authorizer.RequireParticipantAsync(Guid.NewGuid(), userId, CancellationToken.None);
+        Assert.False(access.IsOwner);
+        Assert.True(access.CanManageContent);
+
+        var conduct = await authorizer.RequireManagerAsync(Guid.NewGuid(), userId, CancellationToken.None);
+        Assert.True(conduct.CanManageContent);
+    }
+
+    [Fact]
+    public async Task Viewer_cannot_join_a_practice_room()
+    {
+        var userId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var membership = Membership.CreateMember(groupId, userId, Now);
+        membership.AssignRole(MembershipRoles.Viewer);
+        var authorizer = Build(groupId, membership);
+
+        await Assert.ThrowsAsync<ForbiddenException>(
+            () => authorizer.RequireParticipantAsync(Guid.NewGuid(), userId, CancellationToken.None));
     }
 
     [Fact]
@@ -61,10 +92,10 @@ public class ConductorRoomAuthorizerTests
         var membership = Membership.CreateOwner(groupId, userId, Now);
         var authorizer = Build(groupId, membership);
 
-        var member = await authorizer.RequireMemberAsync(Guid.NewGuid(), userId, CancellationToken.None);
+        var member = await authorizer.RequireParticipantAsync(Guid.NewGuid(), userId, CancellationToken.None);
         Assert.True(member.IsOwner);
 
-        var owner = await authorizer.RequireOwnerAsync(Guid.NewGuid(), userId, CancellationToken.None);
+        var owner = await authorizer.RequireManagerAsync(Guid.NewGuid(), userId, CancellationToken.None);
         Assert.Equal(groupId, owner.GroupId);
         Assert.True(owner.IsOwner);
     }
