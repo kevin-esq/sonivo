@@ -4,7 +4,7 @@ using Sonivo.Domain.Tenancy;
 namespace Sonivo.Application.Tenancy;
 
 public sealed record CreateGroupCommand(Guid UserId, string Name);
-public sealed record GroupDto(Guid Id, string Name, int Version, string? Role, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+public sealed record GroupDto(Guid Id, string Name, int Version, string? Role, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string? Slug);
 
 public sealed class CreateGroupHandler
 {
@@ -27,16 +27,39 @@ public sealed class CreateGroupHandler
         try
         {
             var now = _clock.UtcNow;
-            var group = Group.Create(command.Name, now);
+            var slug = await AllocateSlugAsync(command.Name, cancellationToken);
+            var group = Group.Create(command.Name, now, slug: slug);
             var ownership = Membership.CreateOwner(group.Id, command.UserId, now);
             await _store.AddAsync(group, ownership, cancellationToken);
             await _store.SaveChangesAsync(cancellationToken);
 
-            return new GroupDto(group.Id, group.Name, group.Version, MembershipRoles.Owner, group.CreatedAt, group.UpdatedAt);
+            return new GroupDto(group.Id, group.Name, group.Version, MembershipRoles.Owner, group.CreatedAt, group.UpdatedAt, group.Slug);
         }
         catch (ArgumentException ex)
         {
             throw new ValidationException(ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Slugifies the name and appends a numeric suffix until it is free. Deleted
+    /// groups keep their slug reserved, so <c>SlugExistsAsync</c> looks past the
+    /// soft-delete query filter.
+    /// </summary>
+    private async Task<string> AllocateSlugAsync(string name, CancellationToken cancellationToken)
+    {
+        var baseSlug = GroupSlug.Slugify(name);
+        var candidate = baseSlug;
+        for (var suffix = 2; await _store.SlugExistsAsync(candidate, cancellationToken); suffix++)
+        {
+            if (suffix > 1000)
+            {
+                throw new ValidationException("Could not allocate a unique group slug.");
+            }
+
+            candidate = GroupSlug.WithSuffix(baseSlug, suffix);
+        }
+
+        return candidate;
     }
 }

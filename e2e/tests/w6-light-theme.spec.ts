@@ -119,4 +119,30 @@ test.describe('W6 light theme: shell contrast', () => {
     await expectReadableText(title)
     await expectReadableText(activeTab)
   })
+
+  // Wave B (Step 1): the content palette (primary/danger actions and links) must
+  // clear AA on the light card surface in BOTH themes, since the card is white
+  // regardless of theme.
+  test('content actions and links meet AA in light and dark', async ({ page }) => {
+    const email = uniqueEmail('w6content')
+    await register(page, email)
+
+    await page.goto('/cuenta/preferencias')
+    await page.getByRole('button', { name: 'Claro', exact: true }).click()
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
+
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
+    await expectReadableText(page.getByRole('button', { name: 'Nuevo grupo' }))
+    await expectReadableText(page.getByRole('button', { name: 'Unirme con enlace' }).first())
+
+    await page.goto('/cuenta/preferencias')
+    await page.getByRole('button', { name: 'Oscuro', exact: true }).click()
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark')
+
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
+    await expectReadableText(page.getByRole('button', { name: 'Nuevo grupo' }))
+    await expectReadableText(page.getByRole('button', { name: 'Unirme con enlace' }).first())
+  })
 })
