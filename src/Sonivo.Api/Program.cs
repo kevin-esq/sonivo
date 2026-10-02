@@ -1848,6 +1848,7 @@ app.MapGet("/api/groups/{groupId:guid}/members", async (
             userId = i.UserId,
             displayName = i.DisplayName,
             role = i.Role,
+            musicalRole = i.MusicalRole,
             createdAt = i.CreatedAt
         })
     });
@@ -2380,6 +2381,64 @@ app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async
 .WithName("ChangeGroupMemberRole")
 .RequireAuthorization()
 .DisableAntiforgery();
+
+// ADR-0051: Owner or Manager sets a member's descriptive musical role.
+app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/musical-role", async (
+    Guid groupId,
+    Guid targetUserId,
+    SetMusicalRoleRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SetMusicalRoleHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(
+        new SetMusicalRoleCommand(userId.Value, groupId, targetUserId, request.MusicalRole),
+        cancellationToken);
+    return Results.NoContent();
+})
+.WithName("SetGroupMemberMusicalRole")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+// ADR-0051: per-group audit log (ids + short action metadata). Owner only.
+app.MapGet("/api/groups/{groupId:guid}/audit", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupAuditStore audit,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, userId.Value, cancellationToken);
+    var entries = await audit.ListByGroupAsync(groupId, 200, cancellationToken);
+    return Results.Ok(new
+    {
+        items = entries.Select(e => new
+        {
+            id = e.Id,
+            action = e.Action,
+            actorUserId = e.ActorUserId,
+            targetUserId = e.TargetUserId,
+            metadata = e.Metadata,
+            createdAt = e.CreatedAt
+        })
+    });
+})
+.WithName("ListGroupAudit")
+.RequireAuthorization();
 
 app.MapPost("/api/groups/{groupId:guid}/leave", async (
     Guid groupId,
@@ -3895,6 +3954,7 @@ internal sealed record UpdateGroupBrandingRequest(
 internal sealed record CreateInvitationRequest(string? Email);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);
 internal sealed record ChangeMemberRoleRequest(string? Role);
+internal sealed record SetMusicalRoleRequest(string? MusicalRole);
 internal sealed record SoftDeleteGroupRequest(int ExpectedVersion);
 internal sealed record CreateSongRequest(
     string? Title,

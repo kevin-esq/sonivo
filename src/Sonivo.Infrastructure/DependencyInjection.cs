@@ -66,6 +66,7 @@ public static class DependencyInjection
         services.AddScoped<IGroupBrandingStore, EfGroupBrandingStore>();
         services.AddScoped<IAccountAuditStore, EfAccountAuditStore>();
         services.AddScoped<IMembershipStore, EfMembershipStore>();
+        services.AddScoped<IGroupAuditStore, EfGroupAuditStore>();
         services.AddScoped<IInvitationStore, EfInvitationStore>();
         services.AddScoped<ISongStore, EfSongStore>();
         services.AddScoped<IArrangementStore, EfArrangementStore>();

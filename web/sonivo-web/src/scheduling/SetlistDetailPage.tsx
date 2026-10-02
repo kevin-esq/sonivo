@@ -17,7 +17,7 @@ import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '.
 import {
   CONFLICT_MESSAGE,
   ConflictAlert,
-  isOwnerRole,
+  canManageContentRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -72,7 +72,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   const [showAdd, setShowAdd] = useState(false)
   const { t } = useT()
 
-  const isOwner = isOwnerRole(group?.role)
+  const isOwner = canManageContentRole(group?.role)
 
   async function reload() {
     if (!groupId || !setlistId) return

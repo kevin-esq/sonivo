@@ -63,7 +63,7 @@ public sealed class CreateEventHandler
 
     public async Task<EventDetailDto> HandleAsync(CreateEventCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         try
         {
@@ -181,7 +181,7 @@ public sealed class GetEventHandler
         }
 
         if ((musicalEvent.Status == EventStatuses.Cancelled || musicalEvent.IsHidden)
-            && !membership.IsOwner)
+            && !membership.CanManageContent)
         {
             throw new NotFoundException("Event not found.");
         }
@@ -225,7 +225,7 @@ public sealed class UpdateEventHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(
             command.GroupId,
@@ -303,7 +303,7 @@ public sealed class CancelEventHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(
             command.GroupId,
@@ -399,7 +399,7 @@ public sealed class ReplaceEventPlanFromSetlistHandler
             throw new ValidationException("Setlist id is required.");
         }
 
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(
             command.GroupId,

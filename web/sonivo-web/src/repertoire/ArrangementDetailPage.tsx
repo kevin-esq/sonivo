@@ -55,7 +55,7 @@ import {
   ConfirmDialog,
   ConflictAlert,
   formatPurpose,
-  isOwnerRole,
+  canManageContentRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -81,7 +81,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const [deletingResource, setDeletingResource] = useState(false)
   const { t } = useT()
 
-  const isOwner = isOwnerRole(group?.role)
+  const isOwner = canManageContentRole(group?.role)
 
   async function reloadArrangement() {
     if (!groupId || !arrangementId) return

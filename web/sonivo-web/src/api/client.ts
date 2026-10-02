@@ -482,6 +482,7 @@ export type MemberListItem = {
   userId: string
   displayName: string
   role: string
+  musicalRole?: string | null
   createdAt: string
 }
 
@@ -497,11 +498,23 @@ export async function removeMember(groupId: string, userId: string): Promise<voi
 export async function changeMemberRole(
   groupId: string,
   userId: string,
-  role: 'Owner' | 'Member',
+  role: 'Owner' | 'Manager' | 'Member' | 'Viewer',
 ): Promise<void> {
   await apiRequest<void>(`/api/groups/${groupId}/members/${userId}/role`, {
     method: 'POST',
     body: { role },
+  })
+}
+
+/** ADR-0051: Owner or Manager sets a member's descriptive musical role (null clears it). */
+export async function setMemberMusicalRole(
+  groupId: string,
+  userId: string,
+  musicalRole: string | null,
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/members/${userId}/musical-role`, {
+    method: 'PUT',
+    body: { musicalRole },
   })
 }
 

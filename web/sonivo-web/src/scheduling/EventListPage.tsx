@@ -15,7 +15,7 @@ import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
 import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '../repertoire/chrome'
 import {
-  isOwnerRole,
+  canManageContentRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -59,7 +59,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
     }
   }, [])
 
-  const isOwner = isOwnerRole(group?.role)
+  const isOwner = canManageContentRole(group?.role)
 
   const filtered = useMemo(() => {
     if (!events) return null

@@ -30,7 +30,7 @@ import {
   ConfirmDialog,
   ConflictAlert,
   formatOriginKind,
-  isOwnerRole,
+  canManageContentRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -50,7 +50,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const { t } = useT()
 
-  const isOwner = isOwnerRole(group?.role)
+  const isOwner = canManageContentRole(group?.role)
 
   // Song + arrangement list load together; stays idle until the group is known.
   const surface = useResource(

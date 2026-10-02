@@ -26,7 +26,7 @@ import {
 } from './chrome'
 import { plural } from '../ui/plural'
 import {
-  isOwnerRole,
+  canManageContentRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -41,7 +41,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
   const [query, setQuery] = useState('')
   const { t } = useT()
 
-  const isOwner = isOwnerRole(group?.role)
+  const isOwner = canManageContentRole(group?.role)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()

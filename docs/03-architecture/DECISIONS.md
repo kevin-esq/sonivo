@@ -65,6 +65,37 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0051 — Group roles: Owner | Manager | Member | Viewer + musical role
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-01 (white-label program, phase 4.4). Supersedes the `Owner|Member`-only role list of ADR-0012.
+- **Date:** 2026-10-01
+- **See:** [`PHASE-WHITELABEL-SPEC.md`](PHASE-WHITELABEL-SPEC.md) §4.4/§5.
+
+### Decision
+
+`Membership.Role` gains two roles, and a descriptive musical role lives on the same row:
+
+| Role | View | RSVP / practice | Manage content (repertoire, setlists, events) | Membership, settings, branding, transfer, delete |
+| --- | --- | --- | --- | --- |
+| Owner | Y | Y | Y | Y |
+| Manager | Y | Y | Y | N |
+| Member | Y | Y | N | N |
+| Viewer | Y | N | N | N |
+
+- No generic ACL engine, no permission tables (ADR-0012's prohibition stands). Section checks are role predicates in `GroupAccessService` (`RequireOwnerAsync`, `RequireManagerAsync`, `RequireParticipantAsync`).
+- **Authorization stays server-side**; the client role chip only hides affordances.
+- The **musical role** is free text (≤64, trimmed) and never authorizes anything.
+- **Per-group audit log:** `GroupAuditLog` stores ids + a short non-personal `Metadata` (e.g. the new role), never user content. Owner-only read.
+- DB `CK_Memberships_Role` widens to the four values (additive/widening migration `AddGroupRolesAndAudit`).
+
+### Consequences
+
+- Content handlers move from `RequireOwnerAsync` to `RequireManagerAsync`; RSVP/practice move to `RequireParticipantAsync`. The conductor room is Manager-capable; a Viewer cannot join it.
+- Last-Owner protection is preserved (cannot demote or remove the only Owner).
+- Supersedes the "The MVP roles are exactly Owner and Member / do not create an Organizer role" part of ADR-0012.
+
+---
+
 ## ADR-0043 — Total visual redesign: immersive × precise, Grupo/Cuenta IA, frontend es/en
 
 - **Status:** **ACCEPTED** — owner-authorized 2026-09-29 ("Acepto todo"); waves W0–W5 shipped 2026-09-30 (PRs #115–#120, see [`PHASE-UI-UX-SPEC.md`](PHASE-UI-UX-SPEC.md)).
