@@ -3,13 +3,13 @@ using Sonivo.Application.Tenancy;
 
 namespace Sonivo.Application.Realtime;
 
-public sealed record ConductorRoomAccess(Guid GroupId, bool IsOwner);
+public sealed record ConductorRoomAccess(Guid GroupId, bool IsOwner, bool CanManageContent);
 
 /// <summary>
 /// Per-method Membership recheck for the Q9 conductor Hub (ADR-0036, ADR-0019).
 /// The Group is always resolved server-side from the Event id — never from a
 /// client-supplied group id. Unknown Event or non-member → 404 (no leak);
-/// member non-Owner attempting to conduct → 403.
+/// member non-manager attempting to conduct → 403.
 /// </summary>
 public sealed class ConductorRoomAuthorizer
 {
@@ -22,7 +22,7 @@ public sealed class ConductorRoomAuthorizer
         _access = access;
     }
 
-    public async Task<ConductorRoomAccess> RequireMemberAsync(
+    public async Task<ConductorRoomAccess> RequireParticipantAsync(
         Guid eventId,
         Guid userId,
         CancellationToken cancellationToken)
@@ -30,8 +30,8 @@ public sealed class ConductorRoomAuthorizer
         var groupId = await RequireGroupIdAsync(eventId, cancellationToken);
         try
         {
-            var (_, membership) = await _access.RequireMemberAsync(groupId, userId, cancellationToken);
-            return new ConductorRoomAccess(groupId, membership.IsOwner);
+            var (_, membership) = await _access.RequireParticipantAsync(groupId, userId, cancellationToken);
+            return new ConductorRoomAccess(groupId, membership.IsOwner, membership.CanManageContent);
         }
         catch (NotFoundException)
         {
@@ -40,7 +40,7 @@ public sealed class ConductorRoomAuthorizer
         }
     }
 
-    public async Task<ConductorRoomAccess> RequireOwnerAsync(
+    public async Task<ConductorRoomAccess> RequireManagerAsync(
         Guid eventId,
         Guid userId,
         CancellationToken cancellationToken)
@@ -48,8 +48,8 @@ public sealed class ConductorRoomAuthorizer
         var groupId = await RequireGroupIdAsync(eventId, cancellationToken);
         try
         {
-            var (_, membership) = await _access.RequireOwnerAsync(groupId, userId, cancellationToken);
-            return new ConductorRoomAccess(groupId, membership.IsOwner);
+            var (_, membership) = await _access.RequireManagerAsync(groupId, userId, cancellationToken);
+            return new ConductorRoomAccess(groupId, membership.IsOwner, membership.CanManageContent);
         }
         catch (NotFoundException)
         {

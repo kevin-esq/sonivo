@@ -51,6 +51,6 @@ public sealed class UpdateGroupHandler
             command.UserId,
             command.GroupId);
 
-        return new GroupDto(group.Id, group.Name, group.Version, membership.Role, group.CreatedAt, group.UpdatedAt);
+        return new GroupDto(group.Id, group.Name, group.Version, membership.Role, group.CreatedAt, group.UpdatedAt, group.Slug);
     }
 }

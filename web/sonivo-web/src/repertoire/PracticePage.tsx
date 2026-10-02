@@ -29,6 +29,7 @@ import {
 import { useConductorRoom } from './useConductorRoom'
 import { PracticeEventQueue } from './PracticeEventQueue'
 import { PracticePlayer } from './PracticePlayer'
+import { StageModePanel } from './StageModePanel'
 import {
   readPracticeFollowAlong,
   writePracticeFollowAlong,
@@ -39,9 +40,10 @@ import {
   type PracticeViewMode,
 } from './practiceViewPrefs'
 import { listPracticeAudioTracks, type PracticeAudioSource } from './pickPracticeAudio'
+import { isDigitizableResource } from './digitize'
 import {
   ConfirmDialog,
-  isOwnerRole,
+  canManageContentRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -124,7 +126,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const tab = parsePracticeTab(searchParams.get('tab'))
   const { t } = useT()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
-  const isOwner = isOwnerRole(group?.role)
+  const isOwner = canManageContentRole(group?.role)
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
   const [songTitle, setSongTitle] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -256,7 +258,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('practica.myGroups')}
         </Link>
       </div>
@@ -272,7 +274,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={error ?? t('practica.notFound')} />
         <Link
-          className="font-semibold text-primary no-underline hover:underline"
+          className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/library`}
         >
           {t('practica.library')}
@@ -312,6 +314,9 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const referenceResources = liveArrangement.resources.filter(
     (r) => r.purpose === 'reference' && r.kind === 'link',
   )
+  // The inline digitizer needs a WAV audio/practice/click resource; say why when
+  // there is none instead of rendering an empty section (W8 P2).
+  const digitizableResources = liveArrangement.resources.filter(isDigitizableResource)
   // ADR-0037 / ADR-0031: cross-origin YouTube iframes expose no timeupdate,
   // so follow-along stays file-audio-only. When Practice has timing marks but
   // no file audio and only a YouTube reference to play from, the toggle is
@@ -469,7 +474,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           description={t('practica.noPlanBody')}
           action={
             <Link
-              className="font-semibold text-primary no-underline hover:underline"
+              className="font-semibold text-primary-ink no-underline hover:underline"
               to={`/groups/${liveGroup.id}/events/${eventId}`}
             >
               {t('practica.backToEvent')}
@@ -665,6 +670,15 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         </section>
       ) : null}
 
+      {sourceBody ? (
+        <StageModePanel
+          text={displayBody}
+          hideChords={hideChords}
+          timingMarks={timingMarks}
+          currentMs={highlightMs}
+        />
+      ) : null}
+
       <section className="space-y-3" aria-labelledby="practice-lyrics-heading">
         <h2 id="practice-lyrics-heading" className="text-lg font-semibold tracking-tight text-neutral-dark">
           {t('practica.lyricsTitle')}
@@ -677,7 +691,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
                 description={t('practica.noLyricsBody')}
                 action={
                   <Link
-                    className="font-semibold text-primary no-underline hover:underline"
+                    className="font-semibold text-primary-ink no-underline hover:underline"
                     to={arrangementHref}
                   >
                     {t('practica.viewArrangement')}
@@ -729,7 +743,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             <p className="text-sm text-slate-600">{t('practica.avanzado.timingHint')}</p>
             <p>
               <Link
-                className="inline-flex min-h-11 items-center font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 to={arrangementHref}
                 data-testid="practice-advanced-timing-link"
               >
@@ -751,7 +765,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             <p className="text-sm text-slate-600">{t('practica.avanzado.digitizeHint')}</p>
             <p>
               <Link
-                className="inline-flex min-h-11 items-center font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 to={arrangementHref}
                 data-testid="practice-advanced-digitize-link"
               >
@@ -759,12 +773,21 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               </Link>
             </p>
             {isOwner ? (
-              <AudioDigitizer
-                key={liveArrangement.id}
-                groupId={liveGroup.id}
-                arrangement={liveArrangement}
-                onChanged={reloadForDigitizer}
-              />
+              digitizableResources.length > 0 ? (
+                <AudioDigitizer
+                  key={liveArrangement.id}
+                  groupId={liveGroup.id}
+                  arrangement={liveArrangement}
+                  onChanged={reloadForDigitizer}
+                />
+              ) : (
+                <p
+                  className="rounded-xl border border-slate-200 bg-neutral-light px-3 py-2 text-sm text-slate-600"
+                  data-testid="practice-advanced-digitize-empty"
+                >
+                  {t('practica.avanzado.digitizeEmpty')}
+                </p>
+              )
             ) : null}
           </section>
 
@@ -805,14 +828,14 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       <p>
         {eventId ? (
           <Link
-            className="inline-flex min-h-11 items-center font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             to={`/groups/${group.id}/events/${eventId}`}
           >
             {t('practica.backToEvent')}
           </Link>
         ) : (
           <Link
-            className="inline-flex min-h-11 items-center font-semibold text-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             to={arrangementHref}
           >
             {t('practica.backToArrangement')}
