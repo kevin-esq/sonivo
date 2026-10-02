@@ -14,6 +14,6 @@ public sealed class GetGroupHandler
     public async Task<GroupDto> HandleAsync(Guid userId, Guid groupId, CancellationToken cancellationToken)
     {
         var (group, membership) = await _access.RequireMemberAsync(groupId, userId, cancellationToken);
-        return new GroupDto(group.Id, group.Name, group.Version, membership.Role, group.CreatedAt, group.UpdatedAt);
+        return new GroupDto(group.Id, group.Name, group.Version, membership.Role, group.CreatedAt, group.UpdatedAt, group.Slug);
     }
 }

@@ -28,7 +28,7 @@ public sealed class SoftDeleteArrangementHandler
 
     public async Task HandleAsync(SoftDeleteArrangementCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var arrangement = await _arrangements.GetByIdAsync(
             command.GroupId,
