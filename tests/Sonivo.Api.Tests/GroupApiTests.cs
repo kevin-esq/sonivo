@@ -470,6 +470,9 @@ public sealed class GroupBrandingOffFactory : WebApplicationFactory<Program>
         builder.UseSetting("Authentication:Google:ClientSecret", "");
         builder.UseSetting("Authentication:Google:EnableTestHook", "false");
         builder.UseSetting("Features:GroupBranding", "false");
+        // Phases 4.1 / 4.8 default ON in appsettings; the "off" fixtures must be explicit.
+        builder.UseSetting("Features:ManagedAccounts", "false");
+        builder.UseSetting("Features:Notifications", "false");
         builder.UseSetting("R2:AccountId", "");
         builder.UseSetting("R2:AccessKey", "");
         builder.UseSetting("R2:Secret", "");
