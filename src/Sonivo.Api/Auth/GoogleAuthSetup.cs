@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Sonivo.Application.Abstractions;
 using Sonivo.Infrastructure.Identity;
+using Sonivo.Infrastructure.Persistence;
 
 namespace Sonivo.Api.Auth;
 
@@ -81,7 +83,10 @@ public static class GoogleAuthSetup
 
         app.MapGet(CompletePath, async (
             SignInManager<ApplicationUser> signInManager,
-            UserManager<ApplicationUser> users) =>
+            UserManager<ApplicationUser> users,
+            SonivoDbContext db,
+            IAccountAuditStore audit,
+            IClock clock) =>
         {
             if (!googleConfigured && !testHook)
             {
@@ -97,7 +102,7 @@ public static class GoogleAuthSetup
                     title: "Bad Request");
             }
 
-            var completion = await ExternalLoginCompletion.CompleteAsync(info, users);
+            var completion = await ExternalLoginCompletion.CompleteAsync(info, users, db, audit, clock);
             if (!completion.Succeeded || completion.User is null)
             {
                 return Results.Problem(
@@ -121,7 +126,10 @@ public static class GoogleAuthSetup
             app.MapPost("/api/auth/google/test-callback", async (
                 TestGoogleCallbackRequest request,
                 SignInManager<ApplicationUser> signInManager,
-                UserManager<ApplicationUser> users) =>
+                UserManager<ApplicationUser> users,
+                SonivoDbContext db,
+                IAccountAuditStore audit,
+                IClock clock) =>
             {
                 var claims = new List<Claim>
                 {
@@ -151,7 +159,7 @@ public static class GoogleAuthSetup
                     info.AuthenticationProperties.Items[NextItemKey] = safeNext;
                 }
 
-                var completion = await ExternalLoginCompletion.CompleteAsync(info, users);
+                var completion = await ExternalLoginCompletion.CompleteAsync(info, users, db, audit, clock);
                 if (!completion.Succeeded || completion.User is null)
                 {
                     return Results.Problem(

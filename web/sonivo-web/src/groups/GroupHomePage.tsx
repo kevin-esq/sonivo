@@ -72,7 +72,7 @@ function formatRsvpLabel(response: EventRsvpResponse | string | null): string {
     case 'maybe':
       return 'Quizás'
     default:
-      return 'Sin respuesta'
+      return 'Aún no confirmaste tu asistencia'
   }
 }
 
@@ -227,10 +227,10 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   if (group === null) {
     return (
       <div className="space-y-3">
-        <p role="alert" className="text-error">
+        <p role="alert" className="text-error-ink">
           {error}
         </p>
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('inicio.myGroups')}
         </Link>
       </div>
@@ -250,25 +250,82 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       <ProblemAlert message={composeError} />
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+        <Link
+          to={`/groups/${group.id}/setlists`}
+          data-testid="home-stat-setlists"
+          className="block rounded-2xl border border-slate-100 bg-white px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+        >
           <p className="text-sm text-slate-500">{t('inicio.statSetlists')}</p>
-          <p className="mt-1 text-2xl font-bold text-neutral-dark">
+          <div className="mt-1 text-2xl font-bold text-neutral-dark">
             {setlists === null ? <Skeleton className="mt-2 h-8 w-10" /> : setlists.length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+          </div>
+          <p className="mt-1 text-xs font-medium text-primary-ink">{t('inicio.viewAll')}</p>
+        </Link>
+        <Link
+          to={`/groups/${group.id}/events`}
+          data-testid="home-stat-events"
+          className="block rounded-2xl border border-slate-100 bg-white px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+        >
           <p className="text-sm text-slate-500">{t('inicio.statEvents')}</p>
-          <p className="mt-1 text-2xl font-bold text-neutral-dark">
+          <div className="mt-1 text-2xl font-bold text-neutral-dark">
             {scheduledCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : scheduledCount}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+          </div>
+          <p className="mt-1 text-xs font-medium text-primary-ink">{t('inicio.viewAll')}</p>
+        </Link>
+        <Link
+          to={`/groups/${group.id}/library`}
+          data-testid="home-stat-songs"
+          className="block rounded-2xl border border-slate-100 bg-white px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+        >
           <p className="text-sm text-slate-500">{t('inicio.statSongs')}</p>
-          <p className="mt-1 text-2xl font-bold text-neutral-dark">
+          <div className="mt-1 text-2xl font-bold text-neutral-dark">
             {songCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : songCount}
-          </p>
-        </div>
+          </div>
+          <p className="mt-1 text-xs font-medium text-primary-ink">{t('inicio.viewAll')}</p>
+        </Link>
       </div>
+
+      {isOwner && setlists?.length === 0 && events?.length === 0 && songCount === 0 ? (
+        <section
+          className="rounded-2xl border border-primary/25 bg-primary/5 p-5"
+          aria-labelledby="home-start-heading"
+          data-testid="home-get-started"
+        >
+          <h3 id="home-start-heading" className="font-semibold text-neutral-dark">
+            {t('inicio.getStartedTitle')}
+          </h3>
+          <p className="mt-1 text-sm text-slate-600">{t('inicio.getStartedIntro')}</p>
+          <ol className="mt-3 space-y-1.5">
+            <li>
+              <Link
+                to={`/groups/${group.id}/library`}
+                className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline"
+              >
+                <Music2 className="h-4 w-4" aria-hidden="true" />
+                {t('inicio.getStartedSongs')}
+              </Link>
+            </li>
+            <li>
+              <Link
+                to={`/groups/${group.id}/setlists`}
+                className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline"
+              >
+                <ListMusic className="h-4 w-4" aria-hidden="true" />
+                {t('inicio.getStartedSetlists')}
+              </Link>
+            </li>
+            <li>
+              <Link
+                to={`/groups/${group.id}/events`}
+                className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline"
+              >
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                {t('inicio.getStartedEvents')}
+              </Link>
+            </li>
+          </ol>
+        </section>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="space-y-3" aria-labelledby="next-event-heading">
@@ -286,7 +343,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             >
               <div className="flex flex-wrap items-center gap-3">
                 <span
-                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
+                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-ink"
                   aria-hidden="true"
                 >
                   <CalendarDays className="h-6 w-6" />
@@ -327,7 +384,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               }
               action={
                 <Link
-                  className="font-semibold text-primary no-underline hover:underline"
+                  className="font-semibold text-primary-ink no-underline hover:underline"
                   to={`/groups/${group.id}/events`}
                   data-testid="home-empty-events"
                 >
@@ -339,12 +396,12 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
         </section>
 
         <section className="space-y-3" aria-labelledby="recent-setlists-heading">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <h3 id="recent-setlists-heading" className="font-semibold">
               {t('inicio.recentSetlists')}
             </h3>
             <Link
-              className="text-sm font-semibold text-primary no-underline hover:underline"
+              className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-ink no-underline hover:underline"
               to={`/groups/${group.id}/setlists`}
             >
               {t('inicio.viewAll')}
@@ -362,7 +419,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               }
               action={
                 <Link
-                  className="font-semibold text-primary no-underline hover:underline"
+                  className="font-semibold text-primary-ink no-underline hover:underline"
                   to={`/groups/${group.id}/setlists`}
                 >
                   {t('inicio.goSetlists')}
@@ -404,7 +461,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       <div className="rounded-2xl border border-slate-100 bg-neutral-light/60 px-4 py-3">
         <div className="flex items-center gap-3">
           <span
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary-ink"
             aria-hidden="true"
           >
             <Music2 className="h-5 w-5" />
@@ -417,7 +474,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                 : plural(songCount, t('common.songOne'), t('common.songMany'))}
               {' · '}
               <Link
-                className="font-semibold text-primary no-underline hover:underline"
+                className="font-semibold text-primary-ink no-underline hover:underline"
                 to={`/groups/${group.id}/library`}
               >
                 {t('inicio.openLibrary')}

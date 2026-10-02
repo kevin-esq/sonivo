@@ -67,4 +67,42 @@ public class GroupDomainTests
         Assert.Equal(groupId, membership.GroupId);
         Assert.Equal(userId, membership.UserId);
     }
+
+    [Fact]
+    public void ChangeSlug_is_allowed_once_and_then_confirmed()
+    {
+        var group = Group.Create("Band", Now);
+        Assert.True(group.CanChangeSlug);
+
+        var previous = group.ChangeSlug("band-nueva", Now.AddMinutes(1));
+
+        Assert.Equal("band", previous);
+        Assert.Equal("band-nueva", group.Slug);
+        Assert.False(group.CanChangeSlug);
+        Assert.Equal(Now.AddMinutes(1), group.SlugConfirmedAt);
+        Assert.Throws<InvalidOperationException>(() => group.ChangeSlug("otra", Now.AddMinutes(2)));
+    }
+
+    [Fact]
+    public void ChangeSlug_rejects_reserved_and_unchanged_slugs()
+    {
+        var group = Group.Create("Band", Now);
+
+        Assert.Throws<ArgumentException>(() => group.ChangeSlug("admin", Now));
+        Assert.Throws<ArgumentException>(() => group.ChangeSlug("band", Now));
+        Assert.True(group.CanChangeSlug);
+    }
+
+    [Fact]
+    public void GroupSlugHistory_create_validates_input()
+    {
+        Assert.Throws<ArgumentException>(() => GroupSlugHistory.Create(Guid.Empty, "band", Now));
+        Assert.Throws<ArgumentException>(() => GroupSlugHistory.Create(Guid.NewGuid(), "admin", Now));
+
+        var groupId = Guid.NewGuid();
+        var history = GroupSlugHistory.Create(groupId, "band", Now);
+        Assert.Equal(groupId, history.GroupId);
+        Assert.Equal("band", history.Slug);
+        Assert.Equal(Now, history.CreatedAt);
+    }
 }
