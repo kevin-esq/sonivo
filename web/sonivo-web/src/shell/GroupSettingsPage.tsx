@@ -174,10 +174,10 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   if (group === null) {
     return (
       <div className="space-y-3">
-        <p role="alert" className="text-error">
+        <p role="alert" className="text-error-ink">
           {error}
         </p>
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           {t('workspace.myGroups')}
         </Link>
       </div>
@@ -187,7 +187,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const isOwner = isOwnerRole(group.role)
 
   return (
-    <section className="max-w-xl space-y-8" aria-labelledby="ajustes-heading">
+    <section className="max-w-4xl space-y-8" aria-labelledby="ajustes-heading">
       <div className="space-y-1">
         <h1 id="ajustes-heading" className="text-2xl font-bold tracking-tight">
           {t('ajustes.title')}
@@ -203,6 +203,9 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         </p>
       )}
 
+      {/* Two columns on desktop to cut the scroll of the admin form (Wave C, Step 7). */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        <div className="space-y-8">
       <form className="space-y-3" onSubmit={(event) => void onRename(event)} noValidate>
         <h2 className="text-lg font-semibold">{t('inicio.renameTitle')}</h2>
         <ConflictAlert message={renameConflict} />
@@ -226,7 +229,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </Button>
         ) : null}
       </form>
-
+        </div>
+        <div className="space-y-8">
       <div
         className="overflow-hidden rounded-2xl"
         role="img"
@@ -334,6 +338,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           ))}
         </div>
       </fieldset>
+        </div>
+      </div>
 
       <p className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-500">{t('ajustes.logoNote')}</p>
 
@@ -348,7 +354,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           aria-labelledby="ajustes-danger-heading"
           className="mt-4 space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
         >
-          <h2 id="ajustes-danger-heading" className="text-lg font-semibold text-error">
+          <h2 id="ajustes-danger-heading" className="text-lg font-semibold text-error-ink">
             {t('inicio.deleteTitle')}
           </h2>
           <ProblemAlert message={deleteError} />

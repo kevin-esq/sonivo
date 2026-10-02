@@ -18,7 +18,16 @@ import {
   useOutletContext,
 } from "react-router-dom";
 import { Compass, TriangleAlert, WifiOff, type LucideIcon } from "lucide-react";
-import { fetchCurrentUser, logoutUser, type CurrentUser } from "./api/client";
+import {
+  createInvitation,
+  deleteGroup,
+  fetchCurrentUser,
+  leaveGroup,
+  logoutUser,
+  updateGroup,
+  type CurrentUser,
+} from "./api/client";
+import type { GroupsPageActions } from "./groups/GroupsPage";
 import {
   AudioPlayerProvider,
   useAudioPlayer,
@@ -31,10 +40,16 @@ import {
   SessionScreen,
 } from "./shell/GroupsChrome";
 import { GroupWorkspace } from "./shell/GroupWorkspace";
+import { GroupSlugResolver } from "./tenancy/GroupSlugResolver";
+import { BrandedLoginPage } from "./shell/BrandedLoginPage";
+import { MustChangePassword } from "./shell/MustChangePassword";
+import { RailPresenceProvider } from "./shell/railPresence";
 import { PersistentGlobalPlayer } from "./shell/PersistentGlobalPlayer";
 import { UserChrome } from "./shell/UserChrome";
 import { Button, primaryButtonClass } from "./ui/button";
 import { cn } from "./ui/cn";
+import { ToastProvider } from "./ui/toast";
+import { PageSkeleton } from "./ui/skeleton";
 
 // ---------- Lazy loading (menos JS inicial) ----------
 const named = <T extends Record<string, any>, K extends keyof T>(
@@ -124,7 +139,15 @@ function useAuth() {
 // ---------- Utilidades ----------
 
 function RouteFallback() {
-  return <SessionScreen message="Cargando…" />;
+  // Route-level loading uses the shared skeleton (Wave C, Step 4) instead of a
+  // bare "Cargando…" screen, so the transition reads as content arriving.
+  return (
+    <div className="min-h-screen bg-canvas px-6 py-10">
+      <div className="mx-auto w-full max-w-4xl">
+        <PageSkeleton />
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -149,13 +172,15 @@ function FallbackScreen({
           <BrandLockup to="/" />
         </div>
         <span
-          className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-primary"
+          className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-shell-link"
           aria-hidden="true"
         >
           <Icon className="h-7 w-7" />
         </span>
         <div className="space-y-1.5">
-          <h1 className="text-2xl font-bold tracking-tight text-ink">{title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-ink">
+            {title}
+          </h1>
           <p className="text-sm text-muted">{message}</p>
         </div>
         <div className="flex justify-center">{action}</div>
@@ -241,6 +266,11 @@ function RequireAuth({
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
   }
 
+  // ADR-0047: a temporary credential blocks the whole app until replaced.
+  if (session.user.mustChangePassword) {
+    return <MustChangePassword onDone={onRetry} />;
+  }
+
   const context: AuthContext = { user: session.user, onLogout };
   return <Outlet context={context} />;
 }
@@ -278,7 +308,28 @@ const withUser = (Page: React.ComponentType<{ user: CurrentUser }>) =>
     return <Page user={useAuth().user} />;
   };
 
-const GroupsPageR = withUser(GroupsPage);
+/** Acciones reales de GroupsPage; todas rechazan si el backend falla. */
+const groupsPageActions: GroupsPageActions = {
+  onRename: async (group, name) => {
+    await updateGroup(group.id, { name, expectedVersion: group.version });
+  },
+  onDelete: async (group) => {
+    await deleteGroup(group.id, group.version);
+  },
+  onLeave: async (group) => {
+    await leaveGroup(group.id);
+  },
+  onCreateInvite: async (group) => {
+    const invitation = await createInvitation(group.id);
+    return `${window.location.origin}/join/${invitation.token}`;
+  },
+};
+
+/** GroupsPage con usuario y acciones; la página refresca su propia lista tras cada acción. */
+function GroupsPageWithActions() {
+  return <GroupsPage user={useAuth().user} actions={groupsPageActions} />;
+}
+
 const GroupHomePageR = withUser(GroupHomePage);
 const LibraryPageR = withUser(LibraryPage);
 const SetlistListPageR = withUser(SetlistListPage);
@@ -356,117 +407,135 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <AudioPlayerProvider>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            {/* Rutas protegidas */}
-            <Route
-              element={
-                <RequireAuth
-                  session={session}
-                  onLogout={onLogout}
-                  onRetry={() => void loadSession()}
-                />
-              }
-            >
-              <Route element={<GroupsLayout />}>
-                <Route path="/" element={<GroupsPageR />} />
+      <RailPresenceProvider>
+        <AudioPlayerProvider>
+          <ToastProvider>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              {/* Rutas protegidas */}
+              <Route
+                element={
+                  <RequireAuth
+                    session={session}
+                    onLogout={onLogout}
+                    onRetry={() => void loadSession()}
+                  />
+                }
+              >
+                <Route element={<GroupsLayout />}>
+                  <Route path="/" element={<GroupsPageWithActions />} />
+                </Route>
+
+                <Route path="/groups/:groupId" element={<GroupLayout />}>
+                  <Route index element={<GroupHomePageR />} />
+                  <Route path="library" element={<LibraryPageR />} />
+                  <Route path="setlists" element={<SetlistListPageR />} />
+                  <Route
+                    path="setlists/:setlistId"
+                    element={<SetlistDetailPageR />}
+                  />
+                  <Route path="events" element={<EventListPageR />} />
+                  <Route
+                    path="events/:eventId"
+                    element={<EventDetailPageR />}
+                  />
+                  <Route path="people" element={<PeoplePageR />} />
+                  <Route path="songs/:songId" element={<SongDetailPageR />} />
+                  <Route
+                    path="arrangements/:arrangementId"
+                    element={<ArrangementDetailPageR />}
+                  />
+                  <Route
+                    path="arrangements/:arrangementId/practice"
+                    element={<PracticePageR />}
+                  />
+                  <Route path="ajustes" element={<GroupSettingsPageR />} />
+                </Route>
+
+                <Route path="/cuenta" element={<AccountLayout />}>
+                  <Route index element={<SettingsProfilePageR />} />
+                  <Route
+                    path="preferencias"
+                    element={<CuentaPreferencesPage />}
+                  />
+                  <Route path="seguridad" element={<SecurityPage />} />
+                  <Route path="grupos" element={<GroupsPageWithActions />} />
+                </Route>
+
+                {/* Path tenancy (ADR-0045 D1): /g/{slug} resolves and forwards to the
+                    group workspace keeping the sub-path; it requires membership. */}
+                <Route path="/g/:slug" element={<GroupSlugResolver />} />
+                <Route path="/g/:slug/*" element={<GroupSlugResolver />} />
               </Route>
 
-              <Route path="/groups/:groupId" element={<GroupLayout />}>
-                <Route index element={<GroupHomePageR />} />
-                <Route path="library" element={<LibraryPageR />} />
-                <Route path="setlists" element={<SetlistListPageR />} />
-                <Route
-                  path="setlists/:setlistId"
-                  element={<SetlistDetailPageR />}
-                />
-                <Route path="events" element={<EventListPageR />} />
-                <Route path="events/:eventId" element={<EventDetailPageR />} />
-                <Route path="people" element={<PeoplePageR />} />
-                <Route path="songs/:songId" element={<SongDetailPageR />} />
-                <Route
-                  path="arrangements/:arrangementId"
-                  element={<ArrangementDetailPageR />}
-                />
-                <Route
-                  path="arrangements/:arrangementId/practice"
-                  element={<PracticePageR />}
-                />
-                <Route path="ajustes" element={<GroupSettingsPageR />} />
-              </Route>
+              {/* Rutas públicas */}
+              <Route
+                path="/join/:token"
+                element={
+                  <PublicChrome user={user}>
+                    <JoinPage user={guestUser} />
+                  </PublicChrome>
+                }
+              />
+              <Route
+                path="/login"
+                element={
+                  <GuestAuthRoute
+                    user={guestUser}
+                    mode="login"
+                    onSuccess={onAuthSuccess}
+                  />
+                }
+              />
+              <Route
+                path="/g/:slug/login"
+                element={
+                  <BrandedLoginPage user={guestUser} onSuccess={onAuthSuccess} />
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  <GuestAuthRoute
+                    user={guestUser}
+                    mode="register"
+                    onSuccess={onAuthSuccess}
+                  />
+                }
+              />
+              <Route path="/confirm" element={<ConfirmPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-              <Route path="/cuenta" element={<AccountLayout />}>
-                <Route index element={<SettingsProfilePageR />} />
-                <Route
-                  path="preferencias"
-                  element={<CuentaPreferencesPage />}
-                />
-                <Route path="seguridad" element={<SecurityPage />} />
-                <Route path="grupos" element={<GroupsPageR />} />
-              </Route>
-            </Route>
+              {/* Redirecciones heredadas */}
+              <Route
+                path="/security"
+                element={<Navigate to="/cuenta/seguridad" replace />}
+              />
+              <Route
+                path="/settings"
+                element={<Navigate to="/cuenta" replace />}
+              />
+              <Route
+                path="/settings/profile"
+                element={<Navigate to="/cuenta" replace />}
+              />
+              <Route
+                path="/settings/security"
+                element={<Navigate to="/cuenta/seguridad" replace />}
+              />
+              <Route
+                path="/settings/team"
+                element={<Navigate to="/cuenta/grupos" replace />}
+              />
 
-            {/* Rutas públicas */}
-            <Route
-              path="/join/:token"
-              element={
-                <PublicChrome user={user}>
-                  <JoinPage user={guestUser} />
-                </PublicChrome>
-              }
-            />
-            <Route
-              path="/login"
-              element={
-                <GuestAuthRoute
-                  user={guestUser}
-                  mode="login"
-                  onSuccess={onAuthSuccess}
-                />
-              }
-            />
-            <Route
-              path="/register"
-              element={
-                <GuestAuthRoute
-                  user={guestUser}
-                  mode="register"
-                  onSuccess={onAuthSuccess}
-                />
-              }
-            />
-            <Route path="/confirm" element={<ConfirmPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-
-            {/* Redirecciones heredadas */}
-            <Route
-              path="/security"
-              element={<Navigate to="/cuenta/seguridad" replace />}
-            />
-            <Route
-              path="/settings"
-              element={<Navigate to="/cuenta" replace />}
-            />
-            <Route
-              path="/settings/profile"
-              element={<Navigate to="/cuenta" replace />}
-            />
-            <Route
-              path="/settings/security"
-              element={<Navigate to="/cuenta/seguridad" replace />}
-            />
-            <Route
-              path="/settings/team"
-              element={<Navigate to="/cuenta/grupos" replace />}
-            />
-
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Suspense>
-        <AuthenticatedPlayer active={session.status === "authenticated"} />
-      </AudioPlayerProvider>
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Suspense>
+          </ToastProvider>
+          <AuthenticatedPlayer active={session.status === "authenticated"} />
+        </AudioPlayerProvider>
+      </RailPresenceProvider>
     </ErrorBoundary>
   );
 }

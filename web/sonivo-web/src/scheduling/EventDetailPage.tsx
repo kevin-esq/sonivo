@@ -27,7 +27,7 @@ import {
   CONFLICT_MESSAGE,
   ConfirmDialog,
   ConflictAlert,
-  isOwnerRole,
+  canManageContentRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -71,7 +71,7 @@ function isLiveEvent(status: string): boolean {
 
 function PlanNumber({ n }: { n: number }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-sm font-semibold text-primary">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-sm font-semibold text-primary-ink">
       {String(n).padStart(2, '0')}
     </span>
   )
@@ -98,7 +98,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
   const [tab, setTab] = useState<DetailTab>('plan')
   const { t } = useT()
 
-  const isOwner = isOwnerRole(group?.role)
+  const isOwner = canManageContentRole(group?.role)
   const isLive = musicalEvent != null && isLiveEvent(musicalEvent.status)
   const plan = musicalEvent?.items ?? []
   const hasPlan = plan.length >= 1
@@ -255,7 +255,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
           Mis grupos
         </Link>
       </div>
@@ -271,7 +271,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={error ?? 'No se encontró el evento o no tienes acceso.'} />
         <Link
-          className="font-semibold text-primary no-underline hover:underline"
+          className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/events`}
         >
           Eventos
@@ -295,7 +295,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
             <span
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-ink"
               aria-hidden="true"
             >
               <CalendarDays className="h-5 w-5" />
@@ -405,7 +405,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                 isOwner && isLive ? (
                   setlists !== null && setlists.length === 0 ? (
                     <Link
-                      className="font-semibold text-primary no-underline hover:underline"
+                      className="font-semibold text-primary-ink no-underline hover:underline"
                       to={`/groups/${group.id}/setlists`}
                     >
                       Ir a Listas
@@ -425,7 +425,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   )
                 ) : (
                   <Link
-                    className="font-semibold text-primary no-underline hover:underline"
+                    className="font-semibold text-primary-ink no-underline hover:underline"
                     to={`/groups/${group.id}/library`}
                   >
                     Ir a la biblioteca
@@ -562,13 +562,9 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               </div>
               <div>
                 <dt className="text-sm text-slate-500">Estado</dt>
-                <dd className="font-medium text-neutral-dark">
+                <dd className="font-medium text-neutral-dark" title={t('agenda.statusHint')}>
                   {formatEventStatus(musicalEvent.status)}
                 </dd>
-              </div>
-              <div>
-                <dt className="text-sm text-slate-500">Versión</dt>
-                <dd className="font-medium text-neutral-dark">v{musicalEvent.version}</dd>
               </div>
             </dl>
           )}
@@ -626,7 +622,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
           data-testid="danger-zone"
           className="space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
         >
-          <h2 id="event-danger-heading" className="text-lg font-semibold text-error">
+          <h2 id="event-danger-heading" className="text-lg font-semibold text-error-ink">
             {t('common.dangerZone')}
           </h2>
           <Button variant="danger" onClick={() => setConfirmCancel(true)}>
