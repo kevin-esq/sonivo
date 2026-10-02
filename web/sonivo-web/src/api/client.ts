@@ -708,6 +708,7 @@ export type FeatureFlags = {
   lrc: boolean
   stageMode: boolean
   groupBranding: boolean
+  notifications: boolean
 }
 
 export async function fetchFeatures(): Promise<FeatureFlags> {

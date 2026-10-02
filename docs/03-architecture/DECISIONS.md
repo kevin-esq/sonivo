@@ -37,6 +37,34 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0052 — Event/RSVP notifications (reopens the PHASE-3.9 mail firewall, thin)
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-01 (white-label program, phase 4.8).
+- **Supersedes/amends:** the PHASE-3.9 firewall that limited mail to verification/reset; **reopens** it for group notifications.
+- **See:** [`PHASE-WHITELABEL-SPEC.md`](PHASE-WHITELABEL-SPEC.md) §4.8.
+
+### Decision
+
+- Event and RSVP notifications are sent through the **existing Gmail API HTTPS sender**
+  (`IEmailSender`); no generic SMTP server, no new provider.
+- **Flag-gated:** `Features:Notifications` (default **off**). When off, nothing is sent and the ICS
+  endpoint returns 404 — behavior is identical to today.
+- **Best-effort:** a transport gap or missing mailbox never fails the domain request.
+- **Recipients:** members with a real email. Managed/placeholder addresses (`@managed.invalid`) are
+  skipped; **members without an email get the in-app surface** (group events) plus the **per-group ICS
+  feed** (`GET /api/groups/{gid}/calendar.ics`, authenticated, read-only).
+- Notifications cover: event created / updated / cancelled, and RSVP confirmation to the responder.
+  No marketing mail, no digests, no scheduling/bulk mail.
+
+### Firewall (explicit)
+
+- Still **no** Event/RSVP mail outside this flag; no generic SMTP; no third-party provider.
+- Only the three event lifecycle messages + RSVP confirmation are in scope.
+- The ICS feed is read-only and reveals nothing beyond what an authenticated member can already read;
+  a non-member gets 404.
+
+---
+
 ## ADR-0043 — Total visual redesign: immersive × precise, Grupo/Cuenta IA, frontend es/en
 
 - **Status:** **ACCEPTED** — owner-authorized 2026-09-29 ("Acepto todo"); waves W0–W5 shipped 2026-09-30 (PRs #115–#120, see [`PHASE-UI-UX-SPEC.md`](PHASE-UI-UX-SPEC.md)).

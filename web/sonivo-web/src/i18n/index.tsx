@@ -173,6 +173,7 @@ const es = {
   "agenda.eventsSubtitle":
     "Ensaya y toca con un plan copiado para cada ocasión.",
   "agenda.eventsCountLabel": "eventos",
+  "agenda.calendarFeed": "Suscribirse al calendario",
   "agenda.eventsSearchLabel": "Buscar eventos",
   "agenda.eventsSearchPlaceholder": "Buscar eventos…",
   "agenda.eventsColEvent": "Evento",
@@ -1016,6 +1017,7 @@ const en: Record<I18nKey, string> = {
   "agenda.eventsSubtitle":
     "Rehearse and perform with a copied plan for each occasion.",
   "agenda.eventsCountLabel": "events",
+  "agenda.calendarFeed": "Subscribe to calendar",
   "agenda.eventsSearchLabel": "Search events",
   "agenda.eventsSearchPlaceholder": "Search events…",
   "agenda.eventsColEvent": "Event",
