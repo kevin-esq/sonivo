@@ -10,6 +10,11 @@
 .scratch/**/*.local.md
 .scratch/tmp/*
 !.scratch/tmp/.gitkeep
+.scratch/HANDOFF.md
+
+# Local editor / vault state (never committed)
+.obsidian/
+.rino/
 
 # Impeccable engine binaries (reinstalled by `npx impeccable install`)
 **/impeccable/scripts/bin/
@@ -39,3 +44,12 @@ Thumbs.db
 *.swp
 *~
 *.log
+
+# Visual/UX audit evidence (FASE 2 harness)
+.visual-audit/
+
+e2e/visual-audit/audit-output/
+
+
+# Throwaway Playwright profile from .scratch spikes (may hold cookies)
+.scratch/spikes/.pwprofile/

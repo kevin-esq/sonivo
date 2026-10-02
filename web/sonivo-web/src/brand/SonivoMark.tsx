@@ -6,7 +6,7 @@ export function SonivoMark({ className }: { className?: string }) {
     <svg
       viewBox="0 0 32 32"
       fill="none"
-      className={cn('h-8 w-8 text-primary', className)}
+      className={cn('h-8 w-8 text-shell-link', className)}
       aria-hidden="true"
     >
       <path d="M6 13v6" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
@@ -52,8 +52,8 @@ export function BrandLockup({
   shell?: boolean
 }) {
   return (
-    <Link to={to} className="flex items-center gap-2 no-underline">
-      <SonivoMark className={light ? 'text-white' : 'text-primary'} />
+    <Link to={to} className="flex min-h-11 items-center gap-2 no-underline">
+      <SonivoMark className={light ? 'text-white' : 'text-shell-link'} />
       <span
         className={cn(
           'text-lg font-semibold tracking-tight',
