@@ -5,11 +5,13 @@
 ## Checkpoint state
 
 ```text
-Implementation: IN PROGRESS — Cuenta completa + calendario general (ADR-0053 addendum): T-HOME-09…16
+Implementation: COMPLETE — Cuenta completa + calendario general (ADR-0053 addendum): T-HOME-09…15 done
 Human approval: APPROVED (user: "luz verde total … implementación completa", 2026-10-02)
-Git checkpoint: PENDING
-Remote: NOT PUSHED · branch feature/account-calendar (from develop @ fa0d30e)
-CI: NOT RUN
+Git checkpoint: COMMITTED — 4 atomic commits on feature/account-calendar
+Remote: NOT PUSHED (PR pending)
+CI: NOT RUN — local evidence: backend 602 tests ✓; web build + oxlint (0 errors) ✓;
+    E2E shards 71 passed / 3 skipped + new cuenta/calendar specs ✓;
+    Playwright MCP visual pass (Cuenta + Calendario, light/dark, desktop/mobile) ✓
 ```
 
 **Phase:** [`PHASE-HOME-DASHBOARD-SPEC.md`](../docs/03-architecture/PHASE-HOME-DASHBOARD-SPEC.md) §8 · **ADR-0053** (addendum).
