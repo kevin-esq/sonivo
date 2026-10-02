@@ -17,6 +17,7 @@ using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
 using Sonivo.Api.Realtime;
 using Sonivo.Domain.Repertoire;
+using Sonivo.Domain.Scheduling;
 using Sonivo.Api.Auth;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Blobs;
@@ -2163,7 +2164,8 @@ app.MapGet("/api/features", (IConfiguration configuration) => Results.Ok(new
 {
     lrc = configuration.GetValue("Features:Lrc", false),
     stageMode = configuration.GetValue("Features:StageMode", false),
-    groupBranding = configuration.GetValue("Features:GroupBranding", false)
+    groupBranding = configuration.GetValue("Features:GroupBranding", false),
+    notifications = configuration.GetValue("Features:Notifications", false)
 }))
 .WithName("GetFeatures")
 .AllowAnonymous();
@@ -2824,6 +2826,42 @@ app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}/rsvps", async (
     });
 })
 .WithName("ListEventRsvps")
+.RequireAuthorization();
+
+// ADR-0052: read-only per-group ICS feed. Behind Features:Notifications (default off).
+app.MapGet("/api/groups/{groupId:guid}/calendar.ics", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupStore groups,
+    IEventStore events,
+    IClock clock,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:Notifications", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireMemberAsync(groupId, userId.Value, cancellationToken);
+    var group = await groups.GetByIdAsync(groupId, cancellationToken);
+    var upcoming = (await events.ListActiveByGroupAsync(groupId, cancellationToken))
+        .Where(e => e.Status != EventStatuses.Cancelled && !e.IsHidden)
+        .OrderBy(e => e.StartsAt)
+        .ToList();
+
+    var ics = IcsCalendar.Build(group?.Name ?? "Sonivo", upcoming, clock.UtcNow);
+    return Results.Text(ics, "text/calendar; charset=utf-8");
+})
+.WithName("GroupCalendarIcs")
 .RequireAuthorization();
 
 if (!app.Environment.IsDevelopment())

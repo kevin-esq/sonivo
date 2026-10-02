@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Sonivo.Application.Abstractions;
 using Sonivo.Infrastructure.Blobs;
 using Sonivo.Infrastructure.Identity;
+using Sonivo.Infrastructure.Notifications;
 using Sonivo.Infrastructure.Persistence;
 using Sonivo.Infrastructure.Whisper;
 
@@ -89,6 +90,7 @@ public static class DependencyInjection
         services.AddScoped<IEventStore, EfEventStore>();
         services.AddScoped<IEventGroupResolver, EfEventGroupResolver>();
         services.AddScoped<IUserDirectory, EfUserDirectory>();
+        services.AddScoped<IEventNotifier, EventNotifier>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddSingleton<IPublicOrigin, ConfigurationPublicOrigin>();
         services.AddHttpClient<IEmailSender, GmailEmailSender>();

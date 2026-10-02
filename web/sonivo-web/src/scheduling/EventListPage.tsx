@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Calendar, CalendarDays, ChevronRight, Mic2, Search, Sparkles } from 'lucide-react'
 import {
   createEvent,
+  fetchFeatures,
   listEvents,
   type CurrentUser,
   type EventListItem,
@@ -42,6 +43,21 @@ export function EventListPage({ user }: { user: CurrentUser }) {
   const [listError, setListError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [query, setQuery] = useState('')
+  const [calendarEnabled, setCalendarEnabled] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchFeatures()
+      .then((flags) => {
+        if (!cancelled) setCalendarEnabled(flags.notifications === true)
+      })
+      .catch(() => {
+        if (!cancelled) setCalendarEnabled(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const isOwner = isOwnerRole(group?.role)
 
@@ -121,9 +137,20 @@ export function EventListPage({ user }: { user: CurrentUser }) {
             {!isOwner ? <p className="text-sm text-muted">Solo lectura</p> : null}
           </div>
           {events !== null ? (
-            <ReadinessChip testId="events-count" tone="neutral">
-              {plural(events.length, t('common.eventOne'), t('common.eventMany'))}
-            </ReadinessChip>
+            <div className="flex items-center gap-4">
+              <ReadinessChip testId="events-count" tone="neutral">
+                {plural(events.length, t('common.eventOne'), t('common.eventMany'))}
+              </ReadinessChip>
+              {calendarEnabled && groupId ? (
+                <a
+                  data-testid="events-calendar-feed"
+                  className="text-sm font-semibold text-primary-ink no-underline hover:underline"
+                  href={`/api/groups/${groupId}/calendar.ics`}
+                >
+                  {t('agenda.calendarFeed')}
+                </a>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </header>
