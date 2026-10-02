@@ -21,14 +21,14 @@ export function AppShell({
   const { t } = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <div className="min-h-screen bg-canvas lg:flex">
+    <div className="min-h-screen bg-canvas lg:flex lg:h-screen lg:overflow-hidden">
       <AppSidebar
         user={user}
         onLogout={onLogout}
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col lg:min-h-0">
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-ink focus:shadow-lg"
@@ -38,7 +38,7 @@ export function AppShell({
         <AppTopBar user={user} onOpenMenu={() => setMenuOpen(true)} />
         <main
           id="main"
-          className="flex-1 px-4 py-6 text-ink sm:px-6 lg:px-8 lg:py-8"
+          className="flex-1 overflow-y-auto px-4 py-6 text-ink sm:px-6 lg:min-h-0 lg:px-8 lg:py-8"
         >
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
