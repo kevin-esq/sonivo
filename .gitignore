@@ -10,6 +10,11 @@
 .scratch/**/*.local.md
 .scratch/tmp/*
 !.scratch/tmp/.gitkeep
+.scratch/HANDOFF.md
+
+# Local editor / vault state (never committed)
+.obsidian/
+.rino/
 
 # Impeccable engine binaries (reinstalled by `npx impeccable install`)
 **/impeccable/scripts/bin/
