@@ -8,8 +8,9 @@
 Implementation: COMPLETE — Cuenta completa + calendario general (ADR-0053 addendum): T-HOME-09…15 done
 Human approval: APPROVED (user: "luz verde total … implementación completa", 2026-10-02)
 Git checkpoint: COMMITTED — 4 atomic commits on feature/account-calendar
-Remote: NOT PUSHED (PR pending)
-CI: NOT RUN — local evidence: backend 602 tests ✓; web build + oxlint (0 errors) ✓;
+Remote: PUSHED · PR #182 (feature/account-calendar → develop)
+CI: PASSING — run 37042013096 (Backend build & tests, Frontend build, Playwright E2E)
+    + CodeQL + SCA green. Local evidence: backend 602 tests ✓; web build + oxlint (0 errors) ✓;
     E2E shards 71 passed / 3 skipped + new cuenta/calendar specs ✓;
     Playwright MCP visual pass (Cuenta + Calendario, light/dark, desktop/mobile) ✓
 ```
