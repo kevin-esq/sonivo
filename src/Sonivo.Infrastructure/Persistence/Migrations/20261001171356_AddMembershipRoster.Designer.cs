@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sonivo.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Sonivo.Infrastructure.Persistence;
 namespace Sonivo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SonivoDbContext))]
-    partial class SonivoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001171356_AddMembershipRoster")]
+    partial class AddMembershipRoster
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -794,10 +797,6 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("GroupId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Handle")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text");
@@ -810,10 +809,6 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.HasIndex("GroupId");
 
                     b.HasIndex("UserId");
-
-                    b.HasIndex("GroupId", "Handle")
-                        .IsUnique()
-                        .HasFilter("\"Handle\" IS NOT NULL");
 
                     b.HasIndex("UserId", "GroupId")
                         .IsUnique()

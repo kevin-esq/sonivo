@@ -8,6 +8,7 @@ import {
   googleChallengeHref,
   isSecondStepRequired,
   loginUser,
+  loginWithHandle,
   problemDetail,
   recoverTwoFactor,
   registerUser,
@@ -24,6 +25,8 @@ import { safeNextPath } from "../tenancy/safeNextPath";
 import { useT } from "../i18n";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** ADR-0047: `handle@slug`; the slug never contains a dot, so this cannot be an email. */
+const HANDLE_LOGIN_RE = /^([a-z0-9._-]{3,32})@([a-z0-9-]{2,40})$/i;
 const MIN_PASSWORD = 8;
 const RESEND_COOLDOWN_S = 30;
 
@@ -380,7 +383,9 @@ function AuthScreen({
 
   function validate(): boolean {
     const next: { email?: string; password?: string } = {};
-    if (!EMAIL_RE.test(email.trim())) next.email = t("auth.emailInvalid");
+    const identifier = email.trim();
+    const isHandleLogin = mode === "login" && HANDLE_LOGIN_RE.test(identifier);
+    if (!isHandleLogin && !EMAIL_RE.test(identifier)) next.email = t("auth.emailInvalid");
     if (mode === "register" && password.length < MIN_PASSWORD)
       next.password = t("auth.passwordTooShort");
     if (mode === "login" && !password)
@@ -406,7 +411,15 @@ function AuthScreen({
         setPassword("");
         setRegistered(true);
       } else {
-        const result = await loginUser({ email: email.trim(), password });
+        const identifier = email.trim();
+        const handleMatch = HANDLE_LOGIN_RE.exec(identifier);
+        const result = handleMatch
+          ? await loginWithHandle({
+              slug: handleMatch[2].toLowerCase(),
+              handle: handleMatch[1].toLowerCase(),
+              password,
+            })
+          : await loginUser({ email: identifier, password });
         setPassword(""); // no mantener la contraseña en memoria más de lo necesario
         if (isSecondStepRequired(result)) {
           setSecondStep(true);

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sonivo.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Sonivo.Infrastructure.Persistence;
 namespace Sonivo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SonivoDbContext))]
-    partial class SonivoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001163802_AddManagedAccountsFoundation")]
+    partial class AddManagedAccountsFoundation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -787,22 +790,14 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("DisplayName")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
                     b.Property<Guid>("GroupId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("Handle")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("UserId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
@@ -811,18 +806,11 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("GroupId", "Handle")
-                        .IsUnique()
-                        .HasFilter("\"Handle\" IS NOT NULL");
-
                     b.HasIndex("UserId", "GroupId")
-                        .IsUnique()
-                        .HasFilter("\"UserId\" IS NOT NULL");
+                        .IsUnique();
 
                     b.ToTable("Memberships", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Memberships_OwnerHasUser", "\"Role\" <> 'Owner' OR \"UserId\" IS NOT NULL");
-
                             t.HasCheckConstraint("CK_Memberships_Role", "\"Role\" IN ('Owner', 'Member')");
                         });
                 });
@@ -1099,7 +1087,8 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.HasOne("Sonivo.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Group");
                 });

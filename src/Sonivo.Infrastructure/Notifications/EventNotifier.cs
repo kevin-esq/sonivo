@@ -115,7 +115,13 @@ public sealed class EventNotifier : IEventNotifier
         var emails = new List<string>();
         foreach (var membership in memberships)
         {
-            var user = await _users.FindByIdAsync(membership.UserId.ToString("D"));
+            // Roster-only rows (no account) have no mailbox (ADR-0046).
+            if (membership.UserId is not { } userId)
+            {
+                continue;
+            }
+
+            var user = await _users.FindByIdAsync(userId.ToString("D"));
             if (user is not null && TryGetRealEmail(user, out var to) && !emails.Contains(to))
             {
                 emails.Add(to);

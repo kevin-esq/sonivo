@@ -64,6 +64,7 @@ public static class DependencyInjection
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<IGroupStore, EfGroupStore>();
         services.AddScoped<IGroupBrandingStore, EfGroupBrandingStore>();
+        services.AddScoped<IAccountAuditStore, EfAccountAuditStore>();
         services.AddScoped<IMembershipStore, EfMembershipStore>();
         services.AddScoped<IInvitationStore, EfInvitationStore>();
         services.AddScoped<ISongStore, EfSongStore>();
@@ -91,6 +92,7 @@ public static class DependencyInjection
         services.AddScoped<IEventGroupResolver, EfEventGroupResolver>();
         services.AddScoped<IUserDirectory, EfUserDirectory>();
         services.AddScoped<IEventNotifier, EventNotifier>();
+        services.AddScoped<IManagedAccountNotifier, ManagedAccountNotifier>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddSingleton<IPublicOrigin, ConfigurationPublicOrigin>();
         services.AddHttpClient<IEmailSender, GmailEmailSender>();

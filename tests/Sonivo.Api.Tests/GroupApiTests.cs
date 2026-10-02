@@ -441,6 +441,7 @@ public sealed class SonivoApiFactory : WebApplicationFactory<Program>
         // Phase 4.3: the slug-change endpoint is behind this flag; the API tests
         // exercise it enabled. A dedicated factory keeps the off case covered.
         builder.UseSetting("Features:GroupBranding", "true");
+        builder.UseSetting("Features:ManagedAccounts", "true");
         // Hermetic blob backend: ambient R2__* creds must never leak into tests.
         builder.UseSetting("R2:AccountId", "");
         builder.UseSetting("R2:AccessKey", "");

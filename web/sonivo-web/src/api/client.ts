@@ -86,6 +86,8 @@ export type CurrentUser = {
   email: string | null
   displayName: string | null
   emailConfirmed: boolean
+  mustChangePassword?: boolean
+  managedByGroupId?: string | null
 }
 
 export type GroupSummary = {
@@ -119,6 +121,13 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   }
 }
 
+export async function changePassword(input: {
+  currentPassword: string
+  newPassword: string
+}): Promise<void> {
+  await apiRequest('/api/auth/change-password', { method: 'POST', body: input })
+}
+
 export async function registerUser(input: {
   email: string
   password: string
@@ -143,6 +152,27 @@ export async function loginUser(input: {
     method: 'POST',
     body: input,
   })
+  clearCsrfToken()
+  await ensureCsrfToken()
+  return result
+}
+
+/**
+ * ADR-0047: managed members without an email sign in as `handle@slug`. Handle and
+ * slug are sent separately to the dedicated endpoint; it never consults emails.
+ */
+export async function loginWithHandle(input: {
+  slug: string
+  handle: string
+  password: string
+  rememberMe?: boolean
+}): Promise<CurrentUser | { requiresTwoFactor: true }> {
+  clearCsrfToken()
+  await ensureCsrfToken()
+  const result = await apiRequest<CurrentUser | { requiresTwoFactor: true }>(
+    `/api/auth/login/handle/${encodeURIComponent(input.slug)}`,
+    { method: 'POST', body: { handle: input.handle, password: input.password, rememberMe: input.rememberMe } },
+  )
   clearCsrfToken()
   await ensureCsrfToken()
   return result

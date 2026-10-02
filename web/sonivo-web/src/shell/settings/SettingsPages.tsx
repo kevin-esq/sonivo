@@ -6,7 +6,7 @@ import { useT } from '../../i18n'
 export function SettingsProfilePage({
   user,
 }: {
-  user: { email?: string | null; displayName?: string | null; id?: string }
+  user: { email?: string | null; displayName?: string | null; id?: string; managedByGroupId?: string | null }
 }) {
   const sessionName = user?.displayName ?? ''
   const email = user?.email ?? ''
@@ -18,6 +18,16 @@ export function SettingsProfilePage({
         <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t('perfil.title')}</h2>
         <p className="text-sm text-slate-500">{t('perfil.subtitle')}</p>
       </div>
+
+      {user?.managedByGroupId ? (
+        <p
+          role="status"
+          data-testid="managed-account-notice"
+          className="rounded-xl bg-neutral-light px-3 py-2 text-sm text-slate-700 dark:text-slate-300"
+        >
+          {t('perfil.managedNotice')}
+        </p>
+      ) : null}
 
       <div className="space-y-4">
         <label className="block space-y-1.5">

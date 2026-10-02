@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -18,6 +19,7 @@ using Sonivo.Application.Tenancy;
 using Sonivo.Api.Realtime;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Scheduling;
+using Sonivo.Domain.Tenancy;
 using Sonivo.Api.Auth;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Blobs;
@@ -126,10 +128,23 @@ builder.Services.AddRateLimiter(options =>
     // ClientIpPartitionKey; trusted-proxy pinning remains a follow-up.
     options.AddPolicy("auth-register", http => PerIp(http, 30));
     options.AddPolicy("auth-login", http => PerIp(http, 30));
+    // ADR-0047: handle logins are rate-limited per (slug, IP) so a single group
+    // cannot be brute-forced from one address without affecting other groups.
+    options.AddPolicy("auth-login-handle", http =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"{http.Request.RouteValues["slug"]}|{ClientIpPartitionKey.Normalize(http.Connection.RemoteIpAddress)}",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
     options.AddPolicy("auth-confirm", http => PerIp(http, 30));
     options.AddPolicy("auth-resend", http => PerIp(http, 10));
     options.AddPolicy("auth-forgot", http => PerIp(http, 10));
     options.AddPolicy("auth-reset", http => PerIp(http, 30));
+    options.AddPolicy("auth-change-password", http => PerIp(http, 20));
     // T-AU-02: TOTP codes are 6 digits (brute-forceable) — the challenge
     // endpoints get the strictest budget; management is session-authed.
     options.AddPolicy("auth-2fa-challenge", http => PerIp(http, 10));
@@ -224,6 +239,40 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// ADR-0047: while MustChangePassword is set, block all API calls except the
+// minimum needed to change it (me / logout / change-password / csrf).
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+    var guarded = path.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/hubs", StringComparison.OrdinalIgnoreCase);
+    if (context.User?.Identity?.IsAuthenticated == true
+        && guarded
+        && !IsMustChangeAllowed(path))
+    {
+        var users = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+        var current = await users.GetUserAsync(context.User);
+        if (current is { MustChangePassword: true })
+        {
+            await Results.Problem(
+                    detail: "Password change required.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    title: "Forbidden",
+                    extensions: new Dictionary<string, object?> { ["code"] = "must_change_password" })
+                .ExecuteAsync(context);
+            return;
+        }
+    }
+
+    await next();
+});
+
+static bool IsMustChangeAllowed(string path) =>
+    path.Equals("/api/auth/me", StringComparison.OrdinalIgnoreCase)
+    || path.Equals("/api/auth/logout", StringComparison.OrdinalIgnoreCase)
+    || path.Equals("/api/auth/change-password", StringComparison.OrdinalIgnoreCase)
+    || path.Equals("/api/auth/csrf", StringComparison.OrdinalIgnoreCase);
 app.UseRateLimiter();
 
 app.Use(async (context, next) =>
@@ -443,13 +492,106 @@ app.MapPost("/api/auth/login", async (
         id = user.Id,
         email = user.Email,
         displayName = user.DisplayName,
-        emailConfirmed = user.EmailConfirmed
+        emailConfirmed = user.EmailConfirmed,
+        mustChangePassword = user.MustChangePassword,
+        managedByGroupId = user.ManagedByGroupId
     });
 })
 .WithName("Login")
 .AllowAnonymous()
 .DisableAntiforgery()
 .RequireRateLimiting("auth-login");
+
+// ADR-0047: members without an email sign in as handle@slug. The handle and the
+// group id are resolved separately; this endpoint never consults the email column,
+// so a handle can never collide with a real address. Unknown slug/handle and wrong
+// password return the same 401, and an unknown identifier burns a password hash so
+// the response time does not reveal whether the account exists.
+app.MapPost("/api/auth/login/handle/{slug}", async (
+    string slug,
+    HandleLoginRequest request,
+    UserManager<ApplicationUser> users,
+    SignInManager<ApplicationUser> signInManager,
+    IGroupStore groups,
+    IMembershipStore memberships,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Handle) || string.IsNullOrWhiteSpace(request.Password))
+    {
+        return Results.Problem(
+            detail: "Identificador y contraseña son obligatorios.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    var normalized = MembershipHandles.Normalize(request.Handle);
+    var group = string.IsNullOrWhiteSpace(slug) ? null : await groups.GetBySlugAsync(slug.Trim(), cancellationToken);
+    ApplicationUser? user = null;
+    if (group is not null && normalized is not null)
+    {
+        var membership = await memberships.GetByHandleAsync(group.Id, normalized, cancellationToken);
+        if (membership?.UserId is { } userId)
+        {
+            user = await users.FindByIdAsync(userId.ToString("D"));
+        }
+    }
+
+    if (user is null)
+    {
+        AuthUniformity.BurnPasswordVerification(users, request.Password);
+        return AuthUniformity.InvalidLogin();
+    }
+
+    var result = await signInManager.PasswordSignInAsync(
+        user,
+        request.Password,
+        isPersistent: request.RememberMe,
+        lockoutOnFailure: true);
+
+    if (result.IsLockedOut)
+    {
+        app.Logger.LogWarning(
+            "Security event: account lockout (handle login). UserId: {UserId}", user.Id);
+        return Results.Problem(
+            detail: "Account temporarily locked.",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    if (result.RequiresTwoFactor)
+    {
+        return Results.Ok(new { requiresTwoFactor = true });
+    }
+
+    if (!result.Succeeded)
+    {
+        app.Logger.LogWarning(
+            "Security event: failed handle login. GroupId: {GroupId}", group!.Id);
+        return AuthUniformity.InvalidLogin();
+    }
+
+    return Results.Ok(new
+    {
+        id = user.Id,
+        email = (string?)null,
+        displayName = user.DisplayName,
+        emailConfirmed = user.EmailConfirmed,
+        mustChangePassword = user.MustChangePassword,
+        managedByGroupId = user.ManagedByGroupId,
+        handle = normalized
+    });
+})
+.WithName("HandleLogin")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-login-handle");
+
 
 app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<ApplicationUser> users) =>
 {
@@ -467,13 +609,60 @@ app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<Applica
     return Results.Ok(new
     {
         id = appUser.Id,
-        email = appUser.Email,
+        email = appUser.Email is { } mail && mail.EndsWith("@managed.invalid", StringComparison.Ordinal) ? null : appUser.Email,
         displayName = appUser.DisplayName,
-        emailConfirmed = appUser.EmailConfirmed
+        emailConfirmed = appUser.EmailConfirmed,
+        mustChangePassword = appUser.MustChangePassword,
+        managedByGroupId = appUser.ManagedByGroupId
     });
 })
 .WithName("GetCurrentUser")
 .RequireAuthorization();
+
+// ADR-0047: a temporary credential must be replaced before any other API call.
+app.MapPost("/api/auth/change-password", async (
+    ChangePasswordRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SignInManager<ApplicationUser> signInManager,
+    IAccountAuditStore audit,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var appUser = await users.GetUserAsync(principal);
+    if (appUser is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var newPassword = request.NewPassword ?? string.Empty;
+    var result = await users.ChangePasswordAsync(appUser, request.CurrentPassword ?? string.Empty, newPassword);
+    if (!result.Succeeded)
+    {
+        return Results.ValidationProblem(
+            result.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+    }
+
+    if (appUser.MustChangePassword)
+    {
+        appUser.MustChangePassword = false;
+        await users.UpdateAsync(appUser);
+    }
+
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionPasswordChanged, clock.UtcNow, actorUserId: appUser.Id),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    // Rotate the session cookie so the new security stamp is honoured.
+    await signInManager.RefreshSignInAsync(appUser);
+
+    return Results.Ok(new { ok = true });
+})
+.WithName("ChangePassword")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-change-password");
 
 app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInManager) =>
 {
@@ -591,7 +780,10 @@ app.MapPost("/api/auth/forgot-password", async (
 // Invalid/expired/unknown → 400 with the frozen Spanish copy.
 app.MapPost("/api/auth/reset-password", async (
     ResetPasswordRequest request,
-    UserManager<ApplicationUser> users) =>
+    UserManager<ApplicationUser> users,
+    IAccountAuditStore audit,
+    IClock clock,
+    CancellationToken cancellationToken) =>
 {
     var email = request.Email?.Trim();
     if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(request.Token))
@@ -628,6 +820,26 @@ app.MapPost("/api/auth/reset-password", async (
             title: "Validation failed");
     }
 
+    // A successful reset proves control of the mailbox: mark it confirmed so the
+    // account can sign in. ADR-0047: it also makes a managed account self-owned.
+    var managed = user.ManagedByGroupId is not null || user.MustChangePassword;
+    user.EmailConfirmed = true;
+    if (managed)
+    {
+        user.ManagedByGroupId = null;
+        user.MustChangePassword = false;
+    }
+
+    await users.UpdateAsync(user);
+
+    if (managed)
+    {
+        await audit.AddAsync(
+            AccountAudit.Create(AccountAudit.ActionLinked, clock.UtcNow, targetUserId: user.Id),
+            cancellationToken);
+        await audit.SaveChangesAsync(cancellationToken);
+    }
+
     return Results.Ok(new { passwordReset = true });
 })
 .WithName("ResetPassword")
@@ -640,6 +852,9 @@ app.MapPost("/api/auth/reset-password", async (
 // (and on explicit regenerate), single-use enforced by UserManager.
 // No new tables: AspNetUserTokens already stores the authenticator key +
 // recovery codes (verified — no migration).
+// Temporary password that satisfies the Identity password policy; shown once.
+static string GenerateTemporaryPassword() => "Tmp1!" + Guid.NewGuid().ToString("N");
+
 static string SanitizeTotpCode(string? code) =>
     (code ?? string.Empty).Replace(" ", string.Empty, StringComparison.Ordinal)
         .Replace("-", string.Empty, StringComparison.Ordinal);
@@ -1009,9 +1224,12 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
     PasskeyRegistrationFinishRequest request,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
+    IAccountAuditStore audit,
+    IClock clock,
     IPublicOrigin origin,
     HttpContext http,
-    IConfiguration config) =>
+    IConfiguration config,
+    CancellationToken cancellationToken) =>
 {
     var user = await users.GetUserAsync(principal);
     if (user is null)
@@ -1043,6 +1261,20 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
             proof.SignCount);
         await users.SetAuthenticationTokenAsync(user, "Passkeys",
             "Credential_" + cred.CredentialId, System.Text.Json.JsonSerializer.Serialize(cred));
+
+        // ADR-0047 lifecycle: registering a passkey makes a group-managed account
+        // self-owned (it is no longer resettable by the group).
+        if (user.ManagedByGroupId is not null || user.MustChangePassword)
+        {
+            user.ManagedByGroupId = null;
+            user.MustChangePassword = false;
+            await users.UpdateAsync(user);
+            await audit.AddAsync(
+                AccountAudit.Create(AccountAudit.ActionLinked, clock.UtcNow, targetUserId: user.Id),
+                cancellationToken);
+            await audit.SaveChangesAsync(cancellationToken);
+        }
+
         return Results.Ok(new { registered = true, credentialId = cred.CredentialId });
     }
     catch (PasskeyVerifier.PasskeyVerificationException ex)
@@ -1623,6 +1855,485 @@ app.MapGet("/api/groups/{groupId:guid}/members", async (
 .WithName("ListGroupMembers")
 .RequireAuthorization();
 
+// Phase 4.1: roster incl. people without an account behind Features:ManagedAccounts.
+app.MapGet("/api/groups/{groupId:guid}/roster", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListRosterHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var roster = await handler.HandleAsync(new ListRosterQuery(userId.Value, groupId), cancellationToken);
+    return Results.Ok(new
+    {
+        items = roster.Items.Select(i => new
+        {
+            memberId = i.MemberId,
+            userId = i.UserId,
+            displayName = i.DisplayName,
+            role = i.Role,
+            hasAccess = i.HasAccess,
+            handle = i.Handle,
+            createdAt = i.CreatedAt
+        })
+    });
+})
+.WithName("ListGroupRoster")
+.RequireAuthorization();
+
+// Phase 4.1: Owner provisions access. With email → single-use activation link
+// (the Owner never sees a password); without email → one-use temporary password
+// shown exactly once (never logged). Anti-pre-hijacking: an existing account is
+// never taken over (409) and only accounts created by this group are resettable.
+app.MapPost("/api/groups/{groupId:guid}/roster", async (
+    Guid groupId,
+    CreateRosterMemberRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupStore groups,
+    IMembershipStore memberships,
+    IAccountAuditStore audit,
+    IEmailSender email,
+    IPublicOrigin origin,
+    IClock clock,
+    IConfiguration configuration,
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+
+    var displayName = request.DisplayName?.Trim();
+    if (string.IsNullOrWhiteSpace(displayName) || displayName.Length > 200)
+    {
+        return Results.Problem(detail: "Display name is required (200 chars max).", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    var now = clock.UtcNow;
+    ApplicationUser? account = null;
+    string credential = "none";
+    var mailed = false;
+    string? temporaryPassword = null;
+    string? handle = null;
+
+    if (request.GrantAccess)
+    {
+        var emailAddress = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
+        var provisioned = await ManagedAccountProvisioner.CreateForGroupAsync(
+            users,
+            memberships,
+            email,
+            origin,
+            loggerFactory.CreateLogger("ManagedAccounts"),
+            groupId,
+            displayName,
+            emailAddress,
+            request.Handle,
+            cancellationToken);
+        account = provisioned.Account;
+        credential = provisioned.Credential;
+        mailed = provisioned.Mailed;
+        temporaryPassword = provisioned.TemporaryPassword;
+        handle = provisioned.Handle;
+    }
+
+    var membership = Membership.CreatePerson(groupId, displayName, now);
+    if (account is not null)
+    {
+        membership.ClaimAccount(account.Id);
+    }
+
+    if (handle is not null)
+    {
+        membership.AssignHandle(handle);
+    }
+
+    await groups.AddMembershipAsync(membership, cancellationToken);
+    await groups.SaveChangesAsync(cancellationToken);
+
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionAccessCreated, now, actorId, account?.Id, groupId),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    return Results.Created($"/api/groups/{groupId}/roster/{membership.Id}", new
+    {
+        memberId = membership.Id,
+        userId = account?.Id,
+        credential,
+        mailed,
+        temporaryPassword,
+        handle
+    });
+})
+.WithName("CreateRosterMember")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+// Phase 4.1 (F3b): bulk add via CSV. Strict header/row validation, a hard row
+// limit, and a per-row error report. Valid rows are created (with access); each
+// invalid row is reported without aborting the batch.
+app.MapPost("/api/groups/{groupId:guid}/roster/import", async (
+    Guid groupId,
+    ImportRosterCsvRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupStore groups,
+    IMembershipStore memberships,
+    IAccountAuditStore audit,
+    IEmailSender email,
+    IPublicOrigin origin,
+    IClock clock,
+    IConfiguration configuration,
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+
+    RosterCsvParseResult parsed;
+    try
+    {
+        parsed = RosterCsvParser.Parse(request.Csv);
+    }
+    catch (ValidationException ex)
+    {
+        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    var now = clock.UtcNow;
+    var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var seenHandles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var rows = new List<object>();
+    var created = 0;
+    var failed = 0;
+
+    foreach (var row in parsed.Rows)
+    {
+        try
+        {
+            var displayName = row.DisplayName?.Trim();
+            if (string.IsNullOrWhiteSpace(displayName) || displayName.Length > 200)
+            {
+                throw new ValidationException("El nombre es obligatorio (máx. 200).");
+            }
+
+            var emailAddress = string.IsNullOrWhiteSpace(row.Email) ? null : row.Email.Trim();
+            if (emailAddress is not null && !seenEmails.Add(emailAddress))
+            {
+                throw new ValidationException("Correo duplicado en el archivo.");
+            }
+
+            var requestedHandle = string.IsNullOrWhiteSpace(row.Handle) ? null : row.Handle.Trim();
+            if (requestedHandle is not null
+                && MembershipHandles.Normalize(requestedHandle) is { } normalized
+                && !seenHandles.Add(normalized))
+            {
+                throw new ValidationException("Identificador duplicado en el archivo.");
+            }
+
+            var provisioned = await ManagedAccountProvisioner.CreateForGroupAsync(
+                users,
+                memberships,
+                email,
+                origin,
+                loggerFactory.CreateLogger("ManagedAccounts"),
+                groupId,
+                displayName,
+                emailAddress,
+                requestedHandle,
+                cancellationToken);
+
+            var membership = Membership.CreatePerson(groupId, displayName, now);
+            membership.ClaimAccount(provisioned.Account.Id);
+            if (provisioned.Handle is not null)
+            {
+                membership.AssignHandle(provisioned.Handle);
+            }
+
+            await groups.AddMembershipAsync(membership, cancellationToken);
+            await groups.SaveChangesAsync(cancellationToken);
+            await audit.AddAsync(
+                AccountAudit.Create(AccountAudit.ActionAccessCreated, now, actorId, provisioned.Account.Id, groupId),
+                cancellationToken);
+            await audit.SaveChangesAsync(cancellationToken);
+
+            created++;
+            rows.Add(new
+            {
+                row = row.RowNumber,
+                status = "created",
+                memberId = membership.Id,
+                userId = provisioned.Account.Id,
+                credential = provisioned.Credential,
+                handle = provisioned.Handle,
+                mailed = provisioned.Mailed,
+                temporaryPassword = provisioned.TemporaryPassword
+            });
+        }
+        catch (AppException ex)
+        {
+            failed++;
+            rows.Add(new { row = row.RowNumber, status = "error", error = ex.Message });
+        }
+    }
+
+    return Results.Ok(new { created, failed, rows });
+})
+.WithName("ImportRosterCsv")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+
+app.MapPost("/api/groups/{groupId:guid}/roster/{memberId:guid}/reset-access", async (
+    Guid groupId,
+    Guid memberId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IMembershipStore memberships,
+    IAccountAuditStore audit,
+    IEmailSender email,
+    IPublicOrigin origin,
+    IClock clock,
+    IConfiguration configuration,
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+
+    var target = (await memberships.ListByGroupAsync(groupId, cancellationToken))
+        .FirstOrDefault(m => m.Id == memberId);
+    if (target?.UserId is null)
+    {
+        return Results.NotFound();
+    }
+
+    var account = await users.FindByIdAsync(target.UserId.Value.ToString("D"));
+    if (account is null)
+    {
+        return Results.NotFound();
+    }
+
+    // Only accounts this group created can be reset by its Owner.
+    if (account.ManagedByGroupId != groupId)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var now = clock.UtcNow;
+    var mailed = false;
+    string credential;
+    string? temporaryPassword = null;
+
+    if (!string.IsNullOrWhiteSpace(account.Email)
+        && !account.Email.EndsWith("@managed.invalid", StringComparison.Ordinal))
+    {
+        var token = await users.GeneratePasswordResetTokenAsync(account);
+        mailed = await VerificationMail.TrySendPasswordResetAsync(
+            email, origin, loggerFactory.CreateLogger("ManagedAccounts"), account.Email!, token, cancellationToken);
+        credential = "activation_link";
+    }
+    else
+    {
+        var resetToken = await users.GeneratePasswordResetTokenAsync(account);
+        temporaryPassword = GenerateTemporaryPassword();
+        var result = await users.ResetPasswordAsync(account, resetToken, temporaryPassword);
+        if (!result.Succeeded)
+        {
+            return Results.ValidationProblem(result.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+        }
+
+        account.MustChangePassword = true;
+        await users.UpdateAsync(account);
+        credential = "temporary_password";
+    }
+
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionAccessReset, now, actorId, account.Id, groupId),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    return Results.Ok(new { memberId, userId = account.Id, credential, mailed, temporaryPassword, handle = target.Handle });
+})
+.WithName("ResetRosterAccess")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+// Phase 4.1: delete a roster row. A managed account created by this group and used
+// only here is deleted with it; otherwise the managed mark is cleared.
+app.MapDelete("/api/groups/{groupId:guid}/roster/{memberId:guid}", async (
+    Guid groupId,
+    Guid memberId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IMembershipStore memberships,
+    IGroupStore groups,
+    IUnitOfWork unitOfWork,
+    IAccountAuditStore audit,
+    IClock clock,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+
+    var target = (await memberships.ListByGroupAsync(groupId, cancellationToken))
+        .FirstOrDefault(m => m.Id == memberId);
+    if (target is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (target.IsOwner)
+    {
+        return Results.Conflict(new { detail = "Cannot delete the Owner." });
+    }
+
+    if (target.UserId is { } targetUserId)
+    {
+        var account = await users.FindByIdAsync(targetUserId.ToString("D"));
+        if (account is not null && account.ManagedByGroupId == groupId)
+        {
+            var belongsElsewhere = (await groups.ListForUserAsync(targetUserId, cancellationToken))
+                .Any(g => g.Id != groupId);
+            if (!belongsElsewhere)
+            {
+                await users.DeleteAsync(account);
+            }
+            else
+            {
+                account.ManagedByGroupId = null;
+                await users.UpdateAsync(account);
+            }
+        }
+    }
+
+    await memberships.RemoveAsync(target, cancellationToken);
+    await unitOfWork.SaveChangesAsync(cancellationToken);
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionRemoved, clock.UtcNow, actorId, target.UserId, groupId),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    return Results.NoContent();
+})
+.WithName("DeleteRosterMember")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+// Phase 4.1 GDPR-style group export (Owner only): roster + repertoire as a
+// downloadable JSON document. No binaries, no cross-group data.
+app.MapGet("/api/groups/{groupId:guid}/export", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ExportGroupHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var export = await handler.HandleAsync(new ExportGroupQuery(userId.Value, groupId), cancellationToken);
+    var bytes = JsonSerializer.SerializeToUtf8Bytes(
+        export, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true });
+    return Results.File(bytes, "application/json", $"sonivo-grupo-{groupId:D}.json");
+})
+.WithName("ExportGroup")
+.RequireAuthorization();
+
+// Phase 4.1 GDPR-style own-data export: profile + memberships + account audit.
+app.MapGet("/api/auth/export", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ExportOwnDataHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var appUser = await users.GetUserAsync(principal);
+    if (appUser is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var email = appUser.Email is { } mail && mail.EndsWith("@managed.invalid", StringComparison.Ordinal)
+        ? null
+        : appUser.Email;
+    var export = await handler.HandleAsync(
+        new ExportOwnDataQuery(
+            appUser.Id,
+            email,
+            appUser.DisplayName,
+            appUser.EmailConfirmed,
+            appUser.MustChangePassword,
+            appUser.ManagedByGroupId),
+        cancellationToken);
+    var bytes = JsonSerializer.SerializeToUtf8Bytes(
+        export, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true });
+    return Results.File(bytes, "application/json", "sonivo-mis-datos.json");
+})
+.WithName("ExportOwnData")
+.RequireAuthorization();
+
+
 app.MapDelete("/api/groups/{groupId:guid}/members/{targetUserId:guid}", async (
     Guid groupId,
     Guid targetUserId,
@@ -1782,6 +2493,16 @@ app.MapPost("/api/invitations/{token}/accept", async (
     var accepted = await handler.HandleAsync(
         new AcceptInvitationCommand(userId.Value, token),
         cancellationToken);
+
+    // ADR-0047: joining another group drops the managed-account mark.
+    var account = await users.GetUserAsync(principal);
+    if (account is not null
+        && account.ManagedByGroupId is not null
+        && account.ManagedByGroupId != accepted.GroupId)
+    {
+        account.ManagedByGroupId = null;
+        await users.UpdateAsync(account);
+    }
 
     return Results.Ok(ToInvitationAcceptedResponse(accepted));
 })
@@ -2165,7 +2886,8 @@ app.MapGet("/api/features", (IConfiguration configuration) => Results.Ok(new
     lrc = configuration.GetValue("Features:Lrc", false),
     stageMode = configuration.GetValue("Features:StageMode", false),
     groupBranding = configuration.GetValue("Features:GroupBranding", false),
-    notifications = configuration.GetValue("Features:Notifications", false)
+    notifications = configuration.GetValue("Features:Notifications", false),
+    managedAccounts = configuration.GetValue("Features:ManagedAccounts", false)
 }))
 .WithName("GetFeatures")
 .AllowAnonymous();
@@ -2871,8 +3593,7 @@ if (!app.Environment.IsDevelopment())
 
 app.Run();
 
-static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users)
-{
+static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users){
     if (principal.Identity?.IsAuthenticated != true)
     {
         return null;
@@ -3145,6 +3866,7 @@ internal sealed record RegisterRequest(string? Email, string? Password, string? 
 /// <summary>LRC import payload. Send <c>contentBase64</c> to exercise BOM/encoding detection.</summary>
 internal sealed record ImportLrcRequest(string? Content, string? ContentBase64, int? OffsetMs);
 internal sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
+internal sealed record HandleLoginRequest(string? Handle, string? Password, bool RememberMe = false);
 internal sealed record ConfirmEmailRequest(string? Email, string? Token);
 internal sealed record ResendConfirmationRequest(string? Email);
 internal sealed record ForgotPasswordRequest(string? Email);
@@ -3156,6 +3878,9 @@ internal sealed record DisableTwoFactorRequest(string? Password);
 internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
 internal sealed record ChangeGroupSlugRequest(string? Slug);
+internal sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
+internal sealed record CreateRosterMemberRequest(string? DisplayName, string? Email, bool GrantAccess, string? Handle = null);
+internal sealed record ImportRosterCsvRequest(string? Csv);
 internal sealed record UpdateGroupBrandingRequest(
     int ExpectedVersion,
     string? DisplayName,
