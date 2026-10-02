@@ -96,6 +96,105 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0050 — `.lrc` as an import/export format
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-01 (white-label program, phase 4.2).
+- **See:** [`PHASE-WHITELABEL-SPEC.md`](PHASE-WHITELABEL-SPEC.md) §4.
+
+### Decision
+
+- `.lrc` is **not a stored format**: it is parsed into ChordPro + ADR-0031 line marks and exported back.
+  No `Arrangement.LyricsFormat` column.
+- Encoding: UTF-8 (with/without BOM) and **UTF-16 BOM detection**; **Windows-1252 fallback only with an
+  explicit warning**; otherwise reject with a clear message.
+- Enhanced (word-level) LRC is **lossy by design** in v1 (line marks only).
+
+---
+
+## ADR-0049 — Public hosts and custom domains — documentation only (BLOCKED)
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-01 (phases 4.6/4.7). **Nothing is built.**
+- **See:** [`PHASE-WHITELABEL-SPEC.md`](PHASE-WHITELABEL-SPEC.md) §4; [`DOMAIN-CHANGE-RUNBOOK.md`](DOMAIN-CHANGE-RUNBOOK.md).
+
+### Decision
+
+1. Branding **in-app, single origin** is what ships (ADR-0048).
+2. Subdomain for branded/public surfaces with **central auth + one-time code** (never a parent-domain cookie).
+3. Custom domain last: Host resolution + **host-only cookie** + TXT/CNAME ownership verification + per-domain TLS.
+4. **Passkeys:** `Passkeys:RelyingPartyId` stays empty ⇒ rpId = current host; managed accounts never rely on passkeys.
+5. **Invitations:** the DB stores **only the token**; the URL is built at send time from `PublicOrigin`.
+- **Why blocked:** `onrender.com` is a public suffix, so white-label subdomains/domains need a verified custom domain (D2). **No `GroupDomain` table is created meanwhile.**
+
+---
+
+## ADR-0048 — Per-group white label (same origin, by path)
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-01 (white-label program, phase 4.3).
+- **See:** [`PHASE-WHITELABEL-SPEC.md`](PHASE-WHITELABEL-SPEC.md) §4/§5.
+
+### Decision
+
+- `GroupBranding` keyed by `GroupId` (name, logo, accent, cover, theme, locale, welcome/login copy,
+  `ShowSonivoCredit`); **strict hex-only colours** with **server-side AA contrast**; sanitised text;
+  logo via `IBlobStore` (allowlist + size cap; **image re-encode deferred**).
+- Tenancy by path: `Group.Slug` + `GroupSlugHistory`, served at **`/g/{slug}`** on the **same origin**;
+  the slug is changeable **once** (`SlugConfirmedAt`), the previous slug permanently redirects and is never reused.
+- The **product name** comes from `Brand:ProductName`; no host is written into code or copy (all absolute
+  URLs use `PublicOrigin`). **Technical identifiers are not renamed** (`sonivo.auth`, `sonivo.csrf`,
+  `sonivo:*` localStorage keys).
+
+---
+
+## ADR-0047 — First-access credentials and pre-hijacking defences
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-01 (white-label program, phase 4.1).
+- **Supersedes:** the "email required for access" part of ADR-0038.
+
+### Decision
+
+- With email → **activation link only** (single-use, expiring); the Owner **never sees a password**.
+- Without email → **temporary password** (random, single-use, expiring, shown once, never logged) + a
+  server-enforced `MustChangePassword` that blocks the whole API except `me`/`logout`/`change-password`/`csrf`.
+- **No automatic linking** of accounts whose email is **unverified** to Google/external providers; before
+  linking, **revoke existing credentials** (passkeys + security stamp) and audit.
+- Permanent notice in the account UI: **"cuenta administrada por el grupo X"**.
+- Handle login `handle@slug` with `Handle` stored **separately** from `GroupId`; uniform responses/timings;
+  rate limit per `(slug, IP)`; Identity lockout. `AccountAudit` stores **ids only**.
+
+---
+
+## ADR-0046 — Roster + optional managed account (hybrid)
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-01 (white-label program, phase 4.1).
+
+### Decision
+
+- `Membership` absorbs the person (one entity); **`UserId` becomes nullable**; an Identity account is
+  created **only when the Owner grants access**, tracked by `ApplicationUser.ManagedByGroupId`.
+- `Membership.DisplayName` required for roster-only rows; `Membership.Handle` stored separately from `GroupId`.
+- Invariants: `CHECK (Role = 'Owner' ⇒ UserId IS NOT NULL)`; filtered unique `(UserId, GroupId)` and
+  `(GroupId, Handle)`; **a row with `UserId IS NULL` is a person, never an authenticated member**.
+- The `ManagedByGroupId` mark is cleared when the person joins another group, links an external login,
+  registers a passkey, or resets via a verified email.
+
+---
+
+## ADR-0045 — Tenancy: Group as tenant with branding; Organization deferred
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-01 (white-label program, phase 4.0/4.3).
+- **Supersedes:** the "no Organization ever" framing of ADR-0005 (Organization becomes FUTURE, not forbidden).
+
+### Decision
+
+- Keep **Group as tenant**; brand/slug tables are keyed by `GroupId` so they can be **re-keyed to an
+  `Organization` later** without a rewrite. Organization > Group is deferred (cost in AuthZ + "my groups",
+  no proven demand).
+- A new abstraction **`ITenantResolver`** ships as **`PathTenantResolver`**; a `HostTenantResolver` can be
+  added later **without changing the data model**.
+- AuthZ is untouched: membership required, non-member → 404.
+
+---
+
 ## ADR-0043 — Total visual redesign: immersive × precise, Grupo/Cuenta IA, frontend es/en
 
 - **Status:** **ACCEPTED** — owner-authorized 2026-09-29 ("Acepto todo"); waves W0–W5 shipped 2026-09-30 (PRs #115–#120, see [`PHASE-UI-UX-SPEC.md`](PHASE-UI-UX-SPEC.md)).
