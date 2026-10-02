@@ -1,7 +1,7 @@
 export function ProblemAlert({ message }: { message: string | null }) {
   if (!message) return null
   return (
-    <p role="alert" className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error">
+    <p role="alert" className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error-ink">
       {message}
     </p>
   )

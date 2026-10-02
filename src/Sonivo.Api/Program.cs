@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -17,6 +18,8 @@ using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tenancy;
 using Sonivo.Api.Realtime;
 using Sonivo.Domain.Repertoire;
+using Sonivo.Domain.Scheduling;
+using Sonivo.Domain.Tenancy;
 using Sonivo.Api.Auth;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Blobs;
@@ -125,10 +128,23 @@ builder.Services.AddRateLimiter(options =>
     // ClientIpPartitionKey; trusted-proxy pinning remains a follow-up.
     options.AddPolicy("auth-register", http => PerIp(http, 30));
     options.AddPolicy("auth-login", http => PerIp(http, 30));
+    // ADR-0047: handle logins are rate-limited per (slug, IP) so a single group
+    // cannot be brute-forced from one address without affecting other groups.
+    options.AddPolicy("auth-login-handle", http =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"{http.Request.RouteValues["slug"]}|{ClientIpPartitionKey.Normalize(http.Connection.RemoteIpAddress)}",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
     options.AddPolicy("auth-confirm", http => PerIp(http, 30));
     options.AddPolicy("auth-resend", http => PerIp(http, 10));
     options.AddPolicy("auth-forgot", http => PerIp(http, 10));
     options.AddPolicy("auth-reset", http => PerIp(http, 30));
+    options.AddPolicy("auth-change-password", http => PerIp(http, 20));
     // T-AU-02: TOTP codes are 6 digits (brute-forceable) — the challenge
     // endpoints get the strictest budget; management is session-authed.
     options.AddPolicy("auth-2fa-challenge", http => PerIp(http, 10));
@@ -223,6 +239,40 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// ADR-0047: while MustChangePassword is set, block all API calls except the
+// minimum needed to change it (me / logout / change-password / csrf).
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+    var guarded = path.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/hubs", StringComparison.OrdinalIgnoreCase);
+    if (context.User?.Identity?.IsAuthenticated == true
+        && guarded
+        && !IsMustChangeAllowed(path))
+    {
+        var users = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+        var current = await users.GetUserAsync(context.User);
+        if (current is { MustChangePassword: true })
+        {
+            await Results.Problem(
+                    detail: "Password change required.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    title: "Forbidden",
+                    extensions: new Dictionary<string, object?> { ["code"] = "must_change_password" })
+                .ExecuteAsync(context);
+            return;
+        }
+    }
+
+    await next();
+});
+
+static bool IsMustChangeAllowed(string path) =>
+    path.Equals("/api/auth/me", StringComparison.OrdinalIgnoreCase)
+    || path.Equals("/api/auth/logout", StringComparison.OrdinalIgnoreCase)
+    || path.Equals("/api/auth/change-password", StringComparison.OrdinalIgnoreCase)
+    || path.Equals("/api/auth/csrf", StringComparison.OrdinalIgnoreCase);
 app.UseRateLimiter();
 
 app.Use(async (context, next) =>
@@ -442,13 +492,106 @@ app.MapPost("/api/auth/login", async (
         id = user.Id,
         email = user.Email,
         displayName = user.DisplayName,
-        emailConfirmed = user.EmailConfirmed
+        emailConfirmed = user.EmailConfirmed,
+        mustChangePassword = user.MustChangePassword,
+        managedByGroupId = user.ManagedByGroupId
     });
 })
 .WithName("Login")
 .AllowAnonymous()
 .DisableAntiforgery()
 .RequireRateLimiting("auth-login");
+
+// ADR-0047: members without an email sign in as handle@slug. The handle and the
+// group id are resolved separately; this endpoint never consults the email column,
+// so a handle can never collide with a real address. Unknown slug/handle and wrong
+// password return the same 401, and an unknown identifier burns a password hash so
+// the response time does not reveal whether the account exists.
+app.MapPost("/api/auth/login/handle/{slug}", async (
+    string slug,
+    HandleLoginRequest request,
+    UserManager<ApplicationUser> users,
+    SignInManager<ApplicationUser> signInManager,
+    IGroupStore groups,
+    IMembershipStore memberships,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Handle) || string.IsNullOrWhiteSpace(request.Password))
+    {
+        return Results.Problem(
+            detail: "Identificador y contraseña son obligatorios.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation failed");
+    }
+
+    var normalized = MembershipHandles.Normalize(request.Handle);
+    var group = string.IsNullOrWhiteSpace(slug) ? null : await groups.GetBySlugAsync(slug.Trim(), cancellationToken);
+    ApplicationUser? user = null;
+    if (group is not null && normalized is not null)
+    {
+        var membership = await memberships.GetByHandleAsync(group.Id, normalized, cancellationToken);
+        if (membership?.UserId is { } userId)
+        {
+            user = await users.FindByIdAsync(userId.ToString("D"));
+        }
+    }
+
+    if (user is null)
+    {
+        AuthUniformity.BurnPasswordVerification(users, request.Password);
+        return AuthUniformity.InvalidLogin();
+    }
+
+    var result = await signInManager.PasswordSignInAsync(
+        user,
+        request.Password,
+        isPersistent: request.RememberMe,
+        lockoutOnFailure: true);
+
+    if (result.IsLockedOut)
+    {
+        app.Logger.LogWarning(
+            "Security event: account lockout (handle login). UserId: {UserId}", user.Id);
+        return Results.Problem(
+            detail: "Account temporarily locked.",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized");
+    }
+
+    if (result.RequiresTwoFactor)
+    {
+        return Results.Ok(new { requiresTwoFactor = true });
+    }
+
+    if (!result.Succeeded)
+    {
+        app.Logger.LogWarning(
+            "Security event: failed handle login. GroupId: {GroupId}", group!.Id);
+        return AuthUniformity.InvalidLogin();
+    }
+
+    return Results.Ok(new
+    {
+        id = user.Id,
+        email = (string?)null,
+        displayName = user.DisplayName,
+        emailConfirmed = user.EmailConfirmed,
+        mustChangePassword = user.MustChangePassword,
+        managedByGroupId = user.ManagedByGroupId,
+        handle = normalized
+    });
+})
+.WithName("HandleLogin")
+.AllowAnonymous()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-login-handle");
+
 
 app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<ApplicationUser> users) =>
 {
@@ -466,13 +609,60 @@ app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<Applica
     return Results.Ok(new
     {
         id = appUser.Id,
-        email = appUser.Email,
+        email = appUser.Email is { } mail && mail.EndsWith("@managed.invalid", StringComparison.Ordinal) ? null : appUser.Email,
         displayName = appUser.DisplayName,
-        emailConfirmed = appUser.EmailConfirmed
+        emailConfirmed = appUser.EmailConfirmed,
+        mustChangePassword = appUser.MustChangePassword,
+        managedByGroupId = appUser.ManagedByGroupId
     });
 })
 .WithName("GetCurrentUser")
 .RequireAuthorization();
+
+// ADR-0047: a temporary credential must be replaced before any other API call.
+app.MapPost("/api/auth/change-password", async (
+    ChangePasswordRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SignInManager<ApplicationUser> signInManager,
+    IAccountAuditStore audit,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var appUser = await users.GetUserAsync(principal);
+    if (appUser is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var newPassword = request.NewPassword ?? string.Empty;
+    var result = await users.ChangePasswordAsync(appUser, request.CurrentPassword ?? string.Empty, newPassword);
+    if (!result.Succeeded)
+    {
+        return Results.ValidationProblem(
+            result.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+    }
+
+    if (appUser.MustChangePassword)
+    {
+        appUser.MustChangePassword = false;
+        await users.UpdateAsync(appUser);
+    }
+
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionPasswordChanged, clock.UtcNow, actorUserId: appUser.Id),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    // Rotate the session cookie so the new security stamp is honoured.
+    await signInManager.RefreshSignInAsync(appUser);
+
+    return Results.Ok(new { ok = true });
+})
+.WithName("ChangePassword")
+.RequireAuthorization()
+.DisableAntiforgery()
+.RequireRateLimiting("auth-change-password");
 
 app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInManager) =>
 {
@@ -590,7 +780,10 @@ app.MapPost("/api/auth/forgot-password", async (
 // Invalid/expired/unknown → 400 with the frozen Spanish copy.
 app.MapPost("/api/auth/reset-password", async (
     ResetPasswordRequest request,
-    UserManager<ApplicationUser> users) =>
+    UserManager<ApplicationUser> users,
+    IAccountAuditStore audit,
+    IClock clock,
+    CancellationToken cancellationToken) =>
 {
     var email = request.Email?.Trim();
     if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(request.Token))
@@ -627,6 +820,26 @@ app.MapPost("/api/auth/reset-password", async (
             title: "Validation failed");
     }
 
+    // A successful reset proves control of the mailbox: mark it confirmed so the
+    // account can sign in. ADR-0047: it also makes a managed account self-owned.
+    var managed = user.ManagedByGroupId is not null || user.MustChangePassword;
+    user.EmailConfirmed = true;
+    if (managed)
+    {
+        user.ManagedByGroupId = null;
+        user.MustChangePassword = false;
+    }
+
+    await users.UpdateAsync(user);
+
+    if (managed)
+    {
+        await audit.AddAsync(
+            AccountAudit.Create(AccountAudit.ActionLinked, clock.UtcNow, targetUserId: user.Id),
+            cancellationToken);
+        await audit.SaveChangesAsync(cancellationToken);
+    }
+
     return Results.Ok(new { passwordReset = true });
 })
 .WithName("ResetPassword")
@@ -639,6 +852,9 @@ app.MapPost("/api/auth/reset-password", async (
 // (and on explicit regenerate), single-use enforced by UserManager.
 // No new tables: AspNetUserTokens already stores the authenticator key +
 // recovery codes (verified — no migration).
+// Temporary password that satisfies the Identity password policy; shown once.
+static string GenerateTemporaryPassword() => "Tmp1!" + Guid.NewGuid().ToString("N");
+
 static string SanitizeTotpCode(string? code) =>
     (code ?? string.Empty).Replace(" ", string.Empty, StringComparison.Ordinal)
         .Replace("-", string.Empty, StringComparison.Ordinal);
@@ -1008,9 +1224,12 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
     PasskeyRegistrationFinishRequest request,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
+    IAccountAuditStore audit,
+    IClock clock,
     IPublicOrigin origin,
     HttpContext http,
-    IConfiguration config) =>
+    IConfiguration config,
+    CancellationToken cancellationToken) =>
 {
     var user = await users.GetUserAsync(principal);
     if (user is null)
@@ -1026,11 +1245,13 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
         PasskeyVerifier.EnsureClientData(cd, "webauthn.create", cd.Challenge,
             PasskeyOrigins.Allowed(http, config, origin));
         if (!PasskeyChallengeStore.ConsumeChallenge(cd.Challenge, expectedUserId: user.Id))
+        {
+            app.Logger.LogWarning("Passkey registration: challenge was not issued for this user, expired, or already used.");
             return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
-        // 2. attestation: rpIdHash, UP/AT flags, credentialId + COSE key extracted (not trusted)
+        }
+        // 2. attestation: rpIdHash, UP/AT flags, credentialId + COSE key extracted
+        // (attestation statement not verified — conveyance is "none"; see PasskeysAuth)
         var proof = PasskeyVerifier.ParseAttestation(request.AttestationObject, rpId);
-        // 3. self-attestation signature (fmt "none" passes through by design)
-        PasskeyVerifier.VerifyPackedSelfAttestation(request.AttestationObject, request.ClientData, proof.CoseKey);
 
         var cred = new PasskeyCredential(
             proof.CredentialId,
@@ -1040,10 +1261,26 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
             proof.SignCount);
         await users.SetAuthenticationTokenAsync(user, "Passkeys",
             "Credential_" + cred.CredentialId, System.Text.Json.JsonSerializer.Serialize(cred));
+
+        // ADR-0047 lifecycle: registering a passkey makes a group-managed account
+        // self-owned (it is no longer resettable by the group).
+        if (user.ManagedByGroupId is not null || user.MustChangePassword)
+        {
+            user.ManagedByGroupId = null;
+            user.MustChangePassword = false;
+            await users.UpdateAsync(user);
+            await audit.AddAsync(
+                AccountAudit.Create(AccountAudit.ActionLinked, clock.UtcNow, targetUserId: user.Id),
+                cancellationToken);
+            await audit.SaveChangesAsync(cancellationToken);
+        }
+
         return Results.Ok(new { registered = true, credentialId = cred.CredentialId });
     }
-    catch (PasskeyVerifier.PasskeyVerificationException)
+    catch (PasskeyVerifier.PasskeyVerificationException ex)
     {
+        // Diagnostics only: the verifier's fixed reason, never the payload or secrets.
+        app.Logger.LogWarning("Passkey registration verification failed: {Reason}", ex.Message);
         return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
     }
 })
@@ -1100,6 +1337,7 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
 
     if (token is null || string.IsNullOrWhiteSpace(token.Value))
     {
+        app.Logger.LogWarning("Passkey login: credential not found (no stored credential for the presented id).");
         return Results.Problem(
             detail: "Llave de acceso no registrada",
             statusCode: StatusCodes.Status401Unauthorized,
@@ -1113,6 +1351,7 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
     // fail closed with the uniform 401 — never reach the verifier (or a 500).
     if (user is null || stored is null || string.IsNullOrWhiteSpace(stored.PublicKeyCose))
     {
+        app.Logger.LogWarning("Passkey login: credential row is unusable (legacy pre-T-SEC-01 row or missing stored key).");
         return Results.Problem(
             detail: "Llave de acceso no registrada",
             statusCode: StatusCodes.Status401Unauthorized,
@@ -1127,16 +1366,26 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
         PasskeyVerifier.EnsureClientData(cd, "webauthn.get", cd.Challenge,
             PasskeyOrigins.Allowed(http, config, origin));
         if (!PasskeyChallengeStore.ConsumeChallenge(cd.Challenge))
+        {
+            app.Logger.LogWarning("Passkey login: challenge was not issued, expired, or already used.");
             return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+        }
         // 2. authenticatorData: rpIdHash + UP; counter regression check (clone detection)
         var proof = PasskeyVerifier.ParseAssertionAuthenticatorData(request.AuthenticatorData, rpId);
         if (stored.SignCount > 0 && proof.SignCount > 0 && proof.SignCount <= stored.SignCount)
+        {
+            app.Logger.LogWarning("Passkey login: sign-counter regression (possible cloned authenticator).");
             return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+        }
         // 3. the actual cryptographic proof — the missing line that C1 exists for
-        if (!PasskeyVerifier.VerifyAssertion(
-                PasskeyVerifier.Base64UrlDecode(stored.PublicKeyCose), request.AuthenticatorData,
-                request.ClientData, request.Signature))
+        var (assertionOk, assertionReason) = PasskeyVerifier.VerifyAssertion(
+            PasskeyVerifier.Base64UrlDecode(stored.PublicKeyCose), request.AuthenticatorData,
+            request.ClientData, request.Signature);
+        if (!assertionOk)
+        {
+            app.Logger.LogWarning("Passkey login: assertion signature verification failed ({Reason}).", assertionReason);
             return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
+        }
 
         // 4. persist the advanced counter, then sign in
         stored = stored with { SignCount = proof.SignCount };
@@ -1150,8 +1399,10 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
             emailConfirmed = user.EmailConfirmed
         });
     }
-    catch (PasskeyVerifier.PasskeyVerificationException)
+    catch (PasskeyVerifier.PasskeyVerificationException ex)
     {
+        // Diagnostics only: the verifier's fixed reason, never the payload or secrets.
+        app.Logger.LogWarning("Passkey login verification failed: {Reason}", ex.Message);
         return Results.Problem(detail: "Llave de acceso inválida", statusCode: 401, title: "Unauthorized");
     }
 })
@@ -1261,6 +1512,266 @@ app.MapGet("/api/groups/{groupId:guid}", async (
 .WithName("GetGroup")
 .RequireAuthorization();
 
+app.MapGet("/api/groups/by-slug/{slug}", async (
+    string slug,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetGroupBySlugHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var result = await handler.HandleAsync(userId.Value, slug, cancellationToken);
+    return Results.Ok(ToGroupBySlugResponse(result));
+})
+.WithName("GetGroupBySlug")
+.RequireAuthorization();
+
+app.MapPut("/api/groups/{groupId:guid}/slug", async (
+    Guid groupId,
+    ChangeGroupSlugRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ChangeGroupSlugHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    // Flag off → 404 even for the Owner (feature disabled).
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var updated = await handler.HandleAsync(
+        new ChangeGroupSlugCommand(userId.Value, groupId, request.Slug ?? string.Empty),
+        cancellationToken);
+    return Results.Ok(ToGroupResponse(updated));
+})
+.WithName("ChangeGroupSlug")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+// ---------- Per-group white label (ADR-0048). Flag: Features:GroupBranding (default off). ----------
+
+app.MapGet("/api/groups/{groupId:guid}/branding", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetGroupBrandingHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(ToBrandingResponse(await handler.HandleAsync(userId.Value, groupId, cancellationToken)));
+})
+.WithName("GetGroupBranding")
+.RequireAuthorization();
+
+app.MapPut("/api/groups/{groupId:guid}/branding", async (
+    Guid groupId,
+    UpdateGroupBrandingRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    UpdateGroupBrandingHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var updated = await handler.HandleAsync(
+        new UpdateGroupBrandingCommand(
+            userId.Value,
+            groupId,
+            request.ExpectedVersion,
+            request.DisplayName,
+            request.AccentHex,
+            request.CoverKind,
+            request.CoverValue,
+            request.ThemeDefault,
+            request.DefaultLocale,
+            request.WelcomeText,
+            request.LoginHeadline,
+            request.ShowSonivoCredit),
+        cancellationToken);
+
+    return Results.Ok(ToBrandingResponse(updated));
+})
+.WithName("UpdateGroupBranding")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapPost("/api/groups/{groupId:guid}/branding/logo", async (
+    Guid groupId,
+    HttpRequest httpRequest,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SetGroupLogoHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!httpRequest.HasFormContentType)
+    {
+        return Results.Problem(detail: "Multipart form is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    var form = await httpRequest.ReadFormAsync(cancellationToken);
+    var file = form.Files.GetFile("file");
+    if (file is null || file.Length <= 0)
+    {
+        return Results.Problem(detail: "Logo file is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    await using var stream = file.OpenReadStream();
+    var updated = await handler.HandleAsync(
+        new SetGroupLogoCommand(userId.Value, groupId, file.ContentType, file.Length, stream),
+        cancellationToken);
+    return Results.Ok(ToBrandingResponse(updated));
+})
+.WithName("SetGroupLogo")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/branding/logo", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetGroupLogoHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var content = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
+    return content is null
+        ? Results.NotFound()
+        : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
+})
+.WithName("GetGroupLogo")
+.RequireAuthorization();
+
+// Anonymous, uniform reads for the branded access screen (never leak existence).
+app.MapGet("/api/groups/by-slug/{slug}/branding", async (
+    string slug,
+    GetPublicBrandingHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    return Results.Ok(await handler.HandleAsync(slug, cancellationToken));
+})
+.WithName("GetPublicGroupBranding")
+.AllowAnonymous();
+
+app.MapGet("/api/groups/by-slug/{slug}/branding/logo", async (
+    string slug,
+    GetPublicBrandingLogoHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var content = await handler.HandleAsync(slug, cancellationToken);
+    return content is null
+        ? Results.NotFound()
+        : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
+})
+.WithName("GetPublicGroupBrandingLogo")
+.AllowAnonymous();
+
+// Dynamic per-group web app manifest (/g/{slug}/manifest.webmanifest), same origin.
+app.MapGet("/g/{slug}/manifest.webmanifest", async (
+    string slug,
+    GetPublicBrandingHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", false))
+    {
+        return Results.NotFound();
+    }
+
+    var branding = await handler.HandleAsync(slug, cancellationToken);
+    var productName = configuration.GetValue("Brand:ProductName", "Sonivo") ?? "Sonivo";
+    var name = branding.Name ?? productName;
+
+    var manifest = new
+    {
+        name,
+        short_name = name.Length > 12 ? name[..12] : name,
+        start_url = $"/g/{slug}",
+        scope = $"/g/{slug}",
+        display = "standalone",
+        background_color = "#0b1020",
+        theme_color = branding.AccentHex ?? "#5b4bd6",
+        icons = branding.LogoUrl is null
+            ? Array.Empty<object>()
+            : new object[]
+            {
+                new { src = branding.LogoUrl, sizes = "any", type = "image/png", purpose = "any" }
+            }
+    };
+
+    return Results.Json(manifest, contentType: "application/manifest+json");
+})
+.WithName("GetGroupManifest")
+.AllowAnonymous();
+
 app.MapPatch("/api/groups/{groupId:guid}", async (
     Guid groupId,
     UpdateGroupRequest request,
@@ -1337,12 +1848,492 @@ app.MapGet("/api/groups/{groupId:guid}/members", async (
             userId = i.UserId,
             displayName = i.DisplayName,
             role = i.Role,
+            musicalRole = i.MusicalRole,
             createdAt = i.CreatedAt
         })
     });
 })
 .WithName("ListGroupMembers")
 .RequireAuthorization();
+
+// Phase 4.1: roster incl. people without an account behind Features:ManagedAccounts.
+app.MapGet("/api/groups/{groupId:guid}/roster", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListRosterHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var roster = await handler.HandleAsync(new ListRosterQuery(userId.Value, groupId), cancellationToken);
+    return Results.Ok(new
+    {
+        items = roster.Items.Select(i => new
+        {
+            memberId = i.MemberId,
+            userId = i.UserId,
+            displayName = i.DisplayName,
+            role = i.Role,
+            hasAccess = i.HasAccess,
+            handle = i.Handle,
+            createdAt = i.CreatedAt
+        })
+    });
+})
+.WithName("ListGroupRoster")
+.RequireAuthorization();
+
+// Phase 4.1: Owner provisions access. With email → single-use activation link
+// (the Owner never sees a password); without email → one-use temporary password
+// shown exactly once (never logged). Anti-pre-hijacking: an existing account is
+// never taken over (409) and only accounts created by this group are resettable.
+app.MapPost("/api/groups/{groupId:guid}/roster", async (
+    Guid groupId,
+    CreateRosterMemberRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupStore groups,
+    IMembershipStore memberships,
+    IAccountAuditStore audit,
+    IEmailSender email,
+    IPublicOrigin origin,
+    IClock clock,
+    IConfiguration configuration,
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+
+    var displayName = request.DisplayName?.Trim();
+    if (string.IsNullOrWhiteSpace(displayName) || displayName.Length > 200)
+    {
+        return Results.Problem(detail: "Display name is required (200 chars max).", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    var now = clock.UtcNow;
+    ApplicationUser? account = null;
+    string credential = "none";
+    var mailed = false;
+    string? temporaryPassword = null;
+    string? handle = null;
+
+    if (request.GrantAccess)
+    {
+        var emailAddress = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
+        var provisioned = await ManagedAccountProvisioner.CreateForGroupAsync(
+            users,
+            memberships,
+            email,
+            origin,
+            loggerFactory.CreateLogger("ManagedAccounts"),
+            groupId,
+            displayName,
+            emailAddress,
+            request.Handle,
+            cancellationToken);
+        account = provisioned.Account;
+        credential = provisioned.Credential;
+        mailed = provisioned.Mailed;
+        temporaryPassword = provisioned.TemporaryPassword;
+        handle = provisioned.Handle;
+    }
+
+    var membership = Membership.CreatePerson(groupId, displayName, now);
+    if (account is not null)
+    {
+        membership.ClaimAccount(account.Id);
+    }
+
+    if (handle is not null)
+    {
+        membership.AssignHandle(handle);
+    }
+
+    await groups.AddMembershipAsync(membership, cancellationToken);
+    await groups.SaveChangesAsync(cancellationToken);
+
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionAccessCreated, now, actorId, account?.Id, groupId),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    return Results.Created($"/api/groups/{groupId}/roster/{membership.Id}", new
+    {
+        memberId = membership.Id,
+        userId = account?.Id,
+        credential,
+        mailed,
+        temporaryPassword,
+        handle
+    });
+})
+.WithName("CreateRosterMember")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+// Phase 4.1 (F3b): bulk add via CSV. Strict header/row validation, a hard row
+// limit, and a per-row error report. Valid rows are created (with access); each
+// invalid row is reported without aborting the batch.
+app.MapPost("/api/groups/{groupId:guid}/roster/import", async (
+    Guid groupId,
+    ImportRosterCsvRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupStore groups,
+    IMembershipStore memberships,
+    IAccountAuditStore audit,
+    IEmailSender email,
+    IPublicOrigin origin,
+    IClock clock,
+    IConfiguration configuration,
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+
+    RosterCsvParseResult parsed;
+    try
+    {
+        parsed = RosterCsvParser.Parse(request.Csv);
+    }
+    catch (ValidationException ex)
+    {
+        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    var now = clock.UtcNow;
+    var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var seenHandles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var rows = new List<object>();
+    var created = 0;
+    var failed = 0;
+
+    foreach (var row in parsed.Rows)
+    {
+        try
+        {
+            var displayName = row.DisplayName?.Trim();
+            if (string.IsNullOrWhiteSpace(displayName) || displayName.Length > 200)
+            {
+                throw new ValidationException("El nombre es obligatorio (máx. 200).");
+            }
+
+            var emailAddress = string.IsNullOrWhiteSpace(row.Email) ? null : row.Email.Trim();
+            if (emailAddress is not null && !seenEmails.Add(emailAddress))
+            {
+                throw new ValidationException("Correo duplicado en el archivo.");
+            }
+
+            var requestedHandle = string.IsNullOrWhiteSpace(row.Handle) ? null : row.Handle.Trim();
+            if (requestedHandle is not null
+                && MembershipHandles.Normalize(requestedHandle) is { } normalized
+                && !seenHandles.Add(normalized))
+            {
+                throw new ValidationException("Identificador duplicado en el archivo.");
+            }
+
+            var provisioned = await ManagedAccountProvisioner.CreateForGroupAsync(
+                users,
+                memberships,
+                email,
+                origin,
+                loggerFactory.CreateLogger("ManagedAccounts"),
+                groupId,
+                displayName,
+                emailAddress,
+                requestedHandle,
+                cancellationToken);
+
+            var membership = Membership.CreatePerson(groupId, displayName, now);
+            membership.ClaimAccount(provisioned.Account.Id);
+            if (provisioned.Handle is not null)
+            {
+                membership.AssignHandle(provisioned.Handle);
+            }
+
+            await groups.AddMembershipAsync(membership, cancellationToken);
+            await groups.SaveChangesAsync(cancellationToken);
+            await audit.AddAsync(
+                AccountAudit.Create(AccountAudit.ActionAccessCreated, now, actorId, provisioned.Account.Id, groupId),
+                cancellationToken);
+            await audit.SaveChangesAsync(cancellationToken);
+
+            created++;
+            rows.Add(new
+            {
+                row = row.RowNumber,
+                status = "created",
+                memberId = membership.Id,
+                userId = provisioned.Account.Id,
+                credential = provisioned.Credential,
+                handle = provisioned.Handle,
+                mailed = provisioned.Mailed,
+                temporaryPassword = provisioned.TemporaryPassword
+            });
+        }
+        catch (AppException ex)
+        {
+            failed++;
+            rows.Add(new { row = row.RowNumber, status = "error", error = ex.Message });
+        }
+    }
+
+    return Results.Ok(new { created, failed, rows });
+})
+.WithName("ImportRosterCsv")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+
+app.MapPost("/api/groups/{groupId:guid}/roster/{memberId:guid}/reset-access", async (
+    Guid groupId,
+    Guid memberId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IMembershipStore memberships,
+    IAccountAuditStore audit,
+    IEmailSender email,
+    IPublicOrigin origin,
+    IClock clock,
+    IConfiguration configuration,
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+
+    var target = (await memberships.ListByGroupAsync(groupId, cancellationToken))
+        .FirstOrDefault(m => m.Id == memberId);
+    if (target?.UserId is null)
+    {
+        return Results.NotFound();
+    }
+
+    var account = await users.FindByIdAsync(target.UserId.Value.ToString("D"));
+    if (account is null)
+    {
+        return Results.NotFound();
+    }
+
+    // Only accounts this group created can be reset by its Owner.
+    if (account.ManagedByGroupId != groupId)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var now = clock.UtcNow;
+    var mailed = false;
+    string credential;
+    string? temporaryPassword = null;
+
+    if (!string.IsNullOrWhiteSpace(account.Email)
+        && !account.Email.EndsWith("@managed.invalid", StringComparison.Ordinal))
+    {
+        var token = await users.GeneratePasswordResetTokenAsync(account);
+        mailed = await VerificationMail.TrySendPasswordResetAsync(
+            email, origin, loggerFactory.CreateLogger("ManagedAccounts"), account.Email!, token, cancellationToken);
+        credential = "activation_link";
+    }
+    else
+    {
+        var resetToken = await users.GeneratePasswordResetTokenAsync(account);
+        temporaryPassword = GenerateTemporaryPassword();
+        var result = await users.ResetPasswordAsync(account, resetToken, temporaryPassword);
+        if (!result.Succeeded)
+        {
+            return Results.ValidationProblem(result.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+        }
+
+        account.MustChangePassword = true;
+        await users.UpdateAsync(account);
+        credential = "temporary_password";
+    }
+
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionAccessReset, now, actorId, account.Id, groupId),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    return Results.Ok(new { memberId, userId = account.Id, credential, mailed, temporaryPassword, handle = target.Handle });
+})
+.WithName("ResetRosterAccess")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+// Phase 4.1: delete a roster row. A managed account created by this group and used
+// only here is deleted with it; otherwise the managed mark is cleared.
+app.MapDelete("/api/groups/{groupId:guid}/roster/{memberId:guid}", async (
+    Guid groupId,
+    Guid memberId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IMembershipStore memberships,
+    IGroupStore groups,
+    IUnitOfWork unitOfWork,
+    IAccountAuditStore audit,
+    IClock clock,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:ManagedAccounts", false))
+    {
+        return Results.NotFound();
+    }
+
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+
+    var target = (await memberships.ListByGroupAsync(groupId, cancellationToken))
+        .FirstOrDefault(m => m.Id == memberId);
+    if (target is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (target.IsOwner)
+    {
+        return Results.Conflict(new { detail = "Cannot delete the Owner." });
+    }
+
+    if (target.UserId is { } targetUserId)
+    {
+        var account = await users.FindByIdAsync(targetUserId.ToString("D"));
+        if (account is not null && account.ManagedByGroupId == groupId)
+        {
+            var belongsElsewhere = (await groups.ListForUserAsync(targetUserId, cancellationToken))
+                .Any(g => g.Id != groupId);
+            if (!belongsElsewhere)
+            {
+                await users.DeleteAsync(account);
+            }
+            else
+            {
+                account.ManagedByGroupId = null;
+                await users.UpdateAsync(account);
+            }
+        }
+    }
+
+    await memberships.RemoveAsync(target, cancellationToken);
+    await unitOfWork.SaveChangesAsync(cancellationToken);
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionRemoved, clock.UtcNow, actorId, target.UserId, groupId),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
+
+    return Results.NoContent();
+})
+.WithName("DeleteRosterMember")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+// Phase 4.1 GDPR-style group export (Owner only): roster + repertoire as a
+// downloadable JSON document. No binaries, no cross-group data.
+app.MapGet("/api/groups/{groupId:guid}/export", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ExportGroupHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var export = await handler.HandleAsync(new ExportGroupQuery(userId.Value, groupId), cancellationToken);
+    var bytes = JsonSerializer.SerializeToUtf8Bytes(
+        export, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true });
+    return Results.File(bytes, "application/json", $"sonivo-grupo-{groupId:D}.json");
+})
+.WithName("ExportGroup")
+.RequireAuthorization();
+
+// Phase 4.1 GDPR-style own-data export: profile + memberships + account audit.
+app.MapGet("/api/auth/export", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ExportOwnDataHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var appUser = await users.GetUserAsync(principal);
+    if (appUser is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var email = appUser.Email is { } mail && mail.EndsWith("@managed.invalid", StringComparison.Ordinal)
+        ? null
+        : appUser.Email;
+    var export = await handler.HandleAsync(
+        new ExportOwnDataQuery(
+            appUser.Id,
+            email,
+            appUser.DisplayName,
+            appUser.EmailConfirmed,
+            appUser.MustChangePassword,
+            appUser.ManagedByGroupId),
+        cancellationToken);
+    var bytes = JsonSerializer.SerializeToUtf8Bytes(
+        export, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true });
+    return Results.File(bytes, "application/json", "sonivo-mis-datos.json");
+})
+.WithName("ExportOwnData")
+.RequireAuthorization();
+
 
 app.MapDelete("/api/groups/{groupId:guid}/members/{targetUserId:guid}", async (
     Guid groupId,
@@ -1390,6 +2381,64 @@ app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async
 .WithName("ChangeGroupMemberRole")
 .RequireAuthorization()
 .DisableAntiforgery();
+
+// ADR-0051: Owner or Manager sets a member's descriptive musical role.
+app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/musical-role", async (
+    Guid groupId,
+    Guid targetUserId,
+    SetMusicalRoleRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SetMusicalRoleHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(
+        new SetMusicalRoleCommand(userId.Value, groupId, targetUserId, request.MusicalRole),
+        cancellationToken);
+    return Results.NoContent();
+})
+.WithName("SetGroupMemberMusicalRole")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+// ADR-0051: per-group audit log (ids + short action metadata). Owner only.
+app.MapGet("/api/groups/{groupId:guid}/audit", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupAuditStore audit,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, userId.Value, cancellationToken);
+    var entries = await audit.ListByGroupAsync(groupId, 200, cancellationToken);
+    return Results.Ok(new
+    {
+        items = entries.Select(e => new
+        {
+            id = e.Id,
+            action = e.Action,
+            actorUserId = e.ActorUserId,
+            targetUserId = e.TargetUserId,
+            metadata = e.Metadata,
+            createdAt = e.CreatedAt
+        })
+    });
+})
+.WithName("ListGroupAudit")
+.RequireAuthorization();
 
 app.MapPost("/api/groups/{groupId:guid}/leave", async (
     Guid groupId,
@@ -1503,6 +2552,16 @@ app.MapPost("/api/invitations/{token}/accept", async (
     var accepted = await handler.HandleAsync(
         new AcceptInvitationCommand(userId.Value, token),
         cancellationToken);
+
+    // ADR-0047: joining another group drops the managed-account mark.
+    var account = await users.GetUserAsync(principal);
+    if (account is not null
+        && account.ManagedByGroupId is not null
+        && account.ManagedByGroupId != accepted.GroupId)
+    {
+        account.ManagedByGroupId = null;
+        await users.UpdateAsync(account);
+    }
 
     return Results.Ok(ToInvitationAcceptedResponse(accepted));
 })
@@ -1754,6 +2813,143 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", asy
 .WithName("UpdateArrangement")
 .RequireAuthorization()
 .DisableAntiforgery();
+
+// ---------- .lrc import / export (ADR-0050). Flag: Features:Lrc (default off). ----------
+app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/import-lrc", async (
+    Guid groupId,
+    Guid arrangementId,
+    ImportLrcRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetArrangementHandler arrangementHandler,
+    IGroupStore groupStore,
+    CancellationToken cancellationToken) =>
+{
+    if (!app.Configuration.GetValue("Features:Lrc", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    // Membership first: a non-member must see 404, never 403 (no existence leak).
+    await arrangementHandler.HandleAsync(userId.Value, groupId, arrangementId, cancellationToken);
+
+    var membership = await groupStore.GetMembershipAsync(groupId, userId.Value, cancellationToken);
+    if (membership is null || !membership.IsOwner)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    byte[] bytes;
+    if (!string.IsNullOrEmpty(request.ContentBase64))
+    {
+        try
+        {
+            bytes = Convert.FromBase64String(request.ContentBase64);
+        }
+        catch (FormatException)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["contentBase64"] = ["must be valid base64"]
+            });
+        }
+    }
+    else if (request.Content is not null)
+    {
+        bytes = System.Text.Encoding.UTF8.GetBytes(request.Content);
+    }
+    else
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["content"] = ["content or contentBase64 is required"]
+        });
+    }
+
+    var parsed = LrcParser.Parse(bytes);
+
+    // Limit violations (line 0) are a hard 400 with the errors[{ line, reason }] contract.
+    if (parsed.Errors.Any(e => e.Line == 0))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["errors"] = parsed.Errors.Select(e => e.Reason).ToArray()
+        });
+    }
+
+    // Preview only: convert, but never persist here.
+    var conversion = LrcConverter.ToChordPro(parsed, request.OffsetMs ?? 0);
+
+    return Results.Ok(new
+    {
+        encoding = parsed.Encoding,
+        lyrics = conversion.Lyrics,
+        chordTimingJson = conversion.ChordTimingJson,
+        markCount = conversion.MarkCount,
+        metadata = parsed.Metadata,
+        warnings = parsed.Warnings,
+        errors = parsed.Errors.Select(e => new { line = e.Line, reason = e.Reason })
+    });
+})
+.WithName("ImportArrangementLyricsLrc")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/export.lrc", async (
+    Guid groupId,
+    Guid arrangementId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetArrangementHandler arrangementHandler,
+    CancellationToken cancellationToken) =>
+{
+    if (!app.Configuration.GetValue("Features:Lrc", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    // Read-only export: any member may export; a non-member gets 404 from the handler.
+    var arrangement = await arrangementHandler.HandleAsync(userId.Value, groupId, arrangementId, cancellationToken);
+
+    try
+    {
+        var lrc = LrcConverter.ToLrc(arrangement.Lyrics, arrangement.ChordTimingJson);
+        return Results.Text(lrc, "text/plain; charset=utf-8");
+    }
+    catch (ValidationException ex)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["lyrics"] = [ex.Message]
+        });
+    }
+})
+.WithName("ExportArrangementLyricsLrc")
+.RequireAuthorization();
+
+// Anonymous feature flags: lets the SPA hide unfinished surfaces instead of guessing.
+app.MapGet("/api/features", (IConfiguration configuration) => Results.Ok(new
+{
+    lrc = configuration.GetValue("Features:Lrc", false),
+    stageMode = configuration.GetValue("Features:StageMode", false),
+    groupBranding = configuration.GetValue("Features:GroupBranding", false),
+    notifications = configuration.GetValue("Features:Notifications", false),
+    managedAccounts = configuration.GetValue("Features:ManagedAccounts", false)
+}))
+.WithName("GetFeatures")
+.AllowAnonymous();
 
 app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", async (
     Guid groupId,
@@ -2413,6 +3609,42 @@ app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}/rsvps", async (
 .WithName("ListEventRsvps")
 .RequireAuthorization();
 
+// ADR-0052: read-only per-group ICS feed. Behind Features:Notifications (default off).
+app.MapGet("/api/groups/{groupId:guid}/calendar.ics", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupStore groups,
+    IEventStore events,
+    IClock clock,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:Notifications", false))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireMemberAsync(groupId, userId.Value, cancellationToken);
+    var group = await groups.GetByIdAsync(groupId, cancellationToken);
+    var upcoming = (await events.ListActiveByGroupAsync(groupId, cancellationToken))
+        .Where(e => e.Status != EventStatuses.Cancelled && !e.IsHidden)
+        .OrderBy(e => e.StartsAt)
+        .ToList();
+
+    var ics = IcsCalendar.Build(group?.Name ?? "Sonivo", upcoming, clock.UtcNow);
+    return Results.Text(ics, "text/calendar; charset=utf-8");
+})
+.WithName("GroupCalendarIcs")
+.RequireAuthorization();
+
 if (!app.Environment.IsDevelopment())
 {
     app.MapFallbackToFile("index.html");
@@ -2420,8 +3652,7 @@ if (!app.Environment.IsDevelopment())
 
 app.Run();
 
-static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users)
-{
+static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users){
     if (principal.Identity?.IsAuthenticated != true)
     {
         return null;
@@ -2435,19 +3666,53 @@ static object ToGroupResponse(GroupDto group) => new
 {
     id = group.Id,
     name = group.Name,
+    slug = group.Slug,
     version = group.Version,
     role = group.Role,
     createdAt = group.CreatedAt,
     updatedAt = group.UpdatedAt
 };
 
+static object ToGroupBySlugResponse(GroupBySlugResult result) => new
+{
+    id = result.Group.Id,
+    name = result.Group.Name,
+    slug = result.Group.Slug,
+    moved = result.Moved,
+    version = result.Group.Version,
+    role = result.Group.Role,
+    createdAt = result.Group.CreatedAt,
+    updatedAt = result.Group.UpdatedAt
+};
+
+static object ToBrandingResponse(GroupBrandingDto branding) => new
+{
+    groupId = branding.GroupId,
+    displayName = branding.DisplayName,
+    accentHex = branding.AccentHex,
+    coverKind = branding.CoverKind,
+    coverValue = branding.CoverValue,
+    themeDefault = branding.ThemeDefault,
+    defaultLocale = branding.DefaultLocale,
+    welcomeText = branding.WelcomeText,
+    loginHeadline = branding.LoginHeadline,
+    hasLogo = branding.HasLogo,
+    logoUrl = branding.HasLogo ? $"/api/groups/{branding.GroupId}/branding/logo" : null,
+    showSonivoCredit = branding.ShowSonivoCredit,
+    version = branding.Version
+};
+
 static object ToGroupListResponse(GroupListItem item) => new
 {
     id = item.Id,
     name = item.Name,
+    slug = item.Slug,
     role = item.Role,
     version = item.Version,
-    createdAt = item.CreatedAt
+    createdAt = item.CreatedAt,
+    memberCount = item.MemberCount,
+    nextEventAt = item.NextEventAt,
+    lastActivityAt = item.LastActivityAt
 };
 
 static object ToInvitationCreatedResponse(InvitationCreatedDto invitation) => new
@@ -2656,7 +3921,11 @@ static object ToEventDetailResponse(EventDetailDto musicalEvent) => new
 };
 
 internal sealed record RegisterRequest(string? Email, string? Password, string? DisplayName);
+
+/// <summary>LRC import payload. Send <c>contentBase64</c> to exercise BOM/encoding detection.</summary>
+internal sealed record ImportLrcRequest(string? Content, string? ContentBase64, int? OffsetMs);
 internal sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
+internal sealed record HandleLoginRequest(string? Handle, string? Password, bool RememberMe = false);
 internal sealed record ConfirmEmailRequest(string? Email, string? Token);
 internal sealed record ResendConfirmationRequest(string? Email);
 internal sealed record ForgotPasswordRequest(string? Email);
@@ -2667,9 +3936,25 @@ internal sealed record TwoFactorChallengeRequest(string? Code, bool RememberMe =
 internal sealed record DisableTwoFactorRequest(string? Password);
 internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
+internal sealed record ChangeGroupSlugRequest(string? Slug);
+internal sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
+internal sealed record CreateRosterMemberRequest(string? DisplayName, string? Email, bool GrantAccess, string? Handle = null);
+internal sealed record ImportRosterCsvRequest(string? Csv);
+internal sealed record UpdateGroupBrandingRequest(
+    int ExpectedVersion,
+    string? DisplayName,
+    string? AccentHex,
+    string? CoverKind,
+    string? CoverValue,
+    string? ThemeDefault,
+    string? DefaultLocale,
+    string? WelcomeText,
+    string? LoginHeadline,
+    bool ShowSonivoCredit);
 internal sealed record CreateInvitationRequest(string? Email);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);
 internal sealed record ChangeMemberRoleRequest(string? Role);
+internal sealed record SetMusicalRoleRequest(string? MusicalRole);
 internal sealed record SoftDeleteGroupRequest(int ExpectedVersion);
 internal sealed record CreateSongRequest(
     string? Title,

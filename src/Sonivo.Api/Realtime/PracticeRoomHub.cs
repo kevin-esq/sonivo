@@ -47,13 +47,13 @@ public sealed class PracticeRoomHub : Hub
     {
         var user = await RequireUserAsync();
         var access = await ToHubExceptionAsync(
-            () => _authorizer.RequireMemberAsync(eventId, user.Id, Context.ConnectionAborted));
+            () => _authorizer.RequireParticipantAsync(eventId, user.Id, Context.ConnectionAborted));
         var room = PracticeRoomState.RoomKey(eventId);
         var participant = new RoomParticipant(
             Context.ConnectionId,
             user.Id,
             user.DisplayName ?? user.Email ?? "Miembro",
-            access.IsOwner ? "owner" : "member");
+            access.IsOwner ? "owner" : access.CanManageContent ? "manager" : "member");
 
         if (!_rooms.TryAdd(room, participant, out var error))
         {
@@ -89,7 +89,7 @@ public sealed class PracticeRoomHub : Hub
 
         var user = await RequireUserAsync();
         await ToHubExceptionAsync(
-            () => _authorizer.RequireOwnerAsync(request.EventId, user.Id, Context.ConnectionAborted));
+            () => _authorizer.RequireManagerAsync(request.EventId, user.Id, Context.ConnectionAborted));
 
         var now = _clock.UtcNow;
         if (!_rooms.TryRecordBroadcast(Context.ConnectionId, now))
