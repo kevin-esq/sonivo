@@ -69,4 +69,33 @@ test.describe('Home dashboard (ADR-0053)', () => {
     await expect(page).toHaveURL(/\/unirse$/)
     await expect(page.getByRole('heading', { name: 'Unirse a grupo' })).toBeVisible()
   })
+
+  test('limits "Tu próxima actividad" to the next 5 events', async ({ page }) => {
+    await register(page, uniqueEmail('home-limit'))
+    await page.evaluate(async () => {
+      const csrf = await (await fetch('/api/auth/csrf', { credentials: 'include' })).json()
+      const headers = { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf.token }
+      const group = await (
+        await fetch('/api/groups', {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+          body: JSON.stringify({ name: 'Limit Band' }),
+        })
+      ).json()
+      for (let index = 1; index <= 6; index += 1) {
+        const date = new Date()
+        date.setDate(date.getDate() + index)
+        await fetch(`/api/groups/${group.id}/events`, {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+          body: JSON.stringify({ title: `Evento ${index}`, type: 'rehearsal', startsAt: date.toISOString() }),
+        })
+      }
+    })
+
+    await page.goto('/')
+    await expect(page.getByTestId('home-activity-item')).toHaveCount(5)
+  })
 })
