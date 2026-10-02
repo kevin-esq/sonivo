@@ -55,14 +55,20 @@ public sealed class EfEventStore : IEventStore
                     e.Title,
                     e.Type,
                     e.StartsAt,
+                    e.CreatedAt,
                     e.Status,
                     e.IsHidden,
+                    MyResponse = _db.Rsvps
+                        .Where(r => r.EventId == e.Id && r.UserId == userId)
+                        .Select(r => r.Response)
+                        .FirstOrDefault(),
                 })
             .Where(x =>
                 x.Status == EventStatuses.Scheduled
                 && !x.IsHidden
                 && x.StartsAt >= now)
             .OrderBy(x => x.StartsAt)
+            .ThenBy(x => x.CreatedAt)
             .ThenBy(x => x.Id)
             .Take(limit)
             .Select(x => new UpcomingActivityItem(
@@ -71,7 +77,9 @@ public sealed class EfEventStore : IEventStore
                 x.Id,
                 x.Title,
                 x.Type,
-                x.StartsAt))
+                x.StartsAt,
+                x.CreatedAt,
+                x.MyResponse))
             .ToListAsync(cancellationToken);
     }
 
@@ -101,8 +109,13 @@ public sealed class EfEventStore : IEventStore
                     e.Title,
                     e.Type,
                     e.StartsAt,
+                    e.CreatedAt,
                     e.Status,
                     e.IsHidden,
+                    MyResponse = _db.Rsvps
+                        .Where(r => r.EventId == e.Id && r.UserId == userId)
+                        .Select(r => r.Response)
+                        .FirstOrDefault(),
                 })
             .Where(x =>
                 x.Status == EventStatuses.Scheduled
@@ -110,6 +123,7 @@ public sealed class EfEventStore : IEventStore
                 && x.StartsAt >= from
                 && x.StartsAt < to)
             .OrderBy(x => x.StartsAt)
+            .ThenBy(x => x.CreatedAt)
             .ThenBy(x => x.Id)
             .Take(500)
             .Select(x => new UpcomingActivityItem(
@@ -118,7 +132,9 @@ public sealed class EfEventStore : IEventStore
                 x.Id,
                 x.Title,
                 x.Type,
-                x.StartsAt))
+                x.StartsAt,
+                x.CreatedAt,
+                x.MyResponse))
             .ToListAsync(cancellationToken);
     }
 

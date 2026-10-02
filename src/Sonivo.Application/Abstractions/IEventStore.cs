@@ -44,4 +44,7 @@ public sealed record UpcomingActivityItem(
     Guid EventId,
     string Title,
     string Type,
-    DateTimeOffset StartsAt);
+    DateTimeOffset StartsAt,
+    DateTimeOffset CreatedAt,
+    /// <summary>The caller's RSVP response for this event, or null when they have none.</summary>
+    string? MyResponse = null);

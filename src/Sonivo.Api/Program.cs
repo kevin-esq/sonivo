@@ -3838,7 +3838,8 @@ static object ToUpcomingActivityResponse(UpcomingActivityItem item) => new
     eventId = item.EventId,
     title = item.Title,
     type = item.Type,
-    startsAt = item.StartsAt
+    startsAt = item.StartsAt,
+    myResponse = item.MyResponse
 };
 
 static object ToInvitationCreatedResponse(InvitationCreatedDto invitation) => new
