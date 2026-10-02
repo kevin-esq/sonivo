@@ -48,7 +48,7 @@ public sealed class CreateSongHandler
 
     public async Task<SongDetailDto> HandleAsync(CreateSongCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         try
         {

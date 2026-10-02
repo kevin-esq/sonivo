@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { Languages, Palette, ShieldCheck, UserRound, Users } from 'lucide-react'
-import { BrandLockup } from '../brand/SonivoMark'
+import { AppHeader } from './AppHeader'
 import { useTheme, type Theme } from '../brand/theme'
 import { useLanguage, useT, type I18nKey, type Language } from '../i18n'
 import type { CurrentUser } from '../api/client'
@@ -35,19 +35,11 @@ export function UserChrome({
   const { t } = useT()
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-shell-border px-6 py-4">
-        <BrandLockup to="/" shell />
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-shell-foreground/70">{user.email}</span>
-          <Button variant="ghost" className="text-shell-link hover:text-shell-foreground" onClick={onLogout}>
-            {t('chrome.logout')}
-          </Button>
-        </div>
-      </header>
+      <AppHeader user={user} onLogout={onLogout} />
       <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6 md:py-8">
         <h1 className="text-2xl font-bold tracking-tight text-shell-foreground">{t('cuenta.title')}</h1>
         <nav
-          className="mt-4 flex gap-2 overflow-x-auto border-b border-shell-border"
+          className="mt-4 flex flex-wrap gap-2 border-b border-shell-border"
           aria-label={t('cuenta.nav')}
         >
           {cuentaTabs.map((tab) => {
@@ -72,7 +64,7 @@ export function UserChrome({
             )
           })}
         </nav>
-        <main className="mt-4 rounded-2xl bg-white p-6 text-neutral-dark shadow-sm">{children}</main>
+        <main id="main" className="mt-4 rounded-2xl bg-surface p-6 text-ink shadow-sm">{children}</main>
       </div>
     </div>
   )
@@ -95,7 +87,7 @@ export function CuentaPreferencesPage() {
     <div className="max-w-xl space-y-8">
       <section className="space-y-3" aria-labelledby="prefs-language-heading">
         <div className="flex items-center gap-2">
-          <Languages className="h-5 w-5 text-primary" aria-hidden="true" />
+          <Languages className="h-5 w-5 text-shell-link" aria-hidden="true" />
           <h2 id="prefs-language-heading" className="text-lg font-semibold">
             {t('cuenta.language')}
           </h2>
@@ -116,7 +108,7 @@ export function CuentaPreferencesPage() {
       </section>
       <section className="space-y-3" aria-labelledby="prefs-theme-heading">
         <div className="flex items-center gap-2">
-          <Palette className="h-5 w-5 text-primary" aria-hidden="true" />
+          <Palette className="h-5 w-5 text-shell-link" aria-hidden="true" />
           <h2 id="prefs-theme-heading" className="text-lg font-semibold">
             {t('cuenta.theme')}
           </h2>

@@ -8,6 +8,7 @@ import {
   googleChallengeHref,
   isSecondStepRequired,
   loginUser,
+  loginWithHandle,
   problemDetail,
   recoverTwoFactor,
   registerUser,
@@ -18,12 +19,14 @@ import {
 import { performWebAuthnLogin } from "./webauthn";
 import { BrandLockup, WaveformHero } from "../brand/SonivoMark";
 import { Button } from "../ui/button";
-import { fieldClass } from "../ui/field";
+import { TextField } from "../ui/text-field";
 import { SessionScreen } from "./GroupsChrome";
 import { safeNextPath } from "../tenancy/safeNextPath";
 import { useT } from "../i18n";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** ADR-0047: `handle@slug`; the slug never contains a dot, so this cannot be an email. */
+const HANDLE_LOGIN_RE = /^([a-z0-9._-]{3,32})@([a-z0-9-]{2,40})$/i;
 const MIN_PASSWORD = 8;
 const RESEND_COOLDOWN_S = 30;
 
@@ -54,76 +57,46 @@ export function GuestAuthRoute({
 }
 
 /* ------------------------------------------------------------------ */
-/* Campo de texto accesible (label enlazado, error inline, ver clave)  */
+/* Campo de contraseña: TextField compartido + botón de ver la clave.  */
 /* ------------------------------------------------------------------ */
-function TextField({
+function PasswordField({
   label,
   value,
   onChange,
   error,
-  type = "text",
   autoComplete,
-  inputMode,
-  maxLength,
-  autoFocus,
   disabled,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   error?: string | null;
-  type?: "text" | "email" | "password";
   autoComplete?: string;
-  inputMode?: "text" | "numeric";
-  maxLength?: number;
-  autoFocus?: boolean;
   disabled?: boolean;
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
   const [visible, setVisible] = useState(false);
   const { t } = useT();
-  const isPassword = type === "password";
 
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-medium text-slate-700">
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          id={id}
-          className={`${fieldClass} ${isPassword ? "pr-24" : ""}`}
-          type={isPassword && visible ? "text" : type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          autoComplete={autoComplete}
-          inputMode={inputMode}
-          maxLength={maxLength}
-          autoFocus={autoFocus}
-          disabled={disabled}
-          autoCapitalize="none"
-          spellCheck={false}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : undefined}
-        />
-        {isPassword ? (
-          <button
-            type="button"
-            className="absolute inset-y-0 right-3 my-auto h-fit text-sm font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-            aria-pressed={visible}
-            onClick={() => setVisible((v) => !v)}
-          >
-            {visible ? t("auth.hidePassword") : t("auth.showPassword")}
-          </button>
-        ) : null}
-      </div>
-      {error ? (
-        <p id={errorId} className="text-sm text-error">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <TextField
+      label={label}
+      type={visible ? "text" : "password"}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      autoComplete={autoComplete}
+      disabled={disabled}
+      error={error}
+      trailing={
+        <button
+          type="button"
+          className="absolute right-1 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-lg px-2 text-sm font-semibold text-shell-link hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          aria-pressed={visible}
+          onClick={() => setVisible((current) => !current)}
+        >
+          {visible ? t("auth.hidePassword") : t("auth.showPassword")}
+        </button>
+      }
+    />
   );
 }
 
@@ -132,7 +105,7 @@ function ErrorBanner({ message }: { message: string | null }) {
   return (
     <div role="alert" aria-live="assertive">
       {message ? (
-        <p className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error">
+        <p className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-shell-error">
           {message}
         </p>
       ) : null}
@@ -213,8 +186,12 @@ function TwoFactorStep({
           useRecovery ? t("auth.recoveryCodeLabel") : t("auth.sixDigitLabel")
         }
         value={code}
-        onChange={(v) =>
-          setCode(useRecovery ? v : v.replace(/\D/g, "").slice(0, 6))
+        onChange={(event) =>
+          setCode(
+            useRecovery
+              ? event.target.value
+              : event.target.value.replace(/\D/g, "").slice(0, 6),
+          )
         }
         autoComplete="one-time-code"
         inputMode={useRecovery ? "text" : "numeric"}
@@ -228,7 +205,7 @@ function TwoFactorStep({
       <div className="flex items-center justify-between gap-4">
         <button
           type="button"
-          className="text-sm font-semibold text-primary hover:underline"
+          className="text-sm font-semibold text-shell-link hover:underline"
           onClick={() => {
             setUseRecovery((v) => !v);
             setCode("");
@@ -292,7 +269,7 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
       {!open ? (
         <button
           type="button"
-          className="font-semibold text-primary hover:underline"
+          className="font-semibold text-shell-link hover:underline"
           onClick={() => {
             setOpen(true);
             setEmail((current) => current || initialEmail);
@@ -306,7 +283,7 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
             label={t("auth.emailLabel")}
             type="email"
             value={email}
-            onChange={setEmail}
+            onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
             error={fieldError}
           />
@@ -329,7 +306,7 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
       )}
       <p>
         <Link
-          className="font-semibold text-primary no-underline hover:underline"
+          className="font-semibold text-shell-link no-underline hover:underline"
           to="/forgot-password"
         >
           {t("auth.forgotLink")}
@@ -406,7 +383,9 @@ function AuthScreen({
 
   function validate(): boolean {
     const next: { email?: string; password?: string } = {};
-    if (!EMAIL_RE.test(email.trim())) next.email = t("auth.emailInvalid");
+    const identifier = email.trim();
+    const isHandleLogin = mode === "login" && HANDLE_LOGIN_RE.test(identifier);
+    if (!isHandleLogin && !EMAIL_RE.test(identifier)) next.email = t("auth.emailInvalid");
     if (mode === "register" && password.length < MIN_PASSWORD)
       next.password = t("auth.passwordTooShort");
     if (mode === "login" && !password)
@@ -432,7 +411,15 @@ function AuthScreen({
         setPassword("");
         setRegistered(true);
       } else {
-        const result = await loginUser({ email: email.trim(), password });
+        const identifier = email.trim();
+        const handleMatch = HANDLE_LOGIN_RE.exec(identifier);
+        const result = handleMatch
+          ? await loginWithHandle({
+              slug: handleMatch[2].toLowerCase(),
+              handle: handleMatch[1].toLowerCase(),
+              password,
+            })
+          : await loginUser({ email: identifier, password });
         setPassword(""); // no mantener la contraseña en memoria más de lo necesario
         if (isSecondStepRequired(result)) {
           setSecondStep(true);
@@ -484,7 +471,11 @@ function AuthScreen({
   }
 
   return (
-    <div className="grid min-h-screen bg-canvas lg:grid-cols-[minmax(0,1.05fr)_minmax(24rem,28rem)]">
+    <div className="grid min-h-screen bg-canvas lg:grid-cols-[minmax(0,1.05fr)_minmax(24rem,30rem)]">
+      {/*
+       * The brand panel is intentionally dark/gradient in BOTH themes: it is the
+       * fixed editorial half of the split. Only the form side is theme-aware.
+       */}
       <section
         className="relative hidden overflow-hidden px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between"
         style={{
@@ -494,175 +485,190 @@ function AuthScreen({
         aria-hidden="false"
       >
         <BrandLockup to="/login" light />
-        <div className="max-w-md space-y-4">
+        <div className="max-w-md space-y-5">
           <h2 className="text-5xl font-extrabold leading-tight tracking-tight text-balance">
             {t("auth.heroTitle")}
           </h2>
           <p className="text-base text-slate-300">{t("auth.heroSubtitle")}</p>
+          <ul className="space-y-2 text-sm text-slate-300">
+            {(["auth.heroPoint1", "auth.heroPoint2", "auth.heroPoint3"] as const).map(
+              (key) => (
+                <li key={key} className="flex items-start gap-2.5">
+                  <span
+                    className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary"
+                    aria-hidden="true"
+                  />
+                  {t(key)}
+                </li>
+              ),
+            )}
+          </ul>
         </div>
         <WaveformHero className="max-w-xl opacity-90" />
       </section>
 
-      <main className="flex flex-col justify-center bg-white px-6 py-10 text-neutral-dark sm:px-10">
-        <div className="mb-8 lg:hidden">
-          <BrandLockup to="/login" />
-        </div>
-
-        {step === "twoFactor" ? (
-          <TwoFactorStep
-            headingId={headingId}
-            headingRef={headingRef}
-            onSuccess={onSuccess}
-            onBack={() => setSecondStep(false)}
-          />
-        ) : step === "registered" ? (
-          <div className="space-y-4" role="region" aria-labelledby={headingId}>
-            <div className="space-y-1">
-              <h1
-                id={headingId}
-                ref={headingRef}
-                tabIndex={-1}
-                className="text-2xl font-bold tracking-tight outline-none"
-              >
-                {t("auth.confirmTitle")}
-              </h1>
-              <p className="text-sm text-slate-600">{t("auth.confirmSent")}</p>
-              <p className="text-sm text-slate-500">{t("auth.confirmHint")}</p>
-            </div>
-            <Link
-              className="inline-block font-semibold text-primary no-underline hover:underline"
-              to={`/login${nextQuery}`}
-            >
-              {t("auth.goLogin")}
-            </Link>
+      <main className="flex flex-col justify-center bg-canvas px-4 py-10 sm:px-8">
+        <div className="mx-auto w-full max-w-md">
+          <div className="mb-6 lg:hidden">
+            <BrandLockup to="/login" shell />
           </div>
-        ) : (
-          <form
-            className="space-y-4"
-            onSubmit={onSubmit}
-            noValidate
-            aria-labelledby={headingId}
-          >
-            <div className="space-y-1">
-              <h1
-                id={headingId}
-                ref={headingRef}
-                tabIndex={-1}
-                className="text-2xl font-bold tracking-tight outline-none"
-              >
-                {mode === "login"
-                  ? t("auth.loginTitle")
-                  : t("auth.registerTitle")}
-              </h1>
-              <p className="text-sm text-slate-500">
-                {mode === "login"
-                  ? t("auth.loginSubtitle")
-                  : t("auth.registerSubtitle")}
-              </p>
-            </div>
-
-            <ErrorBanner message={error} />
-
-            {mode === "register" ? (
-              <TextField
-                label={t("auth.nameLabel")}
-                value={displayName}
-                onChange={setDisplayName}
-                autoComplete="nickname"
-                maxLength={80}
-                disabled={pending}
+          <div className="rounded-2xl border border-slate-200 bg-surface p-6 text-ink shadow-sm sm:p-8">
+            {step === "twoFactor" ? (
+              <TwoFactorStep
+                headingId={headingId}
+                headingRef={headingRef}
+                onSuccess={onSuccess}
+                onBack={() => setSecondStep(false)}
               />
-            ) : null}
-            <TextField
-              label={t("auth.emailLabel")}
-              type="email"
-              value={email}
-              onChange={setEmail}
-              autoComplete="email"
-              error={errors.email}
-              autoFocus
-              disabled={pending}
-            />
-            <TextField
-              label={t("auth.passwordLabel")}
-              type="password"
-              value={password}
-              onChange={setPassword}
-              autoComplete={
-                mode === "login" ? "current-password" : "new-password"
-              }
-              error={errors.password}
-              disabled={pending}
-            />
-            {mode === "register" ? (
-              <p className="-mt-2 text-xs text-slate-500">
-                {t("auth.passwordHint")}
-              </p>
-            ) : null}
-
-            <Button type="submit" className="w-full" disabled={pending}>
-              {pending
-                ? t("auth.working")
-                : mode === "login"
-                  ? t("auth.loginTitle")
-                  : t("auth.registerTitle")}
-            </Button>
-
-            {(mode === "login" && passkeySupported) || googleEnabled ? (
-              <div className="relative py-1 text-center text-xs font-medium uppercase tracking-wide text-slate-400">
-                <span className="relative z-10 bg-white px-2">
-                  {t("auth.orWord")}
-                </span>
-                <span
-                  className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-slate-200"
-                  aria-hidden
-                />
+            ) : step === "registered" ? (
+              <div className="space-y-4" role="region" aria-labelledby={headingId}>
+                <div className="space-y-1">
+                  <h1
+                    id={headingId}
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-2xl font-bold tracking-tight outline-none"
+                  >
+                    {t("auth.confirmTitle")}
+                  </h1>
+                  <p className="text-sm text-slate-600">{t("auth.confirmSent")}</p>
+                  <p className="text-sm text-slate-500">{t("auth.confirmHint")}</p>
+                </div>
+                <Link
+                  className="inline-block font-semibold text-shell-link no-underline hover:underline"
+                  to={`/login${nextQuery}`}
+                >
+                  {t("auth.goLogin")}
+                </Link>
               </div>
-            ) : null}
-
-            {mode === "login" && passkeySupported ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                disabled={pending}
-                onClick={() => void onPasskeyLogin()}
+            ) : (
+              <form
+                className="space-y-4"
+                onSubmit={onSubmit}
+                noValidate
+                aria-labelledby={headingId}
               >
-                {t("auth.passkeyButton")}
-              </Button>
-            ) : null}
+                <div className="space-y-1">
+                  <h1
+                    id={headingId}
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-2xl font-bold tracking-tight outline-none"
+                  >
+                    {mode === "login"
+                      ? t("auth.loginTitle")
+                      : t("auth.registerTitle")}
+                  </h1>
+                  <p className="text-sm text-slate-500">
+                    {mode === "login"
+                      ? t("auth.loginSubtitle")
+                      : t("auth.registerSubtitle")}
+                  </p>
+                </div>
 
-            {googleEnabled ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                disabled={pending}
-                onClick={() =>
-                  window.location.assign(googleChallengeHref(next))
-                }
-              >
-                {t("auth.googleButton")}
-              </Button>
-            ) : null}
+                <ErrorBanner message={error} />
 
-            {mode === "login" ? <ResendBlock initialEmail={email} /> : null}
+                {mode === "register" ? (
+                  <TextField
+                    label={t("auth.nameLabel")}
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    autoComplete="nickname"
+                    maxLength={80}
+                    disabled={pending}
+                  />
+                ) : null}
+                <TextField
+                  label={t("auth.emailLabel")}
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                  error={errors.email}
+                  autoFocus
+                  disabled={pending}
+                />
+                <PasswordField
+                  label={t("auth.passwordLabel")}
+                  value={password}
+                  onChange={setPassword}
+                  autoComplete={
+                    mode === "login" ? "current-password" : "new-password"
+                  }
+                  error={errors.password}
+                  disabled={pending}
+                />
+                {mode === "register" ? (
+                  <p className="-mt-2 text-xs text-slate-500">
+                    {t("auth.passwordHint")}
+                  </p>
+                ) : null}
 
-            <p className="text-sm text-slate-600">
-              {mode === "login"
-                ? t("auth.noAccountPrefix")
-                : t("auth.hasAccountPrefix")}
-              <Link
-                className="font-semibold text-primary no-underline hover:underline"
-                to={otherModeTo}
-              >
-                {mode === "login"
-                  ? t("auth.registerLink")
-                  : t("auth.loginLink")}
-              </Link>
-            </p>
-          </form>
-        )}
+                <Button type="submit" className="w-full" disabled={pending}>
+                  {pending
+                    ? t("auth.working")
+                    : mode === "login"
+                      ? t("auth.loginTitle")
+                      : t("auth.registerTitle")}
+                </Button>
+
+                {(mode === "login" && passkeySupported) || googleEnabled ? (
+                  <div className="relative py-1 text-center text-xs font-medium uppercase tracking-wide text-slate-400">
+                    <span className="relative z-10 bg-surface px-2">
+                      {t("auth.orWord")}
+                    </span>
+                    <span
+                      className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-slate-200"
+                      aria-hidden
+                    />
+                  </div>
+                ) : null}
+
+                {mode === "login" && passkeySupported ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={pending}
+                    onClick={() => void onPasskeyLogin()}
+                  >
+                    {t("auth.passkeyButton")}
+                  </Button>
+                ) : null}
+
+                {googleEnabled ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={pending}
+                    onClick={() =>
+                      window.location.assign(googleChallengeHref(next))
+                    }
+                  >
+                    {t("auth.googleButton")}
+                  </Button>
+                ) : null}
+
+                {mode === "login" ? <ResendBlock initialEmail={email} /> : null}
+
+                <p className="text-sm text-slate-600">
+                  {mode === "login"
+                    ? t("auth.noAccountPrefix")
+                    : t("auth.hasAccountPrefix")}
+                  <Link
+                    className="font-semibold text-shell-link no-underline hover:underline"
+                    to={otherModeTo}
+                  >
+                    {mode === "login"
+                      ? t("auth.registerLink")
+                      : t("auth.loginLink")}
+                  </Link>
+                </p>
+              </form>
+            )}
+          </div>
+        </div>
       </main>
     </div>
   );
