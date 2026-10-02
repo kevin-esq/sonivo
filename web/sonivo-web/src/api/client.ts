@@ -404,6 +404,21 @@ export async function listUpcomingActivity(): Promise<UpcomingActivity[]> {
   return apiRequest<UpcomingActivity[]>('/api/activity/upcoming')
 }
 
+/** Read-only general calendar: events across the caller's groups in a date range. */
+export async function listCalendarEvents(from: string, to: string): Promise<UpcomingActivity[]> {
+  return apiRequest<UpcomingActivity[]>(
+    `/api/activity/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+  )
+}
+
+/** ADR-0053 addendum: persist the profile display name ("Editar perfil"). */
+export async function updateProfile(displayName: string): Promise<CurrentUser> {
+  return apiRequest<CurrentUser>('/api/auth/me', {
+    method: 'PATCH',
+    body: { displayName },
+  })
+}
+
 export async function createGroup(name: string): Promise<GroupDetail> {
   return apiRequest<GroupDetail>('/api/groups', {
     method: 'POST',

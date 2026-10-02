@@ -1,15 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import {
-  ChevronRight,
-  Music2,
-  Plus,
-  Search,
-  UserPlus,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronRight, Plus, UserPlus, type LucideIcon } from "lucide-react";
 import { useT, type I18nKey } from "../i18n";
 import { cn } from "../ui/cn";
-import { focusGlobalSearch } from "../shell/searchFocus";
 
 type QuickAction = {
   id: string;
@@ -20,8 +12,8 @@ type QuickAction = {
   onClick: () => void;
 };
 
-/** The four action cards under the greeting (ADR-0053). */
-export function QuickActions({ exploreHref }: { exploreHref: string }) {
+/** The action cards under the greeting (ADR-0053 addendum: create + join only). */
+export function QuickActions() {
   const { t } = useT();
   const navigate = useNavigate();
 
@@ -42,26 +34,10 @@ export function QuickActions({ exploreHref }: { exploreHref: string }) {
       tint: "bg-primary/15 text-primary-ink",
       onClick: () => navigate("/unirse"),
     },
-    {
-      id: "explore",
-      icon: Music2,
-      titleKey: "home.quickExplore",
-      hintKey: "home.quickExploreHint",
-      tint: "bg-sky-500/15 text-sky-600",
-      onClick: () => navigate(exploreHref),
-    },
-    {
-      id: "search",
-      icon: Search,
-      titleKey: "home.quickSearch",
-      hintKey: "home.quickSearchHint",
-      tint: "bg-slate-500/15 text-slate-600",
-      onClick: () => focusGlobalSearch(),
-    },
   ];
 
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <ul className="grid gap-3 sm:grid-cols-2">
       {actions.map((action) => {
         const Icon = action.icon;
         return (

@@ -34,6 +34,13 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 - **No new dependencies**; **no real image cover upload** in this phase.
 - No change to the accepted brand mark or the es-default language policy.
 
+### Addendum — 2026-10-02 (Cuenta completa + calendario general)
+
+- **Cuenta (`/cuenta`)**: matches the approved reference — user card with **Editar perfil**, and cards for *Información personal*, *Seguridad*, *Notificaciones*, *Preferencias*, *Plan y facturación* and *Uso y límites*. Only **real** data is shown (name/email, password/2FA status, language, appearance, device time zone, role derived from memberships). **Plan/Uso/Notificaciones/Sesiones activas stay disabled placeholders** (ADR-0042 stands; no payments, no usage metering).
+- **Profile edit**: new `PATCH /api/auth/me { displayName }` (cookie + antiforgery) so "Editar perfil" persists the name. Not an AuthZ/session change.
+- **Inicio**: the dashboard keeps only `Crear grupo` and `Unirse a grupo`; the top search is **groups-only** ("Buscar grupos") and the learning banner is removed.
+- **General calendar**: new authenticated, group-scoped `GET /api/activity/calendar?from&to` (scheduled, non-hidden, range ≤ 62 days) powers `/calendario`, a read-only month view of all the caller's groups, reachable from "Ver calendario". It never creates events.
+
 ### Deltas vs current docs (flagged, not silent)
 
 - `PHASE-APP-HEADER-SPEC.md` D4 is superseded for `/` and account routes; its W2–W8 items are re-homed here where still wanted (bandeja de usuario, conmutador de grupo, búsqueda, footer/versión).

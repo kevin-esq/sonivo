@@ -4,18 +4,19 @@ import { Search, Users } from "lucide-react";
 import { listMyGroups, type GroupSummary } from "../api/client";
 import { useT } from "../i18n";
 import { cn } from "../ui/cn";
-import { GLOBAL_SEARCH_INPUT_ID } from "./searchFocus";
+
+/** Shared handle so other surfaces can focus the top-bar search. */
+export const GLOBAL_SEARCH_INPUT_ID = "global-search";
 
 type SearchResult = {
   id: string;
   label: string;
   to: string;
-  kind: "action" | "group";
 };
 
 /**
- * Filters the already-loaded groups plus navigation actions (ADR-0053 H7).
- * No cross-entity backend search in this phase.
+ * Groups-only search (ADR-0053 addendum): filters the already-loaded groups.
+ * No songs/events/people search in this phase.
  */
 export function GlobalSearch() {
   const { t } = useT();
@@ -53,26 +54,15 @@ export function GlobalSearch() {
   const results = useMemo<SearchResult[]>(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    const actions: SearchResult[] = [
-      { id: "home", label: t("sidebar.home"), to: "/", kind: "action" },
-      { id: "groups", label: t("sidebar.myGroups"), to: "/grupos", kind: "action" },
-      { id: "join", label: t("sidebar.joinGroup"), to: "/unirse", kind: "action" },
-      { id: "account", label: t("sidebar.profile"), to: "/cuenta", kind: "action" },
-    ];
-    const actionMatches = actions.filter((item) =>
-      item.label.toLowerCase().includes(q),
-    );
-    const groupMatches: SearchResult[] = groups
+    return groups
       .filter((group) => group.name.toLowerCase().includes(q))
-      .slice(0, 6)
+      .slice(0, 8)
       .map((group) => ({
-        id: `group-${group.id}`,
+        id: group.id,
         label: group.name,
         to: `/groups/${group.id}`,
-        kind: "group" as const,
       }));
-    return [...groupMatches, ...actionMatches].slice(0, 8);
-  }, [query, groups, t]);
+  }, [query, groups]);
 
   function choose(result: SearchResult) {
     setOpen(false);
@@ -154,11 +144,7 @@ export function GlobalSearch() {
                   index === active ? "bg-surface-hover" : "hover:bg-surface-hover",
                 )}
               >
-                {result.kind === "group" ? (
-                  <Users className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
-                ) : (
-                  <Search className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
-                )}
+                <Users className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
                 <span className="truncate">{result.label}</span>
               </button>
             ))

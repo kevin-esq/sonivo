@@ -1,25 +1,94 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { listMyGroups, problemDetail, type GroupSummary } from '../../api/client'
+import {
+  BarChart3,
+  Bell,
+  Clock,
+  KeyRound,
+  Languages,
+  Mail,
+  MonitorSmartphone,
+  Palette,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react'
+import {
+  fetchTwoFactorStatus,
+  listMyGroups,
+  problemDetail,
+  updateProfile,
+  type GroupSummary,
+  type TwoFactorStatus,
+} from '../../api/client'
 import { useT } from '../../i18n'
+import { useTheme } from '../../brand/theme'
+import { useAuth } from '../authContext'
+import { Button } from '../../ui/button'
+import { fieldClass } from '../../ui/field'
+import { AccountCard } from '../account/AccountCard'
+import { AccountRow } from '../account/AccountRow'
+import { ProfileHeader } from '../account/ProfileHeader'
 
-export function SettingsProfilePage({
-  user,
-}: {
-  user: { email?: string | null; displayName?: string | null; id?: string; managedByGroupId?: string | null }
-}) {
-  const sessionName = user?.displayName ?? ''
-  const email = user?.email ?? ''
-  const { t } = useT()
+const isOwner = (role: string) => String(role).toLowerCase() === 'owner'
+
+function deviceTimeZone(): string {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const offset = new Intl.DateTimeFormat('en', { timeZoneName: 'shortOffset' })
+      .formatToParts(new Date())
+      .find((part) => part.type === 'timeZoneName')?.value
+    return offset ? `${offset} · ${zone}` : zone
+  } catch {
+    return ''
+  }
+}
+
+export function SettingsProfilePage() {
+  const { user, onUserChange } = useAuth()
+  const { t, lang } = useT()
+  const { theme } = useTheme()
+  const [groups, setGroups] = useState<GroupSummary[] | null>(null)
+  const [status, setStatus] = useState<TwoFactorStatus | null>(null)
+  const [editing, setEditing] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void listMyGroups()
+      .then((result) => {
+        if (!cancelled) setGroups(result)
+      })
+      .catch(() => {
+        if (!cancelled) setGroups([])
+      })
+    void fetchTwoFactorStatus()
+      .then((result) => {
+        if (!cancelled) setStatus(result)
+      })
+      .catch(() => {
+        // best effort: the row falls back to "Desactivada"
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [user.id])
+
+  const roleLabel = (groups ?? []).some((group) => isOwner(group.role))
+    ? t('perfil.roleOwner')
+    : t('perfil.roleMember')
+  const timeZone = useMemo(() => deviceTimeZone(), [])
+  const languageLabel = lang === 'es' ? t('cuenta.spanish') : t('cuenta.english')
+  const themeLabel = theme === 'dark' ? t('cuenta.themeDark') : t('cuenta.themeLight')
+  const name = user.displayName?.trim() || user.email || ''
 
   return (
-    <div className="space-y-6 max-w-xl">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">{t('perfil.title')}</h1>
-        <p className="text-sm text-muted">{t('perfil.subtitle')}</p>
-      </div>
+    <div className="space-y-6">
+      <header className="space-y-1.5">
+        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('perfil.title')}</h1>
+        <p className="text-muted">{t('perfil.subtitle')}</p>
+      </header>
 
-      {user?.managedByGroupId ? (
+      {user.managedByGroupId ? (
         <p
           role="status"
           data-testid="managed-account-notice"
@@ -29,29 +98,206 @@ export function SettingsProfilePage({
         </p>
       ) : null}
 
-      <div className="space-y-4">
+      <ProfileHeader user={user} roleLabel={roleLabel} onEdit={() => setEditing(true)} />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
+          <AccountCard title={t('perfil.sectionPersonal')}>
+            <AccountRow
+              icon={UserRound}
+              title={t('perfil.name')}
+              subtitle={name}
+              onClick={() => setEditing(true)}
+            />
+            <AccountRow
+              icon={Mail}
+              title={t('perfil.email')}
+              subtitle={user.email ?? '—'}
+              onClick={() => setEditing(true)}
+            />
+            <AccountRow
+              icon={Languages}
+              title={t('cuenta.language')}
+              subtitle={languageLabel}
+              to="/cuenta/preferencias"
+            />
+            <AccountRow icon={Clock} title={t('perfil.timezone')} subtitle={timeZone} disabled />
+          </AccountCard>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <AccountCard
+              title={t('perfil.sectionPlan')}
+              action={
+                <span className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink">
+                  {t('perfil.planPro')}
+                </span>
+              }
+            >
+              <p className="px-2 py-1 text-sm text-muted">{t('placeholder.body')}</p>
+              <div className="px-2 pt-2">
+                <Button variant="secondary" disabled className="w-full">
+                  {t('perfil.managePlan')}
+                </Button>
+              </div>
+            </AccountCard>
+
+            <AccountCard title={t('perfil.sectionUsage')}>
+              <AccountRow icon={BarChart3} title={t('perfil.groups')} subtitle={t('app.comingSoon')} disabled />
+              <AccountRow icon={UserRound} title={t('perfil.members')} subtitle={t('app.comingSoon')} disabled />
+              <AccountRow icon={MonitorSmartphone} title={t('perfil.storage')} subtitle={t('app.comingSoon')} disabled />
+            </AccountCard>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <AccountCard title={t('seguridad.title')}>
+            <AccountRow
+              icon={KeyRound}
+              title={t('seguridad.passwordLabel')}
+              subtitle={t('perfil.passwordHint')}
+              to="/cuenta/seguridad"
+            />
+            <AccountRow
+              icon={ShieldCheck}
+              title={t('perfil.twoFactor')}
+              subtitle={status?.enabled ? t('perfil.twoFactorOn') : t('perfil.twoFactorOff')}
+              to="/cuenta/seguridad"
+            />
+            <AccountRow icon={MonitorSmartphone} title={t('perfil.sessions')} subtitle={t('app.comingSoon')} disabled />
+          </AccountCard>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <AccountCard title={t('perfil.sectionNotifications')}>
+              <AccountRow icon={Mail} title={t('perfil.emailNotifications')} subtitle={t('app.comingSoon')} disabled />
+              <AccountRow icon={Bell} title={t('perfil.inAppNotifications')} subtitle={t('app.comingSoon')} disabled />
+            </AccountCard>
+
+            <AccountCard title={t('cuenta.preferences')}>
+              <AccountRow
+                icon={Palette}
+                title={t('perfil.appearance')}
+                subtitle={themeLabel}
+                to="/cuenta/preferencias"
+              />
+              <AccountRow
+                icon={Languages}
+                title={t('cuenta.language')}
+                subtitle={languageLabel}
+                to="/cuenta/preferencias"
+              />
+            </AccountCard>
+          </div>
+        </div>
+      </div>
+
+      {editing ? (
+        <EditProfileDialog
+          initial={name}
+          onClose={() => setEditing(false)}
+          onSaved={async (value) => {
+            const updated = await updateProfile(value)
+            onUserChange(updated)
+            setEditing(false)
+          }}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function EditProfileDialog({
+  initial,
+  onClose,
+  onSaved,
+}: {
+  initial: string
+  onClose: () => void
+  onSaved: (displayName: string) => Promise<void>
+}) {
+  const { t } = useT()
+  const ref = useRef<HTMLDialogElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const id = useId()
+  const [name, setName] = useState(initial)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+
+  useEffect(() => {
+    const dialog = ref.current
+    if (dialog && !dialog.open) dialog.showModal()
+    const frame = requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [])
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if (pending) return
+    const value = name.trim()
+    if (!value) {
+      setError(t('perfil.nameRequired'))
+      inputRef.current?.focus()
+      return
+    }
+    setPending(true)
+    setError(null)
+    try {
+      await onSaved(value)
+    } catch (err) {
+      setError(problemDetail(err))
+      setPending(false)
+    }
+  }
+
+  return (
+    <dialog
+      ref={ref}
+      onClose={onClose}
+      onClick={(event) => {
+        if (event.target === ref.current) onClose()
+      }}
+      aria-labelledby={`${id}-title`}
+      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-border-subtle bg-surface p-0 text-ink shadow-xl backdrop:bg-slate-900/40"
+    >
+      <form className="space-y-4 p-5" onSubmit={submit} noValidate>
+        <h2 id={`${id}-title`} className="text-lg font-semibold">
+          {t('perfil.editTitle')}
+        </h2>
         <label className="block space-y-1.5">
           <span className="text-sm font-medium text-ink">{t('perfil.fullName')}</span>
           <input
-            key={sessionName}
-            type="text"
-            defaultValue={sessionName}
-            className="w-full rounded-xl border border-border-subtle bg-surface px-3 py-2 text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
+            ref={inputRef}
+            className={fieldClass}
+            value={name}
+            maxLength={200}
+            disabled={pending}
+            onChange={(event) => {
+              setName(event.target.value)
+              if (error) setError(null)
+            }}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${id}-error` : undefined}
           />
         </label>
-
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-ink">{t('perfil.email')}</span>
-          <input
-            type="email"
-            disabled
-            readOnly
-            className="w-full cursor-not-allowed rounded-xl border border-border-subtle bg-surface-hover px-3 py-2 text-muted"
-            value={email}
-          />
-        </label>
-      </div>
-    </div>
+        <div role="alert">
+          {error ? (
+            <p id={`${id}-error`} className="text-sm text-error-ink">
+              {error}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
+            {t('perfil.cancel')}
+          </Button>
+          <Button type="submit" disabled={pending || !name.trim()}>
+            {pending ? t('perfil.saving') : t('perfil.save')}
+          </Button>
+        </div>
+      </form>
+    </dialog>
   )
 }
 
