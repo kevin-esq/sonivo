@@ -1,9 +1,12 @@
-import { Link } from 'react-router-dom'
-import { BrandLockup } from '../brand/SonivoMark'
+import type { ReactNode } from 'react'
 import type { CurrentUser } from '../api/client'
-import { useT } from '../i18n'
-import { Button } from '../ui/button'
+import { AppHeader } from './AppHeader'
 
+/**
+ * Chrome for the signed-in, non-group pages (My groups, account is separate).
+ * The old white panel was removed in W1: content sits on the canvas and only
+ * cards carry their own surface, aligned with the header container.
+ */
 export function GroupsChrome({
   user,
   onLogout,
@@ -11,31 +14,16 @@ export function GroupsChrome({
 }: {
   user: CurrentUser
   onLogout: () => void
-  children: React.ReactNode
+  children: ReactNode
 }) {
-  const { t } = useT()
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-shell-border px-6 py-4">
-        <div className="flex items-center gap-4">
-          <BrandLockup to="/" shell />
-          <p className="hidden text-sm text-shell-foreground/70 sm:block">{t('chrome.tagline')}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-shell-foreground/70">{user.email}</span>
-          <Link to="/cuenta" className="font-semibold text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
-            {t('chrome.account')}
-          </Link>
-          <Link to="/cuenta/seguridad" className="font-semibold text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
-            {t('chrome.security')}
-          </Link>
-          <Button variant="ghost" className="text-shell-link hover:text-shell-foreground" onClick={onLogout}>
-            {t('chrome.logout')}
-          </Button>
-        </div>
-      </header>
-      <main className="mx-auto w-full max-w-3xl px-6 py-8">
-        <div className="rounded-2xl bg-white p-6 text-neutral-dark shadow-sm">{children}</div>
+      <AppHeader user={user} onLogout={onLogout} />
+      <main
+        id="main"
+        className="mx-auto w-full max-w-6xl px-4 py-8 text-ink sm:px-6 sm:py-10"
+      >
+        {children}
       </main>
     </div>
   )
@@ -45,25 +33,16 @@ export function PublicChrome({
   children,
   user,
 }: {
-  children: React.ReactNode
+  children: ReactNode
   user?: CurrentUser | null
 }) {
-  const { t } = useT()
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="flex items-center justify-between px-6 py-4">
-        <BrandLockup to={user ? '/' : '/login'} shell />
-        {user ? null : (
-          <Link
-            to="/login"
-            className="text-sm font-semibold text-shell-link no-underline hover:underline"
-          >
-            {t('chrome.login')}
-          </Link>
-        )}
-      </header>
-      <main className="mx-auto w-full max-w-lg px-6 py-8">
-        <div className="rounded-2xl bg-white p-6 text-neutral-dark shadow-sm">{children}</div>
+      <AppHeader user={user ?? null} />
+      <main id="main" className="mx-auto w-full max-w-lg px-4 py-8 sm:px-6">
+        <div className="rounded-2xl bg-surface p-6 text-ink shadow-sm">
+          {children}
+        </div>
       </main>
     </div>
   )

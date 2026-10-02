@@ -82,7 +82,7 @@ public sealed class CreateLinkResourceHandler
         CreateLinkResourceCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
         await RequireLiveArrangementAsync(command.GroupId, command.ArrangementId, cancellationToken);
 
         try
@@ -174,7 +174,7 @@ public sealed class CreateFileResourceHandler
         CreateFileResourceCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(command.GroupId, command.ArrangementId, cancellationToken);
         if (arrangement is null)
         {
@@ -417,7 +417,7 @@ public sealed class UpdateLinkResourceHandler
         UpdateLinkResourceCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(command.GroupId, command.ArrangementId, cancellationToken);
         if (arrangement is null)
         {
@@ -479,7 +479,7 @@ public sealed class DeleteResourceHandler
         Guid resourceId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(groupId, userId, cancellationToken);
+        await _access.RequireManagerAsync(groupId, userId, cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
         {

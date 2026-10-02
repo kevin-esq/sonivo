@@ -90,12 +90,16 @@ function parseLine(line: string): ChordProLine {
 
 function parseLyricSegments(line: string): ChordProSegment[] {
   const segments: ChordProSegment[] = []
+  // Inline directives/comments never render: drop the braces (and keyword) so
+  // raw `{...}` syntax cannot leak into the lyric flow (line-level directives
+  // are consumed earlier in `parseLine`).
+  const source = line.replace(/\{[^}]*\}/g, '')
   const re = /\[([^\]]*)\]/g
   let lastIndex = 0
   let match: RegExpExecArray | null
 
-  while ((match = re.exec(line)) !== null) {
-    const before = line.slice(lastIndex, match.index)
+  while ((match = re.exec(source)) !== null) {
+    const before = source.slice(lastIndex, match.index)
     if (before) {
       if (segments.length === 0) {
         segments.push({ chord: null, lyric: before })
@@ -108,7 +112,7 @@ function parseLyricSegments(line: string): ChordProSegment[] {
     lastIndex = match.index + match[0].length
   }
 
-  const trailing = line.slice(lastIndex)
+  const trailing = source.slice(lastIndex)
   if (trailing) {
     if (segments.length === 0) {
       segments.push({ chord: null, lyric: trailing })
@@ -119,7 +123,7 @@ function parseLyricSegments(line: string): ChordProSegment[] {
   }
 
   if (segments.length === 0) {
-    return [{ chord: null, lyric: line }]
+    return [{ chord: null, lyric: source }]
   }
   return segments
 }
