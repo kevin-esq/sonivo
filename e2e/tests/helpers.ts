@@ -46,8 +46,11 @@ export async function register(page: Page, email: string, password = testPasswor
   await page.getByLabel('Correo electrónico').fill(email)
   await page.getByLabel('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
-  await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
   await expect(page.getByText(email)).toBeVisible()
+  // ADR-0053: `/` is the Inicio dashboard; the group list lives at /grupos.
+  await page.goto('/grupos')
+  await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
 }
 
 export async function login(page: Page, email: string, password = testPassword) {
@@ -55,6 +58,8 @@ export async function login(page: Page, email: string, password = testPassword) 
   await page.getByLabel('Correo electrónico').fill(email)
   await page.getByLabel('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+  await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
+  await page.goto('/grupos')
   await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
 }
 

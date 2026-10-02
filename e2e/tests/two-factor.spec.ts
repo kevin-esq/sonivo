@@ -88,7 +88,7 @@ test.describe('Two-factor authentication', () => {
     // Computed code completes the session.
     await page.getByLabel('Código de 6 dígitos').fill(totpCode(manualKey))
     await page.getByRole('button', { name: 'Verificar' }).click()
-    await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
     await expect(page.getByText(email)).toBeVisible()
 
     // Determinism guard for this spec's helper (runs before navigation asserts above matter).

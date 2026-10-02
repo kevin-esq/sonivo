@@ -26,6 +26,8 @@ async function registerAndLogin(
   await page.getByLabel('Correo electrónico').fill(input.email)
   await page.getByLabel('Contraseña').fill(testPassword)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+  await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
+  await page.goto('/grupos')
   await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
 }
 
@@ -37,6 +39,8 @@ async function loginAs(
   await page.getByLabel('Correo electrónico').fill(input.email)
   await page.getByLabel('Contraseña').fill(input.password ?? testPassword)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+  await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
+  await page.goto('/grupos')
   await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
 }
 
