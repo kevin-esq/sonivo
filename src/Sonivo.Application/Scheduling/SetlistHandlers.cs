@@ -45,7 +45,7 @@ public sealed class CreateSetlistHandler
 
     public async Task<SetlistDetailDto> HandleAsync(CreateSetlistCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         try
         {
@@ -214,7 +214,7 @@ public sealed class UpdateSetlistHandler
 
     public async Task<SetlistDetailDto> HandleAsync(UpdateSetlistCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var setlist = await _setlists.GetByIdWithItemsAsync(command.GroupId, command.SetlistId, cancellationToken);
         if (setlist is null)
@@ -283,7 +283,7 @@ public sealed class ReplaceSetlistItemsHandler
         ReplaceSetlistItemsCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var setlist = await _setlists.GetByIdWithItemsAsync(command.GroupId, command.SetlistId, cancellationToken);
         if (setlist is null)

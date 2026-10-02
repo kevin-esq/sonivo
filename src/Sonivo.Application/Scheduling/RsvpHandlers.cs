@@ -13,19 +13,25 @@ public sealed class UpsertEventRsvpHandler
     private readonly GroupAccessService _access;
     private readonly IEventStore _events;
     private readonly IClock _clock;
+    private readonly IEventNotifier? _notifier;
 
-    public UpsertEventRsvpHandler(GroupAccessService access, IEventStore events, IClock clock)
+    public UpsertEventRsvpHandler(
+        GroupAccessService access,
+        IEventStore events,
+        IClock clock,
+        IEventNotifier? notifier = null)
     {
         _access = access;
         _events = events;
         _clock = clock;
+        _notifier = notifier;
     }
 
     public async Task<EventRsvpDto> HandleAsync(
         UpsertEventRsvpCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireParticipantAsync(command.GroupId, command.UserId, cancellationToken);
 
         var musicalEvent = await RequireLiveEventAsync(command.GroupId, command.EventId, cancellationToken);
 
@@ -39,6 +45,19 @@ public sealed class UpsertEventRsvpHandler
             }
 
             await _events.SaveChangesAsync(cancellationToken);
+
+            if (_notifier is not null)
+            {
+                await _notifier.RsvpChangedAsync(
+                    musicalEvent.GroupId,
+                    musicalEvent.Id,
+                    rsvp.UserId,
+                    rsvp.Response,
+                    musicalEvent.Title,
+                    musicalEvent.StartsAt,
+                    cancellationToken);
+            }
+
             return new EventRsvpDto(rsvp.UserId, rsvp.Response, rsvp.UpdatedAt);
         }
         catch (ArgumentException ex)
@@ -95,7 +114,7 @@ public sealed class ListEventRsvpsHandler
         Guid eventId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
+        await _access.RequireParticipantAsync(groupId, userId, cancellationToken);
 
         var musicalEvent = await UpsertEventRsvpHandler.RequireLiveEventAsync(
             _events,
