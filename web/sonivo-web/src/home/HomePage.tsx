@@ -12,20 +12,9 @@ import { useT } from "../i18n";
 import { Button } from "../ui/button";
 import { ActivityRail } from "./ActivityRail";
 import { GroupsGrid } from "./GroupsGrid";
-import { LearningBanner } from "./LearningBanner";
 import { QuickActions } from "./QuickActions";
 
-const LAST_GROUP_KEY = "sonivo:groups:last";
-
-function readLastGroupId(): string | null {
-  try {
-    return window.localStorage.getItem(LAST_GROUP_KEY);
-  } catch {
-    return null;
-  }
-}
-
-/** Inicio dashboard (ADR-0053): greeting, quick actions, groups, activity, banner. */
+/** Inicio dashboard (ADR-0053): greeting, quick actions, groups and activity. */
 export function HomePage({ user }: { user: CurrentUser }) {
   const { t } = useT();
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
@@ -57,14 +46,6 @@ export function HomePage({ user }: { user: CurrentUser }) {
     return source.split(/\s+/)[0] ?? "";
   }, [user.displayName, user.email]);
 
-  const exploreHref = useMemo(() => {
-    const lastId = readLastGroupId();
-    if (lastId && groups?.some((group) => String(group.id) === lastId)) {
-      return `/groups/${lastId}/library`;
-    }
-    return "/grupos";
-  }, [groups]);
-
   return (
     <section className="space-y-8">
       <header className="space-y-1.5">
@@ -74,7 +55,7 @@ export function HomePage({ user }: { user: CurrentUser }) {
         <p className="text-muted">{t("home.subtitle")}</p>
       </header>
 
-      <QuickActions exploreHref={exploreHref} />
+      <QuickActions />
 
       {error ? (
         <div
@@ -119,8 +100,6 @@ export function HomePage({ user }: { user: CurrentUser }) {
 
         <ActivityRail items={activity} />
       </div>
-
-      <LearningBanner exploreHref={exploreHref} />
     </section>
   );
 }

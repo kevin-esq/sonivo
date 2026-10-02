@@ -15,7 +15,6 @@ import {
   Route,
   Routes,
   useLocation,
-  useOutletContext,
 } from "react-router-dom";
 import { Compass, TriangleAlert, WifiOff, type LucideIcon } from "lucide-react";
 import {
@@ -36,6 +35,7 @@ import { BrandLockup } from "./brand/SonivoMark";
 import { GuestAuthRoute } from "./shell/AuthScreen";
 import { PublicChrome, SessionScreen } from "./shell/GroupsChrome";
 import { AppShell } from "./shell/AppShell";
+import { useAuth, type AuthContext } from "./shell/authContext";
 import { GroupWorkspace } from "./shell/GroupWorkspace";
 import { GroupSlugResolver } from "./tenancy/GroupSlugResolver";
 import { BrandedLoginPage } from "./shell/BrandedLoginPage";
@@ -62,6 +62,10 @@ const JoinGroupPage = named(
 const PlaceholderPage = named(
   () => import("./shell/PlaceholderPage"),
   "PlaceholderPage",
+);
+const CalendarPage = named(
+  () => import("./calendar/CalendarPage"),
+  "CalendarPage",
 );
 const GroupHomePage = named(
   () => import("./groups/GroupHomePage"),
@@ -133,13 +137,6 @@ type SessionState =
   | { status: "error" }
   | { status: "guest" }
   | { status: "authenticated"; user: CurrentUser };
-
-type AuthContext = { user: CurrentUser; onLogout: () => void };
-
-/** Sustituye todos los `user!`: los hijos leen el usuario ya validado. */
-function useAuth() {
-  return useOutletContext<AuthContext>();
-}
 
 // ---------- Utilidades ----------
 
@@ -242,10 +239,12 @@ function RequireAuth({
   session,
   onLogout,
   onRetry,
+  onUserChange,
 }: {
   session: SessionState;
   onLogout: () => void;
   onRetry: () => void;
+  onUserChange: (user: CurrentUser) => void;
 }) {
   const location = useLocation();
 
@@ -276,7 +275,11 @@ function RequireAuth({
     return <MustChangePassword onDone={onRetry} />;
   }
 
-  const context: AuthContext = { user: session.user, onLogout };
+  const context: AuthContext = {
+    user: session.user,
+    onLogout,
+    onUserChange,
+  };
   return <Outlet context={context} />;
 }
 
@@ -338,7 +341,6 @@ const SongDetailPageR = withUser(SongDetailPage);
 const ArrangementDetailPageR = withUser(ArrangementDetailPage);
 const PracticePageR = withUser(PracticePage);
 const GroupSettingsPageR = withUser(GroupSettingsPage);
-const SettingsProfilePageR = withUser(SettingsProfilePage);
 
 /** El reproductor solo existe con sesión activa. */
 function AuthenticatedPlayer({ active }: { active: boolean }) {
@@ -416,6 +418,9 @@ export default function App() {
                     session={session}
                     onLogout={onLogout}
                     onRetry={() => void loadSession()}
+                    onUserChange={(user) =>
+                      setSession({ status: "authenticated", user })
+                    }
                   />
                 }
               >
@@ -423,9 +428,10 @@ export default function App() {
                   <Route path="/" element={<HomePageR />} />
                   <Route path="/grupos" element={<GroupsPageWithActions />} />
                   <Route path="/unirse" element={<JoinGroupPage />} />
+                  <Route path="/calendario" element={<CalendarPage />} />
                   <Route path="/plan" element={<PlaceholderPage />} />
                   <Route path="/ayuda" element={<PlaceholderPage />} />
-                  <Route path="/cuenta" element={<SettingsProfilePageR />} />
+                  <Route path="/cuenta" element={<SettingsProfilePage />} />
                   <Route
                     path="/cuenta/preferencias"
                     element={<CuentaPreferencesPage />}
