@@ -2,9 +2,9 @@
 
 Durable high-level project context.
 
-**Last updated:** 2026-10-01 (docs sync: shipped UI polish W6–W9 + AppHeader W1; proposed white-label plan)
+**Last updated:** 2026-10-02 (ADR-0053: `/` becomes Inicio dashboard; app-shell sidebar; `/grupos` hosts Mis grupos)
 **Delivery:** Phases 0-3.9 **CLOSED/COMPLETED**. ADR-0031-0032 and 0034-0038 are shipped (incl. S1 verification + S2 TOTP + S3 passkeys, PRs #96-#98); ADR-0033 is superseded (cloud LLM closed), and karaoke scoring is OUT. ADR-0039/0041 govern local Obsidian knowledge and the sole project-local skills tree. Unaccepted billing scaffold reverted (ADR-0042, PR #108). **UI/UX redesign (ADR-0043) ACCEPTED and SHIPPED 2026-09-30** as waves W0-W5 (PRs #115-#120): Grupo/Cuenta IA split, light/dark themes, es-default es/en frontend i18n, immersive Listas/Practice/Scheduling surfaces. Gate B **CLOSED**.
-**Active work:** None gated. The redesign phase is closed; see [`../03-architecture/PHASE-UI-UX-SPEC.md`](../03-architecture/PHASE-UI-UX-SPEC.md). Current checkout may differ from `develop`.
+**Active work:** Dashboard/shell phase authorized 2026-10-02 — **ADR-0053** (`/` = Inicio, `/grupos` = Mis grupos, persistent left sidebar, `GET /api/activity/upcoming`). Spec: [`../03-architecture/PHASE-HOME-DASHBOARD-SPEC.md`](../03-architecture/PHASE-HOME-DASHBOARD-SPEC.md). This supersedes `PHASE-APP-HEADER-SPEC.md` D4 for `/` and account routes.
 **Plan (PROPOSED, not implemented):** white label per group, Owner-managed member accounts and `.lrc` lyrics — [`../03-architecture/PHASE-WHITELABEL-SPEC.md`](../03-architecture/PHASE-WHITELABEL-SPEC.md) (branch `docs/white-label-plan`). It records the rule changes it would trigger (ADR-0045…0052) but no rule is changed until approved.
 **Repo:** Modular monolith + Group + repertoire API + library UI + docs
 
