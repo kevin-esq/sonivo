@@ -27,7 +27,7 @@ import {
   CONFLICT_MESSAGE,
   ConfirmDialog,
   ConflictAlert,
-  isOwnerRole,
+  canManageContentRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -98,7 +98,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
   const [tab, setTab] = useState<DetailTab>('plan')
   const { t } = useT()
 
-  const isOwner = isOwnerRole(group?.role)
+  const isOwner = canManageContentRole(group?.role)
   const isLive = musicalEvent != null && isLiveEvent(musicalEvent.status)
   const plan = musicalEvent?.items ?? []
   const hasPlan = plan.length >= 1

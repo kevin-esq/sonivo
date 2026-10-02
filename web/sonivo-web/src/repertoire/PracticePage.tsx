@@ -43,7 +43,7 @@ import { listPracticeAudioTracks, type PracticeAudioSource } from './pickPractic
 import { isDigitizableResource } from './digitize'
 import {
   ConfirmDialog,
-  isOwnerRole,
+  canManageContentRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -126,7 +126,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const tab = parsePracticeTab(searchParams.get('tab'))
   const { t } = useT()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
-  const isOwner = isOwnerRole(group?.role)
+  const isOwner = canManageContentRole(group?.role)
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
   const [songTitle, setSongTitle] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)

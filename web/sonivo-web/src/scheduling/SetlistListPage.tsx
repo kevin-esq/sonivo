@@ -13,7 +13,7 @@ import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
 import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '../repertoire/chrome'
 import {
-  isOwnerRole,
+  canManageContentRole,
   mutationErrorMessage,
   ProblemAlert,
   useGroupContext,
@@ -53,7 +53,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
   const [showCreate, setShowCreate] = useState(false)
   const [query, setQuery] = useState('')
 
-  const isOwner = isOwnerRole(group?.role)
+  const isOwner = canManageContentRole(group?.role)
 
   const filtered = useMemo(() => {
     if (!setlists) return null

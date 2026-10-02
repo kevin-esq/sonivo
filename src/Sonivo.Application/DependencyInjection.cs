@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<ExportOwnDataHandler>();
         services.AddScoped<RemoveMemberHandler>();
         services.AddScoped<ChangeMemberRoleHandler>();
+        services.AddScoped<SetMusicalRoleHandler>();
         services.AddScoped<LeaveGroupHandler>();
         services.AddScoped<CreateInvitationHandler>();
         services.AddScoped<AcceptInvitationHandler>();

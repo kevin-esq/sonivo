@@ -45,8 +45,9 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
         builder.ToTable("Memberships");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Role).IsRequired();
-        builder.Property(x => x.DisplayName).HasMaxLength(200);
+        builder.Property(x => x.DisplayName).HasMaxLength(Membership.DisplayNameMaxLength);
         builder.Property(x => x.Handle).HasMaxLength(MembershipHandles.MaxLength);
+        builder.Property(x => x.MusicalRole).HasMaxLength(Membership.MusicalRoleMaxLength);
         builder.HasIndex(x => new { x.UserId, x.GroupId }).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
         builder.HasIndex(x => new { x.GroupId, x.Handle }).IsUnique().HasFilter("\"Handle\" IS NOT NULL");
         builder.HasIndex(x => x.GroupId);
@@ -57,10 +58,26 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
             .OnDelete(DeleteBehavior.Restrict);
         builder.ToTable(t => t.HasCheckConstraint(
             "CK_Memberships_Role",
-            $"\"Role\" IN ('{MembershipRoles.Owner}', '{MembershipRoles.Member}')"));
+            $"\"Role\" IN ('{MembershipRoles.Owner}', '{MembershipRoles.Manager}', '{MembershipRoles.Member}', '{MembershipRoles.Viewer}')"));
         builder.ToTable(t => t.HasCheckConstraint(
             "CK_Memberships_OwnerHasUser",
             "\"Role\" <> 'Owner' OR \"UserId\" IS NOT NULL"));
+    }
+}
+
+public sealed class GroupAuditEntryConfiguration : IEntityTypeConfiguration<GroupAuditEntry>
+{
+    public void Configure(EntityTypeBuilder<GroupAuditEntry> builder)
+    {
+        builder.ToTable("GroupAuditLog");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Action).IsRequired().HasMaxLength(64);
+        builder.Property(x => x.Metadata).HasMaxLength(200);
+        builder.HasIndex(x => new { x.GroupId, x.CreatedAt });
+        builder.HasOne<Group>()
+            .WithMany()
+            .HasForeignKey(x => x.GroupId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 

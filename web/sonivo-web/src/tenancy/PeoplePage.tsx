@@ -8,6 +8,7 @@ import {
   listMembers,
   removeMember,
   revokeInvitation,
+  setMemberMusicalRole,
   type CurrentUser,
   type MemberListItem,
   type OutstandingInvitation,
@@ -15,6 +16,7 @@ import {
 import { EmptyPanel, PageBreadcrumb } from '../repertoire/chrome'
 import { useT } from '../i18n'
 import {
+  canManageContentRole,
   isOwnerRole,
   formatMembershipRole,
   mutationErrorMessage,
@@ -45,6 +47,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
   const { t } = useT()
 
   const isOwner = isOwnerRole(group?.role)
+  const canManage = canManageContentRole(group?.role)
 
   async function reloadMembers() {
     if (!groupId) return
@@ -97,12 +100,29 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     }
   }, [groupId, group])
 
-  async function onChangeRole(targetUserId: string, role: 'Owner' | 'Member') {
+  async function onChangeRole(
+    targetUserId: string,
+    role: 'Owner' | 'Manager' | 'Member' | 'Viewer',
+  ) {
     if (!groupId) return
     setPendingUserId(targetUserId)
     setActionError(null)
     try {
       await changeMemberRole(groupId, targetUserId, role)
+      await reloadMembers()
+    } catch (err) {
+      setActionError(mutationErrorMessage(err))
+    } finally {
+      setPendingUserId(null)
+    }
+  }
+
+  async function onSetMusicalRole(targetUserId: string, musicalRole: string) {
+    if (!groupId) return
+    setPendingUserId(targetUserId)
+    setActionError(null)
+    try {
+      await setMemberMusicalRole(groupId, targetUserId, musicalRole.trim() === '' ? null : musicalRole.trim())
       await reloadMembers()
     } catch (err) {
       setActionError(mutationErrorMessage(err))
@@ -227,30 +247,60 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                         <span className="ml-2 text-sm font-normal text-slate-500">{t('gente.you')}</span>
                       ) : null}
                     </p>
-                    <p className="text-sm text-slate-500">({formatRole(member.role)})</p>
+                    <p className="text-sm text-slate-500">
+                      ({formatRole(member.role)}
+                      {member.musicalRole ? ` · ${member.musicalRole}` : ''})
+                    </p>
                   </div>
                 </div>
-                {isOwner ? (
+                {isOwner || canManage ? (
                   <div className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-3">
+                    {isOwner ? (
+                      <label className="block space-y-1.5">
+                        <span className="text-sm font-medium text-slate-700">{t('gente.roleLabel')}</span>
+                        <select
+                          className={fieldClass}
+                          aria-label={`${t('gente.roleOfPrefix')}${member.displayName}`}
+                          value={member.role}
+                          disabled={busy}
+                          onChange={(event) => {
+                            const next = event.target.value
+                            if (
+                              next === 'Owner' ||
+                              next === 'Manager' ||
+                              next === 'Member' ||
+                              next === 'Viewer'
+                            ) {
+                              void onChangeRole(member.userId, next)
+                            }
+                          }}
+                        >
+                          <option value="Owner">{t('gente.roleOwner')}</option>
+                          <option value="Manager">{t('gente.roleManager')}</option>
+                          <option value="Member">{t('gente.roleMember')}</option>
+                          <option value="Viewer">{t('gente.roleViewer')}</option>
+                        </select>
+                      </label>
+                    ) : null}
                     <label className="block space-y-1.5">
-                      <span className="text-sm font-medium text-slate-700">{t('gente.roleLabel')}</span>
-                      <select
+                      <span className="text-sm font-medium text-slate-700">{t('gente.musicalRoleLabel')}</span>
+                      <input
                         className={fieldClass}
-                        aria-label={`${t('gente.roleOfPrefix')}${member.displayName}`}
-                        value={member.role}
+                        type="text"
+                        maxLength={64}
+                        defaultValue={member.musicalRole ?? ''}
+                        placeholder={t('gente.musicalRolePlaceholder')}
+                        aria-label={`${t('gente.musicalRoleOfPrefix')}${member.displayName}`}
                         disabled={busy}
-                        onChange={(event) => {
+                        onBlur={(event) => {
                           const next = event.target.value
-                          if (next === 'Owner' || next === 'Member') {
-                            void onChangeRole(member.userId, next)
+                          if ((member.musicalRole ?? '') !== next) {
+                            void onSetMusicalRole(member.userId, next)
                           }
                         }}
-                      >
-                        <option value="Owner">{t('gente.roleOwner')}</option>
-                        <option value="Member">{t('gente.roleMember')}</option>
-                      </select>
+                      />
                     </label>
-                    {isSelf ? null : (
+                    {isOwner && !isSelf ? (
                       <Button
                         variant="danger"
                         disabled={busy}
@@ -259,7 +309,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                       >
                         {t('gente.remove')}
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                 ) : null}
               </li>

@@ -31,7 +31,7 @@ public sealed class UpsertEventRsvpHandler
         UpsertEventRsvpCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireParticipantAsync(command.GroupId, command.UserId, cancellationToken);
 
         var musicalEvent = await RequireLiveEventAsync(command.GroupId, command.EventId, cancellationToken);
 
@@ -114,7 +114,7 @@ public sealed class ListEventRsvpsHandler
         Guid eventId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
+        await _access.RequireParticipantAsync(groupId, userId, cancellationToken);
 
         var musicalEvent = await UpsertEventRsvpHandler.RequireLiveEventAsync(
             _events,
