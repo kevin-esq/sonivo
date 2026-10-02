@@ -51,7 +51,7 @@ public sealed class StartDigitizeJobHandler
         StartDigitizeJobCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
 
         var arrangement = await _arrangements.GetByIdAsync(
             command.GroupId, command.ArrangementId, cancellationToken);
@@ -130,7 +130,7 @@ public sealed class GetDigitizeJobHandler
         Guid jobId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(groupId, userId, cancellationToken);
+        await _access.RequireManagerAsync(groupId, userId, cancellationToken);
 
         var arrangement = await _arrangements.GetByIdAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
