@@ -181,13 +181,16 @@ public class MembershipUseCaseTests
         public void Seed(Guid userId, string displayName, string email)
             => _names[userId] = displayName;
 
+        public Task TouchLastSeenAsync(Guid userId, DateTimeOffset now, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
         public Task<IReadOnlyList<UserDirectoryEntry>> GetByIdsAsync(
             IReadOnlyCollection<Guid> userIds,
             CancellationToken cancellationToken)
         {
             var list = userIds
                 .Where(_names.ContainsKey)
-                .Select(id => new UserDirectoryEntry(id, _names[id]))
+                .Select(id => new UserDirectoryEntry(id, _names[id], null, null))
                 .ToList();
             return Task.FromResult<IReadOnlyList<UserDirectoryEntry>>(list);
         }

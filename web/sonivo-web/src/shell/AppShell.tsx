@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { CurrentUser } from "../api/client";
+import { presenceHeartbeat } from "../api/client";
 import { useT } from "../i18n";
 import { AppSidebar } from "./AppSidebar";
 import { AppTopBar } from "./AppTopBar";
@@ -21,6 +22,23 @@ export function AppShell({
 }) {
   const { t } = useT();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // ADR-0055 W-E: best-effort presence heartbeat (throttled server-side, never authorizes).
+  useEffect(() => {
+    async function beat() {
+      try {
+        await presenceHeartbeat();
+      } catch {
+        // best-effort; ignore network errors
+      }
+    }
+    void beat();
+    const timer = setInterval(() => {
+      void beat();
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="min-h-screen bg-canvas lg:flex lg:h-screen lg:overflow-hidden">
       <AppSidebar

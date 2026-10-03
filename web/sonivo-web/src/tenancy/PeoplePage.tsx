@@ -14,7 +14,7 @@ import {
   type OutstandingInvitation,
 } from '../api/client'
 import { EmptyPanel, PageBreadcrumb } from '../repertoire/chrome'
-import { useT } from '../i18n'
+import { useT, type I18nKey, type TParams } from '../i18n'
 import {
   canManageContentRole,
   isOwnerRole,
@@ -32,11 +32,40 @@ function formatRole(role: string): string {
   return formatMembershipRole(role)
 }
 
-export function PeoplePage({ user }: { user: CurrentUser }) {
+type RoleTab = 'all' | 'admins' | 'leaders' | 'members'
+
+function roleTabOf(role: string): RoleTab {
+  switch (role) {
+    case 'Owner':
+      return 'admins'
+    case 'Manager':
+      return 'leaders'
+    default:
+      return 'members'
+  }
+}
+
+function presenceLabel(
+  lastSeenAt: string | null | undefined,
+  t: (key: I18nKey, params?: TParams) => string,
+  now: number,
+): string {
+  if (!lastSeenAt) return t('gente.neverSeen')
+  const diffMs = now - new Date(lastSeenAt).getTime()
+  if (Number.isNaN(diffMs) || diffMs < 5 * 60 * 1000) return t('gente.online')
+  const hours = Math.floor(diffMs / 3_600_000)
+  if (hours < 24) return t('gente.lastSeenHours', { count: hours })
+  return t('gente.lastSeenDays', { count: Math.floor(hours / 24) })
+}
+
+export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter?: string }) {
   const { groupId } = useParams()
   const navigate = useNavigate()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const [members, setMembers] = useState<MemberListItem[] | null>(null)
+  const [roleTab, setRoleTab] = useState<RoleTab>(
+    roleFilter === 'admins' || roleFilter === 'leaders' || roleFilter === 'members' ? roleFilter : 'all',
+  )
   const [listError, setListError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [pendingUserId, setPendingUserId] = useState<string | null>(null)
@@ -188,6 +217,10 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     )
   }
 
+  const visibleMembers = (members ?? []).filter(
+    (m) => roleTab === 'all' || roleTabOf(m.role) === roleTab,
+  )
+
   return (
     <section className="space-y-6" aria-labelledby="people-heading">
       <div className="space-y-2">
@@ -200,6 +233,30 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         <p className="text-sm text-slate-500">
           {t('gente.subtitle')}
         </p>
+        <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('gente.title')}>
+          {([
+            { id: 'all', label: t('gente.tabAll') },
+            { id: 'admins', label: t('gente.tabAdmins') },
+            { id: 'leaders', label: t('gente.tabLeaders') },
+            { id: 'members', label: t('gente.tabMembers') },
+          ] as { id: RoleTab; label: string }[]).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={roleTab === tab.id}
+              onClick={() => setRoleTab(tab.id)}
+              className={cn(
+                'min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                roleTab === tab.id
+                  ? 'bg-primary-strong text-primary-foreground'
+                  : 'text-muted hover:text-ink',
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <ProblemAlert message={listError} />
@@ -208,14 +265,14 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
 
       {members === null ? (
         <ListSkeleton rows={3} label={t('gente.loading')} />
-      ) : members.length === 0 ? (
+      ) : visibleMembers.length === 0 ? (
         <EmptyPanel
           title={t('gente.emptyTitle')}
           description={t('gente.emptyBody')}
         />
       ) : (
         <ul className="space-y-2">
-          {members.map((member, index) => {
+          {visibleMembers.map((member, index) => {
             const isSelf = member.userId === user.id
             const busy = pendingUserId === member.userId
             return (
@@ -248,8 +305,14 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                       ) : null}
                     </p>
                     <p className="text-sm text-slate-500">
-                      ({formatRole(member.role)}
-                      {member.musicalRole ? ` · ${member.musicalRole}` : ''})
+                      {formatRole(member.role)}
+                      {member.musicalRole ? ` · ${member.musicalRole}` : ''}
+                    </p>
+                    {member.email ? (
+                      <p className="truncate text-sm text-slate-500">{member.email}</p>
+                    ) : null}
+                    <p className="text-xs text-slate-500">
+                      {presenceLabel(member.lastSeenAt, t, Date.now())}
                     </p>
                   </div>
                 </div>
