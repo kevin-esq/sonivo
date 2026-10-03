@@ -240,7 +240,11 @@ export function GroupWorkspace({
               )}
             </Link>
           ) : group ? (
-            <div className="flex min-w-0 items-center gap-2">
+            <Link
+              to="/"
+              data-testid="rail-brand"
+              className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+            >
               <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-shell-hover text-sm font-semibold text-shell-foreground">
                 {serverBrand?.logoUrl ? (
                   <img src={serverBrand.logoUrl} alt="" className="h-6 w-6 object-contain" />
@@ -256,7 +260,7 @@ export function GroupWorkspace({
                   <span className="block truncate text-xs text-shell-foreground/60">{serverBrand.tagline}</span>
                 ) : null}
               </span>
-            </div>
+            </Link>
           ) : (
             <BrandLockup to="/" shell />
           )}
