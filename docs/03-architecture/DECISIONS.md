@@ -8,6 +8,64 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0054 — White Label v2: full brand tokens, secondary colour and banner
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-02 ("luz verde total", scope confirmed: refresh over the current group IA, extend ADR-0048, flag ON by default, branch from `develop`).
+- **Date:** 2026-10-02
+- **Amends:** ADR-0048 (per-group white label). Keeps its tenancy/indexing/auth rules; widens the branding model and token contract.
+- **Supersedes:** the `DESIGN.md` "no backend-driven theming" line (out-of-scope list) and the `ajustes.logoNote` "logo coming soon" copy.
+- **See:** [`PHASE-WHITELABEL-SPEC.md`](PHASE-WHITELABEL-SPEC.md) §4.3 (updated).
+
+### Context
+
+ADR-0048 shipped `GroupBranding` (accent, cover emoji/gradient, theme default, locale, welcome/login
+copy, logo, `ShowSonivoCredit`), the per-group API, the path tenancy (`/g/{slug}`) and the branded access
+screen. The backend is live behind `Features:GroupBranding`, but the **frontend never wired the write
+path**: `updateGroupBranding` and the logo upload were unused, `GroupSettingsPage` still edited a
+**device-local** appearance (`localStorage`), and `ThemeDefault` was never applied. The organizer brief
+asks for a real White Label panel (logo, banner, primary/secondary colours, brand accents, dark/light)
+applied dynamically without breaking AA contrast.
+
+### Decision
+
+- **Brand tokens are the contract, never free CSS.** A group resolves a bounded token set applied to the
+  group shell only (never `:root`, so brands never leak across groups):
+  `--brand-primary`, `--brand-on-primary`, `--brand-secondary`, `--brand-on-secondary`, `--brand-accent`.
+  `--group-accent` stays as a compatibility alias of `--brand-primary`.
+- **Colours stay server-validated hex.** `AccentHex` is the **primary/accent** colour (unchanged field
+  name, existing AA-vs-white rule ⇒ `on-primary = #ffffff`). New `SecondaryHex` is optional; the server
+  computes `on-secondary` by choosing white or near-black, whichever meets WCAG AA, and **rejects** a
+  secondary where neither reaches 4.5:1.
+- **Banner image.** New `BannerBlobKey` / `BannerContentType`, uploaded via `IBlobStore` with the same
+  allowlist and 2 MiB cap as the logo. Precedence at render: **banner image → cover kind (gradient/emoji)
+  → none**. `CoverKind`/`CoverValue` stay (fallback), so the change is additive.
+- **Theme default precedence.** `ThemeDefault` (light/dark/system) applies **only until the user makes an
+  explicit choice**; an explicit user choice wins and is persisted. Changing groups re-evaluates the
+  default when no explicit choice exists.
+- **Flag ON by default.** `Features:GroupBranding` defaults to `true`; the off path is preserved for the
+  tests/rollback.
+- **Editor.** `GroupSettingsPage` gains a real brand editor (primary/secondary/accent, logo + banner
+  upload, theme default, welcome/login copy, `ShowSonivoCredit`) with live preview and AA feedback.
+
+### Firewall (explicit)
+
+- **No subdomains / custom domains**: ADR-0049 stays **documentation-only / BLOCKED**.
+- **No typography picker and no new font** (excluded by scope decision; `--font-sans` is unchanged).
+- **No new IA sections**: no Tareas/Roles/Recursos/Archivos top-level nav — only a visual refresh over
+  the current Inicio/Biblioteca/Listas/Eventos/Miembros/Ajustes structure.
+- **No image re-encode** in v1 (ADR-0048 deferral stands); no new dependency, no new provider.
+- Isolation unchanged: membership required, non-member → 404; Owner writes, Manager/Member read
+  (`RequireOwnerAsync` for writes).
+
+### Deltas vs current docs (flagged, not silent)
+
+- `DESIGN.md`: token table gains the `--brand-*` group-scoped set; the "no backend-driven theming"
+  prohibition is removed.
+- `CONTEXT.md`: the white-label line moves from "PROPOSED, not implemented" to the real as-built state.
+- `PHASE-WHITELABEL-SPEC.md`: status updated; §4.3 reflects the shipped editor and the v2 additions.
+
+---
+
 ## ADR-0053 — Inicio dashboard + app-shell sidebar (home redesign)
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-02 ("luz verde total … implementación completa respetando las fases, Playwright MCP y Git con `gh` a `develop`").

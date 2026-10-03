@@ -1,7 +1,11 @@
 # Phase — White label, managed accounts and .lrc lyrics
 
-**Status:** **PLAN (PROPOSED)** — approved with corrections 2026-10-01; not implemented.
-**Owner:** Kevin Esquivel · **Branch:** `docs/white-label-plan`
+**Status:** **PARTIALLY SHIPPED.** The rule changes (ADR-0045…0052) are **ACCEPTED** and the backend is
+merged. **ADR-0054 (2026-10-02)** is the White Label v2 amendment: it adds `SecondaryHex` + banner to
+`GroupBranding`, defines the scoped `--brand-*` token contract with server-computed AA `on-*` colours,
+sets `ThemeDefault` precedence and wires the organizer editor; `Features:GroupBranding` defaults **ON**.
+The phases below remain the reference for the unblocked scope; **4.6/4.7 stay BLOCKED** (no domain).
+**Owner:** Kevin Esquivel · **Branch:** `feature/white-label-workspace`
 **Baseline:** the code, not the docs. Verified reading order: `Group` → `Membership` → `Invitation`,
 `ApplicationUser`, cookies/antiforgery (`Program.cs:45-102`), `PasskeyOrigins`, `GoogleAuthSetup`,
 `ConfigurationPublicOrigin`, `SonivoDbContext`, frontend shell.

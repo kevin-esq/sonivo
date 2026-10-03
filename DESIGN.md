@@ -21,7 +21,21 @@ Replacement visual direction per ADR-0043 (PROPOSED). Current evidence: dark-onl
 | Border | `#E2E8F0` | `rgba(255,255,255,0.10)` (current) |
 | Primary | `#8366F1` both | Secondary `#E8C4F6` · success `#7DDB81` · warning `#F3B626` · error `#EF4444` (all current) |
 
-**Per-group accent (Owner-only, optional):** defaults to primary `#8366F1`; group may set accent + cover + logo in Ajustes grupo onboarding. Accent drives header wash, active nav, focus rings, player glow. SonivoMark inherits via currentColor.
+**Per-group brand tokens (Owner-only, optional; ADR-0048/ADR-0054):** scoped to the group shell only (never `:root`), so brands never leak between groups. Defaults to the global primary `#8366F1`.
+
+```css
+.brand-scope {
+  --brand-primary;      /* AccentHex — AA vs white enforced server-side      */
+  --brand-on-primary;   /* computed: #ffffff                                */
+  --brand-secondary;    /* SecondaryHex — optional, AA text enforced        */
+  --brand-on-secondary; /* computed: #ffffff | #0f172a (whichever meets AA) */
+  --brand-accent;       /* derived accent                                   */
+}
+```
+
+`--group-accent` remains a compatibility alias of `--brand-primary`. Primary drives header wash, active nav, focus rings and player glow; secondary drives soft fills/badges; **banner image → cover (gradient/emoji) → none** is the header precedence. SonivoMark inherits via currentColor.
+
+**Theme default:** `GroupBranding.ThemeDefault` applies only until the user makes an explicit theme choice; an explicit choice wins.
 
 ---
 
@@ -59,4 +73,4 @@ Replacement visual direction per ADR-0043 (PROPOSED). Current evidence: dark-onl
 
 ## Out of scope
 
-No brand-mark change · no new font · no backend-driven theming · no per-song themes · no motion beyond the 220ms standard without its own ADR.
+No brand-mark change · no new font or typography picker · no per-song themes · no per-group subdomains/custom domains (ADR-0049 blocked) · no motion beyond the 220ms standard without its own ADR.
