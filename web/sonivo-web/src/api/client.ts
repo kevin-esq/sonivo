@@ -564,11 +564,18 @@ export type MemberListItem = {
   role: string
   musicalRole?: string | null
   createdAt: string
+  lastSeenAt?: string | null
+  email?: string | null
 }
 
 export async function listMembers(groupId: string): Promise<MemberListItem[]> {
   const payload = await apiRequest<{ items: MemberListItem[] }>(`/api/groups/${groupId}/members`)
   return payload.items
+}
+
+/** ADR-0055 W-E: best-effort presence heartbeat (throttled server-side). */
+export async function presenceHeartbeat(): Promise<void> {
+  await apiRequest('/api/presence/heartbeat', { method: 'POST' })
 }
 
 export async function removeMember(groupId: string, userId: string): Promise<void> {

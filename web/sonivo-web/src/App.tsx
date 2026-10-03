@@ -114,7 +114,7 @@ const GroupCalendarPage = named(
   "GroupCalendarPage",
 );
 const GroupTasksPage = named(() => import("./groups/GroupStubs"), "GroupTasksPage");
-const GroupRolesPage = named(() => import("./groups/GroupStubs"), "GroupRolesPage");
+const GroupRolesPage = named(() => import("./groups/GroupRolesPage"), "GroupRolesPage");
 const GroupResourcesPage = named(
   () => import("./groups/GroupResourcesPage"),
   "GroupResourcesPage",

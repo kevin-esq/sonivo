@@ -19,4 +19,9 @@ public sealed class ApplicationUser : IdentityUser<Guid>
     /// until the temporary credential is replaced (ADR-0047).
     /// </summary>
     public bool MustChangePassword { get; set; }
+
+    /// <summary>
+    /// ADR-0055 W-E: last presence heartbeat (best-effort, never authorizes).
+    /// </summary>
+    public DateTimeOffset? LastSeenAt { get; set; }
 }

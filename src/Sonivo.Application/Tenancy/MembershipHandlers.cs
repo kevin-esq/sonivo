@@ -9,7 +9,9 @@ public sealed record MemberListItemDto(
     string DisplayName,
     string Role,
     string? MusicalRole,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? LastSeenAt,
+    string? Email);
 
 public sealed record MemberListDto(IReadOnlyList<MemberListItemDto> Items);
 
@@ -37,18 +39,20 @@ public sealed class ListMembersHandler
         var rows = (await _memberships.ListByGroupAsync(query.GroupId, cancellationToken))
             .Where(r => r.UserId.HasValue)
             .ToList();
-        var names = (await _directory.GetByIdsAsync(rows.Select(r => r.UserId!.Value).ToList(), cancellationToken))
-            .ToDictionary(e => e.UserId, e => e.DisplayName);
+        var directory = (await _directory.GetByIdsAsync(rows.Select(r => r.UserId!.Value).ToList(), cancellationToken))
+            .ToDictionary(e => e.UserId);
 
         var items = rows
             .Select(m => new MemberListItemDto(
                 m.UserId!.Value,
-                names.TryGetValue(m.UserId!.Value, out var name) && !string.IsNullOrWhiteSpace(name)
-                    ? name
+                directory.TryGetValue(m.UserId!.Value, out var entry) && !string.IsNullOrWhiteSpace(entry.DisplayName)
+                    ? entry.DisplayName
                     : m.UserId!.Value.ToString("D"),
                 m.Role,
                 m.MusicalRole,
-                m.CreatedAt))
+                m.CreatedAt,
+                directory.TryGetValue(m.UserId!.Value, out var entry2) ? entry2.LastSeenAt : null,
+                directory.TryGetValue(m.UserId!.Value, out var entry3) ? entry3.Email : null))
             .OrderBy(i => RoleRank(i.Role))
             .ThenBy(i => i.DisplayName, StringComparer.Ordinal)
             .ThenBy(i => i.UserId)
@@ -65,6 +69,22 @@ public sealed class ListMembersHandler
         MembershipRoles.Viewer => 3,
         _ => 4
     };
+}
+
+public sealed record PresenceHeartbeatCommand(Guid UserId, DateTimeOffset Now);
+
+/// <summary>ADR-0055 W-E: best-effort presence heartbeat (throttled, never authorizes).</summary>
+public sealed class PresenceHeartbeatHandler
+{
+    private readonly IUserDirectory _directory;
+
+    public PresenceHeartbeatHandler(IUserDirectory directory)
+    {
+        _directory = directory;
+    }
+
+    public Task HandleAsync(PresenceHeartbeatCommand command, CancellationToken cancellationToken)
+        => _directory.TouchLastSeenAsync(command.UserId, command.Now, cancellationToken);
 }
 
 public sealed record RemoveMemberCommand(Guid ActorUserId, Guid GroupId, Guid TargetUserId);

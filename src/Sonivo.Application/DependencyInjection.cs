@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<UpdateGroupHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
         services.AddScoped<ListMembersHandler>();
+        services.AddScoped<PresenceHeartbeatHandler>();
         services.AddScoped<ListRosterHandler>();
         services.AddScoped<ExportGroupHandler>();
         services.AddScoped<ExportOwnDataHandler>();

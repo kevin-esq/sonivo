@@ -232,6 +232,9 @@ public class RsvpUseCaseTests
         public void Seed(Guid userId, string? displayName, string email)
             => _users[userId] = (displayName, email);
 
+        public Task TouchLastSeenAsync(Guid userId, DateTimeOffset now, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
         public Task<IReadOnlyList<UserDirectoryEntry>> GetByIdsAsync(
             IReadOnlyCollection<Guid> userIds,
             CancellationToken cancellationToken)
@@ -242,7 +245,7 @@ public class RsvpUseCaseTests
                 {
                     var (displayName, email) = _users[id];
                     var resolved = string.IsNullOrWhiteSpace(displayName) ? email : displayName.Trim();
-                    return new UserDirectoryEntry(id, resolved);
+                    return new UserDirectoryEntry(id, resolved, null, email);
                 })
                 .ToList();
             return Task.FromResult<IReadOnlyList<UserDirectoryEntry>>(list);

@@ -2056,11 +2056,32 @@ app.MapGet("/api/groups/{groupId:guid}/members", async (
             displayName = i.DisplayName,
             role = i.Role,
             musicalRole = i.MusicalRole,
-            createdAt = i.CreatedAt
+            createdAt = i.CreatedAt,
+            lastSeenAt = i.LastSeenAt,
+            email = i.Email
         })
     });
 })
 .WithName("ListGroupMembers")
+.RequireAuthorization();
+
+// ADR-0055 W-E: best-effort presence heartbeat (throttled server-side, never authorizes).
+app.MapPost("/api/presence/heartbeat", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    PresenceHeartbeatHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(new PresenceHeartbeatCommand(userId.Value, DateTimeOffset.UtcNow), cancellationToken);
+    return Results.NoContent();
+})
+.WithName("PresenceHeartbeat")
 .RequireAuthorization();
 
 // Phase 4.1: roster incl. people without an account behind Features:ManagedAccounts.
