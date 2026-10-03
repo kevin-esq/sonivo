@@ -12,6 +12,8 @@ export type ServerBranding = {
   bannerUrl: string | null
   loginHeadline: string | null
   welcomeText: string | null
+  tagline: string | null
+  verse: string | null
   themeDefault: string | null
   showSonivoCredit: boolean
 }
@@ -32,6 +34,8 @@ export async function loadServerBranding(groupId: string): Promise<ServerBrandin
       bannerUrl: branding.bannerUrl,
       loginHeadline: branding.loginHeadline,
       welcomeText: branding.welcomeText,
+      tagline: branding.tagline,
+      verse: branding.verse,
       themeDefault: branding.themeDefault,
       showSonivoCredit: branding.showSonivoCredit,
     }

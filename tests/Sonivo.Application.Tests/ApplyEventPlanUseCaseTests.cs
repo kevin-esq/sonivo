@@ -102,7 +102,7 @@ public class ApplyEventPlanUseCaseTests
         setlist.Items.Add(SetlistItem.Create(setlist.Id, ctx.GroupId, ctx.ArrB, 1));
 
         var song = ctx.Songs.Songs.Single();
-        song.Update("Renamed Grace", song.Attribution, song.OriginKind, song.RightsNotes, song.Version, Now.AddHours(1));
+        song.Update("Renamed Grace", song.Attribution, song.OriginKind, song.RightsNotes, song.Tags, song.Version, Now.AddHours(1));
 
         var detail = await new GetEventHandler(new GroupAccessService(ctx.Groups), ctx.Events)
             .HandleAsync(ctx.Owner, ctx.GroupId, ctx.EventId, CancellationToken.None);

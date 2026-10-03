@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { CalendarDays, ListMusic, Music2 } from 'lucide-react'
+import { CalendarDays, CheckSquare, Library, ListMusic, Music2 } from 'lucide-react'
 import {
   ApiError,
   createInvitation,
@@ -15,6 +15,7 @@ import {
   type EventRsvpResponse,
   type GroupDetail,
   type SetlistListItem,
+  type SongListItem,
 } from '../api/client'
 import {
   fieldClass,
@@ -27,11 +28,14 @@ import { EmptyPanel } from '../repertoire/chrome'
 import { Button, primaryButtonClass, secondaryButtonClass } from '../ui/button'
 import { cn } from '../ui/cn'
 import { useT } from '../i18n'
-import { Skeleton } from '../ui/skeleton'
-import { plural } from '../ui/plural'
+
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
 
-const RECENT_SETLIST_LIMIT = 5
+const TILE_CLASS =
+  'flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none'
+
+const TILE_ICON_CLASS =
+  'grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink'
 
 function pickUpcomingEvent(events: EventListItem[]): EventListItem | null {
   const now = Date.now()
@@ -83,6 +87,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   const [events, setEvents] = useState<EventListItem[] | null>(null)
   const [setlists, setSetlists] = useState<SetlistListItem[] | null>(null)
   const [songCount, setSongCount] = useState<number | null>(null)
+  const [recentSongs, setRecentSongs] = useState<SongListItem[] | null>(null)
   const [composeError, setComposeError] = useState<string | null>(null)
   const [myRsvp, setMyRsvp] = useState<EventRsvpResponse | string | null | undefined>(undefined)
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
@@ -107,6 +112,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       setEvents(null)
       setSetlists(null)
       setSongCount(null)
+      setRecentSongs(null)
       setComposeError(null)
       try {
         const result = await getGroup(groupId)
@@ -142,6 +148,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
         setEvents(eventItems)
         setSetlists(setlistItems)
         setSongCount(songs.length)
+        setRecentSongs(songs)
       } catch (err) {
         if (cancelled) return
         setEvents([])
@@ -159,13 +166,14 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   const isOwner = isOwnerRole(group?.role)
 
   const nextEvent = useMemo(() => (events ? pickUpcomingEvent(events) : null), [events])
-  const recentSetlists = useMemo(
-    () => (setlists ? setlists.slice(0, RECENT_SETLIST_LIMIT) : null),
-    [setlists],
-  )
-  const scheduledCount = useMemo(
-    () => (events ? events.filter((e) => e.status === 'scheduled').length : null),
-    [events],
+  const latestSongs = useMemo(
+    () =>
+      recentSongs
+        ? [...recentSongs]
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 4)
+        : null,
+    [recentSongs],
   )
 
   useEffect(() => {
@@ -249,39 +257,42 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
 
       <ProblemAlert message={composeError} />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Link
-          to={`/groups/${group.id}/setlists`}
-          data-testid="home-stat-setlists"
-          className="block rounded-2xl border border-slate-100 bg-white px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
-        >
-          <p className="text-sm text-slate-500">{t('inicio.statSetlists')}</p>
-          <div className="mt-1 text-2xl font-bold text-neutral-dark">
-            {setlists === null ? <Skeleton className="mt-2 h-8 w-10" /> : setlists.length}
-          </div>
-          <p className="mt-1 text-xs font-medium text-primary-ink">{t('inicio.viewAll')}</p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Link to={`/groups/${group.id}/library`} data-testid="home-stat-songs" className={TILE_CLASS}>
+          <span className={TILE_ICON_CLASS} aria-hidden="true">
+            <Music2 className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-neutral-dark">{t('inicio.tileSongs')}</span>
+            <span className="block truncate text-xs text-slate-500">{t('inicio.tileSongsDesc')}</span>
+          </span>
         </Link>
-        <Link
-          to={`/groups/${group.id}/events`}
-          data-testid="home-stat-events"
-          className="block rounded-2xl border border-slate-100 bg-white px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
-        >
-          <p className="text-sm text-slate-500">{t('inicio.statEvents')}</p>
-          <div className="mt-1 text-2xl font-bold text-neutral-dark">
-            {scheduledCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : scheduledCount}
-          </div>
-          <p className="mt-1 text-xs font-medium text-primary-ink">{t('inicio.viewAll')}</p>
+        <Link to={`/groups/${group.id}/events`} data-testid="home-stat-events" className={TILE_CLASS}>
+          <span className={TILE_ICON_CLASS} aria-hidden="true">
+            <CalendarDays className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-neutral-dark">{t('inicio.tileCalendar')}</span>
+            <span className="block truncate text-xs text-slate-500">{t('inicio.tileCalendarDesc')}</span>
+          </span>
         </Link>
-        <Link
-          to={`/groups/${group.id}/library`}
-          data-testid="home-stat-songs"
-          className="block rounded-2xl border border-slate-100 bg-white px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
-        >
-          <p className="text-sm text-slate-500">{t('inicio.statSongs')}</p>
-          <div className="mt-1 text-2xl font-bold text-neutral-dark">
-            {songCount === null ? <Skeleton className="mt-2 h-8 w-10" /> : songCount}
-          </div>
-          <p className="mt-1 text-xs font-medium text-primary-ink">{t('inicio.viewAll')}</p>
+        <Link to={`/groups/${group.id}/recursos`} className={TILE_CLASS}>
+          <span className={TILE_ICON_CLASS} aria-hidden="true">
+            <Library className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-neutral-dark">{t('inicio.tileResources')}</span>
+            <span className="block truncate text-xs text-slate-500">{t('inicio.tileResourcesDesc')}</span>
+          </span>
+        </Link>
+        <Link to={`/groups/${group.id}/tasks`} className={TILE_CLASS}>
+          <span className={TILE_ICON_CLASS} aria-hidden="true">
+            <CheckSquare className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-neutral-dark">{t('inicio.tileTasks')}</span>
+            <span className="block truncate text-xs text-slate-500">{t('inicio.tileTasksDesc')}</span>
+          </span>
         </Link>
       </div>
 
@@ -395,59 +406,55 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           )}
         </section>
 
-        <section className="space-y-3" aria-labelledby="recent-setlists-heading">
+        <section className="space-y-3" aria-labelledby="recent-songs-heading">
           <div className="flex items-center justify-between gap-3">
-            <h3 id="recent-setlists-heading" className="font-semibold">
-              {t('inicio.recentSetlists')}
+            <h3 id="recent-songs-heading" className="font-semibold">
+              {t('inicio.recentSongs')}
             </h3>
             <Link
               className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-ink no-underline hover:underline"
-              to={`/groups/${group.id}/setlists`}
+              to={`/groups/${group.id}/library`}
             >
               {t('inicio.viewAll')}
             </Link>
           </div>
-          {recentSetlists === null ? (
+          {latestSongs === null ? (
             <p aria-live="polite" className="text-sm text-slate-500">
-              {t('inicio.loadingSetlists')}
+              {t('inicio.loadingSongs')}
             </p>
-          ) : recentSetlists.length === 0 ? (
+          ) : latestSongs.length === 0 ? (
             <EmptyPanel
-              title={t('inicio.noSetlistsTitle')}
-              description={
-                isOwner ? t('inicio.noSetlistsOwner') : t('inicio.noSetlistsMember')
-              }
+              title={t('inicio.noSongsTitle')}
+              description={isOwner ? t('inicio.noSongsOwner') : t('inicio.noSongsMember')}
               action={
                 <Link
                   className="font-semibold text-primary-ink no-underline hover:underline"
-                  to={`/groups/${group.id}/setlists`}
+                  to={`/groups/${group.id}/library`}
                 >
-                  {t('inicio.goSetlists')}
+                  {t('inicio.goSongs')}
                 </Link>
               }
             />
           ) : (
             <ul className="space-y-1.5">
-              {recentSetlists.map((setlist, index) => (
-                <li key={setlist.id}>
+              {latestSongs.map((song, index) => (
+                <li key={song.id}>
                   <Link
                     className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light"
-                    to={`/groups/${group.id}/setlists/${setlist.id}`}
+                    to={`/groups/${group.id}/songs/${song.id}`}
                     style={{ animationDelay: `${Math.min(index, 4) * 40}ms` }}
                   >
                     <span
                       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success/20 text-neutral-dark"
                       aria-hidden="true"
                     >
-                      <ListMusic className="h-5 w-5" />
+                      <Music2 className="h-5 w-5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold text-neutral-dark">
-                        {setlist.name}
-                      </span>
-                      <span className="mt-0.5 block text-sm text-slate-500">
-                        {plural(setlist.itemCount, t('common.songOne'), t('common.songMany'))} ·{' '}
-                        {formatRelativeUpdated(setlist.updatedAt)}
+                      <span className="block truncate font-semibold text-neutral-dark">{song.title}</span>
+                      <span className="mt-0.5 block truncate text-sm text-slate-500">
+                        {song.attribution ? `${song.attribution} · ` : ''}
+                        {formatRelativeUpdated(song.updatedAt)}
                       </span>
                     </span>
                   </Link>
@@ -458,30 +465,12 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
         </section>
       </div>
 
-      <div className="rounded-2xl border border-slate-100 bg-neutral-light/60 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <span
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary-ink"
-            aria-hidden="true"
-          >
-            <Music2 className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="font-semibold text-neutral-dark">{t('inicio.libraryTitle')}</p>
-            <p className="text-sm text-slate-500">
-              {songCount === null
-                ? t('inicio.loadingDots')
-                : plural(songCount, t('common.songOne'), t('common.songMany'))}
-              {' · '}
-              <Link
-                className="font-semibold text-primary-ink no-underline hover:underline"
-                to={`/groups/${group.id}/library`}
-              >
-                {t('inicio.openLibrary')}
-              </Link>
-            </p>
-          </div>
-        </div>
+      <div
+        className="overflow-hidden rounded-2xl px-5 py-6 text-white"
+        style={{ backgroundImage: 'linear-gradient(135deg, var(--brand-primary, #8366f1), #2b1a5e)' }}
+      >
+        <p className="max-w-xl text-lg font-semibold leading-snug">{t('inicio.promoTitle')}</p>
+        <p className="mt-1 text-sm text-white/80">— {group.name}</p>
       </div>
 
       {isOwner ? (

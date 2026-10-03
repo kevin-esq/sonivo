@@ -77,7 +77,7 @@ test.describe('W11 touch targets', () => {
       await expectMinAxis(railNav.getByRole('link', { name }), 44, `rail link ${name}`)
     }
     await expectMinAxis(page.getByRole('button', { name: 'Cerrar sesión' }), 44, 'rail sign-out')
-    await expectMinAxis(page.getByRole('link', { name: 'Sonivo' }).first(), 44, 'brand lockup')
+    await expectMinAxis(page.getByTestId('rail-brand'), 44, 'brand lockup')
 
     // Mobile: bottom tab bar + top-bar account/sign-out controls.
     await page.setViewportSize({ width: 390, height: 844 })

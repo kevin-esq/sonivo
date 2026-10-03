@@ -480,6 +480,8 @@ export type GroupBranding = {
   defaultLocale: string | null
   welcomeText: string | null
   loginHeadline: string | null
+  tagline: string | null
+  verse: string | null
   hasLogo: boolean
   logoUrl: string | null
   hasBanner: boolean
@@ -514,6 +516,8 @@ export async function updateGroupBranding(
     defaultLocale?: string | null
     welcomeText?: string | null
     loginHeadline?: string | null
+    tagline?: string | null
+    verse?: string | null
     showSonivoCredit?: boolean
   },
 ): Promise<GroupBranding> {
@@ -680,6 +684,8 @@ export type SongListItem = {
   version: number
   createdAt: string
   updatedAt: string
+  tags: string[]
+  isFavorite: boolean
 }
 
 export type SongDetail = SongListItem & {
@@ -745,6 +751,7 @@ export async function createSong(
     originKind: SongOriginKind
     attribution?: string | null
     rightsNotes?: string | null
+    tags?: string[]
   },
 ): Promise<SongDetail> {
   return apiRequest<SongDetail>(`/api/groups/${groupId}/songs`, {
@@ -766,6 +773,7 @@ export async function updateSong(
     originKind?: SongOriginKind | null
     attribution?: string | null
     rightsNotes?: string | null
+    tags?: string[]
   },
 ): Promise<SongDetail> {
   return apiRequest<SongDetail>(`/api/groups/${groupId}/songs/${songId}`, {

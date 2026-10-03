@@ -19,6 +19,8 @@ public sealed class GroupBrandingConfiguration : IEntityTypeConfiguration<GroupB
         builder.Property(x => x.DefaultLocale).HasMaxLength(8);
         builder.Property(x => x.WelcomeText).HasMaxLength(GroupBranding.MaxTextLength);
         builder.Property(x => x.LoginHeadline).HasMaxLength(GroupBranding.MaxTextLength);
+        builder.Property(x => x.Tagline).HasMaxLength(GroupBranding.MaxTaglineLength);
+        builder.Property(x => x.Verse).HasMaxLength(GroupBranding.MaxVerseLength);
         builder.Property(x => x.LogoBlobKey).HasMaxLength(256);
         builder.Property(x => x.LogoContentType).HasMaxLength(128);
         builder.Property(x => x.BannerBlobKey).HasMaxLength(256);

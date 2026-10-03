@@ -17,6 +17,8 @@ public sealed record GroupBrandingDto(
     string? DefaultLocale,
     string? WelcomeText,
     string? LoginHeadline,
+    string? Tagline,
+    string? Verse,
     bool HasLogo,
     bool HasBanner,
     bool ShowSonivoCredit,
@@ -35,6 +37,8 @@ public sealed record UpdateGroupBrandingCommand(
     string? DefaultLocale,
     string? WelcomeText,
     string? LoginHeadline,
+    string? Tagline,
+    string? Verse,
     bool ShowSonivoCredit);
 
 public sealed record SetGroupLogoCommand(
@@ -96,7 +100,7 @@ public sealed class GetGroupBrandingHandler
 
     internal static GroupBrandingDto ToDto(Guid groupId, GroupBranding? branding) =>
         branding is null
-            ? new GroupBrandingDto(groupId, null, null, null, null, null, null, null, null, null, null, null, false, false, true, 0)
+            ? new GroupBrandingDto(groupId, null, null, null, null, null, null, null, null, null, null, null, null, null, false, false, true, 0)
             : new GroupBrandingDto(
                 groupId,
                 branding.DisplayName,
@@ -110,6 +114,8 @@ public sealed class GetGroupBrandingHandler
                 branding.DefaultLocale,
                 branding.WelcomeText,
                 branding.LoginHeadline,
+                branding.Tagline,
+                branding.Verse,
                 branding.LogoBlobKey is not null,
                 branding.BannerBlobKey is not null,
                 branding.ShowSonivoCredit,
@@ -165,6 +171,8 @@ public sealed class UpdateGroupBrandingHandler
                 command.DefaultLocale,
                 command.WelcomeText,
                 command.LoginHeadline,
+                command.Tagline,
+                command.Verse,
                 command.ShowSonivoCredit,
                 now);
         }

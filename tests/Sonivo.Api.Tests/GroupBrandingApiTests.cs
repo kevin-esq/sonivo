@@ -48,6 +48,8 @@ public class GroupBrandingApiTests : IClassFixture<SonivoApiFactory>, IClassFixt
             defaultLocale = "es",
             welcomeText = "Bienvenido",
             loginHeadline = "Entra a la banda",
+            tagline = "Adorando juntos, sirviendo a Dios.",
+            verse = "Salmo 150:6",
             showSonivoCredit = false
         });
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
@@ -57,6 +59,8 @@ public class GroupBrandingApiTests : IClassFixture<SonivoApiFactory>, IClassFixt
         Assert.Equal("#f5c542", updated.SecondaryHex);
         Assert.Equal("#ffffff", updated.OnPrimary);
         Assert.Equal("#0f172a", updated.OnSecondary);
+        Assert.Equal("Adorando juntos, sirviendo a Dios.", updated.Tagline);
+        Assert.Equal("Salmo 150:6", updated.Verse);
         Assert.Equal("Marca Propia", updated.DisplayName);
         Assert.False(updated.ShowSonivoCredit);
         Assert.Equal(2, updated.Version);
@@ -294,6 +298,8 @@ public class GroupBrandingApiTests : IClassFixture<SonivoApiFactory>, IClassFixt
         string? OnSecondary,
         string? CoverKind,
         string? CoverValue,
+        string? Tagline,
+        string? Verse,
         bool HasLogo,
         bool HasBanner,
         string? BannerUrl,

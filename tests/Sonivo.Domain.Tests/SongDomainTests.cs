@@ -74,7 +74,7 @@ public class SongDomainTests
     public void Update_increments_version_when_expected_matches()
     {
         var song = Song.Create(GroupId, "Song", SongOriginKinds.Original, Now);
-        song.Update("Renamed", "Attrib", SongOriginKinds.Other, "notes", expectedVersion: 1, Now.AddMinutes(1));
+        song.Update("Renamed", "Attrib", SongOriginKinds.Other, "notes", null, expectedVersion: 1, Now.AddMinutes(1));
 
         Assert.Equal("Renamed", song.Title);
         Assert.Equal("Attrib", song.Attribution);
@@ -88,7 +88,7 @@ public class SongDomainTests
     {
         var song = Song.Create(GroupId, "Song", SongOriginKinds.Original, Now);
         Assert.Throws<ConcurrencyConflictException>(() =>
-            song.Update("Other", null, SongOriginKinds.Original, null, expectedVersion: 99, Now));
+            song.Update("Other", null, SongOriginKinds.Original, null, null, expectedVersion: 99, Now));
     }
 
     [Fact]
