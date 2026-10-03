@@ -78,6 +78,31 @@ const BRAND_COLOR_NAME_KEYS: Record<string, I18nKey> = {
   '#a78bfa': 'ajustes.accentLilac',
 }
 
+/** ADR-0059: predefined brand palettes (primary + secondary together). */
+const BRAND_PALETTES: { id: string; primary: string; secondary: string }[] = [
+  { id: 'oceano', primary: '#0369a1', secondary: '#0ea5e9' },
+  { id: 'atardecer', primary: '#b45309', secondary: '#f3b626' },
+  { id: 'bosque', primary: '#047857', secondary: '#10b981' },
+  { id: 'dark', primary: '#6d4ee0', secondary: '#a78bfa' },
+]
+
+function luminance(hex: string): number {
+  const value = hex.replace('#', '')
+  const channels = [0, 2, 4].map((index) => {
+    const channel = parseInt(value.slice(index, index + 2), 16) / 255
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+}
+
+/** WCAG contrast ratio between two hex colors. */
+export function contrastRatio(foreground: string, background: string): number {
+  const a = luminance(foreground)
+  const b = luminance(background)
+  const [lighter, darker] = a >= b ? [a, b] : [b, a]
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
 /** Visible/accessible gradient names, translated while the storage id stays English. */
 const GRADIENT_NAME_KEYS: Record<string, I18nKey> = {
   violet: 'ajustes.coverGradientViolet',
@@ -477,6 +502,19 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   {t('ajustes.preview')}
                 </span>
               ) : null}
+              <span
+                className={cn(
+                  'hidden rounded-full px-3 py-1 text-xs font-semibold sm:inline-block',
+                  contrastRatio(draft.accentHex || '#8366f1', '#ffffff') >= 4.5
+                    ? 'bg-success/20 text-ink'
+                    : 'bg-error/20 text-error-ink',
+                )}
+              >
+                {t('ajustes.contrastLabel')}{' '}
+                {contrastRatio(draft.accentHex || '#8366f1', '#ffffff') >= 4.5
+                  ? t('ajustes.contrastAA')
+                  : t('ajustes.contrastFail')}
+              </span>
             </div>
           </div>
 
@@ -543,6 +581,35 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ secondaryHex: '' })}>
                 {t('ajustes.clearColor')}
               </Button>
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-3" disabled={!isOwner}>
+            <legend className="font-medium">{t('ajustes.palettesTitle')}</legend>
+            <p className="text-sm text-slate-500">{t('ajustes.palettesHint')}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.palettesTitle')}>
+              {BRAND_PALETTES.map((palette) => {
+                const active =
+                  draft.accentHex.toLowerCase() === palette.primary &&
+                  draft.secondaryHex.toLowerCase() === palette.secondary
+                return (
+                  <button
+                    key={palette.id}
+                    type="button"
+                    aria-pressed={active}
+                    aria-label={t(`ajustes.palette${palette.id.charAt(0).toUpperCase()}${palette.id.slice(1)}` as I18nKey)}
+                    onClick={() => patchDraft({ accentHex: palette.primary, secondaryHex: palette.secondary })}
+                    className={cn(
+                      'flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                      active ? 'border-primary ring-2 ring-primary/25' : 'border-slate-300 hover:border-primary/50',
+                    )}
+                  >
+                    <span className="h-5 w-5 rounded-full" style={{ backgroundColor: palette.primary }} aria-hidden="true" />
+                    <span className="h-5 w-5 rounded-full" style={{ backgroundColor: palette.secondary }} aria-hidden="true" />
+                    {t(`ajustes.palette${palette.id.charAt(0).toUpperCase()}${palette.id.slice(1)}` as I18nKey)}
+                  </button>
+                )
+              })}
             </div>
           </fieldset>
 
