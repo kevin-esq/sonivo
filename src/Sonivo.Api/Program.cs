@@ -1737,6 +1737,8 @@ app.MapPut("/api/groups/{groupId:guid}/branding", async (
             request.DefaultLocale,
             request.WelcomeText,
             request.LoginHeadline,
+            request.Tagline,
+            request.Verse,
             request.ShowSonivoCredit),
         cancellationToken);
 
@@ -3904,6 +3906,8 @@ static object ToBrandingResponse(GroupBrandingDto branding) => new
     defaultLocale = branding.DefaultLocale,
     welcomeText = branding.WelcomeText,
     loginHeadline = branding.LoginHeadline,
+    tagline = branding.Tagline,
+    verse = branding.Verse,
     hasLogo = branding.HasLogo,
     logoUrl = branding.HasLogo ? $"/api/groups/{branding.GroupId}/branding/logo" : null,
     hasBanner = branding.HasBanner,
@@ -4173,6 +4177,8 @@ internal sealed record UpdateGroupBrandingRequest(
     string? DefaultLocale,
     string? WelcomeText,
     string? LoginHeadline,
+    string? Tagline,
+    string? Verse,
     bool ShowSonivoCredit);
 internal sealed record CreateInvitationRequest(string? Email);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);

@@ -12,6 +12,8 @@ public sealed class GroupBranding : IVersionedEntity
 {
     public const int MaxDisplayNameLength = 120;
     public const int MaxTextLength = 500;
+    public const int MaxTaglineLength = 160;
+    public const int MaxVerseLength = 200;
     public const int MaxCoverValueLength = 32;
 
     private static readonly string[] CoverKinds = ["emoji", "gradient"];
@@ -28,6 +30,8 @@ public sealed class GroupBranding : IVersionedEntity
     public string? DefaultLocale { get; private set; }
     public string? WelcomeText { get; private set; }
     public string? LoginHeadline { get; private set; }
+    public string? Tagline { get; private set; }
+    public string? Verse { get; private set; }
     public string? LogoBlobKey { get; private set; }
     public string? LogoContentType { get; private set; }
     public string? BannerBlobKey { get; private set; }
@@ -68,6 +72,8 @@ public sealed class GroupBranding : IVersionedEntity
         string? defaultLocale,
         string? welcomeText,
         string? loginHeadline,
+        string? tagline,
+        string? verse,
         bool showSonivoCredit,
         DateTimeOffset now)
     {
@@ -80,6 +86,8 @@ public sealed class GroupBranding : IVersionedEntity
         DefaultLocale = CleanEnum(defaultLocale, Locales, nameof(defaultLocale));
         WelcomeText = CleanOptional(welcomeText, MaxTextLength, nameof(welcomeText));
         LoginHeadline = CleanOptional(loginHeadline, MaxTextLength, nameof(loginHeadline));
+        Tagline = CleanOptional(tagline, MaxTaglineLength, nameof(tagline));
+        Verse = CleanOptional(verse, MaxVerseLength, nameof(verse));
 
         if (CoverKind is null)
         {
