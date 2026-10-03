@@ -41,4 +41,28 @@ test.describe('W-G tasks', () => {
       'No encontramos este grupo o no tienes acceso.',
     )
   })
+
+  test('TC-WS-16 board view groups tasks into columns', async ({ page }) => {
+    const email = uniqueEmail('wgboard')
+    await register(page, email)
+    const stamp = Date.now()
+    await createGroup(page, `W-G Board ${stamp}`)
+    const id = page.url().match(/\/groups\/([0-9a-f-]+)/i)?.[1]
+    expect(id).toBeTruthy()
+
+    await page.getByTestId('group-rail').getByRole('link', { name: 'Tareas' }).click()
+    await expect(page.getByRole('heading', { name: 'Tareas' })).toBeVisible()
+
+    for (const title of [`Board A ${stamp}`, `Board B ${stamp}`]) {
+      await page.getByRole('button', { name: 'Nueva tarea' }).click()
+      const dialog = page.getByRole('dialog')
+      await dialog.getByLabel('Título').fill(title)
+      await dialog.getByRole('button', { name: 'Crear tarea' }).click()
+    }
+
+    await page.getByRole('tab', { name: 'Tablero' }).click()
+    await expect(page.getByText('SIN ASIGNAR')).toBeVisible()
+    await expect(page.getByText(`Board A ${stamp}`)).toBeVisible()
+    await expect(page.getByText(`Board B ${stamp}`)).toBeVisible()
+  })
 })
