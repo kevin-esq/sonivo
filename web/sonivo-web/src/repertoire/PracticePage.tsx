@@ -709,41 +709,6 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         </section>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4">
-        <span className="text-sm font-medium text-ink">{t('practica.metronomeTitle')}</span>
-        <input
-          type="number"
-          className={cn(fieldClass, 'w-20')}
-          min={1}
-          max={400}
-          value={metronomeBpm}
-          disabled={metronomeOn}
-          onChange={(e) =>
-            setMetronomeBpm(Math.max(1, Math.min(400, Number(e.target.value) || 1)))
-          }
-          aria-label={t('practica.metronomeBpm')}
-        />
-        <Button
-          variant={metronomeOn ? 'primary' : 'secondary'}
-          size="sm"
-          data-testid="practice-metronome-toggle"
-          onClick={() => setMetronomeOn((on) => !on)}
-          aria-pressed={metronomeOn}
-        >
-          {metronomeOn
-            ? t('practica.metronomeStop')
-            : t('practica.metronomeStart')}
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          data-testid="practice-live-open"
-          onClick={() => setLiveOpen(true)}
-        >
-          {t('practica.liveTitle')}
-        </Button>
-      </div>
-
       {sourceBody ? (
         <StageModePanel
           text={displayBody}
@@ -797,6 +762,41 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           aria-labelledby="practice-tab-avanzado"
           data-testid="practice-panel-avanzado"
         >
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4">
+            <span className="text-sm font-medium text-ink">{t('practica.metronomeTitle')}</span>
+            <input
+              type="number"
+              className={cn(fieldClass, 'w-20')}
+              min={1}
+              max={400}
+              value={metronomeBpm}
+              disabled={metronomeOn}
+              onChange={(e) =>
+                setMetronomeBpm(Math.max(1, Math.min(400, Number(e.target.value) || 1)))
+              }
+              aria-label={t('practica.metronomeBpm')}
+            />
+            <Button
+              variant={metronomeOn ? 'primary' : 'secondary'}
+              size="sm"
+              data-testid="practice-metronome-toggle"
+              onClick={() => setMetronomeOn((on) => !on)}
+              aria-pressed={metronomeOn}
+            >
+              {metronomeOn
+                ? t('practica.metronomeStop')
+                : t('practica.metronomeStart')}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="practice-live-open"
+              onClick={() => setLiveOpen(true)}
+            >
+              {t('practica.liveTitle')}
+            </Button>
+          </div>
+
           <div className="space-y-1">
             <h2 className="text-lg font-semibold tracking-tight text-ink">
               {t('practica.avanzado.title')}
