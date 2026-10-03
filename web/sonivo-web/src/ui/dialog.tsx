@@ -40,7 +40,7 @@ export function ConfirmDialog({
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
-      className="w-[min(100%,28rem)] max-w-[calc(100%-2rem)] rounded-2xl border-0 bg-white p-0 text-neutral-dark shadow-xl backdrop:bg-neutral-dark/60"
+      className="w-[min(100%,28rem)] max-w-[calc(100%-2rem)] rounded-2xl border-0 bg-surface p-0 text-ink shadow-xl backdrop:bg-neutral-dark/60"
       onCancel={(event) => {
         event.preventDefault()
         if (!pending) onCancel()
@@ -53,7 +53,7 @@ export function ConfirmDialog({
         <h2 id={titleId} className="text-lg font-semibold">
           {title}
         </h2>
-        <div className="space-y-2 text-slate-600">{children}</div>
+        <div className="space-y-2 text-muted">{children}</div>
         <div className="flex flex-wrap gap-3">
           <Button variant="danger" disabled={pending} onClick={onConfirm}>
             {pending ? pendingLabel : confirmLabel}

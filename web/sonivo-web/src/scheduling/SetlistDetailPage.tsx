@@ -52,7 +52,7 @@ function toDraft(items: SetlistItem[]): DraftItem[] {
 
 function SetlistNumber({ n }: { n: number }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-light font-mono text-sm font-semibold text-slate-600">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-hover font-mono text-sm font-semibold text-muted">
       {String(n).padStart(2, '0')}
     </span>
   )
@@ -289,7 +289,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
               </Button>
             ) : null}
           </div>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted">
             Ordena los arreglos que se tocan. Se permiten duplicados. Guardar reemplaza la lista
             completa.
           </p>
@@ -307,17 +307,17 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
             <div className="space-y-1">
               <div
                 aria-hidden="true"
-                className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:grid sm:grid-cols-[2.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
+                className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[2.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
               >
                 <span>N.º</span>
                 <span>Arreglo</span>
                 <span>Acciones</span>
               </div>
-              <ol className="space-y-2 sm:space-y-0 sm:divide-y sm:divide-slate-100 sm:rounded-2xl sm:border sm:border-slate-100 sm:bg-white">
+              <ol className="space-y-2 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
               {draft.map((item, index) => (
                 <li
                   key={item.key}
-                  className="library-enter flex min-h-[44px] flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3 shadow-sm transition duration-150 hover:border-primary/25 hover:bg-neutral-light motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
+                  className="library-enter flex min-h-[44px] flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-3 shadow-sm transition duration-150 hover:border-primary/25 hover:bg-surface-hover motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
                   <SetlistNumber n={item.sortOrder} />
@@ -328,8 +328,8 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                     <Music2 className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-semibold text-neutral-dark">{item.songTitle}</span>
-                    <span className="text-sm text-slate-500">{item.arrangementLabel}</span>
+                    <span className="block font-semibold text-ink">{item.songTitle}</span>
+                    <span className="text-sm text-muted">{item.arrangementLabel}</span>
                   </span>
                   {isOwner ? (
                     <div className="flex flex-wrap items-center gap-1">
@@ -371,11 +371,11 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
           )}
 
           {addPanelOpen ? (
-            <div className="max-w-md space-y-3 rounded-2xl border border-slate-100 bg-neutral-light p-4">
+            <div className="max-w-md space-y-3 rounded-2xl border border-border-subtle bg-surface-hover p-4">
               {options === null ? (
                 <p aria-live="polite">Cargando arreglos…</p>
               ) : options.length === 0 ? (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted">
                   No hay arreglos en la biblioteca. Agrega uno primero.
                 </p>
               ) : (
@@ -407,8 +407,8 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
           ) : null}
         </section>
 
-        <aside className="space-y-4 rounded-2xl bg-neutral-light p-5">
-          <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
+        <aside className="space-y-4 rounded-2xl bg-surface-hover p-5">
+          <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">
             Detalles
           </h2>
           {renaming && isOwner ? (
@@ -434,14 +434,14 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
           ) : (
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-slate-500">Nombre</dt>
-                <dd className="font-medium text-neutral-dark">{setlist.name}</dd>
+                <dt className="text-muted">Nombre</dt>
+                <dd className="font-medium text-ink">{setlist.name}</dd>
               </div>
             </dl>
           )}
 
           {!renaming ? (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted">
               Una lista se puede aplicar a eventos cuando esté lista.
             </p>
           ) : null}
@@ -494,7 +494,7 @@ function RenameSetlistForm({
 
   return (
     <form className="space-y-3" onSubmit={onSubmit} noValidate>
-      <p className="text-xs text-slate-500">Cambia el nombre de esta lista</p>
+      <p className="text-xs text-muted">Cambia el nombre de esta lista</p>
       <ProblemAlert message={error} />
       <Field label="Nombre">
         <input

@@ -23,9 +23,9 @@ import { plural } from '../ui/plural'
 
 const SETLIST_TILES = [
   { Icon: ListMusic, tileClass: 'bg-primary/15 text-primary-ink' },
-  { Icon: Music2, tileClass: 'bg-success/20 text-neutral-dark' },
+  { Icon: Music2, tileClass: 'bg-success/20 text-ink' },
   { Icon: Star, tileClass: 'bg-accent/20 text-accent' },
-  { Icon: ListMusic, tileClass: 'bg-secondary text-neutral-dark' },
+  { Icon: ListMusic, tileClass: 'bg-secondary text-ink' },
 ] as const
 
 function setlistTile(index: number) {
@@ -138,7 +138,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-52 flex-1">
             <Search
-              className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted"
               aria-hidden="true"
             />
             <label className="sr-only" htmlFor="setlists-search">
@@ -159,7 +159,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
         </div>
       ) : null}
       {searching && filtered !== null ? (
-        <p role="status" aria-live="polite" data-testid="setlists-results" className="text-sm text-slate-500">
+        <p role="status" aria-live="polite" data-testid="setlists-results" className="text-sm text-muted">
           {plural(filtered.length, t('common.resultOne'), t('common.resultMany'))}
         </p>
       ) : null}
@@ -194,19 +194,19 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
           />
         )
       ) : filtered && filtered.length === 0 ? (
-        <p className="text-sm text-slate-500">Ninguna lista coincide con «{query.trim()}».</p>
+        <p className="text-sm text-muted">Ninguna lista coincide con «{query.trim()}».</p>
       ) : (
         <div className="space-y-1">
           <div
             aria-hidden="true"
-            className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto_1.5rem] sm:items-center sm:gap-3"
+            className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto_1.5rem] sm:items-center sm:gap-3"
           >
             <span>{t('agenda.setlistsColList')}</span>
             <span>{t('agenda.setlistsColSongs')}</span>
             <span>{t('agenda.setlistsColUpdated')}</span>
             <span />
           </div>
-          <ul className="space-y-1 sm:space-y-0 sm:divide-y sm:divide-slate-100 sm:rounded-2xl sm:border sm:border-slate-100 sm:bg-white">
+          <ul className="space-y-1 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
             {filtered!.map((setlist, index) => {
               const { Icon, tileClass } = setlistTile(index)
               const empty = setlist.itemCount === 0
@@ -217,7 +217,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
                   <Link
-                    className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 no-underline shadow-sm transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
+                    className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline shadow-sm transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
                     to={`/groups/${group.id}/setlists/${setlist.id}`}
                   >
                     <span
@@ -230,13 +230,13 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                       <Icon className="h-5 w-5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold text-neutral-dark">
+                      <span className="block truncate font-semibold text-ink">
                         {setlist.name}
                       </span>
-                      <span className="mt-0.5 block text-sm text-slate-500">
+                      <span className="mt-0.5 block text-sm text-muted">
                         {plural(setlist.itemCount, t('common.songOne'), t('common.songMany'))}
                       </span>
-                      <span className="mt-0.5 block text-xs text-slate-400 sm:hidden">
+                      <span className="mt-0.5 block text-xs text-muted sm:hidden">
                         Actualizado: {formatUpdatedAt(setlist.updatedAt)}
                       </span>
                     </span>
@@ -252,10 +252,10 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                             t('agenda.setlistArrangementsMany'),
                           )}
                     </ReadinessChip>
-                    <span className="hidden text-xs text-slate-400 sm:block">
+                    <span className="hidden text-xs text-muted sm:block">
                       {formatUpdatedAt(setlist.updatedAt)}
                     </span>
-                    <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" aria-hidden="true" />
+                    <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
                   </Link>
                 </li>
               )
@@ -308,7 +308,7 @@ function SetlistCreateForm({
   }
 
   return (
-    <form className="max-w-lg space-y-4 border-t border-slate-200 pt-6" onSubmit={onSubmit} noValidate>
+    <form className="max-w-lg space-y-4 border-t border-border-subtle pt-6" onSubmit={onSubmit} noValidate>
       <h2 className="text-lg font-semibold">Crear lista</h2>
       <ProblemAlert message={error} />
       <Field label="Nombre">

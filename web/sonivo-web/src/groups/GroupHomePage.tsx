@@ -32,7 +32,7 @@ import { useT } from '../i18n'
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
 
 const TILE_CLASS =
-  'flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none'
+  'flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none'
 
 const TILE_ICON_CLASS =
   'grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink'
@@ -263,8 +263,8 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             <Music2 className="h-5 w-5" />
           </span>
           <span className="min-w-0">
-            <span className="block text-sm font-semibold text-neutral-dark">{t('inicio.tileSongs')}</span>
-            <span className="block truncate text-xs text-slate-500">{t('inicio.tileSongsDesc')}</span>
+            <span className="block text-sm font-semibold text-ink">{t('inicio.tileSongs')}</span>
+            <span className="block truncate text-xs text-muted">{t('inicio.tileSongsDesc')}</span>
           </span>
         </Link>
         <Link to={`/groups/${group.id}/events`} data-testid="home-stat-events" className={TILE_CLASS}>
@@ -272,8 +272,8 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             <CalendarDays className="h-5 w-5" />
           </span>
           <span className="min-w-0">
-            <span className="block text-sm font-semibold text-neutral-dark">{t('inicio.tileCalendar')}</span>
-            <span className="block truncate text-xs text-slate-500">{t('inicio.tileCalendarDesc')}</span>
+            <span className="block text-sm font-semibold text-ink">{t('inicio.tileCalendar')}</span>
+            <span className="block truncate text-xs text-muted">{t('inicio.tileCalendarDesc')}</span>
           </span>
         </Link>
         <Link to={`/groups/${group.id}/recursos`} className={TILE_CLASS}>
@@ -281,8 +281,8 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             <Library className="h-5 w-5" />
           </span>
           <span className="min-w-0">
-            <span className="block text-sm font-semibold text-neutral-dark">{t('inicio.tileResources')}</span>
-            <span className="block truncate text-xs text-slate-500">{t('inicio.tileResourcesDesc')}</span>
+            <span className="block text-sm font-semibold text-ink">{t('inicio.tileResources')}</span>
+            <span className="block truncate text-xs text-muted">{t('inicio.tileResourcesDesc')}</span>
           </span>
         </Link>
         <Link to={`/groups/${group.id}/tasks`} className={TILE_CLASS}>
@@ -290,8 +290,8 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             <CheckSquare className="h-5 w-5" />
           </span>
           <span className="min-w-0">
-            <span className="block text-sm font-semibold text-neutral-dark">{t('inicio.tileTasks')}</span>
-            <span className="block truncate text-xs text-slate-500">{t('inicio.tileTasksDesc')}</span>
+            <span className="block text-sm font-semibold text-ink">{t('inicio.tileTasks')}</span>
+            <span className="block truncate text-xs text-muted">{t('inicio.tileTasksDesc')}</span>
           </span>
         </Link>
       </div>
@@ -302,10 +302,10 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           aria-labelledby="home-start-heading"
           data-testid="home-get-started"
         >
-          <h3 id="home-start-heading" className="font-semibold text-neutral-dark">
+          <h3 id="home-start-heading" className="font-semibold text-ink">
             {t('inicio.getStartedTitle')}
           </h3>
-          <p className="mt-1 text-sm text-slate-600">{t('inicio.getStartedIntro')}</p>
+          <p className="mt-1 text-sm text-muted">{t('inicio.getStartedIntro')}</p>
           <ol className="mt-3 space-y-1.5">
             <li>
               <Link
@@ -344,12 +344,12 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             {t('inicio.nextEvent')}
           </h3>
           {events === null ? (
-            <p aria-live="polite" className="text-sm text-slate-500">
+            <p aria-live="polite" className="text-sm text-muted">
               {t('inicio.loadingEvents')}
             </p>
           ) : nextEvent ? (
             <div
-              className="space-y-3 rounded-2xl border border-slate-100 bg-white p-3"
+              className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-3"
               data-testid="home-next-event"
             >
               <div className="flex flex-wrap items-center gap-3">
@@ -360,12 +360,12 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                   <CalendarDays className="h-6 w-6" />
                 </span>
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="truncate font-semibold text-neutral-dark">{nextEvent.title}</p>
-                  <p className="text-sm text-slate-500">{formatStartsAt(nextEvent.startsAt)}</p>
-                  <p className="text-xs text-slate-400">{formatEventType(nextEvent.type)}</p>
+                  <p className="truncate font-semibold text-ink">{nextEvent.title}</p>
+                  <p className="text-sm text-muted">{formatStartsAt(nextEvent.startsAt)}</p>
+                  <p className="text-xs text-muted">{formatEventType(nextEvent.type)}</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-600" data-testid="home-next-event-rsvp">
+              <p className="text-sm text-muted" data-testid="home-next-event-rsvp">
                 {t('inicio.myRsvp')}{' '}
                 <strong>
                   {myRsvp === undefined ? '…' : formatRsvpLabel(myRsvp)}
@@ -419,7 +419,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             </Link>
           </div>
           {latestSongs === null ? (
-            <p aria-live="polite" className="text-sm text-slate-500">
+            <p aria-live="polite" className="text-sm text-muted">
               {t('inicio.loadingSongs')}
             </p>
           ) : latestSongs.length === 0 ? (
@@ -440,19 +440,19 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               {latestSongs.map((song, index) => (
                 <li key={song.id}>
                   <Link
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 no-underline transition duration-150 hover:border-primary/25 hover:bg-neutral-light"
+                    className="flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover"
                     to={`/groups/${group.id}/songs/${song.id}`}
                     style={{ animationDelay: `${Math.min(index, 4) * 40}ms` }}
                   >
                     <span
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success/20 text-neutral-dark"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success/20 text-ink"
                       aria-hidden="true"
                     >
                       <Music2 className="h-5 w-5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold text-neutral-dark">{song.title}</span>
-                      <span className="mt-0.5 block truncate text-sm text-slate-500">
+                      <span className="block truncate font-semibold text-ink">{song.title}</span>
+                      <span className="mt-0.5 block truncate text-sm text-muted">
                         {song.attribution ? `${song.attribution} · ` : ''}
                         {formatRelativeUpdated(song.updatedAt)}
                       </span>
@@ -474,7 +474,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       </div>
 
       {isOwner ? (
-        <section className="space-y-6 border-t border-slate-200 pt-6" aria-labelledby="admin-heading">
+        <section className="space-y-6 border-t border-border-subtle pt-6" aria-labelledby="admin-heading">
           <h2 id="admin-heading" className="text-lg font-semibold">
             {t('inicio.admin')}
           </h2>
@@ -482,7 +482,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           <div className="space-y-3">
             <h3 className="font-medium">{t('inicio.inviteTitle')}</h3>
             <label className="block max-w-md space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">
+              <span className="text-sm font-medium text-ink">
                 {t('inicio.inviteEmail')}
               </span>
               <input
@@ -501,7 +501,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             {inviteEmailWarning ? (
               <p
                 role="status"
-                className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-neutral-dark"
+                className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-ink"
               >
                 {t('inicio.inviteMailWarning')}
               </p>
@@ -509,7 +509,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             {inviteUrl ? (
               <div className="max-w-md space-y-2">
                 <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-slate-700">{t('inicio.inviteLinkLabel')}</span>
+                  <span className="text-sm font-medium text-ink">{t('inicio.inviteLinkLabel')}</span>
                   <input
                     className={fieldClass}
                     readOnly
@@ -521,7 +521,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                   {t('inicio.copyLink')}
                 </Button>
                 {copied ? (
-                  <p aria-live="polite" className="text-sm text-slate-600">
+                  <p aria-live="polite" className="text-sm text-muted">
                     {t('inicio.copied')}
                   </p>
                 ) : null}

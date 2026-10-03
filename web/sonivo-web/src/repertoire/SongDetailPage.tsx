@@ -339,7 +339,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                 <Button onClick={() => setCreatingArrangement(true)}>{t('cancion.addArrangement')}</Button>
               ) : null}
             </div>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted">
               {t('cancion.arrangementsHint')}
             </p>
 
@@ -362,13 +362,13 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                     style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                   >
                     <Link
-                      className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3 no-underline shadow-sm transition duration-150 hover:border-slate-200 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none"
+                      className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-3 no-underline shadow-sm transition duration-150 hover:border-border-subtle hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none"
                       to={`/groups/${group.id}/arrangements/${arrangement.id}`}
                     >
                       <NumberedMark n={index + 1} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold text-neutral-dark">{arrangement.label}</span>
-                        <span className="block truncate text-sm text-slate-500">
+                        <span className="block truncate font-semibold text-ink">{arrangement.label}</span>
+                        <span className="block truncate text-sm text-muted">
                           {arrangement.defaultKey ? arrangement.defaultKey : ''}
                           {arrangement.defaultBpm != null
                             ? `${arrangement.defaultKey ? ' · ' : ''}${arrangement.defaultBpm} BPM`
@@ -385,7 +385,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                           ? `${arrangement.defaultKey}${arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm}` : ''}`
                           : t('listas.noKey')}
                       </ReadinessChip>
-                      <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" aria-hidden="true" />
+                      <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
                     </Link>
                   </li>
                 ))}
@@ -408,9 +408,9 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
 
         <aside
           data-testid="song-facts"
-          className="space-y-4 rounded-2xl border border-slate-100 bg-neutral-light p-5 shadow-sm"
+          className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-5 shadow-sm"
         >
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
             {t('cancion.infoTitle')}
           </h3>
           {editing && isOwner ? (
@@ -432,19 +432,19 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           ) : (
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-slate-500">{t('cancion.infoTitleLabel')}</dt>
+                <dt className="text-muted">{t('cancion.infoTitleLabel')}</dt>
                 <dd className="font-medium">{song.title}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">{t('cancion.infoArtist')}</dt>
+                <dt className="text-muted">{t('cancion.infoArtist')}</dt>
                 <dd className="font-medium">{song.attribution ?? '—'}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">{t('cancion.infoKey')}</dt>
+                <dt className="text-muted">{t('cancion.infoKey')}</dt>
                 <dd className="font-medium">{selectedArrangement?.defaultKey ?? '—'}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">{t('cancion.infoTempo')}</dt>
+                <dt className="text-muted">{t('cancion.infoTempo')}</dt>
                 <dd className="font-medium">
                   {selectedArrangement?.defaultBpm != null
                     ? `${selectedArrangement.defaultBpm} BPM`
@@ -452,15 +452,15 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-500">{t('cancion.infoTags')}</dt>
+                <dt className="text-muted">{t('cancion.infoTags')}</dt>
                 <dd className="font-medium">{song.tags.length > 0 ? song.tags.join(', ') : '—'}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">{t('cancion.originLabel')}</dt>
+                <dt className="text-muted">{t('cancion.originLabel')}</dt>
                 <dd className="font-medium">{formatOriginKind(song.originKind)}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">{t('cancion.rightsLabel')}</dt>
+                <dt className="text-muted">{t('cancion.rightsLabel')}</dt>
                 <dd className="whitespace-pre-wrap font-medium">{song.rightsNotes ?? '—'}</dd>
               </div>
             </dl>
@@ -474,12 +474,12 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
             </div>
           ) : null}
 
-          <div className="space-y-2 border-t border-slate-200 pt-3">
-            <h4 className="text-sm font-semibold text-slate-600">
+          <div className="space-y-2 border-t border-border-subtle pt-3">
+            <h4 className="text-sm font-semibold text-muted">
               {t('cancion.relatedFiles')}
             </h4>
             {resources.length === 0 ? (
-              <p className="text-sm text-slate-500">{t('cancion.noRelatedFiles')}</p>
+              <p className="text-sm text-muted">{t('cancion.noRelatedFiles')}</p>
             ) : (
               <ul className="space-y-2">
                 {resources.slice(0, 6).map((resource) => (
@@ -694,7 +694,7 @@ function ArrangementCreateForm({
   }
 
   return (
-    <form className="space-y-4 border-t border-slate-200 pt-4" onSubmit={onSubmit} noValidate>
+    <form className="space-y-4 border-t border-border-subtle pt-4" onSubmit={onSubmit} noValidate>
       <h3 className="font-semibold">{t('cancion.createArrangement')}</h3>
       <ProblemAlert message={error} />
       <Field label={t('cancion.labelLabel')}>

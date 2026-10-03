@@ -131,24 +131,24 @@ export function PracticePlayer({
 
   return (
     <section
-      className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm"
+      className="space-y-4 rounded-xl border border-border-subtle bg-surface p-4 sm:p-5 shadow-sm"
       aria-labelledby="practice-audio-heading"
       data-testid="practice-player"
     >
       <div className="space-y-1">
-        <h2 id="practice-audio-heading" className="text-lg font-semibold tracking-tight text-neutral-dark">
+        <h2 id="practice-audio-heading" className="text-lg font-semibold tracking-tight text-ink">
           Audio de práctica
         </h2>
-        <p className="text-sm text-slate-600">Elige una pista y ensaya con la letra abajo.</p>
+        <p className="text-sm text-muted">Elige una pista y ensaya con la letra abajo.</p>
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor={trackId} className="block text-sm font-medium text-slate-800">
+        <label htmlFor={trackId} className="block text-sm font-medium text-ink">
           Pista
         </label>
         <select
           id={trackId}
-          className="min-h-11 w-full max-w-xl rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-neutral-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:text-sm"
+          className="min-h-11 w-full max-w-xl rounded-lg border border-border-subtle bg-surface px-3 py-2.5 text-base text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:text-sm"
           value={selected.resourceId}
           onChange={(e) => onTrackChange(e.target.value)}
           data-testid="practice-track-select"
@@ -174,7 +174,7 @@ export function PracticePlayer({
           {isPlaying ? 'Pausar' : 'Reproducir'}
         </Button>
         <p
-          className="tabular-nums text-sm font-medium text-slate-700"
+          className="tabular-nums text-sm font-medium text-ink"
           aria-live="off"
           aria-label={`Tiempo ${formatTime(progress)} de ${formatTime(duration)}`}
         >
@@ -185,7 +185,7 @@ export function PracticePlayer({
       </div>
 
       <div className="max-w-xl space-y-1.5">
-        <label htmlFor={seekId} className="block text-sm font-medium text-slate-800">
+        <label htmlFor={seekId} className="block text-sm font-medium text-ink">
           Posición
         </label>
         <input
@@ -205,7 +205,7 @@ export function PracticePlayer({
       </div>
 
       <div className="max-w-xs space-y-1.5">
-        <label htmlFor={volumeId} className="block text-sm font-medium text-slate-800">
+        <label htmlFor={volumeId} className="block text-sm font-medium text-ink">
           Volumen ({volumePct}%)
         </label>
         <input

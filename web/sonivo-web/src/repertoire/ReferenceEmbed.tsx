@@ -18,7 +18,7 @@ export function ReferenceEmbed({ resource }: { resource: ResourceSummary }) {
   if (videoId == null) {
     return (
       <div className="space-y-1" data-testid="reference-link">
-        <p className="text-sm font-semibold text-neutral-dark">{resource.label}</p>
+        <p className="text-sm font-semibold text-ink">{resource.label}</p>
         {resource.url ? (
           <a
             className="break-all font-medium text-primary-ink no-underline hover:underline"
@@ -35,8 +35,8 @@ export function ReferenceEmbed({ resource }: { resource: ResourceSummary }) {
 
   return (
     <div className="space-y-2" data-testid="reference-embed">
-      <p className="text-sm font-semibold text-neutral-dark">{resource.label}</p>
-      <div className="aspect-video w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-black">
+      <p className="text-sm font-semibold text-ink">{resource.label}</p>
+      <div className="aspect-video w-full max-w-2xl overflow-hidden rounded-xl border border-border-subtle bg-black">
         <iframe
           className="h-full w-full"
           data-testid="reference-iframe"

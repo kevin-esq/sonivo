@@ -52,7 +52,7 @@ function StageLine({
 
   if (line.kind === 'comment') {
     return (
-      <p data-stage-line={index} className="py-1 italic text-slate-500" style={{ fontSize: '0.8em' }}>
+      <p data-stage-line={index} className="py-1 italic text-muted" style={{ fontSize: '0.8em' }}>
         {line.text}
       </p>
     )
@@ -66,7 +66,7 @@ function StageLine({
     return (
       <p
         data-stage-line={index}
-        className="pt-3 font-semibold uppercase tracking-wide text-slate-500"
+        className="pt-3 font-semibold uppercase tracking-wide text-muted"
         style={{ fontSize: '0.5em' }}
       >
         {name === 'soc' || name === 'start_of_chorus' ? '♪' : '•'}
@@ -89,7 +89,7 @@ function StageLine({
               {segment.chord && segment.chord.length > 0 ? segment.chord : '\u00A0'}
             </span>
           ) : null}
-          <span className="block text-neutral-dark">{segment.lyric.length > 0 ? segment.lyric : '\u00A0'}</span>
+          <span className="block text-ink">{segment.lyric.length > 0 ? segment.lyric : '\u00A0'}</span>
         </span>
       ))}
     </div>
@@ -358,7 +358,7 @@ export function StageModePanel({
                   {scrolling ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
                   {scrolling ? t('stage.scrollPause') : t('stage.scrollPlay')}
                 </Button>
-                <label className="flex items-center gap-2 text-xs text-slate-600">
+                <label className="flex items-center gap-2 text-xs text-muted">
                   {t('stage.speed')}
                   <input
                     type="range"
@@ -412,7 +412,7 @@ export function StageModePanel({
                       data-stage-line={index}
                       data-active-line={autoFollow && activeIndex === index ? 'true' : undefined}
                       className={cn(
-                        'leading-snug text-neutral-dark',
+                        'leading-snug text-ink',
                         autoFollow && activeIndex === index && 'rounded-lg bg-primary/10 px-2 ring-1 ring-primary/40',
                       )}
                     >
@@ -433,7 +433,7 @@ export function StageModePanel({
               <SkipBack className="h-4 w-4" aria-hidden="true" />
               {t('stage.previous')}
             </Button>
-            <div className="hidden text-center text-xs text-slate-500 sm:block" role="status" data-testid="stage-status">
+            <div className="hidden text-center text-xs text-muted sm:block" role="status" data-testid="stage-status">
               {hasMarks ? t('stage.followHint') : t('stage.noMarksHint')}
               {wakeStatus === 'active' ? ` ${t('stage.wakeActive')}` : null}
               {wakeStatus === 'unsupported' ? ` ${t('stage.wakeUnsupported')}` : null}

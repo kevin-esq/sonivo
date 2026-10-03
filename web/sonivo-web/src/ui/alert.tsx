@@ -12,7 +12,7 @@ export function ConflictAlert({ message }: { message: string | null }) {
   return (
     <p
       role="alert"
-      className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-neutral-dark"
+      className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-ink"
     >
       {message}
     </p>

@@ -35,14 +35,14 @@ function ChordProLineView({
   }
 
   if (line.kind === 'comment') {
-    return <p className="text-sm italic text-slate-500">{line.text}</p>
+    return <p className="text-sm italic text-muted">{line.text}</p>
   }
 
   if (line.kind === 'directive') {
     const section = sectionKey(line.name)
     if (section == null) return null
     return (
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
         {t(section === 'chorus' ? 'practica.chordpro.chorus' : 'practica.chordpro.verse')}
       </p>
     )
@@ -63,7 +63,7 @@ function ChordProLineView({
               {segment.chord && segment.chord.length > 0 ? segment.chord : '\u00A0'}
             </span>
           ) : null}
-          <span className="block text-base text-neutral-dark">
+          <span className="block text-base text-ink">
             {segment.lyric.length > 0 ? segment.lyric : '\u00A0'}
           </span>
         </span>
@@ -102,7 +102,7 @@ export function ChordProView({
     <div
       className={
         className ??
-        'max-h-[min(70vh,40rem)] space-y-1 overflow-y-auto rounded-2xl bg-neutral-light p-5 font-sans'
+        'max-h-[min(70vh,40rem)] space-y-1 overflow-y-auto rounded-2xl bg-surface-hover p-5 font-sans'
       }
       data-testid={testId}
     >
@@ -154,7 +154,7 @@ export function RehearsalBodyView({
   }
   return (
     <pre
-      className="max-h-[min(70vh,40rem)] overflow-y-auto whitespace-pre-wrap rounded-2xl bg-neutral-light p-5 font-sans text-base leading-relaxed text-neutral-dark"
+      className="max-h-[min(70vh,40rem)] overflow-y-auto whitespace-pre-wrap rounded-2xl bg-surface-hover p-5 font-sans text-base leading-relaxed text-ink"
       data-testid={plainTestId}
     >
       {text}

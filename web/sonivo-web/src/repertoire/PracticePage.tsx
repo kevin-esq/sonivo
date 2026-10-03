@@ -82,7 +82,7 @@ function PracticePageSkeleton({ label }: { label: string }) {
         <Skeleton className="h-4 w-40" />
         <Skeleton className="h-3 w-56 max-w-full" />
       </div>
-      <div className="space-y-3 rounded-xl border border-slate-100 p-4">
+      <div className="space-y-3 rounded-xl border border-border-subtle p-4">
         <Skeleton className="h-5 w-36" />
         <Skeleton className="h-11 w-full max-w-xl" />
         <Skeleton className="h-11 w-28" />
@@ -100,7 +100,7 @@ function QueueSkeleton() {
   const { t } = useT()
   return (
     <div
-      className="space-y-3 rounded-xl border border-slate-200 bg-neutral-light p-4"
+      className="space-y-3 rounded-xl border border-border-subtle bg-surface-hover p-4"
       role="status"
       aria-live="polite"
       aria-label={t('practica.queueLoading')}
@@ -434,14 +434,14 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <PageBreadcrumb items={breadcrumbItems} />
         <div className="space-y-2">
-          <p className="text-sm font-medium uppercase tracking-wide text-slate-600">
+          <p className="text-sm font-medium uppercase tracking-wide text-muted">
             {eventId ? t('practica.rehearsePlan') : t('practica.kicker')}
           </p>
-          <h1 id="practice-heading" className="text-2xl font-bold tracking-tight text-neutral-dark sm:text-[1.75rem]">
+          <h1 id="practice-heading" className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             {displayTitle}
           </h1>
-          <p className="text-base text-slate-700">{displayLabel}</p>
-          <p className="text-sm text-slate-600">
+          <p className="text-base text-ink">{displayLabel}</p>
+          <p className="text-sm text-muted">
             {liveArrangement.defaultKey
               ? `${t('practica.keyPrefix')}${liveArrangement.defaultKey}`
               : t('practica.keyEmpty')}
@@ -484,7 +484,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       ) : null}
 
       <div
-        className="flex gap-1 rounded-xl bg-neutral-light p-1"
+        className="flex gap-1 rounded-xl bg-surface-hover p-1"
         role="tablist"
         aria-label={t('practica.tabs.label')}
       >
@@ -500,8 +500,8 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             className={cn(
               'min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
               tab === id
-                ? 'bg-white text-neutral-dark shadow-sm'
-                : 'text-slate-500 hover:text-neutral-dark',
+                ? 'bg-surface text-ink shadow-sm'
+                : 'text-muted hover:text-ink',
             )}
             onClick={() => setTabPersist(id)}
           >
@@ -541,8 +541,8 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         />
       ) : null}
 
-      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="practice-tuner-heading">
-        <h2 id="practice-tuner-heading" className="text-base font-semibold tracking-tight text-neutral-dark">
+      <section className="space-y-3 rounded-xl border border-border-subtle bg-surface p-4" aria-labelledby="practice-tuner-heading">
+        <h2 id="practice-tuner-heading" className="text-base font-semibold tracking-tight text-ink">
           {t('practica.tunerTitle')}
         </h2>
         <TunerPanel />
@@ -550,7 +550,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       {referenceResources.length > 0 ? (
         <section className="space-y-4" aria-labelledby="practice-reference-heading">
-          <h2 id="practice-reference-heading" className="text-lg font-semibold tracking-tight text-neutral-dark">
+          <h2 id="practice-reference-heading" className="text-lg font-semibold tracking-tight text-ink">
             {t('practica.referenceTitle')}
           </h2>
           {referenceResources.map((resource) => (
@@ -561,12 +561,12 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       {canTranspose ? (
         <section
-          className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+          className="space-y-3 rounded-xl border border-border-subtle bg-surface p-4"
           aria-labelledby="practice-transpose-heading"
         >
           <h2
             id="practice-transpose-heading"
-            className="text-base font-semibold tracking-tight text-neutral-dark"
+            className="text-base font-semibold tracking-tight text-ink"
           >
             {t('practica.toneViewTitle')}
           </h2>
@@ -597,7 +597,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               {t('practica.toneReset')}
             </Button>
           </div>
-          <p className="text-sm text-slate-600" data-testid="practice-transpose-offset">
+          <p className="text-sm text-muted" data-testid="practice-transpose-offset">
             {t('practica.offsetPrefix')}
             {semitoneOffset > 0 ? `+${semitoneOffset}` : String(semitoneOffset)}
             {effectiveKeyHint ? `${t('practica.effectivePrefix')}${effectiveKeyHint}` : null}
@@ -635,7 +635,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
                     {t('practica.followLyrics')}
                   </Button>
                   <p
-                    className="text-xs text-slate-500"
+                    className="text-xs text-muted"
                     data-testid="practice-follow-along-youtube-note"
                   >
                     {t('practica.youtubeNote')}
@@ -680,7 +680,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       ) : null}
 
       <section className="space-y-3" aria-labelledby="practice-lyrics-heading">
-        <h2 id="practice-lyrics-heading" className="text-lg font-semibold tracking-tight text-neutral-dark">
+        <h2 id="practice-lyrics-heading" className="text-lg font-semibold tracking-tight text-ink">
           {t('practica.lyricsTitle')}
         </h2>
         {(() => {
@@ -724,23 +724,23 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           data-testid="practice-panel-avanzado"
         >
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold tracking-tight text-neutral-dark">
+            <h2 className="text-lg font-semibold tracking-tight text-ink">
               {t('practica.avanzado.title')}
             </h2>
-            <p className="text-sm text-slate-600">{t('practica.avanzado.hint')}</p>
+            <p className="text-sm text-muted">{t('practica.avanzado.hint')}</p>
           </div>
 
           <section
-            className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+            className="space-y-3 rounded-xl border border-border-subtle bg-surface p-4"
             aria-labelledby="practice-advanced-timing-heading"
           >
             <h3
               id="practice-advanced-timing-heading"
-              className="text-base font-semibold tracking-tight text-neutral-dark"
+              className="text-base font-semibold tracking-tight text-ink"
             >
               {t('practica.avanzado.timingTitle')}
             </h3>
-            <p className="text-sm text-slate-600">{t('practica.avanzado.timingHint')}</p>
+            <p className="text-sm text-muted">{t('practica.avanzado.timingHint')}</p>
             <p>
               <Link
                 className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -753,16 +753,16 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           </section>
 
           <section
-            className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+            className="space-y-3 rounded-xl border border-border-subtle bg-surface p-4"
             aria-labelledby="practice-advanced-digitize-heading"
           >
             <h3
               id="practice-advanced-digitize-heading"
-              className="text-base font-semibold tracking-tight text-neutral-dark"
+              className="text-base font-semibold tracking-tight text-ink"
             >
               {t('practica.avanzado.digitizeTitle')}
             </h3>
-            <p className="text-sm text-slate-600">{t('practica.avanzado.digitizeHint')}</p>
+            <p className="text-sm text-muted">{t('practica.avanzado.digitizeHint')}</p>
             <p>
               <Link
                 className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -782,7 +782,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
                 />
               ) : (
                 <p
-                  className="rounded-xl border border-slate-200 bg-neutral-light px-3 py-2 text-sm text-slate-600"
+                  className="rounded-xl border border-border-subtle bg-surface-hover px-3 py-2 text-sm text-muted"
                   data-testid="practice-advanced-digitize-empty"
                 >
                   {t('practica.avanzado.digitizeEmpty')}
@@ -802,7 +802,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               error={conductor.error}
             />
           ) : (
-            <p className="text-sm text-slate-600" data-testid="practice-advanced-conductor-hint">
+            <p className="text-sm text-muted" data-testid="practice-advanced-conductor-hint">
               {t('practica.avanzado.conductorHint')}
             </p>
           )}
@@ -811,16 +811,16 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       {tab === 'afinar' ? (
         <section
-          className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+          className="space-y-3 rounded-xl border border-border-subtle bg-surface p-4"
           role="tabpanel"
           id="practice-panel-afinar"
           aria-labelledby="practice-tab-afinar"
           data-testid="practice-panel-afinar"
         >
-          <h2 className="text-lg font-semibold tracking-tight text-neutral-dark">
+          <h2 className="text-lg font-semibold tracking-tight text-ink">
             {t('practica.afinar.title')}
           </h2>
-          <p className="text-sm text-slate-600">{t('practica.afinar.hint')}</p>
+          <p className="text-sm text-muted">{t('practica.afinar.hint')}</p>
           <TunerPanel />
         </section>
       ) : null}

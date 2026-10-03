@@ -159,7 +159,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
               onClick={() => setTab(item.id)}
               className={cn(
                 'min-h-11 rounded-xl px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-                tab === item.id ? 'bg-primary/15 text-primary-ink' : 'text-slate-500 hover:bg-neutral-light',
+                tab === item.id ? 'bg-primary/15 text-primary-ink' : 'text-muted hover:bg-surface-hover',
               )}
             >
               {t(item.labelKey)}
@@ -190,7 +190,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
         </div>
       ) : null}
       {searching && filtered !== null ? (
-        <p role="status" aria-live="polite" data-testid="library-results" className="text-sm text-slate-500">
+        <p role="status" aria-live="polite" data-testid="library-results" className="text-sm text-muted">
           {plural(filtered.length, t('common.resultOne'), t('common.resultMany'))}
         </p>
       ) : null}
@@ -236,14 +236,14 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
         <div className="space-y-1">
           <div
             aria-hidden="true"
-            className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:grid sm:grid-cols-[2.75rem_minmax(0,1fr)_auto_1.5rem] sm:items-center sm:gap-3"
+            className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[2.75rem_minmax(0,1fr)_auto_1.5rem] sm:items-center sm:gap-3"
           >
             <span />
             <span>{t('listas.colSong')}</span>
             <span>{t('listas.colOrigin')}</span>
             <span />
           </div>
-          <ul className="space-y-1 sm:space-y-0 sm:divide-y sm:divide-slate-100 sm:rounded-2xl sm:border sm:border-slate-100 sm:bg-white">
+          <ul className="space-y-1 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
             {filtered.map((song, index) => (
               <li
                 key={song.id}
@@ -251,21 +251,21 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
                 <Link
-                  className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 no-underline shadow-sm transition duration-150 hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
+                  className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline shadow-sm transition duration-150 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
                   to={`/groups/${group.id}/songs/${song.id}`}
                 >
                   <OriginMark kind={song.originKind} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold text-neutral-dark">{song.title}</span>
+                    <span className="block truncate font-semibold text-ink">{song.title}</span>
                     {song.attribution ? (
-                      <span className="block truncate text-sm text-slate-500">{song.attribution}</span>
+                      <span className="block truncate text-sm text-muted">{song.attribution}</span>
                     ) : null}
                     {song.tags.length > 0 ? (
                       <span className="mt-1 flex flex-wrap gap-1">
                         {song.tags.slice(0, 4).map((tag) => (
                           <span
                             key={tag}
-                            className="rounded-full bg-neutral-light px-2 py-0.5 text-[11px] font-medium text-slate-500"
+                            className="rounded-full bg-surface-hover px-2 py-0.5 text-[11px] font-medium text-muted"
                           >
                             {tag}
                           </span>
@@ -274,7 +274,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                     ) : null}
                   </span>
                   <OriginBadge kind={song.originKind} />
-                  <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" aria-hidden="true" />
+                  <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
                 </Link>
               </li>
             ))}
@@ -338,7 +338,7 @@ function SongCreateForm({
   }
 
   return (
-    <form className="max-w-lg space-y-4 border-t border-slate-200 pt-6" onSubmit={onSubmit} noValidate>
+    <form className="max-w-lg space-y-4 border-t border-border-subtle pt-6" onSubmit={onSubmit} noValidate>
       <h2 className="text-lg font-semibold">{t('canciones.createTitle')}</h2>
       <ProblemAlert message={error} />
       <Field label={t('canciones.titleLabel')}>

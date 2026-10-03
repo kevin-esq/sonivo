@@ -47,7 +47,7 @@ function HomeGroupCard({ group }: { group: GroupSummary }) {
                 "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
                 owner
                   ? "bg-primary/10 text-primary-ink"
-                  : "bg-slate-500/15 text-muted",
+                  : "bg-muted/15 text-muted",
               )}
             >
               {owner ? (

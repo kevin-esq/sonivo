@@ -34,17 +34,17 @@ const ORIGIN_VISUAL: Record<
 > = {
   original: { Icon: Music2, tileClass: 'bg-primary/15 text-primary-ink' },
   cover: { Icon: Disc3, tileClass: 'bg-accent/20 text-accent' },
-  other: { Icon: AudioLines, tileClass: 'bg-secondary text-neutral-dark' },
+  other: { Icon: AudioLines, tileClass: 'bg-secondary text-ink' },
 }
 
 const PURPOSE_VISUAL: Record<ResourcePurpose, { Icon: LucideIcon; tileClass: string }> = {
   chart: { Icon: FileText, tileClass: 'bg-primary/15 text-primary-ink' },
-  lyrics: { Icon: BookOpen, tileClass: 'bg-secondary text-neutral-dark' },
+  lyrics: { Icon: BookOpen, tileClass: 'bg-secondary text-ink' },
   audio: { Icon: Headphones, tileClass: 'bg-accent/20 text-accent' },
-  click: { Icon: Timer, tileClass: 'bg-warning/20 text-neutral-dark' },
-  practice: { Icon: Repeat, tileClass: 'bg-success/20 text-neutral-dark' },
-  reference: { Icon: Link2, tileClass: 'bg-slate-100 text-slate-600' },
-  other: { Icon: AudioLines, tileClass: 'bg-slate-100 text-slate-600' },
+  click: { Icon: Timer, tileClass: 'bg-warning/20 text-ink' },
+  practice: { Icon: Repeat, tileClass: 'bg-success/20 text-ink' },
+  reference: { Icon: Link2, tileClass: 'bg-surface-hover text-muted' },
+  other: { Icon: AudioLines, tileClass: 'bg-surface-hover text-muted' },
 }
 
 export function originVisual(kind: string) {
@@ -81,10 +81,10 @@ export function Field({
   return (
     <div className="space-y-1.5">
       <label className="block space-y-1.5">
-        <span className="text-sm font-medium text-slate-700">{label}</span>
+        <span className="text-sm font-medium text-ink">{label}</span>
         {children}
       </label>
-      {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
+      {hint ? <p className="text-xs text-muted">{hint}</p> : null}
     </div>
   )
 }
@@ -95,7 +95,7 @@ export function FormActions({ children }: { children: ReactNode }) {
 
 export function PageBreadcrumb({ items }: { items: { to?: string; label: string }[] }) {
   return (
-    <nav aria-label="Ruta" className="text-sm text-slate-500">
+    <nav aria-label="Ruta" className="text-sm text-muted">
       <ol className="flex flex-wrap items-center gap-1">
         {items.map((item, index) => (
           <li key={`${item.label}-${index}`} className="flex items-center gap-1">
@@ -124,13 +124,13 @@ export function EmptyPanel({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-col items-start gap-4 rounded-2xl bg-neutral-light px-5 py-8">
+    <div className="flex flex-col items-start gap-4 rounded-2xl bg-surface-hover px-5 py-8">
       <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary-ink">
         <Music2 className="h-6 w-6" aria-hidden="true" />
       </span>
       <div className="space-y-1">
-        <p className="font-semibold text-neutral-dark">{title}</p>
-        <p className="max-w-md text-sm text-slate-500">{description}</p>
+        <p className="font-semibold text-ink">{title}</p>
+        <p className="max-w-md text-sm text-muted">{description}</p>
       </div>
       {action}
     </div>
@@ -154,7 +154,7 @@ export function OriginMark({ kind }: { kind: string }) {
 
 export function OriginBadge({ kind }: { kind: string }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-neutral-light px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+    <span className="inline-flex items-center rounded-full bg-surface-hover px-2.5 py-0.5 text-xs font-semibold text-muted">
       {formatOriginKind(kind)}
     </span>
   )
@@ -174,7 +174,7 @@ export function PurposeMark({ purpose }: { purpose: string }) {
 
 export function NumberedMark({ n }: { n: number }) {
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-light text-sm font-semibold text-slate-600">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-hover text-sm font-semibold text-muted">
       {n}
     </span>
   )
@@ -191,7 +191,7 @@ export function AddSongButton({ onClick }: { onClick: () => void }) {
 
 export function PurposeHeading({ purpose }: { purpose: string }) {
   return (
-    <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+    <h4 className="flex items-center gap-2 text-sm font-semibold text-muted">
       <PurposeMark purpose={purpose} />
       {formatPurpose(purpose)}
     </h4>
@@ -201,9 +201,9 @@ export function PurposeHeading({ purpose }: { purpose: string }) {
 type ReadinessTone = 'neutral' | 'ok' | 'warn' | 'accent'
 
 const READINESS_TONE_CLASS: Record<ReadinessTone, string> = {
-  neutral: 'bg-slate-100 text-slate-600',
-  ok: 'bg-success/20 text-neutral-dark',
-  warn: 'bg-warning/25 text-neutral-dark',
+  neutral: 'bg-surface-hover text-muted',
+  ok: 'bg-success/20 text-ink',
+  warn: 'bg-warning/25 text-ink',
   accent: 'bg-primary/15 text-primary-ink',
 }
 
