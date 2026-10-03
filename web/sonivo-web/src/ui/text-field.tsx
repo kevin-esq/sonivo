@@ -49,7 +49,7 @@ function FieldError({ id, message }: { id: string | undefined; message: string |
 function FieldHint({ id, hint }: { id: string | undefined; hint?: string }) {
   if (!hint) return null
   return (
-    <p id={id} className="text-xs text-slate-500">
+    <p id={id} className="text-xs text-muted">
       {hint}
     </p>
   )
@@ -68,7 +68,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
   const { fieldId, hintId, errorId, describedBy } = useFieldIds(id, hint, error)
   return (
     <div className="space-y-1.5">
-      <label htmlFor={fieldId} className="block text-sm font-medium text-slate-700">
+      <label htmlFor={fieldId} className="block text-sm font-medium text-ink">
         {label}
       </label>
       <div className="relative">
@@ -100,7 +100,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
   const { fieldId, hintId, errorId, describedBy } = useFieldIds(id, hint, error)
   return (
     <div className="space-y-1.5">
-      <label htmlFor={fieldId} className="block text-sm font-medium text-slate-700">
+      <label htmlFor={fieldId} className="block text-sm font-medium text-ink">
         {label}
       </label>
       <textarea
@@ -126,7 +126,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   const { fieldId, hintId, errorId, describedBy } = useFieldIds(id, hint, error)
   return (
     <div className="space-y-1.5">
-      <label htmlFor={fieldId} className="block text-sm font-medium text-slate-700">
+      <label htmlFor={fieldId} className="block text-sm font-medium text-ink">
         {label}
       </label>
       <select

@@ -340,7 +340,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       <ConflictAlert message={conflict} />
 
       <div
-        className="flex gap-1 rounded-xl bg-neutral-light p-1"
+        className="flex gap-1 rounded-xl bg-surface-hover p-1"
         role="tablist"
         aria-label="Secciones del evento"
       >
@@ -373,7 +373,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                 Copia
               </span>
             </div>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted">
               Plan de canciones (copiado de la lista). Los cambios posteriores a la lista no
               actualizan este plan hasta que vuelvas a aplicar.
             </p>
@@ -437,31 +437,31 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
             <div className="space-y-1">
               <div
                 aria-hidden="true"
-                className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:grid sm:grid-cols-[2.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
+                className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[2.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
               >
                 <span>N.º</span>
                 <span>Canción</span>
                 <span>Acción</span>
               </div>
-              <ol className="space-y-1.5 sm:space-y-0 sm:divide-y sm:divide-slate-100 sm:rounded-2xl sm:border sm:border-slate-100 sm:bg-white">
+              <ol className="space-y-1.5 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
               {plan.map((item, index) => (
                 <li
                   key={item.id}
-                  className="library-enter flex min-h-[44px] flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 shadow-sm transition duration-150 hover:border-primary/25 hover:bg-neutral-light motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
+                  className="library-enter flex min-h-[44px] flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 shadow-sm transition duration-150 hover:border-primary/25 hover:bg-surface-hover motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
                   <PlanNumber n={item.sortOrder} />
                   <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-neutral-dark"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-ink"
                     aria-hidden="true"
                   >
                     <Music2 className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-semibold text-neutral-dark">
+                    <span className="block font-semibold text-ink">
                       {item.displaySongTitle}
                     </span>
-                    <span className="text-sm text-slate-500">{item.displayArrangementLabel}</span>
+                    <span className="text-sm text-muted">{item.displayArrangementLabel}</span>
                   </span>
                   {isLive ? (
                     <Link
@@ -483,7 +483,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
 
           {isOwner && isLive ? (
             <section
-              className="max-w-md space-y-3 rounded-2xl border border-slate-100 bg-neutral-light p-4"
+              className="max-w-md space-y-3 rounded-2xl border border-border-subtle bg-surface-hover p-4"
               aria-labelledby="apply-heading"
             >
               <h3 id="apply-heading" className="font-semibold">
@@ -492,7 +492,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               {setlists === null ? (
                 <p aria-live="polite">Cargando listas…</p>
               ) : setlists.length === 0 ? (
-                <p className="text-sm text-slate-500">Aún no hay listas. Crea una primero.</p>
+                <p className="text-sm text-muted">Aún no hay listas. Crea una primero.</p>
               ) : (
                 <form
                   className="space-y-3"
@@ -549,20 +549,20 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               }}
             />
           ) : (
-            <dl className="grid max-w-lg gap-4 rounded-2xl bg-neutral-light p-5 sm:grid-cols-2">
+            <dl className="grid max-w-lg gap-4 rounded-2xl bg-surface-hover p-5 sm:grid-cols-2">
               <div>
-                <dt className="text-sm text-slate-500">Tipo</dt>
-                <dd className="font-medium text-neutral-dark">{formatEventType(musicalEvent.type)}</dd>
+                <dt className="text-sm text-muted">Tipo</dt>
+                <dd className="font-medium text-ink">{formatEventType(musicalEvent.type)}</dd>
               </div>
               <div>
-                <dt className="text-sm text-slate-500">Fecha y hora</dt>
-                <dd className="font-medium text-neutral-dark">
+                <dt className="text-sm text-muted">Fecha y hora</dt>
+                <dd className="font-medium text-ink">
                   {formatStartsAt(musicalEvent.startsAt)}
                 </dd>
               </div>
               <div>
-                <dt className="text-sm text-slate-500">Estado</dt>
-                <dd className="font-medium text-neutral-dark" title={t('agenda.statusHint')}>
+                <dt className="text-sm text-muted">Estado</dt>
+                <dd className="font-medium text-ink" title={t('agenda.statusHint')}>
                   {formatEventStatus(musicalEvent.status)}
                 </dd>
               </div>
@@ -573,14 +573,14 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
 
       {isLive ? (
         <section
-          className="space-y-4 border-t border-slate-200 pt-6"
+          className="space-y-4 border-t border-border-subtle pt-6"
           aria-labelledby="attendance-heading"
         >
           <div className="space-y-1">
             <h2 id="attendance-heading" className="text-lg font-semibold">
               Asistencia
             </h2>
-            <p className="text-sm text-slate-500">Indica si vas a este evento.</p>
+            <p className="text-sm text-muted">Indica si vas a este evento.</p>
           </div>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Tu respuesta">
             {RSVP_CHOICES.map((choice) => {
@@ -599,16 +599,16 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
             })}
           </div>
           {rsvps === null ? null : rsvps.length === 0 ? (
-            <p className="text-sm text-slate-500">Aún no hay respuestas.</p>
+            <p className="text-sm text-muted">Aún no hay respuestas.</p>
           ) : (
             <ul className="space-y-2">
               {rsvps.map((item) => (
                 <li
                   key={item.userId}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface px-3 py-2 text-sm"
                 >
-                  <span className="font-medium text-neutral-dark">{item.displayName}</span>
-                  <span className="text-slate-500">{formatRsvpResponse(item.response)}</span>
+                  <span className="font-medium text-ink">{item.displayName}</span>
+                  <span className="text-muted">{formatRsvpResponse(item.response)}</span>
                 </li>
               ))}
             </ul>
@@ -682,8 +682,8 @@ function TabButton({
       className={cn(
         'flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition duration-150',
         selected
-          ? 'bg-white text-neutral-dark shadow-sm'
-          : 'text-slate-500 hover:text-neutral-dark',
+          ? 'bg-surface text-ink shadow-sm'
+          : 'text-muted hover:text-ink',
       )}
       onClick={onClick}
     >
@@ -742,7 +742,7 @@ function EventEditForm({
   return (
     <form className="max-w-lg space-y-4" onSubmit={onSubmit} noValidate>
       <h3 className="text-lg font-semibold">Editar evento</h3>
-      <p className="text-sm text-slate-500">Guardando cambios · {musicalEvent.version}</p>
+      <p className="text-sm text-muted">Guardando cambios · {musicalEvent.version}</p>
       <ProblemAlert message={error} />
       <Field label="Título">
         <input

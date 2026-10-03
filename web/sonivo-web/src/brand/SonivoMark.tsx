@@ -57,7 +57,7 @@ export function BrandLockup({
       <span
         className={cn(
           'text-lg font-semibold tracking-tight',
-          light ? 'text-white' : shell ? 'text-shell-foreground' : 'text-neutral-dark',
+          light ? 'text-white' : shell ? 'text-shell-foreground' : 'text-ink',
         )}
       >
         Sonivo

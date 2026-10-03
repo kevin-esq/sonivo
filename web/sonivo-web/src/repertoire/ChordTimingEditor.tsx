@@ -33,7 +33,7 @@ export function ChordTimingEditor({
   const lines = splitChordProLines(chords)
   if (!chords.trim()) {
     return (
-      <p className="text-xs text-slate-500" data-testid="chord-timing-empty">
+      <p className="text-xs text-muted" data-testid="chord-timing-empty">
         {t('tiempos.emptyHint')}
       </p>
     )
@@ -44,11 +44,11 @@ export function ChordTimingEditor({
 
   return (
     <div
-      className="space-y-3 rounded-xl border border-slate-200 bg-neutral-light p-3"
+      className="space-y-3 rounded-xl border border-border-subtle bg-surface-hover p-3"
       data-testid="chord-timing-editor"
     >
-      <p className="text-sm font-semibold text-neutral-dark">{t('tiempos.title')}</p>
-      <p className="text-xs text-slate-500">
+      <p className="text-sm font-semibold text-ink">{t('tiempos.title')}</p>
+      <p className="text-xs text-muted">
         {t('tiempos.hint')}
       </p>
       <ul className="max-h-64 space-y-2 overflow-y-auto">
@@ -57,10 +57,10 @@ export function ChordTimingEditor({
           return (
             <li
               key={lineIndex}
-              className="flex flex-wrap items-end gap-2 rounded-lg bg-white p-2 ring-1 ring-slate-200"
+              className="flex flex-wrap items-end gap-2 rounded-lg bg-surface p-2 ring-1 ring-border-subtle"
             >
-              <p className="min-w-0 flex-1 font-mono text-xs text-slate-700">
-                <span className="mr-2 font-sans font-semibold text-slate-500">{lineIndex + 1}.</span>
+              <p className="min-w-0 flex-1 font-mono text-xs text-ink">
+                <span className="mr-2 font-sans font-semibold text-muted">{lineIndex + 1}.</span>
                 {linePreview(line, t('tiempos.emptyLine'))}
               </p>
               <label className="block">

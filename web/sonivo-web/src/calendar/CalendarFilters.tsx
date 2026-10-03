@@ -217,7 +217,7 @@ export function CalendarFilterPanel({
                 className="flex w-full items-center gap-3 rounded-xl bg-surface px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <span
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-500/20 text-xs font-bold text-muted"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-muted/20 text-xs font-bold text-muted"
                   aria-hidden="true"
                 >
                   +

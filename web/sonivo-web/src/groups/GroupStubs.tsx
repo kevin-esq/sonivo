@@ -10,7 +10,7 @@ function SectionStub({ titleKey }: { titleKey: I18nKey }) {
   return (
     <section className="space-y-2">
       <h1 className="text-2xl font-bold tracking-tight">{t(titleKey)}</h1>
-      <p className="text-sm text-slate-500">{t('seccion.comingSoon')}</p>
+      <p className="text-sm text-muted">{t('seccion.comingSoon')}</p>
     </section>
   )
 }

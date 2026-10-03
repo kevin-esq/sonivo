@@ -55,7 +55,7 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
         <h1 id="join-heading" className="text-2xl font-bold tracking-tight">
           {t('unirse.title')}
         </h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           {t('unirse.subtitle')}
         </p>
       </div>

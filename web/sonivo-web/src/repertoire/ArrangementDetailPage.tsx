@@ -278,7 +278,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               </div>
             ) : null}
           </div>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted">
             {t('arreglo.resourcesHint')}
           </p>
 
@@ -302,7 +302,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               {grouped.map((groupItem) => (
                 <section key={groupItem.purpose} className="space-y-2" aria-label={formatPurpose(groupItem.purpose)}>
                   <PurposeHeading purpose={groupItem.purpose} />
-                  <ul className="divide-y divide-slate-100">
+                  <ul className="divide-y divide-border-subtle">
                     {groupItem.resources.map((resource) => (
                       <li key={resource.id} className="py-3">
                         {editingResourceId === resource.id && isOwner ? (
@@ -368,7 +368,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           ) : null}
         </section>
 
-        <aside className="space-y-4 rounded-2xl border border-slate-100 bg-neutral-light p-5 shadow-sm">
+        <aside className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-5 shadow-sm">
           {editing && isOwner ? (
             <ArrangementEditForm
               arrangement={arrangement}
@@ -392,39 +392,39 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           ) : (
             <div className="space-y-5 text-sm">
               <section aria-labelledby="arrangement-tuning-heading" className="space-y-3">
-                <h3 id="arrangement-tuning-heading" className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                <h3 id="arrangement-tuning-heading" className="text-sm font-semibold uppercase tracking-wide text-muted">
                   {t('listas.tuningTitle')}
                 </h3>
                 <dl className="space-y-3">
                   <div>
-                    <dt className="text-slate-500">{t('arreglo.keyLabel')}</dt>
+                    <dt className="text-muted">{t('arreglo.keyLabel')}</dt>
                     <dd className="font-medium">{arrangement.defaultKey ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">{t('arreglo.tempoLabel')}</dt>
+                    <dt className="text-muted">{t('arreglo.tempoLabel')}</dt>
                     <dd className="font-medium">{arrangement.defaultBpm ?? '—'}</dd>
                   </div>
                 </dl>
               </section>
               <section aria-labelledby="arrangement-music-heading" className="space-y-3">
-                <h3 id="arrangement-music-heading" className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                <h3 id="arrangement-music-heading" className="text-sm font-semibold uppercase tracking-wide text-muted">
                   {t('listas.musicTitle')}
                 </h3>
                 <dl className="space-y-3">
                   <div>
-                    <dt className="text-slate-500">{t('arreglo.lyricsLabel')}</dt>
+                    <dt className="text-muted">{t('arreglo.lyricsLabel')}</dt>
                     <dd className="whitespace-pre-wrap font-medium">{arrangement.lyrics ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">{t('arreglo.chordsLabel')}</dt>
+                    <dt className="text-muted">{t('arreglo.chordsLabel')}</dt>
                     <dd className="whitespace-pre-wrap font-medium">{arrangement.chords ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">{t('arreglo.structureLabel')}</dt>
+                    <dt className="text-muted">{t('arreglo.structureLabel')}</dt>
                     <dd className="whitespace-pre-wrap font-medium">{arrangement.structure ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">{t('arreglo.notesLabel')}</dt>
+                    <dt className="text-muted">{t('arreglo.notesLabel')}</dt>
                     <dd className="whitespace-pre-wrap font-medium">{arrangement.notes ?? '—'}</dd>
                   </div>
                 </dl>
@@ -518,9 +518,9 @@ function ResourceRow({
 
   return (
     <div className="space-y-2">
-      <p className="font-semibold text-neutral-dark">{resource.label}</p>
-      {resource.part ? <p className="text-sm text-slate-500">{t('arreglo.partPrefix')}{resource.part}</p> : null}
-      {resource.note ? <p className="text-sm text-slate-600">{resource.note}</p> : null}
+      <p className="font-semibold text-ink">{resource.label}</p>
+      {resource.part ? <p className="text-sm text-muted">{t('arreglo.partPrefix')}{resource.part}</p> : null}
+      {resource.note ? <p className="text-sm text-muted">{resource.note}</p> : null}
       {resource.url ? (
         <p>
           <a
@@ -534,7 +534,7 @@ function ResourceRow({
         </p>
       ) : null}
       {isFile && downloadHref ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           {resource.originalFileName ?? t('arreglo.fileFallback')}
           {resource.byteSize != null ? ` · ${formatByteSize(resource.byteSize)}` : ''}
         </p>
@@ -757,7 +757,7 @@ function ArrangementEditForm({
       </Field>
       <div className="space-y-1.5">
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-slate-700">{t('arreglo.chordsLabel')}</span>
+          <span className="text-sm font-medium text-ink">{t('arreglo.chordsLabel')}</span>
           <textarea
             className={fieldClass}
             rows={5}
@@ -768,7 +768,7 @@ function ArrangementEditForm({
           />
         </label>
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-slate-700">
+          <span className="text-sm font-medium text-ink">
             {t('arreglo.importLabel')}
           </span>
           <input
@@ -782,11 +782,11 @@ function ArrangementEditForm({
         {importError ? <p className="text-sm text-red-600">{t('arreglo.importError')}</p> : null}
 
         <div
-          className="space-y-3 rounded-xl border border-slate-200 bg-neutral-light p-3"
+          className="space-y-3 rounded-xl border border-border-subtle bg-surface-hover p-3"
           data-testid="chordpro-digitizer"
         >
-          <p className="text-sm font-semibold text-neutral-dark">{t('arreglo.digitizeTitle')}</p>
-          <p className="text-xs text-slate-500">
+          <p className="text-sm font-semibold text-ink">{t('arreglo.digitizeTitle')}</p>
+          <p className="text-xs text-muted">
             {t('arreglo.digitizeHint')}
           </p>
           <Field label={t('arreglo.digitizeLyrics')}>
@@ -820,7 +820,7 @@ function ArrangementEditForm({
           </Button>
           {chordCursors.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2 pt-1" data-testid="digitizer-studio">
-              <label className="text-sm text-slate-700">
+              <label className="text-sm text-ink">
                 {t('arreglo.selectedChord')}{' '}
                 <select
                   className={fieldClass}
@@ -864,11 +864,11 @@ function ArrangementEditForm({
         </div>
 
         <div
-          className="space-y-3 rounded-xl border border-slate-200 bg-neutral-light p-3"
+          className="space-y-3 rounded-xl border border-border-subtle bg-surface-hover p-3"
           data-testid="chordpro-compose"
         >
-          <p className="text-sm font-semibold text-neutral-dark">{t('arreglo.composeTitle')}</p>
-          <p className="text-xs text-slate-500">
+          <p className="text-sm font-semibold text-ink">{t('arreglo.composeTitle')}</p>
+          <p className="text-xs text-muted">
             {t('arreglo.composeHint')}
           </p>
           <Field label={t('arreglo.genreLabel')}>
@@ -935,16 +935,16 @@ function ArrangementEditForm({
 
         {chords.trim() ? (
           <div className="space-y-2 pt-1">
-            <p className="text-sm font-medium text-slate-700">{t('arreglo.previewLabel')}</p>
+            <p className="text-sm font-medium text-ink">{t('arreglo.previewLabel')}</p>
             {looksLikeChordPro(chords) ? (
               <ChordProView
                 text={chords}
                 testId="chords-preview"
-                className="max-h-48 space-y-1 overflow-y-auto rounded-xl bg-white p-3 font-sans ring-1 ring-slate-200"
+                className="max-h-48 space-y-1 overflow-y-auto rounded-xl bg-surface p-3 font-sans ring-1 ring-border-subtle"
               />
             ) : (
               <pre
-                className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl bg-white p-3 font-sans text-sm ring-1 ring-slate-200"
+                className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl bg-surface p-3 font-sans text-sm ring-1 ring-border-subtle"
                 data-testid="chords-preview"
               >
                 {chords}
@@ -1017,7 +1017,7 @@ function ResourceCreateForm({
   }
 
   return (
-    <form className="space-y-4 border-t border-slate-200 pt-4" onSubmit={onSubmit} noValidate>
+    <form className="space-y-4 border-t border-border-subtle pt-4" onSubmit={onSubmit} noValidate>
       <h3 className="font-semibold">{t('arreglo.addLink')}</h3>
       <ProblemAlert message={error} />
       <Field label={t('arreglo.purposeLabel')}>
@@ -1122,7 +1122,7 @@ function FileResourceCreateForm({
 
   return (
     <form
-      className="space-y-4 border-t border-slate-200 pt-4"
+      className="space-y-4 border-t border-border-subtle pt-4"
       onSubmit={onSubmit}
       noValidate
       aria-busy={pending}
@@ -1133,7 +1133,7 @@ function FileResourceCreateForm({
         <p
           role="status"
           aria-live="polite"
-          className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-neutral-dark"
+          className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-ink"
           data-testid="file-upload-pending"
         >
           {t('arreglo.uploadPending')}
@@ -1258,7 +1258,7 @@ function ResourceEditForm({
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
       <h4 className="font-semibold">{t('arreglo.editResourceTitle')}</h4>
       {resource.url ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           {t('arreglo.urlLockedPrefix')}{' '}
           <a
             className="break-all font-medium text-primary-ink no-underline hover:underline"
@@ -1271,7 +1271,7 @@ function ResourceEditForm({
         </p>
       ) : null}
       {resource.kind === 'file' && resource.originalFileName ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           {t('arreglo.fileLockedPrefix')} {resource.originalFileName}
         </p>
       ) : null}

@@ -183,14 +183,14 @@ export function AudioDigitizer({
 
   return (
     <section
-      className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4"
+      className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-4"
       aria-labelledby="digitize-heading"
       data-testid="audio-digitizer"
     >
       <h3 id="digitize-heading" className="font-semibold">
         Digitalizar audio
       </h3>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         Convierte un audio en un borrador de marcas de tiempo y letra. Nada se guarda hasta que lo
         revises y lo apliques.
       </p>
@@ -198,7 +198,7 @@ export function AudioDigitizer({
       {job.phase === 'idle' ? (
         <div className="space-y-2">
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-700">Audio a digitalizar</span>
+            <span className="text-sm font-medium text-ink">Audio a digitalizar</span>
             <select
               className={fieldClass}
               value={selectedResourceId ?? ''}
@@ -228,7 +228,7 @@ export function AudioDigitizer({
 
       {job.phase === 'working' ? (
         <p
-          className="text-sm text-slate-600"
+          className="text-sm text-muted"
           role="status"
           aria-live="polite"
           data-testid="digitize-status"
@@ -253,7 +253,7 @@ export function AudioDigitizer({
         <div className="space-y-3">
           <h4 className="text-sm font-semibold">Revisar borrador</h4>
           {job.segments.length === 0 ? (
-            <p className="text-sm text-slate-500" data-testid="digitize-segments">
+            <p className="text-sm text-muted" data-testid="digitize-segments">
               No se detectó voz en el audio.
             </p>
           ) : (
@@ -261,13 +261,13 @@ export function AudioDigitizer({
               {job.segments.map((segment, i) => (
                 <li
                   key={i}
-                  className="flex flex-wrap items-center gap-2 rounded-lg bg-neutral-light p-2 ring-1 ring-slate-200"
+                  className="flex flex-wrap items-center gap-2 rounded-lg bg-surface-hover p-2 ring-1 ring-border-subtle"
                 >
-                  <span className="font-mono text-xs text-slate-500">
+                  <span className="font-mono text-xs text-muted">
                     {formatTimestamp(segment.startMs)} → {formatTimestamp(segment.endMs)}
                   </span>
                   <span className="min-w-0 flex-1 text-sm">{segment.text}</span>
-                  <label className="flex items-center gap-1 text-xs text-slate-600">
+                  <label className="flex items-center gap-1 text-xs text-muted">
                     Línea
                     <input
                       className={`${fieldClass} w-20`}

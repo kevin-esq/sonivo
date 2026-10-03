@@ -42,20 +42,20 @@ export function ConductorPanel({
 
   return (
     <section
-      className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm"
+      className="space-y-3 rounded-xl border border-border-subtle bg-surface p-4 sm:p-5 shadow-sm"
       aria-labelledby="conductor-heading"
       data-testid="conductor-panel"
     >
       <div className="flex flex-wrap items-center gap-2">
         <h2
           id="conductor-heading"
-          className="text-lg font-semibold tracking-tight text-neutral-dark"
+          className="text-lg font-semibold tracking-tight text-ink"
         >
           Ensayo en vivo
         </h2>
         {isLive ? (
           <span
-            className="rounded-full bg-success/20 px-2.5 py-1 text-xs font-semibold text-neutral-dark"
+            className="rounded-full bg-success/20 px-2.5 py-1 text-xs font-semibold text-ink"
             data-testid="conductor-live-badge"
           >
             En vivo
@@ -64,7 +64,7 @@ export function ConductorPanel({
       </div>
 
       <p
-        className="text-sm text-slate-600"
+        className="text-sm text-muted"
         aria-live="polite"
         data-testid="conductor-connection-state"
       >
@@ -93,17 +93,17 @@ export function ConductorPanel({
       ) : null}
 
       <div className="space-y-1.5">
-        <h3 className="text-sm font-semibold text-slate-800">
+        <h3 className="text-sm font-semibold text-ink">
           En la sala ({presence.length})
         </h3>
         {presence.length === 0 ? (
-          <p className="text-sm text-slate-600">Aún no hay nadie en la sala.</p>
+          <p className="text-sm text-muted">Aún no hay nadie en la sala.</p>
         ) : (
           <ul className="space-y-1" data-testid="conductor-presence">
             {presence.map((entry) => (
               <li
                 key={entry.connectionId}
-                className="text-sm text-slate-700"
+                className="text-sm text-ink"
                 data-testid={`conductor-presence-${entry.userId}`}
               >
                 {entry.displayName}

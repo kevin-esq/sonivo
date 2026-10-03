@@ -3,7 +3,7 @@ import { cn } from './cn'
 export function Skeleton({ className }: { className?: string }) {
   return (
     <div
-      className={cn('animate-pulse rounded-lg bg-slate-200/80', className)}
+      className={cn('animate-pulse rounded-lg bg-surface-hover/80', className)}
       aria-hidden="true"
     />
   )
@@ -20,7 +20,7 @@ export function ListSkeleton({
     <div className="space-y-3" role="status" aria-live="polite" aria-label={label}>
       <span className="sr-only">{label}</span>
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="space-y-2 rounded-xl border border-slate-100 px-4 py-3">
+        <div key={i} className="space-y-2 rounded-xl border border-border-subtle px-4 py-3">
           <Skeleton className="h-4 w-40" />
           <Skeleton className="h-3 w-56 max-w-full" />
         </div>

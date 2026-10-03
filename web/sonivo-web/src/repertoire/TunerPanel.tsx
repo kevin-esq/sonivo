@@ -262,18 +262,18 @@ export function TunerPanel() {
           {open ? 'Cerrar' : 'Abrir afinador'}
         </Button>
         {status === 'requesting' ? (
-          <p className="text-sm text-slate-600">Pidiendo acceso al micrófono…</p>
+          <p className="text-sm text-muted">Pidiendo acceso al micrófono…</p>
         ) : null}
       </div>
 
-      <p className="text-xs text-slate-500" data-testid="tuner-hint">
+      <p className="text-xs text-muted" data-testid="tuner-hint">
         El micrófono solo se activa al abrir el afinador y se apaga al cerrarlo. Nada se
         graba ni se guarda. Requiere HTTPS o localhost.
       </p>
 
       {open || status === 'denied' || status === 'error' ? (
         <div
-          className="space-y-2 rounded-xl border border-slate-200 bg-neutral-light p-4"
+          className="space-y-2 rounded-xl border border-border-subtle bg-surface-hover p-4"
           aria-live="polite"
         >
           {(status === 'denied' || status === 'error') && error ? (
@@ -284,17 +284,17 @@ export function TunerPanel() {
 
           {status === 'active' ? (
             <div className="space-y-1">
-              <p className="text-4xl font-bold tracking-tight text-neutral-dark" data-testid="tuner-note">
+              <p className="text-4xl font-bold tracking-tight text-ink" data-testid="tuner-note">
                 {note ? note.display : '—'}
               </p>
-              <p className="text-sm text-slate-600" data-testid="tuner-hz">
+              <p className="text-sm text-muted" data-testid="tuner-hz">
                 {freqHz != null ? `${freqHz.toFixed(1)} Hz` : 'Escuchando…'}
               </p>
-              <p className="text-sm text-slate-600" data-testid="tuner-cents">
+              <p className="text-sm text-muted" data-testid="tuner-cents">
                 {note ? centsLabel(note.cents) : hearingSound ? 'Sin tono claro' : 'Silencio'}
               </p>
               <div
-                className="relative h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-200"
+                className="relative h-2 w-full max-w-xs overflow-hidden rounded-full bg-surface-hover"
                 role="img"
                 aria-label={
                   note ? `Desviación: ${centsLabel(note.cents)}` : 'Sin lectura de afinación'

@@ -143,7 +143,7 @@ function Modal({
               type="button"
               onClick={onClose}
               aria-label={closeLabel}
-              className="-m-1 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-2 focus-visible:outline-primary"
+              className="-m-1 rounded-lg p-1 text-muted hover:bg-surface-hover hover:text-muted focus-visible:outline-2 focus-visible:outline-primary"
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -218,7 +218,7 @@ function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="relative z-10 grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-primary"
+        className="relative z-10 grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-primary"
       >
         <MoreVertical className="h-5 w-5" aria-hidden="true" />
       </button>
@@ -331,11 +331,11 @@ function NameForm({
 
   return (
     <form className="space-y-4" onSubmit={submit} noValidate>
-      {hint ? <p className="text-sm text-slate-500">{hint}</p> : null}
+      {hint ? <p className="text-sm text-muted">{hint}</p> : null}
       <div className="space-y-1.5">
         <label
           htmlFor={id}
-          className="block text-sm font-medium text-slate-700"
+          className="block text-sm font-medium text-ink"
         >
           {t("grupos.nameLabel")}
         </label>
@@ -404,11 +404,11 @@ function JoinForm({ onCancel, t }: { onCancel: () => void; t: TFn }) {
 
   return (
     <form className="space-y-4" onSubmit={submit} noValidate>
-      <p className="text-sm text-slate-500">{t("grupos.joinDialogHint")}</p>
+      <p className="text-sm text-muted">{t("grupos.joinDialogHint")}</p>
       <div className="space-y-1.5">
         <label
           htmlFor={id}
-          className="block text-sm font-medium text-slate-700"
+          className="block text-sm font-medium text-ink"
         >
           {t("grupos.joinLabel")}
         </label>
@@ -479,7 +479,7 @@ function ConfirmForm({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">{body}</p>
+      <p className="text-sm text-muted">{body}</p>
       <div role="alert">
         {error ? <p className="text-sm text-error-ink">{error}</p> : null}
       </div>
@@ -702,7 +702,7 @@ function GroupCardItem({
     <span
       id={roleId}
       className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 font-medium ${
-        owner ? "bg-primary/10 text-primary-ink" : "bg-slate-100 text-slate-600"
+        owner ? "bg-primary/10 text-primary-ink" : "bg-surface-hover text-muted"
       }`}
     >
       {owner ? <Crown className="h-3 w-3" aria-hidden="true" /> : null}
@@ -713,7 +713,7 @@ function GroupCardItem({
   const meta = (
     <span
       id={metaId}
-      className="inline-flex min-w-0 items-center gap-x-3 gap-y-1 whitespace-nowrap text-xs text-slate-500"
+      className="inline-flex min-w-0 items-center gap-x-3 gap-y-1 whitespace-nowrap text-xs text-muted"
     >
       {hasMembers ? (
         <span className="inline-flex shrink-0 items-center gap-1">
@@ -761,7 +761,7 @@ function GroupCardItem({
         className={`grid h-10 w-10 place-items-center rounded-lg transition motion-reduce:transition-none focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-primary sm:h-9 sm:w-9 ${
           pinned
             ? "text-amber-500 hover:bg-amber-50"
-            : "text-slate-300 hover:bg-slate-100 hover:text-slate-500 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
+            : "text-muted hover:bg-surface-hover hover:text-muted [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
         }`}
       >
         <Star
@@ -777,7 +777,7 @@ function GroupCardItem({
       {/* La flecha solo acompaña a la fila horizontal; en cuadrícula no aporta. */}
       {view === "list" ? (
         <ChevronRight
-          className="ml-0.5 hidden h-5 w-5 shrink-0 text-slate-300 transition duration-150 group-hover:translate-x-0.5 group-hover:text-primary-ink motion-reduce:transform-none motion-reduce:transition-none sm:block"
+          className="ml-0.5 hidden h-5 w-5 shrink-0 text-muted transition duration-150 group-hover:translate-x-0.5 group-hover:text-primary-ink motion-reduce:transform-none motion-reduce:transition-none sm:block"
           aria-hidden="true"
         />
       ) : null}
@@ -815,7 +815,7 @@ function GroupCardItem({
 
       <div className="min-w-0 text-base">
         {stretchyLink("clamp")}
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
           {roleChip}
         </div>
       </div>
@@ -844,19 +844,19 @@ function GroupCardSkeleton({ label }: { label: string }) {
           className="flex h-full flex-col gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-3.5 sm:px-4"
         >
           <div className="flex items-start justify-between gap-2">
-            <div className="h-12 w-12 animate-pulse rounded-xl bg-slate-200/80 motion-reduce:animate-none" />
+            <div className="h-12 w-12 animate-pulse rounded-xl bg-surface-hover/80 motion-reduce:animate-none" />
             <div className="flex items-center gap-1">
-              <div className="h-9 w-9 animate-pulse rounded-lg bg-slate-200/80 motion-reduce:animate-none" />
-              <div className="h-9 w-9 animate-pulse rounded-lg bg-slate-200/80 motion-reduce:animate-none" />
+              <div className="h-9 w-9 animate-pulse rounded-lg bg-surface-hover/80 motion-reduce:animate-none" />
+              <div className="h-9 w-9 animate-pulse rounded-lg bg-surface-hover/80 motion-reduce:animate-none" />
             </div>
           </div>
           <div className="space-y-2">
-            <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200/80 motion-reduce:animate-none" />
-            <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200/80 motion-reduce:animate-none" />
+            <div className="h-4 w-3/4 animate-pulse rounded bg-surface-hover/80 motion-reduce:animate-none" />
+            <div className="h-4 w-1/2 animate-pulse rounded bg-surface-hover/80 motion-reduce:animate-none" />
           </div>
           <div className="mt-auto flex items-center gap-3 border-t border-border-subtle/70 pt-2.5">
-            <div className="h-3 w-20 animate-pulse rounded bg-slate-200/80 motion-reduce:animate-none" />
-            <div className="h-3 w-16 animate-pulse rounded bg-slate-200/80 motion-reduce:animate-none" />
+            <div className="h-3 w-20 animate-pulse rounded bg-surface-hover/80 motion-reduce:animate-none" />
+            <div className="h-3 w-16 animate-pulse rounded bg-surface-hover/80 motion-reduce:animate-none" />
           </div>
         </div>
       ))}
@@ -1082,7 +1082,7 @@ export function GroupsPage({
     `inline-flex h-9 items-center rounded-full border px-3 text-sm font-medium transition motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
       active
         ? "border-primary bg-primary/10 text-shell-link"
-        : "border-border-subtle bg-surface text-slate-600 hover:border-primary/40"
+        : "border-border-subtle bg-surface text-muted hover:border-primary/40"
     }`;
 
   const renderCards = (list: GroupCardData[]) => (
@@ -1175,7 +1175,7 @@ export function GroupsPage({
       {loading ? (
         <GroupCardSkeleton label={t("grupos.loading")} />
       ) : groups && groups.length === 0 ? (
-        <div className="flex flex-col items-start gap-4 rounded-2xl border border-dashed border-slate-300 bg-surface-hover/60 px-5 py-8">
+        <div className="flex flex-col items-start gap-4 rounded-2xl border border-dashed border-border-subtle bg-surface-hover/60 px-5 py-8">
           <span
             className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-shell-link"
             aria-hidden="true"
@@ -1186,7 +1186,7 @@ export function GroupsPage({
             <p className="font-semibold text-shell-foreground">
               {t("grupos.emptyTitle")}
             </p>
-            <p className="max-w-md text-sm text-slate-500">
+            <p className="max-w-md text-sm text-muted">
               {t("grupos.empty")}
             </p>
           </div>
@@ -1202,7 +1202,7 @@ export function GroupsPage({
               {t("grupos.join")}
             </Button>
           </div>
-          <p className="max-w-md text-xs text-slate-500">
+          <p className="max-w-md text-xs text-muted">
             {t("grupos.joinHint")}
           </p>
         </div>
@@ -1237,7 +1237,7 @@ export function GroupsPage({
                     {t("grupos.searchLabel")}
                   </label>
                   <Search
-                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
                     aria-hidden="true"
                   />
                   <input
@@ -1300,7 +1300,7 @@ export function GroupsPage({
                       ) : null}
                     </select>
                     <ChevronDown
-                      className="pointer-events-none absolute right-0.5 h-4 w-4 text-slate-400"
+                      className="pointer-events-none absolute right-0.5 h-4 w-4 text-muted"
                       aria-hidden="true"
                     />
                   </span>
@@ -1326,7 +1326,7 @@ export function GroupsPage({
                         className={`grid h-9 w-9 place-items-center transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
                           view === mode
                             ? "bg-primary/10 text-shell-link"
-                            : "bg-surface text-slate-500 hover:bg-slate-50"
+                            : "bg-surface text-muted hover:bg-surface-hover"
                         }`}
                       >
                         <Icon className="h-4 w-4" aria-hidden="true" />
@@ -1355,8 +1355,8 @@ export function GroupsPage({
           ) : null}
 
           {visible.length === 0 ? (
-            <div className="space-y-2 rounded-2xl border border-dashed border-slate-300 bg-surface-hover/60 px-5 py-6">
-              <p className="text-sm text-slate-600">{t("grupos.noMatches")}</p>
+            <div className="space-y-2 rounded-2xl border border-dashed border-border-subtle bg-surface-hover/60 px-5 py-6">
+              <p className="text-sm text-muted">{t("grupos.noMatches")}</p>
               <button
                 type="button"
                 className="text-sm font-semibold text-shell-link hover:underline"

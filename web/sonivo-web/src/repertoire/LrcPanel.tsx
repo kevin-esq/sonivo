@@ -134,10 +134,10 @@ export function LrcPanel({
           {t('lrc.title')}
         </h2>
       </div>
-      <p className="text-sm text-slate-500">{t('lrc.hint')}</p>
+      <p className="text-sm text-muted">{t('lrc.hint')}</p>
 
       <label className="block space-y-1.5">
-        <span className="text-sm font-medium text-slate-700">{t('lrc.paste')}</span>
+        <span className="text-sm font-medium text-ink">{t('lrc.paste')}</span>
         <textarea
           className={cn(
             'min-h-32 w-full rounded-xl border border-border-subtle bg-surface px-3 py-2 font-mono text-sm text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/25',
@@ -162,7 +162,7 @@ export function LrcPanel({
           className="text-sm"
         />
         <label className="flex items-center gap-2 text-sm">
-          <span className="text-slate-700">{t('lrc.offset')}</span>
+          <span className="text-ink">{t('lrc.offset')}</span>
           <input
             type="number"
             className="w-24 rounded-lg border border-border-subtle bg-surface px-2 py-1 text-sm text-ink"
@@ -192,7 +192,7 @@ export function LrcPanel({
 
       {preview ? (
         <div className="space-y-2 rounded-xl border border-border-subtle bg-surface-hover p-3">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted">
             {t('lrc.summary', { marks: preview.markCount, encoding: preview.encoding })}
           </p>
           {preview.warnings.map((warning) => (

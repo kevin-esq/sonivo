@@ -230,7 +230,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
         <h1 id="people-heading" className="text-2xl font-bold tracking-tight">
           {t('gente.title')}
         </h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           {t('gente.subtitle')}
         </p>
         <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('gente.title')}>
@@ -278,7 +278,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
             return (
               <li
                 key={member.userId}
-                className="library-enter space-y-3 rounded-2xl border border-slate-100 bg-white px-4 py-3"
+                className="library-enter space-y-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3"
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
                 <div className="flex items-center gap-3">
@@ -287,7 +287,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                       'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
                       member.role === 'Owner'
                         ? 'bg-primary/15 text-primary-ink'
-                        : 'bg-neutral-light text-slate-600',
+                        : 'bg-surface-hover text-muted',
                     )}
                     aria-hidden="true"
                   >
@@ -298,29 +298,29 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                     )}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-neutral-dark">
+                    <p className="truncate font-semibold text-ink">
                       {member.displayName}
                       {isSelf ? (
-                        <span className="ml-2 text-sm font-normal text-slate-500">{t('gente.you')}</span>
+                        <span className="ml-2 text-sm font-normal text-muted">{t('gente.you')}</span>
                       ) : null}
                     </p>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-muted">
                       {formatRole(member.role)}
                       {member.musicalRole ? ` · ${member.musicalRole}` : ''}
                     </p>
                     {member.email ? (
-                      <p className="truncate text-sm text-slate-500">{member.email}</p>
+                      <p className="truncate text-sm text-muted">{member.email}</p>
                     ) : null}
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted">
                       {presenceLabel(member.lastSeenAt, t, Date.now())}
                     </p>
                   </div>
                 </div>
                 {isOwner || canManage ? (
-                  <div className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-3">
+                  <div className="flex flex-wrap items-end gap-3 border-t border-border-subtle pt-3">
                     {isOwner ? (
                       <label className="block space-y-1.5">
-                        <span className="text-sm font-medium text-slate-700">{t('gente.roleLabel')}</span>
+                        <span className="text-sm font-medium text-ink">{t('gente.roleLabel')}</span>
                         <select
                           className={fieldClass}
                           aria-label={`${t('gente.roleOfPrefix')}${member.displayName}`}
@@ -346,7 +346,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                       </label>
                     ) : null}
                     <label className="block space-y-1.5">
-                      <span className="text-sm font-medium text-slate-700">{t('gente.musicalRoleLabel')}</span>
+                      <span className="text-sm font-medium text-ink">{t('gente.musicalRoleLabel')}</span>
                       <input
                         className={fieldClass}
                         type="text"
@@ -389,15 +389,15 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
           {invites === null ? (
             <ListSkeleton rows={2} label={t('gente.loadingInvites')} />
           ) : invites.length === 0 ? (
-            <p className="text-sm text-slate-500">{t('gente.noInvites')}</p>
+            <p className="text-sm text-muted">{t('gente.noInvites')}</p>
           ) : (
             <ul className="space-y-2">
               {invites.map((invite) => (
                 <li
                   key={invite.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3"
                 >
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-muted">
                     {t('gente.expiresPrefix')}{new Date(invite.expiresAt).toLocaleString('es')}
                   </p>
                   <Button
