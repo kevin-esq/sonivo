@@ -1,7 +1,8 @@
 # Phase — Group workspace redesign (reference mockup)
 
 **Status:** **IN PROGRESS** — ADR-0055 ACCEPTED (user-authorized 2026-10-02, full scope W-A…W-H incl. Tasks + presence).
-**Branch:** `feature/group-workspace-redesign` (from `develop`, after PR #185).
+**Progress:** W-A/W-B merged (PR #186/#187). W-C + W-F implemented (PR #189). W-D/W-E/W-G/W-H pending.
+**Branch:** `feature/ws-c-f-calendar-song` (from `develop`, after PR #188).
 **Baseline:** the code, not the docs.
 
 > Claim labels: **HECHO** verified · **SUPUESTO** assumed · **PREGUNTA** open.

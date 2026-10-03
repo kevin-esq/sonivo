@@ -5,9 +5,9 @@
 ## Checkpoint state
 
 ```text
-Implementation: IN PROGRESS — ADR-0055 group workspace redesign (W-A/W-B merged; W-C…W-H pending)
+Implementation: IN PROGRESS — ADR-0055 group workspace redesign (W-A/W-B merged; W-C/W-F in PR #189; W-D…W-H pending)
 Human approval: APPROVED (owner 2026-10-03: "Sí: ADR-0055 + todas las olas W-A…W-H" + IA refinement + hidden sidebar scrollbars)
-Git checkpoint: PENDING — feature/ws-sidebar-ia (sidebar IA + no-scrollbar)
+Git checkpoint: PENDING — feature/ws-c-f-calendar-song (W-C calendar + W-F song detail)
 Remote: NOT PUSHED
 CI: NOT RUN
 ```
