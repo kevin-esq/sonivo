@@ -9,7 +9,7 @@ import {
   type SongListItem,
   type SongOriginKind,
 } from '../api/client'
-import { useT } from '../i18n'
+import { useT, type I18nKey } from '../i18n'
 import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
@@ -32,6 +32,15 @@ import {
   useGroupContext,
 } from './ui'
 
+type LibraryTab = 'all' | 'favorites' | 'recent' | 'theme'
+
+const LIBRARY_TABS: { id: LibraryTab; labelKey: I18nKey }[] = [
+  { id: 'all', labelKey: 'canciones.tabAll' },
+  { id: 'favorites', labelKey: 'canciones.tabFavorites' },
+  { id: 'recent', labelKey: 'canciones.tabRecent' },
+  { id: 'theme', labelKey: 'canciones.tabByTheme' },
+]
+
 export function LibraryPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
@@ -39,19 +48,34 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
   const [listError, setListError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [query, setQuery] = useState('')
+  const [tab, setTab] = useState<LibraryTab>('all')
   const { t } = useT()
 
   const isOwner = canManageContentRole(group?.role)
 
   const filtered = useMemo(() => {
+    if (!songs) return songs
     const q = query.trim().toLowerCase()
-    if (!songs || !q) return songs
-    return songs.filter(
-      (song) =>
-        song.title.toLowerCase().includes(q) ||
-        (song.attribution ?? '').toLowerCase().includes(q),
-    )
-  }, [songs, query])
+    let list = songs
+    if (tab === 'favorites') {
+      list = list.filter((song) => song.isFavorite)
+    } else if (tab === 'recent') {
+      list = [...list]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 12)
+    } else if (tab === 'theme') {
+      list = [...list].sort((a, b) => (a.tags[0] ?? 'zzz').localeCompare(b.tags[0] ?? 'zzz'))
+    }
+    if (q) {
+      list = list.filter(
+        (song) =>
+          song.title.toLowerCase().includes(q) ||
+          (song.attribution ?? '').toLowerCase().includes(q) ||
+          song.tags.some((tag) => tag.includes(q)),
+      )
+    }
+    return list
+  }, [songs, query, tab])
 
   const searching = query.trim().length > 0
 
@@ -123,6 +147,26 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
           ) : null}
         </div>
       </header>
+
+      {songs !== null && songs.length > 0 ? (
+        <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('canciones.tabsLabel')}>
+          {LIBRARY_TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.id}
+              onClick={() => setTab(item.id)}
+              className={cn(
+                'min-h-11 rounded-xl px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                tab === item.id ? 'bg-primary/15 text-primary-ink' : 'text-slate-500 hover:bg-neutral-light',
+              )}
+            >
+              {t(item.labelKey)}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {songs !== null && songs.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
@@ -216,6 +260,18 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                     {song.attribution ? (
                       <span className="block truncate text-sm text-slate-500">{song.attribution}</span>
                     ) : null}
+                    {song.tags.length > 0 ? (
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {song.tags.slice(0, 4).map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full bg-neutral-light px-2 py-0.5 text-[11px] font-medium text-slate-500"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
                   </span>
                   <OriginBadge kind={song.originKind} />
                   <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" aria-hidden="true" />
@@ -253,6 +309,7 @@ function SongCreateForm({
   const [originKind, setOriginKind] = useState<SongOriginKind>('original')
   const [attribution, setAttribution] = useState('')
   const [rightsNotes, setRightsNotes] = useState('')
+  const [tags, setTags] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const { t } = useT()
@@ -267,6 +324,10 @@ function SongCreateForm({
         originKind,
         attribution: attribution.trim() || null,
         rightsNotes: rightsNotes.trim() || null,
+        tags: tags
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean),
       })
       await onCreated()
     } catch (err) {
@@ -307,6 +368,15 @@ function SongCreateForm({
           value={attribution}
           onChange={(e) => setAttribution(e.target.value)}
           maxLength={500}
+        />
+      </Field>
+      <Field label={t('canciones.tagsLabel')}>
+        <input
+          className={fieldClass}
+          value={tags}
+          onChange={(e) => setTags(e.target.value)}
+          maxLength={200}
+          placeholder={t('canciones.tagsPlaceholder')}
         />
       </Field>
       <Field label={t('canciones.rightsLabel')}>

@@ -684,6 +684,8 @@ export type SongListItem = {
   version: number
   createdAt: string
   updatedAt: string
+  tags: string[]
+  isFavorite: boolean
 }
 
 export type SongDetail = SongListItem & {
@@ -749,6 +751,7 @@ export async function createSong(
     originKind: SongOriginKind
     attribution?: string | null
     rightsNotes?: string | null
+    tags?: string[]
   },
 ): Promise<SongDetail> {
   return apiRequest<SongDetail>(`/api/groups/${groupId}/songs`, {
@@ -770,6 +773,7 @@ export async function updateSong(
     originKind?: SongOriginKind | null
     attribution?: string | null
     rightsNotes?: string | null
+    tags?: string[]
   },
 ): Promise<SongDetail> {
   return apiRequest<SongDetail>(`/api/groups/${groupId}/songs/${songId}`, {
