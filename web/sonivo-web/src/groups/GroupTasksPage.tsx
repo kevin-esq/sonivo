@@ -14,7 +14,7 @@ import {
   type MemberListItem,
   type TaskItem,
 } from '../api/client'
-import { useT } from '../i18n'
+import { useT, type I18nKey, type TParams } from '../i18n'
 import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
@@ -41,6 +41,7 @@ export function GroupTasksPage() {
   const [group, setGroup] = useState<Awaited<ReturnType<typeof getGroup>> | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<TaskFilter>('all')
+  const [view, setView] = useState<'list' | 'board'>('list')
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<TaskItem | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -67,6 +68,12 @@ export function GroupTasksPage() {
     group && groupId ? () => listTasks(groupId!) : null,
     [groupId, group, reloadKey],
   )
+
+  const membersSurface = useResource(
+    group && groupId ? () => listMembers(groupId!) : null,
+    [groupId, group],
+  )
+  const members = membersSurface.data ?? []
 
   const tasks = surface.data ?? []
   const visible = useMemo(
@@ -114,6 +121,32 @@ export function GroupTasksPage() {
     }
   }
 
+  async function moveTask(
+    task: TaskItem,
+    input: { assigneeUserId?: string | null; status?: string },
+  ) {
+    if (!groupId) return
+    try {
+      if (input.status) {
+        await setTaskStatus(groupId, task.id, {
+          status: input.status!,
+          expectedVersion: task.version,
+        })
+      } else {
+        await updateTask(groupId, task.id, {
+          title: task.title,
+          notes: task.notes,
+          dueAt: task.dueAt,
+          assigneeUserId: input.assigneeUserId ?? null,
+          expectedVersion: task.version,
+        })
+      }
+      setReloadKey((key) => key + 1)
+    } catch (err) {
+      setError(mutationErrorMessage(err))
+    }
+  }
+
   return (
     <section className="space-y-4" aria-labelledby="tasks-heading">
       <header className="space-y-3">
@@ -155,6 +188,31 @@ export function GroupTasksPage() {
             </button>
           ))}
         </div>
+
+        {canManage ? (
+          <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('tareas.title')}>
+            {([
+              { id: 'list', label: t('tareas.viewList') },
+              { id: 'board', label: t('tareas.viewBoard') },
+            ] as { id: 'list' | 'board'; label: string }[]).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={view === tab.id}
+                onClick={() => setView(tab.id)}
+                className={cn(
+                  'min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                  view === tab.id
+                    ? 'bg-primary-strong text-primary-foreground'
+                    : 'text-muted hover:text-ink',
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </header>
 
       <ProblemAlert message={error} />
@@ -169,6 +227,15 @@ export function GroupTasksPage() {
           <p className="mt-2 font-semibold text-ink">{t('tareas.emptyTitle')}</p>
           <p className="text-sm text-muted">{t('tareas.emptyBody')}</p>
         </div>
+      ) : view === 'board' ? (
+        <TaskBoard
+          tasks={visible}
+          members={members}
+          canManage={canManage}
+          onMove={(task, input) => void moveTask(task, input)}
+          t={t}
+          lang={lang}
+        />
       ) : (
         <ul className="space-y-2">
           {visible.map((task) => {
@@ -416,5 +483,144 @@ function TaskDialog({
         </div>
       </form>
     </dialog>
+  )
+}
+
+function TaskBoard({
+  tasks,
+  members,
+  canManage,
+  onMove,
+  t,
+  lang,
+}: {
+  tasks: TaskItem[]
+  members: MemberListItem[]
+  canManage: boolean
+  onMove: (
+    task: TaskItem,
+    input: { assigneeUserId?: string | null; status?: string },
+  ) => void
+  t: (key: I18nKey, params?: TParams) => string
+  lang: string
+}) {
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [overColumn, setOverColumn] = useState<string | null>(null)
+
+  const columns = useMemo(() => {
+    const cols: { id: string; title: string; tasks: TaskItem[] }[] = [
+      {
+        id: 'unassigned',
+        title: t('tareas.boardUnassigned'),
+        tasks: tasks.filter((x) => x.status !== 'done' && !x.assigneeUserId),
+      },
+      ...members.map((m) => ({
+        id: m.userId,
+        title: m.displayName,
+        tasks: tasks.filter((x) => x.status !== 'done' && x.assigneeUserId === m.userId),
+      })),
+      {
+        id: 'done',
+        title: t('tareas.boardDone'),
+        tasks: tasks.filter((x) => x.status === 'done'),
+      },
+    ]
+    return cols
+  }, [tasks, members, t])
+
+  function handleDrop(columnId: string) {
+    if (!dragId) return
+    const task = tasks.find((x) => x.id === dragId)
+    setDragId(null)
+    setOverColumn(null)
+    if (!task) return
+    if (columnId === 'done') {
+      if (task.status !== 'done') onMove(task, { status: 'done' })
+    } else if (columnId === 'unassigned') {
+      if (task.assigneeUserId || task.status === 'done') {
+        onMove(task, { assigneeUserId: null, status: 'open' })
+      }
+    } else if (task.assigneeUserId !== columnId || task.status === 'done') {
+      onMove(task, { assigneeUserId: columnId, status: 'open' })
+    }
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {columns.map((column) => (
+        <div
+          key={column.id}
+          className={cn(
+            'flex min-h-32 flex-col gap-2 rounded-2xl border p-2 transition-colors',
+            overColumn === column.id
+              ? 'border-primary bg-surface-hover/40'
+              : 'border-border-subtle bg-surface-hover/20',
+          )}
+          onDragOver={(event) => {
+            if (canManage) {
+              event.preventDefault()
+              setOverColumn(column.id)
+            }
+          }}
+          onDragLeave={() =>
+            setOverColumn((current) => (current === column.id ? null : current))
+          }
+          onDrop={(event) => {
+            event.preventDefault()
+            handleDrop(column.id)
+          }}
+        >
+          <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            {column.title}
+            <span className="ml-1 font-normal">{column.tasks.length}</span>
+          </p>
+          {column.tasks.length === 0 ? (
+            <p className="px-1 py-2 text-xs text-muted">—</p>
+          ) : (
+            column.tasks.map((task) => {
+              const done = task.status === 'done'
+              const overdue =
+                !done && task.dueAt != null && new Date(task.dueAt).getTime() < Date.now()
+              return (
+                <div
+                  key={task.id}
+                  draggable={canManage}
+                  onDragStart={() => setDragId(task.id)}
+                  onDragEnd={() => {
+                    setDragId(null)
+                    setOverColumn(null)
+                  }}
+                  className={cn(
+                    'rounded-xl border border-border-subtle bg-surface p-3 shadow-sm',
+                    canManage && 'cursor-grab active:cursor-grabbing',
+                    dragId === task.id && 'opacity-50',
+                  )}
+                >
+                  <p
+                    className={cn(
+                      'text-sm font-semibold text-ink',
+                      done && 'text-muted line-through',
+                    )}
+                  >
+                    {task.title}
+                  </p>
+                  {task.dueAt ? (
+                    <p
+                      className={cn(
+                        'mt-1 text-xs',
+                        overdue ? 'font-medium text-error-ink' : 'text-muted',
+                      )}
+                    >
+                      {overdue ? t('tareas.overdue') : t('tareas.dueLabel')}{' '}
+                      {formatDue(task.dueAt, lang)}
+                    </p>
+                  ) : null}
+                </div>
+              )
+            })
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
