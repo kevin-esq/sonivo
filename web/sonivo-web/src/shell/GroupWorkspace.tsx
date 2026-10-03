@@ -282,7 +282,7 @@ export function GroupWorkspace({
 
         {group ? (
           <nav
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3"
+            className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3"
             aria-label={t('workspace.groupNav')}
           >
             {groupNavSections.map((section) => (

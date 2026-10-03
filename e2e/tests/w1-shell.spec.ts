@@ -13,7 +13,7 @@ test.describe('W1 shell: Grupo vs Cuenta', () => {
     await expect(shell).toHaveAttribute('style', /--group-accent/)
 
     const groupNav = page.getByRole('navigation', { name: 'Grupo' })
-    await expect(groupNav.getByRole('link', { name: 'Biblioteca' })).toBeVisible()
+    await expect(groupNav.getByRole('link', { name: 'Canciones' })).toBeVisible()
     // ADR-0055: group settings is pinned in the rail footer, outside the nav.
     await expect(page.getByTestId('rail-settings')).toBeVisible()
 

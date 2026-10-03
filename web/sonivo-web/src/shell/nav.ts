@@ -2,7 +2,6 @@ import type { LucideIcon } from 'lucide-react'
 import {
   CalendarDays,
   CheckSquare,
-  FolderOpen,
   Home,
   Library,
   ListMusic,
@@ -27,15 +26,25 @@ export type GroupNavSection = {
   items: GroupNavItem[]
 }
 
-/** Sectioned group workspace IA (ADR-0055, reference mockup). */
+/**
+ * Sectioned group workspace IA (ADR-0055 + owner addendum 2026-10-03).
+ * Music = structured songs + setlists; Library/Archivos are not top-level
+ * sections — files live on their song/event/resource. Resources is a
+ * cross-cutting top-level section.
+ */
 export const groupNavSections: GroupNavSection[] = [
   {
     id: 'main',
     items: [
       { id: 'home', labelKey: 'nav.home', icon: Home, end: true, href: (id) => `/groups/${id}` },
+    ],
+  },
+  {
+    id: 'music',
+    labelKey: 'nav.sectionMusic',
+    items: [
       { id: 'songs', labelKey: 'nav.songs', icon: Music2, href: (id) => `/groups/${id}/library` },
       { id: 'setlists', labelKey: 'nav.setlists', icon: ListMusic, href: (id) => `/groups/${id}/setlists` },
-      { id: 'library', labelKey: 'nav.library', icon: Library, href: (id) => `/groups/${id}/library` },
     ],
   },
   {
@@ -53,8 +62,12 @@ export const groupNavSections: GroupNavSection[] = [
     items: [
       { id: 'people', labelKey: 'nav.people', icon: Users, desktopOnly: true, href: (id) => `/groups/${id}/people` },
       { id: 'roles', labelKey: 'nav.roles', icon: ShieldCheck, href: (id) => `/groups/${id}/roles` },
+    ],
+  },
+  {
+    id: 'resources',
+    items: [
       { id: 'resources', labelKey: 'nav.resources', icon: Library, href: (id) => `/groups/${id}/recursos` },
-      { id: 'files', labelKey: 'nav.files', icon: FolderOpen, href: (id) => `/groups/${id}/archivos` },
     ],
   },
 ]

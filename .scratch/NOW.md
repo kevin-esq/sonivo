@@ -1,45 +1,33 @@
 # NOW — agent focus
 
-**Updated:** 2026-10-02
+**Updated:** 2026-10-03
 
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE — White Label v2 (ADR-0054): brand tokens, secondary colour, banner, organizer editor
-Human approval: APPROVED (user: "Pasa a modo Build … Fase 0 … Fases 1 a 4", 2026-10-02)
-Git checkpoint: COMMITTED — 7 atomic commits on feature/white-label-workspace
-Remote: PUSHED · PR #185 (feature/white-label-workspace → develop)
-CI: PASSING — run 37086478660 (Backend build & tests, Frontend build, Playwright E2E) + CodeQL + SCA green
-    Local evidence: backend 609 tests ✓ (Domain 141, Api 212, Application 199, Integration 57);
-    web build + oxlint (0 errors) ✓; w20-branding E2E 2 passed / 1 skipped ✓;
-    regression E2E (w1/w6/w7/w9/home/groups) ✓;
-    Playwright MCP visual pass (group shell + editor, light/dark, mobile) ✓
+Implementation: IN PROGRESS — ADR-0055 group workspace redesign (W-A/W-B merged; W-C…W-H pending)
+Human approval: APPROVED (owner 2026-10-03: "Sí: ADR-0055 + todas las olas W-A…W-H" + IA refinement + hidden sidebar scrollbars)
+Git checkpoint: PENDING — feature/ws-sidebar-ia (sidebar IA + no-scrollbar)
+Remote: NOT PUSHED
+CI: NOT RUN
 ```
 
-**Phase:** White Label v2 · **ADR-0054** (amends ADR-0048) · [`PHASE-WHITELABEL-SPEC.md`](../docs/03-architecture/PHASE-WHITELABEL-SPEC.md).
-Widens `GroupBranding` with `SecondaryHex` + banner image, defines the scoped `--brand-*` token contract with
-server-computed AA `on-*` colours, applies the group `ThemeDefault` only until the user chooses, and wires the
-real organizer editor (logo + banner upload, primary/secondary/accent, theme, copy). `Features:GroupBranding`
-now defaults **ON**. Scope is a refresh over the current group IA (no Tareas/Roles/Recursos/Archivos sections).
+**Phase:** Group workspace redesign · **ADR-0055** (amends ADR-0054; addendum 2026-10-03) ·
+[`PHASE-WORKSPACE-REDESIGN-SPEC.md`](../docs/03-architecture/PHASE-WORKSPACE-REDESIGN-SPEC.md).
+
+Waves: W-A shell/home + W-B songs **merged** (PR #186, #187). W-C calendar, W-D resources, W-E
+members/presence, W-F song detail, W-G tasks, W-H i18n/a11y/E2E/docs pending.
+
+### IA addendum (owner, 2026-10-03)
+
+- Sidebar: Inicio · **Música** (Canciones, Listas) · **Organización** (Calendario, Eventos, Tareas) ·
+  **Equipo** (Miembros, Roles) · **Recursos** · Configuración. "Biblioteca" and "Archivos" are no
+  longer top-level; files are attachments and `/archivos` redirects to `/recursos`.
+- Both sidebars hide their scrollbar while staying scrollable (`.no-scrollbar`).
 
 ### Operational notes (local E2E runner)
 
-- Serve the E2E SPA with `npm run preview` (static `dist/`), **not** `npm run dev`. On this workstation the Vite
-  dev server (and `vite preview` under a full-suite load) can be terminated; run the suite in shards when needed.
-  Run `npm run build` first; `vite.config.ts` exposes the API/Hub proxy under `server` and `preview`.
+- Serve the E2E SPA with `npm run preview` (static `dist/`), **not** `npm run dev`; run `npm run build` first.
 - API: `dotnet run --project src/Sonivo.Api --launch-profile http` with `$env:Auth__EnableTestHook="true"`
-  on `:5171`; PostgreSQL on `:5433`. Apply the new migration with `$env:SONIVO_MIGRATE_ON_START="true"`.
-- Passkeys E2E CI note: `.github/workflows/ci.yml` browses via `http://localhost:5173`
-  (WebAuthn trustworthy-origin fix) — keep when changing E2E.
-- Dev-preview note: `/g/{slug}/manifest.webmanifest` is not under the Vite `/api` proxy, so it 404s (console
-  manifest error) in `vite preview` only; production serves it from the API on the same origin.
-
-## Current state
-
-- **White Label v2 (ADR-0054)** in progress on `feature/white-label-workspace` (from `develop`, which already
-  includes the calendar refactor PR #184).
-- **Inicio dashboard phase (ADR-0053) SHIPPED** on `develop` (PR #181, merge `fa0d30e`): `/` = Inicio, `/grupos` =
-  Mis grupos, app-shell sidebar, `GET /api/activity/upcoming`.
-- **UI/UX redesign (ADR-0043) CLOSED** and **UI/UX polish (W6–W9) CLOSED**.
-- **DevSecOps baseline (ADR-0044) ACCEPTED**; residuals tracked in
-  [`SECURITY-AUDIT-2026-09.md`](../docs/03-architecture/SECURITY-AUDIT-2026-09.md).
+  on `:5171`; PostgreSQL on `:5433`. Apply new migrations with `$env:SONIVO_MIGRATE_ON_START="true"`.
+- CI browses via `http://localhost:5173` (WebAuthn trustworthy origin) — keep when changing E2E.

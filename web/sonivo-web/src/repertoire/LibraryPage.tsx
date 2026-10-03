@@ -131,13 +131,13 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
   return (
     <section className="space-y-6" aria-labelledby="library-heading">
       <header data-testid="library-hero" className="space-y-3">
-        <PageBreadcrumb items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('listas.title') }]} />
+        <PageBreadcrumb items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('canciones.pageTitle') }]} />
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0 space-y-1">
             <h1 id="library-heading" className="text-3xl font-bold tracking-tight text-ink">
-              {t('listas.title')}
+              {t('canciones.pageTitle')}
             </h1>
-            <p className="max-w-lg text-sm text-muted">{t('listas.subtitle')}</p>
+            <p className="max-w-lg text-sm text-muted">{t('canciones.pageSubtitle')}</p>
             {!isOwner ? <p className="text-sm text-muted">{t('canciones.readonly')}</p> : null}
           </div>
           {songs !== null ? (

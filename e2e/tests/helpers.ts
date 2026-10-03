@@ -80,8 +80,8 @@ export async function createGroup(page: Page, name: string) {
 }
 
 export async function openLibrary(page: Page) {
-  await page.getByRole('link', { name: 'Biblioteca', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Biblioteca' })).toBeVisible()
+  await page.getByTestId('group-rail').getByRole('link', { name: 'Canciones', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
 }
 
 export async function createSong(page: Page, title: string) {
@@ -166,7 +166,7 @@ export async function deleteSong(page: Page, title: string) {
   const dialog = page.getByRole('dialog', { name: '¿Eliminar canción?' })
   await expect(dialog).toBeVisible()
   await dialog.getByRole('button', { name: 'Eliminar canción' }).click()
-  await expect(page.getByRole('heading', { name: 'Biblioteca' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
   await expect(page.getByRole('link', { name: title })).toHaveCount(0)
 }
 

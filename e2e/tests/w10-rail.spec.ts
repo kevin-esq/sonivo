@@ -26,7 +26,7 @@ test.describe('W10 rail: scroll, collapse, now playing', () => {
     for (let i = 0; i < 8; i += 1) {
       await createSong(page, `W10 Song ${i} ${stamp}`)
     }
-    await expect(page.getByRole('heading', { name: 'Biblioteca' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
 
     // A short viewport guarantees the content region overflows.
     await page.setViewportSize({ width: 1280, height: 480 })
@@ -80,8 +80,8 @@ test.describe('W10 rail: scroll, collapse, now playing', () => {
     expect(stored).toBe('collapsed')
 
     // The same link is still reachable by its accessible name and navigates.
-    await page.getByTestId('group-rail').getByRole('link', { name: 'Biblioteca' }).click()
-    await expect(page.getByRole('heading', { name: 'Biblioteca' })).toBeVisible()
+    await page.getByTestId('group-rail').getByRole('link', { name: 'Canciones' }).click()
+    await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
   })
 
   test('now playing shows in the rail and the bottom bar is hidden on desktop', async ({ page }) => {

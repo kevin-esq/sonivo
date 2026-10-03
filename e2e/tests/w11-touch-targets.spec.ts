@@ -73,7 +73,7 @@ test.describe('W11 touch targets', () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const railNav = page.getByRole('navigation', { name: 'Grupo' })
     await expect(railNav).toBeVisible()
-    for (const name of ['Inicio', 'Canciones', 'Listas', 'Biblioteca', 'Miembros']) {
+    for (const name of ['Inicio', 'Canciones', 'Listas', 'Miembros']) {
       await expectMinAxis(railNav.getByRole('link', { name }), 44, `rail link ${name}`)
     }
     await expectMinAxis(page.getByTestId('rail-settings'), 44, 'rail settings')
