@@ -8,6 +8,84 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0056 — Kanban board for group tasks
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-03.
+- **Date:** 2026-10-03
+- **Amends:** ADR-0055 (W-G tasks) — adds a board view.
+
+### Decision
+Add a Kanban board to `/groups/:id/tasks` (Planner-style): columns by status or assignee,
+drag-and-drop between columns, alongside the existing list view. Pure client-side projection of the
+`GroupTask` entity/endpoints from W-G.
+
+### Firewall
+- No new backend entity; the board reuses `GroupTask` PATCH/status endpoints.
+- Drag-and-drop mutates `Status`/`AssigneeUserId` only.
+
+---
+
+## ADR-0057 — Live chord viewer: transposer, autoscroll, metronome
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-03.
+- **Date:** 2026-10-03
+- **Amends:** ADR-0031 (Practice follow-along) — lifts transpose/autoscroll to a live performance viewer.
+
+### Decision
+A live chord/lyrics viewer with real-time transposition (semitone offset), autoscroll (speed control),
+a visual/audio metronome with BPM, and a setlist mode. Extends the ADR-0031 Practice surface
+(`transposeChordPro`, `stage.scrollPlay`) into a dedicated "Visor Live" for rehearsals/performances.
+
+### Firewall
+- No audio engine beyond the existing metronome/click (ADR-0031/0037); multitrack stems are separate.
+- Autoscroll is best-effort; never authorizes anything.
+
+---
+
+## ADR-0058 — Members 2.0: instruments, availability, RSVP status, section filters
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-03.
+- **Date:** 2026-10-03
+- **Amends:** ADR-0047 (managed accounts) + ADR-0051 (roles) — enriches the member profile.
+
+### Decision
+Extend the member profile with: primary/secondary instrument (beyond `MusicalRole` free text),
+weekly availability, RSVP status for the next event, and section filters (Músicos/Técnicos/Líderes/
+Administradores). Invitations by email with predefined roles (ADR-0047 managed accounts + ADR-0039
+Gmail outbound).
+
+### Firewall
+- Availability/RSVP are best-effort and never authorize anything (same as presence, ADR-0055 W-E).
+- No new role hierarchy; sections are filters over the existing roles.
+
+---
+
+## ADR-0059 — White Label v3: real-time palettes, theme toggle, predefined themes
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-03.
+- **Date:** 2026-10-03
+- **Amends:** ADR-0054 (White Label v2) — real-time brand editor.
+
+### Decision
+Extend the brand editor with: a color wheel / hex picker with live preview, predefined palettes
+(Océano/Atardecer/Bosque/Dark), a light/dark theme toggle with AA contrast preview, and live
+banner/group-name editing. Reuses the ADR-0054 `--brand-*` token contract and `GroupBranding` endpoints.
+
+### Firewall
+- Brand tokens remain the contract (ADR-0054); no free CSS.
+- All presets must keep AA contrast (4.5:1) — server-validated as in ADR-0054.
+
+---
+
+## Open decisions needing explicit authorization
+
+- **Subdominio/dominio custom** (`slug.sonivo.lat`): **ADR-0049 blocks it** — needs a superseding ADR.
+- **Matriz de permisos granular** (ver cifrados/descargar PDFs, editar repertorio, crear eventos,
+  gestionar disponibilidad, acceso white-label): **ADR-0012/0051** fix the role hierarchy and ACL
+  engines are prohibited (ADR-0005) — needs a superseding ADR.
+
+---
+
 ## ADR-0055 — Group workspace redesign to the reference mockup
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-02 ("Sí: ADR-0055 + todas las olas W-A…W-H", including new **Tasks** and **presence**).
