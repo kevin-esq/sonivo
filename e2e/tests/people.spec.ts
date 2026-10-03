@@ -76,11 +76,12 @@ test.describe('People journeys', () => {
     await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
 
     await openPeople(page)
-    await expect(page.getByText(ownerName, { exact: true })).toBeVisible()
-    await expect(page.getByText(memberName, { exact: true })).toBeVisible()
+    const roster = page.getByRole('region', { name: 'Miembros' })
+    await expect(roster.getByText(ownerName)).toBeVisible()
+    await expect(roster.getByText(memberName)).toBeVisible()
 
     await page.getByRole('button', { name: `Eliminar ${memberName}` }).click()
-    await expect(page.getByText(memberName, { exact: true })).toHaveCount(0)
+    await expect(roster.getByText(memberName)).toHaveCount(0)
 
     await logout(page)
     await loginAs(page, { email: memberEmail })

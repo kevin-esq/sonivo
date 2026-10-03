@@ -73,10 +73,10 @@ test.describe('W11 touch targets', () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const railNav = page.getByRole('navigation', { name: 'Grupo' })
     await expect(railNav).toBeVisible()
-    for (const name of ['Inicio', 'Listas', 'Eventos', 'Biblioteca', 'Miembros', 'Ajustes']) {
+    for (const name of ['Inicio', 'Canciones', 'Listas', 'Biblioteca', 'Miembros']) {
       await expectMinAxis(railNav.getByRole('link', { name }), 44, `rail link ${name}`)
     }
-    await expectMinAxis(page.getByRole('button', { name: 'Cerrar sesión' }), 44, 'rail sign-out')
+    await expectMinAxis(page.getByTestId('rail-settings'), 44, 'rail settings')
     await expectMinAxis(page.getByTestId('rail-brand'), 44, 'brand lockup')
 
     // Mobile: bottom tab bar + top-bar account/sign-out controls.

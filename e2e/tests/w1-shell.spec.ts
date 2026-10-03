@@ -14,7 +14,8 @@ test.describe('W1 shell: Grupo vs Cuenta', () => {
 
     const groupNav = page.getByRole('navigation', { name: 'Grupo' })
     await expect(groupNav.getByRole('link', { name: 'Biblioteca' })).toBeVisible()
-    await expect(groupNav.getByRole('link', { name: 'Ajustes del grupo' })).toBeVisible()
+    // ADR-0055: group settings is pinned in the rail footer, outside the nav.
+    await expect(page.getByTestId('rail-settings')).toBeVisible()
 
     await page.goto('/cuenta')
     await expect(page.getByRole('heading', { name: 'Mi cuenta' })).toBeVisible()
