@@ -1,5 +1,5 @@
 import { CalendarDays } from "lucide-react";
-import { useT } from "../i18n";
+import { useT, type I18nKey } from "../i18n";
 import { colorFor, shortDate, timeLabel, type CalendarEvent } from "./calendarUtils";
 
 /** "Próximos eventos" rail list. */
@@ -8,11 +8,16 @@ export function UpcomingList({
   loading,
   onSelectDay,
   onViewAll,
+  viewAllKey = "calendario.viewAll",
+  showGroup = true,
 }: {
   events: CalendarEvent[];
   loading: boolean;
   onSelectDay: (date: Date) => void;
   onViewAll: () => void;
+  viewAllKey?: I18nKey;
+  /** Hide the per-event group name in group-scoped calendars. */
+  showGroup?: boolean;
 }) {
   const { t, lang } = useT();
   return (
@@ -60,7 +65,7 @@ export function UpcomingList({
                       {event.title}
                     </span>
                     <span className="block truncate text-xs text-muted">
-                      {event.groupName}
+                      {showGroup ? event.groupName : ""}
                     </span>
                   </span>
                 </button>
@@ -75,7 +80,7 @@ export function UpcomingList({
         onClick={onViewAll}
         className="mt-2 inline-flex min-h-9 items-center text-sm font-semibold text-primary-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
-        {t("calendario.viewAll")}
+        {t(viewAllKey)}
       </button>
     </section>
   );
