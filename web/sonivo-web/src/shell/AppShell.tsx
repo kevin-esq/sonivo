@@ -3,6 +3,7 @@ import type { CurrentUser } from "../api/client";
 import { useT } from "../i18n";
 import { AppSidebar } from "./AppSidebar";
 import { AppTopBar } from "./AppTopBar";
+import { AppBottomNav } from "./AppBottomNav";
 
 /**
  * Shell for the signed-in, non-group routes (ADR-0053): persistent left sidebar
@@ -38,11 +39,12 @@ export function AppShell({
         <AppTopBar user={user} onOpenMenu={() => setMenuOpen(true)} />
         <main
           id="main"
-          className="flex-1 overflow-y-auto px-4 py-6 text-ink sm:px-6 lg:min-h-0 lg:px-8 lg:py-8"
+          className="flex-1 overflow-y-auto px-4 pt-6 pb-24 text-ink sm:px-6 lg:min-h-0 lg:px-8 lg:py-8"
         >
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
       </div>
+      <AppBottomNav onOpenMenu={() => setMenuOpen(true)} />
     </div>
   );
 }
