@@ -11,6 +11,7 @@ import {
   type EventPlanItem,
 } from '../api/client'
 import { EmptyPanel, PageBreadcrumb } from './chrome'
+import { fieldClass } from '../ui/field'
 import { looksLikeChordPro, transposeChordPro, tryTransposeDefaultKey } from './chordPro'
 import { RehearsalBodyView } from './ChordProView'
 import {
@@ -140,6 +141,10 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const [confirmSaveTone, setConfirmSaveTone] = useState(false)
   const [savingTone, setSavingTone] = useState(false)
   const [followAlong, setFollowAlong] = useState(false)
+  const [metronomeBpm, setMetronomeBpm] = useState(72)
+  const [metronomeOn, setMetronomeOn] = useState(false)
+  const [liveOpen, setLiveOpen] = useState(false)
+  const [metronomePulse, setMetronomePulse] = useState(false)
   const [audioSeconds, setAudioSeconds] = useState(0)
   const [reloadNonce, setReloadNonce] = useState(0)
   // ADR-0036 conductor follow (Event rooms only).
@@ -249,6 +254,40 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     }, 1000)
     return () => clearInterval(timer)
   }, [isOwner, eventId, conductor.connectionState, arrangementId])
+
+  // ADR-0057: best-effort metronome (visual pulse + optional audio click).
+  useEffect(() => {
+    if (!metronomeOn) return
+    let audio: AudioContext | null = null
+    let cancelled = false
+    const interval = 60_000 / metronomeBpm
+    const beat = () => {
+      if (cancelled) return
+      setMetronomePulse(true)
+      setTimeout(() => setMetronomePulse(false), 120)
+      try {
+        audio ??= new AudioContext()
+        const osc = audio.createOscillator()
+        const gain = audio.createGain()
+        osc.frequency.value = 880
+        gain.gain.setValueAtTime(0.001, audio.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.2, audio.currentTime + 0.01)
+        gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.08)
+        osc.connect(gain).connect(audio.destination)
+        osc.start()
+        osc.stop(audio.currentTime + 0.1)
+      } catch {
+        // audio unavailable; the visual pulse still works
+      }
+    }
+    beat()
+    const timer = setInterval(beat, interval)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+      void audio?.close()
+    }
+  }, [metronomeOn, metronomeBpm])
 
   if (group === undefined) {
     return <PracticePageSkeleton label={t('practica.loading')} />
@@ -723,6 +762,41 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           aria-labelledby="practice-tab-avanzado"
           data-testid="practice-panel-avanzado"
         >
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4">
+            <span className="text-sm font-medium text-ink">{t('practica.metronomeTitle')}</span>
+            <input
+              type="number"
+              className={cn(fieldClass, 'w-20')}
+              min={1}
+              max={400}
+              value={metronomeBpm}
+              disabled={metronomeOn}
+              onChange={(e) =>
+                setMetronomeBpm(Math.max(1, Math.min(400, Number(e.target.value) || 1)))
+              }
+              aria-label={t('practica.metronomeBpm')}
+            />
+            <Button
+              variant={metronomeOn ? 'primary' : 'secondary'}
+              size="sm"
+              data-testid="practice-metronome-toggle"
+              onClick={() => setMetronomeOn((on) => !on)}
+              aria-pressed={metronomeOn}
+            >
+              {metronomeOn
+                ? t('practica.metronomeStop')
+                : t('practica.metronomeStart')}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="practice-live-open"
+              onClick={() => setLiveOpen(true)}
+            >
+              {t('practica.liveTitle')}
+            </Button>
+          </div>
+
           <div className="space-y-1">
             <h2 className="text-lg font-semibold tracking-tight text-ink">
               {t('practica.avanzado.title')}
@@ -858,6 +932,48 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           {effectiveKeyHint ? `${t('practica.saveToneBodyKey')}${effectiveKeyHint}` : ''}{t('practica.saveToneBodySuffix')}
         </p>
       </ConfirmDialog>
+
+      {liveOpen ? (
+        <dialog
+          open
+          onClose={() => setLiveOpen(false)}
+          className="fixed inset-0 z-50 m-auto flex h-full w-full flex-col bg-canvas p-0"
+          data-testid="practice-live"
+        >
+          <div className="flex items-center justify-between px-5 py-3">
+            <p className="text-sm font-semibold text-ink">{displayTitle}</p>
+            <button
+              type="button"
+              onClick={() => setLiveOpen(false)}
+              aria-label={t('practica.liveClose')}
+              className="grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex flex-1 items-center justify-center overflow-hidden px-5">
+            <pre className="max-h-full max-w-full overflow-auto whitespace-pre-wrap text-center font-sans text-2xl leading-relaxed text-ink">
+              {displayBody}
+            </pre>
+          </div>
+          <div className="flex items-center justify-center gap-3 px-5 pb-6">
+            <span
+              className={cn(
+                'h-4 w-4 rounded-full',
+                metronomeOn
+                  ? metronomePulse
+                    ? 'bg-primary'
+                    : 'bg-muted'
+                  : 'bg-transparent',
+              )}
+              aria-hidden="true"
+            />
+            <span className="text-sm text-muted">
+              {metronomeOn ? `${metronomeBpm} BPM` : t('practica.liveHint')}
+            </span>
+          </div>
+        </dialog>
+      ) : null}
     </section>
   )
 }
