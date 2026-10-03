@@ -3,6 +3,7 @@ using Sonivo.Application.Abstractions;
 using Sonivo.Application.Realtime;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
+using Sonivo.Application.Tasks;
 using Sonivo.Application.Tenancy;
 
 namespace Sonivo.Application;
@@ -76,6 +77,11 @@ public static class DependencyInjection
         services.AddScoped<GetEventHandler>();
         services.AddScoped<UpdateEventHandler>();
         services.AddScoped<CancelEventHandler>();
+        services.AddScoped<CreateTaskHandler>();
+        services.AddScoped<UpdateTaskHandler>();
+        services.AddScoped<SetTaskStatusHandler>();
+        services.AddScoped<DeleteTaskHandler>();
+        services.AddScoped<ListTasksHandler>();
         services.AddScoped<ReplaceEventPlanFromSetlistHandler>();
         services.AddScoped<UpsertEventRsvpHandler>();
         services.AddScoped<ListEventRsvpsHandler>();
