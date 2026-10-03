@@ -41,6 +41,7 @@ public class GroupBrandingApiTests : IClassFixture<SonivoApiFactory>, IClassFixt
             expectedVersion = 0,
             displayName = "Marca Propia",
             accentHex = "#5B4BD6",
+            secondaryHex = "#F5C542",
             coverKind = "gradient",
             coverValue = "violeta",
             themeDefault = "dark",
@@ -53,6 +54,9 @@ public class GroupBrandingApiTests : IClassFixture<SonivoApiFactory>, IClassFixt
         var updated = await update.Content.ReadFromJsonAsync<BrandingResponse>();
         Assert.NotNull(updated);
         Assert.Equal("#5b4bd6", updated.AccentHex);
+        Assert.Equal("#f5c542", updated.SecondaryHex);
+        Assert.Equal("#ffffff", updated.OnPrimary);
+        Assert.Equal("#0f172a", updated.OnSecondary);
         Assert.Equal("Marca Propia", updated.DisplayName);
         Assert.False(updated.ShowSonivoCredit);
         Assert.Equal(2, updated.Version);
@@ -79,6 +83,13 @@ public class GroupBrandingApiTests : IClassFixture<SonivoApiFactory>, IClassFixt
             accentHex = "#7a7a7a"
         });
         Assert.Equal(HttpStatusCode.BadRequest, lowContrast.StatusCode);
+
+        var lowContrastSecondary = await client.PutAsJsonAsync($"/api/groups/{group.Id}/branding", new
+        {
+            expectedVersion = 0,
+            secondaryHex = "#7a7a7a"
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, lowContrastSecondary.StatusCode);
     }
 
     [Fact]
@@ -137,6 +148,36 @@ public class GroupBrandingApiTests : IClassFixture<SonivoApiFactory>, IClassFixt
         var updated = await ok.Content.ReadFromJsonAsync<BrandingResponse>();
         Assert.NotNull(updated);
         Assert.True(updated.HasLogo);
+    }
+
+    [Fact]
+    public async Task Banner_upload_enforces_type_allowlist_and_persists()
+    {
+        var client = await CreateAuthenticatedClientAsync(_factory, "brand-banner@example.com");
+        var group = await (await client.PostAsJsonAsync("/api/groups", new { name = "Banner Band" }))
+            .Content.ReadFromJsonAsync<GroupDtoResponse>();
+        Assert.NotNull(group);
+
+        using var text = new MultipartFormDataContent();
+        var textPart = new ByteArrayContent([1, 2, 3]);
+        textPart.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+        text.Add(textPart, "file", "banner.txt");
+        var rejected = await client.PostAsync($"/api/groups/{group.Id}/branding/banner", text);
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+
+        using var png = new MultipartFormDataContent();
+        var pngPart = new ByteArrayContent([0x89, 0x50, 0x4E, 0x47]);
+        pngPart.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        png.Add(pngPart, "file", "banner.png");
+        var ok = await client.PostAsync($"/api/groups/{group.Id}/branding/banner", png);
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+        var updated = await ok.Content.ReadFromJsonAsync<BrandingResponse>();
+        Assert.NotNull(updated);
+        Assert.True(updated.HasBanner);
+        Assert.NotNull(updated.BannerUrl);
+
+        var fetched = await client.GetAsync($"/api/groups/{group.Id}/branding/banner");
+        Assert.Equal(HttpStatusCode.OK, fetched.StatusCode);
     }
 
     [Fact]
@@ -248,9 +289,14 @@ public class GroupBrandingApiTests : IClassFixture<SonivoApiFactory>, IClassFixt
         Guid GroupId,
         string? DisplayName,
         string? AccentHex,
+        string? SecondaryHex,
+        string? OnPrimary,
+        string? OnSecondary,
         string? CoverKind,
         string? CoverValue,
         bool HasLogo,
+        bool HasBanner,
+        string? BannerUrl,
         bool ShowSonivoCredit,
         int Version);
     private sealed record PublicBrandingResponse(string? Name, string? LogoUrl, string? AccentHex, string? LoginHeadline);
