@@ -90,6 +90,7 @@ public static class DependencyInjection
         }
         services.AddScoped<ISetlistStore, EfSetlistStore>();
         services.AddScoped<IEventStore, EfEventStore>();
+        services.AddScoped<ITaskStore, EfTaskStore>();
         services.AddScoped<IEventGroupResolver, EfEventGroupResolver>();
         services.AddScoped<IUserDirectory, EfUserDirectory>();
         services.AddScoped<IEventNotifier, EventNotifier>();

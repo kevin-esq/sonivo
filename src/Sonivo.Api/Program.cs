@@ -15,6 +15,7 @@ using Sonivo.Application;
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
+using Sonivo.Application.Tasks;
 using Sonivo.Application.Tenancy;
 using Sonivo.Api.Realtime;
 using Sonivo.Domain.Repertoire;
@@ -2084,6 +2085,128 @@ app.MapPost("/api/presence/heartbeat", async (
 .WithName("PresenceHeartbeat")
 .RequireAuthorization();
 
+// ADR-0055 W-G: group tasks (Manager/Owner write, Member read, non-member 404).
+app.MapGet("/api/groups/{groupId:guid}/tasks", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListTasksHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var items = await handler.HandleAsync(new ListTasksQuery(userId.Value, groupId), cancellationToken);
+    return Results.Ok(items);
+})
+.WithName("ListGroupTasks")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/tasks", async (
+    Guid groupId,
+    CreateTaskRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    CreateTaskHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var created = await handler.HandleAsync(
+        new CreateTaskCommand(userId.Value, groupId, request.Title ?? string.Empty, request.Notes, request.DueAt, request.AssigneeUserId),
+        cancellationToken);
+    return Results.Created($"/api/groups/{groupId}/tasks/{created.Id}", ToTaskResponse(created));
+})
+.WithName("CreateGroupTask")
+.RequireAuthorization();
+
+app.MapPatch("/api/groups/{groupId:guid}/tasks/{taskId:guid}", async (
+    Guid groupId,
+    Guid taskId,
+    UpdateTaskRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    UpdateTaskHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var updated = await handler.HandleAsync(
+        new UpdateTaskCommand(userId.Value, groupId, taskId, request.Title ?? string.Empty, request.Notes, request.DueAt, request.AssigneeUserId, request.ExpectedVersion),
+        cancellationToken);
+    return Results.Ok(ToTaskResponse(updated));
+})
+.WithName("UpdateGroupTask")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/tasks/{taskId:guid}/status", async (
+    Guid groupId,
+    Guid taskId,
+    SetTaskStatusRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SetTaskStatusHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var updated = await handler.HandleAsync(
+        new SetTaskStatusCommand(userId.Value, groupId, taskId, request.Status ?? string.Empty, request.ExpectedVersion),
+        cancellationToken);
+    return Results.Ok(ToTaskResponse(updated));
+})
+.WithName("SetGroupTaskStatus")
+.RequireAuthorization();
+
+app.MapDelete("/api/groups/{groupId:guid}/tasks/{taskId:guid}", async (
+    Guid groupId,
+    Guid taskId,
+    DeleteTaskRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    DeleteTaskHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(new DeleteTaskCommand(userId.Value, groupId, taskId, request.ExpectedVersion), cancellationToken);
+    return Results.NoContent();
+})
+.WithName("DeleteGroupTask")
+.RequireAuthorization();
+
+static object ToTaskResponse(TaskItemDto task) => new
+{
+    id = task.Id,
+    title = task.Title,
+    notes = task.Notes,
+    status = task.Status,
+    dueAt = task.DueAt,
+    assigneeUserId = task.AssigneeUserId,
+    createdByUserId = task.CreatedByUserId,
+    createdAt = task.CreatedAt,
+    updatedAt = task.UpdatedAt,
+    version = task.Version
+};
 // Phase 4.1: roster incl. people without an account behind Features:ManagedAccounts.
 app.MapGet("/api/groups/{groupId:guid}/roster", async (
     Guid groupId,
@@ -4381,3 +4504,8 @@ public sealed class AppExceptionHandler : IExceptionHandler
 }
 
 public partial class Program;
+
+internal sealed record CreateTaskRequest(string? Title, string? Notes, DateTimeOffset? DueAt, Guid? AssigneeUserId);
+internal sealed record UpdateTaskRequest(string? Title, string? Notes, DateTimeOffset? DueAt, Guid? AssigneeUserId, int ExpectedVersion);
+internal sealed record SetTaskStatusRequest(string? Status, int ExpectedVersion);
+internal sealed record DeleteTaskRequest(int ExpectedVersion);

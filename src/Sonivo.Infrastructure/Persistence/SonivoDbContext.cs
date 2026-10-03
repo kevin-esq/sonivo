@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Scheduling;
+using Sonivo.Domain.Tasks;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure.Identity;
 
@@ -31,6 +32,7 @@ public sealed class SonivoDbContext : IdentityDbContext<ApplicationUser, Identit
     public DbSet<Event> Events => Set<Event>();
     public DbSet<EventSetlistItem> EventSetlistItems => Set<EventSetlistItem>();
     public DbSet<Rsvp> Rsvps => Set<Rsvp>();
+    public DbSet<GroupTask> Tasks => Set<GroupTask>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)

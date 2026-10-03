@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sonivo.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Sonivo.Infrastructure.Persistence;
 namespace Sonivo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SonivoDbContext))]
-    partial class SonivoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261003064542_AddGroupTasks")]
+    partial class AddGroupTasks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -964,9 +967,6 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("LastSeenAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean");
