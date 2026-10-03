@@ -16,6 +16,7 @@ public sealed class SongConfiguration : IEntityTypeConfiguration<Song>
         builder.Property(x => x.Attribution).HasMaxLength(300);
         builder.Property(x => x.OriginKind).IsRequired().HasMaxLength(32);
         builder.Property(x => x.RightsNotes).HasMaxLength(2000);
+        builder.Property(x => x.Tags).HasMaxLength(500);
         builder.Property(x => x.Version).IsConcurrencyToken();
         builder.HasIndex(x => new { x.GroupId, x.Id }).IsUnique();
         builder.HasIndex(x => x.GroupId);

@@ -11,7 +11,8 @@ public sealed record CreateSongCommand(
     string Title,
     string? Attribution,
     string OriginKind,
-    string? RightsNotes);
+    string? RightsNotes,
+    string? Tags = null);
 
 public sealed record SongListItemDto(
     Guid Id,
@@ -20,7 +21,9 @@ public sealed record SongListItemDto(
     string OriginKind,
     int Version,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    IReadOnlyList<string> Tags,
+    bool IsFavorite = false);
 
 public sealed record SongDetailDto(
     Guid Id,
@@ -31,7 +34,9 @@ public sealed record SongDetailDto(
     int Version,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    int ArrangementCount);
+    int ArrangementCount,
+    IReadOnlyList<string> Tags,
+    bool IsFavorite = false);
 
 public sealed class CreateSongHandler
 {
@@ -58,7 +63,8 @@ public sealed class CreateSongHandler
                 command.OriginKind,
                 _clock.UtcNow,
                 command.Attribution,
-                command.RightsNotes);
+                command.RightsNotes,
+                command.Tags);
 
             await _songs.AddAsync(song, cancellationToken);
             await _songs.SaveChangesAsync(cancellationToken);
@@ -71,7 +77,7 @@ public sealed class CreateSongHandler
         }
     }
 
-    internal static SongDetailDto ToDetail(Song song, int arrangementCount) => new(
+    internal static SongDetailDto ToDetail(Song song, int arrangementCount, bool isFavorite = false) => new(
         song.Id,
         song.Title,
         song.Attribution,
@@ -80,5 +86,7 @@ public sealed class CreateSongHandler
         song.Version,
         song.CreatedAt,
         song.UpdatedAt,
-        arrangementCount);
+        arrangementCount,
+        song.TagList,
+        isFavorite);
 }

@@ -29,7 +29,8 @@ public sealed class ListSongsHandler
                 s.OriginKind,
                 s.Version,
                 s.CreatedAt,
-                s.UpdatedAt))
+                s.UpdatedAt,
+                s.TagList))
             .ToList();
     }
 }

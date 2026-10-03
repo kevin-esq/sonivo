@@ -20,6 +20,8 @@ public sealed class Song : IVersionedEntity
     public string? Attribution { get; private set; }
     public string OriginKind { get; private set; } = SongOriginKinds.Original;
     public string? RightsNotes { get; private set; }
+    /// <summary>Normalized comma-separated tags (lowercase, trimmed, deduped). ADR-0055 W-B.</summary>
+    public string? Tags { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? DeletedAt { get; private set; }
@@ -29,6 +31,12 @@ public sealed class Song : IVersionedEntity
     {
     }
 
+    public const int MaxTagCount = 12;
+    public const int MaxTagLength = 32;
+
+    public IReadOnlyList<string> TagList =>
+        Tags is null ? [] : Tags.Split(',', StringSplitOptions.RemoveEmptyEntries);
+
     public static Song Create(
         Guid groupId,
         string title,
@@ -36,6 +44,7 @@ public sealed class Song : IVersionedEntity
         DateTimeOffset now,
         string? attribution = null,
         string? rightsNotes = null,
+        string? tags = null,
         Guid? id = null)
     {
         if (groupId == Guid.Empty)
@@ -51,6 +60,7 @@ public sealed class Song : IVersionedEntity
             Attribution = NormalizeOptional(attribution, 300, nameof(attribution)),
             OriginKind = NormalizeOriginKind(originKind),
             RightsNotes = NormalizeOptional(rightsNotes, 2000, nameof(rightsNotes)),
+            Tags = NormalizeTags(tags),
             CreatedAt = now,
             UpdatedAt = now,
             Version = 1
@@ -62,6 +72,7 @@ public sealed class Song : IVersionedEntity
         string? attribution,
         string originKind,
         string? rightsNotes,
+        string? tags,
         int expectedVersion,
         DateTimeOffset now)
     {
@@ -71,6 +82,7 @@ public sealed class Song : IVersionedEntity
         Attribution = NormalizeOptional(attribution, 300, nameof(attribution));
         OriginKind = NormalizeOriginKind(originKind);
         RightsNotes = NormalizeOptional(rightsNotes, 2000, nameof(rightsNotes));
+        Tags = NormalizeTags(tags);
         Touch(now);
     }
 
@@ -139,6 +151,33 @@ public sealed class Song : IVersionedEntity
         }
 
         return trimmed;
+    }
+
+    private static string? NormalizeTags(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var tags = value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(tag => tag.ToLowerInvariant())
+            .Where(tag => tag.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (tags.Count > MaxTagCount)
+        {
+            throw new ArgumentException($"A song can have at most {MaxTagCount} tags.", nameof(value));
+        }
+
+        if (tags.Any(tag => tag.Length > MaxTagLength))
+        {
+            throw new ArgumentException($"Tags must be {MaxTagLength} characters or fewer.", nameof(value));
+        }
+
+        return tags.Count == 0 ? null : string.Join(',', tags);
     }
 
     private static string? NormalizeOptional(string? value, int maxLength, string paramName)

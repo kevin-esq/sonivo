@@ -16,7 +16,8 @@ public sealed record UpdateSongCommand(
     string? Attribution,
     string? OriginKind,
     string? RightsNotes,
-    int ExpectedVersion);
+    int ExpectedVersion,
+    string? Tags = null);
 
 public sealed class UpdateSongHandler
 {
@@ -45,10 +46,11 @@ public sealed class UpdateSongHandler
         var originKind = command.OriginKind ?? song.OriginKind;
         var attribution = command.Attribution ?? song.Attribution;
         var rightsNotes = command.RightsNotes ?? song.RightsNotes;
+        var tags = command.Tags ?? song.Tags;
 
         try
         {
-            song.Update(title, attribution, originKind, rightsNotes, command.ExpectedVersion, _clock.UtcNow);
+            song.Update(title, attribution, originKind, rightsNotes, tags, command.ExpectedVersion, _clock.UtcNow);
         }
         catch (ArgumentException ex)
         {
