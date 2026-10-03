@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, NavLink, useParams } from 'react-router-dom'
-import { ChevronsLeft, ChevronsRight, LayoutGrid, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
 import {
   ApiError,
   fetchFeatures,
@@ -17,7 +17,6 @@ import { BrandLockup, SonivoMark } from '../brand/SonivoMark'
 import { useT } from '../i18n'
 import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
 import { cn } from '../ui/cn'
-import { Button } from '../ui/button'
 import { coverUsesLightText, groupCoverStyle, isGradientCover, isNoneCover, readGroupAppearance } from './groupAccent'
 import { GROUP_UPDATED_EVENT } from './groupEvents'
 import { groupNavSections, mobileTabItems } from './nav'
@@ -186,7 +185,6 @@ export function GroupWorkspace({
   const appearance = serverBrand
     ? { accent: serverBrand.accentHex ?? deviceAppearance.accent, cover: serverCover ?? deviceAppearance.cover }
     : deviceAppearance
-  const accountLabel = user.displayName || user.email || t('workspace.account')
   const plainCover = isNoneCover(appearance.cover)
   const collapsed = rail === 'collapsed'
   const groupRole = group ? formatMembershipRole(group.role) : ''
@@ -223,7 +221,7 @@ export function GroupWorkspace({
         >
           {collapsed ? (
             <Link
-              to="/"
+              to={group ? `/groups/${group.id}` : '/'}
               aria-label={group ? group.name : 'Sonivo'}
               className="grid min-h-11 min-w-11 place-items-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             >
@@ -241,7 +239,7 @@ export function GroupWorkspace({
             </Link>
           ) : group ? (
             <Link
-              to="/"
+              to={`/groups/${group.id}`}
               data-testid="rail-brand"
               className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             >
@@ -258,7 +256,9 @@ export function GroupWorkspace({
                 </span>
                 {serverBrand?.tagline ? (
                   <span className="block truncate text-xs text-shell-foreground/60">{serverBrand.tagline}</span>
-                ) : null}
+                ) : (
+                  <span className="block truncate text-xs text-shell-foreground/60">{groupRole}</span>
+                )}
               </span>
             </Link>
           ) : (
@@ -311,15 +311,6 @@ export function GroupWorkspace({
                 })}
               </div>
             ))}
-            <NavLink
-              to={`/groups/${group.id}/ajustes`}
-              aria-label={collapsed ? t('grupo.ajustes') : undefined}
-              title={collapsed ? t('grupo.ajustes') : undefined}
-              className={({ isActive }) => railLinkClass(isActive, collapsed)}
-            >
-              <Settings2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className={cn(collapsed && 'sr-only')}>{t('grupo.ajustes')}</span>
-            </NavLink>
           </nav>
         ) : (
           <div
@@ -342,72 +333,22 @@ export function GroupWorkspace({
 
         <div
           className={cn(
-            'shrink-0 space-y-3 border-t border-shell-border py-4',
-            collapsed ? 'px-2' : 'px-5',
+            'shrink-0 border-t border-shell-border py-4',
+            collapsed ? 'px-2' : 'px-3',
           )}
         >
           {group ? (
-            collapsed ? (
-              <div className="flex flex-col items-center gap-1">
-                <span
-                  title={`${group.name} · ${groupRole}`}
-                  className="grid h-10 w-10 place-items-center rounded-xl bg-shell-hover text-sm font-semibold text-shell-foreground"
-                >
-                  {group.name.slice(0, 1).toUpperCase()}
-                </span>
-                <span className="sr-only">{`${group.name} · ${groupRole}`}</span>
-              </div>
-            ) : (
-              <div>
-                <p className="truncate text-sm font-semibold text-shell-foreground">{group.name}</p>
-                <p className="text-xs text-shell-foreground/70">{groupRole}</p>
-              </div>
-            )
-          ) : null}
-          <Link
-            to="/grupos"
-            aria-label={collapsed ? t('workspace.myGroups') : undefined}
-            title={collapsed ? t('workspace.myGroups') : undefined}
-            className={cn(
-              'text-sm font-medium text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
-              collapsed ? 'flex min-h-11 items-center justify-center' : 'flex min-h-11 items-center gap-2',
-            )}
-          >
-            <LayoutGrid className={cn('h-4 w-4', collapsed ? '' : 'hidden')} aria-hidden="true" />
-            <span className={cn(collapsed && 'sr-only')}>{t('workspace.myGroups')}</span>
-          </Link>
-          <Link
-            to="/cuenta"
-            aria-label={collapsed ? t('workspace.accountLink') : undefined}
-            title={collapsed ? t('workspace.accountLink') : undefined}
-            className={cn(
-              'flex min-h-11 items-center text-sm font-medium text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
-              collapsed ? 'justify-center' : 'gap-2',
-            )}
-          >
-            <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className={cn(collapsed && 'sr-only')}>{t('workspace.accountLink')}</span>
-          </Link>
-          <div className={cn('flex items-start gap-2', collapsed ? 'justify-center' : 'justify-between')}>
-            {collapsed ? null : (
-              <p className="min-w-0 truncate text-xs text-shell-foreground/70">{accountLabel}</p>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label={collapsed ? t('workspace.logout') : undefined}
-              title={collapsed ? t('workspace.logout') : undefined}
-              className={cn(
-                'h-auto px-0 text-xs text-shell-link hover:text-shell-foreground',
-                'min-h-11',
-                collapsed ? 'min-w-11 justify-center' : '',
-              )}
-              onClick={onLogout}
+            <NavLink
+              to={`/groups/${group.id}/ajustes`}
+              data-testid="rail-settings"
+              aria-label={collapsed ? t('grupo.ajustes') : undefined}
+              title={collapsed ? t('grupo.ajustes') : undefined}
+              className={({ isActive }) => railLinkClass(isActive, collapsed)}
             >
-              <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className={cn(collapsed && 'sr-only')}>{t('workspace.logout')}</span>
-            </Button>
-          </div>
+              <Settings2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className={cn(collapsed && 'sr-only')}>{t('grupo.ajustes')}</span>
+            </NavLink>
+          ) : null}
         </div>
       </aside>
 

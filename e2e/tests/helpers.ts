@@ -63,6 +63,9 @@ export async function login(page: Page, email: string, password = testPassword) 
 }
 
 export async function logout(page: Page) {
+  // The group workspace rail no longer carries sign-out (ADR-0055); the account
+  // shell does, so navigate there before signing out.
+  await page.goto('/cuenta')
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
   await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
 }
