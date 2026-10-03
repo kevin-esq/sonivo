@@ -5,29 +5,32 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE — ADR-0055 group workspace redesign W-A…W-H all merged (PRs #186-#192)
-Human approval: APPROVED (owner 2026-10-03: "Sí: ADR-0055 + todas las olas W-A…W-H" + IA refinement + hidden sidebar scrollbars)
-Git checkpoint: COMMITTED — develop at a2a76c0 (W-G merge)
+Implementation: COMPLETE — ADR-0055 group workspace redesign W-A…W-H all merged (PRs #186–#193);
+  IA refinement + hidden scrollbars (PR #188); ADR-0057 live chord viewer + metronome (PR #197)
+Human approval: APPROVED (owner 2026-10-03: ADR-0055 + IA refinement + hidden scrollbars + ADR-0057)
+Git checkpoint: COMMITTED — develop at c9dff8c (W-G merge)
 Remote: PUSHED · all PRs merged to develop
 CI: PASSING — every wave green (Backend, Frontend, Playwright E2E, CodeQL, SCA)
 ```
 
-**Phase:** Group workspace redesign · **ADR-0055** (amends ADR-0054; addendum 2026-10-03) ·
-[`PHASE-WORKSPACE-REDESIGN-SPEC.md`](../docs/03-architecture/PHASE-WORKSPACE-REDESIGN-SPEC.md).
+**Phase:** Group workspace redesign · **ADR-0055** CLOSED (PRs #186–#193). **ADR-0057** (live chord viewer + metronome) CLOSED (PR #197). IA refinement + hidden scrollbars (PR #188).
 
-Waves: W-A shell/home + W-B songs **merged** (PR #186, #187). W-C calendar, W-D resources, W-E
-members/presence, W-F song detail, W-G tasks, W-H i18n/a11y/E2E/docs pending.
+### Delivered this session
+- **W-C** group calendar (`GroupCalendarPage`) — group-scoped, no cross-group leak.
+- **W-D** Recursos library — aggregated `GET /api/groups/{id}/resources` + categories + upload modal.
+- **W-E** presence (`ApplicationUser.LastSeenAt` + `POST /api/presence/heartbeat`) + Members redesign (role tabs, email, status).
+- **W-G** `Task` entity + CRUD API + UI.
+- **W-H** i18n es/en parity, a11y, E2E per wave, Playwright MCP visual pass, docs.
+- **IA refinement** — sidebar Inicio·Música·Organización·Equipo·Recursos; `.no-scrollbar`.
+- **ADR-0057** — live chord viewer (transpose + autoscroll + metronome) in Practice.
 
-### IA addendum (owner, 2026-10-03)
-
-- Sidebar: Inicio · **Música** (Canciones, Listas) · **Organización** (Calendario, Eventos, Tareas) ·
-  **Equipo** (Miembros, Roles) · **Recursos** · Configuración. "Biblioteca" and "Archivos" are no
-  longer top-level; files are attachments and `/archivos` redirects to `/recursos`.
-- Both sidebars hide their scrollbar while staying scrollable (`.no-scrollbar`).
+### Remaining (not started — see final report)
+- WL v4 (color wheel/palette, live preview, banner/group-name editing)
+- Setlist generator / Service sheets
+- RSVP + Musician call sheet
+- Multitrack mini mixer
 
 ### Operational notes (local E2E runner)
-
 - Serve the E2E SPA with `npm run preview` (static `dist/`), **not** `npm run dev`; run `npm run build` first.
-- API: `dotnet run --project src/Sonivo.Api --launch-profile http` with `$env:Auth__EnableTestHook="true"`
-  on `:5171`; PostgreSQL on `:5433`. Apply new migrations with `$env:SONIVO_MIGRATE_ON_START="true"`.
+- API: `dotnet run --project src/Sonivo.Api --launch-profile http` with `$env:Auth__EnableTestHook="true"` on `:5171`; PostgreSQL on `:5433`. Apply new migrations with `$env:SONIVO_MIGRATE_ON_START="true"`.
 - CI browses via `http://localhost:5173` (WebAuthn trustworthy origin) — keep when changing E2E.
