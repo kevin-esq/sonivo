@@ -401,6 +401,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             className={fieldClass}
             type="text"
             required
+            data-testid="group-name-input"
             value={renameName}
             disabled={!isOwner}
             aria-readonly={!isOwner}
@@ -646,6 +647,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             <input
               className={fieldClass}
               type="text"
+              data-testid="brand-display-name"
               value={draft.displayName}
               disabled={!isOwner}
               maxLength={120}

@@ -86,7 +86,7 @@ test.describe('W7 hierarchy: one header per screen', () => {
     // 5. Rename from Ajustes del grupo flows into the group bar.
     await page.getByRole('link', { name: 'Ajustes del grupo' }).first().click()
     await expect(page.getByRole('heading', { name: 'Ajustes del grupo' })).toBeVisible()
-    await page.getByLabel('Nombre del grupo').fill(renamedGroup)
+    await page.getByTestId('group-name-input').fill(renamedGroup)
     await page.getByRole('button', { name: 'Guardar nombre' }).click()
     await expect(page.getByTestId('group-bar')).toContainText(renamedGroup)
   })

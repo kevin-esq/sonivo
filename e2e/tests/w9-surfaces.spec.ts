@@ -118,7 +118,7 @@ test.describe('W9 outside surfaces', () => {
     await expectReadableText(page.getByText('La dirección que buscas no existe o fue movida.'))
   })
 
-  test('Ajustes exposes labelled swatches/covers, a no-cover choice that persists, and Spanish gradient names', async ({
+  test('Ajustes exposes labelled brand swatches/covers and a server-persisted no-cover choice', async ({
     page,
   }) => {
     const email = uniqueEmail('w9-ajustes')
@@ -130,38 +130,34 @@ test.describe('W9 outside surfaces', () => {
     await page.goto(`/groups/${groupId}/ajustes`)
     await expect(page.getByRole('heading', { name: 'Ajustes del grupo' })).toBeVisible()
 
-    // Accent swatches: every one has an accessible colour name.
+    // ADR-0054: the server brand editor renders (flag defaults ON); the primary
+    // and secondary swatch groups each carry accessible colour names.
+    const editor = page.getByTestId('branding-editor')
+    await expect(editor).toBeVisible()
     for (const name of ['Violeta', 'Celeste', 'Esmeralda', 'Ámbar', 'Rojo', 'Lila']) {
-      await expect(page.getByRole('button', { name, exact: true })).toBeVisible()
+      await expect(editor.getByRole('button', { name, exact: true }).first()).toBeVisible()
     }
 
     // Cover options: every emoji and gradient has an accessible name.
-    await expect(page.getByRole('button', { name: 'Portada con emoji 🎵' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Portada con emoji 🎤' })).toBeVisible()
+    await expect(editor.getByRole('button', { name: 'Portada con emoji 🎵' })).toBeVisible()
+    await expect(editor.getByRole('button', { name: 'Portada con emoji 🎤' })).toBeVisible()
     // Spanish gradient labels replace the English storage ids.
     for (const name of ['violeta', 'océano', 'bosque', 'atardecer']) {
-      await expect(page.getByRole('button', { name, exact: true })).toBeVisible()
+      await expect(editor.getByRole('button', { name, exact: true })).toBeVisible()
     }
-    await expect(page.getByRole('button', { name: 'violet', exact: true })).toHaveCount(0)
+    await expect(editor.getByRole('button', { name: 'violet', exact: true })).toHaveCount(0)
 
-    // "Sin portada" exists, is selectable, and round-trips through the same storage shape.
-    const noCover = page.getByRole('button', { name: 'Sin portada', exact: true })
+    // "Sin portada" exists, is selectable, and round-trips through the server.
+    const noCover = editor.getByRole('button', { name: 'Sin portada', exact: true })
     await expect(noCover).toBeVisible()
     await noCover.click()
     await expect(noCover).toHaveAttribute('aria-pressed', 'true')
-
-    const stored = await page.evaluate(
-      (id) => window.localStorage.getItem(`sonivo:group-accent:${id}`),
-      groupId,
-    )
-    expect(stored).toBeTruthy()
-    const parsed = JSON.parse(stored as string) as { accent?: string; cover?: string }
-    expect(parsed.cover).toBe('none')
-    expect(typeof parsed.accent).toBe('string')
+    await editor.getByRole('button', { name: /Guardar identidad|Save identity/ }).click()
+    await expect(page.getByText(/Identidad guardada|Identity saved/)).toBeVisible()
 
     await page.reload()
     await expect(
-      page.getByRole('button', { name: 'Sin portada', exact: true }),
+      page.getByTestId('branding-editor').getByRole('button', { name: 'Sin portada', exact: true }),
     ).toHaveAttribute('aria-pressed', 'true')
   })
 
