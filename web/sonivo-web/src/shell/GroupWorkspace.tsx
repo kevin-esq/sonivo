@@ -2,7 +2,17 @@ import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, NavLink, useParams } from 'react-router-dom'
 import { ChevronsLeft, ChevronsRight, LayoutGrid, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
-import { ApiError, fetchFeatures, getGroup, problemDetail, type CurrentUser, type GroupDetail } from '../api/client'
+import {
+  ApiError,
+  fetchFeatures,
+  getGroup,
+  listMembers,
+  problemDetail,
+  type CurrentUser,
+  type GroupDetail,
+  type MemberListItem,
+} from '../api/client'
+import { plural } from '../ui/plural'
 import { BrandLockup, SonivoMark } from '../brand/SonivoMark'
 import { useT } from '../i18n'
 import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
@@ -10,7 +20,7 @@ import { cn } from '../ui/cn'
 import { Button } from '../ui/button'
 import { coverUsesLightText, groupCoverStyle, isGradientCover, isNoneCover, readGroupAppearance } from './groupAccent'
 import { GROUP_UPDATED_EVENT } from './groupEvents'
-import { groupNavItems, mobileTabItems } from './nav'
+import { groupNavSections, mobileTabItems } from './nav'
 import { applyDocumentBranding, brandTokenStyle, loadServerBranding, type ServerBranding } from './serverBranding'
 import { useTheme } from '../brand/theme'
 import { rememberLastGroup } from '../tenancy/groupSlug'
@@ -55,6 +65,7 @@ export function GroupWorkspace({
   const [rail, setRail] = useState<RailState>(() => readRailState())
   const [brandingEnabled, setBrandingEnabled] = useState(false)
   const [serverBrand, setServerBrand] = useState<ServerBranding | null>(null)
+  const [members, setMembers] = useState<MemberListItem[] | null>(null)
   const { t } = useT()
   const { setRailPresent } = useRailPresence()
   const { applyDefault } = useTheme()
@@ -133,6 +144,25 @@ export function GroupWorkspace({
     }
   }, [group?.id, brandingEnabled])
 
+  // Group identity block: member avatars + count (best effort; never blocks).
+  useEffect(() => {
+    let cancelled = false
+    if (!group) {
+      setMembers(null)
+      return
+    }
+    void listMembers(group.id)
+      .then((list) => {
+        if (!cancelled) setMembers(list)
+      })
+      .catch(() => {
+        if (!cancelled) setMembers(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [group?.id])
+
   useEffect(() => {
     if (!group) return
     rememberLastGroup(group.id)
@@ -194,11 +224,39 @@ export function GroupWorkspace({
           {collapsed ? (
             <Link
               to="/"
-              aria-label="Sonivo"
+              aria-label={group ? group.name : 'Sonivo'}
               className="grid min-h-11 min-w-11 place-items-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             >
-              <SonivoMark className="h-7 w-7 text-shell-link" />
+              {group ? (
+                <span className="grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-shell-hover text-sm font-semibold text-shell-foreground">
+                  {serverBrand?.logoUrl ? (
+                    <img src={serverBrand.logoUrl} alt="" className="h-5 w-5 object-contain" />
+                  ) : (
+                    group.name.slice(0, 1).toUpperCase()
+                  )}
+                </span>
+              ) : (
+                <SonivoMark className="h-7 w-7 text-shell-link" />
+              )}
             </Link>
+          ) : group ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-shell-hover text-sm font-semibold text-shell-foreground">
+                {serverBrand?.logoUrl ? (
+                  <img src={serverBrand.logoUrl} alt="" className="h-6 w-6 object-contain" />
+                ) : (
+                  group.name.slice(0, 1).toUpperCase()
+                )}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold text-shell-foreground">
+                  {serverBrand?.displayName ?? group.name}
+                </span>
+                {serverBrand?.tagline ? (
+                  <span className="block truncate text-xs text-shell-foreground/60">{serverBrand.tagline}</span>
+                ) : null}
+              </span>
+            </div>
           ) : (
             <BrandLockup to="/" shell />
           )}
@@ -220,26 +278,35 @@ export function GroupWorkspace({
 
         {group ? (
           <nav
-            className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-3"
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3"
             aria-label={t('workspace.groupNav')}
           >
-            {groupNavItems.map((item) => {
-              const Icon = item.icon
-              const label = t(`nav.${item.id}`)
-              return (
-                <NavLink
-                  key={item.id}
-                  to={item.href(group.id)}
-                  end={item.end}
-                  aria-label={collapsed ? label : undefined}
-                  title={collapsed ? label : undefined}
-                  className={({ isActive }) => railLinkClass(isActive, collapsed)}
-                >
-                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className={cn(collapsed && 'sr-only')}>{label}</span>
-                </NavLink>
-              )
-            })}
+            {groupNavSections.map((section) => (
+              <div key={section.id} className="space-y-1">
+                {section.labelKey && !collapsed ? (
+                  <p className="px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-shell-foreground/45">
+                    {t(section.labelKey)}
+                  </p>
+                ) : null}
+                {section.items.map((item) => {
+                  const Icon = item.icon
+                  const label = t(item.labelKey)
+                  return (
+                    <NavLink
+                      key={item.id}
+                      to={item.href(group.id)}
+                      end={item.end}
+                      aria-label={collapsed ? label : undefined}
+                      title={collapsed ? label : undefined}
+                      className={({ isActive }) => railLinkClass(isActive, collapsed)}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className={cn(collapsed && 'sr-only')}>{label}</span>
+                    </NavLink>
+                  )
+                })}
+              </div>
+            ))}
             <NavLink
               to={`/groups/${group.id}/ajustes`}
               aria-label={collapsed ? t('grupo.ajustes') : undefined}
@@ -428,17 +495,40 @@ export function GroupWorkspace({
                         lightHeaderText ? 'text-white' : 'text-ink',
                       )}
                     >
-                      {group.name}
+                      {serverBrand?.displayName ?? group.name}
                     </p>
-                    <p
-                      className={cn(
-                        'mt-0.5 text-sm',
-                        lightHeaderText ? 'text-white/80' : 'text-slate-600',
-                      )}
-                    >
-                      {formatMembershipRole(group.role)}
-                    </p>
+                    {serverBrand?.tagline ? (
+                      <p className={cn('mt-0.5 truncate text-sm', lightHeaderText ? 'text-white/85' : 'text-slate-600')}>
+                        {serverBrand.tagline}
+                      </p>
+                    ) : (
+                      <p className={cn('mt-0.5 text-sm', lightHeaderText ? 'text-white/80' : 'text-slate-600')}>
+                        {formatMembershipRole(group.role)}
+                      </p>
+                    )}
+                    {serverBrand?.verse ? (
+                      <p className={cn('mt-1 truncate text-xs italic', lightHeaderText ? 'text-white/70' : 'text-slate-500')}>
+                        {serverBrand.verse}
+                      </p>
+                    ) : null}
                   </div>
+                  {members && members.length > 0 ? (
+                    <div className="hidden items-center gap-2 sm:flex">
+                      <div className="flex -space-x-2" aria-hidden="true">
+                        {members.slice(0, 4).map((member) => (
+                          <span
+                            key={member.userId}
+                            className="grid h-8 w-8 place-items-center rounded-full border-2 border-black/10 bg-primary text-[11px] font-bold text-primary-foreground"
+                          >
+                            {member.displayName.trim().slice(0, 1).toUpperCase()}
+                          </span>
+                        ))}
+                      </div>
+                      <span className={cn('text-xs font-medium', lightHeaderText ? 'text-white/85' : 'text-slate-600')}>
+                        {plural(members.length, t('grupo.memberOne'), t('grupo.memberMany'))}
+                      </span>
+                    </div>
+                  ) : null}
                   <Link
                     to={`/groups/${group.id}/ajustes`}
                     className={cn(
@@ -510,7 +600,7 @@ export function GroupWorkspace({
                     }
                   >
                     <Icon className="h-5 w-5" aria-hidden="true" />
-                    {t(`nav.${item.id}`)}
+                    {t(item.labelKey)}
                   </NavLink>
                 </li>
               )

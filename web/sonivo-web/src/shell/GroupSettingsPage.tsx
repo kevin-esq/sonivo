@@ -96,6 +96,8 @@ type BrandDraft = {
   defaultLocale: string
   welcomeText: string
   loginHeadline: string
+  tagline: string
+  verse: string
   showSonivoCredit: boolean
 }
 
@@ -121,6 +123,8 @@ function draftFromBranding(branding: GroupBranding): BrandDraft {
     defaultLocale: branding.defaultLocale ?? 'es',
     welcomeText: branding.welcomeText ?? '',
     loginHeadline: branding.loginHeadline ?? '',
+    tagline: branding.tagline ?? '',
+    verse: branding.verse ?? '',
     showSonivoCredit: branding.showSonivoCredit,
   }
 }
@@ -280,6 +284,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         defaultLocale: draft.defaultLocale || null,
         welcomeText: draft.welcomeText.trim() || null,
         loginHeadline: draft.loginHeadline.trim() || null,
+        tagline: draft.tagline.trim() || null,
+        verse: draft.verse.trim() || null,
         showSonivoCredit: draft.showSonivoCredit,
       })
       setBranding(updated)
@@ -456,8 +462,11 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 >
                   {draft.displayName || group.name}
                 </p>
-                {draft.welcomeText ? (
-                  <p className="mt-0.5 truncate text-sm text-white/85">{draft.welcomeText}</p>
+                {draft.tagline || draft.welcomeText ? (
+                  <p className="mt-0.5 truncate text-sm text-white/85">{draft.tagline || draft.welcomeText}</p>
+                ) : null}
+                {draft.verse ? (
+                  <p className="mt-1 truncate text-xs italic text-white/70">{draft.verse}</p>
                 ) : null}
               </div>
               {draft.secondaryHex ? (
@@ -679,6 +688,31 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               onChange={(e) => patchDraft({ loginHeadline: e.target.value })}
             />
           </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">{t('ajustes.tagline')}</span>
+              <input
+                className={fieldClass}
+                type="text"
+                value={draft.tagline}
+                disabled={!isOwner}
+                maxLength={160}
+                onChange={(e) => patchDraft({ tagline: e.target.value })}
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">{t('ajustes.verse')}</span>
+              <input
+                className={fieldClass}
+                type="text"
+                value={draft.verse}
+                disabled={!isOwner}
+                maxLength={200}
+                onChange={(e) => patchDraft({ verse: e.target.value })}
+              />
+            </label>
+          </div>
 
           <label className="flex items-center gap-2 text-sm">
             <input
