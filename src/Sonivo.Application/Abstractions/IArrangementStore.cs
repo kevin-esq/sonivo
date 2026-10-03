@@ -6,6 +6,8 @@ public interface IArrangementStore
 {
     Task AddAsync(Arrangement arrangement, CancellationToken cancellationToken);
     Task<IReadOnlyList<Arrangement>> ListBySongAsync(Guid groupId, Guid songId, CancellationToken cancellationToken);
+    /// <summary>Live Arrangements for the whole group (ADR-0055 W-D library).</summary>
+    Task<IReadOnlyList<Arrangement>> ListByGroupAsync(Guid groupId, CancellationToken cancellationToken);
     /// <summary>Live Arrangements only (query filter); tracked for cascade update.</summary>
     Task<IReadOnlyList<Arrangement>> ListLiveTrackedBySongAsync(Guid groupId, Guid songId, CancellationToken cancellationToken);
     Task<Arrangement?> GetByIdAsync(Guid groupId, Guid arrangementId, CancellationToken cancellationToken);

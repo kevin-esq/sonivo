@@ -927,6 +927,29 @@ export async function listResources(
   )
 }
 
+/** ADR-0055 W-D: aggregated group material library (member read). */
+export type GroupResourceItem = {
+  id: string
+  arrangementId: string
+  songId: string
+  songTitle: string
+  arrangementLabel: string
+  kind: string
+  purpose: string
+  label: string
+  part: string | null
+  note: string | null
+  url: string | null
+  originalFileName: string | null
+  contentType: string | null
+  byteSize: number | null
+  createdAt: string
+}
+
+export async function listGroupResources(groupId: string): Promise<GroupResourceItem[]> {
+  return apiRequest<GroupResourceItem[]>(`/api/groups/${groupId}/resources`)
+}
+
 export async function createLinkResource(
   groupId: string,
   arrangementId: string,

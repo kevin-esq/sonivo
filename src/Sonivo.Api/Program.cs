@@ -3209,6 +3209,25 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resourc
 .WithName("ListResources")
 .RequireAuthorization();
 
+app.MapGet("/api/groups/{groupId:guid}/resources", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    ListGroupResourcesHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var items = await handler.HandleAsync(new ListGroupResourcesQuery(userId.Value, groupId), cancellationToken);
+    return Results.Ok(items.Select(ToGroupResourceResponse));
+})
+.WithName("ListGroupResources")
+.RequireAuthorization();
+
 app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources", async (
     Guid groupId,
     Guid arrangementId,
@@ -4026,6 +4045,25 @@ static object ToArrangementDetailResponse(ArrangementDetailDto arrangement) => n
         byteSize = r.ByteSize,
         createdAt = r.CreatedAt
     })
+};
+
+static object ToGroupResourceResponse(GroupResourceListItemDto resource) => new
+{
+    id = resource.Id,
+    arrangementId = resource.ArrangementId,
+    songId = resource.SongId,
+    songTitle = resource.SongTitle,
+    arrangementLabel = resource.ArrangementLabel,
+    kind = resource.Kind,
+    purpose = resource.Purpose,
+    label = resource.Label,
+    part = resource.Part,
+    note = resource.Note,
+    url = resource.Url,
+    originalFileName = resource.OriginalFileName,
+    contentType = resource.ContentType,
+    byteSize = resource.ByteSize,
+    createdAt = resource.CreatedAt
 };
 
 static object ToResourceSummaryResponse(ResourceSummaryDto resource) => new

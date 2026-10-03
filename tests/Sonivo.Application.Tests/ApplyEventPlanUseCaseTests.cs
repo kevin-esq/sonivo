@@ -394,7 +394,9 @@ public class ApplyEventPlanUseCaseTests
             Guid groupId, Guid songId, CancellationToken cancellationToken)
             => ListBySongAsync(groupId, songId, cancellationToken);
 
-        public Task<Arrangement?> GetByIdAsync(Guid groupId, Guid arrangementId, CancellationToken cancellationToken)
+                public Task<IReadOnlyList<Arrangement>> ListByGroupAsync(Guid groupId, CancellationToken cancellationToken)
+            => ListBySongAsync(groupId, Guid.Empty, cancellationToken);
+public Task<Arrangement?> GetByIdAsync(Guid groupId, Guid arrangementId, CancellationToken cancellationToken)
             => Task.FromResult(
                 Arrangements.FirstOrDefault(a =>
                     a.GroupId == groupId && a.Id == arrangementId && !SoftDeletedIds.Contains(a.Id)));

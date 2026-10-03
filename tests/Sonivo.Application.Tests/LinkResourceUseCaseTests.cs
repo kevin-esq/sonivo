@@ -335,7 +335,9 @@ public class LinkResourceUseCaseTests
             => Task.FromResult<IReadOnlyList<Resource>>(
                 Items.Where(r => r.ArrangementId == arrangementId).OrderBy(r => r.CreatedAt).ThenBy(r => r.Id).ToList());
 
-        public Task<Resource?> GetByIdAsync(Guid arrangementId, Guid resourceId, CancellationToken cancellationToken)
+                public Task<IReadOnlyList<Resource>> ListByGroupAsync(Guid groupId, CancellationToken cancellationToken)
+            => ListByArrangementAsync(Guid.Empty, cancellationToken);
+public Task<Resource?> GetByIdAsync(Guid arrangementId, Guid resourceId, CancellationToken cancellationToken)
             => Task.FromResult(Items.FirstOrDefault(r => r.ArrangementId == arrangementId && r.Id == resourceId));
 
         public Task UpdateAsync(Resource resource, CancellationToken cancellationToken) => Task.CompletedTask;
@@ -367,7 +369,9 @@ public class LinkResourceUseCaseTests
             Guid groupId, Guid songId, CancellationToken cancellationToken)
             => ListBySongAsync(groupId, songId, cancellationToken);
 
-        public Task<Arrangement?> GetByIdAsync(Guid groupId, Guid arrangementId, CancellationToken cancellationToken)
+                public Task<IReadOnlyList<Arrangement>> ListByGroupAsync(Guid groupId, CancellationToken cancellationToken)
+            => ListBySongAsync(groupId, Guid.Empty, cancellationToken);
+public Task<Arrangement?> GetByIdAsync(Guid groupId, Guid arrangementId, CancellationToken cancellationToken)
             => Task.FromResult(Items.FirstOrDefault(a => a.GroupId == groupId && a.Id == arrangementId && !a.IsDeleted));
 
         public Task<Arrangement?> GetByIdWithResourcesAsync(
