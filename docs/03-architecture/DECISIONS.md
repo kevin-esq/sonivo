@@ -59,6 +59,8 @@ The owner refined the sidebar IA to remove redundant destinations and reduce the
 
 This narrows W-D: the material library lands on `/recursos`; `/archivos` is an alias.
 
+**All waves shipped (2026-10-03):** W-A…W-H merged to `develop` (PRs #186–#192). The phase is CLOSED.
+
 ---
 
 ## ADR-0054 — White Label v2: full brand tokens, secondary colour and banner
