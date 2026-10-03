@@ -95,4 +95,50 @@ test.describe('W20 group branding', () => {
       await anon.close()
     }
   })
+
+  test('organizer edits brand colours and banner in the UI and it persists', async ({ page, request }) => {
+    const flags = await (await request.get('/api/features')).json()
+    test.skip(!flags.groupBranding, 'Features:GroupBranding is off')
+
+    const email = uniqueEmail('w20ui')
+    await register(page, email)
+    const name = `W20ui ${Date.now()}`
+    await createGroup(page, name)
+    const { id: groupId } = await findGroup(page, name)
+
+    await page.goto(`/groups/${groupId}/ajustes`)
+    const editor = page.getByTestId('branding-editor')
+    await expect(editor).toBeVisible()
+
+    // Primary + secondary brand colours (ADR-0054).
+    const colorInputs = editor.locator('input[type="color"]')
+    await colorInputs.nth(0).fill('#047857')
+    await colorInputs.nth(1).fill('#10b981')
+    await page.getByRole('button', { name: /Guardar identidad|Save identity/ }).click()
+    await expect(page.getByText(/Identidad guardada|Identity saved/)).toBeVisible()
+
+    // Banner upload through the same editor (multipart).
+    await editor
+      .locator('input[type="file"]')
+      .nth(1)
+      .setInputFiles({ name: 'banner.png', mimeType: 'image/png', buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]) })
+
+    await expect
+      .poll(async () => {
+        const branding = await (await page.request.get(`/api/groups/${groupId}/branding`)).json()
+        return { accent: branding.accentHex, secondary: branding.secondaryHex, banner: branding.hasBanner }
+      })
+      .toEqual({ accent: '#047857', secondary: '#10b981', banner: true })
+
+    // The group shell applies the saved primary as a scoped brand token.
+    await page.goto(`/groups/${groupId}`)
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const shell = document.querySelector('[data-testid="grupo-shell"]')
+          return shell ? getComputedStyle(shell).getPropertyValue('--brand-primary').trim() : ''
+        }),
+      )
+      .toBe('#047857')
+  })
 })
