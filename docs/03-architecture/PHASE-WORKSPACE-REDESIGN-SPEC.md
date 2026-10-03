@@ -18,15 +18,19 @@ Label (ADR-0048/0054): the group's brand tokens still drive the surface.
 ## 2. Information architecture
 
 ```text
-Inicio · Canciones · Listas · Biblioteca
+Inicio
+Música: Canciones · Listas
 Organización: Calendario · Eventos · Tareas
-Equipo: Miembros · Roles · Recursos · Archivos
+Equipo: Miembros · Roles
+Recursos
 Configuración
 ```
 
-- **Canciones** = the song repertoire (current Biblioteca content, reworked).
-- **Biblioteca** = the group material library (aggregated Resources), same destination as **Recursos**.
-  **SUPUESTO** — the mockup shows both; to avoid two implementations they share one page.
+- **Canciones** = the song repertoire (current Biblioteca content, reworked). The page is
+  titled **Canciones**; "Biblioteca" is no longer a separate nav item (owner addendum 2026-10-03).
+- **Recursos** = the group material library (aggregated Resources), a cross-cutting top-level
+  section. **Archivos** is no longer a section: files are attachments on their
+  song/event/resource, and `/groups/:id/archivos` redirects to `/groups/:id/recursos`.
 - **Roles** = the Members screen filtered by role (ADR-0051 roles already exist).
 - **Tareas** = new feature (ADR-0055).
 

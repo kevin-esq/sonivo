@@ -43,6 +43,22 @@ the group library is an aggregation query, not a new aggregate.
 - No typography picker / new fonts; no new provider/dependency beyond what the waves require.
 - Scope is limited to the eight waves above; anything else needs a new decision.
 
+### Addendum — 2026-10-03 (owner-directed IA refinement)
+
+The owner refined the sidebar IA to remove redundant destinations and reduce the
+"where do I go?" problem:
+
+- **Música** section: **Canciones** (the structured repertoire screen; the page previously
+  titled "Biblioteca") + **Listas**. "Biblioteca" is no longer a separate nav item — Canciones
+  already is the group's musical library.
+- **Organización:** Calendario · Eventos · Tareas. **Equipo:** Miembros · Roles.
+- **Recursos** is a cross-cutting top-level section (the group material library).
+- **Archivos** is no longer a top-level section: files are attachments on their
+  song/event/resource. `/groups/:id/archivos` redirects to `/groups/:id/recursos`.
+- Both sidebars (app shell and group rail) hide their scrollbar while remaining scrollable.
+
+This narrows W-D: the material library lands on `/recursos`; `/archivos` is an alias.
+
 ---
 
 ## ADR-0054 — White Label v2: full brand tokens, secondary colour and banner

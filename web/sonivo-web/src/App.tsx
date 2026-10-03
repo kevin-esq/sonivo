@@ -113,7 +113,6 @@ const GroupCalendarPage = named(() => import("./groups/GroupStubs"), "GroupCalen
 const GroupTasksPage = named(() => import("./groups/GroupStubs"), "GroupTasksPage");
 const GroupRolesPage = named(() => import("./groups/GroupStubs"), "GroupRolesPage");
 const GroupResourcesPage = named(() => import("./groups/GroupStubs"), "GroupResourcesPage");
-const GroupFilesPage = named(() => import("./groups/GroupStubs"), "GroupFilesPage");
 const SecurityPage = named(
   () => import("./shell/SecurityPage"),
   "SecurityPage",
@@ -470,7 +469,7 @@ export default function App() {
                   <Route path="tasks" element={<GroupTasksPage />} />
                   <Route path="roles" element={<GroupRolesPage />} />
                   <Route path="recursos" element={<GroupResourcesPage />} />
-                  <Route path="archivos" element={<GroupFilesPage />} />
+                  <Route path="archivos" element={<Navigate to="recursos" replace />} />
                   <Route path="songs/:songId" element={<SongDetailPageR />} />
                   <Route
                     path="arrangements/:arrangementId"

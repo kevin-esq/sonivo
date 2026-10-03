@@ -138,7 +138,7 @@ function SidebarBody({
       <nav
         aria-label={t("app.sections")}
         className={cn(
-          "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-3",
+          "no-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-3",
           collapsed ? "px-2" : "px-3",
         )}
       >
