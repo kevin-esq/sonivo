@@ -20,11 +20,15 @@ public static class DependencyInjection
         services.AddScoped<GetGroupHandler>();
         services.AddScoped<GetGroupBySlugHandler>();
         services.AddScoped<ChangeGroupSlugHandler>();
-        services.AddScoped<GetGroupBrandingHandler>();        services.AddScoped<UpdateGroupBrandingHandler>();
+        services.AddScoped<GetGroupBrandingHandler>();
+        services.AddScoped<UpdateGroupBrandingHandler>();
         services.AddScoped<SetGroupLogoHandler>();
         services.AddScoped<GetGroupLogoHandler>();
+        services.AddScoped<SetGroupBannerHandler>();
+        services.AddScoped<GetGroupBannerHandler>();
         services.AddScoped<GetPublicBrandingHandler>();
         services.AddScoped<GetPublicBrandingLogoHandler>();
+        services.AddScoped<GetPublicBrandingBannerHandler>();
         services.AddScoped<UpdateGroupHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
         services.AddScoped<ListMembersHandler>();
