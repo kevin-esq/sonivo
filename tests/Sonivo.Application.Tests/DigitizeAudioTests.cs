@@ -491,6 +491,9 @@ public class DigitizeAudioTests
         public Task<IReadOnlyList<Arrangement>> ListBySongAsync(Guid groupId, Guid songId, CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<Arrangement>>(Items.Where(a => a.GroupId == groupId).ToList());
 
+        public Task<IReadOnlyList<Arrangement>> ListByGroupAsync(Guid groupId, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<Arrangement>>(Items.Where(a => a.GroupId == groupId).ToList());
+
         public Task<IReadOnlyList<Arrangement>> ListLiveTrackedBySongAsync(Guid groupId, Guid songId, CancellationToken cancellationToken)
             => ListBySongAsync(groupId, songId, cancellationToken);
 
@@ -517,6 +520,9 @@ public class DigitizeAudioTests
 
         public Task<IReadOnlyList<Resource>> ListByArrangementAsync(Guid arrangementId, CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<Resource>>(_items.Where(r => r.ArrangementId == arrangementId).ToList());
+
+        public Task<IReadOnlyList<Resource>> ListByGroupAsync(Guid groupId, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<Resource>>(_items.ToList());
 
         public Task<Resource?> GetByIdAsync(Guid arrangementId, Guid resourceId, CancellationToken cancellationToken)
             => Task.FromResult(_items.FirstOrDefault(r => r.ArrangementId == arrangementId && r.Id == resourceId));

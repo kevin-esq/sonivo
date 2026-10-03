@@ -269,6 +269,88 @@ public sealed class ListResourcesHandler
     }
 }
 
+public sealed record ListGroupResourcesQuery(Guid UserId, Guid GroupId);
+
+public sealed record GroupResourceListItemDto(
+    Guid Id,
+    Guid ArrangementId,
+    Guid SongId,
+    string SongTitle,
+    string ArrangementLabel,
+    string Kind,
+    string Purpose,
+    string Label,
+    string? Part,
+    string? Note,
+    string? Url,
+    string? OriginalFileName,
+    string? ContentType,
+    long? ByteSize,
+    DateTimeOffset CreatedAt);
+
+/// <summary>ADR-0055 W-D: aggregated group material library (member read).</summary>
+public sealed class ListGroupResourcesHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IResourceStore _resources;
+    private readonly IArrangementStore _arrangements;
+    private readonly ISongStore _songs;
+
+    public ListGroupResourcesHandler(
+        GroupAccessService access,
+        IResourceStore resources,
+        IArrangementStore arrangements,
+        ISongStore songs)
+    {
+        _access = access;
+        _resources = resources;
+        _arrangements = arrangements;
+        _songs = songs;
+    }
+
+    public async Task<IReadOnlyList<GroupResourceListItemDto>> HandleAsync(
+        ListGroupResourcesQuery query,
+        CancellationToken cancellationToken)
+    {
+        await _access.RequireMemberAsync(query.GroupId, query.UserId, cancellationToken);
+
+        var resources = await _resources.ListByGroupAsync(query.GroupId, cancellationToken);
+        if (resources.Count == 0)
+        {
+            return Array.Empty<GroupResourceListItemDto>();
+        }
+
+        var arrangements = (await _arrangements.ListByGroupAsync(query.GroupId, cancellationToken))
+            .ToDictionary(a => a.Id);
+        var songs = (await _songs.ListByGroupAsync(query.GroupId, cancellationToken))
+            .ToDictionary(s => s.Id);
+
+        return resources
+            .Select(resource =>
+            {
+                arrangements.TryGetValue(resource.ArrangementId, out var arrangement);
+                songs.TryGetValue(arrangement?.SongId ?? Guid.Empty, out var song);
+                return new GroupResourceListItemDto(
+                    resource.Id,
+                    resource.ArrangementId,
+                    arrangement?.SongId ?? Guid.Empty,
+                    song?.Title ?? string.Empty,
+                    arrangement?.Label ?? string.Empty,
+                    resource.Kind,
+                    resource.Purpose,
+                    resource.Label,
+                    resource.Part,
+                    resource.Note,
+                    resource.Url,
+                    resource.OriginalFileName,
+                    resource.ContentType,
+                    resource.ByteSize,
+                    resource.CreatedAt);
+            })
+            .ToList();
+    }
+}
+
 public sealed class GetResourceHandler
 {
     private readonly GroupAccessService _access;

@@ -29,6 +29,18 @@ public sealed class EfArrangementStore : IArrangementStore
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Arrangement>> ListByGroupAsync(
+        Guid groupId,
+        CancellationToken cancellationToken)
+    {
+        return await _db.Arrangements
+            .AsNoTracking()
+            .Where(a => a.GroupId == groupId)
+            .OrderBy(a => a.CreatedAt)
+            .ThenBy(a => a.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Arrangement>> ListLiveTrackedBySongAsync(
         Guid groupId,
         Guid songId,

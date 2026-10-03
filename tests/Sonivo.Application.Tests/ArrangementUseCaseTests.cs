@@ -427,7 +427,9 @@ public class ArrangementUseCaseTests
             CancellationToken cancellationToken)
             => ListBySongAsync(groupId, songId, cancellationToken);
 
-        public Task<Arrangement?> GetByIdAsync(Guid groupId, Guid arrangementId, CancellationToken cancellationToken)
+                public Task<IReadOnlyList<Arrangement>> ListByGroupAsync(Guid groupId, CancellationToken cancellationToken)
+            => ListBySongAsync(groupId, Guid.Empty, cancellationToken);
+public Task<Arrangement?> GetByIdAsync(Guid groupId, Guid arrangementId, CancellationToken cancellationToken)
             => Task.FromResult(Items.FirstOrDefault(a => a.GroupId == groupId && a.Id == arrangementId && !a.IsDeleted));
 
         public Task<Arrangement?> GetByIdWithResourcesAsync(

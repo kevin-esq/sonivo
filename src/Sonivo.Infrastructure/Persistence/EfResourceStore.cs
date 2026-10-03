@@ -28,6 +28,27 @@ public sealed class EfResourceStore : IResourceStore
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Resource>> ListByGroupAsync(
+        Guid groupId,
+        CancellationToken cancellationToken)
+    {
+        var arrangementIds = await _db.Arrangements
+            .Where(a => a.GroupId == groupId)
+            .Select(a => a.Id)
+            .ToListAsync(cancellationToken);
+        if (arrangementIds.Count == 0)
+        {
+            return Array.Empty<Resource>();
+        }
+
+        return await _db.Resources
+            .AsNoTracking()
+            .Where(r => arrangementIds.Contains(r.ArrangementId))
+            .OrderByDescending(r => r.CreatedAt)
+            .ThenBy(r => r.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Resource?> GetByIdAsync(
         Guid arrangementId,
         Guid resourceId,

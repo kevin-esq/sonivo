@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<CreateLinkResourceHandler>();
         services.AddScoped<CreateFileResourceHandler>();
         services.AddScoped<ListResourcesHandler>();
+        services.AddScoped<ListGroupResourcesHandler>();
         services.AddScoped<GetResourceHandler>();
         services.AddScoped<GetResourceContentHandler>();
         services.AddScoped<StartDigitizeJobHandler>();
