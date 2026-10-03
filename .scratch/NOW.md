@@ -5,11 +5,11 @@
 ## Checkpoint state
 
 ```text
-Implementation: IN PROGRESS — ADR-0055 group workspace redesign (W-A…W-D merged; W-E in PR #191; W-G/W-H pending)
+Implementation: COMPLETE — ADR-0055 group workspace redesign W-A…W-H all merged (PRs #186-#192)
 Human approval: APPROVED (owner 2026-10-03: "Sí: ADR-0055 + todas las olas W-A…W-H" + IA refinement + hidden sidebar scrollbars)
-Git checkpoint: PENDING — feature/ws-e-members (presence + members redesign)
-Remote: NOT PUSHED
-CI: NOT RUN
+Git checkpoint: COMMITTED — develop at a2a76c0 (W-G merge)
+Remote: PUSHED · all PRs merged to develop
+CI: PASSING — every wave green (Backend, Frontend, Playwright E2E, CodeQL, SCA)
 ```
 
 **Phase:** Group workspace redesign · **ADR-0055** (amends ADR-0054; addendum 2026-10-03) ·
