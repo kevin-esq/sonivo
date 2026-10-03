@@ -21,14 +21,32 @@ public class GroupBrandingTests
         Assert.Equal(expected, valid && BrandAccent.MeetsAa(hex));
     }
 
+    [Theory]
+    [InlineData("#0f172a", true)]  // dark: only white text reaches AA
+    [InlineData("#f5c542", true)]  // light: only near-black ink reaches AA
+    [InlineData("#7a7a7a", false)] // neither white nor ink reaches AA
+    public void Secondary_meets_aa_with_any_ink(string hex, bool expected)
+    {
+        var valid = BrandAccent.IsValidHex(hex);
+        Assert.Equal(expected, valid && BrandAccent.MeetsAaWithAnyInk(hex));
+    }
+
+    [Fact]
+    public void On_color_picks_the_higher_contrast_ink()
+    {
+        Assert.Equal(BrandAccent.White, BrandAccent.OnColor("#0f172a"));
+        Assert.Equal(BrandAccent.DarkInk, BrandAccent.OnColor("#f5c542"));
+    }
+
     [Fact]
     public void Update_normalizes_accent_and_stores_text()
     {
         var branding = GroupBranding.Create(Guid.NewGuid(), Now);
 
-        branding.Update("Mi Banda", "#5B4BD6", "gradient", "violeta", "dark", "es", "Bienvenido", "Entra", false, Now.AddMinutes(1));
+        branding.Update("Mi Banda", "#5B4BD6", "#F5C542", "gradient", "violeta", "dark", "es", "Bienvenido", "Entra", false, Now.AddMinutes(1));
 
         Assert.Equal("#5b4bd6", branding.AccentHex);
+        Assert.Equal("#f5c542", branding.SecondaryHex);
         Assert.Equal("Mi Banda", branding.DisplayName);
         Assert.Equal("gradient", branding.CoverKind);
         Assert.Equal("dark", branding.ThemeDefault);
@@ -42,11 +60,20 @@ public class GroupBrandingTests
         var branding = GroupBranding.Create(Guid.NewGuid(), Now);
 
         Assert.Throws<ArgumentException>(() =>
-            branding.Update(null, "#7a7a7a", null, null, null, null, null, null, true, Now));
+            branding.Update(null, "#7a7a7a", null, null, null, null, null, null, null, true, Now));
         Assert.Throws<ArgumentException>(() =>
-            branding.Update(null, "javascript:alert(1)", null, null, null, null, null, null, true, Now));
+            branding.Update(null, "javascript:alert(1)", null, null, null, null, null, null, null, true, Now));
         Assert.Throws<ArgumentException>(() =>
-            branding.Update("bad\u0007name", null, null, null, null, null, null, null, true, Now));
+            branding.Update("bad\u0007name", null, null, null, null, null, null, null, null, true, Now));
+    }
+
+    [Fact]
+    public void Update_rejects_low_contrast_secondary()
+    {
+        var branding = GroupBranding.Create(Guid.NewGuid(), Now);
+
+        Assert.Throws<ArgumentException>(() =>
+            branding.Update(null, null, "#7a7a7a", null, null, null, null, null, null, true, Now));
     }
 
     [Fact]
@@ -54,10 +81,10 @@ public class GroupBrandingTests
     {
         var branding = GroupBranding.Create(Guid.NewGuid(), Now);
 
-        branding.Update(null, null, "emoji", "🎸", null, null, null, null, true, Now);
+        branding.Update(null, null, null, "emoji", "🎸", null, null, null, null, true, Now);
         Assert.Equal("emoji", branding.CoverKind);
 
-        branding.Update(null, null, null, null, null, null, null, null, true, Now.AddMinutes(1));
+        branding.Update(null, null, null, null, null, null, null, null, null, true, Now.AddMinutes(1));
         Assert.Null(branding.CoverKind);
         Assert.Null(branding.CoverValue);
     }
@@ -73,5 +100,19 @@ public class GroupBrandingTests
         branding.RemoveLogo(Now.AddMinutes(2));
         Assert.Null(branding.LogoBlobKey);
         Assert.Null(branding.LogoContentType);
+    }
+
+    [Fact]
+    public void Banner_can_be_set_and_removed()
+    {
+        var branding = GroupBranding.Create(Guid.NewGuid(), Now);
+
+        branding.SetBanner("group-branding/x/banner-1", "image/png", Now.AddMinutes(1));
+        Assert.Equal("image/png", branding.BannerContentType);
+        Assert.Equal("group-branding/x/banner-1", branding.BannerBlobKey);
+
+        branding.RemoveBanner(Now.AddMinutes(2));
+        Assert.Null(branding.BannerBlobKey);
+        Assert.Null(branding.BannerContentType);
     }
 }

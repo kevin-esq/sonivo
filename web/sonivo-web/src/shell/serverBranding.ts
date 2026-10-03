@@ -2,12 +2,17 @@ import { getGroupBranding, type GroupBranding } from '../api/client'
 
 export type ServerBranding = {
   accentHex: string | null
+  secondaryHex: string | null
+  onPrimary: string | null
+  onSecondary: string | null
   coverKind: string | null
   coverValue: string | null
   displayName: string | null
   logoUrl: string | null
+  bannerUrl: string | null
   loginHeadline: string | null
   welcomeText: string | null
+  themeDefault: string | null
   showSonivoCredit: boolean
 }
 
@@ -17,17 +22,42 @@ export async function loadServerBranding(groupId: string): Promise<ServerBrandin
     const branding: GroupBranding = await getGroupBranding(groupId)
     return {
       accentHex: branding.accentHex,
+      secondaryHex: branding.secondaryHex,
+      onPrimary: branding.onPrimary,
+      onSecondary: branding.onSecondary,
       coverKind: branding.coverKind,
       coverValue: branding.coverValue,
       displayName: branding.displayName,
       logoUrl: branding.logoUrl,
+      bannerUrl: branding.bannerUrl,
       loginHeadline: branding.loginHeadline,
       welcomeText: branding.welcomeText,
+      themeDefault: branding.themeDefault,
       showSonivoCredit: branding.showSonivoCredit,
     }
   } catch {
     return null
   }
+}
+
+/**
+ * Scoped brand tokens (ADR-0054). Applied to the group shell only so a group's
+ * identity never leaks to `:root` or other groups. Values fall back to CSS
+ * defaults when the group did not set them.
+ */
+export function brandTokenStyle(branding: ServerBranding | null): Record<string, string> {
+  const tokens: Record<string, string> = {}
+  if (!branding) return tokens
+  if (branding.accentHex) {
+    tokens['--brand-primary'] = branding.accentHex
+    tokens['--group-accent'] = branding.accentHex
+    tokens['--brand-on-primary'] = branding.onPrimary ?? '#ffffff'
+  }
+  if (branding.secondaryHex) {
+    tokens['--brand-secondary'] = branding.secondaryHex
+    tokens['--brand-on-secondary'] = branding.onSecondary ?? '#0f172a'
+  }
+  return tokens
 }
 
 function setMeta(name: string, content: string): void {

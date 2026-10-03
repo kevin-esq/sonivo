@@ -5,22 +5,22 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE — Cuenta completa + calendario general (ADR-0053 addendum): T-HOME-09…15 done
-Human approval: APPROVED (user: "luz verde total … implementación completa", 2026-10-02)
-Git checkpoint: COMMITTED — 4 atomic commits on feature/account-calendar
-Remote: PUSHED · PR #182 (feature/account-calendar → develop)
-CI: PASSING — run 37042013096 (Backend build & tests, Frontend build, Playwright E2E)
-    + CodeQL + SCA green. Local evidence: backend 602 tests ✓; web build + oxlint (0 errors) ✓;
-    E2E shards 71 passed / 3 skipped + new cuenta/calendar specs ✓;
-    Playwright MCP visual pass (Cuenta + Calendario, light/dark, desktop/mobile) ✓
+Implementation: COMPLETE — White Label v2 (ADR-0054): brand tokens, secondary colour, banner, organizer editor
+Human approval: APPROVED (user: "Pasa a modo Build … Fase 0 … Fases 1 a 4", 2026-10-02)
+Git checkpoint: COMMITTED — 7 atomic commits on feature/white-label-workspace
+Remote: PUSHED · PR #185 (feature/white-label-workspace → develop)
+CI: PASSING — run 37086478660 (Backend build & tests, Frontend build, Playwright E2E) + CodeQL + SCA green
+    Local evidence: backend 609 tests ✓ (Domain 141, Api 212, Application 199, Integration 57);
+    web build + oxlint (0 errors) ✓; w20-branding E2E 2 passed / 1 skipped ✓;
+    regression E2E (w1/w6/w7/w9/home/groups) ✓;
+    Playwright MCP visual pass (group shell + editor, light/dark, mobile) ✓
 ```
 
-**Phase:** [`PHASE-HOME-DASHBOARD-SPEC.md`](../docs/03-architecture/PHASE-HOME-DASHBOARD-SPEC.md) §8 · **ADR-0053** (addendum).
-Follow-up on the shipped Inicio dashboard: complete **`/cuenta`** (user card + Información personal / Seguridad /
-Notificaciones / Preferencias / Plan / Uso; Plan/Uso/Notificaciones/Sesiones are disabled placeholders),
-**groups-only** top search, remove the Inicio "Explorar recursos"/"Buscar" actions and the learning banner, add a
-read-only **general calendar `/calendario`** (`GET /api/activity/calendar`), and `PATCH /api/auth/me` for
-"Editar perfil".
+**Phase:** White Label v2 · **ADR-0054** (amends ADR-0048) · [`PHASE-WHITELABEL-SPEC.md`](../docs/03-architecture/PHASE-WHITELABEL-SPEC.md).
+Widens `GroupBranding` with `SecondaryHex` + banner image, defines the scoped `--brand-*` token contract with
+server-computed AA `on-*` colours, applies the group `ThemeDefault` only until the user chooses, and wires the
+real organizer editor (logo + banner upload, primary/secondary/accent, theme, copy). `Features:GroupBranding`
+now defaults **ON**. Scope is a refresh over the current group IA (no Tareas/Roles/Recursos/Archivos sections).
 
 ### Operational notes (local E2E runner)
 
@@ -28,15 +28,18 @@ read-only **general calendar `/calendario`** (`GET /api/activity/calendar`), and
   dev server (and `vite preview` under a full-suite load) can be terminated; run the suite in shards when needed.
   Run `npm run build` first; `vite.config.ts` exposes the API/Hub proxy under `server` and `preview`.
 - API: `dotnet run --project src/Sonivo.Api --launch-profile http` with `$env:Auth__EnableTestHook="true"`
-  on `:5171`; PostgreSQL on `:5433`.
+  on `:5171`; PostgreSQL on `:5433`. Apply the new migration with `$env:SONIVO_MIGRATE_ON_START="true"`.
 - Passkeys E2E CI note: `.github/workflows/ci.yml` browses via `http://localhost:5173`
   (WebAuthn trustworthy-origin fix) — keep when changing E2E.
+- Dev-preview note: `/g/{slug}/manifest.webmanifest` is not under the Vite `/api` proxy, so it 404s (console
+  manifest error) in `vite preview` only; production serves it from the API on the same origin.
 
 ## Current state
 
+- **White Label v2 (ADR-0054)** in progress on `feature/white-label-workspace` (from `develop`, which already
+  includes the calendar refactor PR #184).
 - **Inicio dashboard phase (ADR-0053) SHIPPED** on `develop` (PR #181, merge `fa0d30e`): `/` = Inicio, `/grupos` =
   Mis grupos, app-shell sidebar, `GET /api/activity/upcoming`.
-- **F3–F5 white-label waves MERGED**; flags ON.
 - **UI/UX redesign (ADR-0043) CLOSED** and **UI/UX polish (W6–W9) CLOSED**.
 - **DevSecOps baseline (ADR-0044) ACCEPTED**; residuals tracked in
   [`SECURITY-AUDIT-2026-09.md`](../docs/03-architecture/SECURITY-AUDIT-2026-09.md).

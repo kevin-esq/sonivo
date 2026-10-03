@@ -11,7 +11,8 @@ import { Button } from '../ui/button'
 import { coverUsesLightText, groupCoverStyle, isGradientCover, isNoneCover, readGroupAppearance } from './groupAccent'
 import { GROUP_UPDATED_EVENT } from './groupEvents'
 import { groupNavItems, mobileTabItems } from './nav'
-import { applyDocumentBranding, loadServerBranding, type ServerBranding } from './serverBranding'
+import { applyDocumentBranding, brandTokenStyle, loadServerBranding, type ServerBranding } from './serverBranding'
+import { useTheme } from '../brand/theme'
 import { rememberLastGroup } from '../tenancy/groupSlug'
 import { RailNowPlaying } from './RailNowPlaying'
 import { GroupSwitcher } from './GroupSwitcher'
@@ -56,6 +57,7 @@ export function GroupWorkspace({
   const [serverBrand, setServerBrand] = useState<ServerBranding | null>(null)
   const { t } = useT()
   const { setRailPresent } = useRailPresence()
+  const { applyDefault } = useTheme()
 
   // Phase 4.3: per-group branding behind Features:GroupBranding.
   useEffect(() => {
@@ -140,7 +142,9 @@ export function GroupWorkspace({
       accentHex: serverBrand?.accentHex ?? null,
       logoUrl: serverBrand?.logoUrl ?? null,
     })
-  }, [group, serverBrand])
+    // ADR-0054: the group theme default applies only if the user has not chosen.
+    applyDefault(serverBrand?.themeDefault)
+  }, [group, serverBrand, applyDefault])
 
   const deviceAppearance = readGroupAppearance(group?.id)
   const serverCover =
@@ -157,12 +161,21 @@ export function GroupWorkspace({
   const collapsed = rail === 'collapsed'
   const groupRole = group ? formatMembershipRole(group.role) : ''
   const accent = appearance.accent
+  // Banner image wins over the gradient/emoji cover (ADR-0054 precedence).
+  const headerStyle: CSSProperties = serverBrand?.bannerUrl
+    ? {
+        backgroundImage: `linear-gradient(rgba(15,23,42,0.45), rgba(15,23,42,0.45)), url(${serverBrand.bannerUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : groupCoverStyle(appearance.cover, appearance.accent)
+  const lightHeaderText = serverBrand?.bannerUrl ? true : coverUsesLightText(appearance.cover)
 
   return (
     <div
       className="min-h-screen bg-canvas md:flex md:h-screen md:overflow-hidden"
       data-testid="grupo-shell"
-      style={{ '--group-accent': accent } as CSSProperties}
+      style={{ ...brandTokenStyle(serverBrand), '--group-accent': accent } as CSSProperties}
     >
       <aside
         className={cn(
@@ -389,7 +402,7 @@ export function GroupWorkspace({
               <div
                 data-testid="group-bar"
                 className="overflow-hidden rounded-2xl"
-                style={groupCoverStyle(appearance.cover, appearance.accent)}
+                style={headerStyle}
               >
                 <div className="flex items-center gap-4 px-5 py-5">
                   <span
@@ -412,7 +425,7 @@ export function GroupWorkspace({
                     <p
                       className={cn(
                         'truncate text-2xl font-semibold tracking-tight md:text-3xl',
-                        coverUsesLightText(appearance.cover) ? 'text-white' : 'text-ink',
+                        lightHeaderText ? 'text-white' : 'text-ink',
                       )}
                     >
                       {group.name}
@@ -420,7 +433,7 @@ export function GroupWorkspace({
                     <p
                       className={cn(
                         'mt-0.5 text-sm',
-                        coverUsesLightText(appearance.cover) ? 'text-white/80' : 'text-slate-600',
+                        lightHeaderText ? 'text-white/80' : 'text-slate-600',
                       )}
                     >
                       {formatMembershipRole(group.role)}
@@ -430,7 +443,7 @@ export function GroupWorkspace({
                     to={`/groups/${group.id}/ajustes`}
                     className={cn(
                       'hidden min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium no-underline focus-visible:outline-2 focus-visible:outline-offset-2 md:inline-flex',
-                      coverUsesLightText(appearance.cover)
+                      lightHeaderText
                         ? 'bg-black/25 text-white focus-visible:outline-white'
                         : 'bg-black/5 text-ink focus-visible:outline-secondary',
                     )}

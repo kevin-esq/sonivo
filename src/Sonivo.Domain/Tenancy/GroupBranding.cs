@@ -21,6 +21,7 @@ public sealed class GroupBranding : IVersionedEntity
     public Guid GroupId { get; private set; }
     public string? DisplayName { get; private set; }
     public string? AccentHex { get; private set; }
+    public string? SecondaryHex { get; private set; }
     public string? CoverKind { get; private set; }
     public string? CoverValue { get; private set; }
     public string? ThemeDefault { get; private set; }
@@ -29,6 +30,8 @@ public sealed class GroupBranding : IVersionedEntity
     public string? LoginHeadline { get; private set; }
     public string? LogoBlobKey { get; private set; }
     public string? LogoContentType { get; private set; }
+    public string? BannerBlobKey { get; private set; }
+    public string? BannerContentType { get; private set; }
     public bool ShowSonivoCredit { get; private set; } = true;
     public int Version { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
@@ -58,6 +61,7 @@ public sealed class GroupBranding : IVersionedEntity
     public void Update(
         string? displayName,
         string? accentHex,
+        string? secondaryHex,
         string? coverKind,
         string? coverValue,
         string? themeDefault,
@@ -69,6 +73,7 @@ public sealed class GroupBranding : IVersionedEntity
     {
         DisplayName = CleanOptional(displayName, MaxDisplayNameLength, nameof(displayName));
         AccentHex = NormalizeAccent(accentHex);
+        SecondaryHex = NormalizeSecondary(secondaryHex);
         CoverKind = CleanEnum(coverKind, CoverKinds, nameof(coverKind));
         CoverValue = CleanOptional(coverValue, MaxCoverValueLength, nameof(coverValue));
         ThemeDefault = CleanEnum(themeDefault, Themes, nameof(themeDefault));
@@ -104,6 +109,25 @@ public sealed class GroupBranding : IVersionedEntity
         Touch(now);
     }
 
+    public void SetBanner(string blobKey, string contentType, DateTimeOffset now)
+    {
+        if (string.IsNullOrWhiteSpace(blobKey))
+        {
+            throw new ArgumentException("Blob key is required.", nameof(blobKey));
+        }
+
+        BannerBlobKey = blobKey;
+        BannerContentType = contentType;
+        Touch(now);
+    }
+
+    public void RemoveBanner(DateTimeOffset now)
+    {
+        BannerBlobKey = null;
+        BannerContentType = null;
+        Touch(now);
+    }
+
     private void Touch(DateTimeOffset now)
     {
         UpdatedAt = now;
@@ -126,6 +150,27 @@ public sealed class GroupBranding : IVersionedEntity
         if (!BrandAccent.MeetsAa(normalized))
         {
             throw new ArgumentException("Accent does not meet WCAG AA contrast.", nameof(value));
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeSecondary(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (!BrandAccent.IsValidHex(value))
+        {
+            throw new ArgumentException("Secondary must be a 6-digit hex colour.", nameof(value));
+        }
+
+        var normalized = BrandAccent.Normalize(value);
+        if (!BrandAccent.MeetsAaWithAnyInk(normalized))
+        {
+            throw new ArgumentException("Secondary does not meet WCAG AA contrast.", nameof(value));
         }
 
         return normalized;

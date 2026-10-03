@@ -81,6 +81,34 @@ export async function apiRequest<T>(
   return (await response.json()) as T
 }
 
+/** Multipart upload (branding logo/banner): the browser sets the boundary, so no Content-Type. */
+export async function apiUpload<T>(path: string, file: File, field = 'file'): Promise<T> {
+  const form = new FormData()
+  form.append(field, file)
+  const response = await fetch(path, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'X-CSRF-TOKEN': await ensureCsrfToken() },
+    body: form,
+  })
+
+  if (!response.ok) {
+    let body: unknown
+    try {
+      body = await response.json()
+    } catch {
+      body = undefined
+    }
+    throw new ApiError(`Request failed: ${response.status}`, response.status, body)
+  }
+
+  if (response.status === 204) {
+    return undefined as T
+  }
+
+  return (await response.json()) as T
+}
+
 export type CurrentUser = {
   id: string
   email: string | null
@@ -443,6 +471,9 @@ export type GroupBranding = {
   groupId: string
   displayName: string | null
   accentHex: string | null
+  secondaryHex: string | null
+  onPrimary: string | null
+  onSecondary: string | null
   coverKind: string | null
   coverValue: string | null
   themeDefault: string | null
@@ -451,6 +482,8 @@ export type GroupBranding = {
   loginHeadline: string | null
   hasLogo: boolean
   logoUrl: string | null
+  hasBanner: boolean
+  bannerUrl: string | null
   showSonivoCredit: boolean
   version: number
 }
@@ -460,6 +493,8 @@ export type PublicBranding = {
   logoUrl: string | null
   accentHex: string | null
   loginHeadline: string | null
+  secondaryHex: string | null
+  bannerUrl: string | null
 }
 
 export async function getGroupBranding(groupId: string): Promise<GroupBranding> {
@@ -472,6 +507,7 @@ export async function updateGroupBranding(
     expectedVersion: number
     displayName?: string | null
     accentHex?: string | null
+    secondaryHex?: string | null
     coverKind?: string | null
     coverValue?: string | null
     themeDefault?: string | null
@@ -485,6 +521,15 @@ export async function updateGroupBranding(
     method: 'PUT',
     body: input,
   })
+}
+
+/** Uploads the group logo or the header banner (multipart; ADR-0054). */
+export async function uploadGroupBrandingImage(
+  groupId: string,
+  kind: 'logo' | 'banner',
+  file: File,
+): Promise<GroupBranding> {
+  return apiUpload<GroupBranding>(`/api/groups/${groupId}/branding/${kind}`, file)
 }
 
 /** Anonymous, uniform branding read for the branded access screen. */

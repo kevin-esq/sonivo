@@ -1657,7 +1657,7 @@ app.MapPut("/api/groups/{groupId:guid}/slug", async (
     CancellationToken cancellationToken) =>
 {
     // Flag off → 404 even for the Owner (feature disabled).
-    if (!configuration.GetValue("Features:GroupBranding", false))
+    if (!configuration.GetValue("Features:GroupBranding", true))
     {
         return Results.NotFound();
     }
@@ -1687,7 +1687,7 @@ app.MapGet("/api/groups/{groupId:guid}/branding", async (
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
 {
-    if (!configuration.GetValue("Features:GroupBranding", false))
+    if (!configuration.GetValue("Features:GroupBranding", true))
     {
         return Results.NotFound();
     }
@@ -1712,7 +1712,7 @@ app.MapPut("/api/groups/{groupId:guid}/branding", async (
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
 {
-    if (!configuration.GetValue("Features:GroupBranding", false))
+    if (!configuration.GetValue("Features:GroupBranding", true))
     {
         return Results.NotFound();
     }
@@ -1730,6 +1730,7 @@ app.MapPut("/api/groups/{groupId:guid}/branding", async (
             request.ExpectedVersion,
             request.DisplayName,
             request.AccentHex,
+            request.SecondaryHex,
             request.CoverKind,
             request.CoverValue,
             request.ThemeDefault,
@@ -1754,7 +1755,7 @@ app.MapPost("/api/groups/{groupId:guid}/branding/logo", async (
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
 {
-    if (!configuration.GetValue("Features:GroupBranding", false))
+    if (!configuration.GetValue("Features:GroupBranding", true))
     {
         return Results.NotFound();
     }
@@ -1795,7 +1796,7 @@ app.MapGet("/api/groups/{groupId:guid}/branding/logo", async (
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
 {
-    if (!configuration.GetValue("Features:GroupBranding", false))
+    if (!configuration.GetValue("Features:GroupBranding", true))
     {
         return Results.NotFound();
     }
@@ -1814,6 +1815,75 @@ app.MapGet("/api/groups/{groupId:guid}/branding/logo", async (
 .WithName("GetGroupLogo")
 .RequireAuthorization();
 
+app.MapPost("/api/groups/{groupId:guid}/branding/banner", async (
+    Guid groupId,
+    HttpRequest httpRequest,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SetGroupBannerHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", true))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!httpRequest.HasFormContentType)
+    {
+        return Results.Problem(detail: "Multipart form is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    var form = await httpRequest.ReadFormAsync(cancellationToken);
+    var file = form.Files.GetFile("file");
+    if (file is null || file.Length <= 0)
+    {
+        return Results.Problem(detail: "Banner file is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    await using var stream = file.OpenReadStream();
+    var updated = await handler.HandleAsync(
+        new SetGroupBannerCommand(userId.Value, groupId, file.ContentType, file.Length, stream),
+        cancellationToken);
+    return Results.Ok(ToBrandingResponse(updated));
+})
+.WithName("SetGroupBanner")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/branding/banner", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetGroupBannerHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", true))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var content = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
+    return content is null
+        ? Results.NotFound()
+        : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
+})
+.WithName("GetGroupBanner")
+.RequireAuthorization();
+
 // Anonymous, uniform reads for the branded access screen (never leak existence).
 app.MapGet("/api/groups/by-slug/{slug}/branding", async (
     string slug,
@@ -1821,7 +1891,7 @@ app.MapGet("/api/groups/by-slug/{slug}/branding", async (
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
 {
-    if (!configuration.GetValue("Features:GroupBranding", false))
+    if (!configuration.GetValue("Features:GroupBranding", true))
     {
         return Results.NotFound();
     }
@@ -1837,7 +1907,7 @@ app.MapGet("/api/groups/by-slug/{slug}/branding/logo", async (
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
 {
-    if (!configuration.GetValue("Features:GroupBranding", false))
+    if (!configuration.GetValue("Features:GroupBranding", true))
     {
         return Results.NotFound();
     }
@@ -1850,6 +1920,25 @@ app.MapGet("/api/groups/by-slug/{slug}/branding/logo", async (
 .WithName("GetPublicGroupBrandingLogo")
 .AllowAnonymous();
 
+app.MapGet("/api/groups/by-slug/{slug}/branding/banner", async (
+    string slug,
+    GetPublicBrandingBannerHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", true))
+    {
+        return Results.NotFound();
+    }
+
+    var content = await handler.HandleAsync(slug, cancellationToken);
+    return content is null
+        ? Results.NotFound()
+        : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
+})
+.WithName("GetPublicGroupBrandingBanner")
+.AllowAnonymous();
+
 // Dynamic per-group web app manifest (/g/{slug}/manifest.webmanifest), same origin.
 app.MapGet("/g/{slug}/manifest.webmanifest", async (
     string slug,
@@ -1857,7 +1946,7 @@ app.MapGet("/g/{slug}/manifest.webmanifest", async (
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
 {
-    if (!configuration.GetValue("Features:GroupBranding", false))
+    if (!configuration.GetValue("Features:GroupBranding", true))
     {
         return Results.NotFound();
     }
@@ -3060,7 +3149,7 @@ app.MapGet("/api/features", (IConfiguration configuration) => Results.Ok(new
 {
     lrc = configuration.GetValue("Features:Lrc", false),
     stageMode = configuration.GetValue("Features:StageMode", false),
-    groupBranding = configuration.GetValue("Features:GroupBranding", false),
+    groupBranding = configuration.GetValue("Features:GroupBranding", true),
     notifications = configuration.GetValue("Features:Notifications", false),
     managedAccounts = configuration.GetValue("Features:ManagedAccounts", false)
 }))
@@ -3806,6 +3895,9 @@ static object ToBrandingResponse(GroupBrandingDto branding) => new
     groupId = branding.GroupId,
     displayName = branding.DisplayName,
     accentHex = branding.AccentHex,
+    secondaryHex = branding.SecondaryHex,
+    onPrimary = branding.OnPrimary,
+    onSecondary = branding.OnSecondary,
     coverKind = branding.CoverKind,
     coverValue = branding.CoverValue,
     themeDefault = branding.ThemeDefault,
@@ -3814,6 +3906,8 @@ static object ToBrandingResponse(GroupBrandingDto branding) => new
     loginHeadline = branding.LoginHeadline,
     hasLogo = branding.HasLogo,
     logoUrl = branding.HasLogo ? $"/api/groups/{branding.GroupId}/branding/logo" : null,
+    hasBanner = branding.HasBanner,
+    bannerUrl = branding.HasBanner ? $"/api/groups/{branding.GroupId}/branding/banner" : null,
     showSonivoCredit = branding.ShowSonivoCredit,
     version = branding.Version
 };
@@ -4072,6 +4166,7 @@ internal sealed record UpdateGroupBrandingRequest(
     int ExpectedVersion,
     string? DisplayName,
     string? AccentHex,
+    string? SecondaryHex,
     string? CoverKind,
     string? CoverValue,
     string? ThemeDefault,

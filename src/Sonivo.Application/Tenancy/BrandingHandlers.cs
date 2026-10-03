@@ -8,6 +8,9 @@ public sealed record GroupBrandingDto(
     Guid GroupId,
     string? DisplayName,
     string? AccentHex,
+    string? SecondaryHex,
+    string? OnPrimary,
+    string? OnSecondary,
     string? CoverKind,
     string? CoverValue,
     string? ThemeDefault,
@@ -15,6 +18,7 @@ public sealed record GroupBrandingDto(
     string? WelcomeText,
     string? LoginHeadline,
     bool HasLogo,
+    bool HasBanner,
     bool ShowSonivoCredit,
     int Version);
 
@@ -24,6 +28,7 @@ public sealed record UpdateGroupBrandingCommand(
     int ExpectedVersion,
     string? DisplayName,
     string? AccentHex,
+    string? SecondaryHex,
     string? CoverKind,
     string? CoverValue,
     string? ThemeDefault,
@@ -39,11 +44,20 @@ public sealed record SetGroupLogoCommand(
     long ByteSize,
     Stream Content);
 
+public sealed record SetGroupBannerCommand(
+    Guid UserId,
+    Guid GroupId,
+    string ContentType,
+    long ByteSize,
+    Stream Content);
+
 public sealed record PublicBrandingDto(
     string? Name,
     string? LogoUrl,
     string? AccentHex,
-    string? LoginHeadline);
+    string? LoginHeadline,
+    string? SecondaryHex = null,
+    string? BannerUrl = null);
 
 /// <summary>Logo upload limits: size cap + content-type allowlist (no re-encode yet).</summary>
 public static class BrandLogoConstraints
@@ -82,11 +96,14 @@ public sealed class GetGroupBrandingHandler
 
     internal static GroupBrandingDto ToDto(Guid groupId, GroupBranding? branding) =>
         branding is null
-            ? new GroupBrandingDto(groupId, null, null, null, null, null, null, null, null, false, true, 0)
+            ? new GroupBrandingDto(groupId, null, null, null, null, null, null, null, null, null, null, null, false, false, true, 0)
             : new GroupBrandingDto(
                 groupId,
                 branding.DisplayName,
                 branding.AccentHex,
+                branding.SecondaryHex,
+                branding.AccentHex is null ? null : BrandAccent.OnColor(branding.AccentHex),
+                branding.SecondaryHex is null ? null : BrandAccent.OnColor(branding.SecondaryHex),
                 branding.CoverKind,
                 branding.CoverValue,
                 branding.ThemeDefault,
@@ -94,6 +111,7 @@ public sealed class GetGroupBrandingHandler
                 branding.WelcomeText,
                 branding.LoginHeadline,
                 branding.LogoBlobKey is not null,
+                branding.BannerBlobKey is not null,
                 branding.ShowSonivoCredit,
                 branding.Version);
 }
@@ -140,6 +158,7 @@ public sealed class UpdateGroupBrandingHandler
             branding.Update(
                 command.DisplayName,
                 command.AccentHex,
+                command.SecondaryHex,
                 command.CoverKind,
                 command.CoverValue,
                 command.ThemeDefault,
@@ -239,6 +258,86 @@ public sealed class GetGroupLogoHandler
     }
 }
 
+public sealed class SetGroupBannerHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IGroupBrandingStore _store;
+    private readonly IBlobStore _blobs;
+    private readonly IClock _clock;
+
+    public SetGroupBannerHandler(
+        GroupAccessService access,
+        IGroupBrandingStore store,
+        IBlobStore blobs,
+        IClock clock)
+    {
+        _access = access;
+        _store = store;
+        _blobs = blobs;
+        _clock = clock;
+    }
+
+    public async Task<GroupBrandingDto> HandleAsync(SetGroupBannerCommand command, CancellationToken cancellationToken)
+    {
+        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+
+        if (command.ByteSize <= 0 || command.ByteSize > BrandLogoConstraints.MaxByteSize)
+        {
+            throw new ValidationException($"Banner must be 1 byte to {BrandLogoConstraints.MaxByteSize} bytes.");
+        }
+
+        var contentType = command.ContentType.ToLowerInvariant();
+        if (!BrandLogoConstraints.IsAllowed(contentType))
+        {
+            throw new ValidationException("Banner must be a PNG, JPEG, WebP or GIF image.");
+        }
+
+        var branding = await _store.GetAsync(command.GroupId, cancellationToken);
+        var now = _clock.UtcNow;
+        if (branding is null)
+        {
+            branding = GroupBranding.Create(command.GroupId, now);
+            await _store.AddAsync(branding, cancellationToken);
+        }
+
+        var previousKey = branding.BannerBlobKey;
+        var key = $"group-branding/{command.GroupId}/banner-{Guid.NewGuid():N}";
+        await _blobs.PutAsync(key, command.Content, contentType, command.ByteSize, cancellationToken);
+
+        if (previousKey is not null && previousKey != key)
+        {
+            await _blobs.DeleteAsync(previousKey, cancellationToken);
+        }
+
+        branding.SetBanner(key, contentType, now);
+        await _store.SaveChangesAsync(cancellationToken);
+        return GetGroupBrandingHandler.ToDto(command.GroupId, branding);
+    }
+}
+
+public sealed class GetGroupBannerHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IGroupBrandingStore _store;
+    private readonly IBlobStore _blobs;
+
+    public GetGroupBannerHandler(GroupAccessService access, IGroupBrandingStore store, IBlobStore blobs)
+    {
+        _access = access;
+        _store = store;
+        _blobs = blobs;
+    }
+
+    public async Task<BlobContent?> HandleAsync(Guid userId, Guid groupId, CancellationToken cancellationToken)
+    {
+        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
+        var branding = await _store.GetAsync(groupId, cancellationToken);
+        return branding?.BannerBlobKey is { } key
+            ? await _blobs.GetAsync(key, cancellationToken)
+            : null;
+    }
+}
+
 /// <summary>
 /// Anonymous, uniform branding read for the branded access screen (ADR-0048):
 /// always 200; unknown slug and group without branding return the same empty
@@ -277,8 +376,17 @@ public sealed class GetPublicBrandingHandler
         var logoUrl = branding?.LogoBlobKey is null
             ? null
             : $"/api/groups/by-slug/{group.Slug}/branding/logo";
+        var bannerUrl = branding?.BannerBlobKey is null
+            ? null
+            : $"/api/groups/by-slug/{group.Slug}/branding/banner";
 
-        return new PublicBrandingDto(name, logoUrl, branding?.AccentHex, branding?.LoginHeadline);
+        return new PublicBrandingDto(
+            name,
+            logoUrl,
+            branding?.AccentHex,
+            branding?.LoginHeadline,
+            branding?.SecondaryHex,
+            bannerUrl);
     }
 }
 
@@ -311,6 +419,40 @@ public sealed class GetPublicBrandingLogoHandler
 
         var branding = await _branding.GetAsync(group.Id, cancellationToken);
         return branding?.LogoBlobKey is { } key
+            ? await _blobs.GetAsync(key, cancellationToken)
+            : null;
+    }
+}
+
+public sealed class GetPublicBrandingBannerHandler
+{
+    private readonly IGroupStore _groups;
+    private readonly IGroupBrandingStore _branding;
+    private readonly IBlobStore _blobs;
+
+    public GetPublicBrandingBannerHandler(IGroupStore groups, IGroupBrandingStore branding, IBlobStore blobs)
+    {
+        _groups = groups;
+        _branding = branding;
+        _blobs = blobs;
+    }
+
+    public async Task<BlobContent?> HandleAsync(string slug, CancellationToken cancellationToken)
+    {
+        var normalized = (slug ?? string.Empty).Trim().ToLowerInvariant();
+        if (!GroupSlug.IsValid(normalized))
+        {
+            return null;
+        }
+
+        var group = await _groups.GetByAnySlugAsync(normalized, cancellationToken);
+        if (group is null)
+        {
+            return null;
+        }
+
+        var branding = await _branding.GetAsync(group.Id, cancellationToken);
+        return branding?.BannerBlobKey is { } key
             ? await _blobs.GetAsync(key, cancellationToken)
             : null;
     }
