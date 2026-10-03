@@ -140,6 +140,9 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const [confirmSaveTone, setConfirmSaveTone] = useState(false)
   const [savingTone, setSavingTone] = useState(false)
   const [followAlong, setFollowAlong] = useState(false)
+  const [metronomeBpm, setMetronomeBpm] = useState(liveArrangement.defaultBpm ?? 72)
+  const [metronomeOn, setMetronomeOn] = useState(false)
+  const [liveOpen, setLiveOpen] = useState(false)
   const [audioSeconds, setAudioSeconds] = useState(0)
   const [reloadNonce, setReloadNonce] = useState(0)
   // ADR-0036 conductor follow (Event rooms only).
@@ -404,6 +407,42 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     }
   }
 
+  const [metronomePulse, setMetronomePulse] = useState(false)
+
+  // ADR-0057: best-effort metronome (visual pulse + optional audio click).
+  useEffect(() => {
+    if (!metronomeOn) return
+    let audio: AudioContext | null = null
+    let cancelled = false
+    const interval = 60_000 / metronomeBpm
+    const beat = () => {
+      if (cancelled) return
+      setMetronomePulse(true)
+      setTimeout(() => setMetronomePulse(false), 120)
+      try {
+        audio ??= new AudioContext()
+        const osc = audio.createOscillator()
+        const gain = audio.createGain()
+        osc.frequency.value = 880
+        gain.gain.setValueAtTime(0.001, audio.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.2, audio.currentTime + 0.01)
+        gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.08)
+        osc.connect(gain).connect(audio.destination)
+        osc.start()
+        osc.stop(audio.currentTime + 0.1)
+      } catch {
+        // audio unavailable; the visual pulse still works
+      }
+    }
+    beat()
+    const timer = setInterval(beat, interval)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+      void audio?.close()
+    }
+  }, [metronomeOn, metronomeBpm])
+
   const breadcrumbItems = eventId
     ? [
         { to: `/groups/${liveGroup.id}`, label: liveGroup.name },
@@ -667,6 +706,41 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               </Button>
             </div>
           ) : null}
+
+          <div className="flex flex-wrap items-center gap-3 border-t border-border-subtle pt-3">
+            <span className="text-sm font-medium text-ink">{t('practica.metronomeTitle')}</span>
+            <input
+              type="number"
+              className={cn(fieldClass, 'w-20')}
+              min={1}
+              max={400}
+              value={metronomeBpm}
+              disabled={metronomeOn}
+              onChange={(e) =>
+                setMetronomeBpm(Math.max(1, Math.min(400, Number(e.target.value) || 1)))
+              }
+              aria-label={t('practica.metronomeBpm')}
+            />
+            <Button
+              variant={metronomeOn ? 'primary' : 'secondary'}
+              size="sm"
+              data-testid="practice-metronome-toggle"
+              onClick={() => setMetronomeOn((on) => !on)}
+              aria-pressed={metronomeOn}
+            >
+              {metronomeOn
+                ? t('practica.metronomeStop')
+                : t('practica.metronomeStart')}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="practice-live-open"
+              onClick={() => setLiveOpen(true)}
+            >
+              {t('practica.liveTitle')}
+            </Button>
+          </div>
         </section>
       ) : null}
 
