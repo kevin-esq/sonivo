@@ -2176,7 +2176,7 @@ app.MapPost("/api/groups/{groupId:guid}/tasks/{taskId:guid}/status", async (
 app.MapDelete("/api/groups/{groupId:guid}/tasks/{taskId:guid}", async (
     Guid groupId,
     Guid taskId,
-    DeleteTaskRequest request,
+    [FromBody] DeleteTaskRequest request,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     DeleteTaskHandler handler,
