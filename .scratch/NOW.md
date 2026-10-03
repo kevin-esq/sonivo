@@ -7,11 +7,12 @@
 ```text
 Implementation: COMPLETE — White Label v2 (ADR-0054): brand tokens, secondary colour, banner, organizer editor
 Human approval: APPROVED (user: "Pasa a modo Build … Fase 0 … Fases 1 a 4", 2026-10-02)
-Git checkpoint: PENDING — about to commit on feature/white-label-workspace
-Remote: NOT PUSHED
-CI: NOT RUN — local evidence: backend 609 tests ✓ (Domain 141, Api 212, Application 199, Integration 57);
+Git checkpoint: COMMITTED — 7 atomic commits on feature/white-label-workspace
+Remote: PUSHED · PR #185 (feature/white-label-workspace → develop)
+CI: PASSING — run 37086478660 (Backend build & tests, Frontend build, Playwright E2E) + CodeQL + SCA green
+    Local evidence: backend 609 tests ✓ (Domain 141, Api 212, Application 199, Integration 57);
     web build + oxlint (0 errors) ✓; w20-branding E2E 2 passed / 1 skipped ✓;
-    regression E2E 11 passed (shell/theme/home/groups) ✓;
+    regression E2E (w1/w6/w7/w9/home/groups) ✓;
     Playwright MCP visual pass (group shell + editor, light/dark, mobile) ✓
 ```
 
