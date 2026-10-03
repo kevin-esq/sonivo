@@ -20,10 +20,10 @@ test.describe('W-G tasks', () => {
     await dialog.getByRole('button', { name: 'Crear tarea' }).click()
 
     await expect(page.getByText(`W-G Tarea ${stamp}`)).toBeVisible()
-    await expect(page.getByText('Pendiente')).toBeVisible()
+    await expect(page.getByText('Pendiente', { exact: true })).toBeVisible()
 
     await page.getByRole('button', { name: 'Marcar completada' }).click()
-    await expect(page.getByText('Completada')).toBeVisible()
+    await expect(page.getByText('Completada', { exact: true })).toBeVisible()
   })
 
   test('TC-WS-15 non-member cannot read tasks', async ({ page }) => {
