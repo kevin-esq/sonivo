@@ -8,6 +8,43 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0055 — Group workspace redesign to the reference mockup
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-02 ("Sí: ADR-0055 + todas las olas W-A…W-H", including new **Tasks** and **presence**).
+- **Date:** 2026-10-02
+- **Amends:** ADR-0054 — lifts its "no new IA sections" firewall for this redesign. ADR-0048/0054 branding stays.
+- **See:** [`PHASE-WORKSPACE-REDESIGN-SPEC.md`](PHASE-WORKSPACE-REDESIGN-SPEC.md).
+
+### Decision
+
+Redesign the group workspace to match the approved reference mockup (grouped sidebar, immersive home hero,
+per-section screens) in waves:
+
+- **W-A Shell + home:** sectioned group sidebar (`Organización`: Calendario/Eventos/Tareas · `Equipo`:
+  Miembros/Roles/Recursos/Archivos), group identity block, top bar, immersive hero (banner + tagline +
+  verse + member avatars + count), quick tiles, next events, recently added songs, promo card.
+- **W-B Canciones:** song **Tags** and per-user **favourites**; tabs (Todas/Favoritas/Recientes/Por tema)
+  and a dense table.
+- **W-C Calendario por grupo** + "Próximos eventos" panel.
+- **W-D Recursos/Archivos:** group-level material library (aggregated) + categories + "Subir recurso".
+- **W-E Miembros:** role tabs, instrument, **presence** (last-seen).
+- **W-F Song detail:** tabs (Letra/Acordes/Notas/Archivos) + Información sidebar + related files.
+- **W-G Tareas:** new `Task` entity + API + UI.
+- **W-H:** i18n es/en, a11y AA, E2E + Playwright MCP, docs.
+
+New additive domain: `GroupBranding.Tagline` / `GroupBranding.Verse`; `Song.Tags`; `SongFavorite`
+(per user); `Task`; `ApplicationUser.LastSeenAt` (presence heartbeat). Resources stay on arrangements;
+the group library is an aggregation query, not a new aggregate.
+
+### Firewall (explicit)
+
+- No subdomains/custom domains (ADR-0049 stays blocked); no billing (ADR-0042); no web JWT/BFF.
+- No AuthZ/session/cookie change: membership required, non-member → 404; role predicates unchanged.
+- No typography picker / new fonts; no new provider/dependency beyond what the waves require.
+- Scope is limited to the eight waves above; anything else needs a new decision.
+
+---
+
 ## ADR-0054 — White Label v2: full brand tokens, secondary colour and banner
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-02 ("luz verde total", scope confirmed: refresh over the current group IA, extend ADR-0048, flag ON by default, branch from `develop`).
