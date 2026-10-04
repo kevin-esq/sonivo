@@ -6,6 +6,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -67,11 +68,23 @@ builder.Services.ConfigureApplicationCookie(options =>
 
         return Task.CompletedTask;
     };
-    options.Events.OnValidatePrincipal = context =>
+    var previousValidatePrincipal = options.Events.OnValidatePrincipal;
+    options.Events.OnValidatePrincipal = async context =>
     {
-        // Reject (and clear) sessions that have outlived the 30-day absolute
-        // cap measured from the original sign-in. Sliding renewal still
-        // extends ExpireTimeSpan (14 days) as long as the cap has not passed.
+        // First: run the default SecurityStampValidator (invalidates sessions
+        // on password change, stamp rotation, lockout, etc.)
+        if (previousValidatePrincipal is not null)
+        {
+            await previousValidatePrincipal(context);
+        }
+
+        // If the stamp validator already rejected the principal, stop here.
+        if (context.Principal is null)
+        {
+            return;
+        }
+
+        // Then: apply the 30-day absolute session cap.
         if (context.Properties.Items.TryGetValue(
                 SessionAbsolutePolicy.IssuedUtcProperty, out var issuedRaw)
             && DateTimeOffset.TryParse(
@@ -79,10 +92,8 @@ builder.Services.ConfigureApplicationCookie(options =>
             && SessionAbsolutePolicy.IsExpired(issuedUtc, DateTimeOffset.UtcNow))
         {
             context.RejectPrincipal();
-            return context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+            await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
         }
-
-        return Task.CompletedTask;
     };
     options.Events.OnRedirectToLogin = context =>
     {
@@ -761,7 +772,7 @@ app.MapPost("/api/auth/confirm-email", async (
 .RequireRateLimiting("auth-confirm");
 
 // T-AU-01 (Q-AU-2): ALWAYS 202 — silent for unknown/already-confirmed emails
-// (no oracle), per-email 60 s cooldown, best-effort mail + mailed flag.
+// (no oracle), per-email 60 s cooldown, best-effort mail (no mailed flag).
 app.MapPost("/api/auth/resend-confirmation", async (
     ResendConfirmationRequest request,
     UserManager<ApplicationUser> users,
@@ -770,7 +781,6 @@ app.MapPost("/api/auth/resend-confirmation", async (
     VerificationThrottle throttle,
     CancellationToken cancellationToken) =>
 {
-    var mailed = false;
     var normalized = request.Email?.Trim() ?? string.Empty;
     if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim("resend:" + normalized))
     {
@@ -778,12 +788,12 @@ app.MapPost("/api/auth/resend-confirmation", async (
         if (user is not null && !user.EmailConfirmed)
         {
             var token = await users.GenerateEmailConfirmationTokenAsync(user);
-            mailed = await VerificationMail.TrySendConfirmationAsync(
+            await VerificationMail.TrySendConfirmationAsync(
                 email, origin, app.Logger, user.Email!, token, cancellationToken);
         }
     }
 
-    return Results.Accepted("/api/auth/resend-confirmation", new { accepted = true, mailed });
+    return Results.Accepted("/api/auth/resend-confirmation", new { accepted = true });
 })
 .WithName("ResendConfirmation")
 .AllowAnonymous()
@@ -791,7 +801,7 @@ app.MapPost("/api/auth/resend-confirmation", async (
 .RequireRateLimiting("auth-resend");
 
 // T-AU-01 (Q-AU-2): ALWAYS 202 — silent for unknown emails (no oracle),
-// best-effort mail + mailed flag. L4 (SECURITY-AUDIT-2026-09): per-email
+// best-effort mail (no mailed flag). L4 (SECURITY-AUDIT-2026-09): per-email
 // 60 s cooldown (distinct "forgot:" namespace so it never blocks resend).
 app.MapPost("/api/auth/forgot-password", async (
     ForgotPasswordRequest request,
@@ -801,7 +811,6 @@ app.MapPost("/api/auth/forgot-password", async (
     VerificationThrottle throttle,
     CancellationToken cancellationToken) =>
 {
-    var mailed = false;
     var normalized = request.Email?.Trim() ?? string.Empty;
     if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim("forgot:" + normalized))
     {
@@ -809,12 +818,12 @@ app.MapPost("/api/auth/forgot-password", async (
         if (user is not null)
         {
             var token = await users.GeneratePasswordResetTokenAsync(user);
-            mailed = await VerificationMail.TrySendPasswordResetAsync(
+            await VerificationMail.TrySendPasswordResetAsync(
                 email, origin, app.Logger, user.Email!, token, cancellationToken);
         }
     }
 
-    return Results.Accepted("/api/auth/forgot-password", new { accepted = true, mailed });
+    return Results.Accepted("/api/auth/forgot-password", new { accepted = true });
 })
 .WithName("ForgotPassword")
 .AllowAnonymous()
@@ -3969,10 +3978,10 @@ app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/cancel", async (
 app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/duplicate", async (
     Guid groupId,
     Guid eventId,
-    DuplicateEventRequest request,
+    [FromBody] DuplicateEventRequest request,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
-    DuplicateEventHandler handler,
+    [FromServices] DuplicateEventHandler handler,
     CancellationToken cancellationToken) =>
 {
     var userId = await RequireUserIdAsync(principal, users);
@@ -3997,7 +4006,7 @@ app.MapDelete("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
     [FromQuery] int expectedVersion,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
-    DeleteEventHandler handler,
+    [FromServices] DeleteEventHandler handler,
     CancellationToken cancellationToken) =>
 {
     var userId = await RequireUserIdAsync(principal, users);
@@ -4015,6 +4024,9 @@ app.MapDelete("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
 .WithName("DeleteEvent")
 .RequireAuthorization()
 .DisableAntiforgery();
+
+// Note: DELETE endpoints with body are not supported by ASP.NET Core minimal APIs.
+// The expectedVersion is passed as a query parameter instead.
 
 app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/apply-setlist", async (
     Guid groupId,
