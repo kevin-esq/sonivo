@@ -20,6 +20,9 @@ test.describe('W-G tasks', () => {
     await dialog.getByRole('button', { name: 'Crear tarea' }).click()
 
     await expect(page.getByText(`W-G Tarea ${stamp}`)).toBeVisible()
+
+    // Switch to list view to complete the task
+    await page.getByRole('tab', { name: 'Lista' }).click()
     await expect(page.getByRole('button', { name: 'Marcar completada' })).toBeVisible()
 
     await page.getByRole('button', { name: 'Marcar completada' }).click()
