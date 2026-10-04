@@ -472,8 +472,14 @@ export type GroupBranding = {
   displayName: string | null
   accentHex: string | null
   secondaryHex: string | null
+  accentColorHex: string | null
+  successHex: string | null
+  warningHex: string | null
+  errorHex: string | null
+  typography: string | null
   onPrimary: string | null
   onSecondary: string | null
+  onAccent: string | null
   coverKind: string | null
   coverValue: string | null
   themeDefault: string | null
@@ -486,6 +492,8 @@ export type GroupBranding = {
   logoUrl: string | null
   hasBanner: boolean
   bannerUrl: string | null
+  hasFavicon: boolean
+  faviconUrl: string | null
   showSonivoCredit: boolean
   version: number
 }
@@ -510,6 +518,11 @@ export async function updateGroupBranding(
     displayName?: string | null
     accentHex?: string | null
     secondaryHex?: string | null
+    accentColorHex?: string | null
+    successHex?: string | null
+    warningHex?: string | null
+    errorHex?: string | null
+    typography?: string | null
     coverKind?: string | null
     coverValue?: string | null
     themeDefault?: string | null

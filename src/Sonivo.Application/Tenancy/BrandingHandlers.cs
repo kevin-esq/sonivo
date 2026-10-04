@@ -9,8 +9,14 @@ public sealed record GroupBrandingDto(
     string? DisplayName,
     string? AccentHex,
     string? SecondaryHex,
+    string? AccentColorHex,
+    string? SuccessHex,
+    string? WarningHex,
+    string? ErrorHex,
+    string? Typography,
     string? OnPrimary,
     string? OnSecondary,
+    string? OnAccent,
     string? CoverKind,
     string? CoverValue,
     string? ThemeDefault,
@@ -21,6 +27,7 @@ public sealed record GroupBrandingDto(
     string? Verse,
     bool HasLogo,
     bool HasBanner,
+    bool HasFavicon,
     bool ShowSonivoCredit,
     int Version);
 
@@ -31,6 +38,11 @@ public sealed record UpdateGroupBrandingCommand(
     string? DisplayName,
     string? AccentHex,
     string? SecondaryHex,
+    string? AccentColorHex,
+    string? SuccessHex,
+    string? WarningHex,
+    string? ErrorHex,
+    string? Typography,
     string? CoverKind,
     string? CoverValue,
     string? ThemeDefault,
@@ -49,6 +61,13 @@ public sealed record SetGroupLogoCommand(
     Stream Content);
 
 public sealed record SetGroupBannerCommand(
+    Guid UserId,
+    Guid GroupId,
+    string ContentType,
+    long ByteSize,
+    Stream Content);
+
+public sealed record SetGroupFaviconCommand(
     Guid UserId,
     Guid GroupId,
     string ContentType,
@@ -100,14 +119,20 @@ public sealed class GetGroupBrandingHandler
 
     internal static GroupBrandingDto ToDto(Guid groupId, GroupBranding? branding) =>
         branding is null
-            ? new GroupBrandingDto(groupId, null, null, null, null, null, null, null, null, null, null, null, null, null, false, false, true, 0)
+            ? new GroupBrandingDto(groupId, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false, false, false, true, 0)
             : new GroupBrandingDto(
                 groupId,
                 branding.DisplayName,
                 branding.AccentHex,
                 branding.SecondaryHex,
+                branding.AccentColorHex,
+                branding.SuccessHex,
+                branding.WarningHex,
+                branding.ErrorHex,
+                branding.Typography,
                 branding.AccentHex is null ? null : BrandAccent.OnColor(branding.AccentHex),
                 branding.SecondaryHex is null ? null : BrandAccent.OnColor(branding.SecondaryHex),
+                branding.AccentColorHex is null ? null : BrandAccent.OnColor(branding.AccentColorHex),
                 branding.CoverKind,
                 branding.CoverValue,
                 branding.ThemeDefault,
@@ -118,6 +143,7 @@ public sealed class GetGroupBrandingHandler
                 branding.Verse,
                 branding.LogoBlobKey is not null,
                 branding.BannerBlobKey is not null,
+                branding.FaviconBlobKey is not null,
                 branding.ShowSonivoCredit,
                 branding.Version);
 }
@@ -165,6 +191,11 @@ public sealed class UpdateGroupBrandingHandler
                 command.DisplayName,
                 command.AccentHex,
                 command.SecondaryHex,
+                command.AccentColorHex,
+                command.SuccessHex,
+                command.WarningHex,
+                command.ErrorHex,
+                command.Typography,
                 command.CoverKind,
                 command.CoverValue,
                 command.ThemeDefault,
@@ -341,6 +372,86 @@ public sealed class GetGroupBannerHandler
         await _access.RequireMemberAsync(groupId, userId, cancellationToken);
         var branding = await _store.GetAsync(groupId, cancellationToken);
         return branding?.BannerBlobKey is { } key
+            ? await _blobs.GetAsync(key, cancellationToken)
+            : null;
+    }
+}
+
+public sealed class SetGroupFaviconHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IGroupBrandingStore _store;
+    private readonly IBlobStore _blobs;
+    private readonly IClock _clock;
+
+    public SetGroupFaviconHandler(
+        GroupAccessService access,
+        IGroupBrandingStore store,
+        IBlobStore blobs,
+        IClock clock)
+    {
+        _access = access;
+        _store = store;
+        _blobs = blobs;
+        _clock = clock;
+    }
+
+    public async Task<GroupBrandingDto> HandleAsync(SetGroupFaviconCommand command, CancellationToken cancellationToken)
+    {
+        await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+
+        if (command.ByteSize <= 0 || command.ByteSize > BrandLogoConstraints.MaxByteSize)
+        {
+            throw new ValidationException($"Favicon must be 1 byte to {BrandLogoConstraints.MaxByteSize} bytes.");
+        }
+
+        var contentType = command.ContentType.ToLowerInvariant();
+        if (!BrandLogoConstraints.IsAllowed(contentType))
+        {
+            throw new ValidationException("Favicon must be a PNG, JPEG, WebP or GIF image.");
+        }
+
+        var branding = await _store.GetAsync(command.GroupId, cancellationToken);
+        var now = _clock.UtcNow;
+        if (branding is null)
+        {
+            branding = GroupBranding.Create(command.GroupId, now);
+            await _store.AddAsync(branding, cancellationToken);
+        }
+
+        var previousKey = branding.FaviconBlobKey;
+        var key = $"group-branding/{command.GroupId}/favicon-{Guid.NewGuid():N}";
+        await _blobs.PutAsync(key, command.Content, contentType, command.ByteSize, cancellationToken);
+
+        if (previousKey is not null && previousKey != key)
+        {
+            await _blobs.DeleteAsync(previousKey, cancellationToken);
+        }
+
+        branding.SetFavicon(key, contentType, now);
+        await _store.SaveChangesAsync(cancellationToken);
+        return GetGroupBrandingHandler.ToDto(command.GroupId, branding);
+    }
+}
+
+public sealed class GetGroupFaviconHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IGroupBrandingStore _store;
+    private readonly IBlobStore _blobs;
+
+    public GetGroupFaviconHandler(GroupAccessService access, IGroupBrandingStore store, IBlobStore blobs)
+    {
+        _access = access;
+        _store = store;
+        _blobs = blobs;
+    }
+
+    public async Task<BlobContent?> HandleAsync(Guid userId, Guid groupId, CancellationToken cancellationToken)
+    {
+        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
+        var branding = await _store.GetAsync(groupId, cancellationToken);
+        return branding?.FaviconBlobKey is { } key
             ? await _blobs.GetAsync(key, cancellationToken)
             : null;
     }

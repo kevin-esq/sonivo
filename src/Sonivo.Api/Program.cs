@@ -1733,6 +1733,11 @@ app.MapPut("/api/groups/{groupId:guid}/branding", async (
             request.DisplayName,
             request.AccentHex,
             request.SecondaryHex,
+            request.AccentColorHex,
+            request.SuccessHex,
+            request.WarningHex,
+            request.ErrorHex,
+            request.Typography,
             request.CoverKind,
             request.CoverValue,
             request.ThemeDefault,
@@ -1886,6 +1891,75 @@ app.MapGet("/api/groups/{groupId:guid}/branding/banner", async (
         : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
 })
 .WithName("GetGroupBanner")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/branding/favicon", async (
+    Guid groupId,
+    HttpRequest httpRequest,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SetGroupFaviconHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", true))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!httpRequest.HasFormContentType)
+    {
+        return Results.Problem(detail: "Multipart form is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    var form = await httpRequest.ReadFormAsync(cancellationToken);
+    var file = form.Files.GetFile("file");
+    if (file is null || file.Length <= 0)
+    {
+        return Results.Problem(detail: "Favicon file is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    await using var stream = file.OpenReadStream();
+    var updated = await handler.HandleAsync(
+        new SetGroupFaviconCommand(userId.Value, groupId, file.ContentType, file.Length, stream),
+        cancellationToken);
+    return Results.Ok(ToBrandingResponse(updated));
+})
+.WithName("SetGroupFavicon")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapGet("/api/groups/{groupId:guid}/branding/favicon", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetGroupFaviconHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", true))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var content = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
+    return content is null
+        ? Results.NotFound()
+        : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
+})
+.WithName("GetGroupFavicon")
 .RequireAuthorization();
 
 // Anonymous, uniform reads for the branded access screen (never leak existence).
@@ -4064,8 +4138,14 @@ static object ToBrandingResponse(GroupBrandingDto branding) => new
     displayName = branding.DisplayName,
     accentHex = branding.AccentHex,
     secondaryHex = branding.SecondaryHex,
+    accentColorHex = branding.AccentColorHex,
+    successHex = branding.SuccessHex,
+    warningHex = branding.WarningHex,
+    errorHex = branding.ErrorHex,
+    typography = branding.Typography,
     onPrimary = branding.OnPrimary,
     onSecondary = branding.OnSecondary,
+    onAccent = branding.OnAccent,
     coverKind = branding.CoverKind,
     coverValue = branding.CoverValue,
     themeDefault = branding.ThemeDefault,
@@ -4078,6 +4158,8 @@ static object ToBrandingResponse(GroupBrandingDto branding) => new
     logoUrl = branding.HasLogo ? $"/api/groups/{branding.GroupId}/branding/logo" : null,
     hasBanner = branding.HasBanner,
     bannerUrl = branding.HasBanner ? $"/api/groups/{branding.GroupId}/branding/banner" : null,
+    hasFavicon = branding.HasFavicon,
+    faviconUrl = branding.HasFavicon ? $"/api/groups/{branding.GroupId}/branding/favicon" : null,
     showSonivoCredit = branding.ShowSonivoCredit,
     version = branding.Version
 };
@@ -4360,6 +4442,11 @@ internal sealed record UpdateGroupBrandingRequest(
     string? DisplayName,
     string? AccentHex,
     string? SecondaryHex,
+    string? AccentColorHex,
+    string? SuccessHex,
+    string? WarningHex,
+    string? ErrorHex,
+    string? Typography,
     string? CoverKind,
     string? CoverValue,
     string? ThemeDefault,

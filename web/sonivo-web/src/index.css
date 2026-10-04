@@ -40,6 +40,23 @@
   --radius-xl: 1.25rem;
 }
 
+/* ---------- Brand token defaults (overridden per-group at runtime) ---------- */
+:root {
+  --brand-primary: #8366f1;
+  --brand-primary-hover: #7558e0;
+  --brand-primary-active: #6549d0;
+  --brand-primary-soft: rgba(131, 102, 241, 0.1);
+  --brand-primary-border: rgba(131, 102, 241, 0.25);
+  --brand-on-primary: #ffffff;
+  --brand-secondary: #e8c4f6;
+  --brand-on-secondary: #0f172a;
+  --brand-secondary-soft: rgba(232, 196, 246, 0.1);
+  --brand-accent: #9d8bda;
+  --brand-on-accent: #ffffff;
+  --brand-accent-soft: rgba(157, 139, 218, 0.1);
+  --group-accent: #8366f1;
+}
+
 :root,
 :root[data-theme="dark"] {
   --color-canvas: #0b1220;
@@ -57,6 +74,12 @@
   --color-muted: #94a3b8;
   --color-surface-hover: rgba(255, 255, 255, 0.06);
   --color-border-subtle: rgba(255, 255, 255, 0.1);
+  /* Dark theme semantic colors */
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-error-ink: #fca5a5;
+  --color-error-strong: #ef4444;
 }
 
 :root[data-theme="light"] {
@@ -73,6 +96,12 @@
   --color-muted: #64748b;
   --color-surface-hover: #f8fafc;
   --color-border-subtle: #e2e8f0;
+  /* Light theme semantic colors */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --color-error-ink: #dc2626;
+  --color-error-strong: #b91c1c;
 }
 
 html,
