@@ -549,6 +549,14 @@ export async function uploadGroupBrandingImage(
   return apiUpload<GroupBranding>(`/api/groups/${groupId}/branding/${kind}`, file)
 }
 
+/** Uploads the group favicon/app icon (multipart). */
+export async function uploadGroupBrandingFavicon(
+  groupId: string,
+  file: File,
+): Promise<GroupBranding> {
+  return apiUpload<GroupBranding>(`/api/groups/${groupId}/branding/favicon`, file)
+}
+
 /** Anonymous, uniform branding read for the branded access screen. */
 export async function getPublicBranding(slug: string): Promise<PublicBranding> {
   return apiRequest<PublicBranding>(`/api/groups/by-slug/${encodeURIComponent(slug)}/branding`)

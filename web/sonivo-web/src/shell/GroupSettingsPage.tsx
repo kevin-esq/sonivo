@@ -11,10 +11,12 @@ import {
   updateGroup,
   updateGroupBranding,
   uploadGroupBrandingImage,
+  uploadGroupBrandingFavicon,
   type CurrentUser,
   type GroupBranding,
   type GroupDetail,
 } from '../api/client'
+import { TYPOGRAPHY_OPTIONS } from '../brand/tokens'
 import { useT, type I18nKey } from '../i18n'
 import {
   ACCESS_DENIED_MESSAGE,
@@ -116,6 +118,11 @@ type BrandDraft = {
   displayName: string
   accentHex: string
   secondaryHex: string
+  accentColorHex: string
+  successHex: string
+  warningHex: string
+  errorHex: string
+  typography: string
   cover: string
   themeDefault: string
   defaultLocale: string
@@ -143,6 +150,11 @@ function draftFromBranding(branding: GroupBranding): BrandDraft {
     displayName: branding.displayName ?? '',
     accentHex: branding.accentHex ?? '',
     secondaryHex: branding.secondaryHex ?? '',
+    accentColorHex: branding.accentColorHex ?? '',
+    successHex: branding.successHex ?? '',
+    warningHex: branding.warningHex ?? '',
+    errorHex: branding.errorHex ?? '',
+    typography: branding.typography ?? 'system',
     cover: coverFromBranding(branding),
     themeDefault: branding.themeDefault ?? 'system',
     defaultLocale: branding.defaultLocale ?? 'es',
@@ -178,7 +190,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const [brandSaved, setBrandSaved] = useState(false)
   const [brandError, setBrandError] = useState<string | null>(null)
   const [brandConflict, setBrandConflict] = useState<string | null>(null)
-  const [uploading, setUploading] = useState<'logo' | 'banner' | null>(null)
+  const [uploading, setUploading] = useState<'logo' | 'banner' | 'favicon' | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -303,6 +315,11 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         displayName: draft.displayName.trim() || null,
         accentHex: draft.accentHex.trim() || null,
         secondaryHex: draft.secondaryHex.trim() || null,
+        accentColorHex: draft.accentColorHex.trim() || null,
+        successHex: draft.successHex.trim() || null,
+        warningHex: draft.warningHex.trim() || null,
+        errorHex: draft.errorHex.trim() || null,
+        typography: draft.typography || null,
         coverKind: cover.coverKind,
         coverValue: cover.coverValue,
         themeDefault: draft.themeDefault || null,
@@ -335,14 +352,16 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     }
   }
 
-  async function onUploadImage(kind: 'logo' | 'banner', event: ChangeEvent<HTMLInputElement>) {
+  async function onUploadImage(kind: 'logo' | 'banner' | 'favicon', event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file || !group) return
     setUploading(kind)
     setBrandError(null)
     try {
-      const updated = await uploadGroupBrandingImage(group.id, kind, file)
+      const updated = kind === 'favicon'
+        ? await uploadGroupBrandingFavicon(group.id, file)
+        : await uploadGroupBrandingImage(group.id, kind, file)
       setBranding(updated)
       notifyGroupUpdated()
     } catch (err) {
@@ -585,6 +604,113 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner}>
+            <legend className="font-medium">{t('ajustes.accentColor')}</legend>
+            <p className="text-sm text-slate-500">{t('ajustes.accentColorHint')}</p>
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.accentColor')}>
+              {BRAND_SECONDARY_PRESETS.map((swatch) => (
+                <button
+                  key={swatch}
+                  type="button"
+                  aria-pressed={draft.accentColorHex.toLowerCase() === swatch}
+                  aria-label={t(BRAND_COLOR_NAME_KEYS[swatch] ?? 'ajustes.accentColor')}
+                  onClick={() => patchDraft({ accentColorHex: swatch })}
+                  className={cn(
+                    'h-11 w-11 rounded-full transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                    draft.accentColorHex.toLowerCase() === swatch
+                      ? 'ring-2 ring-primary ring-offset-2'
+                      : 'ring-1 ring-slate-300 hover:scale-105',
+                  )}
+                  style={{ backgroundColor: swatch }}
+                />
+              ))}
+              <input
+                type="color"
+                aria-label={t('ajustes.customColor')}
+                value={draft.accentColorHex || '#9d8bda'}
+                onChange={(e) => patchDraft({ accentColorHex: e.target.value })}
+                className="h-11 w-11 cursor-pointer rounded-full border border-slate-300 bg-transparent p-1"
+              />
+              <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ accentColorHex: '' })}>
+                {t('ajustes.clearColor')}
+              </Button>
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-3" disabled={!isOwner}>
+            <legend className="font-medium">{t('ajustes.semanticColors')}</legend>
+            <p className="text-sm text-slate-500">{t('ajustes.semanticColorsHint')}</p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-slate-700">{t('ajustes.successColor')}</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    aria-label={t('ajustes.successColor')}
+                    value={draft.successHex || '#10b981'}
+                    onChange={(e) => patchDraft({ successHex: e.target.value })}
+                    className="h-11 w-11 cursor-pointer rounded-full border border-slate-300 bg-transparent p-1"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ successHex: '' })}>
+                    {t('ajustes.clearColor')}
+                  </Button>
+                </div>
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-slate-700">{t('ajustes.warningColor')}</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    aria-label={t('ajustes.warningColor')}
+                    value={draft.warningHex || '#f59e0b'}
+                    onChange={(e) => patchDraft({ warningHex: e.target.value })}
+                    className="h-11 w-11 cursor-pointer rounded-full border border-slate-300 bg-transparent p-1"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ warningHex: '' })}>
+                    {t('ajustes.clearColor')}
+                  </Button>
+                </div>
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-slate-700">{t('ajustes.errorColor')}</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    aria-label={t('ajustes.errorColor')}
+                    value={draft.errorHex || '#ef4444'}
+                    onChange={(e) => patchDraft({ errorHex: e.target.value })}
+                    className="h-11 w-11 cursor-pointer rounded-full border border-slate-300 bg-transparent p-1"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ errorHex: '' })}>
+                    {t('ajustes.clearColor')}
+                  </Button>
+                </div>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-3" disabled={!isOwner}>
+            <legend className="font-medium">{t('ajustes.typography')}</legend>
+            <p className="text-sm text-slate-500">{t('ajustes.typographyHint')}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.typography')}>
+              {TYPOGRAPHY_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={draft.typography === option.id}
+                  onClick={() => patchDraft({ typography: option.id })}
+                  className={cn(
+                    'flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                    draft.typography === option.id ? 'border-primary ring-2 ring-primary/25' : 'border-slate-300 hover:border-primary/50',
+                  )}
+                >
+                  <span style={{ fontFamily: option.fontFamily }} className="text-base">Aa</span>
+                  {t(option.labelKey as I18nKey)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-3" disabled={!isOwner}>
             <legend className="font-medium">{t('ajustes.palettesTitle')}</legend>
             <p className="text-sm text-slate-500">{t('ajustes.palettesHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.palettesTitle')}>
@@ -663,7 +789,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-3">
             <div className="space-y-2">
               <p className="text-sm font-medium">{t('ajustes.uploadLogo')}</p>
               <p className="text-xs text-slate-500">{t('ajustes.imageHint')}</p>
@@ -687,6 +813,18 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 onChange={(e) => void onUploadImage('banner', e)}
               />
               {uploading === 'banner' ? <p aria-live="polite" className="text-xs text-slate-500">{t('ajustes.uploading')}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{t('ajustes.uploadFavicon')}</p>
+              <p className="text-xs text-slate-500">{t('ajustes.faviconHint')}</p>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                disabled={!isOwner || uploading !== null}
+                aria-label={t('ajustes.uploadFavicon')}
+                onChange={(e) => void onUploadImage('favicon', e)}
+              />
+              {uploading === 'favicon' ? <p aria-live="polite" className="text-xs text-slate-500">{t('ajustes.uploading')}</p> : null}
             </div>
           </div>
 
