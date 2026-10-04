@@ -8,6 +8,74 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0060 — Kanban board: `in_progress` state + clean validation errors
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-03.
+- **Date:** 2026-10-03
+- **Amends:** ADR-0056 (Kanban board) — adds `in_progress` state and fixes error messaging.
+
+### Decision
+Add `in_progress` as a third valid task status alongside `open` and `done`. The board already has
+three columns; the backend must accept all three to avoid rejecting legitimate movements.
+Additionally, validation error messages must be clean and translatable — no internal parameter
+names like `(Parameter 'status')` should leak to the API response.
+
+### Firewall
+- No new backend entity; reuses `GroupTask` with additive status.
+- No database CHECK constraint required (domain validation is sufficient).
+- Error messages must be i18n-ready strings, not raw .NET exception text.
+
+---
+
+## ADR-0061 — Kanban board: pointer-based drag-and-drop library
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-03.
+- **Date:** 2026-10-03
+- **Amends:** ADR-0056 (Kanban board) — replaces native HTML5 drag with a pointer-based library.
+
+### Decision
+Replace native HTML5 drag-and-drop (`draggable`, `onDragStart`) with `@dnd-kit` for full control
+over the drag visual, touch support, keyboard navigation, and screen-reader announcements.
+The library must be lazy-loaded so it does not affect the initial bundle.
+
+### Firewall
+- `@dnd-kit` is the only new production dependency for this feature.
+- Lazy-load the board component (`React.lazy`) so the library loads only on the tasks page.
+- Drag must support: mouse (6px threshold), touch (200ms long-press + vibration), keyboard
+  (Space lift, arrows move, Space drop, Esc cancel).
+- Must include `DragOverlay`, auto-scroll near edges, and an "Undo" toast after drop.
+- Respects `prefers-reduced-motion`.
+
+---
+
+## ADR-0062 — Kanban board: expanded scope (links, manual order, real-time, notifications, templates)
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-03.
+- **Date:** 2026-10-03
+- **Amends:** ADR-0056 (Kanban board) — expands the kanban with high-value differentiating features.
+
+### Decision
+Expand the kanban board with the following features, in order of value:
+
+1. **Task-to-entity links**: link a task to an Event, Arrangement, or Song ("Learn X for Friday's
+   rehearsal"). New `TaskLinks` table.
+2. **Manual ordering within a column**: respect the existing `Position` field; fractional ranking
+   so moving one card does not rewrite the whole column.
+3. **Shared real-time updates**: polling every 30s or SignalR to reflect other users' changes.
+4. **Notifications**: on assignment and due-date reminders (aligns with ADR-0039 email phase).
+5. **Task templates**: per event type (rehearsal, concert).
+6. **"My tasks" view**: cross-group task list on the home page.
+7. **Checklist inside a card**: deferred until demand exists; labels and comments are future.
+
+### Firewall
+- Links are soft (no hard FK constraints to arbitrary entities — use `EntityType` + `EntityId`).
+- Real-time is read-only (no collaborative editing of the same task).
+- Notifications are best-effort (same as presence, ADR-0055 W-E).
+- No new role hierarchy; same Manager/Owner write, Member read (ADR-0051).
+- Each feature ships in its own PR with tests.
+
+---
+
 ## ADR-0056 — Kanban board for group tasks
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-03.
