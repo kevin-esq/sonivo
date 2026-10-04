@@ -35,6 +35,7 @@ import { canManageContentRole, mutationErrorMessage, ProblemAlert } from '../rep
 import { useAction } from '../hooks/useAction'
 import { useResource } from '../hooks/useResource'
 import { useAuth } from '../shell/authContext'
+import { ConfirmDialog } from '../ui/confirm-dialog'
 
 /* ────────── status helpers ────────── */
 
@@ -201,34 +202,44 @@ export function GroupTasksPage() {
 
   const canManage = canManageContentRole(group.role)
 
+  // Queue of in-flight status changes per task to prevent races
+  const statusQueueRef = useRef<Map<string, Promise<TaskItem>>>(new Map())
+
   async function changeStatus(task: TaskItem, status: string) {
     if (!groupId) return
+    const list = localTasks ?? surface.data ?? []
     // Optimistic update: move card immediately in local state
-    const previousTasks = localTasks ?? surface.data ?? []
-    setLocalTasks(previousTasks.map((t) => t.id === task.id ? { ...t, status } : t))
+    setLocalTasks(list.map((t) => t.id === task.id ? { ...t, status } : t))
+    // Chain after any in-flight change for this task
+    const prior = statusQueueRef.current.get(task.id) ?? Promise.resolve(task)
+    const next = prior.then(() => setTaskStatus(groupId, task.id, {
+      status,
+      expectedVersion: task.version,
+    }))
+    statusQueueRef.current.set(task.id, next)
     try {
-      await setTaskStatus(groupId, task.id, {
-        status,
-        expectedVersion: task.version,
-      })
-      // Clear local override on success — server data is now authoritative
-      setLocalTasks(null)
+      const result = await next
+      // Apply server response (new status + new version) to local list
+      const current = localTasks ?? surface.data ?? []
+      setLocalTasks(current.map((t) => t.id === task.id ? { ...t, status: result.status, version: result.version } : t))
     } catch (err) {
-      // Rollback on failure
-      setLocalTasks(null)
+      // Revert only this task, not the whole list
+      const current = localTasks ?? surface.data ?? []
+      setLocalTasks(current.map((t) => t.id === task.id ? { ...t, status: task.status, version: task.version } : t))
       setError(mutationErrorMessage(err))
+    } finally {
+      // Clean up queue entry if it's still the latest
+      if (statusQueueRef.current.get(task.id) === next) {
+        statusQueueRef.current.delete(task.id)
+      }
     }
   }
 
+  const [confirmDelete, setConfirmDelete] = useState<TaskItem | null>(null)
+
   async function remove(task: TaskItem) {
     if (!groupId) return
-    if (!window.confirm(t('tareas.deleteConfirm'))) return
-    try {
-      await deleteTask(groupId, task.id, task.version)
-      reload()
-    } catch (err) {
-      setError(mutationErrorMessage(err))
-    }
+    setConfirmDelete(task)
   }
 
   const doneCount = tasks.filter((x) => x.status === 'done').length
@@ -387,6 +398,28 @@ export function GroupTasksPage() {
           lang={lang}
         />
       ) : null}
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={t('tareas.deleteConfirmTitle')}
+        message={t('tareas.deleteConfirm')}
+        confirmLabel={t('tareas.delete')}
+        cancelLabel={t('tareas.cancel')}
+        onConfirm={() => {
+          if (confirmDelete) {
+            void (async () => {
+              try {
+                await deleteTask(group.id, confirmDelete.id, confirmDelete.version)
+                setConfirmDelete(null)
+                reload()
+              } catch (err) {
+                setError(mutationErrorMessage(err))
+              }
+            })()
+          }
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </section>
   )
 }
@@ -731,6 +764,8 @@ function TaskCard({
   const cardRef = useRef<HTMLDivElement>(null)
 
   function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    // Only intercept Enter/Space when focus is on the card itself, not on child buttons
+    if (e.target !== e.currentTarget) return
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       onClick()
@@ -738,7 +773,6 @@ function TaskCard({
     if (canManage && e.altKey && e.key === 'ArrowLeft') {
       e.preventDefault()
       onMove('left')
-      // Focus returns to card after move (card re-renders in new column)
       requestAnimationFrame(() => {
         ;(document.querySelector(`[data-task-id="${task.id}"]`) as HTMLElement | null)?.focus()
       })
@@ -767,6 +801,7 @@ function TaskCard({
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label={task.title}
+      aria-describedby={task.dueAt ? `due-${task.id}` : undefined}
       className={cn(
         'group relative cursor-pointer rounded-xl border border-border-subtle bg-surface p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-200',
         'hover:border-primary/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12),0_2px_4px_rgba(0,0,0,0.06)]',
@@ -776,9 +811,9 @@ function TaskCard({
         isDragging && 'rotate-[3deg] scale-105 opacity-70 shadow-[0_12px_32px_rgba(0,0,0,0.2),0_4px_8px_rgba(0,0,0,0.1)] ring-2 ring-primary/30',
       )}
     >
-      {/* Move buttons (mobile + hover) */}
+      {/* Move buttons (mobile + hover + focus-within) */}
       {canManage ? (
-        <div className="absolute -top-2 right-2 flex gap-1 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
+        <div className="absolute -top-2 right-2 flex gap-1 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onMove('left') }}
@@ -827,6 +862,7 @@ function TaskCard({
         {/* Due date */}
         {task.dueAt ? (
           <span
+            id={`due-${task.id}`}
             className={cn(
               'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium',
               overdue
@@ -839,7 +875,7 @@ function TaskCard({
             )}
           >
             <CalendarClock className="h-3 w-3" aria-hidden="true" />
-            {overdue ? t('tareas.overdue') : formatDue(task.dueAt, lang)}
+            {overdue ? `${t('tareas.overdue')} — ${formatDue(task.dueAt, lang)}` : formatDue(task.dueAt, lang)}
           </span>
         ) : null}
 
@@ -889,7 +925,8 @@ function TaskDetailModal({
   const [dueAt, setDueAt] = useState(toLocalDate(task.dueAt))
   const [assigneeUserId, setAssigneeUserId] = useState(task.assigneeUserId ?? '')
   const [error, setError] = useState<string | null>(null)
-  const [hasChanges, setHasChanges] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const titleId = useId()
 
   useEffect(() => {
@@ -899,12 +936,13 @@ function TaskDetailModal({
     }
   }, [])
 
-  // Track unsaved changes
-  useEffect(() => {
-    if (!isEditing) return
-    const changed = title !== task.title || notes !== (task.notes ?? '') || dueAt !== toLocalDate(task.dueAt) || assigneeUserId !== (task.assigneeUserId ?? '')
-    setHasChanges(changed)
-  }, [title, notes, dueAt, assigneeUserId, isEditing, task])
+  // Compute hasChanges directly in render — no state, no effect
+  const hasChanges = isEditing && (
+    title !== task.title ||
+    notes !== (task.notes ?? '') ||
+    dueAt !== toLocalDate(task.dueAt) ||
+    assigneeUserId !== (task.assigneeUserId ?? '')
+  )
 
   // Close on click outside
   useEffect(() => {
@@ -915,9 +953,7 @@ function TaskDetailModal({
       // Only close if clicking the dialog backdrop itself, not children
       if (e.target === d) {
         if (hasChanges) {
-          if (window.confirm(t('tareas.discardConfirm'))) {
-            onClose()
-          }
+          setConfirmDiscard(true)
         } else {
           onClose()
         }
@@ -925,7 +961,7 @@ function TaskDetailModal({
     }
     dialog.addEventListener('click', handleClick)
     return () => dialog.removeEventListener('click', handleClick)
-  }, [hasChanges, onClose, t])
+  }, [hasChanges, onClose])
 
   const saveAction = useAction(async () => {
     setError(null)
@@ -940,30 +976,16 @@ function TaskDetailModal({
   })
 
   const deleteAction = useAction(async () => {
-    if (!window.confirm(t('tareas.deleteConfirm'))) return
     await deleteTask(groupId, task.id, task.version)
     onDeleted()
   })
 
-  // Esc cancels editing first, then closes
+  // Ctrl/Cmd + Enter saves (Esc is handled by onCancel)
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
     function handleKeydown(e: Event) {
       const ke = e as globalThis.KeyboardEvent
-      if (ke.key === 'Escape') {
-        e.stopPropagation()
-        if (isEditing) {
-          setIsEditing(false)
-          setTitle(task.title)
-          setNotes(task.notes ?? '')
-          setDueAt(toLocalDate(task.dueAt))
-          setAssigneeUserId(task.assigneeUserId ?? '')
-        } else {
-          onClose()
-        }
-      }
-      // Ctrl/Cmd + Enter saves
       if ((ke.ctrlKey || ke.metaKey) && ke.key === 'Enter' && isEditing) {
         ke.preventDefault()
         void saveAction.run()
@@ -971,7 +993,7 @@ function TaskDetailModal({
     }
     dialog.addEventListener('keydown', handleKeydown)
     return () => dialog.removeEventListener('keydown', handleKeydown)
-  }, [isEditing, onClose, task, t, title, notes, dueAt, assigneeUserId, saveAction])
+  }, [isEditing, saveAction])
 
   const assignee = memberName(members, task.assigneeUserId)
   const creator = memberName(members, task.createdByUserId)
@@ -1216,6 +1238,33 @@ function TaskDetailModal({
           ) : null}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        title={t('tareas.discardConfirmTitle')}
+        message={t('tareas.discardConfirm')}
+        confirmLabel={t('tareas.discard')}
+        cancelLabel={t('tareas.cancel')}
+        onConfirm={() => {
+          setConfirmDiscard(false)
+          setIsEditing(false)
+          onClose()
+        }}
+        onCancel={() => setConfirmDiscard(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title={t('tareas.deleteConfirmTitle')}
+        message={t('tareas.deleteConfirm')}
+        confirmLabel={t('tareas.delete')}
+        cancelLabel={t('tareas.cancel')}
+        onConfirm={() => {
+          setConfirmDelete(false)
+          void deleteAction.run()
+        }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </dialog>
   )
 }
