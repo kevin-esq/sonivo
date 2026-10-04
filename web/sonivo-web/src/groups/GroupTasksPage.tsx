@@ -211,6 +211,16 @@ export function GroupTasksPage() {
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
 
+  const [confirmDelete, setConfirmDelete] = useState<TaskItem | null>(null)
+
+  const doneCount = tasks.filter((x) => x.status === 'done').length
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
   if (group === undefined) {
     return <p aria-live="polite">{t('tareas.loading')}</p>
   }
@@ -258,20 +268,10 @@ export function GroupTasksPage() {
     }
   }
 
-  const [confirmDelete, setConfirmDelete] = useState<TaskItem | null>(null)
-
   async function remove(task: TaskItem) {
     if (!groupId) return
     setConfirmDelete(task)
   }
-
-  const doneCount = tasks.filter((x) => x.status === 'done').length
-
-  const dndSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
 
   return (
     <DndContext
