@@ -66,6 +66,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
   const [roleTab, setRoleTab] = useState<RoleTab>(
     roleFilter === 'admins' || roleFilter === 'leaders' || roleFilter === 'members' ? roleFilter : 'all',
   )
+  const [searchQuery, setSearchQuery] = useState('')
   const [listError, setListError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [pendingUserId, setPendingUserId] = useState<string | null>(null)
@@ -219,7 +220,15 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
 
   const visibleMembers = (members ?? []).filter(
     (m) => roleTab === 'all' || roleTabOf(m.role) === roleTab,
-  )
+  ).filter((m) => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return true
+    return (
+      m.displayName.toLowerCase().includes(q) ||
+      (m.email ?? '').toLowerCase().includes(q) ||
+      (m.musicalRole ?? '').toLowerCase().includes(q)
+    )
+  })
 
   return (
     <section className="space-y-6" aria-labelledby="people-heading">
@@ -233,29 +242,47 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
         <p className="text-sm text-muted">
           {t('gente.subtitle')}
         </p>
-        <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('gente.title')}>
-          {([
-            { id: 'all', label: t('gente.tabAll') },
-            { id: 'admins', label: t('gente.tabAdmins') },
-            { id: 'leaders', label: t('gente.tabLeaders') },
-            { id: 'members', label: t('gente.tabMembers') },
-          ] as { id: RoleTab; label: string }[]).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={roleTab === tab.id}
-              onClick={() => setRoleTab(tab.id)}
-              className={cn(
-                'min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-                roleTab === tab.id
-                  ? 'bg-primary-strong text-primary-foreground'
-                  : 'text-muted hover:text-ink',
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('gente.title')}>
+            {([
+              { id: 'all', label: t('gente.tabAll') },
+              { id: 'admins', label: t('gente.tabAdmins') },
+              { id: 'leaders', label: t('gente.tabLeaders') },
+              { id: 'members', label: t('gente.tabMembers') },
+            ] as { id: RoleTab; label: string }[]).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={roleTab === tab.id}
+                onClick={() => setRoleTab(tab.id)}
+                className={cn(
+                  'min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                  roleTab === tab.id
+                    ? 'bg-primary-strong text-primary-foreground'
+                    : 'text-muted hover:text-ink',
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="min-w-48 flex-1">
+            <label className="sr-only" htmlFor="people-search">
+              {t('gente.searchLabel')}
+            </label>
+            <input
+              id="people-search"
+              type="search"
+              data-testid="people-search"
+              aria-label={t('gente.searchLabel')}
+              placeholder={t('gente.searchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={cn(fieldClass, 'min-h-11')}
+              maxLength={200}
+            />
+          </div>
         </div>
       </div>
 
