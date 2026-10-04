@@ -19,7 +19,7 @@ import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { coverUsesLightText, groupCoverStyle, isGradientCover, isNoneCover, readGroupAppearance } from './groupAccent'
 import { GROUP_UPDATED_EVENT } from './groupEvents'
-import { groupNavSections, mobileTabItems } from './nav'
+import { groupNavSections, mobileTabItems, mobileMoreItems } from './nav'
 import { applyDocumentBranding, brandTokenStyle, loadServerBranding, type ServerBranding } from './serverBranding'
 import { useTheme } from '../brand/theme'
 import { rememberLastGroup } from '../tenancy/groupSlug'
@@ -350,6 +350,90 @@ export function GroupWorkspace({
             </NavLink>
           ) : null}
         </div>
+
+        {/* User section: avatar, name, role, account links */}
+        {group && user ? (
+          <div
+            className={cn(
+              'shrink-0 border-t border-shell-border py-3',
+              collapsed ? 'px-2' : 'px-3',
+            )}
+          >
+            {collapsed ? (
+              <div className="flex flex-col items-center gap-2">
+                <span
+                  className="grid h-9 w-9 place-items-center rounded-full bg-shell-hover text-sm font-semibold text-shell-foreground"
+                  aria-label={user.displayName ?? undefined}
+                >
+                  {(user.displayName ?? '').trim().slice(0, 1).toUpperCase()}
+                </span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-shell-hover text-sm font-semibold text-shell-foreground"
+                    aria-hidden="true"
+                  >
+                    {(user.displayName ?? '').trim().slice(0, 1).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-shell-foreground">
+                      {user.displayName}
+                    </p>
+                    <p className="truncate text-xs text-shell-foreground/60">
+                      {groupRole}
+                    </p>
+                  </div>
+                </div>
+                <nav className="space-y-0.5" aria-label={t('workspace.account')}>
+                  <Link
+                    to="/grupos"
+                    className="flex min-h-9 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 no-underline transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+                  >
+                    <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {t('workspace.myGroups')}
+                  </Link>
+                  <Link
+                    to="/cuenta"
+                    className="flex min-h-9 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 no-underline transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+                  >
+                    <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {t('workspace.account')}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+                  >
+                    <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {t('workspace.logout')}
+                  </button>
+                </nav>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {/* Powered by Sonivo - subtle attribution */}
+        {group ? (
+          <div
+            className={cn(
+              'shrink-0 border-t border-shell-border py-2',
+              collapsed ? 'px-2' : 'px-3',
+            )}
+          >
+            {collapsed ? (
+              <p className="text-center text-[10px] text-shell-foreground/30">
+                Powered by Sonivo
+              </p>
+            ) : (
+              <p className="text-center text-[10px] text-shell-foreground/30">
+                Powered by Sonivo
+              </p>
+            )}
+          </div>
+        ) : null}
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col md:h-screen md:overflow-hidden">
@@ -529,7 +613,7 @@ export function GroupWorkspace({
           aria-label={t('workspace.sections')}
           data-testid="mobile-tabbar"
         >
-          <ul className="grid grid-cols-4">
+          <ul className="grid grid-cols-5">
             {mobileTabItems.map((item) => {
               const Icon = item.icon
               return (
@@ -550,6 +634,33 @@ export function GroupWorkspace({
                 </li>
               )
             })}
+            <li>
+              <details className="relative" data-testid="mobile-more">
+                <summary
+                  aria-label={t('workspace.more')}
+                  className="flex min-h-11 cursor-pointer list-none flex-col items-center gap-1 px-2 py-2.5 text-[11px] font-medium text-shell-foreground/70 transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none [&::-webkit-details-marker]:hidden"
+                >
+                  <Menu className="h-5 w-5" aria-hidden="true" />
+                  {t('workspace.more')}
+                </summary>
+                <div className="absolute bottom-full right-0 z-50 mb-1 w-48 rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg">
+                  {mobileMoreItems.map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <NavLink
+                        key={item.id}
+                        to={item.href(group.id)}
+                        end={item.end}
+                        className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
+                      >
+                        <Icon className="h-4 w-4 text-primary-ink" aria-hidden="true" />
+                        {t(item.labelKey)}
+                      </NavLink>
+                    )
+                  })}
+                </div>
+              </details>
+            </li>
           </ul>
         </nav>
       ) : null}

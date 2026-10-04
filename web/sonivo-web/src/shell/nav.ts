@@ -76,4 +76,9 @@ export const groupNavItems: GroupNavItem[] = groupNavSections.flatMap((section) 
 
 export const mobileTabItems = groupNavItems
   .filter((item) => !item.desktopOnly)
-  .filter((item) => ['home', 'songs', 'setlists', 'events'].includes(item.id))
+  .filter((item) => ['home', 'songs', 'calendar', 'people'].includes(item.id))
+
+/** Items hidden behind the "More" tab on mobile. */
+export const mobileMoreItems = groupNavItems
+  .filter((item) => !item.desktopOnly)
+  .filter((item) => !['home', 'songs', 'calendar', 'people'].includes(item.id))
