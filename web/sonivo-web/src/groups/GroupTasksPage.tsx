@@ -153,6 +153,7 @@ export function GroupTasksPage() {
   const [localTasks, setLocalTasks] = useState<TaskItem[] | null>(null)
   const [activeTask, setActiveTask] = useState<TaskItem | null>(null)
   const [overColumn, setOverColumn] = useState<string | null>(null)
+  const statusQueueRef = useRef<Map<string, Promise<TaskItem>>>(new Map())
 
   useEffect(() => {
     if (!groupId) return
@@ -226,9 +227,6 @@ export function GroupTasksPage() {
   }
 
   const canManage = canManageContentRole(group.role)
-
-  // Queue of in-flight status changes per task to prevent races
-  const statusQueueRef = useRef<Map<string, Promise<TaskItem>>>(new Map())
 
   async function changeStatus(task: TaskItem, status: string) {
     if (!groupId) return
