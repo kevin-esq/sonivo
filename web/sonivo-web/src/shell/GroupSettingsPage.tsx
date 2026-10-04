@@ -166,6 +166,19 @@ function draftFromBranding(branding: GroupBranding): BrandDraft {
   }
 }
 
+type SettingsTab = 'general' | 'branding' | 'membership' | 'permissions' | 'notifications' | 'integrations' | 'advanced' | 'danger'
+
+const SETTINGS_TABS: { id: SettingsTab; labelKey: I18nKey }[] = [
+  { id: 'general', labelKey: 'ajustes.tabGeneral' },
+  { id: 'branding', labelKey: 'ajustes.tabBranding' },
+  { id: 'membership', labelKey: 'ajustes.tabMembership' },
+  { id: 'permissions', labelKey: 'ajustes.tabPermissions' },
+  { id: 'notifications', labelKey: 'ajustes.tabNotifications' },
+  { id: 'integrations', labelKey: 'ajustes.tabIntegrations' },
+  { id: 'advanced', labelKey: 'ajustes.tabAdvanced' },
+  { id: 'danger', labelKey: 'ajustes.tabDanger' },
+]
+
 export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
   const navigate = useNavigate()
@@ -181,6 +194,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
 
   // Phase 4.3 / ADR-0054: server-side White Label editor behind Features:GroupBranding.
   const [brandingEnabled, setBrandingEnabled] = useState(false)
@@ -425,7 +439,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     : groupCoverStyle(draft?.cover ?? NO_COVER, previewAccent)
 
   return (
-    <section className="max-w-4xl space-y-8" aria-labelledby="ajustes-heading">
+    <section className="max-w-4xl space-y-6" aria-labelledby="ajustes-heading">
       <div className="space-y-1">
         <h1 id="ajustes-heading" className="text-2xl font-bold tracking-tight">
           {t('ajustes.title')}
@@ -441,32 +455,134 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         </p>
       )}
 
-      <form className="space-y-3" onSubmit={(event) => void onRename(event)} noValidate>
-        <h2 className="text-lg font-semibold">{t('inicio.renameTitle')}</h2>
-        <ConflictAlert message={renameConflict} />
-        <ProblemAlert message={renameError} />
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-slate-700">{t('ajustes.name')}</span>
-          <input
-            className={fieldClass}
-            type="text"
-            required
-            data-testid="group-name-input"
-            value={renameName}
-            disabled={!isOwner}
-            aria-readonly={!isOwner}
-            onChange={(e) => setRenameName(e.target.value)}
-            maxLength={200}
-          />
-        </label>
-        {isOwner ? (
-          <Button variant="secondary" type="submit" disabled={renaming}>
-            {renaming ? t('inicio.working') : t('inicio.saveName')}
-          </Button>
-        ) : null}
-      </form>
+      {/* Tab navigation */}
+      <div className="flex gap-1 overflow-x-auto rounded-xl bg-surface-hover p-1" role="tablist" aria-label={t('ajustes.tabsLabel')}>
+        {SETTINGS_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              'flex-1 rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+              activeTab === tab.id
+                ? 'bg-surface text-ink shadow-sm'
+                : 'text-muted hover:text-ink',
+              tab.id === 'danger' && activeTab !== 'danger' ? 'text-error-ink hover:text-error-ink' : '',
+            )}
+          >
+            {t(tab.labelKey)}
+          </button>
+        ))}
+      </div>
 
-      {brandingEnabled && draft && branding ? (
+      {/* General tab */}
+      {activeTab === 'general' ? (
+        <div className="space-y-6">
+          <form className="space-y-3" onSubmit={(event) => void onRename(event)} noValidate>
+            <h2 className="text-lg font-semibold">{t('inicio.renameTitle')}</h2>
+            <ConflictAlert message={renameConflict} />
+            <ProblemAlert message={renameError} />
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">{t('ajustes.name')}</span>
+              <input
+                className={fieldClass}
+                type="text"
+                required
+                data-testid="group-name-input"
+                value={renameName}
+                disabled={!isOwner}
+                aria-readonly={!isOwner}
+                onChange={(e) => setRenameName(e.target.value)}
+                maxLength={200}
+              />
+            </label>
+            {isOwner ? (
+              <Button variant="secondary" type="submit" disabled={renaming}>
+                {renaming ? t('inicio.working') : t('inicio.saveName')}
+              </Button>
+            ) : null}
+          </form>
+
+          {brandingEnabled && draft ? (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">{t('ajustes.brandingTitle')}</h2>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-slate-700">{t('ajustes.displayNameOverride')}</span>
+                <input
+                  className={fieldClass}
+                  type="text"
+                  data-testid="brand-display-name"
+                  value={draft.displayName}
+                  disabled={!isOwner}
+                  maxLength={120}
+                  onChange={(e) => patchDraft({ displayName: e.target.value })}
+                />
+                <span className="text-xs text-slate-500">{t('ajustes.displayNameHint')}</span>
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-slate-700">{t('ajustes.welcomeText')}</span>
+                <input
+                  className={fieldClass}
+                  type="text"
+                  value={draft.welcomeText}
+                  disabled={!isOwner}
+                  maxLength={500}
+                  onChange={(e) => patchDraft({ welcomeText: e.target.value })}
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-slate-700">{t('ajustes.loginHeadline')}</span>
+                <input
+                  className={fieldClass}
+                  type="text"
+                  value={draft.loginHeadline}
+                  disabled={!isOwner}
+                  maxLength={500}
+                  onChange={(e) => patchDraft({ loginHeadline: e.target.value })}
+                />
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium text-slate-700">{t('ajustes.tagline')}</span>
+                  <input
+                    className={fieldClass}
+                    type="text"
+                    value={draft.tagline}
+                    disabled={!isOwner}
+                    maxLength={160}
+                    onChange={(e) => patchDraft({ tagline: e.target.value })}
+                  />
+                </label>
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium text-slate-700">{t('ajustes.verse')}</span>
+                  <input
+                    className={fieldClass}
+                    type="text"
+                    value={draft.verse}
+                    disabled={!isOwner}
+                    maxLength={200}
+                    onChange={(e) => patchDraft({ verse: e.target.value })}
+                  />
+                </label>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.showSonivoCredit}
+                  disabled={!isOwner}
+                  onChange={(e) => patchDraft({ showSonivoCredit: e.target.checked })}
+                />
+                {t('ajustes.showSonivoCredit')}
+              </label>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* Branding tab */}
+      {activeTab === 'branding' && brandingEnabled && draft && branding ? (
         <section className="space-y-5" aria-labelledby="brand-heading" data-testid="branding-editor">
           <div className="space-y-1">
             <h2 id="brand-heading" className="text-lg font-semibold">
@@ -828,107 +944,6 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">{t('ajustes.themeDefault')}</span>
-              <select
-                className={fieldClass}
-                value={draft.themeDefault}
-                disabled={!isOwner}
-                onChange={(e) => patchDraft({ themeDefault: e.target.value })}
-              >
-                <option value="system">{t('ajustes.themeSystem')}</option>
-                <option value="light">{t('ajustes.themeLight')}</option>
-                <option value="dark">{t('ajustes.themeDark')}</option>
-              </select>
-            </label>
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">{t('ajustes.localeDefault')}</span>
-              <select
-                className={fieldClass}
-                value={draft.defaultLocale}
-                disabled={!isOwner}
-                onChange={(e) => patchDraft({ defaultLocale: e.target.value })}
-              >
-                <option value="es">{t('ajustes.localeEs')}</option>
-                <option value="en">{t('ajustes.localeEn')}</option>
-              </select>
-            </label>
-          </div>
-
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-700">{t('ajustes.displayNameOverride')}</span>
-            <input
-              className={fieldClass}
-              type="text"
-              data-testid="brand-display-name"
-              value={draft.displayName}
-              disabled={!isOwner}
-              maxLength={120}
-              onChange={(e) => patchDraft({ displayName: e.target.value })}
-            />
-            <span className="text-xs text-slate-500">{t('ajustes.displayNameHint')}</span>
-          </label>
-
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-700">{t('ajustes.welcomeText')}</span>
-            <input
-              className={fieldClass}
-              type="text"
-              value={draft.welcomeText}
-              disabled={!isOwner}
-              maxLength={500}
-              onChange={(e) => patchDraft({ welcomeText: e.target.value })}
-            />
-          </label>
-
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-700">{t('ajustes.loginHeadline')}</span>
-            <input
-              className={fieldClass}
-              type="text"
-              value={draft.loginHeadline}
-              disabled={!isOwner}
-              maxLength={500}
-              onChange={(e) => patchDraft({ loginHeadline: e.target.value })}
-            />
-          </label>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">{t('ajustes.tagline')}</span>
-              <input
-                className={fieldClass}
-                type="text"
-                value={draft.tagline}
-                disabled={!isOwner}
-                maxLength={160}
-                onChange={(e) => patchDraft({ tagline: e.target.value })}
-              />
-            </label>
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">{t('ajustes.verse')}</span>
-              <input
-                className={fieldClass}
-                type="text"
-                value={draft.verse}
-                disabled={!isOwner}
-                maxLength={200}
-                onChange={(e) => patchDraft({ verse: e.target.value })}
-              />
-            </label>
-          </div>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={draft.showSonivoCredit}
-              disabled={!isOwner}
-              onChange={(e) => patchDraft({ showSonivoCredit: e.target.checked })}
-            />
-            {t('ajustes.showSonivoCredit')}
-          </label>
-
           {isOwner ? (
             <div className="flex items-center gap-3">
               <Button type="button" disabled={savingBrand} onClick={() => void onSaveBranding()}>
@@ -945,7 +960,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       ) : null}
 
       {/* Legacy device-local appearance: only when server branding is unavailable (flag off). */}
-      {!brandingEnabled ? (
+      {activeTab === 'branding' && !brandingEnabled ? (
         <>
           <div
             className="overflow-hidden rounded-2xl"
@@ -1057,10 +1072,80 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         </>
       ) : null}
 
-      {isOwner ? (
+      {/* Membership tab */}
+      {activeTab === 'membership' ? (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500">{t('ajustes.membershipComingSoon')}</p>
+          <p className="text-sm text-slate-500">{t('ajustes.membershipHint')}</p>
+          <Link to={`/groups/${group.id}/people`}>
+            <Button variant="secondary">{t('roles.manageMembers')}</Button>
+          </Link>
+        </div>
+      ) : null}
+
+      {/* Permissions tab */}
+      {activeTab === 'permissions' ? (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500">{t('roles.subtitle')}</p>
+          <Link to={`/groups/${group.id}/roles`}>
+            <Button variant="secondary">{t('roles.title')}</Button>
+          </Link>
+        </div>
+      ) : null}
+
+      {/* Notifications tab */}
+      {activeTab === 'notifications' ? (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500">{t('ajustes.notificationsComingSoon')}</p>
+        </div>
+      ) : null}
+
+      {/* Integrations tab */}
+      {activeTab === 'integrations' ? (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500">{t('ajustes.integrationsComingSoon')}</p>
+        </div>
+      ) : null}
+
+      {/* Advanced tab */}
+      {activeTab === 'advanced' && brandingEnabled && draft ? (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">{t('ajustes.tabAdvanced')}</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">{t('ajustes.themeDefault')}</span>
+              <select
+                className={fieldClass}
+                value={draft.themeDefault}
+                disabled={!isOwner}
+                onChange={(e) => patchDraft({ themeDefault: e.target.value })}
+              >
+                <option value="system">{t('ajustes.themeSystem')}</option>
+                <option value="light">{t('ajustes.themeLight')}</option>
+                <option value="dark">{t('ajustes.themeDark')}</option>
+              </select>
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">{t('ajustes.localeDefault')}</span>
+              <select
+                className={fieldClass}
+                value={draft.defaultLocale}
+                disabled={!isOwner}
+                onChange={(e) => patchDraft({ defaultLocale: e.target.value })}
+              >
+                <option value="es">{t('ajustes.localeEs')}</option>
+                <option value="en">{t('ajustes.localeEn')}</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Danger Zone tab */}
+      {activeTab === 'danger' && isOwner ? (
         <section
           aria-labelledby="ajustes-danger-heading"
-          className="mt-4 space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
+          className="space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
         >
           <h2 id="ajustes-danger-heading" className="text-lg font-semibold text-error-ink">
             {t('inicio.deleteTitle')}
