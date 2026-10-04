@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, MouseEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, MoreVertical } from 'lucide-react'
 import {
   createSong,
   listSongs,
@@ -58,6 +58,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState<LibraryTab>('all')
   const [sort, setSort] = useState<LibrarySort>('title')
+  const [contextMenuSongId, setContextMenuSongId] = useState<string | null>(null)
   const { t } = useT()
 
   const isOwner = canManageContentRole(group?.role)
@@ -286,12 +287,16 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
             {filtered.map((song, index) => (
               <li
                 key={song.id}
-                className="library-enter"
+                className="library-enter relative"
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
                 <Link
                   className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline shadow-sm transition duration-150 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
                   to={`/groups/${group.id}/songs/${song.id}`}
+                  onContextMenu={(e: MouseEvent) => {
+                    e.preventDefault()
+                    setContextMenuSongId(song.id)
+                  }}
                 >
                   <OriginMark kind={song.originKind} />
                   <span className="min-w-0 flex-1">
@@ -315,6 +320,28 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                   <OriginBadge kind={song.originKind} />
                   <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
                 </Link>
+                {isOwner ? (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    aria-label={`Más opciones para ${song.title}`}
+                    onClick={(e: MouseEvent) => {
+                      e.preventDefault()
+                      setContextMenuSongId(song.id)
+                    }}
+                  >
+                    <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                ) : null}
+                {contextMenuSongId === song.id ? (
+                  <SongContextMenu
+                    song={song}
+                    groupId={group.id}
+                    isOwner={isOwner}
+                    onClose={() => setContextMenuSongId(null)}
+                    onAction={() => setContextMenuSongId(null)}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>
@@ -436,5 +463,121 @@ function SongCreateForm({
         </Button>
       </FormActions>
     </form>
+  )
+}
+
+function SongContextMenu({
+  song,
+  groupId,
+  isOwner,
+  onClose,
+  onAction,
+}: {
+  song: SongListItem
+  groupId: string
+  isOwner: boolean
+  onClose: () => void
+  onAction: () => void
+}) {
+  const { t } = useT()
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40"
+        onClick={onClose}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          onClose()
+        }}
+      />
+      <div className="absolute right-2 top-8 z-50 min-w-48 rounded-xl border border-border-subtle bg-surface py-1 shadow-lg">
+        <MenuItem
+          label={t('canciones.ctxOpen')}
+          onClick={() => {
+            onAction()
+            window.location.href = `/groups/${groupId}/songs/${song.id}`
+          }}
+        />
+        {isOwner ? (
+          <>
+            <MenuItem
+              label={t('canciones.ctxEdit')}
+              onClick={() => {
+                onAction()
+                window.location.href = `/groups/${groupId}/songs/${song.id}/edit`
+              }}
+            />
+            <MenuItem
+              label={t('canciones.ctxAddToSetlist')}
+              onClick={() => {
+                onAction()
+                window.location.href = `/groups/${groupId}/setlists?song=${song.id}`
+              }}
+            />
+            <MenuItem
+              label={t('canciones.ctxDuplicate')}
+              onClick={() => {
+                onAction()
+                // TODO: implement duplicate
+              }}
+            />
+            <MenuItem
+              label={song.isFavorite ? t('canciones.ctxUnfavorite') : t('canciones.ctxFavorite')}
+              onClick={() => {
+                onAction()
+                // TODO: implement favorite toggle
+              }}
+            />
+            <MenuItem
+              label={t('canciones.ctxAttach')}
+              onClick={() => {
+                onAction()
+                // TODO: implement attach
+              }}
+            />
+            <MenuItem
+              label={t('canciones.ctxArchive')}
+              onClick={() => {
+                onAction()
+                // TODO: implement archive
+              }}
+            />
+            <div className="my-1 border-t border-border-subtle" />
+            <MenuItem
+              label={t('canciones.ctxDelete')}
+              danger
+              onClick={() => {
+                onAction()
+                // TODO: implement delete
+              }}
+            />
+          </>
+        ) : null}
+      </div>
+    </>
+  )
+}
+
+function MenuItem({
+  label,
+  onClick,
+  danger,
+}: {
+  label: string
+  onClick: () => void
+  danger?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'block w-full px-3 py-2 text-left text-sm transition-colors',
+        danger ? 'text-error-ink hover:bg-error/10' : 'text-ink hover:bg-surface-hover',
+      )}
+    >
+      {label}
+    </button>
   )
 }
