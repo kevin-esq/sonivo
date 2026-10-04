@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import type { FormEvent, DragEvent, ReactNode, KeyboardEvent } from 'react'
+import type { FormEvent, ReactNode, KeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   CalendarClock,
@@ -36,6 +36,20 @@ import { useAction } from '../hooks/useAction'
 import { useResource } from '../hooks/useResource'
 import { useAuth } from '../shell/authContext'
 import { ConfirmDialog } from '../ui/confirm-dialog'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 
 /* ────────── status helpers ────────── */
 
@@ -557,10 +571,15 @@ function TaskBoard({
   t: (key: I18nKey, params?: TParams) => string
   lang: string
 }) {
-  const [dragId, setDragId] = useState<string | null>(null)
+  const [activeTask, setActiveTask] = useState<TaskItem | null>(null)
   const [overColumn, setOverColumn] = useState<string | null>(null)
 
-  // Group tasks into columns by status — unknown statuses go to 'open'
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
   const normalizedColumns = useMemo(() => {
     return BOARD_COLUMNS.map((status) => ({
       id: status,
@@ -569,7 +588,6 @@ function TaskBoard({
         if (status === 'open') return x.status === 'open' || !BOARD_COLUMNS.includes(x.status as BoardStatus)
         return x.status === status
       }).sort((a, b) => {
-        // Sort by urgency: tasks with due dates first, then by date
         if (a.dueAt && b.dueAt) return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime()
         if (a.dueAt) return -1
         if (b.dueAt) return 1
@@ -578,40 +596,60 @@ function TaskBoard({
     }))
   }, [tasks, t])
 
-  function handleDrop(columnStatus: BoardStatus) {
-    if (!dragId) return
-    const task = tasks.find((x) => x.id === dragId)
-    setDragId(null)
+  function handleDragStart(event: DragStartEvent) {
+    const task = tasks.find((x) => x.id === event.active.id)
+    setActiveTask(task ?? null)
+    if (canManage && 'vibrate' in navigator) navigator.vibrate(50)
+  }
+
+  function handleDragOver(event: DragEndEvent) {
+    setOverColumn((event.over?.id as string) ?? null)
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    setActiveTask(null)
     setOverColumn(null)
-    if (!task || task.status === columnStatus) return
-    onStatusChange(task, columnStatus)
+    if (!over) return
+    const task = tasks.find((x) => x.id === active.id)
+    const newStatus = over.id as BoardStatus
+    if (!task || task.status === newStatus) return
+    onStatusChange(task, newStatus)
   }
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface-hover/10 p-3 sm:p-4" style={{ backgroundImage: 'radial-gradient(circle, var(--color-border-subtle) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-        {normalizedColumns.map((column) => (
-          <BoardColumn
-            key={column.id}
-            id={column.id}
-            title={column.title}
-            tasks={column.tasks}
-            members={members}
-            canManage={canManage}
-            isOver={overColumn === column.id}
-            dragId={dragId}
-            onDragStart={(id) => setDragId(id)}
-            onDragEnd={() => { setDragId(null); setOverColumn(null) }}
-            onDragOver={(colId) => setOverColumn(colId)}
-            onDragLeave={(colId) => setOverColumn((c) => (c === colId ? null : c))}
-            onDrop={() => handleDrop(column.id as BoardStatus)}
-            onCardClick={onCardClick}
-            onStatusChange={onStatusChange}
-            t={t}
-            lang={lang}
-          />
-        ))}
-      </div>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => { setActiveTask(null); setOverColumn(null) }}
+      >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+          {normalizedColumns.map((column) => (
+            <BoardColumn
+              key={column.id}
+              id={column.id}
+              title={column.title}
+              tasks={column.tasks}
+              members={members}
+              canManage={canManage}
+              isOver={overColumn === column.id}
+              activeTaskId={activeTask?.id ?? null}
+              onCardClick={onCardClick}
+              onStatusChange={onStatusChange}
+              t={t}
+              lang={lang}
+            />
+          ))}
+        </div>
+        <DragOverlay>
+          {activeTask ? (
+            <TaskCardOverlay task={activeTask} members={members} t={t} lang={lang} />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   )
 }
@@ -625,12 +663,7 @@ function BoardColumn({
   members,
   canManage,
   isOver,
-  dragId,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDragLeave,
-  onDrop,
+  activeTaskId,
   onCardClick,
   onStatusChange,
   t,
@@ -642,21 +675,18 @@ function BoardColumn({
   members: MemberListItem[]
   canManage: boolean
   isOver: boolean
-  dragId: string | null
-  onDragStart: (id: string) => void
-  onDragEnd: () => void
-  onDragOver: (colId: string) => void
-  onDragLeave: (colId: string) => void
-  onDrop: () => void
+  activeTaskId: string | null
   onCardClick: (task: TaskItem) => void
   onStatusChange: (task: TaskItem, newStatus: string) => void
   t: (key: I18nKey, params?: TParams) => string
   lang: string
 }) {
   const meta = STATUS_META[id as BoardStatus] ?? STATUS_META.open
+  const { setNodeRef } = useDroppable({ id })
 
   return (
     <div
+      ref={setNodeRef}
       className={cn(
         'flex min-h-[200px] flex-col rounded-2xl transition-all duration-200',
         'bg-surface-hover/20 border',
@@ -664,23 +694,6 @@ function BoardColumn({
           ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
           : 'border-border-subtle',
       )}
-      onDragOver={(event: DragEvent) => {
-        if (canManage) {
-          event.preventDefault()
-          event.dataTransfer.dropEffect = 'move'
-          onDragOver(id)
-        }
-      }}
-      onDragLeave={(event: DragEvent) => {
-        // Only trigger if leaving the column itself, not a child
-        if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-          onDragLeave(id)
-        }
-      }}
-      onDrop={(event: DragEvent) => {
-        event.preventDefault()
-        onDrop()
-      }}
     >
       {/* Column header */}
       <div className="flex items-center gap-2 px-3 pb-2.5 pt-3">
@@ -702,7 +715,7 @@ function BoardColumn({
             'flex flex-1 items-center justify-center rounded-xl border border-dashed py-6 text-xs text-muted transition-colors',
             isOver ? 'border-primary/50 bg-primary/5' : 'border-border-subtle',
           )}>
-            {t('tareas.dropHere')}
+            {isOver ? t('tareas.dropHere') : t('tareas.noTasks')}
           </div>
         ) : (
           tasks.map((task) => (
@@ -711,9 +724,7 @@ function BoardColumn({
               task={task}
               members={members}
               canManage={canManage}
-              isDragging={dragId === task.id}
-              onDragStart={() => onDragStart(task.id)}
-              onDragEnd={onDragEnd}
+              isDragging={activeTaskId === task.id}
               onClick={() => onCardClick(task)}
               onMove={(dir) => {
                 const currentIdx = BOARD_COLUMNS.indexOf(task.status as BoardStatus)
@@ -739,8 +750,6 @@ function TaskCard({
   members,
   canManage,
   isDragging,
-  onDragStart,
-  onDragEnd,
   onClick,
   onMove,
   t,
@@ -750,8 +759,6 @@ function TaskCard({
   members: MemberListItem[]
   canManage: boolean
   isDragging: boolean
-  onDragStart: () => void
-  onDragEnd: () => void
   onClick: () => void
   onMove: (dir: 'left' | 'right') => void
   t: (key: I18nKey, params?: TParams) => string
@@ -761,10 +768,17 @@ function TaskCard({
   const overdue = !done && task.dueAt != null && new Date(task.dueAt).getTime() < Date.now()
   const dueSoon = !done && task.dueAt != null && !overdue && new Date(task.dueAt).getTime() - Date.now() < 48 * 60 * 60 * 1000
   const assignee = memberName(members, task.assigneeUserId)
-  const cardRef = useRef<HTMLDivElement>(null)
+
+  const { attributes, listeners, setNodeRef, transform, isDragging: isDragActive } = useDraggable({
+    id: task.id,
+    disabled: !canManage,
+  })
+
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined
 
   function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    // Only intercept Enter/Space when focus is on the card itself, not on child buttons
     if (e.target !== e.currentTarget) return
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
@@ -788,27 +802,21 @@ function TaskCard({
 
   return (
     <article
-      ref={cardRef}
+      ref={setNodeRef}
       data-task-id={task.id}
-      draggable={canManage}
-      onDragStart={(e: DragEvent) => {
-        e.dataTransfer.setData('text/plain', task.id)
-        e.dataTransfer.effectAllowed = 'move'
-        onDragStart()
-      }}
-      onDragEnd={onDragEnd}
+      style={style}
       onClick={onClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label={task.title}
       aria-describedby={task.dueAt ? `due-${task.id}` : undefined}
+      {...(canManage ? { ...listeners, ...attributes } : {})}
       className={cn(
         'group relative cursor-pointer rounded-xl border border-border-subtle bg-surface p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-200',
         'hover:border-primary/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12),0_2px_4px_rgba(0,0,0,0.06)]',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
         canManage && 'cursor-grab active:cursor-grabbing',
-        /* Trello-style tilt while dragging */
-        isDragging && 'rotate-[3deg] scale-105 opacity-70 shadow-[0_12px_32px_rgba(0,0,0,0.2),0_4px_8px_rgba(0,0,0,0.1)] ring-2 ring-primary/30',
+        (isDragging || isDragActive) && 'rotate-[3deg] scale-105 opacity-70 shadow-[0_12px_32px_rgba(0,0,0,0.2),0_4px_8px_rgba(0,0,0,0.1)] ring-2 ring-primary/30',
       )}
     >
       {/* Move buttons (mobile + hover + focus-within) */}
@@ -885,6 +893,48 @@ function TaskCard({
             className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary-ink"
             title={assignee}
           >
+            {initials(assignee)}
+          </span>
+        ) : null}
+      </div>
+    </article>
+  )
+}
+
+function TaskCardOverlay({
+  task,
+  members,
+  t,
+  lang,
+}: {
+  task: TaskItem
+  members: MemberListItem[]
+  t: (key: I18nKey, params?: TParams) => string
+  lang: string
+}) {
+  const done = task.status === 'done'
+  const overdue = !done && task.dueAt != null && new Date(task.dueAt).getTime() < Date.now()
+  const assignee = memberName(members, task.assigneeUserId)
+
+  return (
+    <article className="rotate-[3deg] scale-105 rounded-xl border border-border-subtle bg-surface p-3 opacity-90 shadow-[0_12px_32px_rgba(0,0,0,0.2),0_4px_8px_rgba(0,0,0,0.1)] ring-2 ring-primary/30">
+      <p className={cn('text-sm font-semibold text-ink leading-snug', done && 'text-muted line-through')}>
+        {task.title}
+      </p>
+      <div className="mt-2.5 flex items-center gap-2">
+        {task.dueAt ? (
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium',
+              overdue ? 'bg-error/10 text-error-ink' : done ? 'bg-success/10 text-success' : 'bg-surface-hover text-muted',
+            )}
+          >
+            <CalendarClock className="h-3 w-3" aria-hidden="true" />
+            {overdue ? `${t('tareas.overdue')} — ${formatDue(task.dueAt, lang)}` : formatDue(task.dueAt, lang)}
+          </span>
+        ) : null}
+        {assignee ? (
+          <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary-ink">
             {initials(assignee)}
           </span>
         ) : null}

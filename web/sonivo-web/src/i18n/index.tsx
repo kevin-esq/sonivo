@@ -103,7 +103,7 @@ const es = {
   "tareas.boardInProgress": "En progreso",
   "tareas.boardDone": "Hecho",
   "tareas.boardUnassigned": "Sin asignar",
-  "tareas.noTasks": "Arrastra tareas aqui",
+  "tareas.noTasks": "Sin tareas",
   "tareas.assignedTo": "Asignada a",
   "tareas.createdBy": "Creada por",
   "tareas.fieldStatus": "Estado",
