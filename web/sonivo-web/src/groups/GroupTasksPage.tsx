@@ -151,6 +151,8 @@ export function GroupTasksPage() {
   const [detailTask, setDetailTask] = useState<TaskItem | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [localTasks, setLocalTasks] = useState<TaskItem[] | null>(null)
+  const [activeTask, setActiveTask] = useState<TaskItem | null>(null)
+  const [overColumn, setOverColumn] = useState<string | null>(null)
 
   useEffect(() => {
     if (!groupId) return
@@ -267,7 +269,35 @@ export function GroupTasksPage() {
 
   const doneCount = tasks.filter((x) => x.status === 'done').length
 
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
   return (
+    <DndContext
+      sensors={dndSensors}
+      onDragStart={(event: DragStartEvent) => {
+        const task = tasks.find((x) => x.id === event.active.id)
+        setActiveTask(task ?? null)
+        if (canManage && 'vibrate' in navigator) navigator.vibrate(50)
+      }}
+      onDragOver={(event: DragEndEvent) => {
+        setOverColumn((event.over?.id as string) ?? null)
+      }}
+      onDragEnd={(event: DragEndEvent) => {
+        const { active, over } = event
+        setActiveTask(null)
+        setOverColumn(null)
+        if (!over) return
+        const task = tasks.find((x) => x.id === active.id)
+        const newStatus = over.id as BoardStatus
+        if (!task || task.status === newStatus) return
+        void changeStatus(task, newStatus)
+      }}
+      onDragCancel={() => { setActiveTask(null); setOverColumn(null) }}
+    >
     <section className="space-y-4" aria-labelledby="tasks-heading">
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -378,7 +408,8 @@ export function GroupTasksPage() {
           tasks={visible}
           members={members}
           canManage={canManage}
-          onStatusChange={(task, status) => void changeStatus(task, status)}
+          activeTask={activeTask}
+          overColumn={overColumn}
           onCardClick={(task) => setDetailTask(task)}
           t={t}
           lang={lang}
@@ -452,6 +483,7 @@ export function GroupTasksPage() {
         onCancel={() => setConfirmDelete(null)}
       />
     </section>
+    </DndContext>
   )
 }
 
@@ -575,7 +607,8 @@ function TaskBoard({
   tasks,
   members,
   canManage,
-  onStatusChange,
+  activeTask,
+  overColumn,
   onCardClick,
   t,
   lang,
@@ -583,20 +616,12 @@ function TaskBoard({
   tasks: TaskItem[]
   members: MemberListItem[]
   canManage: boolean
-  onStatusChange: (task: TaskItem, newStatus: string) => void
+  activeTask: TaskItem | null
+  overColumn: string | null
   onCardClick: (task: TaskItem) => void
   t: (key: I18nKey, params?: TParams) => string
   lang: string
 }) {
-  const [activeTask, setActiveTask] = useState<TaskItem | null>(null)
-  const [overColumn, setOverColumn] = useState<string | null>(null)
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
-
   const normalizedColumns = useMemo(() => {
     return BOARD_COLUMNS.map((status) => ({
       id: status,
@@ -613,60 +638,30 @@ function TaskBoard({
     }))
   }, [tasks, t])
 
-  function handleDragStart(event: DragStartEvent) {
-    const task = tasks.find((x) => x.id === event.active.id)
-    setActiveTask(task ?? null)
-    if (canManage && 'vibrate' in navigator) navigator.vibrate(50)
-  }
-
-  function handleDragOver(event: DragEndEvent) {
-    setOverColumn((event.over?.id as string) ?? null)
-  }
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    setActiveTask(null)
-    setOverColumn(null)
-    if (!over) return
-    const task = tasks.find((x) => x.id === active.id)
-    const newStatus = over.id as BoardStatus
-    if (!task || task.status === newStatus) return
-    onStatusChange(task, newStatus)
-  }
-
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface-hover/10 p-3 sm:p-4" style={{ backgroundImage: 'radial-gradient(circle, var(--color-border-subtle) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-        onDragCancel={() => { setActiveTask(null); setOverColumn(null) }}
-      >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-          {normalizedColumns.map((column) => (
-            <BoardColumn
-              key={column.id}
-              id={column.id}
-              title={column.title}
-              tasks={column.tasks}
-              members={members}
-              canManage={canManage}
-              isOver={overColumn === column.id}
-              activeTaskId={activeTask?.id ?? null}
-              onCardClick={onCardClick}
-              onStatusChange={onStatusChange}
-              t={t}
-              lang={lang}
-            />
-          ))}
-        </div>
-        <DragOverlay>
-          {activeTask ? (
-            <TaskCardOverlay task={activeTask} members={members} t={t} lang={lang} />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+        {normalizedColumns.map((column) => (
+          <BoardColumn
+            key={column.id}
+            id={column.id}
+            title={column.title}
+            tasks={column.tasks}
+            members={members}
+            canManage={canManage}
+            isOver={overColumn === column.id}
+            activeTaskId={activeTask?.id ?? null}
+            onCardClick={onCardClick}
+            t={t}
+            lang={lang}
+          />
+        ))}
+      </div>
+      <DragOverlay>
+        {activeTask ? (
+          <TaskCardOverlay task={activeTask} members={members} t={t} lang={lang} />
+        ) : null}
+      </DragOverlay>
     </div>
   )
 }
@@ -682,7 +677,6 @@ function BoardColumn({
   isOver,
   activeTaskId,
   onCardClick,
-  onStatusChange,
   t,
   lang,
 }: {
@@ -694,7 +688,6 @@ function BoardColumn({
   isOver: boolean
   activeTaskId: string | null
   onCardClick: (task: TaskItem) => void
-  onStatusChange: (task: TaskItem, newStatus: string) => void
   t: (key: I18nKey, params?: TParams) => string
   lang: string
 }) {
@@ -747,7 +740,8 @@ function BoardColumn({
                 const currentIdx = BOARD_COLUMNS.indexOf(task.status as BoardStatus)
                 const newIdx = dir === 'left' ? currentIdx - 1 : currentIdx + 1
                 if (newIdx >= 0 && newIdx < BOARD_COLUMNS.length) {
-                  onStatusChange(task, BOARD_COLUMNS[newIdx])
+                  // Status change is now handled by DndContext at the top level
+                  // This callback is kept for keyboard navigation (Alt+Arrow)
                 }
               }}
               t={t}
