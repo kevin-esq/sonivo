@@ -285,6 +285,12 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     setBrandSaved(false)
   }
 
+  const isDirty = useMemo(() => {
+    if (!draft || !branding) return false
+    const current = draftFromBranding(branding)
+    return JSON.stringify(draft) !== JSON.stringify(current)
+  }, [draft, branding])
+
   async function onRename(event: FormEvent) {
     event.preventDefault()
     if (!groupId || !group) return
@@ -971,15 +977,37 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </div>
 
           {isOwner ? (
-            <div className="flex items-center gap-3">
-              <Button type="button" disabled={savingBrand} onClick={() => void onSaveBranding()}>
-                {savingBrand ? t('inicio.working') : t('ajustes.saveBranding')}
-              </Button>
-              {brandSaved ? (
-                <span aria-live="polite" className="text-sm text-slate-600">
-                  {t('ajustes.brandingSaved')}
-                </span>
+            <div className="space-y-2">
+              {isDirty ? (
+                <p role="alert" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning-ink">
+                  {t('ajustes.unsavedChanges')}
+                </p>
               ) : null}
+              <div className="flex items-center gap-3">
+                <Button type="button" disabled={savingBrand || !isDirty} onClick={() => void onSaveBranding()}>
+                  {savingBrand ? t('inicio.working') : t('ajustes.saveBranding')}
+                </Button>
+                {isDirty ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={savingBrand}
+                    onClick={() => {
+                      if (branding) {
+                        setDraft(draftFromBranding(branding))
+                        setBrandSaved(false)
+                      }
+                    }}
+                  >
+                    {t('ajustes.discardChanges')}
+                  </Button>
+                ) : null}
+                {brandSaved ? (
+                  <span aria-live="polite" className="text-sm text-slate-600">
+                    {t('ajustes.brandingSaved')}
+                  </span>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </section>
