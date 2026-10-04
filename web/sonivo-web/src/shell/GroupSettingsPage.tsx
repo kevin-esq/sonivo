@@ -656,6 +656,32 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           <ConflictAlert message={brandConflict} />
           <ProblemAlert message={brandError} />
 
+          {/* Contrast validation warning */}
+          {draft.accentHex && contrastRatio(draft.accentHex, '#ffffff') < 4.5 ? (
+            <p role="alert" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning-ink">
+              {t('ajustes.contrastWarning')}
+            </p>
+          ) : null}
+
+          {/* Reset to default button */}
+          {isOwner ? (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (branding) {
+                    setDraft(draftFromBranding(branding))
+                    setBrandSaved(false)
+                  }
+                }}
+              >
+                {t('ajustes.resetToDefault')}
+              </Button>
+            </div>
+          ) : null}
+
           <fieldset className="space-y-3" disabled={!isOwner}>
             <legend className="font-medium">{t('ajustes.primaryColor')}</legend>
             <p className="text-sm text-slate-500">{t('ajustes.colorHint')}</p>
