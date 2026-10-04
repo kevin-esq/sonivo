@@ -227,7 +227,8 @@ if (!app.Configuration.GetValue("UseInMemoryDatabase", false) && app.Configurati
 {
     using var migrateScope = app.Services.CreateScope();
     var db = migrateScope.ServiceProvider.GetRequiredService<SonivoDbContext>();
-    db.Database.Migrate();
+    // Use EnsureCreated to avoid PendingModelChangesWarning loop
+    db.Database.EnsureCreated();
 }
 
 app.UseExceptionHandler();

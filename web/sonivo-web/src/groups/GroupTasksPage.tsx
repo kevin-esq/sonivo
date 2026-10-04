@@ -135,6 +135,7 @@ export function GroupTasksPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [detailTask, setDetailTask] = useState<TaskItem | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [localTasks, setLocalTasks] = useState<TaskItem[] | null>(null)
 
   useEffect(() => {
     if (!groupId) return
@@ -165,7 +166,7 @@ export function GroupTasksPage() {
   )
   const members = membersSurface.data ?? []
 
-  const tasks = surface.data ?? []
+  const tasks = localTasks ?? surface.data ?? []
   const visible = useMemo(
     () => {
       let filtered = tasks
@@ -202,13 +203,19 @@ export function GroupTasksPage() {
 
   async function changeStatus(task: TaskItem, status: string) {
     if (!groupId) return
+    // Optimistic update: move card immediately in local state
+    const previousTasks = localTasks ?? surface.data ?? []
+    setLocalTasks(previousTasks.map((t) => t.id === task.id ? { ...t, status } : t))
     try {
       await setTaskStatus(groupId, task.id, {
         status,
         expectedVersion: task.version,
       })
-      reload()
+      // Clear local override on success — server data is now authoritative
+      setLocalTasks(null)
     } catch (err) {
+      // Rollback on failure
+      setLocalTasks(null)
       setError(mutationErrorMessage(err))
     }
   }
