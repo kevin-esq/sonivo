@@ -176,6 +176,7 @@ export function GroupCalendarPage() {
     { id: "month", label: t("calendario.month") },
     { id: "week", label: t("calendario.week") },
     { id: "day", label: t("calendario.day") },
+    { id: "agenda", label: t("calendario.agenda") },
   ];
 
   return (
@@ -335,6 +336,8 @@ export function GroupCalendarPage() {
               onOpen={openEvent}
               onSelectDay={selectDay}
             />
+          ) : view === "agenda" ? (
+            <DayView events={upcoming.length > 0 ? upcoming : inRange} onOpen={openEvent} />
           ) : (
             <DayView events={inRange} onOpen={openEvent} />
           )}

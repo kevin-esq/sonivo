@@ -1,7 +1,7 @@
 import type { UpcomingActivity } from "../api/client";
 import type { I18nKey } from "../i18n";
 
-export type CalendarView = "month" | "week" | "day";
+export type CalendarView = "month" | "week" | "day" | "agenda";
 export type CalendarEvent = UpcomingActivity;
 
 export const GROUP_COLORS = [
