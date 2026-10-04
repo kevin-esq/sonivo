@@ -12,6 +12,7 @@ import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
 import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '../repertoire/chrome'
+import { ListSkeleton } from '../ui/skeleton'
 import {
   canManageContentRole,
   mutationErrorMessage,
@@ -167,7 +168,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       <ProblemAlert message={listError} />
 
       {setlists === null ? (
-        <p aria-live="polite">Cargando listas…</p>
+        <ListSkeleton rows={4} label={t('agenda.loadingSetlists')} />
       ) : setlists.length === 0 ? (
         showCreate ? null : (
           <EmptyPanel
