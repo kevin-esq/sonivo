@@ -227,6 +227,7 @@ if (!app.Configuration.GetValue("UseInMemoryDatabase", false) && app.Configurati
 {
     using var migrateScope = app.Services.CreateScope();
     var db = migrateScope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+    // Suppress PendingModelChangesWarning — migrations are applied via CI, not at startup
     db.Database.Migrate();
 }
 
