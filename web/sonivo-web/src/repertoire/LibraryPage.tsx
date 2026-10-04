@@ -33,12 +33,20 @@ import {
 } from './ui'
 
 type LibraryTab = 'all' | 'favorites' | 'recent' | 'theme'
+type LibrarySort = 'title' | 'artist' | 'recent' | 'updated'
 
 const LIBRARY_TABS: { id: LibraryTab; labelKey: I18nKey }[] = [
   { id: 'all', labelKey: 'canciones.tabAll' },
   { id: 'favorites', labelKey: 'canciones.tabFavorites' },
   { id: 'recent', labelKey: 'canciones.tabRecent' },
   { id: 'theme', labelKey: 'canciones.tabByTheme' },
+]
+
+const LIBRARY_SORTS: { id: LibrarySort; labelKey: I18nKey }[] = [
+  { id: 'title', labelKey: 'canciones.sortTitle' },
+  { id: 'artist', labelKey: 'canciones.sortArtist' },
+  { id: 'recent', labelKey: 'canciones.sortRecent' },
+  { id: 'updated', labelKey: 'canciones.sortUpdated' },
 ]
 
 export function LibraryPage({ user }: { user: CurrentUser }) {
@@ -49,6 +57,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
   const [showCreate, setShowCreate] = useState(false)
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState<LibraryTab>('all')
+  const [sort, setSort] = useState<LibrarySort>('title')
   const { t } = useT()
 
   const isOwner = canManageContentRole(group?.role)
@@ -74,8 +83,18 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
           song.tags.some((tag) => tag.includes(q)),
       )
     }
+    // Apply sorting
+    if (sort === 'title') {
+      list = [...list].sort((a, b) => a.title.localeCompare(b.title))
+    } else if (sort === 'artist') {
+      list = [...list].sort((a, b) => (a.attribution ?? '').localeCompare(b.attribution ?? ''))
+    } else if (sort === 'recent') {
+      list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    } else if (sort === 'updated') {
+      list = [...list].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    }
     return list
-  }, [songs, query, tab])
+  }, [songs, query, tab, sort])
 
   const searching = query.trim().length > 0
 
@@ -149,22 +168,42 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
       </header>
 
       {songs !== null && songs.length > 0 ? (
-        <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('canciones.tabsLabel')}>
-          {LIBRARY_TABS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === item.id}
-              onClick={() => setTab(item.id)}
-              className={cn(
-                'min-h-11 rounded-xl px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-                tab === item.id ? 'bg-primary/15 text-primary-ink' : 'text-muted hover:bg-surface-hover',
-              )}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('canciones.tabsLabel')}>
+            {LIBRARY_TABS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === item.id}
+                onClick={() => setTab(item.id)}
+                className={cn(
+                  'min-h-11 rounded-xl px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                  tab === item.id ? 'bg-primary/15 text-primary-ink' : 'text-muted hover:bg-surface-hover',
+                )}
+              >
+                {t(item.labelKey)}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
+            <label htmlFor="library-sort" className="sr-only">
+              {t('canciones.sortLabel')}
+            </label>
+            <select
+              id="library-sort"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as LibrarySort)}
+              className="min-h-11 rounded-xl border border-border-subtle bg-surface px-2 text-sm text-ink"
+              aria-label={t('canciones.sortLabel')}
             >
-              {t(item.labelKey)}
-            </button>
-          ))}
+              {LIBRARY_SORTS.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {t(item.labelKey)}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       ) : null}
 
