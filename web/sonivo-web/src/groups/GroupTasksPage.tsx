@@ -293,7 +293,7 @@ export function GroupTasksPage() {
 
         {/* View toggle: List / Board */}
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex gap-1 rounded-xl bg-surface-hover/50 p-1" role="tablist" aria-label={t('tareas.title')}>
+          <div className="flex gap-1 rounded-xl bg-surface-hover/50 p-1" role="group" aria-label={t('tareas.title')}>
             {([
               { id: 'board', label: t('tareas.viewBoard') },
               { id: 'list', label: t('tareas.viewList') },
@@ -301,8 +301,7 @@ export function GroupTasksPage() {
               <button
                 key={tab.id}
                 type="button"
-                role="tab"
-                aria-selected={view === tab.id}
+                aria-pressed={view === tab.id}
                 onClick={() => setView(tab.id)}
                 className={cn(
                   'min-h-9 rounded-lg px-4 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
@@ -347,9 +346,18 @@ export function GroupTasksPage() {
       <ProblemAlert message={error} />
 
       {surface.loading && tasks.length === 0 ? (
-        <p aria-live="polite" className="text-sm text-muted">
-          {t('tareas.loading')}
-        </p>
+        <div aria-live="polite" className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+          {[1, 2, 3].map((col) => (
+            <div key={col} className="flex min-h-[200px] flex-col rounded-2xl border border-border-subtle bg-surface-hover/20 p-3">
+              <div className="mb-3 h-6 w-24 animate-pulse rounded-lg bg-surface-hover" />
+              <div className="flex flex-1 flex-col gap-2">
+                {[1, 2].map((card) => (
+                  <div key={card} className="h-20 animate-pulse rounded-xl bg-surface-hover" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : visible.length === 0 && view === 'list' ? (
         <div className="rounded-2xl border border-border-subtle bg-surface px-5 py-10 text-center">
           <CheckCircle2 className="mx-auto h-8 w-8 text-muted" aria-hidden="true" />
