@@ -175,6 +175,15 @@ export function GroupTasksPage() {
     [groupId, group, reloadKey],
   )
 
+  // Shared real-time updates: poll every 30s to reflect other users' changes
+  useEffect(() => {
+    if (!groupId || !group) return
+    const interval = setInterval(() => {
+      setReloadKey((k) => k + 1)
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [groupId, group])
+
   const membersSurface = useResource(
     group && groupId ? () => listMembers(groupId!) : null,
     [groupId, group],
