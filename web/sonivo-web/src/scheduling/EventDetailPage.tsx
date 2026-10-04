@@ -5,6 +5,8 @@ import { CalendarDays, Copy, Music2 } from 'lucide-react'
 import {
   applySetlistToEvent,
   cancelEvent,
+  deleteEvent,
+  duplicateEvent,
   getEvent,
   isConflictError,
   listEventRsvps,
@@ -95,6 +97,9 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
   const [editing, setEditing] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
   const [tab, setTab] = useState<DetailTab>('plan')
   const { t } = useT()
 
@@ -247,6 +252,65 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
     }
   }
 
+  async function handleDuplicateEvent() {
+    if (!groupId || !eventId || !musicalEvent) return
+    setDuplicating(true)
+    setError(null)
+    setConflict(null)
+    try {
+      const duplicated = await duplicateEvent(groupId, eventId, musicalEvent.version)
+      navigate(`/groups/${groupId}/events/${duplicated.id}`)
+    } catch (err) {
+      if (isConflictError(err)) {
+        setConflict(CONFLICT_MESSAGE)
+        try {
+          await reload()
+        } catch (reloadErr) {
+          setError(mutationErrorMessage(reloadErr))
+        }
+      } else {
+        setError(mutationErrorMessage(err))
+      }
+    } finally {
+      setDuplicating(false)
+    }
+  }
+
+  async function handleDeleteEvent() {
+    if (!groupId || !eventId || !musicalEvent) return
+    setDeleting(true)
+    setError(null)
+    setConflict(null)
+    try {
+      await deleteEvent(groupId, eventId, musicalEvent.version)
+      setConfirmDelete(false)
+      navigate(`/groups/${groupId}/events`)
+    } catch (err) {
+      if (isConflictError(err)) {
+        setConflict(CONFLICT_MESSAGE)
+        setConfirmDelete(false)
+        try {
+          await reload()
+        } catch (reloadErr) {
+          setError(mutationErrorMessage(reloadErr))
+        }
+      } else {
+        setError(mutationErrorMessage(err))
+        setConfirmDelete(false)
+      }
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  function handleShareEvent() {
+    if (!groupId || !eventId) return
+    const url = `${window.location.origin}/groups/${groupId}/events/${eventId}`
+    void navigator.clipboard.writeText(url).then(() => {
+      // Could show a toast here
+    })
+  }
+
   if (group === undefined) {
     return <p aria-live="polite">Cargando evento…</p>
   }
@@ -338,15 +402,27 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   : t('evento.statusConfirmed')}
             </span>
             {isOwner && isLive && !editing ? (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setTab('details')
-                  setEditing(true)
-                }}
-              >
-                Editar evento
-              </Button>
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setTab('details')
+                    setEditing(true)
+                  }}
+                >
+                  Editar evento
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={duplicating}
+                  onClick={() => void handleDuplicateEvent()}
+                >
+                  {duplicating ? 'Duplicando…' : 'Duplicar'}
+                </Button>
+                <Button variant="secondary" onClick={handleShareEvent}>
+                  Compartir
+                </Button>
+              </>
             ) : null}
           </div>
         </div>
@@ -641,9 +717,14 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
           <h2 id="event-danger-heading" className="text-lg font-semibold text-error-ink">
             {t('common.dangerZone')}
           </h2>
-          <Button variant="danger" onClick={() => setConfirmCancel(true)}>
-            Cancelar evento
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="danger" onClick={() => setConfirmCancel(true)}>
+              Cancelar evento
+            </Button>
+            <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+              Eliminar evento
+            </Button>
+          </div>
         </section>
       ) : null}
 
@@ -675,6 +756,21 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
         <p>
           Esto oculta el evento de la lista. El plan copiado y las respuestas de asistencia se
           conservan en el evento.
+        </p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={confirmDelete}
+        title="¿Eliminar evento?"
+        confirmLabel="Eliminar evento"
+        cancelLabel="Volver"
+        pendingLabel="Eliminando…"
+        pending={deleting}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={() => void handleDeleteEvent()}
+      >
+        <p>
+          Esto elimina permanentemente el evento, su plan y las respuestas de asistencia. No se
+          puede deshacer.
         </p>
       </ConfirmDialog>
     </section>
