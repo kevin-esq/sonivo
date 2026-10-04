@@ -729,7 +729,7 @@ function BoardColumn({
           </div>
         ) : (
           tasks.map((task) => (
-            <TaskCard
+            <TaskCardDnd
               key={task.id}
               task={task}
               members={members}
@@ -756,7 +756,7 @@ function BoardColumn({
 
 /* ─── card ─── */
 
-function TaskCard({
+function TaskCardDnd({
   task,
   members,
   canManage,
@@ -775,11 +775,6 @@ function TaskCard({
   t: (key: I18nKey, params?: TParams) => string
   lang: string
 }) {
-  const done = task.status === 'done'
-  const overdue = !done && task.dueAt != null && new Date(task.dueAt).getTime() < Date.now()
-  const dueSoon = !done && task.dueAt != null && !overdue && new Date(task.dueAt).getTime() - Date.now() < 48 * 60 * 60 * 1000
-  const assignee = memberName(members, task.assigneeUserId)
-
   const { attributes, listeners, setNodeRef, transform, isDragging: isDragActive } = useDraggable({
     id: task.id,
     disabled: !canManage,
@@ -788,6 +783,56 @@ function TaskCard({
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined
+
+  return (
+    <TaskCard
+      task={task}
+      members={members}
+      canManage={canManage}
+      isDragging={isDragging || isDragActive}
+      onClick={onClick}
+      onMove={onMove}
+      t={t}
+      lang={lang}
+      dndRef={setNodeRef}
+      dndStyle={style}
+      dndListeners={canManage ? listeners : undefined}
+      dndAttributes={canManage ? attributes : undefined}
+    />
+  )
+}
+
+function TaskCard({
+  task,
+  members,
+  canManage,
+  isDragging,
+  onClick,
+  onMove,
+  t,
+  lang,
+  dndRef,
+  dndStyle,
+  dndListeners,
+  dndAttributes,
+}: {
+  task: TaskItem
+  members: MemberListItem[]
+  canManage: boolean
+  isDragging: boolean
+  onClick: () => void
+  onMove: (dir: 'left' | 'right') => void
+  t: (key: I18nKey, params?: TParams) => string
+  lang: string
+  dndRef?: React.Ref<HTMLElement>
+  dndStyle?: React.CSSProperties
+  dndListeners?: Record<string, unknown>
+  dndAttributes?: object
+}) {
+  const done = task.status === 'done'
+  const overdue = !done && task.dueAt != null && new Date(task.dueAt).getTime() < Date.now()
+  const dueSoon = !done && task.dueAt != null && !overdue && new Date(task.dueAt).getTime() - Date.now() < 48 * 60 * 60 * 1000
+  const assignee = memberName(members, task.assigneeUserId)
 
   function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (e.target !== e.currentTarget) return
@@ -813,21 +858,22 @@ function TaskCard({
 
   return (
     <article
-      ref={setNodeRef}
+      ref={dndRef as React.Ref<HTMLElement>}
       data-task-id={task.id}
-      style={style}
+      style={dndStyle}
       onClick={onClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label={task.title}
       aria-describedby={task.dueAt ? `due-${task.id}` : undefined}
-      {...(canManage ? { ...listeners, ...attributes } : {})}
+      {...(dndListeners ? { ...dndListeners } : {})}
+      {...(dndAttributes ? { ...dndAttributes } : {})}
       className={cn(
         'group relative cursor-pointer rounded-xl border border-border-subtle bg-surface p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-200',
         'hover:border-primary/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12),0_2px_4px_rgba(0,0,0,0.06)]',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
         canManage && 'cursor-grab active:cursor-grabbing',
-        (isDragging || isDragActive) && 'rotate-[3deg] scale-105 opacity-70 shadow-[0_12px_32px_rgba(0,0,0,0.2),0_4px_8px_rgba(0,0,0,0.1)] ring-2 ring-primary/30',
+        isDragging && 'rotate-[3deg] scale-105 opacity-70 shadow-[0_12px_32px_rgba(0,0,0,0.2),0_4px_8px_rgba(0,0,0,0.1)] ring-2 ring-primary/30',
       )}
     >
       {/* Move buttons (mobile + hover + focus-within) */}
