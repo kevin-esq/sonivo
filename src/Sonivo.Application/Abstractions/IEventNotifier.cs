@@ -30,4 +30,5 @@ public static class EventNotificationChanges
     public const string Created = "created";
     public const string Updated = "updated";
     public const string Cancelled = "cancelled";
+    public const string Deleted = "deleted";
 }

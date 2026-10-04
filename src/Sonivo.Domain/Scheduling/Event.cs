@@ -130,6 +130,44 @@ public sealed class Event : IVersionedEntity
         Touch(now);
     }
 
+    public Event Duplicate(DateTimeOffset now)
+    {
+        var duplicate = Create(
+            GroupId,
+            $"{Title} (copia)",
+            Type,
+            StartsAt,
+            now);
+
+        foreach (var item in Items)
+        {
+            duplicate.Items.Add(new EventSetlistItem
+            {
+                Id = Guid.NewGuid(),
+                EventId = duplicate.Id,
+                GroupId = duplicate.GroupId,
+                ArrangementId = item.ArrangementId,
+                DisplaySongTitle = item.DisplaySongTitle,
+                DisplayArrangementLabel = item.DisplayArrangementLabel,
+                SortOrder = item.SortOrder,
+                OverrideKey = item.OverrideKey,
+                OverrideBpm = item.OverrideBpm,
+                OverrideCapo = item.OverrideCapo,
+                OverrideNotes = item.OverrideNotes,
+                CreatedAt = now
+            });
+        }
+
+        return duplicate;
+    }
+
+    public void SoftDelete(int expectedVersion, DateTimeOffset now)
+    {
+        EnsureExpectedVersion(expectedVersion);
+        IsHidden = true;
+        Touch(now);
+    }
+
     /// <summary>
     /// Starts Replace Event Plan from Setlist (ADR-0021).
     /// Caller validates Arrangements, confirmReplace, and persists item delete/insert.

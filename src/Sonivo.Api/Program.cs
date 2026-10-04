@@ -3966,6 +3966,56 @@ app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/cancel", async (
 .RequireAuthorization()
 .DisableAntiforgery();
 
+app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/duplicate", async (
+    Guid groupId,
+    Guid eventId,
+    DuplicateEventRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    DuplicateEventHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var musicalEvent = await handler.HandleAsync(
+        new DuplicateEventCommand(userId.Value, groupId, eventId, request.ExpectedVersion),
+        cancellationToken);
+
+    return Results.Ok(ToEventDetailResponse(musicalEvent));
+})
+.WithName("DuplicateEvent")
+.RequireAuthorization()
+.DisableAntiforgery();
+
+app.MapDelete("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
+    Guid groupId,
+    Guid eventId,
+    [FromQuery] int expectedVersion,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    DeleteEventHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(
+        new DeleteEventCommand(userId.Value, groupId, eventId, expectedVersion),
+        cancellationToken);
+
+    return Results.NoContent();
+})
+.WithName("DeleteEvent")
+.RequireAuthorization()
+.DisableAntiforgery();
+
 app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/apply-setlist", async (
     Guid groupId,
     Guid eventId,
@@ -4520,6 +4570,8 @@ internal sealed record UpdateEventRequest(
     DateTimeOffset? StartsAt,
     int ExpectedVersion);
 internal sealed record CancelEventRequest(int ExpectedVersion);
+internal sealed record DuplicateEventRequest(int ExpectedVersion);
+internal sealed record DeleteEventRequest(int ExpectedVersion);
 internal sealed record ApplySetlistRequest(Guid SetlistId, int ExpectedVersion, bool ConfirmReplace = false);
 internal sealed record UpsertEventRsvpRequest(string? Response);
 

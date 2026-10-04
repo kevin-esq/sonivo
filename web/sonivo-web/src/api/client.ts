@@ -1296,8 +1296,8 @@ export async function deleteEvent(
   expectedVersion: number,
 ): Promise<void> {
   await apiRequest<void>(
-    `/api/groups/${groupId}/events/${eventId}`,
-    { method: 'DELETE', body: { expectedVersion } },
+    `/api/groups/${groupId}/events/${eventId}?expectedVersion=${expectedVersion}`,
+    { method: 'DELETE' },
   )
 }
 
