@@ -12,8 +12,8 @@ using Sonivo.Infrastructure.Persistence;
 namespace Sonivo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SonivoDbContext))]
-    [Migration("20261004024239_FixAllPendingChanges5")]
-    partial class FixAllPendingChanges5
+    [Migration("20261004030359_CleanPositionMigration")]
+    partial class CleanPositionMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -607,9 +607,6 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Notes")
                         .HasColumnType("text");
-
-                    b.Property<double>("Position")
-                        .HasColumnType("double precision");
 
                     b.Property<string>("Status")
                         .IsRequired()
