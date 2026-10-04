@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { CalendarDays, CheckSquare, Library, ListMusic, Music2 } from 'lucide-react'
+import { CalendarDays, CheckSquare, Library, ListMusic, Music2, UserPlus } from 'lucide-react'
 import {
   ApiError,
   createInvitation,
@@ -295,6 +295,65 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           </span>
         </Link>
       </div>
+
+      {/* Quick actions */}
+      <section className="space-y-3" aria-labelledby="quick-actions-heading">
+        <h3 id="quick-actions-heading" className="font-semibold">
+          {t('inicio.quickActions')}
+        </h3>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <Link
+            to={`/groups/${group.id}/library?new=1`}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          >
+            <Music2 className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+            {t('inicio.quickAddSong')}
+          </Link>
+          <Link
+            to={`/groups/${group.id}/setlists?new=1`}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          >
+            <ListMusic className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+            {t('inicio.quickCreateList')}
+          </Link>
+          <Link
+            to={`/groups/${group.id}/events?new=1`}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          >
+            <CalendarDays className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+            {t('inicio.quickCreateEvent')}
+          </Link>
+          <Link
+            to={`/groups/${group.id}/tasks?new=1`}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          >
+            <CheckSquare className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+            {t('inicio.quickCreateTask')}
+          </Link>
+          <Link
+            to={`/groups/${group.id}/recursos?new=1`}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          >
+            <Library className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+            {t('inicio.quickAddResource')}
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setInviteEmail('')
+              setInviteUrl(null)
+              setInviteError(null)
+              setInviteEmailWarning(false)
+              setCopied(false)
+              setInviting(false)
+            }}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          >
+            <UserPlus className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+            {t('inicio.quickInviteMember')}
+          </button>
+        </div>
+      </section>
 
       {isOwner && setlists?.length === 0 && events?.length === 0 && songCount === 0 ? (
         <section
