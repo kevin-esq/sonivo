@@ -43,7 +43,7 @@ public class GroupBrandingTests
     {
         var branding = GroupBranding.Create(Guid.NewGuid(), Now);
 
-        branding.Update("Mi Banda", "#5B4BD6", "#F5C542", "gradient", "violeta", "dark", "es", "Bienvenido", "Entra", "Adorando juntos", "Salmo 150:6", false, Now.AddMinutes(1));
+        branding.Update("Mi Banda", "#5B4BD6", "#F5C542", null, null, null, null, null, "gradient", "violeta", "dark", "es", "Bienvenido", "Entra", "Adorando juntos", "Salmo 150:6", false, Now.AddMinutes(1));
 
         Assert.Equal("#5b4bd6", branding.AccentHex);
         Assert.Equal("#f5c542", branding.SecondaryHex);
@@ -62,11 +62,11 @@ public class GroupBrandingTests
         var branding = GroupBranding.Create(Guid.NewGuid(), Now);
 
         Assert.Throws<ArgumentException>(() =>
-            branding.Update(null, "#7a7a7a", null, null, null, null, null, null, null, null, null, true, Now));
+            branding.Update(null, "#7a7a7a", null, null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now));
         Assert.Throws<ArgumentException>(() =>
-            branding.Update(null, "javascript:alert(1)", null, null, null, null, null, null, null, null, null, true, Now));
+            branding.Update(null, "javascript:alert(1)", null, null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now));
         Assert.Throws<ArgumentException>(() =>
-            branding.Update("bad\u0007name", null, null, null, null, null, null, null, null, null, null, true, Now));
+            branding.Update("bad\\u0007name", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now));
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class GroupBrandingTests
         var branding = GroupBranding.Create(Guid.NewGuid(), Now);
 
         Assert.Throws<ArgumentException>(() =>
-            branding.Update(null, null, "#7a7a7a", null, null, null, null, null, null, null, null, true, Now));
+            branding.Update(null, null, "#7a7a7a", null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now));
     }
 
     [Fact]
@@ -83,10 +83,10 @@ public class GroupBrandingTests
     {
         var branding = GroupBranding.Create(Guid.NewGuid(), Now);
 
-        branding.Update(null, null, null, "emoji", "🎸", null, null, null, null, null, null, true, Now);
+        branding.Update(null, null, null, null, null, null, null, null, "emoji", "🎸", null, null, null, null, null, null, true, Now);
         Assert.Equal("emoji", branding.CoverKind);
 
-        branding.Update(null, null, null, null, null, null, null, null, null, null, null, true, Now.AddMinutes(1));
+        branding.Update(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now.AddMinutes(1));
         Assert.Null(branding.CoverKind);
         Assert.Null(branding.CoverValue);
     }
@@ -118,3 +118,4 @@ public class GroupBrandingTests
         Assert.Null(branding.BannerContentType);
     }
 }
+
