@@ -321,6 +321,22 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   ? t('agenda.statusPlan')
                   : t('agenda.statusDraft')}
             </ReadinessChip>
+            <span
+              className={cn(
+                'inline-flex min-h-11 items-center rounded-full px-2.5 py-0.5 text-xs font-semibold sm:min-h-0',
+                !isLive
+                  ? 'bg-error/15 text-error-ink'
+                  : new Date(musicalEvent.startsAt) < new Date()
+                    ? 'bg-success/15 text-success'
+                    : 'bg-primary/15 text-primary-ink',
+              )}
+            >
+              {!isLive
+                ? t('evento.statusCancelled')
+                : new Date(musicalEvent.startsAt) < new Date()
+                  ? t('evento.statusCompleted')
+                  : t('evento.statusConfirmed')}
+            </span>
             {isOwner && isLive && !editing ? (
               <Button
                 variant="secondary"

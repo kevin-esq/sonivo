@@ -1,7 +1,24 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronUp, ListMusic, Music2, Trash2 } from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { ChevronDown, ChevronUp, GripVertical, ListMusic, Music2, Trash2 } from 'lucide-react'
 import {
   getSetlist,
   isConflictError,
@@ -58,6 +75,97 @@ function SetlistNumber({ n }: { n: number }) {
   )
 }
 
+function SortableSetlistItem({
+  item,
+  index,
+  isLast,
+  isOwner,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+}: {
+  item: DraftItem
+  index: number
+  isLast: boolean
+  isOwner: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
+  onRemove: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.key,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className="library-enter flex min-h-[44px] flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-3 shadow-sm transition duration-150 hover:border-primary/25 hover:bg-surface-hover motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
+    >
+      <SetlistNumber n={item.sortOrder} />
+      <span
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent"
+        aria-hidden="true"
+      >
+        <Music2 className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold text-ink">{item.songTitle}</span>
+        <span className="text-sm text-muted">{item.arrangementLabel}</span>
+      </span>
+      {isOwner ? (
+        <div className="flex flex-wrap items-center gap-1">
+          <button
+            type="button"
+            className="grid h-9 w-9 cursor-grab items-center justify-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:cursor-grabbing"
+            aria-label={`Arrastrar ítem ${item.sortOrder}`}
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={index === 0}
+            aria-label={`Subir ítem ${item.sortOrder}`}
+            onClick={onMoveUp}
+          >
+            <ChevronUp className="h-4 w-4" aria-hidden="true" />
+            <span className="sr-only">Subir</span>
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={isLast}
+            aria-label={`Bajar ítem ${item.sortOrder}`}
+            onClick={onMoveDown}
+          >
+            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            <span className="sr-only">Bajar</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={`Quitar ítem ${item.sortOrder}`}
+            onClick={onRemove}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            <span className="sr-only">Quitar</span>
+          </Button>
+        </div>
+      ) : null}
+    </li>
+  )
+}
+
 export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   const { groupId, setlistId } = useParams()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
@@ -71,6 +179,13 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   const [selectedArrangementId, setSelectedArrangementId] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const { t } = useT()
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
 
   const isOwner = canManageContentRole(group?.role)
 
@@ -128,6 +243,17 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
     next[index] = swapped
     next[target] = current
     setDraft(next.map((item, i) => ({ ...item, sortOrder: i + 1 })))
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = draft.findIndex((item) => item.key === active.id)
+    const newIndex = draft.findIndex((item) => item.key === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    setDraft((items) =>
+      arrayMove(items, oldIndex, newIndex).map((item, i) => ({ ...item, sortOrder: i + 1 })),
+    )
   }
 
   function addSelectedArrangement() {
@@ -313,60 +439,31 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                 <span>Arreglo</span>
                 <span>Acciones</span>
               </div>
-              <ol className="space-y-2 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
-              {draft.map((item, index) => (
-                <li
-                  key={item.key}
-                  className="library-enter flex min-h-[44px] flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-3 shadow-sm transition duration-150 hover:border-primary/25 hover:bg-surface-hover motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
-                  style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={draft.map((item) => item.key)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <SetlistNumber n={item.sortOrder} />
-                  <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent"
-                    aria-hidden="true"
-                  >
-                    <Music2 className="h-4 w-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold text-ink">{item.songTitle}</span>
-                    <span className="text-sm text-muted">{item.arrangementLabel}</span>
-                  </span>
-                  {isOwner ? (
-                    <div className="flex flex-wrap items-center gap-1">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={index === 0}
-                        aria-label={`Subir ítem ${item.sortOrder}`}
-                        onClick={() => moveItem(index, -1)}
-                      >
-                        <ChevronUp className="h-4 w-4" aria-hidden="true" />
-                        <span className="sr-only">Subir</span>
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={index === draft.length - 1}
-                        aria-label={`Bajar ítem ${item.sortOrder}`}
-                        onClick={() => moveItem(index, 1)}
-                      >
-                        <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                        <span className="sr-only">Bajar</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Quitar ítem ${item.sortOrder}`}
-                        onClick={() => removeItem(item.key)}
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        <span className="sr-only">Quitar</span>
-                      </Button>
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-              </ol>
+                  <ol className="space-y-2 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
+                    {draft.map((item, index) => (
+                      <SortableSetlistItem
+                        key={item.key}
+                        item={item}
+                        index={index}
+                        isLast={index === draft.length - 1}
+                        isOwner={isOwner}
+                        onMoveUp={() => moveItem(index, -1)}
+                        onMoveDown={() => moveItem(index, 1)}
+                        onRemove={() => removeItem(item.key)}
+                      />
+                    ))}
+                  </ol>
+                </SortableContext>
+              </DndContext>
             </div>
           )}
 
