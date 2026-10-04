@@ -34,6 +34,7 @@ import { fieldClass } from '../ui/field'
 import { canManageContentRole, mutationErrorMessage, ProblemAlert } from '../repertoire/ui'
 import { useAction } from '../hooks/useAction'
 import { useResource } from '../hooks/useResource'
+import { useAuth } from '../shell/authContext'
 
 /* ────────── status helpers ────────── */
 
@@ -90,6 +91,17 @@ function formatDue(iso: string | null, lang: string): string {
   return new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', year: 'numeric' }).format(date)
 }
 
+/** Convert ISO string to local date input value (YYYY-MM-DD) without UTC shift. */
+function toLocalDate(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function memberName(members: MemberListItem[], userId: string | null): string | null {
   if (!userId) return null
   return members.find((m) => m.userId === userId)?.displayName ?? null
@@ -114,6 +126,7 @@ type TaskFilter = 'all' | 'open' | 'done' | 'mine' | 'overdue'
 export function GroupTasksPage() {
   const { groupId } = useParams()
   const { t, lang } = useT()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [group, setGroup] = useState<Awaited<ReturnType<typeof getGroup>> | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
@@ -158,14 +171,14 @@ export function GroupTasksPage() {
       let filtered = tasks
       if (filter === 'done') filtered = filtered.filter((task) => task.status === 'done')
       else if (filter === 'open') filtered = filtered.filter((task) => task.status !== 'done')
-      else if (filter === 'mine') filtered = filtered.filter((task) => task.assigneeUserId != null)
+      else if (filter === 'mine') filtered = filtered.filter((task) => task.assigneeUserId === user?.id)
       else if (filter === 'overdue') filtered = filtered.filter((task) => {
         if (task.status === 'done' || !task.dueAt) return false
         return new Date(task.dueAt).getTime() < Date.now()
       })
       return filtered
     },
-    [tasks, filter],
+    [tasks, filter, user?.id],
   )
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
@@ -178,7 +191,7 @@ export function GroupTasksPage() {
     return (
       <div className="space-y-3">
         <ProblemAlert message={error} />
-        <Button variant="secondary" onClick={() => navigate('/grupos')}>
+        <Button variant="secondary" onClick={() => navigate('/')}>
           {t('workspace.myGroups')}
         </Button>
       </div>
@@ -202,6 +215,7 @@ export function GroupTasksPage() {
 
   async function remove(task: TaskItem) {
     if (!groupId) return
+    if (!window.confirm(t('tareas.deleteConfirm'))) return
     try {
       await deleteTask(groupId, task.id, task.version)
       reload()
@@ -271,7 +285,7 @@ export function GroupTasksPage() {
           </div>
 
           {/* Filters */}
-          <div className="flex gap-1" role="tablist" aria-label={t('tareas.filterLabel')}>
+          <div className="flex gap-1" role="group" aria-label={t('tareas.filterLabel')}>
             {([
               { id: 'all', label: t('tareas.filterAll') },
               { id: 'open', label: t('tareas.filterOpen') },
@@ -282,8 +296,7 @@ export function GroupTasksPage() {
               <button
                 key={tab.id}
                 type="button"
-                role="tab"
-                aria-selected={filter === tab.id}
+                aria-pressed={filter === tab.id}
                 onClick={() => setFilter(tab.id)}
                 className={cn(
                   'min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
@@ -362,6 +375,7 @@ export function GroupTasksPage() {
             setDetailTask(null)
             reload()
           }}
+          onStatusChange={(task, status) => void changeStatus(task, status)}
           t={t}
           lang={lang}
         />
@@ -717,19 +731,24 @@ function TaskCard({
     if (canManage && e.altKey && e.key === 'ArrowLeft') {
       e.preventDefault()
       onMove('left')
-      // Focus returns to card after move
-      setTimeout(() => cardRef.current?.focus(), 50)
+      // Focus returns to card after move (card re-renders in new column)
+      requestAnimationFrame(() => {
+        ;(document.querySelector(`[data-task-id="${task.id}"]`) as HTMLElement | null)?.focus()
+      })
     }
     if (canManage && e.altKey && e.key === 'ArrowRight') {
       e.preventDefault()
       onMove('right')
-      setTimeout(() => cardRef.current?.focus(), 50)
+      requestAnimationFrame(() => {
+        ;(document.querySelector(`[data-task-id="${task.id}"]`) as HTMLElement | null)?.focus()
+      })
     }
   }
 
   return (
     <article
       ref={cardRef}
+      data-task-id={task.id}
       draggable={canManage}
       onDragStart={(e: DragEvent) => {
         e.dataTransfer.setData('text/plain', task.id)
@@ -752,12 +771,12 @@ function TaskCard({
     >
       {/* Move buttons (mobile + hover) */}
       {canManage ? (
-        <div className="absolute -top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="absolute -top-2 right-2 flex gap-1 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onMove('left') }}
             disabled={task.status === 'open'}
-            aria-label={t('tareas.moveTo', { status: t(STATUS_META.open.columnKey) })}
+            aria-label={t('tareas.moveTo', { status: t(STATUS_META[BOARD_COLUMNS[BOARD_COLUMNS.indexOf(task.status as BoardStatus) - 1] ?? 'open'].columnKey) })}
             className="grid h-6 w-6 place-items-center rounded-full bg-surface text-muted shadow-sm hover:text-ink disabled:opacity-30"
           >
             <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
@@ -766,7 +785,7 @@ function TaskCard({
             type="button"
             onClick={(e) => { e.stopPropagation(); onMove('right') }}
             disabled={task.status === 'done'}
-            aria-label={t('tareas.moveTo', { status: t(STATUS_META.done.columnKey) })}
+            aria-label={t('tareas.moveTo', { status: t(STATUS_META[BOARD_COLUMNS[BOARD_COLUMNS.indexOf(task.status as BoardStatus) + 1] ?? 'done'].columnKey) })}
             className="grid h-6 w-6 place-items-center rounded-full bg-surface text-muted shadow-sm hover:text-ink disabled:opacity-30"
           >
             <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -841,6 +860,7 @@ function TaskDetailModal({
   onClose,
   onUpdated,
   onDeleted,
+  onStatusChange,
   t,
   lang,
 }: {
@@ -851,6 +871,7 @@ function TaskDetailModal({
   onClose: () => void
   onUpdated: () => void
   onDeleted: () => void
+  onStatusChange: (task: TaskItem, status: string) => void
   t: (key: I18nKey, params?: TParams) => string
   lang: string
 }) {
@@ -858,7 +879,7 @@ function TaskDetailModal({
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(task.title)
   const [notes, setNotes] = useState(task.notes ?? '')
-  const [dueAt, setDueAt] = useState(task.dueAt ? task.dueAt.slice(0, 10) : '')
+  const [dueAt, setDueAt] = useState(toLocalDate(task.dueAt))
   const [assigneeUserId, setAssigneeUserId] = useState(task.assigneeUserId ?? '')
   const [error, setError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
@@ -874,7 +895,7 @@ function TaskDetailModal({
   // Track unsaved changes
   useEffect(() => {
     if (!isEditing) return
-    const changed = title !== task.title || notes !== (task.notes ?? '') || dueAt !== (task.dueAt ? task.dueAt.slice(0, 10) : '') || assigneeUserId !== (task.assigneeUserId ?? '')
+    const changed = title !== task.title || notes !== (task.notes ?? '') || dueAt !== toLocalDate(task.dueAt) || assigneeUserId !== (task.assigneeUserId ?? '')
     setHasChanges(changed)
   }, [title, notes, dueAt, assigneeUserId, isEditing, task])
 
@@ -884,8 +905,8 @@ function TaskDetailModal({
     if (!dialog) return
     const d = dialog
     function handleClick(e: MouseEvent) {
-      const rect = d.getBoundingClientRect()
-      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+      // Only close if clicking the dialog backdrop itself, not children
+      if (e.target === d) {
         if (hasChanges) {
           if (window.confirm(t('tareas.discardConfirm'))) {
             onClose()
@@ -898,33 +919,6 @@ function TaskDetailModal({
     dialog.addEventListener('click', handleClick)
     return () => dialog.removeEventListener('click', handleClick)
   }, [hasChanges, onClose, t])
-
-  // Esc cancels editing first, then closes
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-    function handleKeydown(e: Event) {
-      const ke = e as globalThis.KeyboardEvent
-      if (ke.key === 'Escape') {
-        if (isEditing) {
-          setIsEditing(false)
-          setTitle(task.title)
-          setNotes(task.notes ?? '')
-          setDueAt(task.dueAt ? task.dueAt.slice(0, 10) : '')
-          setAssigneeUserId(task.assigneeUserId ?? '')
-        } else {
-          onClose()
-        }
-      }
-      // Ctrl/Cmd + Enter saves
-      if ((ke.ctrlKey || ke.metaKey) && ke.key === 'Enter' && isEditing) {
-        ke.preventDefault()
-        void saveAction.run()
-      }
-    }
-    dialog.addEventListener('keydown', handleKeydown)
-    return () => dialog.removeEventListener('keydown', handleKeydown)
-  }, [isEditing, onClose, task, t])
 
   const saveAction = useAction(async () => {
     setError(null)
@@ -943,6 +937,34 @@ function TaskDetailModal({
     await deleteTask(groupId, task.id, task.version)
     onDeleted()
   })
+
+  // Esc cancels editing first, then closes
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    function handleKeydown(e: Event) {
+      const ke = e as globalThis.KeyboardEvent
+      if (ke.key === 'Escape') {
+        e.stopPropagation()
+        if (isEditing) {
+          setIsEditing(false)
+          setTitle(task.title)
+          setNotes(task.notes ?? '')
+          setDueAt(toLocalDate(task.dueAt))
+          setAssigneeUserId(task.assigneeUserId ?? '')
+        } else {
+          onClose()
+        }
+      }
+      // Ctrl/Cmd + Enter saves
+      if ((ke.ctrlKey || ke.metaKey) && ke.key === 'Enter' && isEditing) {
+        ke.preventDefault()
+        void saveAction.run()
+      }
+    }
+    dialog.addEventListener('keydown', handleKeydown)
+    return () => dialog.removeEventListener('keydown', handleKeydown)
+  }, [isEditing, onClose, task, t, title, notes, dueAt, assigneeUserId, saveAction])
 
   const assignee = memberName(members, task.assigneeUserId)
   const creator = memberName(members, task.createdByUserId)
@@ -1020,10 +1042,35 @@ function TaskDetailModal({
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
             {/* Status */}
             <DetailField label={t('tareas.fieldStatus')}>
-              <span className={cn('inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-medium', meta.bgClass, meta.color)}>
-                {statusIcon(task.status, 'h-3.5 w-3.5')}
-                {t(meta.labelKey)}
-              </span>
+              {canManage ? (
+                <div className="flex gap-1" role="group" aria-label={t('tareas.fieldStatus')}>
+                  {BOARD_COLUMNS.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      aria-pressed={task.status === s}
+                      onClick={() => {
+                        if (task.status !== s) {
+                          onStatusChange(task, s)
+                        }
+                      }}
+                      className={cn(
+                        'min-h-8 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                        task.status === s
+                          ? cn(STATUS_META[s].bgClass, STATUS_META[s].color)
+                          : 'text-muted hover:text-ink',
+                      )}
+                    >
+                      {t(STATUS_META[s].labelKey)}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <span className={cn('inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-medium', meta.bgClass, meta.color)}>
+                  {statusIcon(task.status, 'h-3.5 w-3.5')}
+                  {t(meta.labelKey)}
+                </span>
+              )}
             </DetailField>
 
             {/* Assignee */}
@@ -1136,7 +1183,7 @@ function TaskDetailModal({
                     setIsEditing(false)
                     setTitle(task.title)
                     setNotes(task.notes ?? '')
-                    setDueAt(task.dueAt ? task.dueAt.slice(0, 10) : '')
+                    setDueAt(toLocalDate(task.dueAt))
                     setAssigneeUserId(task.assigneeUserId ?? '')
                   }}>
                     {t('tareas.cancel')}
@@ -1196,7 +1243,7 @@ function TaskFormDialog({
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [title, setTitle] = useState(task?.title ?? '')
   const [notes, setNotes] = useState(task?.notes ?? '')
-  const [dueAt, setDueAt] = useState(task?.dueAt ? task.dueAt.slice(0, 10) : '')
+  const [dueAt, setDueAt] = useState(toLocalDate(task?.dueAt))
   const [assigneeUserId, setAssigneeUserId] = useState(task?.assigneeUserId ?? '')
   const [error, setError] = useState<string | null>(null)
 
