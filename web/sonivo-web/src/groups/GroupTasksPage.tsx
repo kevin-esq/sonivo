@@ -870,8 +870,8 @@ function TaskCard({
         'group relative cursor-pointer rounded-xl border border-border-subtle bg-surface p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-200',
         'hover:border-primary/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12),0_2px_4px_rgba(0,0,0,0.06)]',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-        canManage && 'cursor-grab active:cursor-grabbing',
-        isDragging && 'rotate-[3deg] scale-105 opacity-70 shadow-[0_12px_32px_rgba(0,0,0,0.2),0_4px_8px_rgba(0,0,0,0.1)] ring-2 ring-primary/30',
+        canManage && (isDragging ? 'cursor-grabbing' : 'cursor-grab'),
+        isDragging && 'opacity-0',
       )}
     >
       {/* Move buttons (mobile + hover + focus-within) */}
@@ -972,7 +972,7 @@ function TaskCardOverlay({
   const assignee = memberName(members, task.assigneeUserId)
 
   return (
-    <article className="rotate-[3deg] scale-105 rounded-xl border border-border-subtle bg-surface p-3 opacity-90 shadow-[0_12px_32px_rgba(0,0,0,0.2),0_4px_8px_rgba(0,0,0,0.1)] ring-2 ring-primary/30">
+    <article className="cursor-grabbing rotate-[3deg] scale-105 rounded-xl border border-border-subtle bg-surface p-3 opacity-90 shadow-[0_12px_32px_rgba(0,0,0,0.2),0_4px_8px_rgba(0,0,0,0.1)] ring-2 ring-primary/30">
       <p className={cn('text-sm font-semibold text-ink leading-snug', done && 'text-muted line-through')}>
         {task.title}
       </p>
