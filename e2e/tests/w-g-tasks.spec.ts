@@ -61,7 +61,7 @@ test.describe('W-G tasks', () => {
     }
 
     await page.getByRole('tab', { name: 'Tablero' }).click()
-    await expect(page.getByText('SIN ASIGNAR')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'No iniciado' })).toBeVisible()
     await expect(page.getByText(`Board A ${stamp}`)).toBeVisible()
     await expect(page.getByText(`Board B ${stamp}`)).toBeVisible()
   })
