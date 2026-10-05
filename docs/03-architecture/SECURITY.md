@@ -22,6 +22,7 @@ AuthZ ACCEPTED: Owner \| Member (0012).
 | Email verify / reset | Single-use tokens; expiry |
 | Lockout / rate limit | Identity lockout ON; fixed-window rate limits on register/confirm/resend/forgot/reset/challenge (shipped S1/S2) |
 | Failures | Enumeration-safe messaging where needed (forgot password) |
+| Passkeys / WebAuthn | Server-side verifier: challenge + origin + rpIdHash + UP/AT flags, then ES256/RS256 assertion signature. Attestation conveyance is `none`, so attestation statements are **not** verified by design; challenge state is process-local (single-instance constraint). |
 
 Mobile bearer: FUTURE ADR.
 
@@ -73,7 +74,7 @@ No ACL engine.
         (mismatch/missing → 404/400)
      e. Mutate in transaction; soft-delete filters as specified
 5. Infrastructure: tenant queries always parameterized by GroupId
-6. Blobs: authorize first; key must start with groups/{groupId}/
+6. Blobs: authorize first; resource blobs use the opaque key `resources/{resourceId}` and are reachable only after the tenant-scoped Arrangement load succeeds (no prefix-based trust)
 ```
 
 ### Challenge answers (binding intent)
