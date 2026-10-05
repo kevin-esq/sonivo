@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Sonivo.Application.Abstractions;
 
 namespace Sonivo.Api.Auth;
@@ -107,14 +108,35 @@ internal static class VerificationMail
         }
     }
 
-    // Premium, client-safe HTML (table layout + inline styles). Deliberately
-    // brand-driven so the mail feels like the product, not a system message.
+    // Premium, client-safe HTML (table layout + inline styles). Brand-driven so
+    // the mail feels like the product, not a system message. Includes a hidden
+    // preheader (inbox preview), dark-mode-safe metadata and a bulletproof button
+    // — the email-client standards that read as "premium".
     private static string RenderHtml(string heading, string intro, string ctaLabel, string ctaUrl, string footnote)
     {
         var safeUrl = WebUtility.HtmlEncode(ctaUrl);
+        // schema.org EmailMessage + ViewAction: renders an in-inbox action button
+        // in Gmail once the sending domain is DKIM-signed and registered with
+        // Google. Ignored by clients that do not support it.
+        var actionLd = JsonSerializer.Serialize(new
+        {
+            @context = "http://schema.org",
+            @type = "EmailMessage",
+            potentialAction = new
+            {
+                @type = "ViewAction",
+                name = ctaLabel,
+                target = ctaUrl
+            }
+        });
         return "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\">" +
-            "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>" +
+            "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+            "<meta name=\"color-scheme\" content=\"light dark\">" +
+            "<meta name=\"supported-color-schemes\" content=\"light dark\">" +
+            "<style>:root{color-scheme:light dark;}a{text-decoration:none;}</style>" +
+            "<script type=\"application/ld+json\">" + actionLd + "</script></head>" +
             "<body style=\"margin:0;padding:0;background:#0b1220;\">" +
+            $"<div style=\"display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;mso-hide:all;\">{WebUtility.HtmlEncode(intro)}</div>" +
             "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#0b1220;\">" +
             "<tr><td align=\"center\" style=\"padding:36px 16px;\">" +
             "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" " +
@@ -128,7 +150,7 @@ internal static class VerificationMail
             "</td></tr>" +
             "<tr><td style=\"padding:26px 34px 8px;\">" +
             $"<a href=\"{safeUrl}\" style=\"display:inline-block;background:#8366f1;color:#ffffff;" +
-            "padding:13px 22px;border-radius:12px;text-decoration:none;font-weight:600;font-size:15px;\">" +
+            "padding:13px 22px;border-radius:12px;font-weight:600;font-size:15px;line-height:1.2;\">" +
             $"{WebUtility.HtmlEncode(ctaLabel)}</a>" +
             "</td></tr>" +
             "<tr><td style=\"padding:10px 34px 30px;\">" +
