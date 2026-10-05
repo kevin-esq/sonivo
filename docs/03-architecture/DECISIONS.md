@@ -8,6 +8,36 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0065 — Frontend shell: Next.js App Router BFF + host-based tenancy + handoff session
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-05.
+- **Amends:** ADR-0010 (frontend row + "Do not introduce Next.js" principle). The .NET backend decision stands.
+- **Unblocks:** ADR-0049 (host/subdomain work; was documentation-only/BLOCKED).
+- **Extends:** ADR-0043 (i18n) to Portuguese; backend strings stay phase 2.
+- **See:** [`PHASE-NEXTJS-MULTITENANT-BFF-SPEC.md`](./PHASE-NEXTJS-MULTITENANT-BFF-SPEC.md).
+
+### Decision
+
+1. A **Next.js App Router** frontend is adopted as the product shell, operating as a **BFF over the existing ASP.NET Core API**. The .NET modular monolith remains the single backend; Next never accesses PostgreSQL.
+2. **Host-based tenancy:** `slug.sonvo.lat` is rewritten by middleware to internal `/[tenant]/[locale]/...` routes; the apex serves marketing/auth. The tenant slug from `Host` is a **selector**, never authorization.
+3. **i18n:** Spanish default, English + Portuguese; dictionaries loaded server-side; the existing `useT()` contract is preserved.
+4. **Branding** is fetched server-side and injected as CSS variables on `<html>`/`<body>`.
+5. **Session across subdomains:** central auth at the apex + a **single-use, short-lived handoff code** redeemed on the tenant host for a **host-only session cookie**. A parent-domain cookie (`Domain=.sonvo.lat`) is **PROHIBITED**.
+
+### Firewalls (explicit)
+
+- No parent-domain session cookie; host-only / `__Host-` cookies only.
+- No web JWT/BFF token storage (ADR-0009/0011 stand).
+- No wildcard CSP/CORS or wildcard OAuth redirect URIs; passkeys remain apex-only.
+- No domain/EF/Identity rewrite; no `GroupDomain` schema in this phase.
+- No backend string/mail localisation in this phase.
+
+### Rollout
+
+Strangler migration: the Vite SPA stays the production UI until the Next shell reaches parity and is switched at the edge. New code is additive (`web/sonivo-next/`, `/api/session/handoff*`).
+
+---
+
 ## ADR-0063 — Tooling: adopt official agent skills (.NET / testing / security) + MCP servers
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-04.

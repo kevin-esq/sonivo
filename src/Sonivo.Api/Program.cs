@@ -22,6 +22,7 @@ using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tasks;
 using Sonivo.Application.Tenancy;
 using Sonivo.Api.Realtime;
+using Sonivo.Api.Session;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Scheduling;
 using Sonivo.Domain.Tenancy;
@@ -50,7 +51,15 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddGoogleExternalLogin(builder.Configuration);
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.Cookie.Name = "sonivo.auth";
+    // Cross-subdomain session handoff: the tenant session cookie is host-only
+    // (Domain omitted) and uses the __Host- prefix outside Development, which
+    // requires Secure + Path=/ and forbids a Domain. Dev keeps the plain name
+    // so the Vite proxy over http://localhost still authenticates.
+    options.Cookie.Name = builder.Environment.IsDevelopment()
+        ? "sonivo.auth"
+        : "__Host-sonivo.session";
+    options.Cookie.Domain = null;
+    options.Cookie.Path = "/";
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
         ? CookieSecurePolicy.SameAsRequest
@@ -179,6 +188,10 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("invite-accept", http => PerIp(http, 30));
     options.AddPolicy("digitize", http => PerIp(http, 10));
     options.AddPolicy("export", http => PerIp(http, 10));
+    // Cross-subdomain session handoff: start is session-authenticated; redeem
+    // is anonymous, so both share a modest per-IP budget. Code guessing is
+    // already infeasible at 256 bits — this caps abuse of the exchange surface.
+    options.AddPolicy("session-handoff", http => PerIp(http, 20));
     // NOTE (B11): a global per-IP limiter was evaluated and REMOVED — at any
     // threshold tight enough to matter it throttled legitimate burst traffic
     // (the E2E suite hit 429 on GET /api/auth/csrf), and a shared-IP partition
@@ -186,6 +199,11 @@ builder.Services.AddRateLimiter(options =>
     // a global backstop belongs at the edge/CDN, not in-process.
 });
 builder.Services.AddSingleton<VerificationThrottle>();
+// Cross-subdomain session handoff (host-based tenancy): single-use in-memory
+// tickets keyed by code hash; TimeProvider is injected so the TTL is testable.
+builder.Services.AddSingleton<ISessionHandoffStore, InMemorySessionHandoffStore>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<SessionHandoffService>();
 
 if (!builder.Environment.IsDevelopment())
 {
@@ -414,6 +432,11 @@ app.Use(async (context, next) =>
 
     await next();
 });
+
+// Cross-subdomain session handoff endpoints. Mapped after the global CSRF
+// middleware (above) so the redeem POST is validated like every other unsafe
+// method — no .DisableAntiforgery() exemption.
+app.MapSessionHandoffEndpoints();
 
 // SECURITY-AUDIT-2026-10 (C8): cross-origin WebSocket handshakes are rejected.
 // SameSite=Lax cookies already block browser cross-site handshakes; this is

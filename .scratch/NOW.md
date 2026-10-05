@@ -5,42 +5,31 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE - Groups UX refresh + plans/personalization docs
-  Branch: feature/groups-ux-refresh (from develop)
-  Commits:
-    147aab6 feat(groups): mobile-first responsive redesign
-    be66834 docs(now): record groups responsive redesign checkpoint
-    63c66ce feat(branding): display typography, live preview and account menu
-    (docs)  feat: plans/personalization spec + ADR-0061/0062/0063
+Implementation: COMPLETE - Next.js multi-tenant BFF foundation + session handoff
+  Branch: feature/nextjs-multitenant-bff (from develop)
   Scope:
-    - Responsive: nav (single "Mas", 4 tabs), 44px targets, agenda <640,
-      skeletons, AA tokens (light+dark).
-    - Branding/UX: display typography (ADR-0060, 10 fonts), live brand preview,
-      liquid-glass --brand-wash, account dropdown + safer logout, floating
-      unsaved-changes bar.
-    - Docs: PHASE-PLANS-SPEC.md; ADR-0061 (entitlements + gated personalization),
-      ADR-0062 (organization), ADR-0063 (payments IN, supersedes ADR-0042).
-Human approval: APPROVED (owner: "Autorizo todo", 2026-10-05)
-Git checkpoint: COMMITTED (branch)
-Remote: NOT PUSHED
-CI: NOT RUN
+    - ADR-0065 + PHASE-NEXTJS-MULTITENANT-BFF-SPEC.md (amends ADR-0010, unblocks
+      ADR-0049, extends ADR-0043 to pt).
+    - web/sonivo-next: Next.js App Router BFF scaffold (middleware host+locale,
+      SSR branding theme vars, i18n es/en/pt, AttendanceTracker client, handoff page).
+    - .NET: host-only session cookie (Domain=null; __Host- name off Dev) +
+      /api/session/handoff/start|redeem (256-bit single-use code, TTL 90s, SHA-256
+      stored, UA binding, rate-limited, no CSRF exemption) + 9 unit tests.
+Human approval: APPROVED (owner: "un solo pr para todo el cambio", 2026-10-05)
+Git checkpoint: COMMITTED (feature/nextjs-multitenant-bff)
+Remote: PUSHED (PR #213 -> develop)
+CI: NOT RUN (checked after push)
 ```
 
-### Next implementation (authorized, not started)
-- Fase A: entitlements catalog (single source of truth) + effective-plan
-  capability filter on brand render (spec §6/§10.1-10.3). No payments yet.
-- Fase B: OKLCH derivation + intensity + gradientStyle + 10 themes + contrast guard.
-- Then level-gated editor, backend plan validation, usage meters, downgrade rules.
-- Billing/provider is placeholder (ADR-0063) and needs a provider decision (§9.13).
-
 ### Verified this session
-- `npm run build` PASS · `npm run lint` (oxlint) exit 0.
-- Overflow 0 (dark/light x 320/390/768 x 11 routes); contrast 0 (binary); focus 0 missing.
-- Live preview, floating bar, account menu verified via Playwright screenshots.
-- Full E2E not run locally (API lacks Auth__EnableTestHook).
+- `dotnet build Sonivo.slnx -c Release` PASS (0 errors; 1 pre-existing warning).
+- `dotnet test`: Api 232 PASS · Domain 141 PASS · Application 211 PASS (584 total).
+  Integration tests not run locally (require PostgreSQL on 5433).
+- `web/sonivo-next`: `npm install` + `npm run build` PASS (Next 15.5.27; 8 routes).
 
 ### Notes / follow-ups
-- Backend `GroupBranding` typography allowlist extended to 10 ids; API must be
-  rebuilt/restarted for the new ids to be accepted.
-- Unrelated local working-tree changes present (not from this task): `.vscode/`,
-  `w-h-live-viewer.png`, `.scratch/shots/` - left untouched.
+- Migration is strangler: `web/sonivo-web` (Vite) remains the production UI.
+- Deferred: wildcard DNS/TLS + custom domain verification (ADR-0049 D3),
+  `GroupDomain` table, backend i18n/mail (ADR-0043 phase 2), page-by-page migration.
+- In-memory handoff store is single-instance; swap behind ISessionHandoffStore
+  for a distributed store before scaling out.
