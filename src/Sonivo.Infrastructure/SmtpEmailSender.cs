@@ -55,7 +55,13 @@ public sealed class SmtpEmailSender : IEmailSender
             message.From.Add(ParseFrom(_from!));
             message.To.Add(MailboxAddress.Parse(email.To));
             message.Subject = email.Subject;
-            message.Body = new TextPart("plain") { Text = email.TextBody };
+            var body = new BodyBuilder { TextBody = email.TextBody };
+            if (!string.IsNullOrWhiteSpace(email.HtmlBody))
+            {
+                body.HtmlBody = email.HtmlBody;
+            }
+
+            message.Body = body.ToMessageBody();
 
             using var client = new SmtpClient();
             var security = _useStartTls ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;

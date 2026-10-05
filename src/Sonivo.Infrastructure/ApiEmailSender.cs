@@ -57,17 +57,21 @@ public sealed class ApiEmailSender : IEmailSender
 
         try
         {
+            var payload = new Dictionary<string, object?>
+            {
+                ["from"] = NormalizeFrom(_from!),
+                ["to"] = email.To,
+                ["subject"] = email.Subject,
+                ["text"] = email.TextBody
+            };
+            if (!string.IsNullOrWhiteSpace(email.HtmlBody))
+            {
+                payload["html"] = email.HtmlBody;
+            }
+
             using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
-            request.Content = JsonContent.Create(
-                new
-                {
-                    from = NormalizeFrom(_from!),
-                    to = email.To,
-                    subject = email.Subject,
-                    text = email.TextBody
-                },
-                options: JsonOptions);
+            request.Content = JsonContent.Create(payload, options: JsonOptions);
 
             using var response = await _http.SendAsync(request, cancellationToken);
             if (response.IsSuccessStatusCode)
