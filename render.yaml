@@ -27,8 +27,14 @@ services:
         value: "true"
       - key: Features__Notifications
         value: "true"
-      # Provider-agnostic transactional email over SMTP (ADR-0068). Point these
-      # at any provider's SMTP endpoint; the source code names no vendor.
+      # Provider-agnostic transactional email (ADR-0068). Email__Transport picks
+      # the transport: "smtp" (default) or "api" (required where SMTP egress is
+      # blocked, e.g. free serverless tiers). The code names no vendor.
+      - key: Email__Transport
+        value: "smtp"
+      - key: Email__From
+        sync: false
+      # SMTP transport (Email__Transport=smtp).
       - key: Email__Smtp__Host
         sync: false
       - key: Email__Smtp__Port
@@ -37,7 +43,10 @@ services:
         sync: false
       - key: Email__Smtp__Password
         sync: false
-      - key: Email__Smtp__From
+      # API transport (Email__Transport=api): JSON endpoint + bearer key.
+      - key: Email__Endpoint
+        sync: false
+      - key: Email__ApiKey
         sync: false
       # User Google sign-in (ADR-0026) — separate OAuth client from Gmail send
       - key: Authentication__Google__ClientId

@@ -97,7 +97,18 @@ public static class DependencyInjection
         services.AddScoped<IManagedAccountNotifier, ManagedAccountNotifier>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddSingleton<IPublicOrigin, ConfigurationPublicOrigin>();
-        services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        // ADR-0068: provider-agnostic transport, selected by Email:Transport.
+        // "api" (HTTP JSON) is required on hosts that block outbound SMTP
+        // (serverless free tiers block 25/465/587); "smtp" is the default.
+        var emailTransport = configuration["Email:Transport"];
+        if (string.Equals(emailTransport, "api", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddHttpClient<IEmailSender, ApiEmailSender>();
+        }
+        else
+        {
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        }
         // ADR-0032: Whisper config has no secrets; the fake transcriber replaces
         // IAudioTranscriber in unit/API tests so no model is ever downloaded there.
         services.Configure<DigitizeOptions>(configuration.GetSection("Whisper"));

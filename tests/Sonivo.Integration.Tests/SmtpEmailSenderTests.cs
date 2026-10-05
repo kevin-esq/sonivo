@@ -19,7 +19,7 @@ public class SmtpEmailSenderTests
         var sender = CreateSender(new Dictionary<string, string?>
         {
             ["Email:Smtp:Host"] = "smtp.example-email.com",
-            ["Email:Smtp:From"] = "owner@example.com"
+            ["Email:From"] = "owner@example.com"
         });
         Assert.True(sender.IsConfigured);
     }
@@ -34,7 +34,7 @@ public class SmtpEmailSenderTests
             ["Email:Smtp:UserName"] = "apikey",
             ["Email:Smtp:Password"] = "secret",
             ["Email:Smtp:UseStartTls"] = "true",
-            ["Email:Smtp:From"] = "Sonivo <no-reply@example.com>"
+            ["Email:From"] = "Sonivo <no-reply@example.com>"
         });
         Assert.True(sender.IsConfigured);
     }

@@ -281,17 +281,18 @@ app.Logger.LogInformation(
 // startup. Best-effort posture: verification mail still attempts to send.
 try
 {
+    var emailFrom = app.Configuration["Email:From"];
     var emailConfigured =
-        !string.IsNullOrWhiteSpace(app.Configuration["Email:Smtp:Host"])
-        && !string.IsNullOrWhiteSpace(app.Configuration["Email:Smtp:From"]);
-    if (emailConfigured && !EmailFromValidator.IsValid(app.Configuration["Email:Smtp:From"]))
+        !string.IsNullOrWhiteSpace(app.Configuration["Email:Endpoint"])
+        || !string.IsNullOrWhiteSpace(app.Configuration["Email:Smtp:Host"]);
+    if (emailConfigured && !EmailFromValidator.IsValid(emailFrom))
     {
         app.Logger.LogWarning(
-            "HIGH severity: Email:Smtp:From '{From}' is not a valid addr@domain shape. "
+            "HIGH severity: Email:From '{From}' is not a valid addr@domain shape. "
             + "The email transport requires an exact sender address — otherwise it may "
             + "reject the message or silently rewrite the From header. "
             + "Verification mail will still send best-effort, but the From header cannot be trusted.",
-            app.Configuration["Email:Smtp:From"]);
+            emailFrom);
     }
 }
 catch (Exception ex)
