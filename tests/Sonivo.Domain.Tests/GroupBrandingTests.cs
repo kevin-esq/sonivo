@@ -66,7 +66,7 @@ public class GroupBrandingTests
         Assert.Throws<ArgumentException>(() =>
             branding.Update(null, "javascript:alert(1)", null, null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now));
         Assert.Throws<ArgumentException>(() =>
-            branding.Update("bad\\u0007name", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now));
+            branding.Update("bad\u0007name", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now));
     }
 
     [Fact]

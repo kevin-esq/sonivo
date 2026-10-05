@@ -56,7 +56,7 @@ function PermissionCell({ granted }: { granted: boolean }) {
 export function GroupRolesPage() {
   const { groupId } = useParams()
   const { t } = useT()
-  const { group, error: groupError } = useGroupContext(groupId, undefined)
+  const { group, error: groupError } = useGroupContext(groupId, '')
   const [members, setMembers] = useState<MemberListItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
