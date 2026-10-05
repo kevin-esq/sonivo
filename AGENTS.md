@@ -115,6 +115,10 @@ Do **not** infer commit/push/PR authorization from: “ticket complete”, “ap
 - Run relevant local build/tests before commit; never claim they passed if not run.
 - **PROHIBITION:** Never add `Co-authored-by: Cursor`, `Made with Cursor`, `cursoragent`, or any AI/tool co-author trailer or credit in commits, squash messages, or PR bodies. Commits are authored as **Kevin Esquivel** only. If the IDE injects a trailer, remove it before push.
 
+### Commit message validation (commitlint)
+
+Conventional Commits are enforced locally by `.githooks/commit-msg` (uses `commitlint` when installed, POSIX fallback otherwise; config in `.commitlintrc.json`). Enable it once per clone with `git config core.hooksPath .githooks`. The `git-governance` skill (`.agents/skills/git-governance/`) documents the rules plus `gh` and the `github` MCP server usage. This does **not** change the Git authority gate above: commit, push, PR, and merge still require explicit authorization.
+
 ### Push / PR / CI (when authorized)
 
 - Push ≠ commit unless combined in the authorization.
@@ -164,6 +168,7 @@ Always preserve these invariants: Group-scoped server-side authorization (never 
 
 - Ubiquitous language from glossary/domain docs
 - Server-side AuthZ; never trust client tenant ids
+- Validate every boundary: the server is authoritative; if the client validates, mirror the same contract (skill `validation-symmetry`). FluentValidation and Zod are **not** adopted — adding either requires explicit approval.
 - Authorize file access; CSRF per ADR-0020
 - No speculative microservices/CQRS/event sourcing
 - No secrets in git
@@ -189,6 +194,6 @@ Always preserve these invariants: Group-scoped server-side authorization (never 
 
 Authoritative policy: [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md), ADR-0002, ADR-0039, and ADR-0041.
 
-- **AUTHORIZED project-local:** 22 skills under `.agents/skills/`. Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md).
+- **AUTHORIZED project-local:** 35 skills under `.agents/skills/`. Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md). MCP config (security + `github` + sandbox + secrets) lives in root `opencode.json` (ADR-0064/0065/0066).
 - **PRESENT ≠ AUTHORIZED.** User-global ambient tooling must **not** become a Sonivo dependency.
 - Do not install further skills/tooling without explicit approval.

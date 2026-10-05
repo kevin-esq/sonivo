@@ -8,6 +8,143 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0066 — Tooling: secrets + Docker sandbox MCP servers and validation-symmetry skill
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-05.
+- **Date:** 2026-10-05
+- **Extends:** ADR-0002, ADR-0041, ADR-0063, ADR-0064, ADR-0065.
+
+### Context
+
+The user asked to add (1) a secrets-management MCP (Infisical or 1Password), (2) a
+Docker sandbox MCP for testing untrusted commands, and (3) a strict
+"Zod + FluentValidation" cross-validation rule in `AGENTS.md`.
+
+### Decision
+
+1. **Secrets:** add the official Infisical MCP (`npx -y @infisical/mcp`) to
+   `opencode.json`, configured but **`disabled`** until `INFISICAL_TOKEN` (or
+   universal-auth credentials) exists. 1Password was evaluated (needs a service
+   account token or the desktop app's local MCP) and is **not** added.
+2. **Sandbox:** add `docker-sandbox` (`uvx mcp-server-docker`, ckreiling) —
+   manages disposable Docker containers and refuses `--privileged` /
+   `--cap-add`. Enabled; Docker is already required by the `github` MCP.
+3. **Validation:** add the project-local `validation-symmetry` skill and an
+   `AGENTS.md` discipline bullet. The literal "Zod + FluentValidation" rule is
+   **not** adopted verbatim: Sonivo is React 19 + Vite (no Next.js) and uses
+   neither library, so the skill encodes validation symmetry on the actual stack
+   and requires approval before introducing either dependency.
+
+### Firewall
+
+- No secrets in git; `infisical` stays disabled until a token is provided via the
+  environment.
+- Docker is **not** a perfect sandbox; the sandbox MCP can still affect the host
+  through Docker — review containers the model creates and remove them.
+- Client-side validation is UX, never a security control.
+- Extra MCP servers consume context; keep unused ones `disabled`.
+
+### Consequences
+
+The binding allowlist grows from **34 to 35** project-local skills.
+`SKILLS-INVENTORY.md`, `TOOLING-AUDIT.md`, `AGENTS.md`, and the tooling doc record
+the additions.
+
+---
+
+## ADR-0065 — Tooling: GitHub MCP server + Git governance (Conventional Commits)
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-05.
+- **Date:** 2026-10-05
+- **Extends:** ADR-0002 (tooling allowlist), ADR-0041 (single `.agents/` tree), ADR-0063/0064 (platform skills + MCP servers, security MCP servers).
+
+### Context
+
+The user asked to wire OpenCode to GitHub for rigorous versioning and to enforce
+Conventional Commits, using the official GitHub MCP server and the `gh` CLI.
+
+### Decision
+
+1. Add the **official GitHub MCP server** to root `opencode.json` as a **local
+   Docker** server (`ghcr.io/github/github-mcp-server`), with toolsets
+   `context,repos,pull_requests,actions,git` and the token supplied through the
+   environment as `GITHUB_PERSONAL_ACCESS_TOKEN` (never committed).
+   - The hosted remote variant (`https://api.githubcopilot.com/mcp/`) was **not**
+     used: OpenCode V2 does not interpolate `{env:...}` embedded inside a larger
+     header string such as `"Bearer {env:GITHUB_PERSONAL_ACCESS_TOKEN}"`, so the
+     remote header arrived malformed. Passing the token as a real environment
+     variable to the local server avoids this.
+2. Add the project-local `git-governance` skill and a `.githooks/commit-msg`
+   Conventional Commits gate (uses `commitlint` when available, POSIX fallback
+   otherwise) plus `.commitlintrc.json`; enable once with
+   `git config core.hooksPath .githooks`.
+3. **Do not** automate `gh pr create`, commit, push, or merge. Git authority
+   remains human-gated (`AGENTS.md`); the third-party tutorial's "autonomous PR"
+   guidance is deliberately **not** adopted.
+
+### Firewall
+
+- No tokens in git; the PAT comes from the environment.
+- The hook must not auto-install `commitlint` or reach the network.
+- Git-AI / commit-metadata tooling is **not** installed: it adds AI attribution,
+  conflicting with the no-credit commit rule.
+- Git authority (explicit authorization for commit/push/PR/merge) is unchanged.
+
+### Consequences
+
+The binding allowlist grows from **33 to 34** project-local skills.
+`SKILLS-INVENTORY.md`, `TOOLING-AUDIT.md`, and `AGENTS.md` record the addition and
+the commit-message gate.
+
+---
+
+## ADR-0064 — Tooling: OpenCode V2-native MCP config + security MCP servers + security skills
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-05.
+- **Date:** 2026-10-05
+- **Extends:** ADR-0002 (tooling allowlist), ADR-0039 (knowledge workflows), ADR-0041 (single `.agents/` tree), ADR-0063 (platform skills + MCP servers).
+- **Reference:** [`docs/tooling/OPENCODE-V2-MCP-SKILLS-2026-10.md`](../tooling/OPENCODE-V2-MCP-SKILLS-2026-10.md)
+
+### Context
+
+The root `opencode.json` used the V1 MCP shape (server names directly under `mcp`
+with `enabled: true`). OpenCode V2 reads that for compatibility but the native
+shape nests servers under `mcp.servers` and uses `disabled` to opt out. The user
+also asked to harden the development environment with security-oriented MCP
+servers and project-local skills, and explicitly authorized the change.
+
+### Decision
+
+1. Migrate the root `opencode.json` to the **V2-native** `mcp.servers` shape and
+   drop the V1 `enabled` flags (servers connect by default).
+2. Add two security MCP servers as environment tooling — **not** a
+   reproducibility dependency of the app:
+   - `semgrep` — local, `uvx --from semgrep semgrep mcp -t stdio`, **enabled** (no token required; verified connected; 120 s startup/catalog timeout).
+   - `snyk` — local, `npx -y snyk@latest mcp -t stdio`, **enabled**; authenticate with
+     `snyk_auth` (or supply `SNYK_TOKEN` via `{env:SNYK_TOKEN}` — never committed).
+     `SNYK_MCP_PROFILE=lite` keeps the tool surface small.
+3. Authorize two **project-local** security skills under `.agents/skills/`,
+   adapted to Sonivo's stack (not copied from the Next.js-oriented tutorial):
+   - `dotnet-secure-architecture` — ASP.NET Core / EF Core / Identity / tenancy hardening.
+   - `react-frontend-security` — React 19 / Vite / Tailwind XSS, env-leak, token, client-authz review.
+
+### Firewall
+
+- `snyk` is enabled but unauthenticated until the user signs in (`snyk_auth`); any
+  token is supplied via `{env:SNYK_TOKEN}` and never written to git.
+- No user-global tooling becomes a Sonivo dependency (`PRESENT ≠ AUTHORIZED`).
+- All new skills live in `.agents/skills/`; no parallel vendor trees (ADR-0041).
+- Security MCP servers add model context; add only what is needed.
+- Further skill/MCP additions still require explicit human authorization.
+
+### Consequences
+
+The binding allowlist grows from **31 to 33** project-local skills.
+`SKILLS-INVENTORY.md`, `TOOLING-AUDIT.md`, and `AGENTS.md` record the new set and
+the V2 config shape.
+
+---
+
 ## ADR-0063 — Tooling: adopt official agent skills (.NET / testing / security) + MCP servers
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-04.
