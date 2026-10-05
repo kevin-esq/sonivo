@@ -1,7 +1,7 @@
 # SKILLS-INVENTORY.md — Sonivo
 
 **Phase 0 status:** **CLOSED** (Phase 0.9, 2026-09-15)  
-**Allowlist:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041 and **ADR-0063**)
+**Allowlist:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, **ADR-0063**, and **ADR-0064**)
 
 Distinguish: **PRESENT** (on disk) · **AUTHORIZED** (Sonivo allowlist) · **DEFERRED** · **REJECTED** · **USER-GLOBAL**
 
@@ -31,6 +31,13 @@ From first-party sources, audited before install:
 - `differential-review` — `trailofbits/skills`
 - `creative-frameworks` — user-authored
 
+### SECURITY HARDENING — PROJECT-LOCAL (ADR-0064, user-authorized 2026-10-05)
+
+Authored for Sonivo and adapted to its stack (not imported from third parties):
+
+- `dotnet-secure-architecture` — ASP.NET Core / EF Core / Identity / tenancy hardening and review
+- `react-frontend-security` — React 19 / Vite / Tailwind XSS, env-leak, token, and client-authz review
+
 ### DEFERRED (not installed project-local; do not invoke/depend)
 
 `setup-matt-pocock-skills` · `handoff` · `product-marketing` · Context7 · surplus Matt skills
@@ -45,9 +52,9 @@ From first-party sources, audited before install:
 
 ---
 
-## PRESENT project-local skills (31 directories)
+## PRESENT project-local skills (33 directories)
 
-**31** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063):
+**33** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063 + ADR-0064):
 
 | Directory                       | Role                 |
 | ------------------------------- | -------------------- |
@@ -82,8 +89,10 @@ From first-party sources, audited before install:
 | `writing-for-agents`            | META (ADR-0063)      |
 | `pr`                            | PROCESS (ADR-0063)   |
 | `differential-review`           | SECURITY (ADR-0063)  |
+| `dotnet-secure-architecture`    | SECURITY (ADR-0064)  |
+| `react-frontend-security`       | SECURITY (ADR-0064)  |
 
-= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions = **31 AUTHORIZED**.
+= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions + **2** ADR-0064 security skills = **33 AUTHORIZED**.
 
 Removed skills are **not** listed as installed.
 
@@ -91,9 +100,9 @@ Removed skills are **not** listed as installed.
 
 | Path               | Notes                                                                                 |
 | ------------------ | ------------------------------------------------------------------------------------- |
-| `.agents/skills/`  | Sole project-local skills directory; contains all 31 authorized `SKILL.md` procedures |
+| `.agents/skills/`  | Sole project-local skills directory; contains all 33 authorized `SKILL.md` procedures |
 | `.obsidian/`       | Local vault configuration; intentionally not modified                                 |
-| `opencode.json`    | Root MCP servers (`drawio`, `excalidraw`, `sequential-thinking`, `fetch`) — ADR-0063 |
+| `opencode.json`    | Root MCP servers (`drawio`, `excalidraw`, `sequential-thinking`, `fetch`) — ADR-0063; `semgrep` + `snyk` (both enabled) — ADR-0064; V2-native `mcp.servers` |
 | `skills-lock.json` | **13** Matt core entries only; the ADR-0063 Matt additions (`pr`, `writing-for-agents`) are not yet in the lock — update via the official `skills` CLI, never by hand |
 
 Root `AGENTS.md` is the shared project instruction file. `.cursor/`, `.codex/`, and `.claude/` customizations are absent by ADR-0041.
@@ -126,6 +135,7 @@ Graphify rule / `graphify-out/` · watermarks project rule · `product-marketing
 | Anthropic skill-creator  | `anthropics/skills`; bundles optional Python eval scripts                                                                       |
 | Trail of Bits            | `trailofbits/skills`; differential-review (methodology + references)                                                            |
 | creative-frameworks      | User-authored 2026-10-04                                                                                                        |
+| ADR-0064 security skills | Authored for Sonivo 2026-10-05; adapted to the ASP.NET Core / React stack (not third-party imports)                              |
 | Impeccable               | Project-local; not in lockfile; commit **UNKNOWN**                                                                              |
 | Knowledge workflows      | Adapted from user-provided `opencode-obsidian-memory-full.zip`; project-local under `.agents/skills/`; authorized by ADR-0039    |
 | Layout decision          | Root `AGENTS.md` plus sole project-local `.agents/skills/` tree; vendor customizations removed by ADR-0041                      |

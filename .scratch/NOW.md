@@ -44,3 +44,12 @@ CI: NOT RUN
   rebuilt/restarted for the new ids to be accepted.
 - Unrelated local working-tree changes present (not from this task): `.vscode/`,
   `w-h-live-viewer.png`, `.scratch/shots/` - left untouched.
+
+## Tooling — OpenCode V2 hardening (2026-10-05)
+
+- User-authorized: `opencode.json` migrated to V2-native `mcp.servers`; added MCP
+  `semgrep` (enabled) and `snyk` (enabled; auth via `snyk_auth`); added project-local
+  skills `dotnet-secure-architecture` and `react-frontend-security` (31 -> 33).
+- Recorded in ADR-0064, `docs/tooling/OPENCODE-V2-MCP-SKILLS-2026-10.md`,
+  `TOOLING-AUDIT.md`, `SKILLS-INVENTORY.md`.
+- Git checkpoint: COMMITTED with this change; Remote: NOT PUSHED.
