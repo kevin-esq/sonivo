@@ -70,9 +70,20 @@
         "type": "local",
         "command": ["npx", "-y", "@infisical/mcp"],
         "environment": {
-          "INFISICAL_TOKEN": "{env:INFISICAL_TOKEN}"
+          "INFISICAL_AUTH_METHOD": "universal-auth",
+          "INFISICAL_UNIVERSAL_AUTH_CLIENT_ID": "{env:INFISICAL_UNIVERSAL_AUTH_CLIENT_ID}",
+          "INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET": "{env:INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET}",
+          "INFISICAL_MASK_SECRET_VALUES": "true"
+        },
+        "timeout": {
+          "startup": 120000,
+          "catalog": 120000
         },
         "disabled": true
+      },
+      "resend": {
+        "type": "remote",
+        "url": "https://mcp.resend.com/mcp"
       }
     }
   }

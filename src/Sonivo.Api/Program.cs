@@ -282,17 +282,16 @@ app.Logger.LogInformation(
 try
 {
     var emailConfigured =
-        !string.IsNullOrWhiteSpace(app.Configuration["Email:Endpoint"])
-        && !string.IsNullOrWhiteSpace(app.Configuration["Email:ApiKey"])
-        && !string.IsNullOrWhiteSpace(app.Configuration["Email:From"]);
-    if (emailConfigured && !EmailFromValidator.IsValid(app.Configuration["Email:From"]))
+        !string.IsNullOrWhiteSpace(app.Configuration["Email:Smtp:Host"])
+        && !string.IsNullOrWhiteSpace(app.Configuration["Email:Smtp:From"]);
+    if (emailConfigured && !EmailFromValidator.IsValid(app.Configuration["Email:Smtp:From"]))
     {
         app.Logger.LogWarning(
-            "HIGH severity: Email:From '{From}' is not a valid addr@domain shape. "
+            "HIGH severity: Email:Smtp:From '{From}' is not a valid addr@domain shape. "
             + "The email transport requires an exact sender address — otherwise it may "
             + "reject the message or silently rewrite the From header. "
             + "Verification mail will still send best-effort, but the From header cannot be trusted.",
-            app.Configuration["Email:From"]);
+            app.Configuration["Email:Smtp:From"]);
     }
 }
 catch (Exception ex)
