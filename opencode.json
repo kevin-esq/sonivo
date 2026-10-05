@@ -57,6 +57,22 @@
           "startup": 180000,
           "catalog": 120000
         }
+      },
+      "docker-sandbox": {
+        "type": "local",
+        "command": ["uvx", "mcp-server-docker"],
+        "timeout": {
+          "startup": 120000,
+          "catalog": 120000
+        }
+      },
+      "infisical": {
+        "type": "local",
+        "command": ["npx", "-y", "@infisical/mcp"],
+        "environment": {
+          "INFISICAL_TOKEN": "{env:INFISICAL_TOKEN}"
+        },
+        "disabled": true
       }
     }
   }

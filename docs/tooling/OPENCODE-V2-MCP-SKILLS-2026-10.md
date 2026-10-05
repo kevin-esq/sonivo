@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-05
 **Status:** Applied — **user-authorized 2026-10-05** ("hazlo y documenta todo").
-**Decision:** [ADR-0064](../03-architecture/DECISIONS.md), [ADR-0065](../03-architecture/DECISIONS.md)
+**Decision:** [ADR-0064](../03-architecture/DECISIONS.md), [ADR-0065](../03-architecture/DECISIONS.md), [ADR-0066](../03-architecture/DECISIONS.md)
 **Scope:** How MCP servers and Agent Skills are installed in the current OpenCode
 (**V2**), the corrections to a circulated "security setup" tutorial, and the
 concrete changes adopted in this repository.
@@ -133,10 +133,28 @@ Windows.
 - Git actions (commit / push / PR / merge) remain **human-authorized**; no
   autonomous `gh pr create`.
 
+### 4.6 Docker sandbox MCP (ADR-0066)
+
+- `docker-sandbox` — local, `uvx mcp-server-docker` (ckreiling). Manages
+  disposable containers and refuses `--privileged` / `--cap-add`. Verified
+  connected (19 tools).
+- Caveat: Docker is **not** a perfect sandbox — the server can still affect the
+  host through Docker. Review containers the model creates and remove them.
+
+### 4.7 Secrets MCP and validation skill (ADR-0066)
+
+- `infisical` — local, `npx -y @infisical/mcp`, **`disabled`** until
+  `INFISICAL_TOKEN` (or universal-auth credentials) exists. 1Password (service
+  account token / desktop app) is an alternative and was **not** added.
+- `validation-symmetry` skill: server-authoritative validation with client
+  symmetry. The circulated "Zod + FluentValidation" rule is **not** literal here —
+  Sonivo is React 19 + Vite (no Next.js) and uses neither library; introducing
+  either requires approval.
+
 ## 5. Verification
 
 ```sh
-opencode mcp list         # expect semgrep, snyk and github connected
+opencode mcp list         # expect semgrep, snyk, github and docker-sandbox connected (infisical disabled)
 opencode debug config     # confirm merged configuration
 opencode reload           # reload config without restarting the server
 ```

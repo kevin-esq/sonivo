@@ -48,11 +48,11 @@ CI: NOT RUN
 ## Tooling — OpenCode V2 hardening (2026-10-05)
 
 - User-authorized: `opencode.json` migrated to V2-native `mcp.servers`; added MCP
-  `semgrep` (enabled), `snyk` (enabled; auth via `snyk_auth`) and `github` (local
-  Docker; PAT via env); added project-local skills `dotnet-secure-architecture`,
-  `react-frontend-security` and `git-governance` (31 -> 34).
+  `semgrep`, `snyk` (auth via `snyk_auth`), `github` (local Docker), `docker-sandbox`
+  and `infisical` (`disabled`); added project-local skills `dotnet-secure-architecture`,
+  `react-frontend-security`, `git-governance` and `validation-symmetry` (31 -> 35).
 - Added a Conventional Commits `commit-msg` hook (`.githooks/`) + `.commitlintrc.json`;
   Git actions stay human-authorized.
-- Recorded in ADR-0064/0065, `docs/tooling/OPENCODE-V2-MCP-SKILLS-2026-10.md`,
+- Recorded in ADR-0064/0065/0066, `docs/tooling/OPENCODE-V2-MCP-SKILLS-2026-10.md`,
   `TOOLING-AUDIT.md`, `SKILLS-INVENTORY.md`.
-- Git checkpoint: COMMITTED with this change; Remote: NOT PUSHED.
+- Git checkpoint: changed on `chore/opencode-v2-security-tooling`; Remote: NOT PUSHED.

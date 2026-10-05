@@ -8,6 +8,50 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0066 — Tooling: secrets + Docker sandbox MCP servers and validation-symmetry skill
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-05.
+- **Date:** 2026-10-05
+- **Extends:** ADR-0002, ADR-0041, ADR-0063, ADR-0064, ADR-0065.
+
+### Context
+
+The user asked to add (1) a secrets-management MCP (Infisical or 1Password), (2) a
+Docker sandbox MCP for testing untrusted commands, and (3) a strict
+"Zod + FluentValidation" cross-validation rule in `AGENTS.md`.
+
+### Decision
+
+1. **Secrets:** add the official Infisical MCP (`npx -y @infisical/mcp`) to
+   `opencode.json`, configured but **`disabled`** until `INFISICAL_TOKEN` (or
+   universal-auth credentials) exists. 1Password was evaluated (needs a service
+   account token or the desktop app's local MCP) and is **not** added.
+2. **Sandbox:** add `docker-sandbox` (`uvx mcp-server-docker`, ckreiling) —
+   manages disposable Docker containers and refuses `--privileged` /
+   `--cap-add`. Enabled; Docker is already required by the `github` MCP.
+3. **Validation:** add the project-local `validation-symmetry` skill and an
+   `AGENTS.md` discipline bullet. The literal "Zod + FluentValidation" rule is
+   **not** adopted verbatim: Sonivo is React 19 + Vite (no Next.js) and uses
+   neither library, so the skill encodes validation symmetry on the actual stack
+   and requires approval before introducing either dependency.
+
+### Firewall
+
+- No secrets in git; `infisical` stays disabled until a token is provided via the
+  environment.
+- Docker is **not** a perfect sandbox; the sandbox MCP can still affect the host
+  through Docker — review containers the model creates and remove them.
+- Client-side validation is UX, never a security control.
+- Extra MCP servers consume context; keep unused ones `disabled`.
+
+### Consequences
+
+The binding allowlist grows from **34 to 35** project-local skills.
+`SKILLS-INVENTORY.md`, `TOOLING-AUDIT.md`, `AGENTS.md`, and the tooling doc record
+the additions.
+
+---
+
 ## ADR-0065 — Tooling: GitHub MCP server + Git governance (Conventional Commits)
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-05.

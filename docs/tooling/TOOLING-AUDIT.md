@@ -33,6 +33,10 @@
 
 `git-governance` (authored for Sonivo) — Conventional Commits, commitlint gate, branch naming, `gh` and `github` MCP usage; human authorization for Git actions preserved
 
+### VALIDATION — PROJECT-LOCAL — AUTHORIZED (ADR-0066, user-authorized 2026-10-05)
+
+`validation-symmetry` (authored for Sonivo) — server-authoritative validation; client mirrors the contract; FluentValidation/Zod not adopted
+
 ### DEFERRED — do not install, configure, invoke, or depend
 
 `setup-matt-pocock-skills` · `handoff` · `product-marketing` · Context7 · all surplus Matt Pocock skills
@@ -57,9 +61,9 @@ Audit method: existing `webappsec-review` skill (two-pass) — no new skills ins
 Rejected as redundant (see [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md) §8): Security Code Scan, OWASP Dependency-Check. `System.Formats.Cbor` for the Critical C1 passkey fix: **PENDING explicit approval**.
 Findings/plan of record: [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md).
 
-## Project-local verified state (34 skill directories)
+## Project-local verified state (35 skill directories)
 
-**13 Matt Pocock + 1 Impeccable + 8 knowledge workflows + 9 ADR-0063 additions + 2 ADR-0064 security skills + 1 ADR-0065 git governance** under `.agents/skills/`:
+**13 Matt Pocock + 1 Impeccable + 8 knowledge workflows + 9 ADR-0063 additions + 2 ADR-0064 security skills + 1 ADR-0065 git governance + 1 ADR-0066 validation** under `.agents/skills/`:
 
 `codebase-design` · `code-review` · `diagnosing-bugs` · `domain-modeling` · `grilling` · `grill-with-docs` · `impeccable` · `implement` · `prototype` · `research` · `resolving-merge-conflicts` · `tdd` · `to-spec` · `to-tickets`
 
@@ -70,6 +74,8 @@ Findings/plan of record: [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-
 `dotnet-secure-architecture` · `react-frontend-security` (ADR-0064, authored for Sonivo)
 
 `git-governance` (ADR-0065, authored for Sonivo)
+
+`validation-symmetry` (ADR-0066, authored for Sonivo)
 
 `skills-lock.json` has **13** Matt core entries only; the eight knowledge workflows and the ADR-0063 additions are not all external packages, and the ADR-0063 Matt additions (`pr`, `writing-for-agents`) are not yet in the lock. Update the lock only via the official `skills` CLI (its hash algorithm is not plain sha256). Root `.obsidian/` vault configuration remains local and was not changed.
 
@@ -107,7 +113,7 @@ See Phase 0.8 history in repo conversation / prior audit versions if needed. Ful
 
 ## ADR-0002
 
-**ACCEPTED** — original tooling policy and allowlist. ADR-0039 adds eight local knowledge workflows; ADR-0041 keeps all project skills in `.agents/skills/` only; **ADR-0063** adds nine first-party platform/meta/security skills and the root `opencode.json` MCP servers (user-authorized 2026-10-04). **ADR-0064** migrates `opencode.json` to V2-native `mcp.servers` and adds the `semgrep`/`snyk` MCP servers plus two project-local security skills (user-authorized 2026-10-05). **ADR-0065** adds the official `github` MCP server (local Docker) and the project-local `git-governance` skill with a Conventional Commits `commit-msg` hook (user-authorized 2026-10-05).
+**ACCEPTED** — original tooling policy and allowlist. ADR-0039 adds eight local knowledge workflows; ADR-0041 keeps all project skills in `.agents/skills/` only; **ADR-0063** adds nine first-party platform/meta/security skills and the root `opencode.json` MCP servers (user-authorized 2026-10-04). **ADR-0064** migrates `opencode.json` to V2-native `mcp.servers` and adds the `semgrep`/`snyk` MCP servers plus two project-local security skills (user-authorized 2026-10-05). **ADR-0065** adds the official `github` MCP server (local Docker) and the project-local `git-governance` skill with a Conventional Commits `commit-msg` hook (user-authorized 2026-10-05). **ADR-0066** adds the `docker-sandbox` MCP server (enabled) and the `infisical` secrets MCP (`disabled`), plus the `validation-symmetry` skill (user-authorized 2026-10-05).
 
 ---
 
@@ -121,6 +127,7 @@ See Phase 0.8 history in repo conversation / prior audit versions if needed. Ful
 | ADR-0063 | User-authorized addition of nine first-party project-local skills (.NET/Anthropic/Matt/Trail of Bits) + `creative-frameworks` + root `opencode.json` MCP servers |
 | ADR-0064 | User-authorized OpenCode V2-native MCP config + `semgrep`/`snyk` MCP servers + two project-local security skills |
 | ADR-0065 | User-authorized official `github` MCP server (local Docker) + `git-governance` skill and Conventional Commits `commit-msg` hook |
+| ADR-0066 | User-authorized `docker-sandbox` MCP (enabled) + `infisical` secrets MCP (disabled) + `validation-symmetry` skill |
 
 ADR-0040 is **SUPERSEDED** by ADR-0041; the user authorized one project-local customization tree under `.agents/`, with vendor hooks and agents removed.
 

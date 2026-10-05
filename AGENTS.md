@@ -168,6 +168,7 @@ Always preserve these invariants: Group-scoped server-side authorization (never 
 
 - Ubiquitous language from glossary/domain docs
 - Server-side AuthZ; never trust client tenant ids
+- Validate every boundary: the server is authoritative; if the client validates, mirror the same contract (skill `validation-symmetry`). FluentValidation and Zod are **not** adopted — adding either requires explicit approval.
 - Authorize file access; CSRF per ADR-0020
 - No speculative microservices/CQRS/event sourcing
 - No secrets in git
@@ -193,6 +194,6 @@ Always preserve these invariants: Group-scoped server-side authorization (never 
 
 Authoritative policy: [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md), ADR-0002, ADR-0039, and ADR-0041.
 
-- **AUTHORIZED project-local:** 34 skills under `.agents/skills/`. Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md). MCP config (security + `github`) lives in root `opencode.json` (ADR-0064/0065).
+- **AUTHORIZED project-local:** 35 skills under `.agents/skills/`. Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md). MCP config (security + `github` + sandbox + secrets) lives in root `opencode.json` (ADR-0064/0065/0066).
 - **PRESENT ≠ AUTHORIZED.** User-global ambient tooling must **not** become a Sonivo dependency.
 - Do not install further skills/tooling without explicit approval.
