@@ -1,0 +1,26 @@
+<Project>
+
+  <!--
+    Isolated migration baseline for the .NET 10 / C# 14 sandbox.
+
+    This file intentionally lives under /migration-dotnet10/ so MSBuild does NOT
+    walk up to the repository root Directory.Build.props. It keeps the migration
+    prototype fully decoupled from the current .NET 9 source tree (read-only).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <Deterministic>true</Deterministic>
+
+    <!-- DevSecOps baseline carried over from the current repo (ADR-0044). -->
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1902;NU1903</WarningsAsErrors>
+  </PropertyGroup>
+
+</Project>
