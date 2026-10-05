@@ -39,7 +39,7 @@ public class VerificationApiTests : IClassFixture<SonivoApiFactory>
         var body = await response.Content.ReadFromJsonAsync<RegisterResponse>(JsonOptions);
         Assert.NotNull(body);
         Assert.False(body.EmailConfirmed);
-        Assert.False(body.Mailed); // Gmail unconfigured in tests → best-effort false
+        Assert.False(body.Mailed); // email transport unconfigured in tests → best-effort false
 
         var me = await client.GetAsync("/api/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, me.StatusCode);

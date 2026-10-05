@@ -6,56 +6,48 @@ using Sonivo.Infrastructure;
 
 namespace Sonivo.Integration.Tests;
 
-public class GmailEmailSenderTests
+public class HttpEmailSenderTests
 {
     [Fact]
-    public void IsConfigured_requires_oauth_and_from()
+    public void IsConfigured_requires_endpoint_key_and_from()
     {
         var sender = CreateSender(new Dictionary<string, string?>());
         Assert.False(sender.IsConfigured);
     }
 
     [Fact]
-    public async Task TrySendAsync_refreshes_token_then_posts_rfc2822()
+    public void IsConfigured_true_when_all_values_present()
+    {
+        var sender = CreateSender(Configured());
+        Assert.True(sender.IsConfigured);
+    }
+
+    [Fact]
+    public async Task TrySendAsync_posts_json_with_bearer_key()
     {
         var handler = new StubHandler();
-        var sender = CreateSender(
-            new Dictionary<string, string?>
-            {
-                ["Gmail:ClientId"] = "client",
-                ["Gmail:ClientSecret"] = "secret",
-                ["Gmail:RefreshToken"] = "refresh",
-                ["Gmail:From"] = "owner@gmail.com"
-            },
-            handler);
+        var sender = CreateSender(Configured(), handler);
 
         var sent = await sender.TrySendAsync(
             new OutboundEmail("singer@example.com", "Join Band on Sonivo", "http://localhost/join/abc"),
             CancellationToken.None);
 
         Assert.True(sent);
-        Assert.Equal(2, handler.Requests.Count);
-        Assert.Contains("oauth2.googleapis.com/token", handler.Requests[0].Uri, StringComparison.Ordinal);
-        Assert.Contains("refresh", handler.Requests[0].Body, StringComparison.Ordinal);
-        Assert.Contains("gmail.googleapis.com/gmail/v1/users/me/messages/send", handler.Requests[1].Uri, StringComparison.Ordinal);
-        Assert.Equal("Bearer", handler.Requests[1].Scheme);
-        Assert.Equal("ya29.test", handler.Requests[1].Parameter);
-        Assert.Contains("raw", handler.Requests[1].Body, StringComparison.Ordinal);
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal("https://api.example-email.com/emails", request.Uri);
+        Assert.Equal("Bearer", request.Scheme);
+        Assert.Equal("key-123", request.Parameter);
+        Assert.Contains("owner@example.com", request.Body, StringComparison.Ordinal);
+        Assert.Contains("singer@example.com", request.Body, StringComparison.Ordinal);
+        Assert.Contains("Join Band on Sonivo", request.Body, StringComparison.Ordinal);
+        Assert.Contains("http://localhost/join/abc", request.Body, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task TrySendAsync_returns_false_when_gmail_rejects()
+    public async Task TrySendAsync_returns_false_when_transport_rejects()
     {
         var handler = new StubHandler { SendStatus = HttpStatusCode.Unauthorized };
-        var sender = CreateSender(
-            new Dictionary<string, string?>
-            {
-                ["Gmail:ClientId"] = "client",
-                ["Gmail:ClientSecret"] = "secret",
-                ["Gmail:RefreshToken"] = "refresh",
-                ["Gmail:From"] = "owner@gmail.com"
-            },
-            handler);
+        var sender = CreateSender(Configured(), handler);
 
         var sent = await sender.TrySendAsync(
             new OutboundEmail("singer@example.com", "Join Band on Sonivo", "link"),
@@ -67,13 +59,13 @@ public class GmailEmailSenderTests
     [Fact]
     public void FromValidator_accepts_bare_address()
     {
-        Assert.True(GmailFromValidator.IsValid("owner@example.com"));
+        Assert.True(EmailFromValidator.IsValid("owner@example.com"));
     }
 
     [Fact]
     public void FromValidator_accepts_display_name_with_brackets_and_trims_whitespace()
     {
-        Assert.True(GmailFromValidator.IsValid("  Sonivo <owner@example.com>  "));
+        Assert.True(EmailFromValidator.IsValid("  Sonivo <owner@example.com>  "));
     }
 
     [Theory]
@@ -90,13 +82,13 @@ public class GmailEmailSenderTests
     [InlineData("Sonivo <owner@example.com")]
     public void FromValidator_rejects_malformed(string? from)
     {
-        Assert.False(GmailFromValidator.IsValid(from));
+        Assert.False(EmailFromValidator.IsValid(from));
     }
 
     [Fact]
     public void FromValidator_extracts_bare_address_from_display_form()
     {
-        Assert.True(GmailFromValidator.TryExtractAddress("Sonivo <owner@example.com>", out var address));
+        Assert.True(EmailFromValidator.TryExtractAddress("Sonivo <owner@example.com>", out var address));
         Assert.Equal("owner@example.com", address);
     }
 
@@ -107,20 +99,27 @@ public class GmailEmailSenderTests
             new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["PublicOrigin"] = "https://sonivo.onrender.com/"
+                    ["PublicOrigin"] = "https://sonivo.lat/"
                 })
                 .Build());
 
-        Assert.Equal("https://sonivo.onrender.com", origin.GetOrigin());
+        Assert.Equal("https://sonivo.lat", origin.GetOrigin());
     }
 
-    private static GmailEmailSender CreateSender(
+    private static Dictionary<string, string?> Configured() => new()
+    {
+        ["Email:Endpoint"] = "https://api.example-email.com/emails",
+        ["Email:ApiKey"] = "key-123",
+        ["Email:From"] = "owner@example.com"
+    };
+
+    private static HttpEmailSender CreateSender(
         Dictionary<string, string?> values,
         HttpMessageHandler? handler = null)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
         var http = new HttpClient(handler ?? new StubHandler());
-        return new GmailEmailSender(http, configuration, NullLogger<GmailEmailSender>.Instance);
+        return new HttpEmailSender(http, configuration, NullLogger<HttpEmailSender>.Instance);
     }
 
     private sealed class StubHandler : HttpMessageHandler
@@ -140,14 +139,6 @@ public class GmailEmailSenderTests
                 body,
                 request.Headers.Authorization?.Scheme,
                 request.Headers.Authorization?.Parameter));
-
-            if (request.RequestUri?.Host == "oauth2.googleapis.com")
-            {
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("""{"access_token":"ya29.test","expires_in":3600}""")
-                };
-            }
 
             return new HttpResponseMessage(SendStatus)
             {

@@ -8,6 +8,26 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0068 - Email: provider-agnostic transport (Resend today)
+
+- **Status:** **ACCEPTED** - user-authorized 2026-10-05.
+- **Supersedes:** the "Gmail API HTTPS only / no generic transport" email rule in the Phase 3.9 verification-mail decisions and the AGENTS.md email firewall line. The Event/RSVP-mail firewall is unchanged.
+- **Related:** ADR-0037 (security headers), PHASE-AUTH-SPEC (T-AU-01).
+
+### Decision
+
+1. Transactional email is sent through a single provider-agnostic abstraction (`IEmailSender`). Its concrete transport (`HttpEmailSender`) posts a JSON message to a configured endpoint with a bearer key.
+2. The provider is an infrastructure detail expressed only through configuration (`Email:Endpoint`, `Email:ApiKey`, `Email:From`). The source code names no vendor — no Gmail, SMTP, or Resend identifiers.
+3. Best-effort posture is unchanged: transport failures never throw; they degrade to `mailed=false` plus a warning log.
+4. The provider configured today is Resend. Switching providers is a configuration change, not a code change.
+5. Event/RSVP mail and any future mail category stay governed by their own firewalls.
+
+### Firewall
+
+- No vendor name in source. No inbound mail handling. No marketing/broadcast mail.
+
+---
+
 ## ADR-0067 - Frontend shell: Next.js App Router BFF + host-based tenancy + handoff session
 
 - **Status:** **ACCEPTED** - user-authorized 2026-10-05.

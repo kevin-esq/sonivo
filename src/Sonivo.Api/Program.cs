@@ -276,29 +276,28 @@ app.Logger.LogInformation(
     "Blob storage backend: {Backend}",
     R2Options.IsConfigured(app.Configuration) ? "R2" : "FileSystem");
 
-// Gmail From guard (S1 follow-up): Gmail silently rewrites the From header to
-// the OAuth account unless Gmail:From is a verified SendAs alias with an exact
-// match. Best-effort posture — warn HIGH severity, never throw at startup.
+// Outbound email sender guard (S1 follow-up): the email transport rejects or
+// silently rewrites a malformed sender, so warn HIGH severity — never throw at
+// startup. Best-effort posture: verification mail still attempts to send.
 try
 {
-    var gmailConfigured =
-        !string.IsNullOrWhiteSpace(app.Configuration["Gmail:ClientId"])
-        && !string.IsNullOrWhiteSpace(app.Configuration["Gmail:ClientSecret"])
-        && !string.IsNullOrWhiteSpace(app.Configuration["Gmail:RefreshToken"])
-        && !string.IsNullOrWhiteSpace(app.Configuration["Gmail:From"]);
-    if (gmailConfigured && !GmailFromValidator.IsValid(app.Configuration["Gmail:From"]))
+    var emailConfigured =
+        !string.IsNullOrWhiteSpace(app.Configuration["Email:Endpoint"])
+        && !string.IsNullOrWhiteSpace(app.Configuration["Email:ApiKey"])
+        && !string.IsNullOrWhiteSpace(app.Configuration["Email:From"]);
+    if (emailConfigured && !EmailFromValidator.IsValid(app.Configuration["Email:From"]))
     {
         app.Logger.LogWarning(
-            "HIGH severity: Gmail:From '{From}' is not a valid addr@domain shape. "
-            + "Gmail requires a verified SendAs alias with an exact address match — "
-            + "otherwise it silently rewrites the sender to the OAuth account. "
+            "HIGH severity: Email:From '{From}' is not a valid addr@domain shape. "
+            + "The email transport requires an exact sender address — otherwise it may "
+            + "reject the message or silently rewrite the From header. "
             + "Verification mail will still send best-effort, but the From header cannot be trusted.",
-            app.Configuration["Gmail:From"]);
+            app.Configuration["Email:From"]);
     }
 }
 catch (Exception ex)
 {
-    app.Logger.LogWarning(ex, "Gmail From startup check failed (best-effort).");
+    app.Logger.LogWarning(ex, "Email From startup check failed (best-effort).");
 }
 
 if (!app.Environment.IsDevelopment())

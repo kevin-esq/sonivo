@@ -37,7 +37,7 @@ or reviewing backend changes.
 3. **Owner/Member roles** are enforced on the server. UI checks are convenience
    only and never a security boundary.
 4. **No secrets in git.** Google user sign-in uses
-   `Authentication:Google:ClientId` / `ClientSecret`; **never** reuse `Gmail:*`.
+   `Authentication:Google:ClientId` / `ClientSecret`; **never** reuse the `Email:*` transport credentials.
 5. Domain concepts stay separate: **Song**, **Arrangement**, and
    **Arrangement Resource** are distinct; do not collapse or conflate them when
    enforcing access.
@@ -97,7 +97,7 @@ var group = await db.Groups.FromSqlRaw(sql).FirstOrDefaultAsync(ct);
 - Read secrets from configuration/environment; never hardcode or log them.
 - Do not log tokens, cookies, connection strings, or full request bodies that may
   contain credentials.
-- Keep the Gmail send path (thin 3.9) and the Google sign-in path on separate
+- Keep the email transport path (ADR-0068) and the Google sign-in path on separate
   config keys and scopes.
 
 ## Checklist
@@ -109,7 +109,7 @@ var group = await db.Groups.FromSqlRaw(sql).FirstOrDefaultAsync(ct);
 - [ ] EF Core queries parameterized; no interpolated `FromSqlRaw`
 - [ ] Errors are RFC 7807 with no stack traces / exception text outside `Development`
 - [ ] Logs contain no secrets, tokens, or credentials
-- [ ] `Authentication:Google:*` used for sign-in; `Gmail:*` not reused
+- [ ] `Authentication:Google:*` used for sign-in; `Email:*` not reused
 - [ ] Song / Arrangement / Arrangement Resource kept distinct
 
 ## Common Pitfalls
@@ -122,7 +122,7 @@ var group = await db.Groups.FromSqlRaw(sql).FirstOrDefaultAsync(ct);
 | Building SQL with string interpolation | Use LINQ or parameterized raw SQL APIs. |
 | Returning `exception.Message` to clients | Return safe Problem Details; log details server-side. |
 | Distinct "exists but forbidden" responses | Return a uniform 404 to avoid cross-tenant enumeration. |
-| Putting sign-in secrets under `Gmail:*` | Keep Google sign-in keys separate from the Gmail send scope. |
+| Putting sign-in secrets under `Email:*` | Keep Google sign-in keys separate from the email transport scope. |
 
 ## More Info
 
