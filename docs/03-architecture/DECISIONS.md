@@ -16,10 +16,10 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ### Decision
 
-1. Transactional email is sent through a single provider-agnostic abstraction (`IEmailSender`). Its concrete transport (`HttpEmailSender`) posts a JSON message to a configured endpoint with a bearer key.
-2. The provider is an infrastructure detail expressed only through configuration (`Email:Endpoint`, `Email:ApiKey`, `Email:From`). The source code names no vendor — no Gmail, SMTP, or Resend identifiers.
+1. Transactional email is sent through a single provider-agnostic abstraction (`IEmailSender`). Its concrete transport (`SmtpEmailSender`, built on MailKit) speaks **SMTP** — the one wire protocol every email provider exposes (Google, Resend, SendGrid, Mailgun, a self-hosted MTA).
+2. The provider is an infrastructure detail expressed only through configuration (`Email:Smtp:Host`, `Port`, `UserName`, `Password`, `From`, `UseStartTls`). The source code names no vendor; SMTP is a protocol, not a provider.
 3. Best-effort posture is unchanged: transport failures never throw; they degrade to `mailed=false` plus a warning log.
-4. The provider configured today is Resend. Switching providers is a configuration change, not a code change.
+4. Switching providers is an **environment change** (point the SMTP host/credentials elsewhere), never a code change.
 5. Event/RSVP mail and any future mail category stay governed by their own firewalls.
 
 ### Firewall

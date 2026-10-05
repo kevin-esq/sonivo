@@ -14,7 +14,7 @@ Treat the active ticket and branch in [`.scratch/NOW.md`](.scratch/NOW.md) as op
 
 Until the user explicitly authorizes additional work:
 
-- Do **not** expand email beyond the accepted ADR-0068 scope (single provider-agnostic transport via `IEmailSender`/`HttpEmailSender`, config-only provider, best-effort; no inbound mail, no marketing mail, no Event/RSVP mail without further approval) — diagnose live send is allowed as T-OPS-MAIL
+- Do **not** expand email beyond the accepted ADR-0068 scope (single provider-agnostic transport via `IEmailSender`/`SmtpEmailSender` over SMTP, config-only provider, best-effort; no inbound mail, no marketing mail, no Event/RSVP mail without further approval) — diagnose live send is allowed as T-OPS-MAIL
 - Do **not** expand Event PATCH/cancel beyond the closed thin 3.6 spec (no location/notes, no includeCancelled)
 - Do **not** expand RSVP beyond the closed thin 3.5 spec without further approval
 - Do **not** add Practice scope beyond accepted ADRs. Follow-on work is shipped; cloud LLM remains closed and karaoke scoring remains OUT. Honor the explicit firewalls in ADR-0032–0037.

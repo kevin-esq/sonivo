@@ -27,13 +27,17 @@ services:
         value: "true"
       - key: Features__Notifications
         value: "true"
-      # Provider-agnostic transactional email (ADR-0068). Endpoint is the vendor
-      # API URL; the source code never names a provider.
-      - key: Email__Endpoint
+      # Provider-agnostic transactional email over SMTP (ADR-0068). Point these
+      # at any provider's SMTP endpoint; the source code names no vendor.
+      - key: Email__Smtp__Host
         sync: false
-      - key: Email__ApiKey
+      - key: Email__Smtp__Port
+        value: "587"
+      - key: Email__Smtp__UserName
         sync: false
-      - key: Email__From
+      - key: Email__Smtp__Password
+        sync: false
+      - key: Email__Smtp__From
         sync: false
       # User Google sign-in (ADR-0026) — separate OAuth client from Gmail send
       - key: Authentication__Google__ClientId
