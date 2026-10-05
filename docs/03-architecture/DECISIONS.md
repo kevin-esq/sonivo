@@ -8,6 +8,64 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0063 — Tooling: adopt official agent skills (.NET / testing / security) + MCP servers
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-04.
+- **Date:** 2026-10-04
+- **Extends:** ADR-0002 (tooling allowlist), ADR-0039 (knowledge workflows), ADR-0041 (single `.agents/` tree).
+- **Research:** [`docs/tooling/SKILLS-ECOSYSTEM-RESEARCH-2026-10.md`](../tooling/SKILLS-ECOSYSTEM-RESEARCH-2026-10.md)
+
+### Context
+
+A gap analysis of the project-local skill set against the 2026 Agent Skills ecosystem
+(Anthropic, Microsoft .NET team, Matt Pocock, Trail of Bits) found the core discipline
+skills strong but the actual product stack (.NET/ASP.NET Core/EF Core/PostgreSQL) and
+security review uncovered. The user explicitly authorized extending the allowlist.
+
+### Decision
+
+Authorize these additional **project-local** skills, installed under `.agents/skills/`
+from first-party/official sources and audited (frontmatter valid; scripts/references reviewed):
+
+| Skill | Source | Purpose |
+| ----- | ------ | ------- |
+| `dotnet-webapi` | `dotnet/skills` (Microsoft .NET team) | ASP.NET Core Web API endpoints, OpenAPI, error handling |
+| `optimizing-ef-core-queries` | `dotnet/skills` | Diagnose/fix slow EF Core queries |
+| `create-datadriven-aspnetcore` | `dotnet/skills` | Data-driven ASP.NET Core code without CLI scaffolding |
+| `csharp-refactoring` | `dotnet/skills` | Behavior-preserving C# refactors |
+| `skill-creator` | `anthropics/skills` (Anthropic) | Author/improve/measure skills |
+| `writing-for-agents` | `mattpocock/skills` | Writing skills / `AGENTS.md` for agents |
+| `pr` | `mattpocock/skills` | Pull-request body shape |
+| `differential-review` | `trailofbits/skills` | Security-focused review of a diff/PR |
+| `creative-frameworks` | user-authored (2026-10-04) | Ideation/copywriting (SCAMPER) |
+
+Also authorized: the root `opencode.json` **MCP servers** (`drawio`, `excalidraw`,
+`sequential-thinking`, `fetch`) as environment tooling — **not** skills and **not** a
+reproducibility dependency of the app.
+
+### Firewall
+
+- Sources must be **first-party/official** and audited before install; no unaudited
+  community bundles.
+- **No** wholesale adoption of `obra/superpowers` (telemetry-by-default; subagent-driven
+  model conflicts with Sonivo's "no delegation without authorization").
+- `skills-lock.json` is managed **only** by the official `skills` CLI — never hand-edited.
+- Upstream drift is real: `resolving-merge-conflicts` was removed from `mattpocock/skills`;
+  keep the local copy. Bulk-updating the 13 pinned Matt skills requires a separate review.
+- Deliberately **not** installed after evaluation: `webapp-testing` (Python-oriented vs the
+  TS `e2e/` stack; the Playwright MCP already covers browser automation), `frontend-design`
+  (overlaps `impeccable`), MSTest-specific `dotnet-test` skills (Sonivo uses **xUnit**),
+  third-party `prompt-engineering` (unaudited). Context7 stays **DEFERRED**.
+- Installing further skills/tooling still requires explicit human authorization.
+
+### Consequences
+
+The binding allowlist grows from 22 to 31 project-local skills. `SKILLS-INVENTORY.md` and
+`TOOLING-AUDIT.md` record the new set; the ADR index at the bottom of this file is stale
+(ends at 0023) and is out of scope for this change.
+
+---
+
 ## ADR-0060 — Kanban board: `in_progress` state + clean validation errors
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-03.
