@@ -311,7 +311,7 @@ applied dynamically without breaking AA contrast.
 
 - **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-09-30 (DevSecOps engagement: audit, secure, and automate backend security).
 - **Date:** 2026-09-30
-- **See:** [`SECURITY-AUDIT-2026-09.md`](SECURITY-AUDIT-2026-09.md) (audit report, findings, remediation plan).
+- **See:** [`SECURITY-AUDIT-2026-09.md`](SECURITY-AUDIT-2026-09.md) (audit report, findings, remediation plan); follow-up hardening pass [`SECURITY-AUDIT-2026-10.md`](SECURITY-AUDIT-2026-10.md) (authorized 2026-10-04: residual + new findings, fixes, tests, deployment constraints).
 
 ### Decision (proposed)
 

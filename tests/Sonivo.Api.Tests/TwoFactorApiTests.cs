@@ -306,6 +306,42 @@ public class TwoFactorApiTests : IClassFixture<GoogleAuthApiFactory>
     }
 
     [Fact]
+    public async Task Disable_2fa_wrong_password_counts_toward_lockout()
+    {
+        var email = $"2fa-lockout-{Guid.NewGuid():N}@example.com";
+        var password = "Password1";
+        var client = await CreatePasswordClientAsync(email, password);
+        await EnableTwoFactorAsync(client);
+
+        // SECURITY-AUDIT-2026-10 (A5): an in-session password recheck must not
+        // grant unlimited guesses — the 5th failure locks the account
+        // (MaxFailedAccessAttempts = 5).
+        for (var i = 0; i < 4; i++)
+        {
+            await EnsureCsrfAsync(client);
+            var attempt = await client.PostAsJsonAsync("/api/auth/2fa/disable", new { password = "WrongPass1" });
+            Assert.Equal(HttpStatusCode.BadRequest, attempt.StatusCode);
+        }
+
+        await EnsureCsrfAsync(client);
+        var locked = await client.PostAsJsonAsync("/api/auth/2fa/disable", new { password = "WrongPass1" });
+        Assert.Equal(HttpStatusCode.Unauthorized, locked.StatusCode);
+        var lockedBody = await locked.Content.ReadAsStringAsync();
+        Assert.Contains("bloqueada", lockedBody, StringComparison.OrdinalIgnoreCase);
+
+        // The shared lockout budget now also blocks password login.
+        var loginClient = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        await EnsureCsrfAsync(loginClient);
+        var login = await loginClient.PostAsJsonAsync("/api/auth/login",
+            new { email, password, rememberMe = false });
+        Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
+    }
+
+    [Fact]
     public async Task Totp_previous_step_code_verifies_within_drift_window()
     {
         var email = $"2fa-drift-{Guid.NewGuid():N}@example.com";

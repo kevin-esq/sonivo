@@ -1,47 +1,40 @@
-# NOW — agent focus
+# NOW - agent focus
 
-**Updated:** 2026-10-03
+**Updated:** 2026-10-04
 
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE — Kanban full redesign (Fases 1-6)
-  Backend: in_progress + clean error (commit a49c4bf)
-  Frontend F2-3: client state, keyboard, dialogs (commit d472cb0)
-  Frontend F4: @dnd-kit drag-and-drop (commit c56ef0a)
-  Frontend F5: toolbar, skeleton, i18n (commit b25df05)
-  Frontend F6: 30s polling real-time (commit 807c866)
-Human approval: APPROVED (user 2026-10-03: "Apruebo todo")
-Git checkpoint: COMMITTED — feature/kanban-full-redesign at 807c866
-Remote: PUSHED — PR #203 created
-CI: NOT RUN (pending PR merge)
+Implementation: COMPLETE - SECURITY-AUDIT-2026-10 hardening (A1-A7, B1-B15, C3, C5-C9)
+  Branch: feature/group-workspace-redesign (uncommitted)
+  Backend: Program.cs + Auth/* + Application/* + Domain/Tenancy/AccountAudit.cs
+  New files: src/Sonivo.Api/Realtime/DigitizeJobQueue.cs, tests/Sonivo.Application.Tests/IcsCalendarTests.cs
+  Tests added: 7 (lockout uniformity, 2FA disable lockout, passkey 409/400/last-method,
+                magic bytes, ICS escaping x2, passkey audit)
+Human approval: APPROVED (user 2026-10-04: "Hazlo todo… entrega reporte completo todo ya mergeado")
+Git checkpoint: PENDING (commit authorized by user; see report)
+Remote: NOT PUSHED
+CI: NOT RUN
 ```
 
-**Phase:** Kanban full redesign · **ADR-0060/0061/0062** ACCEPTED (user-authorized 2026-10-03)
+**Phase:** SECURITY-AUDIT-2026-10 (hardening pass) — report in `docs/03-architecture/SECURITY-AUDIT-2026-10.md`
 
 ### Delivered this session
-- **ADR-0060**: `in_progress` state in backend + clean validation error message
-- **ADR-0061**: `@dnd-kit` drag-and-drop with DragOverlay, keyboard, touch, auto-scroll
-- **ADR-0062**: 30s polling for shared real-time updates
-- **Fase 2**: Fixed `changeStatus` — apply server response, queue per task, revert only failed task
-- **Fase 3**: Fixed keyboard nav, `hasChanges`, Esc, move buttons, `aria-describedby`, `ConfirmDialog`, `ProblemAlert` auto-close
-- **Fase 4**: Replaced native HTML5 drag with `@dnd-kit` — `DndContext`, `DragOverlay`, `useDraggable`, `useDroppable`, `PointerSensor` (6px), `TouchSensor` (200ms + vibrate), `KeyboardSensor`
-- **Fase 5**: Toolbar `aria-pressed`, skeleton loading, i18n `movedTo`
-- **Fase 6**: 30s polling for shared real-time updates
+- A1 login uniformity (hash burn + identical lockout 401) · A2 passkey login account gates
+- A3 passkey credentialId global uniqueness + 400 (no SPA logout) · A4 last-access-method guard + audit
+- A5 in-session password rechecks count toward lockout · A6 proxy pinning (config-driven)
+- A7 single ToUserResponse (7 paths, hides @managed.invalid, uniform flags)
+- B1 /api 404 fallback · B2 claim-based user id (no double fetch) · B3 removed 61 no-op DisableAntiforgery
+- B4 headers first + Referrer/Permissions-Policy · B5 CSRF cookie HttpOnly · B6 upload limits + magic bytes
+- B7 DigitizeJobQueue (bounded, durable error surface) · B8 roster transactions · B9 GroupBy
+- B10 slug partition lowercase · B11 new rate limits + global 600/min · B12 ICS \r escape
+- B13 documented single-instance challenge store · B14 Migrate() · B15 /members hides managed emails
+- C3 comment/contract fixes · C5 readable temp password · C6 unique→409 · C7 manifest guards
+- C8 hub Origin check · C9 /api/health/ready
+- e2e helpers.ts strict-mode fix (selector-only, no app regression)
+- Tests: Domain 141 · Application 211 · Api 223 · Integration 57 · e2e 89 journeys (final run pending)
 
-### Remaining (not started — future work)
-- WL v4 (color wheel/palette, live preview, banner/group-name editing)
-- Setlist generator / Service sheets
-- RSVP + Musician call sheet
-- Multitrack mini mixer
-- Task-to-event/arrangement/song links (backend + UI)
-- Manual ordering within column (fractional ranking)
-- Notifications (assignment, due-date reminders)
-- Task templates per event type
-- "My tasks" cross-group view
-- Checklist inside card
-
-### Operational notes (local E2E runner)
-- Serve the E2E SPA with `npm run preview` (static `dist/`), **not** `npm run dev`; run `npm run build` first.
-- API: `dotnet run --project src/Sonivo.Api --launch-profile http` with `$env:Auth__EnableTestHook="true"` on `:5171`; PostgreSQL on `:5433`. Apply new migrations with `$env:SONIVO_MIGRATE_ON_START="true"`.
-- CI browses via `http://localhost:5173` (WebAuthn trustworthy origin) — keep when changing E2E.
+### Follow-ups (NOT bundled — see audit report §7)
+- C1/C2: split Program.cs + FeatureFlagFilter (separate PR)
+- C4: stable error codes + client i18n
+- B12 token URL + B15 role-based email visibility: product decisions needed

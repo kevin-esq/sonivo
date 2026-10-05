@@ -311,6 +311,47 @@ public class VerificationApiTests : IClassFixture<SonivoApiFactory>
         Assert.Contains(InvalidLinkCopy, body);
     }
 
+    [Fact]
+    public async Task Locked_out_login_returns_the_identical_401_shape_as_unknown_email()
+    {
+        var email = "verify-lockout@example.com";
+        await CreateVerifiedClientAsync(email);
+
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+
+        // Burn the lockout budget (5 failed attempts).
+        for (var i = 0; i < 5; i++)
+        {
+            await EnsureCsrfAsync(client);
+            var attempt = await client.PostAsJsonAsync("/api/auth/login",
+                new { email, password = "WrongPass1", rememberMe = false });
+            Assert.Equal(HttpStatusCode.Unauthorized, attempt.StatusCode);
+        }
+
+        // SECURITY-AUDIT-2026-10 (A1): the locked-out 401 carries the identical
+        // status/title/detail as an unknown email — lockout must not reveal
+        // account existence.
+        await EnsureCsrfAsync(client);
+        var locked = await client.PostAsJsonAsync("/api/auth/login",
+            new { email, password = "Password1", rememberMe = false });
+        Assert.Equal(HttpStatusCode.Unauthorized, locked.StatusCode);
+        var lockedProblem = await locked.Content.ReadFromJsonAsync<ProblemShape>(JsonOptions);
+
+        await EnsureCsrfAsync(client);
+        var unknown = await client.PostAsJsonAsync("/api/auth/login",
+            new { email = "verify-lockout-unknown@example.com", password = "Password1", rememberMe = false });
+        Assert.Equal(HttpStatusCode.Unauthorized, unknown.StatusCode);
+        var unknownProblem = await unknown.Content.ReadFromJsonAsync<ProblemShape>(JsonOptions);
+
+        Assert.Equal(unknownProblem?.Status, lockedProblem?.Status);
+        Assert.Equal(unknownProblem?.Title, lockedProblem?.Title);
+        Assert.Equal(unknownProblem?.Detail, lockedProblem?.Detail);
+    }
+
     private async Task<HttpClient> CreateVerifiedClientAsync(string email, string password = "Password1")
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions

@@ -136,6 +136,15 @@ public class GroupBrandingApiTests : IClassFixture<SonivoApiFactory>, IClassFixt
         var rejected = await client.PostAsync($"/api/groups/{group.Id}/branding/logo", text);
         Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
 
+        // SECURITY-AUDIT-2026-10 (B6): a lying content-type does not pass —
+        // the bytes must match a known image signature.
+        using var lying = new MultipartFormDataContent();
+        var lyingPart = new ByteArrayContent([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        lyingPart.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        lying.Add(lyingPart, "file", "fake.png");
+        var magicRejected = await client.PostAsync($"/api/groups/{group.Id}/branding/logo", lying);
+        Assert.Equal(HttpStatusCode.BadRequest, magicRejected.StatusCode);
+
         using var huge = new MultipartFormDataContent();
         var hugePart = new ByteArrayContent(new byte[2 * 1024 * 1024 + 1]);
         hugePart.Headers.ContentType = new MediaTypeHeaderValue("image/png");
