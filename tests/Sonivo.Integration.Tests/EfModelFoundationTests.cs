@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Scheduling;
 using Sonivo.Domain.Tenancy;
@@ -51,11 +51,11 @@ public class EfModelFoundationTests
             .Single(fk => fk.PrincipalEntityType.ClrType == typeof(Arrangement));
         Assert.Equal(DeleteBehavior.Restrict, eventArrFk.DeleteBehavior);
 
-        Assert.NotNull(model.FindEntityType(typeof(Group))!.GetQueryFilter());
-        Assert.NotNull(model.FindEntityType(typeof(Song))!.GetQueryFilter());
-        Assert.NotNull(model.FindEntityType(typeof(Arrangement))!.GetQueryFilter());
-        Assert.Null(model.FindEntityType(typeof(Event))!.GetQueryFilter());
-        Assert.Null(model.FindEntityType(typeof(EventSetlistItem))!.GetQueryFilter());
+        Assert.NotEmpty(model.FindEntityType(typeof(Group))!.GetDeclaredQueryFilters());
+        Assert.NotEmpty(model.FindEntityType(typeof(Song))!.GetDeclaredQueryFilters());
+        Assert.NotEmpty(model.FindEntityType(typeof(Arrangement))!.GetDeclaredQueryFilters());
+        Assert.Empty(model.FindEntityType(typeof(Event))!.GetDeclaredQueryFilters());
+        Assert.Empty(model.FindEntityType(typeof(EventSetlistItem))!.GetDeclaredQueryFilters());
     }
 
     [Fact]
@@ -90,13 +90,13 @@ public class EfModelFoundationTests
         Assert.NotNull(song.FindProperty(nameof(Song.OriginKind)));
         Assert.Null(song.FindProperty("IsOriginal"));
         Assert.True(song.FindProperty(nameof(Song.Version))!.IsConcurrencyToken);
-        Assert.NotNull(song.GetQueryFilter());
+        Assert.NotEmpty(song.GetDeclaredQueryFilters());
 
         var arrangement = db.Model.FindEntityType(typeof(Arrangement))!;
         Assert.Null(arrangement.FindProperty("IsDefault"));
         Assert.Equal(typeof(int?), arrangement.FindProperty(nameof(Arrangement.DefaultBpm))!.ClrType);
         Assert.True(arrangement.FindProperty(nameof(Arrangement.Version))!.IsConcurrencyToken);
-        Assert.NotNull(arrangement.GetQueryFilter());
+        Assert.NotEmpty(arrangement.GetDeclaredQueryFilters());
 
         var resource = db.Model.FindEntityType(typeof(Resource))!;
         Assert.NotNull(resource.FindProperty(nameof(Resource.Kind)));
@@ -109,7 +109,7 @@ public class EfModelFoundationTests
         Assert.True(resource.FindProperty(nameof(Resource.ContentType))!.IsNullable);
         Assert.True(resource.FindProperty(nameof(Resource.ObjectKey))!.IsNullable);
         Assert.True(resource.FindProperty(nameof(Resource.ByteSize))!.IsNullable);
-        Assert.Null(resource.GetQueryFilter());
+        Assert.Empty(resource.GetDeclaredQueryFilters());
 
         var resourceFk = resource.GetForeignKeys()
             .Single(fk => fk.PrincipalEntityType.ClrType == typeof(Arrangement));

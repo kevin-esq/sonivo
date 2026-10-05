@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Security.Claims;
@@ -220,7 +220,7 @@ if (!builder.Environment.IsDevelopment())
         var proxies = builder.Configuration["ForwardedHeaders:KnownProxies"];
         var networks = builder.Configuration["ForwardedHeaders:KnownNetworks"];
         options.KnownProxies.Clear();
-        options.KnownNetworks.Clear();
+        options.KnownIPNetworks.Clear();
         foreach (var raw in (proxies ?? string.Empty).Split(
                      new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
         {
@@ -242,7 +242,7 @@ if (!builder.Environment.IsDevelopment())
             }
             if (IPAddress.TryParse(address, out var ip))
             {
-                options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(ip, prefix));
+                options.KnownIPNetworks.Add(new System.Net.IPNetwork(ip, prefix));
             }
         }
     });
@@ -1967,7 +1967,7 @@ app.MapPost("/api/groups/{groupId:guid}/branding/logo", async (
     await using (stream!)
     {
         var updated = await handler.HandleAsync(
-            new SetGroupLogoCommand(userId.Value, groupId, file.ContentType, file.Length, stream),
+            new SetGroupLogoCommand(userId.Value, groupId, file.ContentType, file.Length, stream!),
             cancellationToken);
         return Results.Ok(ToBrandingResponse(updated));
     }
