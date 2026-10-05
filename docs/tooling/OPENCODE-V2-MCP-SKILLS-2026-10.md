@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-05
 **Status:** Applied — **user-authorized 2026-10-05** ("hazlo y documenta todo").
-**Decision:** [ADR-0064](../03-architecture/DECISIONS.md)
+**Decision:** [ADR-0064](../03-architecture/DECISIONS.md), [ADR-0065](../03-architecture/DECISIONS.md)
 **Scope:** How MCP servers and Agent Skills are installed in the current OpenCode
 (**V2**), the corrections to a circulated "security setup" tutorial, and the
 concrete changes adopted in this repository.
@@ -109,10 +109,34 @@ Under `.agents/skills/` (Sonivo-only, per ADR-0041):
 - `react-frontend-security` — React 19 / Vite / Tailwind XSS, env-leak, token and
   client-authz review.
 
+### 4.4 GitHub MCP server (ADR-0065)
+
+- `github` — local Docker, `ghcr.io/github/github-mcp-server`, token via
+  `GITHUB_PERSONAL_ACCESS_TOKEN`, toolsets limited to
+  `context,repos,pull_requests,actions,git`. Verified connected; `get_me`
+  returns the authenticated user.
+
+**Why local Docker and not the hosted remote:** OpenCode V2 does not interpolate
+`{env:...}` when it is embedded inside a larger header string, so
+`Authorization: "Bearer {env:GITHUB_PERSONAL_ACCESS_TOKEN}"` was sent malformed
+(HTTP 400). Passing the token as a real environment variable to the local Docker
+server avoids this. That variable must be present in the OpenCode **service**
+environment; `opencode service set env` alone did not reach the MCP spawn —
+exporting it and restarting the service did. It is persisted with `setx` on
+Windows.
+
+### 4.5 Git governance (ADR-0065)
+
+- Project-local skill `git-governance` plus `.githooks/commit-msg` (commitlint
+  when available, POSIX fallback otherwise) and `.commitlintrc.json`.
+- Enable once per clone: `git config core.hooksPath .githooks`.
+- Git actions (commit / push / PR / merge) remain **human-authorized**; no
+  autonomous `gh pr create`.
+
 ## 5. Verification
 
 ```sh
-opencode mcp list         # expect semgrep and snyk connected
+opencode mcp list         # expect semgrep, snyk and github connected
 opencode debug config     # confirm merged configuration
 opencode reload           # reload config without restarting the server
 ```

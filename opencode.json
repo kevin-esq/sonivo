@@ -37,6 +37,26 @@
           "startup": 180000,
           "catalog": 120000
         }
+      },
+      "github": {
+        "type": "local",
+        "command": [
+          "docker",
+          "run",
+          "-i",
+          "--rm",
+          "-e",
+          "GITHUB_PERSONAL_ACCESS_TOKEN",
+          "ghcr.io/github/github-mcp-server"
+        ],
+        "environment": {
+          "GITHUB_PERSONAL_ACCESS_TOKEN": "{env:GITHUB_PERSONAL_ACCESS_TOKEN}",
+          "GITHUB_TOOLSETS": "context,repos,pull_requests,actions,git"
+        },
+        "timeout": {
+          "startup": 180000,
+          "catalog": 120000
+        }
       }
     }
   }

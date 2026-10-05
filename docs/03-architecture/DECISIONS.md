@@ -8,6 +8,52 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0065 — Tooling: GitHub MCP server + Git governance (Conventional Commits)
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-05.
+- **Date:** 2026-10-05
+- **Extends:** ADR-0002 (tooling allowlist), ADR-0041 (single `.agents/` tree), ADR-0063/0064 (platform skills + MCP servers, security MCP servers).
+
+### Context
+
+The user asked to wire OpenCode to GitHub for rigorous versioning and to enforce
+Conventional Commits, using the official GitHub MCP server and the `gh` CLI.
+
+### Decision
+
+1. Add the **official GitHub MCP server** to root `opencode.json` as a **local
+   Docker** server (`ghcr.io/github/github-mcp-server`), with toolsets
+   `context,repos,pull_requests,actions,git` and the token supplied through the
+   environment as `GITHUB_PERSONAL_ACCESS_TOKEN` (never committed).
+   - The hosted remote variant (`https://api.githubcopilot.com/mcp/`) was **not**
+     used: OpenCode V2 does not interpolate `{env:...}` embedded inside a larger
+     header string such as `"Bearer {env:GITHUB_PERSONAL_ACCESS_TOKEN}"`, so the
+     remote header arrived malformed. Passing the token as a real environment
+     variable to the local server avoids this.
+2. Add the project-local `git-governance` skill and a `.githooks/commit-msg`
+   Conventional Commits gate (uses `commitlint` when available, POSIX fallback
+   otherwise) plus `.commitlintrc.json`; enable once with
+   `git config core.hooksPath .githooks`.
+3. **Do not** automate `gh pr create`, commit, push, or merge. Git authority
+   remains human-gated (`AGENTS.md`); the third-party tutorial's "autonomous PR"
+   guidance is deliberately **not** adopted.
+
+### Firewall
+
+- No tokens in git; the PAT comes from the environment.
+- The hook must not auto-install `commitlint` or reach the network.
+- Git-AI / commit-metadata tooling is **not** installed: it adds AI attribution,
+  conflicting with the no-credit commit rule.
+- Git authority (explicit authorization for commit/push/PR/merge) is unchanged.
+
+### Consequences
+
+The binding allowlist grows from **33 to 34** project-local skills.
+`SKILLS-INVENTORY.md`, `TOOLING-AUDIT.md`, and `AGENTS.md` record the addition and
+the commit-message gate.
+
+---
+
 ## ADR-0064 — Tooling: OpenCode V2-native MCP config + security MCP servers + security skills
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-05.

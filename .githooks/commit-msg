@@ -1,0 +1,36 @@
+#!/bin/sh
+# Sonivo commit-msg gate — Conventional Commits.
+# Enable once with:  git config core.hooksPath .githooks
+# Uses commitlint when it is available, otherwise falls back to a POSIX check.
+
+msg_file="$1"
+[ -n "$msg_file" ] || exit 0
+
+subject=$(head -n1 "$msg_file")
+
+# Let merge/revert/fixup/squash commits through untouched.
+case "$subject" in
+  Merge*|"Revert "*|"revert:"*|"fixup!"*|"squash!"*) exit 0 ;;
+esac
+
+# Preferred: real commitlint when installed (no network, no auto-install).
+if command -v npx >/dev/null 2>&1; then
+  if npx --no-install commitlint --version >/dev/null 2>&1; then
+    npx --no-install commitlint --edit "$msg_file" && exit 0
+    echo "commit-msg: commitlint rejected the message." >&2
+    exit 1
+  fi
+fi
+
+# Fallback: plain Conventional Commits check.
+pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: .+'
+
+if printf '%s' "$subject" | grep -Eq "$pattern"; then
+  exit 0
+fi
+
+echo "commit-msg: subject does not follow Conventional Commits." >&2
+echo "  expected: <type>(<scope>): <description>" >&2
+echo "  types:    feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert" >&2
+echo "  got:      $subject" >&2
+exit 1

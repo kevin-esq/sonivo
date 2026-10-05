@@ -38,6 +38,13 @@ Authored for Sonivo and adapted to its stack (not imported from third parties):
 - `dotnet-secure-architecture` — ASP.NET Core / EF Core / Identity / tenancy hardening and review
 - `react-frontend-security` — React 19 / Vite / Tailwind XSS, env-leak, token, and client-authz review
 
+### GIT GOVERNANCE — PROJECT-LOCAL (ADR-0065, user-authorized 2026-10-05)
+
+Authored for Sonivo; documents Conventional Commits, commitlint, branch naming,
+and `gh` / `github` MCP usage, with the human authorization gate preserved:
+
+- `git-governance`
+
 ### DEFERRED (not installed project-local; do not invoke/depend)
 
 `setup-matt-pocock-skills` · `handoff` · `product-marketing` · Context7 · surplus Matt skills
@@ -52,9 +59,9 @@ Authored for Sonivo and adapted to its stack (not imported from third parties):
 
 ---
 
-## PRESENT project-local skills (33 directories)
+## PRESENT project-local skills (34 directories)
 
-**33** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063 + ADR-0064):
+**34** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063 + ADR-0064 + ADR-0065):
 
 | Directory                       | Role                 |
 | ------------------------------- | -------------------- |
@@ -91,8 +98,9 @@ Authored for Sonivo and adapted to its stack (not imported from third parties):
 | `differential-review`           | SECURITY (ADR-0063)  |
 | `dotnet-secure-architecture`    | SECURITY (ADR-0064)  |
 | `react-frontend-security`       | SECURITY (ADR-0064)  |
+| `git-governance`                | GIT (ADR-0065)       |
 
-= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions + **2** ADR-0064 security skills = **33 AUTHORIZED**.
+= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions + **2** ADR-0064 security skills + **1** ADR-0065 git governance = **34 AUTHORIZED**.
 
 Removed skills are **not** listed as installed.
 
@@ -100,9 +108,10 @@ Removed skills are **not** listed as installed.
 
 | Path               | Notes                                                                                 |
 | ------------------ | ------------------------------------------------------------------------------------- |
-| `.agents/skills/`  | Sole project-local skills directory; contains all 33 authorized `SKILL.md` procedures |
+| `.agents/skills/`  | Sole project-local skills directory; contains all 34 authorized `SKILL.md` procedures |
 | `.obsidian/`       | Local vault configuration; intentionally not modified                                 |
-| `opencode.json`    | Root MCP servers (`drawio`, `excalidraw`, `sequential-thinking`, `fetch`) — ADR-0063; `semgrep` + `snyk` (both enabled) — ADR-0064; V2-native `mcp.servers` |
+| `opencode.json`    | Root MCP servers (`drawio`, `excalidraw`, `sequential-thinking`, `fetch`) — ADR-0063; `semgrep` + `snyk` — ADR-0064; `github` (local Docker) — ADR-0065; V2-native `mcp.servers` |
+| `.githooks/`       | Conventional Commits gate (`commit-msg`) + `.commitlintrc.json` — ADR-0065 |
 | `skills-lock.json` | **13** Matt core entries only; the ADR-0063 Matt additions (`pr`, `writing-for-agents`) are not yet in the lock — update via the official `skills` CLI, never by hand |
 
 Root `AGENTS.md` is the shared project instruction file. `.cursor/`, `.codex/`, and `.claude/` customizations are absent by ADR-0041.
