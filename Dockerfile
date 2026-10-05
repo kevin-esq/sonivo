@@ -29,6 +29,13 @@ RUN dotnet publish src/Sonivo.Api/Sonivo.Api.csproj -c Release -o /app/publish -
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+# SMTP (MailKit) authentication negotiates SASL via .NET, which needs the native
+# GSSAPI/Kerberos library on Linux. The slim runtime image ships without it, so
+# add libgssapi-krb5-2 (ADR-0068) — otherwise sending fails with
+# "libgssapi_krb5.so.2: cannot open shared object file".
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/publish .
 COPY --from=web /web/apps/app/out ./wwwroot
 ENV ASPNETCORE_ENVIRONMENT=Production
