@@ -5,19 +5,20 @@
 ## Checkpoint state
 
 ```text
-Implementation: IN PROGRESS - Group white-label identity propagation + membership relocation
-  Branch: feature/group-white-label-identity (from develop @ b4c05cb)
+Implementation: COMPLETE - Group white-label identity propagation + membership relocation
+  Branch: feature/group-white-label-identity -> MERGED to develop via PR #207 (2add820)
+  Commits: a9c4263 branding, 38f58a0 account, 3094e53 tests
   Scope:
     - Semantic brand tokens: group accent now drives --color-primary / -strong / -ink /
-      -foreground / secondary / accent / shell-link (light + dark, AA-clamped).
+      -foreground / secondary / accent / shell-link / font (light + dark, AA-clamped).
     - GroupSettingsPage hardcoded slate -> semantic tokens; group "Membresía" tab removed.
     - Account-level Membership page (/cuenta/membresia) + account sidebar entry.
     - Branding editor: draft-driven component preview using the real tokens.
     - New E2E: e2e/tests/w23-brand-identity.spec.ts.
 Human approval: APPROVED (owner: "Estas autorizado a todo", 2026-10-04)
-Git checkpoint: COMMITTED (a9c4263 branding, 38f58a0 account, this commit tests)
-Remote: PUSH PENDING
-CI: NOT RUN
+Git checkpoint: COMMITTED + MERGED (PR #207)
+Remote: PUSHED (branch deleted after merge)
+CI: PASSING (PR #207: Backend, Frontend, SCA, CodeQL, Analyze C#, Playwright E2E 8m6s)
 ```
 
 ### Verified this session (live stack: API 5171, Vite 5173, Postgres 5433)
@@ -31,4 +32,6 @@ CI: NOT RUN
 - Account pages (SettingsLayout / security sections) still use `dark:` + slate; a
   `@custom-variant dark` was added so those now follow `data-theme`, but they were
   not fully re-tokenized.
-- Git actions (commit/push/PR/merge) require explicit authorization.
+- Unrelated local working-tree changes present (not from this task): new `.agents/skills/*`,
+  docs/tooling SKILLS-INVENTORY / TOOLING-AUDIT / DECISIONS, SKILLS-ECOSYSTEM-RESEARCH,
+  `.vscode/`, `w-h-live-viewer.png` - left untouched.
