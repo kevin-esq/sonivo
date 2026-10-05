@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, NavLink, useParams } from 'react-router-dom'
-import { ChevronsLeft, ChevronsRight, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
+import { ChevronUp, ChevronsLeft, ChevronsRight, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
 import {
   ApiError,
   fetchFeatures,
@@ -26,6 +26,7 @@ import { rememberLastGroup } from '../tenancy/groupSlug'
 import { RailNowPlaying } from './RailNowPlaying'
 import { GroupSwitcher } from './GroupSwitcher'
 import { useRailPresence } from './railPresence'
+import { BrandPreviewContext, type BrandTokenMap } from './brandPreview'
 
 const SIDEBAR_KEY = 'sonivo:sidebar'
 
@@ -65,6 +66,8 @@ export function GroupWorkspace({
   const [brandingEnabled, setBrandingEnabled] = useState(false)
   const [serverBrand, setServerBrand] = useState<ServerBranding | null>(null)
   const [members, setMembers] = useState<MemberListItem[] | null>(null)
+  // Live brand preview while the branding editor is open (see brandPreview.tsx).
+  const [previewTokens, setPreviewTokens] = useState<BrandTokenMap | null>(null)
   const { t } = useT()
   const { setRailPresent } = useRailPresence()
   const { theme, applyDefault } = useTheme()
@@ -199,11 +202,20 @@ export function GroupWorkspace({
     : groupCoverStyle(appearance.cover, appearance.accent)
   const lightHeaderText = serverBrand?.bannerUrl ? true : coverUsesLightText(appearance.cover)
 
+  const brandTokens = brandTokenStyle(serverBrand, { primary: accent, theme })
+  const shellStyle = {
+    ...brandTokens,
+    ...(previewTokens ?? {}),
+    // Liquid-glass accent wash over the canvas (token from deriveGroupThemeTokens).
+    backgroundImage: 'var(--brand-wash)',
+  } as CSSProperties
+
   return (
+    <BrandPreviewContext.Provider value={{ tokens: previewTokens, setTokens: setPreviewTokens }}>
     <div
       className="min-h-screen bg-canvas font-sans md:flex md:h-screen md:overflow-hidden"
       data-testid="grupo-shell"
-      style={{ ...brandTokenStyle(serverBrand, { primary: accent, theme }) } as CSSProperties}
+      style={shellStyle}
     >
       <aside
         className={cn(
@@ -251,7 +263,7 @@ export function GroupWorkspace({
                 )}
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold text-shell-foreground">
+                <span className="block truncate font-display text-sm font-semibold text-shell-foreground">
                   {serverBrand?.displayName ?? group.name}
                 </span>
                 {serverBrand?.tagline ? (
@@ -351,68 +363,64 @@ export function GroupWorkspace({
           ) : null}
         </div>
 
-        {/* User section: avatar, name, role, account links */}
+        {/* User menu: avatar-only summary that opens the account actions. Sign
+            out lives inside the menu so it can't be hit by accident. */}
         {group && user ? (
-          <div
+          <details
+            data-testid="rail-user-menu"
             className={cn(
-              'shrink-0 border-t border-shell-border py-3',
+              'relative shrink-0 border-t border-shell-border py-3',
               collapsed ? 'px-2' : 'px-3',
             )}
           >
-            {collapsed ? (
-              <div className="flex flex-col items-center gap-2">
-                <span
-                  className="grid h-9 w-9 place-items-center rounded-full bg-shell-hover text-sm font-semibold text-shell-foreground"
-                  aria-label={user.displayName ?? undefined}
-                >
-                  {(user.displayName ?? '').trim().slice(0, 1).toUpperCase()}
-                </span>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-shell-hover text-sm font-semibold text-shell-foreground"
-                    aria-hidden="true"
-                  >
-                    {(user.displayName ?? '').trim().slice(0, 1).toUpperCase()}
+            <summary
+              aria-label={user.displayName ?? t('workspace.account')}
+              className={cn(
+                'flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg py-1.5 text-shell-foreground transition-colors hover:bg-shell-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary [&::-webkit-details-marker]:hidden',
+                collapsed ? 'justify-center px-0' : 'px-2',
+              )}
+            >
+              <span
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-shell-hover text-sm font-semibold text-shell-foreground"
+                aria-hidden="true"
+              >
+                {(user.displayName ?? '').trim().slice(0, 1).toUpperCase()}
+              </span>
+              {collapsed ? null : (
+                <>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{user.displayName}</span>
+                    <span className="block truncate text-xs text-shell-foreground/60">{groupRole}</span>
                   </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-shell-foreground">
-                      {user.displayName}
-                    </p>
-                    <p className="truncate text-xs text-shell-foreground/60">
-                      {groupRole}
-                    </p>
-                  </div>
-                </div>
-                <nav className="space-y-0.5" aria-label={t('workspace.account')}>
-                  <Link
-                    to="/grupos"
-                    className="flex min-h-11 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 no-underline transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-                  >
-                    <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    {t('workspace.myGroups')}
-                  </Link>
-                  <Link
-                    to="/cuenta"
-                    className="flex min-h-11 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 no-underline transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-                  >
-                    <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    {t('workspace.account')}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={onLogout}
-                    className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-                  >
-                    <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    {t('workspace.logout')}
-                  </button>
-                </nav>
-              </div>
-            )}
-          </div>
+                  <ChevronUp className="h-4 w-4 shrink-0 text-shell-foreground/60" aria-hidden="true" />
+                </>
+              )}
+            </summary>
+            <nav
+              aria-label={t('workspace.account')}
+              className={cn(
+                'absolute bottom-full z-50 mb-1 space-y-0.5 rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg',
+                collapsed ? 'left-0 w-56' : 'inset-x-0',
+              )}
+            >
+              <Link to="/grupos" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                <Users className="h-4 w-4 text-primary-ink" aria-hidden="true" />
+                {t('workspace.myGroups')}
+              </Link>
+              <Link to="/cuenta" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                <UserRound className="h-4 w-4 text-primary-ink" aria-hidden="true" />
+                {t('workspace.account')}
+              </Link>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm font-medium text-error-ink transition-colors hover:bg-error/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {t('workspace.logout')}
+              </button>
+            </nav>
+          </details>
         ) : null}
 
         {/* Powered by Sonivo - subtle attribution */}
@@ -446,21 +454,35 @@ export function GroupWorkspace({
             {/* Single "Más" lives in the bottom tab bar; the top bar keeps only
                 account + sign-out so there is exactly one overflow menu per
                 breakpoint (owner request 2026-10-05). */}
-            <Link
-              to="/cuenta"
-              aria-label={t('grupo.openAccount')}
-              className="grid min-h-11 min-w-11 place-items-center rounded-lg text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-            >
-              <UserRound className="h-5 w-5" aria-hidden="true" />
-            </Link>
-            <button
-              type="button"
-              aria-label={t('workspace.logout')}
-              onClick={onLogout}
-              className="grid min-h-11 min-w-11 place-items-center rounded-lg text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-            >
-              <LogOut className="h-5 w-5" aria-hidden="true" />
-            </button>
+            <details className="relative" data-testid="mobile-user-menu">
+              <summary
+                aria-label={t('workspace.account')}
+                className="grid min-h-11 min-w-11 cursor-pointer list-none place-items-center rounded-lg text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary [&::-webkit-details-marker]:hidden"
+              >
+                <UserRound className="h-5 w-5" aria-hidden="true" />
+              </summary>
+              <nav
+                aria-label={t('workspace.account')}
+                className="absolute right-0 top-full z-50 mt-1 w-56 space-y-0.5 rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg"
+              >
+                <Link to="/grupos" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                  <Users className="h-4 w-4 text-primary-ink" aria-hidden="true" />
+                  {t('workspace.myGroups')}
+                </Link>
+                <Link to="/cuenta" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                  <UserRound className="h-4 w-4 text-primary-ink" aria-hidden="true" />
+                  {t('workspace.account')}
+                </Link>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm font-medium text-error-ink transition-colors hover:bg-error/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                  <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  {t('workspace.logout')}
+                </button>
+              </nav>
+            </details>
           </div>
         </header>
 
@@ -495,7 +517,7 @@ export function GroupWorkspace({
                   <div className="min-w-0 flex-1">
                     <p
                       className={cn(
-                        'truncate text-2xl font-semibold tracking-tight md:text-3xl',
+                        'truncate font-display text-2xl font-semibold tracking-tight md:text-3xl',
                         lightHeaderText ? 'text-white' : 'text-ink',
                       )}
                     >
@@ -652,5 +674,6 @@ export function GroupWorkspace({
         </nav>
       ) : null}
     </div>
+    </BrandPreviewContext.Provider>
   )
 }

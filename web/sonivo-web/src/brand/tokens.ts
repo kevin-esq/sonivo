@@ -248,6 +248,9 @@ export function deriveGroupThemeTokens(input: GroupThemeInput): Record<string, s
     // (~2.96:1). Clamp both error and success inks to the themed surface.
     '--color-error-ink': accessibleInk(brand['--color-error'], inkBg, prefer),
     '--color-success-ink': accessibleInk(brand['--color-success'], inkBg, prefer),
+    // "Liquid glass" wash: a very low-alpha accent gradient layered over the
+    // canvas so a colour change is visible app-wide without harming AA text.
+    '--brand-wash': `radial-gradient(120% 80% at 100% 0%, ${withAlpha(primary, '26')} 0%, ${withAlpha(primary, '00')} 62%), radial-gradient(120% 80% at 0% 100%, ${withAlpha(brand['--brand-secondary'], '18')} 0%, ${withAlpha(brand['--brand-secondary'], '00')} 62%)`,
   };
 
   if (input.secondary) {
@@ -258,7 +261,9 @@ export function deriveGroupThemeTokens(input: GroupThemeInput): Record<string, s
   if (input.success) tokens['--color-success'] = input.success;
   if (input.warning) tokens['--color-warning'] = input.warning;
   if (input.error) tokens['--color-error'] = input.error;
-  if (input.typography) tokens['--font-sans'] = input.typography;
+  // Typography drives the display face (titles + brand name) only. The UI
+  // `--font-sans` is intentionally left untouched so controls stay legible.
+  if (input.typography) tokens['--font-display'] = input.typography;
   return tokens;
 }
 
@@ -289,9 +294,30 @@ export type TypographyOption = {
   fontFamily: string;
 };
 
+/**
+ * Curated display faces for the group brand (titles + brand name only; the UI
+ * sans never changes). Every family here is loaded in `index.html`, so a
+ * selection renders as intended instead of falling back to a system serif.
+ * Legacy ids `system`/`serif`/`mono`/`rounded` are preserved for stored brands.
+ */
 export const TYPOGRAPHY_OPTIONS: TypographyOption[] = [
-  { id: 'system', labelKey: 'branding.fontSystem', fontFamily: '"Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif' },
-  { id: 'serif', labelKey: 'branding.fontSerif', fontFamily: '"Source Serif 4", Georgia, "Times New Roman", serif' },
-  { id: 'mono', labelKey: 'branding.fontMono', fontFamily: '"JetBrains Mono", "Fira Code", Consolas, monospace' },
-  { id: 'rounded', labelKey: 'branding.fontRounded', fontFamily: '"Nunito", "Plus Jakarta Sans", system-ui, sans-serif' },
+  { id: 'system', labelKey: 'ajustes.fontSystem', fontFamily: '"Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif' },
+  { id: 'rounded', labelKey: 'ajustes.fontRounded', fontFamily: '"Nunito", "Plus Jakarta Sans", system-ui, sans-serif' },
+  { id: 'inter', labelKey: 'ajustes.fontInter', fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif' },
+  { id: 'dmsans', labelKey: 'ajustes.fontDmSans', fontFamily: '"DM Sans", "Segoe UI", system-ui, sans-serif' },
+  { id: 'poppins', labelKey: 'ajustes.fontPoppins', fontFamily: '"Poppins", "Segoe UI", system-ui, sans-serif' },
+  { id: 'space', labelKey: 'ajustes.fontSpace', fontFamily: '"Space Grotesk", "Segoe UI", system-ui, sans-serif' },
+  { id: 'serif', labelKey: 'ajustes.fontSerif', fontFamily: '"Source Serif 4", Georgia, serif' },
+  { id: 'lora', labelKey: 'ajustes.fontLora', fontFamily: '"Lora", Georgia, serif' },
+  { id: 'playfair', labelKey: 'ajustes.fontPlayfair', fontFamily: '"Playfair Display", Georgia, serif' },
+  { id: 'mono', labelKey: 'ajustes.fontMono', fontFamily: '"JetBrains Mono", "Fira Code", Consolas, monospace' },
 ];
+
+/**
+ * Resolve a stored typography **id** to its CSS family stack. Unknown ids and
+ * the default (`system`) resolve to null so `--font-display` keeps its default.
+ */
+export function typographyFamily(id: string | null | undefined): string | null {
+  if (!id || id === 'system') return null;
+  return TYPOGRAPHY_OPTIONS.find((option) => option.id === id)?.fontFamily ?? null;
+}

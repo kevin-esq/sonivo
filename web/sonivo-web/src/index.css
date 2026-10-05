@@ -47,6 +47,8 @@
   --color-ink: #0f172a;
   --color-muted: #64748b;
   --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+  /* Group-brand display face for titles/brand only (never the UI sans). */
+  --font-display: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
   --radius-xl: 1.25rem;
@@ -130,6 +132,14 @@ body {
   color: var(--color-shell-foreground);
   font-family: var(--font-sans);
   line-height: 1.5;
+}
+
+/* Headings follow the group's display face; defaults to the UI sans. */
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
 }
 
 /* Hide the scrollbar on the app and group sidebars while keeping them

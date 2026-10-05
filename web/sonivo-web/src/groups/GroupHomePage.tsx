@@ -33,7 +33,7 @@ import { useT } from '../i18n'
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
 
 const TILE_CLASS =
-  'flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none'
+  'flex min-w-0 items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none'
 
 const TILE_ICON_CLASS =
   'grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink'

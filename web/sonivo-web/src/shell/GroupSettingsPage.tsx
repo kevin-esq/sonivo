@@ -17,6 +17,7 @@ import {
   type GroupDetail,
 } from '../api/client'
 import { TYPOGRAPHY_OPTIONS, deriveGroupThemeTokens } from '../brand/tokens'
+import { useBrandPreview } from './brandPreview'
 import { useTheme } from '../brand/theme'
 import { useT, type I18nKey } from '../i18n'
 import {
@@ -231,6 +232,14 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         : {},
     [draft, previewFontFamily, theme],
   )
+
+  // Publish the draft tokens to the group shell so the WHOLE workspace
+  // repaints in real time while editing (cleared on leave).
+  const { setTokens: setBrandPreview } = useBrandPreview()
+  useEffect(() => {
+    setBrandPreview(draft ? componentPreviewTokens : null)
+    return () => setBrandPreview(null)
+  }, [draft, componentPreviewTokens, setBrandPreview])
 
   useEffect(() => {
     let cancelled = false
@@ -628,7 +637,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           <div
             data-testid="branding-preview"
             className="overflow-hidden rounded-2xl"
-            style={previewHeaderStyle}
+            style={{ ...componentPreviewTokens, ...previewHeaderStyle } as CSSProperties}
           >
             <div className="flex items-center gap-4 px-5 py-5">
               <span
@@ -649,7 +658,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <div className="min-w-0 flex-1">
                 <p
                   className={cn(
-                    'truncate text-2xl font-semibold tracking-tight',
+                    'truncate font-display text-2xl font-semibold tracking-tight',
                     branding.bannerUrl || coverUsesLightText(draft.cover) ? 'text-white' : 'text-ink',
                   )}
                 >
@@ -1067,37 +1076,45 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </div>
 
           {isOwner ? (
-            <div className="space-y-2">
-              {isDirty ? (
-                <p role="alert" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-ink">
-                  {t('ajustes.unsavedChanges')}
-                </p>
+            <div className="flex items-center gap-3">
+              <Button type="button" disabled={savingBrand || !isDirty} onClick={() => void onSaveBranding()}>
+                {savingBrand ? t('inicio.working') : t('ajustes.saveBranding')}
+              </Button>
+              {brandSaved ? (
+                <span aria-live="polite" className="text-sm text-muted">
+                  {t('ajustes.brandingSaved')}
+                </span>
               ) : null}
-              <div className="flex items-center gap-3">
-                <Button type="button" disabled={savingBrand || !isDirty} onClick={() => void onSaveBranding()}>
-                  {savingBrand ? t('inicio.working') : t('ajustes.saveBranding')}
-                </Button>
-                {isDirty ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={savingBrand}
-                    onClick={() => {
-                      if (branding) {
-                        setDraft(draftFromBranding(branding))
-                        setBrandSaved(false)
-                      }
-                    }}
-                  >
-                    {t('ajustes.discardChanges')}
-                  </Button>
-                ) : null}
-                {brandSaved ? (
-                  <span aria-live="polite" className="text-sm text-muted">
-                    {t('ajustes.brandingSaved')}
-                  </span>
-                ) : null}
-              </div>
+            </div>
+          ) : null}
+
+          {/* Discord-style floating save bar while there are unsaved changes. */}
+          {isOwner && isDirty ? (
+            <div
+              role="status"
+              data-testid="brand-unsaved-bar"
+              className="fixed inset-x-3 bottom-20 z-50 mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 shadow-xl md:bottom-4"
+            >
+              <p className="min-w-0 flex-1 text-sm font-medium text-ink">
+                {t('ajustes.unsavedChanges')}
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={savingBrand}
+                onClick={() => {
+                  if (branding) {
+                    setDraft(draftFromBranding(branding))
+                    setBrandSaved(false)
+                  }
+                }}
+              >
+                {t('ajustes.discardChanges')}
+              </Button>
+              <Button type="button" size="sm" disabled={savingBrand} onClick={() => void onSaveBranding()}>
+                {savingBrand ? t('inicio.working') : t('ajustes.saveBranding')}
+              </Button>
             </div>
           ) : null}
         </section>
