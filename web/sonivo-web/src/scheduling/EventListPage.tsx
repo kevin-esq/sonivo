@@ -21,6 +21,7 @@ import {
   useGroupContext,
 } from '../repertoire/ui'
 import { useT } from '../i18n'
+import { ListSkeleton, PageSkeleton } from '../ui/skeleton'
 import { plural } from '../ui/plural'
 import { formatEventType, formatStartsAt, fromDatetimeLocalValue } from './datetime'
 
@@ -105,7 +106,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
   }, [groupId, group])
 
   if (group === undefined) {
-    return <p aria-live="polite">{t('agenda.loadingEvents')}</p>
+    return <PageSkeleton label={t('agenda.loadingEvents')} />
   }
 
   if (group === null) {
@@ -144,7 +145,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
               {calendarEnabled && groupId ? (
                 <a
                   data-testid="events-calendar-feed"
-                  className="text-sm font-semibold text-primary-ink no-underline hover:underline"
+                  className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
                   href={`/api/groups/${groupId}/calendar.ics`}
                 >
                   {t('agenda.calendarFeed')}
@@ -188,7 +189,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       <ProblemAlert message={listError} />
 
       {events === null ? (
-        <p aria-live="polite">Cargando eventos…</p>
+        <ListSkeleton rows={3} label={t('agenda.loadingEvents')} />
       ) : events.length === 0 ? (
         showCreate ? null : (
           <EmptyPanel

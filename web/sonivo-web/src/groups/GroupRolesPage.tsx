@@ -7,6 +7,7 @@ import { PageBreadcrumb } from '../repertoire/chrome'
 import { useGroupContext, mutationErrorMessage, ProblemAlert } from '../repertoire/ui'
 import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
+import { PageSkeleton } from '../ui/skeleton'
 
 type RoleInfo = {
   id: string
@@ -45,7 +46,7 @@ function PermissionCell({ granted }: { granted: boolean }) {
     <span
       className={cn(
         'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold',
-        granted ? 'bg-success/20 text-success' : 'bg-surface-hover text-muted',
+        granted ? 'bg-success/20 text-success-ink' : 'bg-surface-hover text-muted',
       )}
     >
       {granted ? '✓' : '—'}
@@ -76,7 +77,7 @@ export function GroupRolesPage() {
   }, [groupId])
 
   if (group === undefined) {
-    return <p aria-live="polite">{t('roles.loading')}</p>
+    return <PageSkeleton label={t('roles.loading')} />
   }
 
   if (group === null) {

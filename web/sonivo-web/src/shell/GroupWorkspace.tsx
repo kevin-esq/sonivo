@@ -389,14 +389,14 @@ export function GroupWorkspace({
                 <nav className="space-y-0.5" aria-label={t('workspace.account')}>
                   <Link
                     to="/grupos"
-                    className="flex min-h-9 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 no-underline transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+                    className="flex min-h-11 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 no-underline transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
                   >
                     <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
                     {t('workspace.myGroups')}
                   </Link>
                   <Link
                     to="/cuenta"
-                    className="flex min-h-9 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 no-underline transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+                    className="flex min-h-11 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 no-underline transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
                   >
                     <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
                     {t('workspace.account')}
@@ -404,7 +404,7 @@ export function GroupWorkspace({
                   <button
                     type="button"
                     onClick={onLogout}
-                    className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+                    className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-shell-foreground/70 transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
                   >
                     <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
                     {t('workspace.logout')}
@@ -443,34 +443,9 @@ export function GroupWorkspace({
             <span className="font-semibold text-shell-foreground">Sonivo</span>
           </Link>
           <div className="flex items-center gap-1">
-            {/* "Más": exposes the desktop-only destinations (Miembros) that the
-                4-tab bottom bar cannot carry, without shrinking its targets. */}
-            {group ? (
-              <details className="relative" data-testid="mobile-more">
-                <summary
-                  aria-label={t('workspace.more')}
-                  className="grid min-h-11 min-w-11 cursor-pointer list-none place-items-center rounded-lg text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary [&::-webkit-details-marker]:hidden"
-                >
-                  <Menu className="h-5 w-5" aria-hidden="true" />
-                </summary>
-                <div className="absolute right-0 z-50 mt-1 w-48 rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg">
-                  <NavLink
-                    to={`/groups/${group.id}/people`}
-                    className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
-                  >
-                    <Users className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-                    {t('nav.people')}
-                  </NavLink>
-                  <NavLink
-                    to={`/groups/${group.id}/ajustes`}
-                    className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
-                  >
-                    <Settings2 className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-                    {t('grupo.ajustes')}
-                  </NavLink>
-                </div>
-              </details>
-            ) : null}
+            {/* Single "Más" lives in the bottom tab bar; the top bar keeps only
+                account + sign-out so there is exactly one overflow menu per
+                breakpoint (owner request 2026-10-05). */}
             <Link
               to="/cuenta"
               aria-label={t('grupo.openAccount')}
@@ -547,7 +522,7 @@ export function GroupWorkspace({
                         {members.slice(0, 4).map((member) => (
                           <span
                             key={member.userId}
-                            className="grid h-8 w-8 place-items-center rounded-full border-2 border-black/10 bg-primary text-[11px] font-bold text-primary-foreground"
+                            className="grid h-8 w-8 place-items-center rounded-full border-2 border-black/10 bg-primary-strong text-[11px] font-bold text-primary-foreground"
                           >
                             {member.displayName.trim().slice(0, 1).toUpperCase()}
                           </span>
@@ -577,7 +552,7 @@ export function GroupWorkspace({
               </div>
               <Link
                 to={`/groups/${group.id}/ajustes`}
-                className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary md:hidden"
+                className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary md:hidden"
               >
                 <Settings2 className="h-4 w-4" aria-hidden="true" />
                 {t('grupo.ajustes')}
@@ -613,7 +588,12 @@ export function GroupWorkspace({
           aria-label={t('workspace.sections')}
           data-testid="mobile-tabbar"
         >
-          <ul className="grid grid-cols-5">
+          <ul
+            className="grid"
+            style={{
+              gridTemplateColumns: `repeat(${mobileTabItems.length + 1}, minmax(0, 1fr))`,
+            }}
+          >
             {mobileTabItems.map((item) => {
               const Icon = item.icon
               return (
@@ -643,7 +623,7 @@ export function GroupWorkspace({
                   <Menu className="h-5 w-5" aria-hidden="true" />
                   {t('workspace.more')}
                 </summary>
-                <div className="absolute bottom-full right-0 z-50 mb-1 w-48 rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg">
+                <div className="absolute bottom-full right-0 z-50 mb-1 max-h-[70vh] w-52 overflow-y-auto rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg">
                   {mobileMoreItems.map((item) => {
                     const Icon = item.icon
                     return (
@@ -658,6 +638,13 @@ export function GroupWorkspace({
                       </NavLink>
                     )
                   })}
+                  <NavLink
+                    to={`/groups/${group.id}/ajustes`}
+                    className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
+                  >
+                    <Settings2 className="h-4 w-4 text-primary-ink" aria-hidden="true" />
+                    {t('grupo.ajustes')}
+                  </NavLink>
                 </div>
               </details>
             </li>

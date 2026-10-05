@@ -14,8 +14,16 @@
   --color-primary-strong: #6d4ee0;
   --color-secondary: #e8c4f6;
   --color-secondary-foreground: #0f172a;
+  /* `primary-ink` is text-on-surface: dark needs a lighter value than the
+     light-tuned `@theme` #6d4ee0, which failed AA (~3.15:1) on the dark
+     canvas (#0b1220). #a99bf5 keeps >=4.5:1 on canvas and on hover surfaces. */
+  --color-primary-ink: #a99bf5;
+  --color-success-ink: #86efac;
   --color-accent: #9d8bda;
   --color-success: #7ddb81;
+  /* Contrast-safe success for text/icons on surfaces (AA), mirroring the
+     primary/error `-ink` pattern. `success` stays a fill. */
+  --color-success-ink: #86efac;
   --color-warning: #f3b626;
   --color-error: #ef4444;
   --color-error-foreground: #ffffff;
@@ -98,10 +106,12 @@
   --color-surface: #ffffff;
   --color-ink: #0f172a;
   --color-muted: #64748b;
+  --color-primary-ink: #6d4ee0;
   --color-surface-hover: #f8fafc;
   --color-border-subtle: #e2e8f0;
   /* Light theme semantic colors */
   --color-success: #16a34a;
+  --color-success-ink: #15803d;
   --color-warning: #d97706;
   --color-error: #dc2626;
   --color-error-ink: #dc2626;

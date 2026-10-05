@@ -38,7 +38,7 @@ export function JoinGroupPage() {
           <h1 className="text-2xl font-bold tracking-tight text-ink">
             {t("join.title")}
           </h1>
-          <p className="text-sm text-muted">{t("join.subtitle")}</p>
+          <p className="text-sm text-ink/80">{t("join.subtitle")}</p>
         </div>
       </div>
 
@@ -80,7 +80,7 @@ export function JoinGroupPage() {
         <div className="flex items-center justify-between gap-2">
           <Link
             to="/"
-            className="text-sm font-medium text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="inline-flex min-h-11 items-center text-sm font-medium text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             {t("placeholder.back")}
           </Link>

@@ -341,7 +341,7 @@ export function GroupTasksPage() {
                 aria-pressed={view === tab.id}
                 onClick={() => setView(tab.id)}
                 className={cn(
-                  'min-h-9 rounded-lg px-4 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                  'min-h-11 rounded-lg px-4 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
                   view === tab.id
                     ? 'bg-surface text-ink shadow-sm'
                     : 'text-muted hover:text-ink',
@@ -353,7 +353,7 @@ export function GroupTasksPage() {
           </div>
 
           {/* Filters */}
-          <div className="flex gap-1" role="group" aria-label={t('tareas.filterLabel')}>
+          <div className="flex flex-wrap gap-1" role="group" aria-label={t('tareas.filterLabel')}>
             {([
               { id: 'all', label: t('tareas.filterAll') },
               { id: 'open', label: t('tareas.filterOpen') },
@@ -367,7 +367,7 @@ export function GroupTasksPage() {
                 aria-pressed={filter === tab.id}
                 onClick={() => setFilter(tab.id)}
                 className={cn(
-                  'min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                  'min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
                   filter === tab.id
                     ? 'bg-primary-strong text-primary-foreground'
                     : 'text-muted hover:text-ink',
@@ -882,7 +882,7 @@ function TaskCard({
             onClick={(e) => { e.stopPropagation(); onMove('left') }}
             disabled={task.status === 'open'}
             aria-label={t('tareas.moveTo', { status: t(STATUS_META[BOARD_COLUMNS[BOARD_COLUMNS.indexOf(task.status as BoardStatus) - 1] ?? 'open'].columnKey) })}
-            className="grid h-6 w-6 place-items-center rounded-full bg-surface text-muted shadow-sm hover:text-ink disabled:opacity-30"
+            className="grid h-11 w-11 place-items-center rounded-full bg-surface text-muted shadow-sm hover:text-ink disabled:opacity-30"
           >
             <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
@@ -891,7 +891,7 @@ function TaskCard({
             onClick={(e) => { e.stopPropagation(); onMove('right') }}
             disabled={task.status === 'done'}
             aria-label={t('tareas.moveTo', { status: t(STATUS_META[BOARD_COLUMNS[BOARD_COLUMNS.indexOf(task.status as BoardStatus) + 1] ?? 'done'].columnKey) })}
-            className="grid h-6 w-6 place-items-center rounded-full bg-surface text-muted shadow-sm hover:text-ink disabled:opacity-30"
+            className="grid h-11 w-11 place-items-center rounded-full bg-surface text-muted shadow-sm hover:text-ink disabled:opacity-30"
           >
             <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
           </button>

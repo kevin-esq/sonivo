@@ -488,7 +488,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       )}
 
       {/* Tab navigation */}
-      <div className="flex gap-1 overflow-x-auto rounded-xl bg-surface-hover p-1" role="tablist" aria-label={t('ajustes.tabsLabel')}>
+      <div className="flex flex-wrap gap-1 rounded-xl bg-surface-hover p-1" role="tablist" aria-label={t('ajustes.tabsLabel')}>
         {SETTINGS_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -497,7 +497,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              'flex-1 rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+              'min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
               activeTab === tab.id
                 ? 'bg-surface text-ink shadow-sm'
                 : 'text-muted hover:text-ink',
@@ -599,9 +599,10 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   />
                 </label>
               </div>
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex min-h-11 items-center gap-2 text-sm">
                 <input
                   type="checkbox"
+                  className="h-5 w-5"
                   checked={draft.showSonivoCredit}
                   disabled={!isOwner}
                   onChange={(e) => patchDraft({ showSonivoCredit: e.target.checked })}
@@ -737,7 +738,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   <p className="text-xs text-muted">{t('ajustes.previewCardBody')}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-primary-strong text-xs font-bold text-primary-foreground">
                     A
                   </span>
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">

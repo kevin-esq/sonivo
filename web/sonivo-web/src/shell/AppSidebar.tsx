@@ -192,7 +192,7 @@ function SidebarBody({
           )}
         >
           <span
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-strong text-xs font-bold text-primary-foreground"
             aria-hidden="true"
           >
             {initialsOf(user)}

@@ -194,11 +194,14 @@ export type GroupThemeInput = {
   theme?: 'light' | 'dark';
 };
 
-/** Content surface the token set will be rendered on (matches index.css). */
-const LIGHT_SURFACE = '#ffffff';
-const DARK_SURFACE = '#111a2e';
+/** Shell surfaces the token set will be rendered on (matches index.css). */
 const LIGHT_SHELL = '#ffffff';
 const DARK_SHELL = '#0f172a';
+/* Ink tokens often sit on the canvas or `bg-surface-hover`, not the flat
+   surface. Clamp against the darkest (light theme) / lightest (dark theme)
+   shade they can land on so AA holds on every row. */
+const LIGHT_INK_BG = '#f1f5f9';
+const DARK_INK_BG = '#1f283b';
 
 /**
  * Derive the semantic token overrides that make a group's identity drive the
@@ -229,16 +232,22 @@ export function deriveGroupThemeTokens(input: GroupThemeInput): Record<string, s
     onPrimary === '#ffffff'
       ? accessibleInk(primary, '#ffffff', 'dark')
       : accessibleInk(primary, '#0f172a', 'light');
-  const surface = theme === 'dark' ? DARK_SURFACE : LIGHT_SURFACE;
+  const inkBg = theme === 'dark' ? DARK_INK_BG : LIGHT_INK_BG;
+  const prefer = theme === 'dark' ? 'light' : 'dark';
   const shell = theme === 'dark' ? DARK_SHELL : LIGHT_SHELL;
 
   const tokens: Record<string, string> = {
     ...brand,
     '--color-primary': primary,
     '--color-primary-foreground': onPrimary,
-    '--color-primary-ink': accessibleInk(primary, surface, theme === 'dark' ? 'light' : 'dark'),
+    '--color-primary-ink': accessibleInk(primary, inkBg, prefer),
     '--color-primary-strong': primaryStrong,
-    '--color-shell-link': accessibleInk(primary, shell, theme === 'dark' ? 'light' : 'dark'),
+    '--color-shell-link': accessibleInk(primary, shell, prefer),
+    // Theme-aware semantic inks. `deriveBrandTokens` emits a theme-agnostic
+    // `--color-error-ink: darken(error)`; on dark that produced a dark red
+    // (~2.96:1). Clamp both error and success inks to the themed surface.
+    '--color-error-ink': accessibleInk(brand['--color-error'], inkBg, prefer),
+    '--color-success-ink': accessibleInk(brand['--color-success'], inkBg, prefer),
   };
 
   if (input.secondary) {

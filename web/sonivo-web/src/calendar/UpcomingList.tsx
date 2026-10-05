@@ -78,7 +78,7 @@ export function UpcomingList({
       <button
         type="button"
         onClick={onViewAll}
-        className="mt-2 inline-flex min-h-9 items-center text-sm font-semibold text-primary-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         {t(viewAllKey)}
       </button>

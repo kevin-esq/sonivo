@@ -26,6 +26,7 @@ import { useT, type I18nKey } from '../i18n'
 import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
+import { ListSkeleton } from '../ui/skeleton'
 import { canManageContentRole, formatPurpose, mutationErrorMessage, ProblemAlert } from '../repertoire/ui'
 import { useAction } from '../hooks/useAction'
 import { useResource } from '../hooks/useResource'
@@ -207,9 +208,7 @@ export function GroupResourcesPage() {
       </header>
 
       {surface.loading && items.length === 0 ? (
-        <p aria-live="polite" className="text-sm text-muted">
-          {t('recursos.loading')}
-        </p>
+        <ListSkeleton rows={4} label={t('recursos.loading')} />
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-border-subtle bg-surface px-5 py-10 text-center">
           <Package className="mx-auto h-8 w-8 text-muted" aria-hidden="true" />
@@ -257,7 +256,7 @@ function CategoryTab({
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        'min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+        'min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
         active ? 'bg-primary-strong text-primary-foreground' : 'text-muted hover:text-ink',
       )}
     >

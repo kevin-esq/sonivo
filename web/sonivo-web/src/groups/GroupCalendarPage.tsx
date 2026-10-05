@@ -9,6 +9,7 @@ import {
   type GroupDetail,
 } from "../api/client";
 import { useT } from "../i18n";
+import { ListSkeleton, PageSkeleton } from "../ui/skeleton";
 import { Button } from "../ui/button";
 import { cn } from "../ui/cn";
 import { canManageContentRole, ProblemAlert } from "../repertoire/ui";
@@ -61,7 +62,14 @@ export function GroupCalendarPage() {
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined);
   const [events, setEvents] = useState<CalendarEvent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<CalendarView>("month");
+  // Mobile-first default (owner 2026-10-05): the 7-column month grid cannot
+  // reach 44px targets at 320px, so phones open on the agenda list instead.
+  const [view, setView] = useState<CalendarView>(() =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 639px)").matches
+      ? "agenda"
+      : "month",
+  );
   const [cursor, setCursor] = useState<Date>(today);
   const [showCreate, setShowCreate] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -157,7 +165,7 @@ export function GroupCalendarPage() {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">{t("calendario.loading")}</p>;
+    return <PageSkeleton label={t("calendario.loading")} />;
   }
 
   if (group === null) {
@@ -202,7 +210,7 @@ export function GroupCalendarPage() {
                 type="button"
                 onClick={() => shift(-1)}
                 aria-label={t("calendario.prev")}
-                className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -216,7 +224,7 @@ export function GroupCalendarPage() {
                 type="button"
                 onClick={() => shift(1)}
                 aria-label={t("calendario.next")}
-                className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -229,7 +237,7 @@ export function GroupCalendarPage() {
                   aria-pressed={view === option.id}
                   onClick={() => setView(option.id)}
                   className={cn(
-                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                    "min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                     view === option.id
                       ? "bg-primary-strong text-primary-foreground"
                       : "text-muted hover:text-ink",
@@ -242,13 +250,13 @@ export function GroupCalendarPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 lg:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 lg:hidden">
           <div className="flex items-center gap-1 rounded-xl border border-border-subtle bg-surface px-1">
             <button
               type="button"
               onClick={() => shift(-1)}
               aria-label={t("calendario.prev")}
-              className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -262,7 +270,7 @@ export function GroupCalendarPage() {
               type="button"
               onClick={() => shift(1)}
               aria-label={t("calendario.next")}
-              className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -294,12 +302,10 @@ export function GroupCalendarPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-4">
           {events === null ? (
-            <p aria-live="polite" className="text-sm text-muted">
-              {t("calendario.loading")}
-            </p>
+            <ListSkeleton rows={4} label={t("calendario.loading")} />
           ) : view === "month" ? (
             <>
               <div className="hidden lg:block">

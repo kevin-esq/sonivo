@@ -74,11 +74,22 @@ export const groupNavSections: GroupNavSection[] = [
 
 export const groupNavItems: GroupNavItem[] = groupNavSections.flatMap((section) => section.items)
 
-export const mobileTabItems = groupNavItems
-  .filter((item) => !item.desktopOnly)
-  .filter((item) => ['home', 'songs', 'calendar', 'people'].includes(item.id))
+/**
+ * Primary mobile destinations (approved 2026-10-05): Inicio, Canciones,
+ * Eventos, Tareas. Picked for the four highest-frequency tasks so the bottom
+ * bar carries four real tabs (the previous list resolved to three, leaving a
+ * dead 5th column in a `grid-cols-5`).
+ */
+const MOBILE_TAB_IDS = ['home', 'songs', 'events', 'tasks'] as const
 
-/** Items hidden behind the "More" tab on mobile. */
-export const mobileMoreItems = groupNavItems
-  .filter((item) => !item.desktopOnly)
-  .filter((item) => !['home', 'songs', 'calendar', 'people'].includes(item.id))
+export const mobileTabItems: GroupNavItem[] = MOBILE_TAB_IDS
+  .map((id) => groupNavItems.find((item) => item.id === id))
+  .filter((item): item is GroupNavItem => Boolean(item))
+
+/**
+ * Everything else lives in the single "Más" sheet (nav.ts), plus Ajustes which
+ * the workspace appends. Keeps full parity with the desktop rail.
+ */
+export const mobileMoreItems = groupNavItems.filter(
+  (item) => !(MOBILE_TAB_IDS as readonly string[]).includes(item.id),
+)

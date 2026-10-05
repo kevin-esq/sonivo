@@ -52,7 +52,7 @@ export function HomePage({ user }: { user: CurrentUser }) {
         <h1 className="text-3xl font-bold tracking-tight text-ink">
           {t("home.greeting", { name: greetingName })}
         </h1>
-        <p className="text-muted">{t("home.subtitle")}</p>
+        <p className="text-ink/80">{t("home.subtitle")}</p>
       </header>
 
       <QuickActions />

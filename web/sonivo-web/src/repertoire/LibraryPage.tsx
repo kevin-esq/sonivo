@@ -323,7 +323,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                 {isOwner ? (
                   <button
                     type="button"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    className="absolute right-2 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-lg p-1 text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     aria-label={`Más opciones para ${song.title}`}
                     onClick={(e: MouseEvent) => {
                       e.preventDefault()
