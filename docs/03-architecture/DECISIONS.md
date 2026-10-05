@@ -8,6 +8,53 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0064 — Tooling: OpenCode V2-native MCP config + security MCP servers + security skills
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-05.
+- **Date:** 2026-10-05
+- **Extends:** ADR-0002 (tooling allowlist), ADR-0039 (knowledge workflows), ADR-0041 (single `.agents/` tree), ADR-0063 (platform skills + MCP servers).
+- **Reference:** [`docs/tooling/OPENCODE-V2-MCP-SKILLS-2026-10.md`](../tooling/OPENCODE-V2-MCP-SKILLS-2026-10.md)
+
+### Context
+
+The root `opencode.json` used the V1 MCP shape (server names directly under `mcp`
+with `enabled: true`). OpenCode V2 reads that for compatibility but the native
+shape nests servers under `mcp.servers` and uses `disabled` to opt out. The user
+also asked to harden the development environment with security-oriented MCP
+servers and project-local skills, and explicitly authorized the change.
+
+### Decision
+
+1. Migrate the root `opencode.json` to the **V2-native** `mcp.servers` shape and
+   drop the V1 `enabled` flags (servers connect by default).
+2. Add two security MCP servers as environment tooling — **not** a
+   reproducibility dependency of the app:
+   - `semgrep` — local, `uvx --from semgrep semgrep mcp -t stdio`, **enabled** (no token required; verified connected; 120 s startup/catalog timeout).
+   - `snyk` — local, `npx -y snyk@latest mcp -t stdio`, **enabled**; authenticate with
+     `snyk_auth` (or supply `SNYK_TOKEN` via `{env:SNYK_TOKEN}` — never committed).
+     `SNYK_MCP_PROFILE=lite` keeps the tool surface small.
+3. Authorize two **project-local** security skills under `.agents/skills/`,
+   adapted to Sonivo's stack (not copied from the Next.js-oriented tutorial):
+   - `dotnet-secure-architecture` — ASP.NET Core / EF Core / Identity / tenancy hardening.
+   - `react-frontend-security` — React 19 / Vite / Tailwind XSS, env-leak, token, client-authz review.
+
+### Firewall
+
+- `snyk` is enabled but unauthenticated until the user signs in (`snyk_auth`); any
+  token is supplied via `{env:SNYK_TOKEN}` and never written to git.
+- No user-global tooling becomes a Sonivo dependency (`PRESENT ≠ AUTHORIZED`).
+- All new skills live in `.agents/skills/`; no parallel vendor trees (ADR-0041).
+- Security MCP servers add model context; add only what is needed.
+- Further skill/MCP additions still require explicit human authorization.
+
+### Consequences
+
+The binding allowlist grows from **31 to 33** project-local skills.
+`SKILLS-INVENTORY.md`, `TOOLING-AUDIT.md`, and `AGENTS.md` record the new set and
+the V2 config shape.
+
+---
+
 ## ADR-0063 — Tooling: adopt official agent skills (.NET / testing / security) + MCP servers
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-04.
