@@ -140,6 +140,10 @@ const CuentaPreferencesPage = named(
   () => import("./shell/UserChrome"),
   "CuentaPreferencesPage",
 );
+const SettingsMembershipPage = named(
+  () => import("./shell/settings/SettingsPages"),
+  "SettingsMembershipPage",
+);
 
 // ---------- Estado de sesión ----------
 type SessionState =
@@ -447,6 +451,10 @@ export default function App() {
                     element={<CuentaPreferencesPage />}
                   />
                   <Route path="/cuenta/seguridad" element={<SecurityPage />} />
+                  <Route
+                    path="/cuenta/membresia"
+                    element={<SettingsMembershipPage />}
+                  />
                   <Route
                     path="/cuenta/notificaciones"
                     element={<PlaceholderPage />}

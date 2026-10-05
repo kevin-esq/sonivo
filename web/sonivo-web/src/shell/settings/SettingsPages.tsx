@@ -12,6 +12,7 @@ import {
   Palette,
   ShieldCheck,
   UserRound,
+  Users,
 } from 'lucide-react'
 import {
   fetchTwoFactorStatus,
@@ -26,6 +27,7 @@ import { useTheme } from '../../brand/theme'
 import { useAuth } from '../authContext'
 import { Button } from '../../ui/button'
 import { fieldClass } from '../../ui/field'
+import { formatMembershipRole, isOwnerRole } from '../../repertoire/ui'
 import { AccountCard } from '../account/AccountCard'
 import { AccountRow } from '../account/AccountRow'
 import { ProfileHeader } from '../account/ProfileHeader'
@@ -359,6 +361,118 @@ export function SettingsTeamPage() {
           {t('equipo.empty')}
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * `/cuenta/membresia` — account-level membership. Billing/subscription is not a
+ * group-owned concern (ADR-0055) and the group centre no longer hosts a
+ * "Membresía" tab; this page owns the plan summary and the user's group
+ * memberships. No real billing UI yet (ADR firewall: no billing).
+ */
+export function SettingsMembershipPage() {
+  const { t } = useT()
+  const [groups, setGroups] = useState<GroupSummary[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void listMyGroups()
+      .then((result) => {
+        if (!cancelled) setGroups(result)
+      })
+      .catch((err) => {
+        if (!cancelled) setError(problemDetail(err))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return (
+    <div className="space-y-6">
+      <header className="space-y-1.5">
+        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('membresia.title')}</h1>
+        <p className="text-muted">{t('membresia.subtitle')}</p>
+      </header>
+
+      <AccountCard
+        title={t('membresia.planTitle')}
+        action={
+          <span className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink">
+            {t('perfil.planPro')}
+          </span>
+        }
+      >
+        <p className="px-2 py-1 text-sm text-muted">{t('membresia.planNote')}</p>
+        <div className="px-2 pt-2">
+          <Button variant="secondary" disabled className="w-full">
+            {t('perfil.managePlan')}
+          </Button>
+        </div>
+      </AccountCard>
+
+      <section aria-labelledby="membresia-groups-heading" className="space-y-3">
+        <div className="space-y-1">
+          <h2 id="membresia-groups-heading" className="flex items-center gap-2 text-xl font-semibold text-ink">
+            <Users className="h-5 w-5 text-primary-ink" aria-hidden="true" />
+            {t('membresia.groupsTitle')}
+          </h2>
+          <p className="text-sm text-muted">{t('membresia.groupsSubtitle')}</p>
+        </div>
+
+        {error ? (
+          <p role="alert" className="text-sm text-error-ink">
+            {error}
+          </p>
+        ) : null}
+
+        {groups === null && !error ? (
+          <p aria-live="polite" className="text-sm text-muted">
+            {t('membresia.loading')}
+          </p>
+        ) : groups && groups.length > 0 ? (
+          <ul className="space-y-2">
+            {groups.map((group) => (
+              <li
+                key={group.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-ink">{group.name}</p>
+                  <p className="text-xs text-muted">
+                    {t('membresia.roleLabel')}: {formatMembershipRole(group.role)}
+                    {typeof group.memberCount === 'number'
+                      ? ` · ${group.memberCount} ${t('membresia.membersLabel').toLowerCase()}`
+                      : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {isOwnerRole(group.role) ? (
+                    <Link
+                      to={`/groups/${group.id}/people`}
+                      className="text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    >
+                      {t('membresia.manageMembers')}
+                    </Link>
+                  ) : null}
+                  <Link
+                    to={`/groups/${group.id}`}
+                    className="text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  >
+                    {t('membresia.openGroup')}
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="rounded-xl border border-border-subtle bg-surface p-4 text-sm text-muted">
+            {t('membresia.empty')}
+          </div>
+        )}
+      </section>
     </div>
   )
 }

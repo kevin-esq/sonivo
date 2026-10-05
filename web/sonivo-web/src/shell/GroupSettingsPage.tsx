@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
+import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ApiError,
@@ -16,7 +16,8 @@ import {
   type GroupBranding,
   type GroupDetail,
 } from '../api/client'
-import { TYPOGRAPHY_OPTIONS } from '../brand/tokens'
+import { TYPOGRAPHY_OPTIONS, deriveGroupThemeTokens } from '../brand/tokens'
+import { useTheme } from '../brand/theme'
 import { useT, type I18nKey } from '../i18n'
 import {
   ACCESS_DENIED_MESSAGE,
@@ -166,12 +167,13 @@ function draftFromBranding(branding: GroupBranding): BrandDraft {
   }
 }
 
-type SettingsTab = 'general' | 'branding' | 'membership' | 'permissions' | 'notifications' | 'integrations' | 'advanced' | 'danger'
+type SettingsTab = 'general' | 'branding' | 'permissions' | 'notifications' | 'integrations' | 'advanced' | 'danger'
 
+// Membership/billing is account-level (see /cuenta/membresia), not group-owned;
+// the group centre only exposes group-scoped settings.
 const SETTINGS_TABS: { id: SettingsTab; labelKey: I18nKey }[] = [
   { id: 'general', labelKey: 'ajustes.tabGeneral' },
   { id: 'branding', labelKey: 'ajustes.tabBranding' },
-  { id: 'membership', labelKey: 'ajustes.tabMembership' },
   { id: 'permissions', labelKey: 'ajustes.tabPermissions' },
   { id: 'notifications', labelKey: 'ajustes.tabNotifications' },
   { id: 'integrations', labelKey: 'ajustes.tabIntegrations' },
@@ -205,6 +207,30 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const [brandError, setBrandError] = useState<string | null>(null)
   const [brandConflict, setBrandConflict] = useState<string | null>(null)
   const [uploading, setUploading] = useState<'logo' | 'banner' | 'favicon' | null>(null)
+
+  // Live component preview uses the same semantic tokens as the real workspace,
+  // derived from the *draft* colours so it updates before saving.
+  const { theme } = useTheme()
+  const previewFontFamily = useMemo(
+    () => TYPOGRAPHY_OPTIONS.find((option) => option.id === (draft?.typography ?? 'system'))?.fontFamily ?? null,
+    [draft?.typography],
+  )
+  const componentPreviewTokens = useMemo(
+    () =>
+      draft
+        ? deriveGroupThemeTokens({
+            primary: draft.accentHex || '#8366f1',
+            secondary: draft.secondaryHex || null,
+            accent: draft.accentColorHex || null,
+            success: draft.successHex || null,
+            warning: draft.warningHex || null,
+            error: draft.errorHex || null,
+            typography: previewFontFamily,
+            theme,
+          })
+        : {},
+    [draft, previewFontFamily, theme],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -450,7 +476,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         <h1 id="ajustes-heading" className="text-2xl font-bold tracking-tight">
           {t('ajustes.title')}
         </h1>
-        <p className="text-sm text-slate-500">{t('ajustes.subtitle')}</p>
+        <p className="text-sm text-muted">{t('ajustes.subtitle')}</p>
       </div>
 
       {isOwner ? (
@@ -491,7 +517,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             <ConflictAlert message={renameConflict} />
             <ProblemAlert message={renameError} />
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">{t('ajustes.name')}</span>
+              <span className="text-sm font-medium text-ink">{t('ajustes.name')}</span>
               <input
                 className={fieldClass}
                 type="text"
@@ -515,7 +541,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">{t('ajustes.brandingTitle')}</h2>
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">{t('ajustes.displayNameOverride')}</span>
+                <span className="text-sm font-medium text-ink">{t('ajustes.displayNameOverride')}</span>
                 <input
                   className={fieldClass}
                   type="text"
@@ -525,10 +551,10 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   maxLength={120}
                   onChange={(e) => patchDraft({ displayName: e.target.value })}
                 />
-                <span className="text-xs text-slate-500">{t('ajustes.displayNameHint')}</span>
+                <span className="text-xs text-muted">{t('ajustes.displayNameHint')}</span>
               </label>
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">{t('ajustes.welcomeText')}</span>
+                <span className="text-sm font-medium text-ink">{t('ajustes.welcomeText')}</span>
                 <input
                   className={fieldClass}
                   type="text"
@@ -539,7 +565,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 />
               </label>
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">{t('ajustes.loginHeadline')}</span>
+                <span className="text-sm font-medium text-ink">{t('ajustes.loginHeadline')}</span>
                 <input
                   className={fieldClass}
                   type="text"
@@ -551,7 +577,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-slate-700">{t('ajustes.tagline')}</span>
+                  <span className="text-sm font-medium text-ink">{t('ajustes.tagline')}</span>
                   <input
                     className={fieldClass}
                     type="text"
@@ -562,7 +588,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   />
                 </label>
                 <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-slate-700">{t('ajustes.verse')}</span>
+                  <span className="text-sm font-medium text-ink">{t('ajustes.verse')}</span>
                   <input
                     className={fieldClass}
                     type="text"
@@ -594,7 +620,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             <h2 id="brand-heading" className="text-lg font-semibold">
               {t('ajustes.brandingTitle')}
             </h2>
-            <p className="text-sm text-slate-500">{t('ajustes.brandingSubtitle')}</p>
+            <p className="text-sm text-muted">{t('ajustes.brandingSubtitle')}</p>
           </div>
 
           {/* Live preview: header with banner (or cover), logo and both brand colours. */}
@@ -629,10 +655,24 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   {draft.displayName || group.name}
                 </p>
                 {draft.tagline || draft.welcomeText ? (
-                  <p className="mt-0.5 truncate text-sm text-white/85">{draft.tagline || draft.welcomeText}</p>
+                  <p
+                    className={cn(
+                      'mt-0.5 truncate text-sm',
+                      branding.bannerUrl || coverUsesLightText(draft.cover) ? 'text-white/85' : 'text-muted',
+                    )}
+                  >
+                    {draft.tagline || draft.welcomeText}
+                  </p>
                 ) : null}
                 {draft.verse ? (
-                  <p className="mt-1 truncate text-xs italic text-white/70">{draft.verse}</p>
+                  <p
+                    className={cn(
+                      'mt-1 truncate text-xs italic',
+                      branding.bannerUrl || coverUsesLightText(draft.cover) ? 'text-white/70' : 'text-muted',
+                    )}
+                  >
+                    {draft.verse}
+                  </p>
                 ) : null}
               </div>
               {draft.secondaryHex ? (
@@ -659,12 +699,61 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </div>
 
+          {/* Component preview: buttons, nav, card and badge rendered with the
+              same semantic tokens as the live workspace (draft-driven). */}
+          <div
+            data-testid="branding-component-preview"
+            className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-4 font-sans"
+            style={componentPreviewTokens as CSSProperties}
+          >
+            <p className="text-sm font-medium text-ink">{t('ajustes.previewComponents')}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-3">
+                <div className="space-y-1 rounded-xl bg-canvas p-2">
+                  <span className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-primary-ink">
+                    <span className="h-3 w-3 rounded-full bg-primary" aria-hidden="true" />
+                    {t('nav.home')}
+                  </span>
+                  <span className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted">
+                    <span className="h-3 w-3 rounded-full bg-muted/40" aria-hidden="true" />
+                    {t('nav.songs')}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex h-9 items-center rounded-xl bg-primary-strong px-3 text-sm font-semibold text-primary-foreground">
+                    {t('ajustes.saveBranding')}
+                  </span>
+                  <span className="inline-flex h-9 items-center rounded-xl border border-border-subtle px-3 text-sm font-medium text-ink">
+                    {t('ajustes.clearColor')}
+                  </span>
+                  <span className="inline-flex h-9 items-center px-1 text-sm font-semibold text-primary-ink underline">
+                    {t('ajustes.resetToDefault')}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="rounded-xl border border-border-subtle bg-surface p-3">
+                  <p className="text-sm font-semibold text-ink">{t('ajustes.previewCardTitle')}</p>
+                  <p className="text-xs text-muted">{t('ajustes.previewCardBody')}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                    A
+                  </span>
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">
+                    {t('nav.roles')}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <ConflictAlert message={brandConflict} />
           <ProblemAlert message={brandError} />
 
           {/* Contrast validation warning */}
           {draft.accentHex && contrastRatio(draft.accentHex, '#ffffff') < 4.5 ? (
-            <p role="alert" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning-ink">
+            <p role="alert" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-ink">
               {t('ajustes.contrastWarning')}
             </p>
           ) : null}
@@ -690,7 +779,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
           <fieldset className="space-y-3" disabled={!isOwner}>
             <legend className="font-medium">{t('ajustes.primaryColor')}</legend>
-            <p className="text-sm text-slate-500">{t('ajustes.colorHint')}</p>
+            <p className="text-sm text-muted">{t('ajustes.colorHint')}</p>
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.primaryColor')}>
               {BRAND_PRIMARY_PRESETS.map((swatch) => (
                 <button
@@ -713,14 +802,14 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 aria-label={t('ajustes.customColor')}
                 value={draft.accentHex || '#8366f1'}
                 onChange={(e) => patchDraft({ accentHex: e.target.value })}
-                className="h-11 w-11 cursor-pointer rounded-full border border-slate-300 bg-transparent p-1"
+                className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
             </div>
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner}>
             <legend className="font-medium">{t('ajustes.secondaryColor')}</legend>
-            <p className="text-sm text-slate-500">{t('ajustes.secondaryHint')}</p>
+            <p className="text-sm text-muted">{t('ajustes.secondaryHint')}</p>
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.secondaryColor')}>
               {BRAND_SECONDARY_PRESETS.map((swatch) => (
                 <button
@@ -743,7 +832,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 aria-label={t('ajustes.customColor')}
                 value={draft.secondaryHex || '#f5c542'}
                 onChange={(e) => patchDraft({ secondaryHex: e.target.value })}
-                className="h-11 w-11 cursor-pointer rounded-full border border-slate-300 bg-transparent p-1"
+                className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ secondaryHex: '' })}>
                 {t('ajustes.clearColor')}
@@ -753,7 +842,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
           <fieldset className="space-y-3" disabled={!isOwner}>
             <legend className="font-medium">{t('ajustes.accentColor')}</legend>
-            <p className="text-sm text-slate-500">{t('ajustes.accentColorHint')}</p>
+            <p className="text-sm text-muted">{t('ajustes.accentColorHint')}</p>
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.accentColor')}>
               {BRAND_SECONDARY_PRESETS.map((swatch) => (
                 <button
@@ -776,7 +865,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 aria-label={t('ajustes.customColor')}
                 value={draft.accentColorHex || '#9d8bda'}
                 onChange={(e) => patchDraft({ accentColorHex: e.target.value })}
-                className="h-11 w-11 cursor-pointer rounded-full border border-slate-300 bg-transparent p-1"
+                className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ accentColorHex: '' })}>
                 {t('ajustes.clearColor')}
@@ -786,17 +875,17 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
           <fieldset className="space-y-3" disabled={!isOwner}>
             <legend className="font-medium">{t('ajustes.semanticColors')}</legend>
-            <p className="text-sm text-slate-500">{t('ajustes.semanticColorsHint')}</p>
+            <p className="text-sm text-muted">{t('ajustes.semanticColorsHint')}</p>
             <div className="grid gap-4 sm:grid-cols-3">
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">{t('ajustes.successColor')}</span>
+                <span className="text-sm font-medium text-ink">{t('ajustes.successColor')}</span>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     aria-label={t('ajustes.successColor')}
                     value={draft.successHex || '#10b981'}
                     onChange={(e) => patchDraft({ successHex: e.target.value })}
-                    className="h-11 w-11 cursor-pointer rounded-full border border-slate-300 bg-transparent p-1"
+                    className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ successHex: '' })}>
                     {t('ajustes.clearColor')}
@@ -804,14 +893,14 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 </div>
               </label>
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">{t('ajustes.warningColor')}</span>
+                <span className="text-sm font-medium text-ink">{t('ajustes.warningColor')}</span>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     aria-label={t('ajustes.warningColor')}
                     value={draft.warningHex || '#f59e0b'}
                     onChange={(e) => patchDraft({ warningHex: e.target.value })}
-                    className="h-11 w-11 cursor-pointer rounded-full border border-slate-300 bg-transparent p-1"
+                    className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ warningHex: '' })}>
                     {t('ajustes.clearColor')}
@@ -819,14 +908,14 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 </div>
               </label>
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">{t('ajustes.errorColor')}</span>
+                <span className="text-sm font-medium text-ink">{t('ajustes.errorColor')}</span>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     aria-label={t('ajustes.errorColor')}
                     value={draft.errorHex || '#ef4444'}
                     onChange={(e) => patchDraft({ errorHex: e.target.value })}
-                    className="h-11 w-11 cursor-pointer rounded-full border border-slate-300 bg-transparent p-1"
+                    className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ errorHex: '' })}>
                     {t('ajustes.clearColor')}
@@ -838,7 +927,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
           <fieldset className="space-y-3" disabled={!isOwner}>
             <legend className="font-medium">{t('ajustes.typography')}</legend>
-            <p className="text-sm text-slate-500">{t('ajustes.typographyHint')}</p>
+            <p className="text-sm text-muted">{t('ajustes.typographyHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.typography')}>
               {TYPOGRAPHY_OPTIONS.map((option) => (
                 <button
@@ -848,7 +937,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   onClick={() => patchDraft({ typography: option.id })}
                   className={cn(
                     'flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-                    draft.typography === option.id ? 'border-primary ring-2 ring-primary/25' : 'border-slate-300 hover:border-primary/50',
+                    draft.typography === option.id ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
                   )}
                 >
                   <span style={{ fontFamily: option.fontFamily }} className="text-base">Aa</span>
@@ -860,7 +949,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
           <fieldset className="space-y-3" disabled={!isOwner}>
             <legend className="font-medium">{t('ajustes.palettesTitle')}</legend>
-            <p className="text-sm text-slate-500">{t('ajustes.palettesHint')}</p>
+            <p className="text-sm text-muted">{t('ajustes.palettesHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.palettesTitle')}>
               {BRAND_PALETTES.map((palette) => {
                 const active =
@@ -875,7 +964,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     onClick={() => patchDraft({ accentHex: palette.primary, secondaryHex: palette.secondary })}
                     className={cn(
                       'flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-                      active ? 'border-primary ring-2 ring-primary/25' : 'border-slate-300 hover:border-primary/50',
+                      active ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
                     )}
                   >
                     <span className="h-5 w-5 rounded-full" style={{ backgroundColor: palette.primary }} aria-hidden="true" />
@@ -889,7 +978,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
           <fieldset className="space-y-3" disabled={!isOwner}>
             <legend className="font-medium">{t('ajustes.cover')}</legend>
-            <p className="text-sm text-slate-500">{t('ajustes.coverHint')}</p>
+            <p className="text-sm text-muted">{t('ajustes.coverHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.cover')}>
               <button
                 type="button"
@@ -898,7 +987,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 onClick={() => patchDraft({ cover: NO_COVER })}
                 className={cn(
                   'h-11 min-w-11 rounded-xl border px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-                  draft.cover === NO_COVER ? 'border-primary ring-2 ring-primary/25' : 'border-slate-300 hover:border-primary/50',
+                  draft.cover === NO_COVER ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
                 )}
               >
                 {t('ajustes.coverNone')}
@@ -912,7 +1001,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   onClick={() => patchDraft({ cover: emoji })}
                   className={cn(
                     'grid h-11 min-w-11 place-items-center rounded-xl border px-2 text-xl transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-                    draft.cover === emoji ? 'border-primary ring-2 ring-primary/25' : 'border-slate-300 hover:border-primary/50',
+                    draft.cover === emoji ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
                   )}
                 >
                   <span aria-hidden="true">{emoji}</span>
@@ -940,7 +1029,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           <div className="grid gap-5 sm:grid-cols-3">
             <div className="space-y-2">
               <p className="text-sm font-medium">{t('ajustes.uploadLogo')}</p>
-              <p className="text-xs text-slate-500">{t('ajustes.imageHint')}</p>
+              <p className="text-xs text-muted">{t('ajustes.imageHint')}</p>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
@@ -948,11 +1037,11 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 aria-label={t('ajustes.uploadLogo')}
                 onChange={(e) => void onUploadImage('logo', e)}
               />
-              {uploading === 'logo' ? <p aria-live="polite" className="text-xs text-slate-500">{t('ajustes.uploading')}</p> : null}
+              {uploading === 'logo' ? <p aria-live="polite" className="text-xs text-muted">{t('ajustes.uploading')}</p> : null}
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium">{t('ajustes.uploadBanner')}</p>
-              <p className="text-xs text-slate-500">{t('ajustes.imageHint')}</p>
+              <p className="text-xs text-muted">{t('ajustes.imageHint')}</p>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
@@ -960,11 +1049,11 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 aria-label={t('ajustes.uploadBanner')}
                 onChange={(e) => void onUploadImage('banner', e)}
               />
-              {uploading === 'banner' ? <p aria-live="polite" className="text-xs text-slate-500">{t('ajustes.uploading')}</p> : null}
+              {uploading === 'banner' ? <p aria-live="polite" className="text-xs text-muted">{t('ajustes.uploading')}</p> : null}
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium">{t('ajustes.uploadFavicon')}</p>
-              <p className="text-xs text-slate-500">{t('ajustes.faviconHint')}</p>
+              <p className="text-xs text-muted">{t('ajustes.faviconHint')}</p>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
@@ -972,14 +1061,14 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 aria-label={t('ajustes.uploadFavicon')}
                 onChange={(e) => void onUploadImage('favicon', e)}
               />
-              {uploading === 'favicon' ? <p aria-live="polite" className="text-xs text-slate-500">{t('ajustes.uploading')}</p> : null}
+              {uploading === 'favicon' ? <p aria-live="polite" className="text-xs text-muted">{t('ajustes.uploading')}</p> : null}
             </div>
           </div>
 
           {isOwner ? (
             <div className="space-y-2">
               {isDirty ? (
-                <p role="alert" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning-ink">
+                <p role="alert" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-ink">
                   {t('ajustes.unsavedChanges')}
                 </p>
               ) : null}
@@ -1003,7 +1092,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   </Button>
                 ) : null}
                 {brandSaved ? (
-                  <span aria-live="polite" className="text-sm text-slate-600">
+                  <span aria-live="polite" className="text-sm text-muted">
                     {t('ajustes.brandingSaved')}
                   </span>
                 ) : null}
@@ -1047,7 +1136,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
           <fieldset className="space-y-3" disabled={!isOwner}>
             <legend className="font-medium">{t('ajustes.accent')}</legend>
-            <p className="text-sm text-slate-500">{t('ajustes.accentHint')}</p>
+            <p className="text-sm text-muted">{t('ajustes.accentHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.accent')}>
               {GROUP_ACCENT_PRESETS.map((swatch) => (
                 <button
@@ -1068,7 +1157,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
           <fieldset className="space-y-3" disabled={!isOwner}>
             <legend className="font-medium">{t('ajustes.cover')}</legend>
-            <p className="text-sm text-slate-500">{t('ajustes.coverHint')}</p>
+            <p className="text-sm text-muted">{t('ajustes.coverHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.cover')}>
               <button
                 type="button"
@@ -1077,7 +1166,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 onClick={() => update({ ...appearance, cover: NO_COVER })}
                 className={cn(
                   'h-11 min-w-11 rounded-xl border px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-                  appearance.cover === NO_COVER ? 'border-primary ring-2 ring-primary/25' : 'border-slate-300 hover:border-primary/50',
+                  appearance.cover === NO_COVER ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
                 )}
               >
                 {t('ajustes.coverNone')}
@@ -1091,7 +1180,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   onClick={() => update({ ...appearance, cover: emoji })}
                   className={cn(
                     'grid h-11 min-w-11 place-items-center rounded-xl border px-2 text-xl transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-                    appearance.cover === emoji ? 'border-primary ring-2 ring-primary/25' : 'border-slate-300 hover:border-primary/50',
+                    appearance.cover === emoji ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
                   )}
                 >
                   <span aria-hidden="true">{emoji}</span>
@@ -1116,31 +1205,20 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <p className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-500">{t('ajustes.logoNote')}</p>
+          <p className="rounded-xl border border-border-subtle px-3 py-2 text-sm text-muted">{t('ajustes.logoNote')}</p>
 
           {saved ? (
-            <p aria-live="polite" className="text-sm text-slate-600">
+            <p aria-live="polite" className="text-sm text-muted">
               {t('ajustes.saved')}
             </p>
           ) : null}
         </>
       ) : null}
 
-      {/* Membership tab */}
-      {activeTab === 'membership' ? (
-        <div className="space-y-4">
-          <p className="text-sm text-slate-500">{t('ajustes.membershipComingSoon')}</p>
-          <p className="text-sm text-slate-500">{t('ajustes.membershipHint')}</p>
-          <Link to={`/groups/${group.id}/people`}>
-            <Button variant="secondary">{t('roles.manageMembers')}</Button>
-          </Link>
-        </div>
-      ) : null}
-
       {/* Permissions tab */}
       {activeTab === 'permissions' ? (
         <div className="space-y-4">
-          <p className="text-sm text-slate-500">{t('roles.subtitle')}</p>
+          <p className="text-sm text-muted">{t('roles.subtitle')}</p>
           <Link to={`/groups/${group.id}/roles`}>
             <Button variant="secondary">{t('roles.title')}</Button>
           </Link>
@@ -1150,14 +1228,14 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       {/* Notifications tab */}
       {activeTab === 'notifications' ? (
         <div className="space-y-4">
-          <p className="text-sm text-slate-500">{t('ajustes.notificationsComingSoon')}</p>
+          <p className="text-sm text-muted">{t('ajustes.notificationsComingSoon')}</p>
         </div>
       ) : null}
 
       {/* Integrations tab */}
       {activeTab === 'integrations' ? (
         <div className="space-y-4">
-          <p className="text-sm text-slate-500">{t('ajustes.integrationsComingSoon')}</p>
+          <p className="text-sm text-muted">{t('ajustes.integrationsComingSoon')}</p>
         </div>
       ) : null}
 
@@ -1167,7 +1245,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           <h2 className="text-lg font-semibold">{t('ajustes.tabAdvanced')}</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">{t('ajustes.themeDefault')}</span>
+              <span className="text-sm font-medium text-ink">{t('ajustes.themeDefault')}</span>
               <select
                 className={fieldClass}
                 value={draft.themeDefault}
@@ -1180,7 +1258,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               </select>
             </label>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">{t('ajustes.localeDefault')}</span>
+              <span className="text-sm font-medium text-ink">{t('ajustes.localeDefault')}</span>
               <select
                 className={fieldClass}
                 value={draft.defaultLocale}
