@@ -114,6 +114,8 @@ Status: ✅ fixed in this pass · 🔒 deployment constraint (documented) · �
   - `w-g-tasks`: view switcher is buttons with `aria-pressed`, not `role=tab`.
   - `w20-branding` / `w9-surfaces`: branding lives behind the "Identidad visual" tab; `w9` re-opens the tab after reload and dirties the draft (Save is disabled until something changes).
 - **Application fix found by e2e:** the Inicio "Acciones rápidas" quick-action "Invitar miembro" was rendered for **every** member; it is now Owner-gated (`GroupHomePage.tsx`), matching the invite-oracle contract (members see no invite chrome).
+- **CI result (authoritative gate):** Playwright E2E **PASS (9m4s)** on the GitHub runner, together with Backend build & tests, Frontend build, SCA gate and CodeQL/CodeQL-Analyze — all green on PR #205.
+- Locally the sandbox intermittently kills the Vite/node process; the run is 84 pass + the 2 specs caught in that kill window pass in isolation, 3 skipped by design. This is an environment artifact (no such killer on CI), not a repo issue.
 - A global per-IP rate limiter was evaluated (B11) and **removed** after it produced 429s on `GET /api/auth/csrf` under the suite's legitimate burst traffic; the per-endpoint policies remain, and a global backstop belongs at the edge/CDN.
 
 ## 7. Residual / follow-ups (explicitly NOT done here)
