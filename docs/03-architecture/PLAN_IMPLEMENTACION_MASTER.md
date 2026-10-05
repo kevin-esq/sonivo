@@ -9,7 +9,7 @@
 ## 📌 Contexto e Inventario de Directrices (Indexación de Skills y Stack)
 
 De acuerdo a la indexación realizada sobre la infraestructura del proyecto:
-- **Backend**: .NET 9.0 (`Sonivo.Api`, `Sonivo.Application`, `Sonivo.Domain`, `Sonivo.Infrastructure`) con EF Core, ASP.NET Core Identity y PostgreSQL (`compose.yaml`).
+- **Backend**: .NET 10.0 (`Sonivo.Api`, `Sonivo.Application`, `Sonivo.Domain`, `Sonivo.Infrastructure`) con EF Core, ASP.NET Core Identity y PostgreSQL (`compose.yaml`).
 - **Frontend**: React 19 + Vite + TailwindCSS v4 (`sonivo-web`) con TypeScript 6, Lucide React, `qrcode.react`, SignalR client.
 - **Skills y Reglas Autorizadas**: 14 Habilidades Locales (`code-review`, `codebase-design`, `diagnosing-bugs`, `domain-modeling`, `grill-with-docs`, `grilling`, `impeccable`, `implement`, `prototype`, `research`, `resolving-merge-conflicts`, `tdd`, `to-spec`, `to-tickets`) y la política vinculante de [`TOOLING-AUDIT.md`](file:///p:/repos/sonivo/docs/tooling/TOOLING-AUDIT.md).
 
@@ -28,7 +28,7 @@ graph TD
 ---
 
 ### 🛡️ Fase 1: Remedación de Vulnerabilidades y Hardening Backend
-- **Objetivo**: Corregir vulnerabilidades identificadas en el frontend (`npm audit`) e implementar cabeceras HSTS/CSP y Rate Limiting en el API de .NET 9.
+- **Objetivo**: Corregir vulnerabilidades identificadas en el frontend (`npm audit`) e implementar cabeceras HSTS/CSP y Rate Limiting en el API de .NET 10.
 - **Sub-Tareas**:
   1. `T-SEC-01` (Worker DevSecOps): Ejecutar remediación de paquetes vulnerables `pdfjs-dist` y dependencias en `web/sonivo-web/package.json` vía `npm audit fix`.
   2. `T-SEC-02` (Worker Backend): Configurar Middleware de Cabeceras de Seguridad HSTS (`Strict-Transport-Security`), CSP (`Content-Security-Policy`), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`.

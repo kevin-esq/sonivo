@@ -15,7 +15,7 @@ description: >
 
 # .NET Secure Architecture (Sonivo)
 
-Security-first rules for the Sonivo backend: **.NET 9 / ASP.NET Core, EF Core,
+Security-first rules for the Sonivo backend: **.NET 10 / ASP.NET Core, EF Core,
 ASP.NET Core Identity, PostgreSQL**, modular monolith. Apply these while writing
 or reviewing backend changes.
 
