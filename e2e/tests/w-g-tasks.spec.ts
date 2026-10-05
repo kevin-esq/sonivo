@@ -40,7 +40,7 @@ test.describe('W-G tasks', () => {
     await logout(page)
     await register(page, uniqueEmail('wgtasks-stranger'))
     await page.goto(`/groups/${id}/tasks`)
-    await expect(page.getByRole('alert')).toContainText(
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText(
       'No encontramos este grupo o no tienes acceso.',
     )
   })

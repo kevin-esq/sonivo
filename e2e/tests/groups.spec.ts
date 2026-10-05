@@ -38,7 +38,7 @@ test.describe('Group journeys', () => {
     await register(page, strangerEmail)
     await page.goto(groupUrl)
 
-    await expect(page.getByRole('alert')).toContainText(
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText(
       'No encontramos este grupo o no tienes acceso.',
     )
   })

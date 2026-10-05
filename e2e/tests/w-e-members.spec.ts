@@ -31,7 +31,7 @@ test.describe('W-E members', () => {
     await logout(page)
     await register(page, uniqueEmail('wemembers-stranger'))
     await page.goto(`/groups/${id}/people`)
-    await expect(page.getByRole('alert')).toContainText(
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText(
       'No encontramos este grupo o no tienes acceso.',
     )
   })
