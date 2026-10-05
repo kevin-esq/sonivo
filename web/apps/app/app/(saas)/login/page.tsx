@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
-import { loginUser } from '@/lib/api/client'
-import { useT } from '@/lib/i18n/I18nProvider'
+import { loginUser } from '@sonivo/api-client/client'
+import { useT } from '@sonivo/i18n/I18nProvider'
 
 export default function LoginPage() {
   const { t } = useT()

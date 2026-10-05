@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { redeemHandoff } from '@/lib/api/client'
-import { useT } from '@/lib/i18n/I18nProvider'
+import { redeemHandoff } from '@sonivo/api-client/client'
+import { useT } from '@sonivo/i18n/I18nProvider'
 
 /**
  * Redeems the single-use handoff code on the tenant host. The code is consumed

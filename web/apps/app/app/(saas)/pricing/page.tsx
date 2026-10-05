@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
-import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/config'
-import { getDictionary } from '@/lib/i18n/dictionaries'
+import { DEFAULT_LOCALE, isLocale } from '@sonivo/i18n/config'
+import { getDictionary } from '@sonivo/i18n/dictionaries'
 
 export default async function PricingPage() {
   const rawLocale = (await headers()).get('x-locale')

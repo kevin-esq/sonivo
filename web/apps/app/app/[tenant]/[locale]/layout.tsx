@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
-import { getPublicBranding } from '@/lib/api/branding'
-import { isLocale, type Locale } from '@/lib/i18n/config'
-import { getDictionary } from '@/lib/i18n/dictionaries'
-import { I18nProvider } from '@/lib/i18n/I18nProvider'
+import { getPublicBranding } from '@sonivo/api-client/branding'
+import { isLocale, type Locale } from '@sonivo/i18n/config'
+import { getDictionary } from '@sonivo/i18n/dictionaries'
+import { I18nProvider } from '@sonivo/i18n/I18nProvider'
 
 type TenantParams = { tenant: string; locale: string }
 

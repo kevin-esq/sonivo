@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { PublicBranding } from '@/lib/api/types'
+import type { PublicBranding } from '@sonivo/api-client/types'
 
 export const DEFAULT_PRIMARY = '#8366f1'
 export const DEFAULT_SECONDARY = '#e8c4f6'

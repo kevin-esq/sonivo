@@ -1,8 +1,8 @@
 import { headers } from 'next/headers'
 import type { ReactNode } from 'react'
-import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/config'
-import { getDictionary } from '@/lib/i18n/dictionaries'
-import { I18nProvider } from '@/lib/i18n/I18nProvider'
+import { DEFAULT_LOCALE, isLocale } from '@sonivo/i18n/config'
+import { getDictionary } from '@sonivo/i18n/dictionaries'
+import { I18nProvider } from '@sonivo/i18n/I18nProvider'
 
 /** Apex (marketing/auth) layout: provides i18n for the public SaaS surfaces. */
 export default async function SaasLayout({ children }: { children: ReactNode }) {

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { AttendanceTracker } from '@/components/AttendanceTracker'
-import { isLocale } from '@/lib/i18n/config'
-import { getDictionary } from '@/lib/i18n/dictionaries'
+import { isLocale } from '@sonivo/i18n/config'
+import { getDictionary } from '@sonivo/i18n/dictionaries'
 
 export default async function RepertoirePage({
   params,

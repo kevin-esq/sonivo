@@ -1,0 +1,16 @@
+{
+  "name": "@sonivo/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": "./src/client.ts",
+    "./branding": "./src/branding.ts",
+    "./server": "./src/server.ts",
+    "./types": "./src/types.ts"
+  },
+  "peerDependencies": {
+    "next": ">=15",
+    "react": "^19.0.0"
+  }
+}

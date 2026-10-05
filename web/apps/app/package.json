@@ -8,6 +8,9 @@
     "start": "next start"
   },
   "dependencies": {
+    "@sonivo/api-client": "*",
+    "@sonivo/i18n": "*",
+    "@sonivo/ui": "*",
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

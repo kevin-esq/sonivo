@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { DEFAULT_LOCALE, LOCALE_COOKIE, LOCALES, type Locale } from '@/lib/i18n/config'
+import { DEFAULT_LOCALE, LOCALE_COOKIE, LOCALES, type Locale } from '@sonivo/i18n/config'
 
 // Reserved labels that must never be treated as a tenant slug.
 const RESERVED = new Set([

@@ -33,7 +33,7 @@ CI: see PR #213 checks
 - `web` `turbo run build`: `@sonivo/app` PASS (8 routes + middleware), `@sonivo/docs` PASS.
 
 ### Notes / follow-ups
-- `packages/*` (ui / i18n / api-client / config) to be extracted incrementally.
+- `packages/*` seeded: `@sonivo/i18n`, `@sonivo/api-client`, `@sonivo/ui` extracted from `apps/app` (build green). `@sonivo/config` still PLANNED.
 - Deferred: wildcard DNS/TLS + custom domain verification (ADR-0049 D3),
   `GroupDomain` table, backend i18n/mail (ADR-0043 phase 2), page-by-page migration,
   and CI wiring for the `web/` workspace.

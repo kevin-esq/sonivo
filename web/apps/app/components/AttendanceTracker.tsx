@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { upsertEventRsvp } from '@/lib/api/client'
-import type { EventRsvpItem, EventRsvpResponse } from '@/lib/api/types'
-import { useT } from '@/lib/i18n/I18nProvider'
+import { upsertEventRsvp } from '@sonivo/api-client/client'
+import type { EventRsvpItem, EventRsvpResponse } from '@sonivo/api-client/types'
+import { useT } from '@sonivo/i18n/I18nProvider'
 
 const OPTIONS: EventRsvpResponse[] = ['yes', 'no', 'maybe']
 

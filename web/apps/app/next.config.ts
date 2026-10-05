@@ -6,6 +6,7 @@ const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:5171'
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  transpilePackages: ['@sonivo/i18n', '@sonivo/api-client', '@sonivo/ui'],
   async rewrites() {
     return [
       { source: '/api/:path*', destination: `${apiOrigin}/api/:path*` },

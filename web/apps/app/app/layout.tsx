@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
-import { getPublicBranding } from '@/lib/api/branding'
-import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/config'
-import { themeVars } from '@/lib/theme/vars'
+import { getPublicBranding } from '@sonivo/api-client/branding'
+import { DEFAULT_LOCALE, isLocale } from '@sonivo/i18n/config'
+import { themeVars } from '@sonivo/ui/vars'
 import './globals.css'
 
 export const metadata: Metadata = {
