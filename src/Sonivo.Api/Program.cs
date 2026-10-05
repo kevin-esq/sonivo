@@ -342,15 +342,18 @@ app.Use(async (context, next) =>
 
 // ADR-0037 T-FX-02 + L2 (SECURITY-AUDIT-2026-09): defense-in-depth CSP.
 // YouTube reference iframes (nocookie player) and thumbnails stay allowlisted.
-// style-src keeps 'unsafe-inline' because React inline style attributes and
-// Vite dev style injection require it; fonts.googleapis.com/fonts.gstatic.com
-// are the only external origins actually used by the SPA (web/apps/app/index.html).
+// script-src keeps 'unsafe-inline' because the Next.js static export (ADR-0067)
+// bootstraps the App Router with inline scripts (self.__next_f.push(...) RSC
+// payload); the SPA cannot hydrate without it. API responses are JSON, which is
+// not governed by script-src, so default-src 'self' keeps the strict default.
+// style-src keeps 'unsafe-inline' for React inline style attributes; fonts.
+// googleapis.com/fonts.gstatic.com are the only external origins actually used.
 // connect-src 'self' covers the same-origin API + SignalR /hubs WebSocket.
 app.Use(async (context, next) =>
 {
     context.Response.Headers.TryAdd("Content-Security-Policy",
         "default-src 'self'; " +
-        "script-src 'self'; " +
+        "script-src 'self' 'unsafe-inline'; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data: https://i.ytimg.com; " +
