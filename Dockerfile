@@ -8,7 +8,7 @@ RUN npm ci
 COPY web/sonivo-web/ ./
 RUN npm run build
 
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY src/Sonivo.Domain/Sonivo.Domain.csproj src/Sonivo.Domain/
 COPY src/Sonivo.Application/Sonivo.Application.csproj src/Sonivo.Application/
@@ -18,13 +18,13 @@ RUN dotnet restore src/Sonivo.Api/Sonivo.Api.csproj
 COPY src/ src/
 RUN dotnet publish src/Sonivo.Api/Sonivo.Api.csproj -c Release -o /app/publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 COPY --from=web /web/dist ./wwwroot
 ENV ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 8080
 # L3 (SECURITY-AUDIT-2026-09): run as the non-root `app` user (UID 1654) that
-# the aspnet:9.0 image ships, instead of root.
+# the aspnet:10.0 image ships, instead of root.
 USER app
 ENTRYPOINT ["dotnet", "Sonivo.Api.dll"]
