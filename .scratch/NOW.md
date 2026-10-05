@@ -5,43 +5,42 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE - Groups mobile-first responsive redesign
-  Branch: feature/groups-responsive-redesign (from develop)
-  Commit: 147aab6 "feat(groups): mobile-first responsive redesign" (26 files)
+Implementation: COMPLETE - Groups UX refresh + plans/personalization docs
+  Branch: feature/groups-ux-refresh (from develop)
+  Commits:
+    147aab6 feat(groups): mobile-first responsive redesign
+    be66834 docs(now): record groups responsive redesign checkpoint
+    63c66ce feat(branding): display typography, live preview and account menu
+    (docs)  feat: plans/personalization spec + ADR-0061/0062/0063
   Scope:
-    - Tokens: theme-aware --color-primary-ink / --color-success-ink /
-      --color-error-ink; group brand ink clamped to the real surface (AA).
-    - Navigation: single "Mas" sheet; bottom bar 4 tabs
-      (Inicio/Canciones/Eventos/Tareas); dynamic grid (no dead column).
-    - Layout/targets: tasks filters wrap; calendar agenda <640px, 44px
-      controls, wider desktop rail; 44px targets across groups/settings/
-      people/resources/library.
-    - States: PageSkeleton/ListSkeleton on group home, calendar, roles,
-      events, resources.
-    - E2E: w12-mobile-nav updated to the single tab-bar "Mas".
-Human approval: APPROVED (owner: "Apruebo todo hazlo", 2026-10-05)
-Git checkpoint: COMMITTED (147aab6)
+    - Responsive: nav (single "Mas", 4 tabs), 44px targets, agenda <640,
+      skeletons, AA tokens (light+dark).
+    - Branding/UX: display typography (ADR-0060, 10 fonts), live brand preview,
+      liquid-glass --brand-wash, account dropdown + safer logout, floating
+      unsaved-changes bar.
+    - Docs: PHASE-PLANS-SPEC.md; ADR-0061 (entitlements + gated personalization),
+      ADR-0062 (organization), ADR-0063 (payments IN, supersedes ADR-0042).
+Human approval: APPROVED (owner: "Autorizo todo", 2026-10-05)
+Git checkpoint: COMMITTED (branch)
 Remote: NOT PUSHED
 CI: NOT RUN
 ```
 
-### Verified this session (live stack: API 5171, Vite 5173, Postgres 5433)
-- `npm run build` PASS · `npm run lint` (oxlint) exit 0
-- Playwright audit: 14 routes x {320,390,768,1024,1280,1440} x {dark,light}
-  - horizontal overflow: 0 / 168 combos
-  - contrast < 4.5:1 (composited): 0 violations (13 routes x 5 widths x 2 themes)
-  - tap targets < 44 on 320/390/768: none left (only sr-only skip link and the
-    stretched card link whose ::after covers the card)
-  - keyboard focus: 0 focused controls without a visible indicator (390 + 1440)
-- Screenshots: `.visual-audit/redesign-groups/` (before) and
-  `.visual-audit/redesign-groups-after/` (after, 168 PNGs)
-- w11/w12 assertions verified live (Miembros reachable from tab-bar "Mas";
-  tabbar/rail targets >= 44)
-- Full E2E suite NOT run locally: API lacks Auth__EnableTestHook (404), so the
-  register/confirm helpers cannot create users.
+### Next implementation (authorized, not started)
+- Fase A: entitlements catalog (single source of truth) + effective-plan
+  capability filter on brand render (spec §6/§10.1-10.3). No payments yet.
+- Fase B: OKLCH derivation + intensity + gradientStyle + 10 themes + contrast guard.
+- Then level-gated editor, backend plan validation, usage meters, downgrade rules.
+- Billing/provider is placeholder (ADR-0063) and needs a provider decision (§9.13).
+
+### Verified this session
+- `npm run build` PASS · `npm run lint` (oxlint) exit 0.
+- Overflow 0 (dark/light x 320/390/768 x 11 routes); contrast 0 (binary); focus 0 missing.
+- Live preview, floating bar, account menu verified via Playwright screenshots.
+- Full E2E not run locally (API lacks Auth__EnableTestHook).
 
 ### Notes / follow-ups
-- Push / PR / merge NOT authorized yet -> next step is an explicit push/PR gate.
-- Console: pre-existing `/g/{slug}/manifest.webmanifest` JSON parse error (unrelated).
+- Backend `GroupBranding` typography allowlist extended to 10 ids; API must be
+  rebuilt/restarted for the new ids to be accepted.
 - Unrelated local working-tree changes present (not from this task): `.vscode/`,
   `w-h-live-viewer.png`, `.scratch/shots/` - left untouched.

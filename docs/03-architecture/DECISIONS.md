@@ -236,6 +236,80 @@ the entire workspace — controls included — into the fallback font.
 
 ---
 
+## ADR-0061 — Plans, entitlements and personalization levels
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-05 ("esto definí" + "autorizo todo ... haz los cambios que tengas que hacer en doc").
+- **Date:** 2026-10-05
+- **Spec:** [`PHASE-PLANS-SPEC.md`](PHASE-PLANS-SPEC.md).
+- **Amends:** ADR-0054/0059 (brand editor) — brand capabilities are now **gated by plan level**.
+  Complements ADR-0060 (typography): the picker becomes **Advanced-only** under this gating.
+
+### Decision
+- A single **entitlements catalog** is the one source of truth for limits and features per plan
+  (Starter/Pro/Studio). No plan numbers anywhere else in the code.
+- The **effective brand config** = saved config **filtered by the plan's capabilities**
+  (`none` | `basic` | `advanced`). What the plan forbids is ignored at render but **not deleted**.
+- Token derivation from a base colour uses **OKLCH**, plus **intensity**, **gradient style**,
+  **10 predefined themes**, and a **contrast guard** that adjusts/corrects to AA (4.5:1 text,
+  3:1 non-text), validated **in the backend** too.
+- The identity editor renders **by level** with locks and an upgrade card; nothing disappears silently.
+- Downgrades keep data (`read-only` over-limit content; suspended members; archived groups) and the
+  saved brand config; the Sonivo theme applies while the plan excludes it.
+
+### Firewall
+- **No payments in this ADR** (see ADR-0063); plan assignment can be manual/placeholder first.
+- No new provider/dependency; colours are server-validated hex; no free CSS.
+- Limits never block viewing/editing/deleting existing content.
+
+---
+
+## ADR-0062 — Organization (multi-group container)
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-05.
+- **Date:** 2026-10-05
+- **Spec:** [`PHASE-PLANS-SPEC.md`](PHASE-PLANS-SPEC.md) §3.3/§6.
+- **Amends:** the ADR-0055 firewall "no new IA sections" and the general exclusion of an org
+  hierarchy — **only** to introduce the organization container for Studio.
+
+### Decision
+- Introduce an **Organization** that owns one or more groups and, in Studio, shares **plan, storage
+  and billing**. Starter/Pro keep the group as the only customer; the org exists but holds one group.
+- The **group limit** and the **extra-group add-on** validate against the **organization**, not the user.
+- Configuration can be copied across the org's groups ("Apply to all groups", placeholder) and then
+  diverge per group.
+
+### Firewall
+- The organization is a **billing/limit container**, not a new ACL engine: group-scoped server-side
+  authorization and Owner/Member roles are unchanged.
+- No payments here (ADR-0063); no subdomains/custom domains (ADR-0049 stays blocked).
+
+---
+
+## ADR-0063 — Payments IN (supersedes ADR-0042)
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-05 ("autorizo todo").
+- **Date:** 2026-10-05
+- **Supersedes:** **ADR-0042** ("Payments OUT"); lifts its prohibition and the "no billing" firewalls
+  (`ADR-0053`/`0055`) **within this phase**.
+- **Spec:** [`PHASE-PLANS-SPEC.md`](PHASE-PLANS-SPEC.md) §4.
+
+### Decision
+- Billing/payments are **IN scope**: subscriptions, 14-day trials, grace period, proration,
+  downgrade scheduling, and the extra-group add-on.
+- Provider, CFDI invoicing and tax handling are **placeholder** (§9.13) and must be decided before
+  wiring a gateway.
+- **Implementation can start without a gateway:** the entitlements catalog + effective-plan filter
+  ship first with a manually-assigned plan; the payment provider plugs in later.
+
+### Firewall
+- Do **not** reintroduce the removed insecure scaffold (`WebhooksController`, stub `IPaymentGateway`,
+  `StripePaymentGateway`/`MercadoPagoPaymentGateway`, `WebhookEventLog`) as-is; a real gateway design
+  (signature verification, secrets from config, idempotency) is required first.
+- No payment keys/secrets in git; webhooks verify signatures; no anonymous write endpoints.
+- Billing never gates viewing/editing/deleting existing content (ADR-0061 stands).
+
+---
+
 ## Open decisions needing explicit authorization
 
 - **Subdominio/dominio custom** (`slug.sonivo.lat`): **ADR-0049 blocks it** — needs a superseding ADR.
