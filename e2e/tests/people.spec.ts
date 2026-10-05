@@ -88,6 +88,6 @@ test.describe('People journeys', () => {
     await expect(page.getByRole('link', { name: groupName })).toHaveCount(0)
 
     await page.goto(groupUrl)
-    await expect(page.getByRole('alert')).toContainText('No encontramos este grupo o no tienes acceso.')
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText('No encontramos este grupo o no tienes acceso.')
   })
 })

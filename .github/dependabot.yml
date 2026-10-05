@@ -22,9 +22,9 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # React SPA.
+  # Next.js web monorepo (Turborepo workspace root).
   - package-ecosystem: "npm"
-    directory: "/web/sonivo-web"
+    directory: "/web"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10

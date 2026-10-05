@@ -1,0 +1,14 @@
+{
+  "name": "@sonivo/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./config": "./src/config.ts",
+    "./dictionaries": "./src/dictionaries.ts",
+    "./I18nProvider": "./src/I18nProvider.tsx"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}

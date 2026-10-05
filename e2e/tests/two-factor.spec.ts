@@ -82,7 +82,7 @@ test.describe('Two-factor authentication', () => {
     // Wrong code is denied with no session created.
     await page.getByLabel('Código de 6 dígitos').fill('000000')
     await page.getByRole('button', { name: 'Verificar' }).click()
-    await expect(page.getByRole('alert')).toContainText('incorrecto')
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText('incorrecto')
     await expect(page.getByRole('heading', { name: 'Mis grupos' })).toHaveCount(0)
 
     // Computed code completes the session.

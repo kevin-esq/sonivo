@@ -50,7 +50,7 @@ test.describe('W-D resources', () => {
     await logout(page)
     await register(page, uniqueEmail('wdres-stranger'))
     await page.goto(`/groups/${id}/recursos`)
-    await expect(page.getByRole('alert')).toContainText(
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText(
       'No encontramos este grupo o no tienes acceso.',
     )
   })

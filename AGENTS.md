@@ -57,7 +57,7 @@ Until the user explicitly authorizes additional work:
 ## Technical context
 
 - **Backend:** .NET 10 (C# 14) / ASP.NET Core Web API, EF Core, Identity, PostgreSQL; modular monolith.
-- **Frontend:** React 19, TypeScript 6, Vite 8, Tailwind CSS 4; Node.js 20. `oxlint` is the frontend lint tool.
+- **Frontend:** Next.js App Router + React 19, TypeScript, Tailwind CSS 4 in a Turborepo workspace (`web/apps/*`, `web/packages/*`), served as a static export by the .NET host (ADR-0067).
 - **Testing:** .NET unit/integration/API tests, PostgreSQL-backed CI, and Playwright critical journeys. See [`README.md`](README.md) and [`TESTING.md`](docs/03-architecture/TESTING.md) for commands and setup.
 - **C# conventions:** nullable reference types and implicit usings are enabled. Follow nearby code and repository analyzers rather than inventing a style guide.
 - **Tenancy/auth:** Group-scoped authorization is server-enforced; client-supplied Group IDs are never authorization. Web auth uses Identity cookies plus antiforgery; no web JWT/BFF.

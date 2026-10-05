@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 /**
  * Full-stack E2E against real React → API → PostgreSQL.
- * Prerequisites: Postgres up, migrations applied, API on 5171, Vite on 5173
+ * Prerequisites: Postgres up, migrations applied, API on 5171, Next on 5173
  * (CI starts these; locally see README).
  */
 export default defineConfig({
@@ -15,11 +15,11 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   // The API (5171) is external (started by the developer/CI). Playwright owns
-  // the Vite dev server so the suite is self-contained locally; in CI the
+  // the Next dev server so the suite is self-contained locally; in CI the
   // already-running server is reused.
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 5173',
-    cwd: '../web/sonivo-web',
+    command: 'npm run dev',
+    cwd: '../web/apps/app',
     url: 'http://127.0.0.1:5173',
     reuseExistingServer: true,
     timeout: 120_000,

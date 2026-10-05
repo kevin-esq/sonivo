@@ -106,7 +106,7 @@ test.describe('Invite journeys', () => {
     await page.goto(inviteUrl)
     await expect(page.getByRole('heading', { name: 'Unirte a este grupo' })).toBeVisible()
     await page.getByRole('button', { name: 'Aceptar invitación' }).click()
-    await expect(page.getByRole('alert')).toContainText('Esta invitación no es válida o ha caducado.')
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText('Esta invitación no es válida o ha caducado.')
   })
 
   test('TC-INV-03 owner types email; invite still created; warning when mail not sent', async ({

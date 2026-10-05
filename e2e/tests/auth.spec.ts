@@ -38,7 +38,7 @@ test.describe('Authentication journeys', () => {
     await page.getByLabel('Contraseña').fill(testPassword)
     await page.getByRole('button', { name: 'Iniciar sesión' }).click()
     // Identical-401 shape: generic credentials error, no session created.
-    await expect(page.getByRole('alert')).toContainText('Invalid email or password.')
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText('Invalid email or password.')
     await expect(page).toHaveURL(/\/login/)
     await expect(page.getByRole('heading', { name: 'Mis grupos' })).toHaveCount(0)
 
