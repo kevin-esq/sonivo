@@ -13,7 +13,7 @@
 ## Tests run
 
 - [ ] `dotnet test Sonivo.slnx`
-- [ ] Frontend production build (`npm run build` in `web/sonivo-web`)
+- [ ] Frontend production build (`npm run build` in `web/apps/app`)
 - [ ] Playwright critical paths (`npm test` in `e2e`) — or N/A with reason:
 - PostgreSQL / migrations impact: none / applied / new migration (describe)
 

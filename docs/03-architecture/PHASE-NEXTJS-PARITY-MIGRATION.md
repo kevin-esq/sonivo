@@ -1,70 +1,60 @@
-# PHASE-NEXTJS-PARITY-MIGRATION — Vite SPA → Next.js (parity, then retire Vite)
+# PHASE-NEXTJS-PARITY-MIGRATION — Vite SPA → Next.js (parity + route decomposition)
 
-- **Status:** IN PROGRESS (owner-authorized 2026-10-05: "haz que se pase todo a next ... para que podamos borrar Vite").
+- **Status:** BRIDGE DONE — the product runs in Next; route decomposition in progress.
 - **ADR:** ADR-0067 (strangler).
-- **Related:** `PHASE-NEXTJS-MULTITENANT-BFF-SPEC.md`, `web/README.md` (retire checklist).
+- **Related:** `PHASE-NEXTJS-MULTITENANT-BFF-SPEC.md`, `web/README.md`.
 
-## Goal
+## What "parity bridge" means
 
-Port the entire `web/sonivo-web` Vite SPA into `web/apps/app` (`@sonivo/app`) until
-feature parity, then delete `web/sonivo-web` and its build/CI/E2E wiring.
+Rather than rewrite 60+ routes by hand, the **entire product SPA was ported into
+`@sonivo/app`** and mounted client-only at `app/page.tsx` (via `src/Mount.tsx`),
+so **every existing route works in Next immediately**:
 
-## Approach
+- `web/apps/app/src/**` is the ported product (components, pages, providers).
+- `app/page.tsx` mounts `ThemeProvider > LanguageProvider > BrowserRouter > App`.
+- Shared code lives in `@sonivo/{api-client,i18n,ui}`.
+- The Vite app (`web/sonivo-web`) was **deleted**; Docker/CI/E2E were repointed to
+  the Next app.
 
-- **Reuse, don't rewrite:** the Vite app is React 19 + TS + Tailwind 4. Components
-  are ported largely unchanged; only routing and data-fetching boundaries change.
-- **Routing:** replace `react-router-dom` with Next App Router routes; authenticated
-  product routes become client components where interactivity requires it.
-- **Providers** (`AuthProvider`, `ThemeProvider`, `ToastProvider`,
-  `AudioPlayerProvider`, `RailPresenceProvider`) move to a single client provider
-  tree in `apps/app`.
-- **Shared code** comes from `@sonivo/{api-client,i18n,ui}`.
-- **Strangler:** each wave ships behind the Next app while Vite stays live; Vite is
-  deleted only when the parity checklist passes.
+## Deployment model
 
-## Parity checklist (route inventory to port)
+- **Production:** `NEXT_EXPORT=1 next build` → static `out/` → copied to the .NET
+  host's `wwwroot`. The .NET host serves it with an SPA fallback to `index.html`
+  (same origin, so `/api` and `/hubs` need no proxy). Single-image model preserved.
+- **Dev/CI:** `next dev -p 5173` proxies `/api` + `/hubs` to the API and serves a
+  SPA fallback for deep links.
 
-- **Auth/account:** `/login`, `/register`, `/confirm`, `/forgot-password`,
-  `/reset-password`, `/cuenta` (profile, preferences, security incl. 2FA + passkeys,
-  membership, notifications), `/security` redirects. Google OAuth.
-- **Groups:** `/grupos`, `/unirse`, `/join/:token`, `/g/:slug` resolver, group
-  create/rename/leave/delete, invitations.
-- **Group workspace:** home dashboard, `/library`, `/songs/:id`,
-  `/arrangements/:id`, `/arrangements/:id/practice`, `/setlists`,
-  `/setlists/:id`, `/events`, `/events/:id` (+ RSVP), `/people`, `/calendar`,
-  `/tasks` (kanban), `/roles`, `/resources`, `/files`, `/settings` (branding).
-- **Practice:** ChordPro view/editor, LRC import, audio digitizer, tuner,
-  metronome, stage mode, conductor (SignalR), persistent player.
-- **Global:** search, activity rail, presence heartbeat, toasts, PWA manifest,
-  data export.
-
-## Waves
+## Done
 
 | Wave | Scope | Status |
 |---|---|---|
-| **W-A** | Foundations: design tokens, client provider tree, `AuthProvider` (session), app shell (header/nav/sidebar), route protection | IN PROGRESS |
-| **W-B** | Account + auth surfaces (login/register/verify/account/security 2FA+passkeys) | TODO |
-| **W-C** | Groups: list/join/invite, slug resolver, group shell | TODO |
-| **W-D** | Repertoire: library, song, arrangement, resources/files | TODO |
-| **W-E** | Scheduling: setlists, events, RSVP, calendar | TODO |
-| **W-F** | Practice: ChordPro, LRC, digitizer, tuner, metronome, stage, conductor | TODO |
-| **W-G** | Tasks/roles/people/roster, branding editor, search, polish | TODO |
-| **W-H** | Parity sign-off → update Dockerfile/CI/E2E → **delete `sonivo-web`** | TODO |
+| **W-A** | Foundations: design tokens, providers, SPA bridge mount | DONE |
+| **W-H** | Bridge parity → Dockerfile/CI/E2E repointed → **Vite deleted** | DONE |
 
-Each wave: build (`turbo run build`) + relevant tests; no wave deletes Vite.
+## Remaining (quality/tenancy decomposition)
 
-## Definition of done (do not delete Vite until all hold)
+These do **not** block the product (it already runs); they convert the bridge into
+idiomatic App Router routes and restore the ADR-0067 features:
 
-1. Every route in the inventory above works in `@sonivo/app` against the real API.
-2. `Dockerfile` builds and serves `@sonivo/app`; `render.yaml`/`PublicOrigin` updated.
-3. CI "Frontend build" and Playwright E2E target the Next app.
-4. `sonivo-web` removed in the same PR that satisfies 1–3.
+| Wave | Scope | Status |
+|---|---|---|
+| **W-B** | Decompose auth/account routes (login/register/verify/account/security) | TODO |
+| **W-C** | Decompose group routes + **restore subdomain tenancy** (`slug.sonvo.lat`) | TODO |
+| **W-D** | Repertoire routes | TODO |
+| **W-E** | Scheduling routes | TODO |
+| **W-F** | Practice routes (client-only APIs stay client components) | TODO |
+| **W-G** | Tasks/roles/people/roster, branding editor, search | TODO |
+
+## Definition of done (decomposition)
+
+1. Routes served by App Router (server/client) with the SPA bridge removed.
+2. Subdomain tenancy restored (middleware + handoff) per ADR-0067.
+3. Next type/lint gating re-enabled (the bridge currently relaxes it).
+4. E2E green against the decomposed app.
 
 ## Known risks / decisions
 
-- **react-router → App Router** is the main coupling; ported per route, not via a
-  compatibility shim, to keep the result idiomatic.
-- **Subdomain tenancy** (`slug.sonvo.lat`) is applied as the group shell is ported;
-  until then the app keeps path tenancy (`/g/:slug`).
-- **Client-only APIs** (SignalR, WebAuthn, AudioWorklet, `WakeLock`) stay in client
-  components.
+- **react-router → App Router** is decomposed per route; until then the SPA
+  bridge relies on react-router and client-only rendering.
+- **Subdomain tenancy** is not active during the bridge (path tenancy `/g/:slug`);
+  restored in W-C.

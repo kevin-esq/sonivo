@@ -1,10 +1,5 @@
 import type { Metadata } from 'next'
-import { headers } from 'next/headers'
-import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
-import { getPublicBranding } from '@sonivo/api-client/branding'
-import { DEFAULT_LOCALE, isLocale } from '@sonivo/i18n/config'
-import { themeVars } from '@sonivo/ui/vars'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -14,22 +9,13 @@ export const metadata: Metadata = {
 }
 
 /**
- * Root layout. Injects the group branding as CSS variables from the server and
- * loads the UI/display fonts used by the product (same set as the Vite shell).
+ * Root layout. Static so the app can be exported for the single-origin .NET host.
+ * Theme and group branding are applied client-side by the ported providers, as
+ * in the previous Vite shell.
  */
-export default async function RootLayout({ children }: { children: ReactNode }) {
-  const requestHeaders = await headers()
-  const tenant = requestHeaders.get('x-tenant-slug')
-  const rawLocale = requestHeaders.get('x-locale')
-  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
-
-  const branding = tenant ? await getPublicBranding(tenant) : null
-  if (tenant && !branding) {
-    notFound()
-  }
-
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang={locale} data-theme={branding?.themeDefault ?? 'system'} style={themeVars(branding)}>
+    <html lang="es" data-theme="dark">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

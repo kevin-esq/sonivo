@@ -5,37 +5,28 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE - Next.js web monorepo (panel + docs) + session handoff
-  Branch: feature/nextjs-multitenant-bff (from develop; PR #213)
-  Structure:
-    web/ (Turborepo workspace)
-      apps/app  (@sonivo/app)  - product shell: (saas) marketing + [tenant] workspace
-      apps/docs (@sonivo/docs) - Fumadocs documentation
-      sonivo-web (legacy Vite SPA, retired after parity)
-  Scope:
-    - ADR-0067 + PHASE-NEXTJS-MULTITENANT-BFF-SPEC.md (amends ADR-0010, unblocks
-      ADR-0049, extends ADR-0043 to pt).
-    - apps/app: host+locale middleware, SSR branding theme vars, i18n es/en/pt,
-      AttendanceTracker client, handoff page.
-    - apps/docs: Fumadocs (Next 16) at /docs.
-    - .NET: host-only session cookie (Domain=null; __Host- name off Dev) +
-      /api/session/handoff/start|redeem (256-bit single-use code, TTL 90s, SHA-256
-      stored, UA binding, rate-limited, no CSRF exemption) + 9 unit tests.
-Human approval: APPROVED (owner: monorepo web/ + Turborepo + 2 apps + Fumadocs, 2026-10-05)
-Git checkpoint: COMMITTED (feature/nextjs-multitenant-bff)
-Remote: PUSHED (PR #213 -> develop)
-CI: see PR #213 checks
+Implementation: COMPLETE - Next.js monorepo + product parity bridge + Vite removed
+  Branch: feature/nextjs-multitenant-bff (PR #217)
+  Structure (web/, Turborepo):
+    apps/app    (@sonivo/app)  - the product: ported SPA mounted in Next + handoff backend
+    apps/docs   (@sonivo/docs) - Fumadocs
+    apps/mobile (@sonivo/mobile, placeholder)
+    packages/{api-client,i18n,ui}
+  Removed: web/sonivo-web (Vite). Docker/CI/E2E repointed to the Next app.
+  .NET: host-only session cookie + /api/session/handoff/start|redeem (+9 tests).
+Human approval: APPROVED (owner: "hazlo todo ... borra lo legacy", 2026-10-05)
+Git checkpoint: COMMITTED (branch)
+Remote: PUSHED (PR #217 -> develop)
+CI: see PR #217 checks
 ```
 
-### Verified this session
-- `dotnet build Sonivo.slnx -c Release` PASS (0 errors, 0 warnings; .NET 10).
-- `dotnet test`: Api 232 PASS · Domain 141 PASS · Application 211 PASS (584 total).
-- `web` `turbo run build`: `@sonivo/app` PASS (8 routes + middleware), `@sonivo/docs` PASS.
+### Verified
+- `dotnet build Sonivo.slnx -c Release` PASS (0 errors, 0 warnings).
+- .NET tests: Api 232 · Domain 141 · Application 211 PASS (584 total).
+- `web` `turbo run build`: `@sonivo/app` PASS (and static export PASS), `@sonivo/docs` PASS.
 
 ### Notes / follow-ups
-- `packages/*` seeded: `@sonivo/i18n`, `@sonivo/api-client`, `@sonivo/ui` extracted from `apps/app` (build green). `@sonivo/config` still PLANNED.
-- Deferred: wildcard DNS/TLS + custom domain verification (ADR-0049 D3),
-  `GroupDomain` table, backend i18n/mail (ADR-0043 phase 2), page-by-page migration,
-  and CI wiring for the `web/` workspace.
-- In-memory handoff store is single-instance; swap behind ISessionHandoffStore
-  before scaling out.
+- Parity bridge landed: routes are decomposed to idiomatic App Router (W-B..W-G)
+  and subdomain tenancy is restored; Next type/lint gating re-enabled afterwards.
+- Playwright E2E must be validated by CI (full stack cannot run locally).
+- Deferred: wildcard DNS/TLS, `GroupDomain`, backend i18n/mail.

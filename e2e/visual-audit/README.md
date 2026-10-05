@@ -25,7 +25,7 @@ docker compose up -d postgres
 $env:Auth__EnableTestHook='true'
 dotnet run --project src/Sonivo.Api --launch-profile http
 # built web on 5173 (the harness hits http://localhost:5173 by default)
-cd web/sonivo-web; npm run build; npx vite preview --port 5173 --strictPort
+cd web/apps/app; npm run build; npx vite preview --port 5173 --strictPort
 ```
 
 Optional blob-path coverage (file Resources) requires the dev-bucket credentials

@@ -19,11 +19,14 @@ Sonivo introduces a **Next.js App Router frontend** that behaves as a **BFF over
 
 `ADR-0067` **amends** the frontend row and the "Do not introduce Next.js" principle of **ADR-0010**; the .NET backend decision stands. It **unblocks the host/subdomain work of ADR-0049** (documentation-only until now) and **extends ADR-0043** to Portuguese. Backend message/mail localisation stays out of scope (ADR-0043 phase 2).
 
-## 2. Why this is safe to add without breaking the shipped app
+## 2. Migration status
 
-- The Next app lives in the **Turborepo workspace** (`web/apps/app/`) alongside the shipped Vite SPA (`web/sonivo-web/`). The existing Docker image, CI frontend build, and Playwright suites are untouched.
-- The .NET API keeps its routes and contract; new capabilities are **additive** (`/api/session/handoff*`).
-- Rollout is a **strangler** migration (ADR-0043 waves): Vite stays the production UI until the Next shell reaches parity and is switched at the edge.
+- The Next app lives in the **Turborepo workspace** (`web/apps/app/`). The ported
+  product SPA runs in Next and the legacy Vite SPA (`web/sonivo-web`) has been
+  **removed** (see `PHASE-NEXTJS-PARITY-MIGRATION.md`).
+- The .NET API keeps its routes and contract; the handoff capability is **additive** (`/api/session/handoff*`).
+- Decomposition of the bridge into idiomatic App Router routes (and restoring
+  subdomain tenancy) continues per the parity migration plan.
 
 ## 3. Security model (binding)
 
@@ -57,28 +60,20 @@ Browser ──host: slug.sonvo.lat──► Next middleware ──rewrite──�
 ```text
 web/                          # Turborepo workspace (root package.json + turbo.json)
   apps/
-    app/                      # @sonivo/app — product shell (Next.js)
-      app/
-        layout.tsx            # <html>/<body> + SSR theme vars (x-tenant-slug / x-locale)
-        (saas)/page.tsx       # sonvo.lat landing
-        (saas)/login/page.tsx # apex auth
-        (saas)/pricing/page.tsx
-        [tenant]/[locale]/    # slug.sonvo.lat workspace
-          layout.tsx          # validates tenant, provides dictionary
-          page.tsx  rehearsals/page.tsx  repertoire/page.tsx
-          session/handoff/    # POST redeem (same-origin CSRF)
-          not-found.tsx
-      lib/i18n/... lib/api/... lib/theme/... components/AttendanceTracker.tsx
-      middleware.ts  next.config.ts
+    app/                      # @sonivo/app — the product (Next.js)
+      app/page.tsx            # client mount of the ported SPA (src/Mount.tsx)
+      src/**                  # ported product source (components, pages, providers)
+      next.config.ts          # API proxy (dev) + static export (prod)
     docs/                     # @sonivo/docs — Fumadocs (docs.sonvo.lat / /docs)
       app/docs/[[...slug]]/page.tsx  app/api/search/route.ts
       content/docs/*.mdx  lib/source.ts
-  packages/                   # shared code (ui / i18n / api-client / config), extracted incrementally
-  sonivo-web/                 # legacy Vite SPA (retired after parity)
+  packages/                   # shared code: @sonivo/api-client, @sonivo/i18n, @sonivo/ui
 ```
 
-Each app owns its own `package.json`, `next.config`, `tsconfig` and `middleware`.
-`sonivo-web/` (Vite) remains the production UI until the Next shell reaches parity.
+Each app owns its own `package.json`, `next.config` and `tsconfig`. The product
+app is served as a static export by the .NET host; subdomain tenancy
+(`middleware.ts` + `[tenant]/[locale]` routes) is restored when the bridge is
+decomposed (see `PHASE-NEXTJS-PARITY-MIGRATION.md`).
 
 ### Backend additions (.NET, additive)
 

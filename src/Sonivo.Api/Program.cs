@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Security.Claims;
@@ -344,7 +344,7 @@ app.Use(async (context, next) =>
 // YouTube reference iframes (nocookie player) and thumbnails stay allowlisted.
 // style-src keeps 'unsafe-inline' because React inline style attributes and
 // Vite dev style injection require it; fonts.googleapis.com/fonts.gstatic.com
-// are the only external origins actually used by the SPA (web/sonivo-web/index.html).
+// are the only external origins actually used by the SPA (web/apps/app/index.html).
 // connect-src 'self' covers the same-origin API + SignalR /hubs WebSocket.
 app.Use(async (context, next) =>
 {

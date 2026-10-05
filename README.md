@@ -56,7 +56,7 @@ tests/
   Sonivo.Application.Tests/
   Sonivo.Api.Tests/
   Sonivo.Integration.Tests/  # EF model + PostgreSQL-backed
-web/sonivo-web/              # React 19 + Vite + Tailwind SPA
+web/apps/app/              # React 19 + Vite + Tailwind SPA
 e2e/                         # Playwright critical journeys
 docs/                        # product, domain, architecture, tooling
 .github/workflows/           # ci.yml, codeql.yml, security.yml
@@ -113,7 +113,7 @@ API: `http://localhost:5171`
 ### 3. Frontend
 
 ```powershell
-cd web/sonivo-web
+cd web/apps/app
 npm install
 npm run dev
 ```
