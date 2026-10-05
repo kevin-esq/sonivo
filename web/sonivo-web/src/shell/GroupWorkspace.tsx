@@ -67,7 +67,7 @@ export function GroupWorkspace({
   const [members, setMembers] = useState<MemberListItem[] | null>(null)
   const { t } = useT()
   const { setRailPresent } = useRailPresence()
-  const { applyDefault } = useTheme()
+  const { theme, applyDefault } = useTheme()
 
   // Phase 4.3: per-group branding behind Features:GroupBranding.
   useEffect(() => {
@@ -201,9 +201,9 @@ export function GroupWorkspace({
 
   return (
     <div
-      className="min-h-screen bg-canvas md:flex md:h-screen md:overflow-hidden"
+      className="min-h-screen bg-canvas font-sans md:flex md:h-screen md:overflow-hidden"
       data-testid="grupo-shell"
-      style={{ ...brandTokenStyle(serverBrand), '--group-accent': accent } as CSSProperties}
+      style={{ ...brandTokenStyle(serverBrand, { primary: accent, theme }) } as CSSProperties}
     >
       <aside
         className={cn(
@@ -527,16 +527,16 @@ export function GroupWorkspace({
                       {serverBrand?.displayName ?? group.name}
                     </p>
                     {serverBrand?.tagline ? (
-                      <p className={cn('mt-0.5 truncate text-sm', lightHeaderText ? 'text-white/85' : 'text-slate-600')}>
+                      <p className={cn('mt-0.5 truncate text-sm', lightHeaderText ? 'text-white/85' : 'text-muted')}>
                         {serverBrand.tagline}
                       </p>
                     ) : (
-                      <p className={cn('mt-0.5 text-sm', lightHeaderText ? 'text-white/80' : 'text-slate-600')}>
+                      <p className={cn('mt-0.5 text-sm', lightHeaderText ? 'text-white/80' : 'text-muted')}>
                         {formatMembershipRole(group.role)}
                       </p>
                     )}
                     {serverBrand?.verse ? (
-                      <p className={cn('mt-1 truncate text-xs italic', lightHeaderText ? 'text-white/70' : 'text-slate-500')}>
+                      <p className={cn('mt-1 truncate text-xs italic', lightHeaderText ? 'text-white/70' : 'text-muted')}>
                         {serverBrand.verse}
                       </p>
                     ) : null}
@@ -553,7 +553,7 @@ export function GroupWorkspace({
                           </span>
                         ))}
                       </div>
-                      <span className={cn('text-xs font-medium', lightHeaderText ? 'text-white/85' : 'text-slate-600')}>
+                      <span className={cn('text-xs font-medium', lightHeaderText ? 'text-white/85' : 'text-muted')}>
                         {plural(members.length, t('grupo.memberOne'), t('grupo.memberMany'))}
                       </span>
                     </div>
@@ -587,7 +587,7 @@ export function GroupWorkspace({
 
           <main
             data-testid="group-content"
-            className="m-3 flex-1 rounded-2xl bg-white text-neutral-dark"
+            className="m-3 flex-1 rounded-2xl bg-surface text-ink"
           >
             <div className="px-5 py-6 pb-24 md:px-8 md:pb-8">
               {group === null ? (

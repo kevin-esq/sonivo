@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* The app switches themes with `data-theme` on <html> (see brand/theme.tsx),
+   not the OS preference, so `dark:` utilities must key off that attribute. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --color-primary: #8366f1;
   --color-primary-foreground: #f8fafc;

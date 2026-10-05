@@ -1,4 +1,5 @@
 import { getGroupBranding, type GroupBranding } from '../api/client'
+import { deriveGroupThemeTokens } from '../brand/tokens'
 
 export type ServerBranding = {
   accentHex: string | null
@@ -59,39 +60,29 @@ export async function loadServerBranding(groupId: string): Promise<ServerBrandin
 }
 
 /**
- * Scoped brand tokens (ADR-0054). Applied to the group shell only so a group's
- * identity never leaks to `:root` or other groups. Values fall back to CSS
- * defaults when the group did not set them.
+ * Scoped brand tokens (ADR-0054/0059). Applied to the group shell only so a
+ * group's identity never leaks to `:root` or other groups. Emits both the
+ * `--brand-*` primitives and the semantic `--color-*` overrides consumed by
+ * Tailwind utilities, so one brand colour repaints the entire workspace
+ * (buttons, links, active nav, focus rings, charts) in light and dark themes.
+ *
+ * `primary` is always required: it falls back to the device-local accent when
+ * server branding is unavailable, keeping legacy groups customisable.
  */
-export function brandTokenStyle(branding: ServerBranding | null): Record<string, string> {
-  const tokens: Record<string, string> = {}
-  if (!branding) return tokens
-  if (branding.accentHex) {
-    tokens['--brand-primary'] = branding.accentHex
-    tokens['--group-accent'] = branding.accentHex
-    tokens['--brand-on-primary'] = branding.onPrimary ?? '#ffffff'
-  }
-  if (branding.secondaryHex) {
-    tokens['--brand-secondary'] = branding.secondaryHex
-    tokens['--brand-on-secondary'] = branding.onSecondary ?? '#0f172a'
-  }
-  if (branding.accentColorHex) {
-    tokens['--brand-accent'] = branding.accentColorHex
-    tokens['--brand-on-accent'] = branding.onAccent ?? '#ffffff'
-  }
-  if (branding.successHex) {
-    tokens['--color-success'] = branding.successHex
-  }
-  if (branding.warningHex) {
-    tokens['--color-warning'] = branding.warningHex
-  }
-  if (branding.errorHex) {
-    tokens['--color-error'] = branding.errorHex
-  }
-  if (branding.typography) {
-    tokens['--font-sans'] = branding.typography
-  }
-  return tokens
+export function brandTokenStyle(
+  branding: ServerBranding | null,
+  options: { primary: string; theme: 'light' | 'dark' },
+): Record<string, string> {
+  return deriveGroupThemeTokens({
+    primary: options.primary,
+    secondary: branding?.secondaryHex,
+    accent: branding?.accentColorHex,
+    success: branding?.successHex,
+    warning: branding?.warningHex,
+    error: branding?.errorHex,
+    typography: branding?.typography,
+    theme: options.theme,
+  })
 }
 
 function setMeta(name: string, content: string): void {
