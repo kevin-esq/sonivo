@@ -55,4 +55,4 @@ CI: NOT RUN
   Git actions stay human-authorized.
 - Recorded in ADR-0064/0065/0066, `docs/tooling/OPENCODE-V2-MCP-SKILLS-2026-10.md`,
   `TOOLING-AUDIT.md`, `SKILLS-INVENTORY.md`.
-- Git checkpoint: changed on `chore/opencode-v2-security-tooling`; Remote: NOT PUSHED.
+- Git checkpoint: COMMITTED on `chore/opencode-v2-tooling` (clean branch off `develop`; excludes the unrelated migration commit); Remote: PUSHED; PR #215 (base `develop`); CI: pending.
