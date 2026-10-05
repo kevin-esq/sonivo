@@ -2,7 +2,7 @@ export const LOCALES = ['es', 'en', 'pt'] as const
 
 export type Locale = (typeof LOCALES)[number]
 
-/** Spanish is the product default (ADR-0043, extended to pt by ADR-0065). */
+/** Spanish is the product default (ADR-0043, extended to pt by ADR-0067). */
 export const DEFAULT_LOCALE: Locale = 'es'
 
 export const LOCALE_COOKIE = 'sonivo.locale'

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 /**
  * Root layout. It must own <html>/<body> in the App Router, so the tenant theme
- * is injected here from the host resolved by the middleware (ADR-0065). An
+ * is injected here from the host resolved by the middleware (ADR-0067). An
  * unknown tenant host renders a neutral 404 — existence is never revealed.
  */
 export default async function RootLayout({ children }: { children: ReactNode }) {

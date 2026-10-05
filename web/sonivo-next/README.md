@@ -1,6 +1,6 @@
 # sonivo-next
 
-Next.js App Router BFF for Sonivo (ADR-0065). It is the multi-tenant shell over
+Next.js App Router BFF for Sonivo (ADR-0067). It is the multi-tenant shell over
 the existing ASP.NET Core API in `src/`; the .NET modular monolith remains the
 only backend and the only writer to PostgreSQL.
 
@@ -13,7 +13,7 @@ only backend and the only writer to PostgreSQL.
 - **Dynamic theming (SSR)**: group branding is fetched server-side and injected
   as native CSS variables (`--color-primary`, `--color-secondary`) on `<html>`.
 - **Session handoff**: `/session/handoff?code=...` redeems a single-use code for a
-  host-only session cookie on the tenant host (see ADR-0065).
+  host-only session cookie on the tenant host (see ADR-0067).
 
 ## Security notes
 

@@ -1,13 +1,13 @@
 # PHASE-NEXTJS-MULTITENANT-BFF-SPEC — Next.js multi-tenant shell (BFF over the .NET API)
 
 - **Status:** ACCEPTED — user-authorized 2026-10-05 (owner: "Sí: ADR superador + implementar").
-- **ADR:** ADR-0065 (see [`DECISIONS.md`](./DECISIONS.md)).
+- **ADR:** ADR-0067 (see [`DECISIONS.md`](./DECISIONS.md)).
 - **Related:** ADR-0009/0010/0011 (stack, Identity cookie), ADR-0043 (i18n), ADR-0048/0049 (white-label, hosts), ADR-0060 (typography), ADR-0054 (branding), ADR-0020 (CSRF).
 - **Branch:** `feature/nextjs-multitenant-bff`.
 
 ---
 
-## 1. Decision summary (ADR-0065)
+## 1. Decision summary (ADR-0067)
 
 Sonivo introduces a **Next.js App Router frontend** that behaves as a **BFF over the existing ASP.NET Core API**:
 
@@ -17,7 +17,7 @@ Sonivo introduces a **Next.js App Router frontend** that behaves as a **BFF over
 - **Branding**: group colours/typography/theme are fetched server-side and injected as native CSS variables (`--color-primary`, `--color-secondary`) on `<html>`/`<body>`.
 - **Session across subdomains**: central authentication at the apex + **single-use, short-lived handoff code** exchanged on the tenant host for a **host-only session cookie**. A parent-domain cookie (`Domain=.sonvo.lat`) is **PROHIBITED**.
 
-`ADR-0065` **amends** the frontend row and the "Do not introduce Next.js" principle of **ADR-0010**; the .NET backend decision stands. It **unblocks the host/subdomain work of ADR-0049** (documentation-only until now) and **extends ADR-0043** to Portuguese. Backend message/mail localisation stays out of scope (ADR-0043 phase 2).
+`ADR-0067` **amends** the frontend row and the "Do not introduce Next.js" principle of **ADR-0010**; the .NET backend decision stands. It **unblocks the host/subdomain work of ADR-0049** (documentation-only until now) and **extends ADR-0043** to Portuguese. Backend message/mail localisation stays out of scope (ADR-0043 phase 2).
 
 ## 2. Why this is safe to add without breaking the shipped app
 
@@ -81,7 +81,7 @@ next.config.ts
 
 | ID | Deliverable | Depends on | Status |
 |---|---|---|---|
-| **T-NEXT-01** | ADR-0065 + this spec | — | done (this PR) |
+| **T-NEXT-01** | ADR-0067 + this spec | — | done (this PR) |
 | **T-NEXT-02** | Next.js BFF scaffold: middleware (subdomain + i18n), root/tenant layouts with SSR theme, marketing + tenant pages | T-NEXT-01 | done (this PR) |
 | **T-NEXT-03** | i18n es/en/pt extracted, `useT()` preserved, `AttendanceTracker` client component | T-NEXT-02 | done (this PR) |
 | **T-NEXT-04** | .NET session-handoff backend + host-only cookie + tests | T-NEXT-01 | done (this PR) |

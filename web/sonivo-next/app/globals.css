@@ -3,7 +3,7 @@
 /*
  * Base tokens are hard fallbacks; the tenant layout overrides
  * --color-primary / --color-secondary / --color-on-primary from the server
- * (group branding, ADR-0065).
+ * (group branding, ADR-0067).
  */
 :root {
   --color-primary: #8366f1;

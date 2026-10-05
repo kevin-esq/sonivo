@@ -8,7 +8,7 @@ import { useT } from '@/lib/i18n/I18nProvider'
 /**
  * Redeems the single-use handoff code on the tenant host. The code is consumed
  * immediately on mount via POST (same-origin, CSRF header), then the browser is
- * sent to the returned path. Errors are generic (ADR-0065).
+ * sent to the returned path. Errors are generic (ADR-0067).
  */
 export function HandoffClient() {
   const searchParams = useSearchParams()

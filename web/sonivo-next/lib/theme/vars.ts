@@ -7,7 +7,7 @@ export const DEFAULT_ON_PRIMARY = '#ffffff'
 
 /**
  * Maps group branding to native CSS variables injected on <html> from the
- * server (ADR-0065). Falls back to the Sonivo defaults when unset.
+ * server (ADR-0067). Falls back to the Sonivo defaults when unset.
  */
 export function themeVars(branding: PublicBranding | null): CSSProperties {
   return {

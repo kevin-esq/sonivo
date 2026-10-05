@@ -17,7 +17,7 @@ let csrfToken: string | null = null
 /**
  * Same-origin CSRF flow used by the shipped SPA: fetch the request token, then
  * send it as `X-CSRF-TOKEN`. The token cookie stays HttpOnly. No CSRF exemption
- * is required by the .NET API (ADR-0065).
+ * is required by the .NET API (ADR-0067).
  */
 export async function ensureCsrfToken(): Promise<string> {
   if (csrfToken) return csrfToken

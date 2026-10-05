@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next'
 
 // The .NET API is the only backend. All browser traffic is same-origin to the
-// Next host and proxied to the API, mirroring the Vite dev proxy (ADR-0065).
+// Next host and proxied to the API, mirroring the Vite dev proxy (ADR-0067).
 const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:5171'
 
 const nextConfig: NextConfig = {
