@@ -1075,17 +1075,10 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </div>
 
-          {isOwner ? (
-            <div className="flex items-center gap-3">
-              <Button type="button" disabled={savingBrand || !isDirty} onClick={() => void onSaveBranding()}>
-                {savingBrand ? t('inicio.working') : t('ajustes.saveBranding')}
-              </Button>
-              {brandSaved ? (
-                <span aria-live="polite" className="text-sm text-muted">
-                  {t('ajustes.brandingSaved')}
-                </span>
-              ) : null}
-            </div>
+          {isOwner && brandSaved ? (
+            <span aria-live="polite" className="text-sm text-muted">
+              {t('ajustes.brandingSaved')}
+            </span>
           ) : null}
 
           {/* Discord-style floating save bar while there are unsaved changes. */}
