@@ -34,7 +34,7 @@ public sealed class SmtpEmailSender : IEmailSender
         _port = configuration.GetValue("Email:Smtp:Port", 587);
         _userName = configuration["Email:Smtp:UserName"];
         _password = configuration["Email:Smtp:Password"];
-        _from = configuration["Email:Smtp:From"];
+        _from = configuration["Email:From"];
         _useStartTls = configuration.GetValue("Email:Smtp:UseStartTls", true);
     }
 
