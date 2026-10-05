@@ -27,6 +27,8 @@ public static class DependencyInjection
         services.AddScoped<GetGroupLogoHandler>();
         services.AddScoped<SetGroupBannerHandler>();
         services.AddScoped<GetGroupBannerHandler>();
+        services.AddScoped<SetGroupFaviconHandler>();
+        services.AddScoped<GetGroupFaviconHandler>();
         services.AddScoped<GetPublicBrandingHandler>();
         services.AddScoped<GetPublicBrandingLogoHandler>();
         services.AddScoped<GetPublicBrandingBannerHandler>();
@@ -77,6 +79,8 @@ public static class DependencyInjection
         services.AddScoped<GetEventHandler>();
         services.AddScoped<UpdateEventHandler>();
         services.AddScoped<CancelEventHandler>();
+        services.AddScoped<DuplicateEventHandler>();
+        services.AddScoped<DeleteEventHandler>();
         services.AddScoped<CreateTaskHandler>();
         services.AddScoped<UpdateTaskHandler>();
         services.AddScoped<SetTaskStatusHandler>();

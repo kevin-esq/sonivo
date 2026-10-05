@@ -43,6 +43,43 @@ public class TaskUseCaseTests
     }
 
     [Fact]
+    public async Task Status_transitions_through_all_three_states()
+    {
+        var ctx = await SeedOwnerMemberAsync();
+        var created = await new CreateTaskHandler(
+                new GroupAccessService(ctx.Groups), ctx.Tasks, new FixedClock(Now))
+            .HandleAsync(new CreateTaskCommand(ctx.Owner, ctx.GroupId, "Ensayar tema nuevo", null, null, null), CancellationToken.None);
+        Assert.Equal("open", created.Status);
+
+        var inProgress = await new SetTaskStatusHandler(
+                new GroupAccessService(ctx.Groups), ctx.Tasks, new FixedClock(Now))
+            .HandleAsync(new SetTaskStatusCommand(ctx.Owner, ctx.GroupId, created.Id, "in_progress", created.Version), CancellationToken.None);
+        Assert.Equal("in_progress", inProgress.Status);
+        Assert.Equal(2, inProgress.Version);
+
+        var done = await new SetTaskStatusHandler(
+                new GroupAccessService(ctx.Groups), ctx.Tasks, new FixedClock(Now))
+            .HandleAsync(new SetTaskStatusCommand(ctx.Owner, ctx.GroupId, inProgress.Id, "done", inProgress.Version), CancellationToken.None);
+        Assert.Equal("done", done.Status);
+        Assert.Equal(3, done.Version);
+    }
+
+    [Fact]
+    public async Task Invalid_status_is_rejected_with_clean_message()
+    {
+        var ctx = await SeedOwnerMemberAsync();
+        var created = await new CreateTaskHandler(
+                new GroupAccessService(ctx.Groups), ctx.Tasks, new FixedClock(Now))
+            .HandleAsync(new CreateTaskCommand(ctx.Owner, ctx.GroupId, "Tarea", null, null, null), CancellationToken.None);
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(
+            () => new SetTaskStatusHandler(new GroupAccessService(ctx.Groups), ctx.Tasks, new FixedClock(Now))
+                .HandleAsync(new SetTaskStatusCommand(ctx.Owner, ctx.GroupId, created.Id, "invalid_status", created.Version), CancellationToken.None));
+        Assert.DoesNotContain("Parameter", ex.Message);
+        Assert.DoesNotContain("nameof", ex.Message);
+    }
+
+    [Fact]
     public async Task Member_cannot_create()
     {
         var ctx = await SeedOwnerMemberAsync();

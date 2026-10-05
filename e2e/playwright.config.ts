@@ -14,6 +14,16 @@ export default defineConfig({
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   timeout: 60_000,
   expect: { timeout: 10_000 },
+  // The API (5171) is external (started by the developer/CI). Playwright owns
+  // the Vite dev server so the suite is self-contained locally; in CI the
+  // already-running server is reused.
+  webServer: {
+    command: 'npm run dev -- --host 127.0.0.1 --port 5173',
+    cwd: '../web/sonivo-web',
+    url: 'http://127.0.0.1:5173',
+    reuseExistingServer: true,
+    timeout: 120_000,
+  },
   use: {
     baseURL: process.env.SONIVO_E2E_BASE_URL ?? 'http://localhost:5173',
     trace: 'on-first-retry',

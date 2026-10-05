@@ -52,7 +52,12 @@ public sealed class ListMembersHandler
                 m.MusicalRole,
                 m.CreatedAt,
                 directory.TryGetValue(m.UserId!.Value, out var entry2) ? entry2.LastSeenAt : null,
-                directory.TryGetValue(m.UserId!.Value, out var entry3) ? entry3.Email : null))
+                // SECURITY-AUDIT-2026-10 (B15): managed-account synthetic
+                // addresses (@managed.invalid) are never exposed in the member
+                // list — same rule as /api/auth/me.
+                directory.TryGetValue(m.UserId!.Value, out var entry3) && entry3.Email is { } email && !email.EndsWith("@managed.invalid", StringComparison.Ordinal)
+                    ? email
+                    : null))
             .OrderBy(i => RoleRank(i.Role))
             .ThenBy(i => i.DisplayName, StringComparer.Ordinal)
             .ThenBy(i => i.UserId)

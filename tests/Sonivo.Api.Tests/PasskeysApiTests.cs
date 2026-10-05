@@ -3,9 +3,12 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Sonivo.Api.Auth;
+using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure.Identity;
+using Sonivo.Infrastructure.Persistence;
 
 namespace Sonivo.Api.Tests;
 
@@ -191,6 +194,136 @@ public class PasskeysApiTests
         var list3 = await listRes3.Content.ReadFromJsonAsync<List<PasskeyDto>>(JsonOptions);
         Assert.NotNull(list3);
         Assert.Empty(list3);
+
+        // SECURITY-AUDIT-2026-10 (A4): passkey removal is audited.
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            Assert.True(await db.AccountAudits.AnyAsync(
+                a => a.Action == AccountAudit.ActionPasskeyRemoved));
+        }
+    }
+
+    [Fact]
+    public async Task Register_finish_with_a_credential_id_owned_by_another_user_returns_409()
+    {
+        await using var factory = new GoogleAuthApiFactory();
+
+        // SECURITY-AUDIT-2026-10 (A3): credential ids are globally unique.
+        var emailA = $"passkey-dup-a-{Guid.NewGuid():N}@example.com";
+        var clientA = await CreateAuthedClientAsync(factory, emailA);
+        var authenticatorA = new FakeAuthenticator(credentialId: "shared-credential-id");
+
+        await EnsureCsrfAsync(clientA);
+        var startARes = await clientA.PostAsJsonAsync("/api/auth/passkeys/register-start", new { });
+        var startA = await startARes.Content.ReadFromJsonAsync<PasskeyRegistrationStartResponse>(JsonOptions);
+        var (clientDataA, attestationA) = authenticatorA.BuildAttestation(
+            startA!.RpId, startA.Challenge, DevOrigin, signCount: 0);
+        await EnsureCsrfAsync(clientA);
+        var regA = await clientA.PostAsJsonAsync("/api/auth/passkeys/register-finish", new
+        {
+            clientData = clientDataA,
+            attestationObject = attestationA,
+            deviceName = "dup-a"
+        });
+        Assert.Equal(HttpStatusCode.OK, regA.StatusCode);
+
+        var emailB = $"passkey-dup-b-{Guid.NewGuid():N}@example.com";
+        var clientB = await CreateAuthedClientAsync(factory, emailB);
+        var authenticatorB = new FakeAuthenticator(credentialId: "shared-credential-id");
+
+        await EnsureCsrfAsync(clientB);
+        var startBRes = await clientB.PostAsJsonAsync("/api/auth/passkeys/register-start", new { });
+        var startB = await startBRes.Content.ReadFromJsonAsync<PasskeyRegistrationStartResponse>(JsonOptions);
+        var (clientDataB, attestationB) = authenticatorB.BuildAttestation(
+            startB!.RpId, startB.Challenge, DevOrigin, signCount: 0);
+        await EnsureCsrfAsync(clientB);
+        var regB = await clientB.PostAsJsonAsync("/api/auth/passkeys/register-finish", new
+        {
+            clientData = clientDataB,
+            attestationObject = attestationB,
+            deviceName = "dup-b"
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, regB.StatusCode);
+    }
+
+    [Fact]
+    public async Task Register_finish_with_invalid_payload_returns_400_not_401()
+    {
+        await using var factory = new GoogleAuthApiFactory();
+        var client = await CreateAuthedClientAsync(factory, $"passkey-bad-{Guid.NewGuid():N}@example.com");
+
+        // SECURITY-AUDIT-2026-10 (A3): a failed ceremony is a client error (400),
+        // not a session problem — SPA 401 interceptors must not log out a
+        // user who merely sent a malformed registration.
+        await EnsureCsrfAsync(client);
+        var res = await client.PostAsJsonAsync("/api/auth/passkeys/register-finish", new
+        {
+            clientData = Convert.ToBase64String("not-json"u8.ToArray()),
+            attestationObject = "AAAA",
+            deviceName = "bad"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deleting_the_last_access_method_is_rejected_with_400()
+    {
+        await using var factory = new GoogleAuthApiFactory();
+        var email = $"passkey-last-{Guid.NewGuid():N}@example.com";
+        var client = CreateAnonymousClient(factory);
+
+        // Google-only account (no password), then a passkey on top.
+        await EnsureCsrfAsync(client);
+        var google = await client.PostAsJsonAsync("/api/auth/google/test-callback", new
+        {
+            providerKey = $"google-{Guid.NewGuid():N}",
+            email,
+            emailVerified = true,
+            displayName = "Google Only"
+        });
+        Assert.Equal(HttpStatusCode.OK, google.StatusCode);
+
+        var authenticator = new FakeAuthenticator();
+        await EnsureCsrfAsync(client);
+        var startRes = await client.PostAsJsonAsync("/api/auth/passkeys/register-start", new { });
+        var start = await startRes.Content.ReadFromJsonAsync<PasskeyRegistrationStartResponse>(JsonOptions);
+        var (clientData, attestationObject) = authenticator.BuildAttestation(
+            start!.RpId, start.Challenge, DevOrigin, signCount: 0);
+        await EnsureCsrfAsync(client);
+        var reg = await client.PostAsJsonAsync("/api/auth/passkeys/register-finish", new
+        {
+            clientData,
+            attestationObject,
+            deviceName = "only-passkey"
+        });
+        Assert.Equal(HttpStatusCode.OK, reg.StatusCode);
+        var credId = (await reg.Content.ReadFromJsonAsync<JsonElement>(JsonOptions))
+            .GetProperty("credentialId").GetString();
+
+        // Remove the Google login out-of-band so the passkey IS the last method.
+        using (var scope = factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await users.FindByEmailAsync(email);
+            var logins = await users.GetLoginsAsync(user!);
+            foreach (var login in logins)
+            {
+                await users.RemoveLoginAsync(user!, login.LoginProvider, login.ProviderKey);
+            }
+        }
+
+        // SECURITY-AUDIT-2026-10 (A4): never allow locking yourself out.
+        await EnsureCsrfAsync(client);
+        var del = await client.DeleteAsync($"/api/auth/passkeys/{credId}");
+        Assert.Equal(HttpStatusCode.BadRequest, del.StatusCode);
+
+        var stillThere = await client.GetAsync("/api/auth/passkeys");
+        var list = await stillThere.Content.ReadFromJsonAsync<List<PasskeyDto>>(JsonOptions);
+        Assert.NotNull(list);
+        Assert.Single(list);
     }
 
     [Fact]
@@ -342,12 +475,14 @@ public class PasskeysApiTests
         await using var factory = new GoogleAuthApiFactory();
         var email = $"passkey-fmt-{Guid.NewGuid():N}@example.com";
         var client = await CreateAuthedClientAsync(factory, email);
-        var authenticator = new FakeAuthenticator();
 
         // Before the C1 follow-up these were rejected (fmt allowlist + packed
         // self-attestation verification), which locked out real authenticators
         // (Apple "apple", password managers emitting packed with an attestation
         // certificate). Conveyance is "none", so any fmt is accepted now.
+        // SECURITY-AUDIT-2026-10 (A3): a fresh authenticator per ceremony — real
+        // authenticators mint a new credentialId per registration, and the
+        // server now enforces global credentialId uniqueness (409 on reuse).
         foreach (var (fmt, sig) in new (string, byte[]?)[]
                  {
                      ("apple", null),
@@ -355,6 +490,7 @@ public class PasskeysApiTests
                      ("tpm", null)
                  })
         {
+            var authenticator = new FakeAuthenticator();
             await EnsureCsrfAsync(client);
             var regStartRes = await client.PostAsJsonAsync("/api/auth/passkeys/register-start", new { });
             Assert.Equal(HttpStatusCode.OK, regStartRes.StatusCode);

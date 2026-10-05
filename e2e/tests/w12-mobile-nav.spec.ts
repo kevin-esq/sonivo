@@ -16,7 +16,9 @@ test.describe('W12 mobile navigation completeness', () => {
 
     await page.setViewportSize({ width: 390, height: 844 })
     await expect(page.getByTestId('mobile-tabbar')).toBeVisible()
-    await page.getByTestId('mobile-more').locator('summary').click()
+    // "mobile-more" exists in both the top bar and the tab bar; this test
+    // verifies the TOP BAR overflow exposes Miembros, so scope to the banner.
+    await page.getByRole('banner').getByLabel('Más').click()
 
     const people = page.getByRole('link', { name: 'Miembros' })
     await expect(people).toBeVisible()

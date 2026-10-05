@@ -12,6 +12,10 @@ public sealed class AccountAudit
     public const string ActionRemoved = "removed";
     public const string ActionPasswordChanged = "password_changed";
     public const string ActionOwnerTransferred = "owner_transferred";
+    // SECURITY-AUDIT-2026-10 (A4): passkey lifecycle is audited like every other
+    // credential change (string column — no schema migration needed).
+    public const string ActionPasskeyAdded = "passkey_added";
+    public const string ActionPasskeyRemoved = "passkey_removed";
 
     public Guid Id { get; private set; }
     public Guid? ActorUserId { get; private set; }

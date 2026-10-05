@@ -1,16 +1,20 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 using Sonivo.Application;
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Repertoire;
@@ -67,11 +71,23 @@ builder.Services.ConfigureApplicationCookie(options =>
 
         return Task.CompletedTask;
     };
-    options.Events.OnValidatePrincipal = context =>
+    var previousValidatePrincipal = options.Events.OnValidatePrincipal;
+    options.Events.OnValidatePrincipal = async context =>
     {
-        // Reject (and clear) sessions that have outlived the 30-day absolute
-        // cap measured from the original sign-in. Sliding renewal still
-        // extends ExpireTimeSpan (14 days) as long as the cap has not passed.
+        // First: run the default SecurityStampValidator (invalidates sessions
+        // on password change, stamp rotation, lockout, etc.)
+        if (previousValidatePrincipal is not null)
+        {
+            await previousValidatePrincipal(context);
+        }
+
+        // If the stamp validator already rejected the principal, stop here.
+        if (context.Principal is null)
+        {
+            return;
+        }
+
+        // Then: apply the 30-day absolute session cap.
         if (context.Properties.Items.TryGetValue(
                 SessionAbsolutePolicy.IssuedUtcProperty, out var issuedRaw)
             && DateTimeOffset.TryParse(
@@ -79,10 +95,8 @@ builder.Services.ConfigureApplicationCookie(options =>
             && SessionAbsolutePolicy.IsExpired(issuedUtc, DateTimeOffset.UtcNow))
         {
             context.RejectPrincipal();
-            return context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+            await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
         }
-
-        return Task.CompletedTask;
     };
     options.Events.OnRedirectToLogin = context =>
     {
@@ -101,7 +115,10 @@ builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-TOKEN";
     options.Cookie.Name = "sonivo.csrf";
-    options.Cookie.HttpOnly = false;
+    // SECURITY-AUDIT-2026-10 (B5): the SPA never reads this cookie — the
+    // request token is delivered by GET /api/auth/csrf — so it stays
+    // HttpOnly and out of reach of XSS.
+    options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
         ? CookieSecurePolicy.SameAsRequest
@@ -131,9 +148,11 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("auth-login", http => PerIp(http, 30));
     // ADR-0047: handle logins are rate-limited per (slug, IP) so a single group
     // cannot be brute-forced from one address without affecting other groups.
+    // SECURITY-AUDIT-2026-10 (B10): slug is lowercased so "MiGrupo" and
+    // "migrupo" share one partition (slugs are case-insensitive).
     options.AddPolicy("auth-login-handle", http =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: $"{http.Request.RouteValues["slug"]}|{ClientIpPartitionKey.Normalize(http.Connection.RemoteIpAddress)}",
+            partitionKey: $"{(http.Request.RouteValues["slug"] as string ?? string.Empty).ToLowerInvariant()}|{ClientIpPartitionKey.Normalize(http.Connection.RemoteIpAddress)}",
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 20,
@@ -153,6 +172,18 @@ builder.Services.AddRateLimiter(options =>
     // T-AU-03: Passkeys / WebAuthn challenge & management rate limits
     options.AddPolicy("auth-passkeys-challenge", http => PerIp(http, 10));
     options.AddPolicy("auth-passkeys-manage", http => PerIp(http, 30));
+    // SECURITY-AUDIT-2026-10 (B11): previously unlimited surfaces — uploads
+    // (branding + file resources + LRC import), invite acceptance, digitize
+    // starts (expensive) and GDPR-style exports.
+    options.AddPolicy("group-upload", http => PerIp(http, 30));
+    options.AddPolicy("invite-accept", http => PerIp(http, 30));
+    options.AddPolicy("digitize", http => PerIp(http, 10));
+    options.AddPolicy("export", http => PerIp(http, 10));
+    // NOTE (B11): a global per-IP limiter was evaluated and REMOVED — at any
+    // threshold tight enough to matter it throttled legitimate burst traffic
+    // (the E2E suite hit 429 on GET /api/auth/csrf), and a shared-IP partition
+    // penalizes NATed users. The per-endpoint policies above are the control;
+    // a global backstop belongs at the edge/CDN, not in-process.
 });
 builder.Services.AddSingleton<VerificationThrottle>();
 
@@ -161,8 +192,41 @@ if (!builder.Environment.IsDevelopment())
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-        options.KnownNetworks.Clear();
+        // SECURITY-AUDIT-2026-10 (A6): never trust arbitrary XFF headers.
+        // Only the explicitly configured platform proxy/network is trusted;
+        // when unset the safe default (loopback only) applies and XFF is
+        // effectively ignored, so client IPs cannot be spoofed to evade rate
+        // limits. Configure via ForwardedHeaders:KnownProxies (IP list) and
+        // ForwardedHeaders:KnownNetworks (CIDR list), comma/semicolon/space
+        // separated.
+        var proxies = builder.Configuration["ForwardedHeaders:KnownProxies"];
+        var networks = builder.Configuration["ForwardedHeaders:KnownNetworks"];
         options.KnownProxies.Clear();
+        options.KnownNetworks.Clear();
+        foreach (var raw in (proxies ?? string.Empty).Split(
+                     new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (IPAddress.TryParse(raw.Trim(), out var ip))
+            {
+                options.KnownProxies.Add(ip);
+            }
+        }
+        foreach (var raw in (networks ?? string.Empty).Split(
+                     new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var spec = raw.Trim();
+            var slash = spec.IndexOf('/');
+            var address = slash >= 0 ? spec[..slash] : spec;
+            var prefix = 32;
+            if (slash >= 0)
+            {
+                _ = int.TryParse(spec[(slash + 1)..], NumberStyles.None, CultureInfo.InvariantCulture, out prefix);
+            }
+            if (IPAddress.TryParse(address, out var ip))
+            {
+                options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(ip, prefix));
+            }
+        }
     });
 }
 
@@ -182,6 +246,9 @@ builder.Services.AddHttpContextAccessor();
 // The global antiforgery middleware above requires X-CSRF-TOKEN on the
 // /negotiate POST (Q9-Q3); GET/WebSocket hub traffic needs only the cookie.
 builder.Services.AddSignalR();
+// SECURITY-AUDIT-2026-10 (B7): bounded digitize queue (replaces Task.Run).
+builder.Services.AddSingleton<DigitizeJobQueue>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<DigitizeJobQueue>());
 
 var app = builder.Build();
 
@@ -227,8 +294,10 @@ if (!app.Configuration.GetValue("UseInMemoryDatabase", false) && app.Configurati
 {
     using var migrateScope = app.Services.CreateScope();
     var db = migrateScope.ServiceProvider.GetRequiredService<SonivoDbContext>();
-    // Use EnsureCreated to avoid PendingModelChangesWarning loop
-    db.Database.EnsureCreated();
+    // SECURITY-AUDIT-2026-10 (B14): real migrations — EnsureCreated builds the
+    // schema from the current model snapshot and silently blocks future
+    // migrations, making every later schema change a production incident.
+    db.Database.Migrate();
 }
 
 app.UseExceptionHandler();
@@ -238,6 +307,43 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+// SECURITY-AUDIT-2026-10 (B4): security headers are applied FIRST so every
+// response — including 429 (rate limiter), 403 must_change_password, and the
+// exception handler's 500s — carries them. Response headers added here flow
+// back through these middlewares regardless of where downstream short-circuits.
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.TryAdd("X-Request-Id", context.TraceIdentifier);
+    context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
+    context.Response.Headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    await next();
+});
+
+// ADR-0037 T-FX-02 + L2 (SECURITY-AUDIT-2026-09): defense-in-depth CSP.
+// YouTube reference iframes (nocookie player) and thumbnails stay allowlisted.
+// style-src keeps 'unsafe-inline' because React inline style attributes and
+// Vite dev style injection require it; fonts.googleapis.com/fonts.gstatic.com
+// are the only external origins actually used by the SPA (web/sonivo-web/index.html).
+// connect-src 'self' covers the same-origin API + SignalR /hubs WebSocket.
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.TryAdd("Content-Security-Policy",
+        "default-src 'self'; " +
+        "script-src 'self'; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com; " +
+        "img-src 'self' data: https://i.ytimg.com; " +
+        "frame-src 'self' https://www.youtube-nocookie.com; " +
+        "connect-src 'self'; " +
+        "frame-ancestors 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self'; " +
+        "object-src 'none'");
+    await next();
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -277,37 +383,11 @@ static bool IsMustChangeAllowed(string path) =>
     || path.Equals("/api/auth/csrf", StringComparison.OrdinalIgnoreCase);
 app.UseRateLimiter();
 
-app.Use(async (context, next) =>
-{
-    context.Response.Headers.TryAdd("X-Request-Id", context.TraceIdentifier);
-    context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
-    context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
-    await next();
-});
-
-// ADR-0037 T-FX-02 + L2 (SECURITY-AUDIT-2026-09): defense-in-depth CSP.
-// YouTube reference iframes (nocookie player) and thumbnails stay allowlisted.
-// style-src keeps 'unsafe-inline' because React inline style attributes and
-// Vite dev style injection require it; fonts.googleapis.com/fonts.gstatic.com
-// are the only external origins actually used by the SPA (web/sonivo-web/index.html).
-// connect-src 'self' covers the same-origin API + SignalR /hubs WebSocket.
-app.Use(async (context, next) =>
-{
-    context.Response.Headers.TryAdd("Content-Security-Policy",
-        "default-src 'self'; " +
-        "script-src 'self'; " +
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-        "font-src 'self' https://fonts.gstatic.com; " +
-        "img-src 'self' data: https://i.ytimg.com; " +
-        "frame-src 'self' https://www.youtube-nocookie.com; " +
-        "connect-src 'self'; " +
-        "frame-ancestors 'none'; " +
-        "base-uri 'self'; " +
-        "form-action 'self'; " +
-        "object-src 'none'");
-    await next();
-});
-
+// SECURITY-AUDIT-2026-10 (B3): the global CSRF middleware validates EVERY
+// unsafe method (POST/PUT/PATCH/DELETE) for ALL endpoints — there is no
+// per-endpoint opt-out, by design (login CSRF protection included). The
+// previous scattered .DisableAntiforgery() calls were no-ops against this
+// middleware and were removed.
 app.Use(async (context, next) =>
 {
     var method = context.Request.Method;
@@ -335,6 +415,36 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// SECURITY-AUDIT-2026-10 (C8): cross-origin WebSocket handshakes are rejected.
+// SameSite=Lax cookies already block browser cross-site handshakes; this is
+// defense-in-depth for non-browser clients. Allowed: same host as the request
+// (any port), entries in Security:AllowedHubOrigins, and in Development any
+// loopback host (Vite proxies /hubs from a different port).
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+    if (path.StartsWith("/hubs", StringComparison.OrdinalIgnoreCase)
+        && context.Request.Headers.TryGetValue("Origin", out var originValues)
+        && Uri.TryCreate(originValues.ToString(), UriKind.Absolute, out var originUri))
+    {
+        var requestHost = context.Request.Host.Host;
+        var allowedConfigured = (app.Configuration["Security:AllowedHubOrigins"] ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var isLoopbackDev = app.Environment.IsDevelopment()
+            && (originUri.Host == "localhost" || originUri.Host == "127.0.0.1" || originUri.Host == "::1");
+        var isAllowed = originUri.Host.Equals(requestHost, StringComparison.OrdinalIgnoreCase)
+            || isLoopbackDev
+            || allowedConfigured.Contains(originUri.Host, StringComparer.OrdinalIgnoreCase);
+        if (!isAllowed)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+    }
+
+    await next();
+});
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseDefaultFiles();
@@ -344,6 +454,21 @@ if (!app.Environment.IsDevelopment())
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health")
     .AllowAnonymous();
+
+// SECURITY-AUDIT-2026-10 (C9): readiness check with a real database probe so
+// load balancers stop routing to an instance that lost its Postgres connection.
+app.MapGet("/api/health/ready", async (SonivoDbContext db, CancellationToken cancellationToken) =>
+{
+    var canConnect = await db.Database.CanConnectAsync(cancellationToken);
+    return canConnect
+        ? Results.Ok(new { status = "ready" })
+        : Results.Problem(
+            detail: "Database unavailable.",
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            title: "Service Unavailable");
+})
+.WithName("HealthReady")
+.AllowAnonymous();
 
 app.MapGet("/api/auth/csrf", (HttpContext http, IAntiforgery antiforgery) =>
 {
@@ -415,7 +540,6 @@ app.MapPost("/api/auth/register", async (
 })
 .WithName("Register")
 .AllowAnonymous()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-register");
 
 app.MapPost("/api/auth/login", async (
@@ -434,6 +558,10 @@ app.MapPost("/api/auth/login", async (
     var user = await users.FindByEmailAsync(request.Email.Trim());
     if (user is null)
     {
+        // SECURITY-AUDIT-2026-10 (A1): burn a password-hash verification so a
+        // missing account is not measurably faster than a wrong password, and
+        // return the IDENTICAL 401 shape as bad credentials.
+        AuthUniformity.BurnPasswordVerification(users, request.Password);
         return Results.Problem(
             detail: "Invalid email or password.",
             statusCode: StatusCodes.Status401Unauthorized,
@@ -455,8 +583,10 @@ app.MapPost("/api/auth/login", async (
         app.Logger.LogWarning(
             "Security event: account lockout (login). UserId: {UserId}",
             user.Id);
+        // SECURITY-AUDIT-2026-10 (A1): lockout must not reveal account
+        // existence — same 401 shape as bad credentials.
         return Results.Problem(
-            detail: "Account temporarily locked.",
+            detail: "Invalid email or password.",
             statusCode: StatusCodes.Status401Unauthorized,
             title: "Unauthorized");
     }
@@ -489,19 +619,10 @@ app.MapPost("/api/auth/login", async (
             title: "Unauthorized");
     }
 
-    return Results.Ok(new
-    {
-        id = user.Id,
-        email = user.Email,
-        displayName = user.DisplayName,
-        emailConfirmed = user.EmailConfirmed,
-        mustChangePassword = user.MustChangePassword,
-        managedByGroupId = user.ManagedByGroupId
-    });
+    return Results.Ok(ToUserResponse(user));
 })
 .WithName("Login")
 .AllowAnonymous()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-login");
 
 // ADR-0047: members without an email sign in as handle@slug. The handle and the
@@ -578,20 +699,10 @@ app.MapPost("/api/auth/login/handle/{slug}", async (
         return AuthUniformity.InvalidLogin();
     }
 
-    return Results.Ok(new
-    {
-        id = user.Id,
-        email = (string?)null,
-        displayName = user.DisplayName,
-        emailConfirmed = user.EmailConfirmed,
-        mustChangePassword = user.MustChangePassword,
-        managedByGroupId = user.ManagedByGroupId,
-        handle = normalized
-    });
+    return Results.Ok(ToUserResponse(user, handle: normalized));
 })
 .WithName("HandleLogin")
 .AllowAnonymous()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-login-handle");
 
 
@@ -608,15 +719,7 @@ app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<Applica
         return Results.Unauthorized();
     }
 
-    return Results.Ok(new
-    {
-        id = appUser.Id,
-        email = appUser.Email is { } mail && mail.EndsWith("@managed.invalid", StringComparison.Ordinal) ? null : appUser.Email,
-        displayName = appUser.DisplayName,
-        emailConfirmed = appUser.EmailConfirmed,
-        mustChangePassword = appUser.MustChangePassword,
-        managedByGroupId = appUser.ManagedByGroupId
-    });
+    return Results.Ok(ToUserResponse(appUser));
 })
 .WithName("GetCurrentUser")
 .RequireAuthorization();
@@ -648,18 +751,10 @@ app.MapPatch("/api/auth/me", async (
     if (!result.Succeeded)
     {
         return Results.ValidationProblem(
-            result.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+            result.Errors.GroupBy(e => e.Code).ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray()));
     }
 
-    return Results.Ok(new
-    {
-        id = appUser.Id,
-        email = appUser.Email is { } mail && mail.EndsWith("@managed.invalid", StringComparison.Ordinal) ? null : appUser.Email,
-        displayName = appUser.DisplayName,
-        emailConfirmed = appUser.EmailConfirmed,
-        mustChangePassword = appUser.MustChangePassword,
-        managedByGroupId = appUser.ManagedByGroupId
-    });
+    return Results.Ok(ToUserResponse(appUser));
 })
 .WithName("UpdateCurrentUser")
 .RequireAuthorization();
@@ -684,9 +779,14 @@ app.MapPost("/api/auth/change-password", async (
     var result = await users.ChangePasswordAsync(appUser, request.CurrentPassword ?? string.Empty, newPassword);
     if (!result.Succeeded)
     {
+        // SECURITY-AUDIT-2026-10 (A5): a stolen session must not get unlimited
+        // password guesses — count failures toward the shared lockout budget.
+        await users.AccessFailedAsync(appUser);
         return Results.ValidationProblem(
-            result.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+            result.Errors.GroupBy(e => e.Code).ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray()));
     }
+
+    await users.ResetAccessFailedCountAsync(appUser);
 
     if (appUser.MustChangePassword)
     {
@@ -706,7 +806,6 @@ app.MapPost("/api/auth/change-password", async (
 })
 .WithName("ChangePassword")
 .RequireAuthorization()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-change-password");
 
 app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInManager) =>
@@ -715,8 +814,7 @@ app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInMana
     return Results.NoContent();
 })
 .WithName("Logout")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 // T-AU-01 (Q-AU-2): single-use expiring DataProtection tokens via UserManager.
 // Invalid/expired/unknown → 400 with the frozen Spanish copy.
@@ -757,11 +855,10 @@ app.MapPost("/api/auth/confirm-email", async (
 })
 .WithName("ConfirmEmail")
 .AllowAnonymous()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-confirm");
 
 // T-AU-01 (Q-AU-2): ALWAYS 202 — silent for unknown/already-confirmed emails
-// (no oracle), per-email 60 s cooldown, best-effort mail + mailed flag.
+// (no oracle), per-email 60 s cooldown, best-effort mail (no mailed flag).
 app.MapPost("/api/auth/resend-confirmation", async (
     ResendConfirmationRequest request,
     UserManager<ApplicationUser> users,
@@ -770,7 +867,6 @@ app.MapPost("/api/auth/resend-confirmation", async (
     VerificationThrottle throttle,
     CancellationToken cancellationToken) =>
 {
-    var mailed = false;
     var normalized = request.Email?.Trim() ?? string.Empty;
     if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim("resend:" + normalized))
     {
@@ -778,20 +874,19 @@ app.MapPost("/api/auth/resend-confirmation", async (
         if (user is not null && !user.EmailConfirmed)
         {
             var token = await users.GenerateEmailConfirmationTokenAsync(user);
-            mailed = await VerificationMail.TrySendConfirmationAsync(
+            await VerificationMail.TrySendConfirmationAsync(
                 email, origin, app.Logger, user.Email!, token, cancellationToken);
         }
     }
 
-    return Results.Accepted("/api/auth/resend-confirmation", new { accepted = true, mailed });
+    return Results.Accepted("/api/auth/resend-confirmation", new { accepted = true });
 })
 .WithName("ResendConfirmation")
 .AllowAnonymous()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-resend");
 
 // T-AU-01 (Q-AU-2): ALWAYS 202 — silent for unknown emails (no oracle),
-// best-effort mail + mailed flag. L4 (SECURITY-AUDIT-2026-09): per-email
+// best-effort mail (no mailed flag). L4 (SECURITY-AUDIT-2026-09): per-email
 // 60 s cooldown (distinct "forgot:" namespace so it never blocks resend).
 app.MapPost("/api/auth/forgot-password", async (
     ForgotPasswordRequest request,
@@ -801,7 +896,6 @@ app.MapPost("/api/auth/forgot-password", async (
     VerificationThrottle throttle,
     CancellationToken cancellationToken) =>
 {
-    var mailed = false;
     var normalized = request.Email?.Trim() ?? string.Empty;
     if (!string.IsNullOrWhiteSpace(normalized) && throttle.TryClaim("forgot:" + normalized))
     {
@@ -809,16 +903,15 @@ app.MapPost("/api/auth/forgot-password", async (
         if (user is not null)
         {
             var token = await users.GeneratePasswordResetTokenAsync(user);
-            mailed = await VerificationMail.TrySendPasswordResetAsync(
+            await VerificationMail.TrySendPasswordResetAsync(
                 email, origin, app.Logger, user.Email!, token, cancellationToken);
         }
     }
 
-    return Results.Accepted("/api/auth/forgot-password", new { accepted = true, mailed });
+    return Results.Accepted("/api/auth/forgot-password", new { accepted = true });
 })
 .WithName("ForgotPassword")
 .AllowAnonymous()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-forgot");
 
 // T-AU-01 (Q-AU-2): single-use reset via security-stamp rotation.
@@ -889,7 +982,6 @@ app.MapPost("/api/auth/reset-password", async (
 })
 .WithName("ResetPassword")
 .AllowAnonymous()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-reset");
 
 // T-AU-02 (ADR-0038 S2): TOTP 2FA via the Identity authenticator provider.
@@ -897,8 +989,7 @@ app.MapPost("/api/auth/reset-password", async (
 // (and on explicit regenerate), single-use enforced by UserManager.
 // No new tables: AspNetUserTokens already stores the authenticator key +
 // recovery codes (verified — no migration).
-// Temporary password that satisfies the Identity password policy; shown once.
-static string GenerateTemporaryPassword() => "Tmp1!" + Guid.NewGuid().ToString("N");
+static string GenerateTemporaryPassword() => ManagedAccountProvisioner.GenerateTemporaryPassword();
 
 static string SanitizeTotpCode(string? code) =>
     (code ?? string.Empty).Replace(" ", string.Empty, StringComparison.Ordinal)
@@ -966,7 +1057,6 @@ app.MapPost("/api/auth/2fa/enroll-start", async (
 })
 .WithName("TwoFactorEnrollStart")
 .RequireAuthorization()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-2fa-manage");
 
 app.MapPost("/api/auth/2fa/enroll-verify", async (
@@ -1007,13 +1097,13 @@ app.MapPost("/api/auth/2fa/enroll-verify", async (
 })
 .WithName("TwoFactorEnrollVerify")
 .RequireAuthorization()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-2fa-manage");
 
 app.MapPost("/api/auth/2fa/disable", async (
     DisableTwoFactorRequest request,
     ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users) =>
+    UserManager<ApplicationUser> users,
+    SignInManager<ApplicationUser> signInManager) =>
 {
     var user = await users.GetUserAsync(principal);
     if (user is null)
@@ -1033,8 +1123,21 @@ app.MapPost("/api/auth/2fa/disable", async (
     // (Google-only) accounts skip it per S38-Q2 (b).
     if (await users.HasPasswordAsync(user))
     {
-        var passwordOk = await users.CheckPasswordAsync(user, request.Password ?? string.Empty);
-        if (!passwordOk)
+        // SECURITY-AUDIT-2026-10 (A5): shared lockout budget for in-session
+        // password rechecks (lockoutOnFailure counts and resets correctly).
+        var passwordCheck = await signInManager.CheckPasswordSignInAsync(
+            user, request.Password ?? string.Empty, lockoutOnFailure: true);
+        if (passwordCheck.IsLockedOut)
+        {
+            app.Logger.LogWarning(
+                "Security event: account lockout (2fa disable). UserId: {UserId}",
+                user.Id);
+            return Results.Problem(
+                detail: "Cuenta bloqueada temporalmente",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+        if (!passwordCheck.Succeeded)
         {
             return Results.Problem(
                 detail: "La contraseña no es correcta",
@@ -1049,7 +1152,6 @@ app.MapPost("/api/auth/2fa/disable", async (
 })
 .WithName("TwoFactorDisable")
 .RequireAuthorization()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-2fa-manage");
 
 app.MapPost("/api/auth/2fa/challenge", async (
@@ -1090,17 +1192,10 @@ app.MapPost("/api/auth/2fa/challenge", async (
             title: "Unauthorized");
     }
 
-    return Results.Ok(new
-    {
-        id = user.Id,
-        email = user.Email,
-        displayName = user.DisplayName,
-        emailConfirmed = user.EmailConfirmed
-    });
+    return Results.Ok(ToUserResponse(user));
 })
 .WithName("TwoFactorChallenge")
 .AllowAnonymous()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-2fa-challenge");
 
 app.MapPost("/api/auth/2fa/recover", async (
@@ -1140,23 +1235,17 @@ app.MapPost("/api/auth/2fa/recover", async (
             title: "Unauthorized");
     }
 
-    return Results.Ok(new
-    {
-        id = user.Id,
-        email = user.Email,
-        displayName = user.DisplayName,
-        emailConfirmed = user.EmailConfirmed
-    });
+    return Results.Ok(ToUserResponse(user));
 })
 .WithName("TwoFactorRecover")
 .AllowAnonymous()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-2fa-challenge");
 
 app.MapPost("/api/auth/2fa/recovery-codes/regenerate", async (
     RegenerateRecoveryCodesRequest request,
     ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users) =>
+    UserManager<ApplicationUser> users,
+    SignInManager<ApplicationUser> signInManager) =>
 {
     var user = await users.GetUserAsync(principal);
     if (user is null)
@@ -1174,8 +1263,21 @@ app.MapPost("/api/auth/2fa/recovery-codes/regenerate", async (
 
     if (await users.HasPasswordAsync(user))
     {
-        var passwordOk = await users.CheckPasswordAsync(user, request.Password ?? string.Empty);
-        if (!passwordOk)
+        // SECURITY-AUDIT-2026-10 (A5): shared lockout budget for in-session
+        // password rechecks (lockoutOnFailure counts and resets correctly).
+        var passwordCheck = await signInManager.CheckPasswordSignInAsync(
+            user, request.Password ?? string.Empty, lockoutOnFailure: true);
+        if (passwordCheck.IsLockedOut)
+        {
+            app.Logger.LogWarning(
+                "Security event: account lockout (recovery codes regenerate). UserId: {UserId}",
+                user.Id);
+            return Results.Problem(
+                detail: "Cuenta bloqueada temporalmente",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+        if (!passwordCheck.Succeeded)
         {
             return Results.Problem(
                 detail: "La contraseña no es correcta",
@@ -1191,7 +1293,6 @@ app.MapPost("/api/auth/2fa/recovery-codes/regenerate", async (
 })
 .WithName("TwoFactorRegenerateRecoveryCodes")
 .RequireAuthorization()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-2fa-manage");
 
 // T-AU-03 (ADR-0038 S3): Passkeys / WebAuthn API endpoints
@@ -1262,13 +1363,13 @@ app.MapPost("/api/auth/passkeys/register-start", async (
 })
 .WithName("PasskeysRegisterStart")
 .RequireAuthorization()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-passkeys-manage");
 
 app.MapPost("/api/auth/passkeys/register-finish", async (
     PasskeyRegistrationFinishRequest request,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
+    SonivoDbContext db,
     IAccountAuditStore audit,
     IClock clock,
     IPublicOrigin origin,
@@ -1292,11 +1393,28 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
         if (!PasskeyChallengeStore.ConsumeChallenge(cd.Challenge, expectedUserId: user.Id))
         {
             app.Logger.LogWarning("Passkey registration: challenge was not issued for this user, expired, or already used.");
-            return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
+            // SECURITY-AUDIT-2026-10 (A3): verification failures here are client
+            // errors, not session problems — 400 so SPA 401 interceptors do not
+            // log out an authenticated user.
+            return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 400, title: "Bad Request");
         }
         // 2. attestation: rpIdHash, UP/AT flags, credentialId + COSE key extracted
         // (attestation statement not verified — conveyance is "none"; see PasskeysAuth)
         var proof = PasskeyVerifier.ParseAttestation(request.AttestationObject, rpId);
+
+        // SECURITY-AUDIT-2026-10 (A3): a credentialId is globally unique — two
+        // accounts must never share one (login-finish resolves by id alone).
+        var tokenName = "Credential_" + proof.CredentialId;
+        var existing = await db.UserTokens
+            .FirstOrDefaultAsync(t => t.LoginProvider == "Passkeys" && t.Name == tokenName);
+        if (existing is not null)
+        {
+            app.Logger.LogWarning("Passkey registration: credentialId already registered (conflict).");
+            return Results.Problem(
+                detail: "La llave de acceso ya está registrada en otra cuenta",
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Conflict");
+        }
 
         var cred = new PasskeyCredential(
             proof.CredentialId,
@@ -1304,8 +1422,12 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
             string.IsNullOrWhiteSpace(request.DeviceName) ? "Llave de acceso" : request.DeviceName.Trim(),
             DateTimeOffset.UtcNow,
             proof.SignCount);
-        await users.SetAuthenticationTokenAsync(user, "Passkeys",
-            "Credential_" + cred.CredentialId, System.Text.Json.JsonSerializer.Serialize(cred));
+        await users.SetAuthenticationTokenAsync(user, "Passkeys", tokenName, System.Text.Json.JsonSerializer.Serialize(cred));
+
+        // SECURITY-AUDIT-2026-10 (A4): every passkey registration is audited.
+        await audit.AddAsync(
+            AccountAudit.Create(AccountAudit.ActionPasskeyAdded, clock.UtcNow, actorUserId: user.Id),
+            cancellationToken);
 
         // ADR-0047 lifecycle: registering a passkey makes a group-managed account
         // self-owned (it is no longer resettable by the group).
@@ -1317,8 +1439,9 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
             await audit.AddAsync(
                 AccountAudit.Create(AccountAudit.ActionLinked, clock.UtcNow, targetUserId: user.Id),
                 cancellationToken);
-            await audit.SaveChangesAsync(cancellationToken);
         }
+
+        await audit.SaveChangesAsync(cancellationToken);
 
         return Results.Ok(new { registered = true, credentialId = cred.CredentialId });
     }
@@ -1326,18 +1449,22 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
     {
         // Diagnostics only: the verifier's fixed reason, never the payload or secrets.
         app.Logger.LogWarning("Passkey registration verification failed: {Reason}", ex.Message);
-        return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 401, title: "Unauthorized");
+        // SECURITY-AUDIT-2026-10 (A3): 400, not 401 — see challenge-failure comment above.
+        return Results.Problem(detail: "La llave de acceso no es válida", statusCode: 400, title: "Bad Request");
     }
 })
 .WithName("PasskeysRegisterFinish")
 .RequireAuthorization()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-passkeys-manage");
 
 app.MapDelete("/api/auth/passkeys/{id}", async (
     string id,
     ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users) =>
+    UserManager<ApplicationUser> users,
+    SonivoDbContext db,
+    IAccountAuditStore audit,
+    IClock clock,
+    CancellationToken cancellationToken) =>
 {
     var user = await users.GetUserAsync(principal);
     if (user is null)
@@ -1346,12 +1473,34 @@ app.MapDelete("/api/auth/passkeys/{id}", async (
     }
 
     var credId = id.Trim();
-    await users.RemoveAuthenticationTokenAsync(user, "Passkeys", "Credential_" + credId);
+    var tokenName = "Credential_" + credId;
+
+    // SECURITY-AUDIT-2026-10 (A4): never allow removing the last access method
+    // (a passwordless account could lock itself out for good).
+    var remainingAccessMethods = 0;
+    if (await users.HasPasswordAsync(user)) remainingAccessMethods++;
+    if (await users.GetTwoFactorEnabledAsync(user)) remainingAccessMethods++;
+    if (await db.UserLogins.AnyAsync(l => l.UserId == user.Id, cancellationToken)) remainingAccessMethods++;
+    remainingAccessMethods += await db.UserTokens.CountAsync(
+        t => t.UserId == user.Id && t.LoginProvider == "Passkeys" && t.Name != tokenName,
+        cancellationToken);
+    if (remainingAccessMethods == 0)
+    {
+        return Results.Problem(
+            detail: "No puedes eliminar tu único método de acceso",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    await users.RemoveAuthenticationTokenAsync(user, "Passkeys", tokenName);
+    await audit.AddAsync(
+        AccountAudit.Create(AccountAudit.ActionPasskeyRemoved, clock.UtcNow, actorUserId: user.Id),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
     return Results.Ok(new { deleted = true });
 })
 .WithName("PasskeysDelete")
 .RequireAuthorization()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-passkeys-manage");
 
 app.MapPost("/api/auth/passkeys/login-start", (
@@ -1364,7 +1513,6 @@ app.MapPost("/api/auth/passkeys/login-start", (
 })
 .WithName("PasskeysLoginStart")
 .AllowAnonymous()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-passkeys-challenge");
 
 app.MapPost("/api/auth/passkeys/login-finish", async (
@@ -1435,14 +1583,18 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
         // 4. persist the advanced counter, then sign in
         stored = stored with { SignCount = proof.SignCount };
         await users.SetAuthenticationTokenAsync(user, "Passkeys", tokenName, System.Text.Json.JsonSerializer.Serialize(stored));
-        await signInManager.SignInAsync(user, isPersistent: true);
-        return Results.Ok(new
+        // SECURITY-AUDIT-2026-10 (A2): passkey login must obey the same account
+        // gates as password login (lockout, email confirmation, sign-in allowed).
+        if (!await signInManager.CanSignInAsync(user) || await users.IsLockedOutAsync(user))
         {
-            id = user.Id,
-            email = user.Email,
-            displayName = user.DisplayName,
-            emailConfirmed = user.EmailConfirmed
-        });
+            app.Logger.LogWarning("Security event: passkey login blocked by account state. UserId: {UserId}", user.Id);
+            return Results.Problem(
+                detail: "Invalid email or password.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+        await signInManager.SignInAsync(user, isPersistent: true);
+        return Results.Ok(ToUserResponse(user));
     }
     catch (PasskeyVerifier.PasskeyVerificationException ex)
     {
@@ -1453,7 +1605,6 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
 })
 .WithName("PasskeysLoginFinish")
 .AllowAnonymous()
-.DisableAntiforgery()
 .RequireRateLimiting("auth-passkeys-challenge");
 
 // T-AU-01 test hook (E2E only): marks a user confirmed without a mailbox.
@@ -1487,8 +1638,7 @@ if (authTestHook && app.Environment.IsDevelopment())
         return Results.Ok(new { emailConfirmed = true });
     })
     .WithName("TestConfirmUser")
-    .AllowAnonymous()
-    .DisableAntiforgery();
+    .AllowAnonymous();
 }
 
 app.MapGoogleAuthEndpoints();
@@ -1608,8 +1758,7 @@ app.MapPost("/api/groups", async (
     return Results.Created($"/api/groups/{created.Id}", ToGroupResponse(created));
 })
 .WithName("CreateGroup")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}", async (
     Guid groupId,
@@ -1676,10 +1825,9 @@ app.MapPut("/api/groups/{groupId:guid}/slug", async (
     return Results.Ok(ToGroupResponse(updated));
 })
 .WithName("ChangeGroupSlug")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
-// ---------- Per-group white label (ADR-0048). Flag: Features:GroupBranding (default off). ----------
+// ---------- Per-group white label (ADR-0048). Flag: Features:GroupBranding (default true). ----------
 
 app.MapGet("/api/groups/{groupId:guid}/branding", async (
     Guid groupId,
@@ -1733,6 +1881,11 @@ app.MapPut("/api/groups/{groupId:guid}/branding", async (
             request.DisplayName,
             request.AccentHex,
             request.SecondaryHex,
+            request.AccentColorHex,
+            request.SuccessHex,
+            request.WarningHex,
+            request.ErrorHex,
+            request.Typography,
             request.CoverKind,
             request.CoverValue,
             request.ThemeDefault,
@@ -1747,8 +1900,7 @@ app.MapPut("/api/groups/{groupId:guid}/branding", async (
     return Results.Ok(ToBrandingResponse(updated));
 })
 .WithName("UpdateGroupBranding")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapPost("/api/groups/{groupId:guid}/branding/logo", async (
     Guid groupId,
@@ -1782,15 +1934,25 @@ app.MapPost("/api/groups/{groupId:guid}/branding/logo", async (
         return Results.Problem(detail: "Logo file is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
     }
 
-    await using var stream = file.OpenReadStream();
-    var updated = await handler.HandleAsync(
-        new SetGroupLogoCommand(userId.Value, groupId, file.ContentType, file.Length, stream),
-        cancellationToken);
-    return Results.Ok(ToBrandingResponse(updated));
+    // SECURITY-AUDIT-2026-10 (B6): bounded read + magic-byte validation.
+    var (stream, error) = await ReadValidatedBrandingImageAsync(file, cancellationToken);
+    if (error is not null)
+    {
+        return error;
+    }
+
+    await using (stream!)
+    {
+        var updated = await handler.HandleAsync(
+            new SetGroupLogoCommand(userId.Value, groupId, file.ContentType, file.Length, stream),
+            cancellationToken);
+        return Results.Ok(ToBrandingResponse(updated));
+    }
 })
 .WithName("SetGroupLogo")
 .RequireAuthorization()
-.DisableAntiforgery();
+.RequireRateLimiting("group-upload")
+.WithMetadata(new RequestSizeLimitAttribute(3 * 1024 * 1024));
 
 app.MapGet("/api/groups/{groupId:guid}/branding/logo", async (
     Guid groupId,
@@ -1851,15 +2013,25 @@ app.MapPost("/api/groups/{groupId:guid}/branding/banner", async (
         return Results.Problem(detail: "Banner file is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
     }
 
-    await using var stream = file.OpenReadStream();
-    var updated = await handler.HandleAsync(
-        new SetGroupBannerCommand(userId.Value, groupId, file.ContentType, file.Length, stream),
-        cancellationToken);
-    return Results.Ok(ToBrandingResponse(updated));
+    // SECURITY-AUDIT-2026-10 (B6): bounded read + magic-byte validation.
+    var (stream, error) = await ReadValidatedBrandingImageAsync(file, cancellationToken);
+    if (error is not null)
+    {
+        return error;
+    }
+
+    await using (stream!)
+    {
+        var updated = await handler.HandleAsync(
+            new SetGroupBannerCommand(userId.Value, groupId, file.ContentType, file.Length, stream!),
+            cancellationToken);
+        return Results.Ok(ToBrandingResponse(updated));
+    }
 })
 .WithName("SetGroupBanner")
 .RequireAuthorization()
-.DisableAntiforgery();
+.RequireRateLimiting("group-upload")
+.WithMetadata(new RequestSizeLimitAttribute(3 * 1024 * 1024));
 
 app.MapGet("/api/groups/{groupId:guid}/branding/banner", async (
     Guid groupId,
@@ -1888,6 +2060,85 @@ app.MapGet("/api/groups/{groupId:guid}/branding/banner", async (
 .WithName("GetGroupBanner")
 .RequireAuthorization();
 
+app.MapPost("/api/groups/{groupId:guid}/branding/favicon", async (
+    Guid groupId,
+    HttpRequest httpRequest,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SetGroupFaviconHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", true))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!httpRequest.HasFormContentType)
+    {
+        return Results.Problem(detail: "Multipart form is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    var form = await httpRequest.ReadFormAsync(cancellationToken);
+    var file = form.Files.GetFile("file");
+    if (file is null || file.Length <= 0)
+    {
+        return Results.Problem(detail: "Favicon file is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    // SECURITY-AUDIT-2026-10 (B6): bounded read + magic-byte validation.
+    var (stream, error) = await ReadValidatedBrandingImageAsync(file, cancellationToken);
+    if (error is not null)
+    {
+        return error;
+    }
+
+    await using (stream!)
+    {
+        var updated = await handler.HandleAsync(
+            new SetGroupFaviconCommand(userId.Value, groupId, file.ContentType, file.Length, stream!),
+            cancellationToken);
+        return Results.Ok(ToBrandingResponse(updated));
+    }
+})
+.WithName("SetGroupFavicon")
+.RequireAuthorization()
+.RequireRateLimiting("group-upload")
+.WithMetadata(new RequestSizeLimitAttribute(3 * 1024 * 1024));
+
+app.MapGet("/api/groups/{groupId:guid}/branding/favicon", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetGroupFaviconHandler handler,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (!configuration.GetValue("Features:GroupBranding", true))
+    {
+        return Results.NotFound();
+    }
+
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var content = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
+    return content is null
+        ? Results.NotFound()
+        : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
+})
+.WithName("GetGroupFavicon")
+.RequireAuthorization();
+
 // Anonymous, uniform reads for the branded access screen (never leak existence).
 app.MapGet("/api/groups/by-slug/{slug}/branding", async (
     string slug,
@@ -1907,6 +2158,7 @@ app.MapGet("/api/groups/by-slug/{slug}/branding", async (
 
 app.MapGet("/api/groups/by-slug/{slug}/branding/logo", async (
     string slug,
+    HttpContext http,
     GetPublicBrandingLogoHandler handler,
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
@@ -1917,6 +2169,9 @@ app.MapGet("/api/groups/by-slug/{slug}/branding/logo", async (
     }
 
     var content = await handler.HandleAsync(slug, cancellationToken);
+    // SECURITY-AUDIT-2026-10 (B6): public branding assets are cacheable; the
+    // blob key changes on every upload so a short TTL is always safe.
+    http.Response.Headers.CacheControl = "public, max-age=300";
     return content is null
         ? Results.NotFound()
         : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
@@ -1926,6 +2181,7 @@ app.MapGet("/api/groups/by-slug/{slug}/branding/logo", async (
 
 app.MapGet("/api/groups/by-slug/{slug}/branding/banner", async (
     string slug,
+    HttpContext http,
     GetPublicBrandingBannerHandler handler,
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
@@ -1936,6 +2192,7 @@ app.MapGet("/api/groups/by-slug/{slug}/branding/banner", async (
     }
 
     var content = await handler.HandleAsync(slug, cancellationToken);
+    http.Response.Headers.CacheControl = "public, max-age=300";
     return content is null
         ? Results.NotFound()
         : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
@@ -1955,6 +2212,14 @@ app.MapGet("/g/{slug}/manifest.webmanifest", async (
         return Results.NotFound();
     }
 
+    // SECURITY-AUDIT-2026-10 (C7): the slug is embedded into start_url/scope —
+    // reject anything outside the strict [a-z0-9-] slug grammar instead of
+    // reflecting arbitrary path characters into the manifest.
+    if (!GroupSlug.IsValid(slug))
+    {
+        return Results.NotFound();
+    }
+
     var branding = await handler.HandleAsync(slug, cancellationToken);
     var productName = configuration.GetValue("Brand:ProductName", "Sonivo") ?? "Sonivo";
     var name = branding.Name ?? productName;
@@ -1962,7 +2227,7 @@ app.MapGet("/g/{slug}/manifest.webmanifest", async (
     var manifest = new
     {
         name,
-        short_name = name.Length > 12 ? name[..12] : name,
+        short_name = TruncateByTextElements(name, 12),
         start_url = $"/g/{slug}",
         scope = $"/g/{slug}",
         display = "standalone",
@@ -2006,8 +2271,7 @@ app.MapPatch("/api/groups/{groupId:guid}", async (
     return Results.Ok(ToGroupResponse(updated));
 })
 .WithName("UpdateGroup")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapDelete("/api/groups/{groupId:guid}", async (
     Guid groupId,
@@ -2033,8 +2297,7 @@ app.MapDelete("/api/groups/{groupId:guid}", async (
     return Results.NoContent();
 })
 .WithName("SoftDeleteGroup")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}/members", async (
     Guid groupId,
@@ -2177,7 +2440,7 @@ app.MapPost("/api/groups/{groupId:guid}/tasks/{taskId:guid}/status", async (
 app.MapDelete("/api/groups/{groupId:guid}/tasks/{taskId:guid}", async (
     Guid groupId,
     Guid taskId,
-    [FromBody] DeleteTaskRequest request,
+    [FromBody] DeleteTaskRequest? request,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     DeleteTaskHandler handler,
@@ -2189,7 +2452,9 @@ app.MapDelete("/api/groups/{groupId:guid}/tasks/{taskId:guid}", async (
         return Results.Unauthorized();
     }
 
-    await handler.HandleAsync(new DeleteTaskCommand(userId.Value, groupId, taskId, request.ExpectedVersion), cancellationToken);
+    await handler.HandleAsync(
+        new DeleteTaskCommand(userId.Value, groupId, taskId, request?.ExpectedVersion ?? 0),
+        cancellationToken);
     return Results.NoContent();
 })
 .WithName("DeleteGroupTask")
@@ -2255,6 +2520,7 @@ app.MapPost("/api/groups/{groupId:guid}/roster", async (
     CreateRosterMemberRequest request,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
+    SonivoDbContext db,
     GroupAccessService access,
     IGroupStore groups,
     IMembershipStore memberships,
@@ -2285,66 +2551,87 @@ app.MapPost("/api/groups/{groupId:guid}/roster", async (
         return Results.Problem(detail: "Display name is required (200 chars max).", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
     }
 
-    var now = clock.UtcNow;
-    ApplicationUser? account = null;
-    string credential = "none";
-    var mailed = false;
-    string? temporaryPassword = null;
-    string? handle = null;
-
-    if (request.GrantAccess)
+    // SECURITY-AUDIT-2026-10 (B8): account + membership + audit commit together
+    // (every store shares the scoped SonivoDbContext, so the explicit
+    // transaction covers them all). A failure mid-way must never leave an
+    // orphaned Identity account.
+    await using var transaction = await BeginTransactionIfSupportedAsync(db, configuration, cancellationToken);
+    try
     {
-        var emailAddress = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
-        var provisioned = await ManagedAccountProvisioner.CreateForGroupAsync(
-            users,
-            memberships,
-            email,
-            origin,
-            loggerFactory.CreateLogger("ManagedAccounts"),
-            groupId,
-            displayName,
-            emailAddress,
-            request.Handle,
+        var now = clock.UtcNow;
+        ApplicationUser? account = null;
+        string credential = "none";
+        var mailed = false;
+        string? temporaryPassword = null;
+        string? handle = null;
+
+        if (request.GrantAccess)
+        {
+            var emailAddress = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
+            var provisioned = await ManagedAccountProvisioner.CreateForGroupAsync(
+                users,
+                memberships,
+                email,
+                origin,
+                loggerFactory.CreateLogger("ManagedAccounts"),
+                groupId,
+                displayName,
+                emailAddress,
+                request.Handle,
+                cancellationToken);
+            account = provisioned.Account;
+            credential = provisioned.Credential;
+            mailed = provisioned.Mailed;
+            temporaryPassword = provisioned.TemporaryPassword;
+            handle = provisioned.Handle;
+        }
+
+        var membership = Membership.CreatePerson(groupId, displayName, now);
+        if (account is not null)
+        {
+            membership.ClaimAccount(account.Id);
+        }
+
+        if (handle is not null)
+        {
+            membership.AssignHandle(handle);
+        }
+
+        await groups.AddMembershipAsync(membership, cancellationToken);
+        await groups.SaveChangesAsync(cancellationToken);
+
+        await audit.AddAsync(
+            AccountAudit.Create(AccountAudit.ActionAccessCreated, now, actorId, account?.Id, groupId),
             cancellationToken);
-        account = provisioned.Account;
-        credential = provisioned.Credential;
-        mailed = provisioned.Mailed;
-        temporaryPassword = provisioned.TemporaryPassword;
-        handle = provisioned.Handle;
+        await audit.SaveChangesAsync(cancellationToken);
+
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        return Results.Created($"/api/groups/{groupId}/roster/{membership.Id}", new
+        {
+            memberId = membership.Id,
+            userId = account?.Id,
+            credential,
+            mailed,
+            temporaryPassword,
+            handle
+        });
     }
-
-    var membership = Membership.CreatePerson(groupId, displayName, now);
-    if (account is not null)
+    catch
     {
-        membership.ClaimAccount(account.Id);
+        if (transaction is not null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+        }
+
+        throw;
     }
-
-    if (handle is not null)
-    {
-        membership.AssignHandle(handle);
-    }
-
-    await groups.AddMembershipAsync(membership, cancellationToken);
-    await groups.SaveChangesAsync(cancellationToken);
-
-    await audit.AddAsync(
-        AccountAudit.Create(AccountAudit.ActionAccessCreated, now, actorId, account?.Id, groupId),
-        cancellationToken);
-    await audit.SaveChangesAsync(cancellationToken);
-
-    return Results.Created($"/api/groups/{groupId}/roster/{membership.Id}", new
-    {
-        memberId = membership.Id,
-        userId = account?.Id,
-        credential,
-        mailed,
-        temporaryPassword,
-        handle
-    });
 })
 .WithName("CreateRosterMember")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 // Phase 4.1 (F3b): bulk add via CSV. Strict header/row validation, a hard row
 // limit, and a per-row error report. Valid rows are created (with access); each
@@ -2469,7 +2756,8 @@ app.MapPost("/api/groups/{groupId:guid}/roster/import", async (
 })
 .WithName("ImportRosterCsv")
 .RequireAuthorization()
-.DisableAntiforgery();
+.RequireRateLimiting("group-upload")
+.WithMetadata(new RequestSizeLimitAttribute(2 * 1024 * 1024));
 
 
 app.MapPost("/api/groups/{groupId:guid}/roster/{memberId:guid}/reset-access", async (
@@ -2539,7 +2827,7 @@ app.MapPost("/api/groups/{groupId:guid}/roster/{memberId:guid}/reset-access", as
         var result = await users.ResetPasswordAsync(account, resetToken, temporaryPassword);
         if (!result.Succeeded)
         {
-            return Results.ValidationProblem(result.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+            return Results.ValidationProblem(result.Errors.GroupBy(e => e.Code).ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray()));
         }
 
         account.MustChangePassword = true;
@@ -2555,8 +2843,7 @@ app.MapPost("/api/groups/{groupId:guid}/roster/{memberId:guid}/reset-access", as
     return Results.Ok(new { memberId, userId = account.Id, credential, mailed, temporaryPassword, handle = target.Handle });
 })
 .WithName("ResetRosterAccess")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 // Phase 4.1: delete a roster row. A managed account created by this group and used
 // only here is deleted with it; otherwise the managed mark is cleared.
@@ -2565,6 +2852,7 @@ app.MapDelete("/api/groups/{groupId:guid}/roster/{memberId:guid}", async (
     Guid memberId,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
+    SonivoDbContext db,
     GroupAccessService access,
     IMembershipStore memberships,
     IGroupStore groups,
@@ -2599,37 +2887,57 @@ app.MapDelete("/api/groups/{groupId:guid}/roster/{memberId:guid}", async (
         return Results.Conflict(new { detail = "Cannot delete the Owner." });
     }
 
-    if (target.UserId is { } targetUserId)
+    // SECURITY-AUDIT-2026-10 (B8): membership removal and (when applicable)
+    // account deletion commit atomically — never a membership pointing at a
+    // deleted user, never an orphan account.
+    await using var transaction = await BeginTransactionIfSupportedAsync(db, configuration, cancellationToken);
+    try
     {
-        var account = await users.FindByIdAsync(targetUserId.ToString("D"));
-        if (account is not null && account.ManagedByGroupId == groupId)
+        if (target.UserId is { } targetUserId)
         {
-            var belongsElsewhere = (await groups.ListForUserAsync(targetUserId, cancellationToken))
-                .Any(g => g.Id != groupId);
-            if (!belongsElsewhere)
+            var account = await users.FindByIdAsync(targetUserId.ToString("D"));
+            if (account is not null && account.ManagedByGroupId == groupId)
             {
-                await users.DeleteAsync(account);
-            }
-            else
-            {
-                account.ManagedByGroupId = null;
-                await users.UpdateAsync(account);
+                var belongsElsewhere = (await groups.ListForUserAsync(targetUserId, cancellationToken))
+                    .Any(g => g.Id != groupId);
+                if (!belongsElsewhere)
+                {
+                    await users.DeleteAsync(account);
+                }
+                else
+                {
+                    account.ManagedByGroupId = null;
+                    await users.UpdateAsync(account);
+                }
             }
         }
+
+        await memberships.RemoveAsync(target, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await audit.AddAsync(
+            AccountAudit.Create(AccountAudit.ActionRemoved, clock.UtcNow, actorId, target.UserId, groupId),
+            cancellationToken);
+        await audit.SaveChangesAsync(cancellationToken);
+
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        return Results.NoContent();
     }
+    catch
+    {
+        if (transaction is not null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+        }
 
-    await memberships.RemoveAsync(target, cancellationToken);
-    await unitOfWork.SaveChangesAsync(cancellationToken);
-    await audit.AddAsync(
-        AccountAudit.Create(AccountAudit.ActionRemoved, clock.UtcNow, actorId, target.UserId, groupId),
-        cancellationToken);
-    await audit.SaveChangesAsync(cancellationToken);
-
-    return Results.NoContent();
+        throw;
+    }
 })
 .WithName("DeleteRosterMember")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 // Phase 4.1 GDPR-style group export (Owner only): roster + repertoire as a
 // downloadable JSON document. No binaries, no cross-group data.
@@ -2652,7 +2960,8 @@ app.MapGet("/api/groups/{groupId:guid}/export", async (
     return Results.File(bytes, "application/json", $"sonivo-grupo-{groupId:D}.json");
 })
 .WithName("ExportGroup")
-.RequireAuthorization();
+.RequireAuthorization()
+.RequireRateLimiting("export");
 
 // Phase 4.1 GDPR-style own-data export: profile + memberships + account audit.
 app.MapGet("/api/auth/export", async (
@@ -2684,7 +2993,8 @@ app.MapGet("/api/auth/export", async (
     return Results.File(bytes, "application/json", "sonivo-mis-datos.json");
 })
 .WithName("ExportOwnData")
-.RequireAuthorization();
+.RequireAuthorization()
+.RequireRateLimiting("export");
 
 
 app.MapDelete("/api/groups/{groupId:guid}/members/{targetUserId:guid}", async (
@@ -2707,8 +3017,7 @@ app.MapDelete("/api/groups/{groupId:guid}/members/{targetUserId:guid}", async (
     return Results.NoContent();
 })
 .WithName("RemoveGroupMember")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async (
     Guid groupId,
@@ -2731,8 +3040,7 @@ app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async
     return Results.NoContent();
 })
 .WithName("ChangeGroupMemberRole")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 // ADR-0051: Owner or Manager sets a member's descriptive musical role.
 app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/musical-role", async (
@@ -2756,8 +3064,7 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/musical-role"
     return Results.NoContent();
 })
 .WithName("SetGroupMemberMusicalRole")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 // ADR-0051: per-group audit log (ids + short action metadata). Owner only.
 app.MapGet("/api/groups/{groupId:guid}/audit", async (
@@ -2809,8 +3116,7 @@ app.MapPost("/api/groups/{groupId:guid}/leave", async (
     return Results.NoContent();
 })
 .WithName("LeaveGroup")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapPost("/api/groups/{groupId:guid}/invitations", async (
     Guid groupId,
@@ -2835,8 +3141,7 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
         ToInvitationCreatedResponse(created));
 })
 .WithName("CreateInvitation")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}/invitations", async (
     Guid groupId,
@@ -2885,8 +3190,7 @@ app.MapDelete("/api/groups/{groupId:guid}/invitations/{invitationId:guid}", asyn
     return Results.NoContent();
 })
 .WithName("RevokeGroupInvitation")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapPost("/api/invitations/{token}/accept", async (
     string token,
@@ -2919,7 +3223,7 @@ app.MapPost("/api/invitations/{token}/accept", async (
 })
 .WithName("AcceptInvitation")
 .RequireAuthorization()
-.DisableAntiforgery();
+.RequireRateLimiting("invite-accept");
 
 app.MapGet("/api/groups/{groupId:guid}/songs", async (
     Guid groupId,
@@ -2968,8 +3272,7 @@ app.MapPost("/api/groups/{groupId:guid}/songs", async (
     return Results.Created($"/api/groups/{groupId}/songs/{created.Id}", ToSongDetailResponse(created));
 })
 .WithName("CreateSong")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
     Guid groupId,
@@ -3022,8 +3325,7 @@ app.MapPatch("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
     return Results.Ok(ToSongDetailResponse(updated));
 })
 .WithName("UpdateSong")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapDelete("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
     Guid groupId,
@@ -3051,8 +3353,7 @@ app.MapDelete("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
     return Results.NoContent();
 })
 .WithName("SoftDeleteSong")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}/songs/{songId:guid}/arrangements", async (
     Guid groupId,
@@ -3108,8 +3409,7 @@ app.MapPost("/api/groups/{groupId:guid}/songs/{songId:guid}/arrangements", async
         ToArrangementDetailResponse(created));
 })
 .WithName("CreateArrangement")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", async (
     Guid groupId,
@@ -3165,8 +3465,7 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", asy
     return Results.Ok(ToArrangementDetailResponse(updated));
 })
 .WithName("UpdateArrangement")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 // ---------- .lrc import / export (ADR-0050). Flag: Features:Lrc (default off). ----------
 app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/import-lrc", async (
@@ -3253,7 +3552,8 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics
 })
 .WithName("ImportArrangementLyricsLrc")
 .RequireAuthorization()
-.DisableAntiforgery();
+.RequireRateLimiting("group-upload")
+.WithMetadata(new RequestSizeLimitAttribute(1024 * 1024));
 
 app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/export.lrc", async (
     Guid groupId,
@@ -3331,8 +3631,7 @@ app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", as
     return Results.NoContent();
 })
 .WithName("SoftDeleteArrangement")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources", async (
     Guid groupId,
@@ -3459,7 +3758,10 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resour
 })
 .WithName("CreateResource")
 .RequireAuthorization()
-.DisableAntiforgery();
+.RequireRateLimiting("group-upload")
+// SECURITY-AUDIT-2026-10 (B6): reject oversized multipart bodies before they
+// are buffered (5 MiB file cap + form overhead).
+.WithMetadata(new RequestSizeLimitAttribute(6 * 1024 * 1024));
 
 app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources/{resourceId:guid}", async (
     Guid groupId,
@@ -3544,8 +3846,7 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resou
     return Results.Ok(ToResourceDetailResponse(updated));
 })
 .WithName("UpdateLinkResource")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources/{resourceId:guid}", async (
     Guid groupId,
@@ -3566,8 +3867,7 @@ app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/reso
     return Results.NoContent();
 })
 .WithName("DeleteResource")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 // ADR-0032 Q-W32-4: async digitizer job. POST validates eligibility and
 // returns 202; transcription runs in the background and never writes
@@ -3579,7 +3879,7 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/digiti
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     StartDigitizeJobHandler handler,
-    IServiceScopeFactory scopes,
+    DigitizeJobQueue queue,
     CancellationToken cancellationToken) =>
 {
     var userId = await RequireUserIdAsync(principal, users);
@@ -3593,12 +3893,15 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/digiti
         cancellationToken);
 
     var jobId = started.JobId;
-    _ = Task.Run(async () =>
+    if (!await queue.TryEnqueueAsync(jobId, cancellationToken))
     {
-        using var scope = scopes.CreateScope();
-        var runner = scope.ServiceProvider.GetRequiredService<DigitizeJobRunner>();
-        await runner.ProcessAsync(jobId, CancellationToken.None);
-    }, CancellationToken.None);
+        // SECURITY-AUDIT-2026-10 (B7): the job was marked failed server-side;
+        // tell the owner to retry later instead of silently dropping it.
+        return Results.Problem(
+            detail: "La cola de digitalización está llena. Inténtalo en unos minutos.",
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            title: "Service Unavailable");
+    }
 
     return Results.Accepted(
         $"/api/groups/{groupId}/arrangements/{arrangementId}/digitize/{jobId}",
@@ -3606,7 +3909,7 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/digiti
 })
 .WithName("StartDigitize")
 .RequireAuthorization()
-.DisableAntiforgery();
+.RequireRateLimiting("digitize");
 
 app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/digitize/{jobId:guid}", async (
     Guid groupId,
@@ -3680,8 +3983,7 @@ app.MapPost("/api/groups/{groupId:guid}/setlists", async (
     return Results.Created($"/api/groups/{groupId}/setlists/{created.Id}", ToSetlistDetailResponse(created));
 })
 .WithName("CreateSetlist")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}/setlists/{setlistId:guid}", async (
     Guid groupId,
@@ -3730,8 +4032,7 @@ app.MapPatch("/api/groups/{groupId:guid}/setlists/{setlistId:guid}", async (
     return Results.Ok(ToSetlistDetailResponse(updated));
 })
 .WithName("UpdateSetlist")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapPut("/api/groups/{groupId:guid}/setlists/{setlistId:guid}/items", async (
     Guid groupId,
@@ -3764,8 +4065,7 @@ app.MapPut("/api/groups/{groupId:guid}/setlists/{setlistId:guid}/items", async (
     return Results.Ok(ToSetlistDetailResponse(updated));
 })
 .WithName("ReplaceSetlistItems")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}/events", async (
     Guid groupId,
@@ -3812,8 +4112,7 @@ app.MapPost("/api/groups/{groupId:guid}/events", async (
     return Results.Created($"/api/groups/{groupId}/events/{created.Id}", ToEventDetailResponse(created));
 })
 .WithName("CreateEvent")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
     Guid groupId,
@@ -3864,8 +4163,7 @@ app.MapPatch("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
     return Results.Ok(ToEventDetailResponse(updated));
 })
 .WithName("UpdateEvent")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/cancel", async (
     Guid groupId,
@@ -3889,8 +4187,58 @@ app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/cancel", async (
     return Results.NoContent();
 })
 .WithName("CancelEvent")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/duplicate", async (
+    Guid groupId,
+    Guid eventId,
+    [FromBody] DuplicateEventRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    [FromServices] DuplicateEventHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var musicalEvent = await handler.HandleAsync(
+        new DuplicateEventCommand(userId.Value, groupId, eventId, request.ExpectedVersion),
+        cancellationToken);
+
+    return Results.Ok(ToEventDetailResponse(musicalEvent));
+})
+.WithName("DuplicateEvent")
+.RequireAuthorization();
+
+app.MapDelete("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
+    Guid groupId,
+    Guid eventId,
+    [FromQuery] int expectedVersion,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    [FromServices] DeleteEventHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(
+        new DeleteEventCommand(userId.Value, groupId, eventId, expectedVersion),
+        cancellationToken);
+
+    return Results.NoContent();
+})
+.WithName("DeleteEvent")
+.RequireAuthorization();
+
+// Note: DELETE endpoints with body are not supported by ASP.NET Core minimal APIs.
+// The expectedVersion is passed as a query parameter instead.
 
 app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/apply-setlist", async (
     Guid groupId,
@@ -3920,8 +4268,7 @@ app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/apply-setlist", as
     return Results.Ok(ToEventDetailResponse(musicalEvent));
 })
 .WithName("ApplySetlistToEvent")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapPut("/api/groups/{groupId:guid}/events/{eventId:guid}/rsvp", async (
     Guid groupId,
@@ -3950,8 +4297,7 @@ app.MapPut("/api/groups/{groupId:guid}/events/{eventId:guid}/rsvp", async (
     });
 })
 .WithName("UpsertEventRsvp")
-.RequireAuthorization()
-.DisableAntiforgery();
+.RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}/rsvps", async (
     Guid groupId,
@@ -4020,19 +4366,133 @@ app.MapGet("/api/groups/{groupId:guid}/calendar.ics", async (
 
 if (!app.Environment.IsDevelopment())
 {
+    // SECURITY-AUDIT-2026-10 (B1): unknown /api paths must 404 as JSON, never
+    // fall through to the SPA shell (which returns index.html with 200 and
+    // makes client-side routing/typos indistinguishable from real 404s).
+    app.MapFallback("/api/{**path}", () => Results.NotFound(new { detail = "Not found." }));
     app.MapFallbackToFile("index.html");
 }
 
 app.Run();
 
-static async Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users){
+// SECURITY-AUDIT-2026-10 (B2): the user id comes from the NameIdentifier claim
+// — the must-change-password middleware already loaded and validated the user
+// once per request (and the SecurityStampValidator runs on the same pass), so
+// endpoints must not issue a second GetUserAsync round-trip for the id alone.
+static Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users)
+{
     if (principal.Identity?.IsAuthenticated != true)
     {
-        return null;
+        return Task.FromResult<Guid?>(null);
     }
 
-    var user = await users.GetUserAsync(principal);
-    return user?.Id;
+    var claim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+    return Task.FromResult(Guid.TryParse(claim, out var id) ? (Guid?)id : null);
+}
+
+// SECURITY-AUDIT-2026-10 (A7): single projection for every authenticated-user
+// response. Managed-account synthetic emails (@managed.invalid) are never
+// exposed, and mustChangePassword/managedByGroupId travel on EVERY login path
+// (password, handle, 2FA challenge/recover, passkey) so the SPA can gate
+// managed sessions uniformly.
+static object ToUserResponse(ApplicationUser user, string? handle = null) => new
+{
+    id = user.Id,
+    email = user.Email is { } mail && mail.EndsWith("@managed.invalid", StringComparison.Ordinal) ? null : user.Email,
+    displayName = user.DisplayName,
+    emailConfirmed = user.EmailConfirmed,
+    mustChangePassword = user.MustChangePassword,
+    managedByGroupId = user.ManagedByGroupId,
+    handle
+};
+
+// SECURITY-AUDIT-2026-10 (B6): branding image uploads must match their magic
+// bytes — the client-supplied Content-Type alone is not trustworthy. Returns
+// the validated bytes and null error, or null bytes and the rejection result.
+static async Task<(MemoryStream? Stream, IResult? Error)> ReadValidatedBrandingImageAsync(
+    IFormFile file, CancellationToken cancellationToken)
+{
+    if (file.Length <= 0 || file.Length > BrandLogoConstraints.MaxByteSize)
+    {
+        return (null, Results.Problem(
+            detail: $"Image must be 1 byte to {BrandLogoConstraints.MaxByteSize} bytes.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request"));
+    }
+
+    await using var raw = file.OpenReadStream();
+    using var buffer = new MemoryStream();
+    var copyBuffer = new byte[81920];
+    var total = 0;
+    int read;
+    while ((read = await raw.ReadAsync(copyBuffer, cancellationToken)) > 0)
+    {
+        total += read;
+        if (total > BrandLogoConstraints.MaxByteSize)
+        {
+            return (null, Results.Problem(
+                detail: $"Image must be {BrandLogoConstraints.MaxByteSize} bytes or fewer.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request"));
+        }
+        await buffer.WriteAsync(copyBuffer.AsMemory(0, read), cancellationToken);
+    }
+
+    var bytes = buffer.ToArray();
+    if (!IsKnownImageSignature(bytes))
+    {
+        return (null, Results.Problem(
+            detail: "Image content does not match its declared type.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request"));
+    }
+
+    return (new MemoryStream(bytes, writable: false), null);
+}
+
+static bool IsKnownImageSignature(ReadOnlySpan<byte> b) =>
+    // PNG
+    (b.Length >= 4 && b[0] == 0x89 && b[1] == (byte)'P' && b[2] == (byte)'N' && b[3] == (byte)'G') ||
+    // JPEG
+    (b.Length >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF) ||
+    // GIF87a / GIF89a
+    (b.Length >= 4 && b[0] == (byte)'G' && b[1] == (byte)'I' && b[2] == (byte)'F' && b[3] == (byte)'8') ||
+    // WebP (RIFF....WEBP)
+    (b.Length >= 12 && b[0] == (byte)'R' && b[1] == (byte)'I' && b[2] == (byte)'F' && b[3] == (byte)'F'
+     && b[8] == (byte)'W' && b[9] == (byte)'E' && b[10] == (byte)'B' && b[11] == (byte)'P');
+
+// SECURITY-AUDIT-2026-10 (B8): the EF InMemory provider does not support
+// transactions (tests use UseInMemoryDatabase=true) — explicit transactions
+// only against the real PostgreSQL provider.
+static async Task<IDbContextTransaction?> BeginTransactionIfSupportedAsync(
+    SonivoDbContext db, IConfiguration configuration, CancellationToken cancellationToken) =>
+    configuration.GetValue("UseInMemoryDatabase", false)
+        ? null
+        : await db.Database.BeginTransactionAsync(cancellationToken);
+
+// SECURITY-AUDIT-2026-10 (C7): text-element truncation so a 12-char cut can
+// never split a UTF-16 surrogate pair.
+static string TruncateByTextElements(string value, int maxElements)
+{
+    if (value.Length <= maxElements)
+    {
+        return value;
+    }
+
+    var count = 0;
+    var enumerator = StringInfo.GetTextElementEnumerator(value);
+    var end = 0;
+    while (enumerator.MoveNext())
+    {
+        count++;
+        if (count == maxElements)
+        {
+            end = enumerator.ElementIndex + enumerator.GetTextElement().Length;
+            break;
+        }
+    }
+
+    return end > 0 ? value[..end] : value;
 }
 
 static object ToGroupResponse(GroupDto group) => new
@@ -4064,8 +4524,14 @@ static object ToBrandingResponse(GroupBrandingDto branding) => new
     displayName = branding.DisplayName,
     accentHex = branding.AccentHex,
     secondaryHex = branding.SecondaryHex,
+    accentColorHex = branding.AccentColorHex,
+    successHex = branding.SuccessHex,
+    warningHex = branding.WarningHex,
+    errorHex = branding.ErrorHex,
+    typography = branding.Typography,
     onPrimary = branding.OnPrimary,
     onSecondary = branding.OnSecondary,
+    onAccent = branding.OnAccent,
     coverKind = branding.CoverKind,
     coverValue = branding.CoverValue,
     themeDefault = branding.ThemeDefault,
@@ -4078,6 +4544,8 @@ static object ToBrandingResponse(GroupBrandingDto branding) => new
     logoUrl = branding.HasLogo ? $"/api/groups/{branding.GroupId}/branding/logo" : null,
     hasBanner = branding.HasBanner,
     bannerUrl = branding.HasBanner ? $"/api/groups/{branding.GroupId}/branding/banner" : null,
+    hasFavicon = branding.HasFavicon,
+    faviconUrl = branding.HasFavicon ? $"/api/groups/{branding.GroupId}/branding/favicon" : null,
     showSonivoCredit = branding.ShowSonivoCredit,
     version = branding.Version
 };
@@ -4360,6 +4828,11 @@ internal sealed record UpdateGroupBrandingRequest(
     string? DisplayName,
     string? AccentHex,
     string? SecondaryHex,
+    string? AccentColorHex,
+    string? SuccessHex,
+    string? WarningHex,
+    string? ErrorHex,
+    string? Typography,
     string? CoverKind,
     string? CoverValue,
     string? ThemeDefault,
@@ -4433,6 +4906,7 @@ internal sealed record UpdateEventRequest(
     DateTimeOffset? StartsAt,
     int ExpectedVersion);
 internal sealed record CancelEventRequest(int ExpectedVersion);
+internal sealed record DuplicateEventRequest(int ExpectedVersion);
 internal sealed record ApplySetlistRequest(Guid SetlistId, int ExpectedVersion, bool ConfirmReplace = false);
 internal sealed record UpsertEventRsvpRequest(string? Response);
 
@@ -4461,6 +4935,26 @@ public sealed class AppExceptionHandler : IExceptionHandler
                     Status = StatusCodes.Status409Conflict,
                     Title = "Conflict",
                     Detail = "The resource was modified by another request.",
+                    Type = "https://httpstatuses.com/409",
+                    Extensions = { ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier }
+                }
+            });
+        }
+
+        // SECURITY-AUDIT-2026-10 (C6): unique-constraint violations (slug,
+        // handle, email…) map to 409 instead of a raw 500. Only PostgreSQL
+        // SqlState 23505 counts; any other DbUpdateException stays unhandled.
+        if (exception is DbUpdateException { InnerException: PostgresException { SqlState: "23505" } })
+        {
+            httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
+            return await _problemDetails.TryWriteAsync(new ProblemDetailsContext
+            {
+                HttpContext = httpContext,
+                ProblemDetails = new ProblemDetails
+                {
+                    Status = StatusCodes.Status409Conflict,
+                    Title = "Conflict",
+                    Detail = "The value already exists.",
                     Type = "https://httpstatuses.com/409",
                     Extensions = { ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier }
                 }

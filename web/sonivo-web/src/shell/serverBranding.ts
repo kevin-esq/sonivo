@@ -3,13 +3,20 @@ import { getGroupBranding, type GroupBranding } from '../api/client'
 export type ServerBranding = {
   accentHex: string | null
   secondaryHex: string | null
+  accentColorHex: string | null
+  successHex: string | null
+  warningHex: string | null
+  errorHex: string | null
+  typography: string | null
   onPrimary: string | null
   onSecondary: string | null
+  onAccent: string | null
   coverKind: string | null
   coverValue: string | null
   displayName: string | null
   logoUrl: string | null
   bannerUrl: string | null
+  faviconUrl: string | null
   loginHeadline: string | null
   welcomeText: string | null
   tagline: string | null
@@ -25,13 +32,20 @@ export async function loadServerBranding(groupId: string): Promise<ServerBrandin
     return {
       accentHex: branding.accentHex,
       secondaryHex: branding.secondaryHex,
+      accentColorHex: branding.accentColorHex,
+      successHex: branding.successHex,
+      warningHex: branding.warningHex,
+      errorHex: branding.errorHex,
+      typography: branding.typography,
       onPrimary: branding.onPrimary,
       onSecondary: branding.onSecondary,
+      onAccent: branding.onAccent,
       coverKind: branding.coverKind,
       coverValue: branding.coverValue,
       displayName: branding.displayName,
       logoUrl: branding.logoUrl,
       bannerUrl: branding.bannerUrl,
+      faviconUrl: branding.faviconUrl,
       loginHeadline: branding.loginHeadline,
       welcomeText: branding.welcomeText,
       tagline: branding.tagline,
@@ -60,6 +74,22 @@ export function brandTokenStyle(branding: ServerBranding | null): Record<string,
   if (branding.secondaryHex) {
     tokens['--brand-secondary'] = branding.secondaryHex
     tokens['--brand-on-secondary'] = branding.onSecondary ?? '#0f172a'
+  }
+  if (branding.accentColorHex) {
+    tokens['--brand-accent'] = branding.accentColorHex
+    tokens['--brand-on-accent'] = branding.onAccent ?? '#ffffff'
+  }
+  if (branding.successHex) {
+    tokens['--color-success'] = branding.successHex
+  }
+  if (branding.warningHex) {
+    tokens['--color-warning'] = branding.warningHex
+  }
+  if (branding.errorHex) {
+    tokens['--color-error'] = branding.errorHex
+  }
+  if (branding.typography) {
+    tokens['--font-sans'] = branding.typography
   }
   return tokens
 }

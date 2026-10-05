@@ -42,6 +42,35 @@ public sealed record EventDetailDto(
     Guid? SourceSetlistId,
     IReadOnlyList<EventPlanItemDto> Items);
 
+public static class EventMapper
+{
+    public static EventDetailDto ToDetail(Event musicalEvent)
+    {
+        var items = musicalEvent.Items
+            .OrderBy(i => i.SortOrder)
+            .ThenBy(i => i.Id)
+            .Select(i => new EventPlanItemDto(
+                i.Id,
+                i.ArrangementId,
+                i.SortOrder,
+                i.DisplaySongTitle,
+                i.DisplayArrangementLabel))
+            .ToList();
+
+        return new EventDetailDto(
+            musicalEvent.Id,
+            musicalEvent.Title,
+            musicalEvent.Type,
+            musicalEvent.StartsAt,
+            musicalEvent.Status,
+            musicalEvent.Version,
+            musicalEvent.CreatedAt,
+            musicalEvent.UpdatedAt,
+            musicalEvent.SourceSetlistId,
+            items);
+    }
+}
+
 public sealed class CreateEventHandler
 {
     private readonly GroupAccessService _access;
@@ -88,38 +117,12 @@ public sealed class CreateEventHandler
                     cancellationToken);
             }
 
-            return ToDetail(musicalEvent);
+            return EventMapper.ToDetail(musicalEvent);
         }
         catch (ArgumentException ex)
         {
             throw new ValidationException(ex.Message);
         }
-    }
-
-    internal static EventDetailDto ToDetail(Event musicalEvent)
-    {
-        var items = musicalEvent.Items
-            .OrderBy(i => i.SortOrder)
-            .ThenBy(i => i.Id)
-            .Select(i => new EventPlanItemDto(
-                i.Id,
-                i.ArrangementId,
-                i.SortOrder,
-                i.DisplaySongTitle,
-                i.DisplayArrangementLabel))
-            .ToList();
-
-        return new EventDetailDto(
-            musicalEvent.Id,
-            musicalEvent.Title,
-            musicalEvent.Type,
-            musicalEvent.StartsAt,
-            musicalEvent.Status,
-            musicalEvent.Version,
-            musicalEvent.CreatedAt,
-            musicalEvent.UpdatedAt,
-            musicalEvent.SourceSetlistId,
-            items);
     }
 
     internal static EventListItemDto ToListItem(Event musicalEvent) => new(
@@ -186,7 +189,7 @@ public sealed class GetEventHandler
             throw new NotFoundException("Event not found.");
         }
 
-        return CreateEventHandler.ToDetail(musicalEvent);
+        return EventMapper.ToDetail(musicalEvent);
     }
 }
 
@@ -271,7 +274,7 @@ public sealed class UpdateEventHandler
                 cancellationToken);
         }
 
-        return CreateEventHandler.ToDetail(musicalEvent);
+        return EventMapper.ToDetail(musicalEvent);
     }
 }
 
@@ -338,6 +341,132 @@ public sealed class CancelEventHandler
                 musicalEvent.Title,
                 musicalEvent.StartsAt,
                 EventNotificationChanges.Cancelled,
+                cancellationToken);
+        }
+    }
+}
+
+public sealed record DuplicateEventCommand(Guid UserId, Guid GroupId, Guid EventId, int ExpectedVersion);
+
+public sealed class DuplicateEventHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IEventStore _events;
+    private readonly IClock _clock;
+    private readonly IEventNotifier? _notifier;
+
+    public DuplicateEventHandler(
+        GroupAccessService access,
+        IEventStore events,
+        IClock clock,
+        IEventNotifier? notifier = null)
+    {
+        _access = access;
+        _events = events;
+        _clock = clock;
+        _notifier = notifier;
+    }
+
+    public async Task<EventDetailDto> HandleAsync(DuplicateEventCommand command, CancellationToken cancellationToken)
+    {
+        if (command.ExpectedVersion < 1)
+        {
+            throw new ValidationException("expectedVersion is required.");
+        }
+
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+
+        var musicalEvent = await _events.GetByIdWithItemsAsync(
+            command.GroupId,
+            command.EventId,
+            cancellationToken);
+        if (musicalEvent is null)
+        {
+            throw new NotFoundException("Event not found.");
+        }
+
+        var duplicate = musicalEvent.Duplicate(_clock.UtcNow);
+        await _events.AddAsync(duplicate, cancellationToken);
+        await _events.SaveChangesAsync(cancellationToken);
+
+        if (_notifier is not null)
+        {
+            await _notifier.EventChangedAsync(
+                duplicate.GroupId,
+                duplicate.Id,
+                duplicate.Title,
+                duplicate.StartsAt,
+                EventNotificationChanges.Created,
+                cancellationToken);
+        }
+
+        return EventMapper.ToDetail(duplicate);
+    }
+}
+
+public sealed record DeleteEventCommand(Guid UserId, Guid GroupId, Guid EventId, int ExpectedVersion);
+
+public sealed class DeleteEventHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IEventStore _events;
+    private readonly IClock _clock;
+    private readonly IEventNotifier? _notifier;
+
+    public DeleteEventHandler(
+        GroupAccessService access,
+        IEventStore events,
+        IClock clock,
+        IEventNotifier? notifier = null)
+    {
+        _access = access;
+        _events = events;
+        _clock = clock;
+        _notifier = notifier;
+    }
+
+    public async Task HandleAsync(DeleteEventCommand command, CancellationToken cancellationToken)
+    {
+        if (command.ExpectedVersion < 1)
+        {
+            throw new ValidationException("expectedVersion is required.");
+        }
+
+        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+
+        var musicalEvent = await _events.GetByIdWithItemsAsync(
+            command.GroupId,
+            command.EventId,
+            cancellationToken);
+        if (musicalEvent is null)
+        {
+            throw new NotFoundException("Event not found.");
+        }
+
+        try
+        {
+            musicalEvent.SoftDelete(command.ExpectedVersion, _clock.UtcNow);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            throw new ConflictException(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new ValidationException(ex.Message);
+        }
+
+        await _events.UpdateAsync(musicalEvent, cancellationToken);
+        await _events.SaveChangesAsync(cancellationToken);
+
+        if (_notifier is not null)
+        {
+            await _notifier.EventChangedAsync(
+                musicalEvent.GroupId,
+                musicalEvent.Id,
+                musicalEvent.Title,
+                musicalEvent.StartsAt,
+                EventNotificationChanges.Deleted,
                 cancellationToken);
         }
     }
@@ -507,6 +636,6 @@ public sealed class ReplaceEventPlanFromSetlistHandler
             command.EventId,
             command.SetlistId);
 
-        return CreateEventHandler.ToDetail(musicalEvent);
+        return EventMapper.ToDetail(musicalEvent);
     }
 }

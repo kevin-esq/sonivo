@@ -89,6 +89,7 @@ export function GroupResourcesPage() {
   const [group, setGroup] = useState<Awaited<ReturnType<typeof getGroup>> | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [category, setCategory] = useState<ResourceCategory | 'all'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [showUpload, setShowUpload] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -116,10 +117,18 @@ export function GroupResourcesPage() {
   )
 
   const items = surface.data ?? []
-  const filtered = useMemo(
-    () => (category === 'all' ? items : items.filter((item) => categoryOf(item) === category)),
-    [items, category],
-  )
+  const filtered = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    return items.filter((item) => {
+      if (category !== 'all' && categoryOf(item) !== category) return false
+      if (!query) return true
+      return (
+        item.label.toLowerCase().includes(query) ||
+        item.songTitle.toLowerCase().includes(query) ||
+        (item.arrangementLabel?.toLowerCase().includes(query) ?? false)
+      )
+    })
+  }, [items, category, searchQuery])
 
   const counts = useMemo(() => {
     const map = new Map<ResourceCategory, number>()
@@ -163,6 +172,19 @@ export function GroupResourcesPage() {
               {t('recursos.upload')}
             </Button>
           ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-56 flex-1">
+            <input
+              type="search"
+              className={fieldClass}
+              placeholder={t('recursos.searchPlaceholder')}
+              aria-label={t('recursos.searchLabel')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('recursos.title')}>

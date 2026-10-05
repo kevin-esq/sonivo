@@ -13,6 +13,11 @@ public sealed class GroupBrandingConfiguration : IEntityTypeConfiguration<GroupB
         builder.Property(x => x.DisplayName).HasMaxLength(GroupBranding.MaxDisplayNameLength);
         builder.Property(x => x.AccentHex).HasMaxLength(7);
         builder.Property(x => x.SecondaryHex).HasMaxLength(7);
+        builder.Property(x => x.AccentColorHex).HasMaxLength(7);
+        builder.Property(x => x.SuccessHex).HasMaxLength(7);
+        builder.Property(x => x.WarningHex).HasMaxLength(7);
+        builder.Property(x => x.ErrorHex).HasMaxLength(7);
+        builder.Property(x => x.Typography).HasMaxLength(16);
         builder.Property(x => x.CoverKind).HasMaxLength(16);
         builder.Property(x => x.CoverValue).HasMaxLength(GroupBranding.MaxCoverValueLength);
         builder.Property(x => x.ThemeDefault).HasMaxLength(16);
@@ -25,6 +30,8 @@ public sealed class GroupBrandingConfiguration : IEntityTypeConfiguration<GroupB
         builder.Property(x => x.LogoContentType).HasMaxLength(128);
         builder.Property(x => x.BannerBlobKey).HasMaxLength(256);
         builder.Property(x => x.BannerContentType).HasMaxLength(128);
+        builder.Property(x => x.FaviconBlobKey).HasMaxLength(256);
+        builder.Property(x => x.FaviconContentType).HasMaxLength(128);
         builder.Property(x => x.Version).IsConcurrencyToken();
         builder.HasOne<Group>()
             .WithMany()

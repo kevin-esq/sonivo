@@ -51,6 +51,15 @@ public sealed record PasskeyDto(
     string Name,
     DateTimeOffset CreatedAt);
 
+/// <summary>
+/// In-memory, single-instance challenge store (WebAuthn ceremonies are
+/// challenge-bound and short-lived). SECURITY-AUDIT-2026-10 (B13): this is
+/// process-local — with more than one API instance, a challenge issued by
+/// instance A is invisible to instance B, so a multi-instance deployment must
+/// move challenges to a shared store (IDistributedCache) or enable sticky
+/// sessions per user ceremony. Documented as an explicit deployment
+/// constraint, not an accident.
+/// </summary>
 public static class PasskeyChallengeStore
 {
     private static readonly ConcurrentDictionary<string, PasskeyChallenge> Challenges = new();

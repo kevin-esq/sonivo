@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Tenancy;
@@ -23,8 +24,34 @@ public static class ManagedAccountProvisioner
     public const string ActivationLink = "activation_link";
     public const string TemporaryPasswordCredential = "temporary_password";
 
-    /// <summary>Temporary password that satisfies the Identity policy; shown once.</summary>
-    public static string GenerateTemporaryPassword() => "Tmp1!" + Guid.NewGuid().ToString("N");
+    /// <summary>Temporary password that satisfies the Identity policy; shown once.
+    /// SECURITY-AUDIT-2026-10 (C5): readable charset without ambiguous glyphs
+    /// (no 0/O/1/l/I) instead of a 32-hex GUID an Owner must dictate. The three
+    /// guaranteed placements keep the Identity policy (digit, lowercase,
+    /// uppercase) satisfied on every draw.</summary>
+    public static string GenerateTemporaryPassword()
+    {
+        const string digits = "23456789";
+        const string letters = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
+        const string all = digits + letters;
+        var chars = new char[12];
+        for (var i = 0; i < chars.Length; i++)
+        {
+            chars[i] = all[RandomNumberGenerator.GetInt32(all.Length)];
+        }
+
+        // Guarantee ≥1 digit, ≥1 lowercase and ≥1 uppercase at distinct indexes.
+        var digitIndex = RandomNumberGenerator.GetInt32(chars.Length);
+        int lowerIndex;
+        do { lowerIndex = RandomNumberGenerator.GetInt32(chars.Length); } while (lowerIndex == digitIndex);
+        int upperIndex;
+        do { upperIndex = RandomNumberGenerator.GetInt32(chars.Length); } while (upperIndex == digitIndex || upperIndex == lowerIndex);
+        chars[digitIndex] = digits[RandomNumberGenerator.GetInt32(digits.Length)];
+        chars[lowerIndex] = (char)('a' + RandomNumberGenerator.GetInt32(26));
+        chars[upperIndex] = (char)('A' + RandomNumberGenerator.GetInt32(26));
+
+        return "Tmp!" + new string(chars);
+    }
 
     public static async Task<ProvisionedAccess> CreateForGroupAsync(
         UserManager<ApplicationUser> users,

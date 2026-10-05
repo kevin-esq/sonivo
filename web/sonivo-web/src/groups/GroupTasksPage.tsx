@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import type { FormEvent, DragEvent, ReactNode, KeyboardEvent } from 'react'
+import type { FormEvent, ReactNode, KeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   CalendarClock,
@@ -35,6 +35,21 @@ import { canManageContentRole, mutationErrorMessage, ProblemAlert } from '../rep
 import { useAction } from '../hooks/useAction'
 import { useResource } from '../hooks/useResource'
 import { useAuth } from '../shell/authContext'
+import { ConfirmDialog } from '../ui/confirm-dialog'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 
 /* ────────── status helpers ────────── */
 
@@ -136,6 +151,9 @@ export function GroupTasksPage() {
   const [detailTask, setDetailTask] = useState<TaskItem | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [localTasks, setLocalTasks] = useState<TaskItem[] | null>(null)
+  const [activeTask, setActiveTask] = useState<TaskItem | null>(null)
+  const [overColumn, setOverColumn] = useState<string | null>(null)
+  const statusQueueRef = useRef<Map<string, Promise<TaskItem>>>(new Map())
 
   useEffect(() => {
     if (!groupId) return
@@ -159,6 +177,15 @@ export function GroupTasksPage() {
     group && groupId ? () => listTasks(groupId!) : null,
     [groupId, group, reloadKey],
   )
+
+  // Shared real-time updates: poll every 30s to reflect other users' changes
+  useEffect(() => {
+    if (!groupId || !group) return
+    const interval = setInterval(() => {
+      setReloadKey((k) => k + 1)
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [groupId, group])
 
   const membersSurface = useResource(
     group && groupId ? () => listMembers(groupId!) : null,
@@ -184,6 +211,16 @@ export function GroupTasksPage() {
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
 
+  const [confirmDelete, setConfirmDelete] = useState<TaskItem | null>(null)
+
+  const doneCount = tasks.filter((x) => x.status === 'done').length
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
   if (group === undefined) {
     return <p aria-live="polite">{t('tareas.loading')}</p>
   }
@@ -203,37 +240,62 @@ export function GroupTasksPage() {
 
   async function changeStatus(task: TaskItem, status: string) {
     if (!groupId) return
+    const list = localTasks ?? surface.data ?? []
     // Optimistic update: move card immediately in local state
-    const previousTasks = localTasks ?? surface.data ?? []
-    setLocalTasks(previousTasks.map((t) => t.id === task.id ? { ...t, status } : t))
+    setLocalTasks(list.map((t) => t.id === task.id ? { ...t, status } : t))
+    // Chain after any in-flight change for this task
+    const prior = statusQueueRef.current.get(task.id) ?? Promise.resolve(task)
+    const next = prior.then(() => setTaskStatus(groupId, task.id, {
+      status,
+      expectedVersion: task.version,
+    }))
+    statusQueueRef.current.set(task.id, next)
     try {
-      await setTaskStatus(groupId, task.id, {
-        status,
-        expectedVersion: task.version,
-      })
-      // Clear local override on success — server data is now authoritative
-      setLocalTasks(null)
+      const result = await next
+      // Apply server response (new status + new version) to local list
+      const current = localTasks ?? surface.data ?? []
+      setLocalTasks(current.map((t) => t.id === task.id ? { ...t, status: result.status, version: result.version } : t))
     } catch (err) {
-      // Rollback on failure
-      setLocalTasks(null)
+      // Revert only this task, not the whole list
+      const current = localTasks ?? surface.data ?? []
+      setLocalTasks(current.map((t) => t.id === task.id ? { ...t, status: task.status, version: task.version } : t))
       setError(mutationErrorMessage(err))
+    } finally {
+      // Clean up queue entry if it's still the latest
+      if (statusQueueRef.current.get(task.id) === next) {
+        statusQueueRef.current.delete(task.id)
+      }
     }
   }
 
   async function remove(task: TaskItem) {
     if (!groupId) return
-    if (!window.confirm(t('tareas.deleteConfirm'))) return
-    try {
-      await deleteTask(groupId, task.id, task.version)
-      reload()
-    } catch (err) {
-      setError(mutationErrorMessage(err))
-    }
+    setConfirmDelete(task)
   }
 
-  const doneCount = tasks.filter((x) => x.status === 'done').length
-
   return (
+    <DndContext
+      sensors={dndSensors}
+      onDragStart={(event: DragStartEvent) => {
+        const task = tasks.find((x) => x.id === event.active.id)
+        setActiveTask(task ?? null)
+        if (canManage && 'vibrate' in navigator) navigator.vibrate(50)
+      }}
+      onDragOver={(event: DragEndEvent) => {
+        setOverColumn((event.over?.id as string) ?? null)
+      }}
+      onDragEnd={(event: DragEndEvent) => {
+        const { active, over } = event
+        setActiveTask(null)
+        setOverColumn(null)
+        if (!over) return
+        const task = tasks.find((x) => x.id === active.id)
+        const newStatus = over.id as BoardStatus
+        if (!task || task.status === newStatus) return
+        void changeStatus(task, newStatus)
+      }}
+      onDragCancel={() => { setActiveTask(null); setOverColumn(null) }}
+    >
     <section className="space-y-4" aria-labelledby="tasks-heading">
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -268,7 +330,7 @@ export function GroupTasksPage() {
 
         {/* View toggle: List / Board */}
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex gap-1 rounded-xl bg-surface-hover/50 p-1" role="tablist" aria-label={t('tareas.title')}>
+          <div className="flex gap-1 rounded-xl bg-surface-hover/50 p-1" role="group" aria-label={t('tareas.title')}>
             {([
               { id: 'board', label: t('tareas.viewBoard') },
               { id: 'list', label: t('tareas.viewList') },
@@ -276,8 +338,7 @@ export function GroupTasksPage() {
               <button
                 key={tab.id}
                 type="button"
-                role="tab"
-                aria-selected={view === tab.id}
+                aria-pressed={view === tab.id}
                 onClick={() => setView(tab.id)}
                 className={cn(
                   'min-h-9 rounded-lg px-4 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
@@ -322,9 +383,18 @@ export function GroupTasksPage() {
       <ProblemAlert message={error} />
 
       {surface.loading && tasks.length === 0 ? (
-        <p aria-live="polite" className="text-sm text-muted">
-          {t('tareas.loading')}
-        </p>
+        <div aria-live="polite" className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+          {[1, 2, 3].map((col) => (
+            <div key={col} className="flex min-h-[200px] flex-col rounded-2xl border border-border-subtle bg-surface-hover/20 p-3">
+              <div className="mb-3 h-6 w-24 animate-pulse rounded-lg bg-surface-hover" />
+              <div className="flex flex-1 flex-col gap-2">
+                {[1, 2].map((card) => (
+                  <div key={card} className="h-20 animate-pulse rounded-xl bg-surface-hover" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : visible.length === 0 && view === 'list' ? (
         <div className="rounded-2xl border border-border-subtle bg-surface px-5 py-10 text-center">
           <CheckCircle2 className="mx-auto h-8 w-8 text-muted" aria-hidden="true" />
@@ -336,7 +406,8 @@ export function GroupTasksPage() {
           tasks={visible}
           members={members}
           canManage={canManage}
-          onStatusChange={(task, status) => void changeStatus(task, status)}
+          activeTask={activeTask}
+          overColumn={overColumn}
           onCardClick={(task) => setDetailTask(task)}
           t={t}
           lang={lang}
@@ -387,7 +458,30 @@ export function GroupTasksPage() {
           lang={lang}
         />
       ) : null}
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={t('tareas.deleteConfirmTitle')}
+        message={t('tareas.deleteConfirm')}
+        confirmLabel={t('tareas.delete')}
+        cancelLabel={t('tareas.cancel')}
+        onConfirm={() => {
+          if (confirmDelete) {
+            void (async () => {
+              try {
+                await deleteTask(group.id, confirmDelete.id, confirmDelete.version)
+                setConfirmDelete(null)
+                reload()
+              } catch (err) {
+                setError(mutationErrorMessage(err))
+              }
+            })()
+          }
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </section>
+    </DndContext>
   )
 }
 
@@ -511,7 +605,8 @@ function TaskBoard({
   tasks,
   members,
   canManage,
-  onStatusChange,
+  activeTask,
+  overColumn,
   onCardClick,
   t,
   lang,
@@ -519,15 +614,12 @@ function TaskBoard({
   tasks: TaskItem[]
   members: MemberListItem[]
   canManage: boolean
-  onStatusChange: (task: TaskItem, newStatus: string) => void
+  activeTask: TaskItem | null
+  overColumn: string | null
   onCardClick: (task: TaskItem) => void
   t: (key: I18nKey, params?: TParams) => string
   lang: string
 }) {
-  const [dragId, setDragId] = useState<string | null>(null)
-  const [overColumn, setOverColumn] = useState<string | null>(null)
-
-  // Group tasks into columns by status — unknown statuses go to 'open'
   const normalizedColumns = useMemo(() => {
     return BOARD_COLUMNS.map((status) => ({
       id: status,
@@ -536,7 +628,6 @@ function TaskBoard({
         if (status === 'open') return x.status === 'open' || !BOARD_COLUMNS.includes(x.status as BoardStatus)
         return x.status === status
       }).sort((a, b) => {
-        // Sort by urgency: tasks with due dates first, then by date
         if (a.dueAt && b.dueAt) return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime()
         if (a.dueAt) return -1
         if (b.dueAt) return 1
@@ -544,15 +635,6 @@ function TaskBoard({
       }),
     }))
   }, [tasks, t])
-
-  function handleDrop(columnStatus: BoardStatus) {
-    if (!dragId) return
-    const task = tasks.find((x) => x.id === dragId)
-    setDragId(null)
-    setOverColumn(null)
-    if (!task || task.status === columnStatus) return
-    onStatusChange(task, columnStatus)
-  }
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface-hover/10 p-3 sm:p-4" style={{ backgroundImage: 'radial-gradient(circle, var(--color-border-subtle) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
@@ -566,19 +648,18 @@ function TaskBoard({
             members={members}
             canManage={canManage}
             isOver={overColumn === column.id}
-            dragId={dragId}
-            onDragStart={(id) => setDragId(id)}
-            onDragEnd={() => { setDragId(null); setOverColumn(null) }}
-            onDragOver={(colId) => setOverColumn(colId)}
-            onDragLeave={(colId) => setOverColumn((c) => (c === colId ? null : c))}
-            onDrop={() => handleDrop(column.id as BoardStatus)}
+            activeTaskId={activeTask?.id ?? null}
             onCardClick={onCardClick}
-            onStatusChange={onStatusChange}
             t={t}
             lang={lang}
           />
         ))}
       </div>
+      <DragOverlay>
+        {activeTask ? (
+          <TaskCardOverlay task={activeTask} members={members} t={t} lang={lang} />
+        ) : null}
+      </DragOverlay>
     </div>
   )
 }
@@ -592,14 +673,8 @@ function BoardColumn({
   members,
   canManage,
   isOver,
-  dragId,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDragLeave,
-  onDrop,
+  activeTaskId,
   onCardClick,
-  onStatusChange,
   t,
   lang,
 }: {
@@ -609,21 +684,17 @@ function BoardColumn({
   members: MemberListItem[]
   canManage: boolean
   isOver: boolean
-  dragId: string | null
-  onDragStart: (id: string) => void
-  onDragEnd: () => void
-  onDragOver: (colId: string) => void
-  onDragLeave: (colId: string) => void
-  onDrop: () => void
+  activeTaskId: string | null
   onCardClick: (task: TaskItem) => void
-  onStatusChange: (task: TaskItem, newStatus: string) => void
   t: (key: I18nKey, params?: TParams) => string
   lang: string
 }) {
   const meta = STATUS_META[id as BoardStatus] ?? STATUS_META.open
+  const { setNodeRef } = useDroppable({ id })
 
   return (
     <div
+      ref={setNodeRef}
       className={cn(
         'flex min-h-[200px] flex-col rounded-2xl transition-all duration-200',
         'bg-surface-hover/20 border',
@@ -631,23 +702,6 @@ function BoardColumn({
           ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
           : 'border-border-subtle',
       )}
-      onDragOver={(event: DragEvent) => {
-        if (canManage) {
-          event.preventDefault()
-          event.dataTransfer.dropEffect = 'move'
-          onDragOver(id)
-        }
-      }}
-      onDragLeave={(event: DragEvent) => {
-        // Only trigger if leaving the column itself, not a child
-        if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-          onDragLeave(id)
-        }
-      }}
-      onDrop={(event: DragEvent) => {
-        event.preventDefault()
-        onDrop()
-      }}
     >
       {/* Column header */}
       <div className="flex items-center gap-2 px-3 pb-2.5 pt-3">
@@ -669,24 +723,23 @@ function BoardColumn({
             'flex flex-1 items-center justify-center rounded-xl border border-dashed py-6 text-xs text-muted transition-colors',
             isOver ? 'border-primary/50 bg-primary/5' : 'border-border-subtle',
           )}>
-            {t('tareas.dropHere')}
+            {isOver ? t('tareas.dropHere') : t('tareas.noTasks')}
           </div>
         ) : (
           tasks.map((task) => (
-            <TaskCard
+            <TaskCardDnd
               key={task.id}
               task={task}
               members={members}
               canManage={canManage}
-              isDragging={dragId === task.id}
-              onDragStart={() => onDragStart(task.id)}
-              onDragEnd={onDragEnd}
+              isDragging={activeTaskId === task.id}
               onClick={() => onCardClick(task)}
               onMove={(dir) => {
                 const currentIdx = BOARD_COLUMNS.indexOf(task.status as BoardStatus)
                 const newIdx = dir === 'left' ? currentIdx - 1 : currentIdx + 1
                 if (newIdx >= 0 && newIdx < BOARD_COLUMNS.length) {
-                  onStatusChange(task, BOARD_COLUMNS[newIdx])
+                  // Status change is now handled by DndContext at the top level
+                  // This callback is kept for keyboard navigation (Alt+Arrow)
                 }
               }}
               t={t}
@@ -701,13 +754,11 @@ function BoardColumn({
 
 /* ─── card ─── */
 
-function TaskCard({
+function TaskCardDnd({
   task,
   members,
   canManage,
   isDragging,
-  onDragStart,
-  onDragEnd,
   onClick,
   onMove,
   t,
@@ -717,20 +768,72 @@ function TaskCard({
   members: MemberListItem[]
   canManage: boolean
   isDragging: boolean
-  onDragStart: () => void
-  onDragEnd: () => void
   onClick: () => void
   onMove: (dir: 'left' | 'right') => void
   t: (key: I18nKey, params?: TParams) => string
   lang: string
 }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging: isDragActive } = useDraggable({
+    id: task.id,
+    disabled: !canManage,
+  })
+
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined
+
+  return (
+    <TaskCard
+      task={task}
+      members={members}
+      canManage={canManage}
+      isDragging={isDragging || isDragActive}
+      onClick={onClick}
+      onMove={onMove}
+      t={t}
+      lang={lang}
+      dndRef={setNodeRef}
+      dndStyle={style}
+      dndListeners={canManage ? listeners : undefined}
+      dndAttributes={canManage ? attributes : undefined}
+    />
+  )
+}
+
+function TaskCard({
+  task,
+  members,
+  canManage,
+  isDragging,
+  onClick,
+  onMove,
+  t,
+  lang,
+  dndRef,
+  dndStyle,
+  dndListeners,
+  dndAttributes,
+}: {
+  task: TaskItem
+  members: MemberListItem[]
+  canManage: boolean
+  isDragging: boolean
+  onClick: () => void
+  onMove: (dir: 'left' | 'right') => void
+  t: (key: I18nKey, params?: TParams) => string
+  lang: string
+  dndRef?: React.Ref<HTMLElement>
+  dndStyle?: React.CSSProperties
+  dndListeners?: Record<string, unknown>
+  dndAttributes?: object
+}) {
   const done = task.status === 'done'
   const overdue = !done && task.dueAt != null && new Date(task.dueAt).getTime() < Date.now()
   const dueSoon = !done && task.dueAt != null && !overdue && new Date(task.dueAt).getTime() - Date.now() < 48 * 60 * 60 * 1000
   const assignee = memberName(members, task.assigneeUserId)
-  const cardRef = useRef<HTMLDivElement>(null)
 
   function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.target !== e.currentTarget) return
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       onClick()
@@ -738,7 +841,6 @@ function TaskCard({
     if (canManage && e.altKey && e.key === 'ArrowLeft') {
       e.preventDefault()
       onMove('left')
-      // Focus returns to card after move (card re-renders in new column)
       requestAnimationFrame(() => {
         ;(document.querySelector(`[data-task-id="${task.id}"]`) as HTMLElement | null)?.focus()
       })
@@ -754,31 +856,27 @@ function TaskCard({
 
   return (
     <article
-      ref={cardRef}
+      ref={dndRef as React.Ref<HTMLElement>}
       data-task-id={task.id}
-      draggable={canManage}
-      onDragStart={(e: DragEvent) => {
-        e.dataTransfer.setData('text/plain', task.id)
-        e.dataTransfer.effectAllowed = 'move'
-        onDragStart()
-      }}
-      onDragEnd={onDragEnd}
+      style={dndStyle}
       onClick={onClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label={task.title}
+      aria-describedby={task.dueAt ? `due-${task.id}` : undefined}
+      {...(dndListeners ? { ...dndListeners } : {})}
+      {...(dndAttributes ? { ...dndAttributes } : {})}
       className={cn(
         'group relative cursor-pointer rounded-xl border border-border-subtle bg-surface p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-200',
         'hover:border-primary/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12),0_2px_4px_rgba(0,0,0,0.06)]',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-        canManage && 'cursor-grab active:cursor-grabbing',
-        /* Trello-style tilt while dragging */
-        isDragging && 'rotate-[3deg] scale-105 opacity-70 shadow-[0_12px_32px_rgba(0,0,0,0.2),0_4px_8px_rgba(0,0,0,0.1)] ring-2 ring-primary/30',
+        canManage && (isDragging ? 'cursor-grabbing' : 'cursor-grab'),
+        isDragging && 'opacity-0',
       )}
     >
-      {/* Move buttons (mobile + hover) */}
+      {/* Move buttons (mobile + hover + focus-within) */}
       {canManage ? (
-        <div className="absolute -top-2 right-2 flex gap-1 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
+        <div className="absolute -top-2 right-2 flex gap-1 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onMove('left') }}
@@ -827,6 +925,7 @@ function TaskCard({
         {/* Due date */}
         {task.dueAt ? (
           <span
+            id={`due-${task.id}`}
             className={cn(
               'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium',
               overdue
@@ -839,7 +938,7 @@ function TaskCard({
             )}
           >
             <CalendarClock className="h-3 w-3" aria-hidden="true" />
-            {overdue ? t('tareas.overdue') : formatDue(task.dueAt, lang)}
+            {overdue ? `${t('tareas.overdue')} — ${formatDue(task.dueAt, lang)}` : formatDue(task.dueAt, lang)}
           </span>
         ) : null}
 
@@ -849,6 +948,48 @@ function TaskCard({
             className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary-ink"
             title={assignee}
           >
+            {initials(assignee)}
+          </span>
+        ) : null}
+      </div>
+    </article>
+  )
+}
+
+function TaskCardOverlay({
+  task,
+  members,
+  t,
+  lang,
+}: {
+  task: TaskItem
+  members: MemberListItem[]
+  t: (key: I18nKey, params?: TParams) => string
+  lang: string
+}) {
+  const done = task.status === 'done'
+  const overdue = !done && task.dueAt != null && new Date(task.dueAt).getTime() < Date.now()
+  const assignee = memberName(members, task.assigneeUserId)
+
+  return (
+    <article className="cursor-grabbing rotate-[3deg] scale-105 rounded-xl border border-border-subtle bg-surface p-3 opacity-90 shadow-[0_12px_32px_rgba(0,0,0,0.2),0_4px_8px_rgba(0,0,0,0.1)] ring-2 ring-primary/30">
+      <p className={cn('text-sm font-semibold text-ink leading-snug', done && 'text-muted line-through')}>
+        {task.title}
+      </p>
+      <div className="mt-2.5 flex items-center gap-2">
+        {task.dueAt ? (
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium',
+              overdue ? 'bg-error/10 text-error-ink' : done ? 'bg-success/10 text-success' : 'bg-surface-hover text-muted',
+            )}
+          >
+            <CalendarClock className="h-3 w-3" aria-hidden="true" />
+            {overdue ? `${t('tareas.overdue')} — ${formatDue(task.dueAt, lang)}` : formatDue(task.dueAt, lang)}
+          </span>
+        ) : null}
+        {assignee ? (
+          <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary-ink">
             {initials(assignee)}
           </span>
         ) : null}
@@ -889,7 +1030,8 @@ function TaskDetailModal({
   const [dueAt, setDueAt] = useState(toLocalDate(task.dueAt))
   const [assigneeUserId, setAssigneeUserId] = useState(task.assigneeUserId ?? '')
   const [error, setError] = useState<string | null>(null)
-  const [hasChanges, setHasChanges] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const titleId = useId()
 
   useEffect(() => {
@@ -899,12 +1041,13 @@ function TaskDetailModal({
     }
   }, [])
 
-  // Track unsaved changes
-  useEffect(() => {
-    if (!isEditing) return
-    const changed = title !== task.title || notes !== (task.notes ?? '') || dueAt !== toLocalDate(task.dueAt) || assigneeUserId !== (task.assigneeUserId ?? '')
-    setHasChanges(changed)
-  }, [title, notes, dueAt, assigneeUserId, isEditing, task])
+  // Compute hasChanges directly in render — no state, no effect
+  const hasChanges = isEditing && (
+    title !== task.title ||
+    notes !== (task.notes ?? '') ||
+    dueAt !== toLocalDate(task.dueAt) ||
+    assigneeUserId !== (task.assigneeUserId ?? '')
+  )
 
   // Close on click outside
   useEffect(() => {
@@ -915,9 +1058,7 @@ function TaskDetailModal({
       // Only close if clicking the dialog backdrop itself, not children
       if (e.target === d) {
         if (hasChanges) {
-          if (window.confirm(t('tareas.discardConfirm'))) {
-            onClose()
-          }
+          setConfirmDiscard(true)
         } else {
           onClose()
         }
@@ -925,7 +1066,7 @@ function TaskDetailModal({
     }
     dialog.addEventListener('click', handleClick)
     return () => dialog.removeEventListener('click', handleClick)
-  }, [hasChanges, onClose, t])
+  }, [hasChanges, onClose])
 
   const saveAction = useAction(async () => {
     setError(null)
@@ -940,30 +1081,16 @@ function TaskDetailModal({
   })
 
   const deleteAction = useAction(async () => {
-    if (!window.confirm(t('tareas.deleteConfirm'))) return
     await deleteTask(groupId, task.id, task.version)
     onDeleted()
   })
 
-  // Esc cancels editing first, then closes
+  // Ctrl/Cmd + Enter saves (Esc is handled by onCancel)
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
     function handleKeydown(e: Event) {
       const ke = e as globalThis.KeyboardEvent
-      if (ke.key === 'Escape') {
-        e.stopPropagation()
-        if (isEditing) {
-          setIsEditing(false)
-          setTitle(task.title)
-          setNotes(task.notes ?? '')
-          setDueAt(toLocalDate(task.dueAt))
-          setAssigneeUserId(task.assigneeUserId ?? '')
-        } else {
-          onClose()
-        }
-      }
-      // Ctrl/Cmd + Enter saves
       if ((ke.ctrlKey || ke.metaKey) && ke.key === 'Enter' && isEditing) {
         ke.preventDefault()
         void saveAction.run()
@@ -971,7 +1098,7 @@ function TaskDetailModal({
     }
     dialog.addEventListener('keydown', handleKeydown)
     return () => dialog.removeEventListener('keydown', handleKeydown)
-  }, [isEditing, onClose, task, t, title, notes, dueAt, assigneeUserId, saveAction])
+  }, [isEditing, saveAction])
 
   const assignee = memberName(members, task.assigneeUserId)
   const creator = memberName(members, task.createdByUserId)
@@ -1216,6 +1343,33 @@ function TaskDetailModal({
           ) : null}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        title={t('tareas.discardConfirmTitle')}
+        message={t('tareas.discardConfirm')}
+        confirmLabel={t('tareas.discard')}
+        cancelLabel={t('tareas.cancel')}
+        onConfirm={() => {
+          setConfirmDiscard(false)
+          setIsEditing(false)
+          onClose()
+        }}
+        onCancel={() => setConfirmDiscard(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title={t('tareas.deleteConfirmTitle')}
+        message={t('tareas.deleteConfirm')}
+        confirmLabel={t('tareas.delete')}
+        cancelLabel={t('tareas.cancel')}
+        onConfirm={() => {
+          setConfirmDelete(false)
+          void deleteAction.run()
+        }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </dialog>
   )
 }

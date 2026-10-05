@@ -45,5 +45,8 @@ public static class IcsCalendar
         .Replace(";", "\\;", StringComparison.Ordinal)
         .Replace(",", "\\,", StringComparison.Ordinal)
         .Replace("\r\n", "\\n", StringComparison.Ordinal)
-        .Replace("\n", "\\n", StringComparison.Ordinal);
+        .Replace("\n", "\\n", StringComparison.Ordinal)
+        // SECURITY-AUDIT-2026-10 (B12): a lone \r must not survive as a raw
+        // line break (property injection).
+        .Replace("\r", "\\n", StringComparison.Ordinal);
 }

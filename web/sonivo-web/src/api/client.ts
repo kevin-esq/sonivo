@@ -472,8 +472,14 @@ export type GroupBranding = {
   displayName: string | null
   accentHex: string | null
   secondaryHex: string | null
+  accentColorHex: string | null
+  successHex: string | null
+  warningHex: string | null
+  errorHex: string | null
+  typography: string | null
   onPrimary: string | null
   onSecondary: string | null
+  onAccent: string | null
   coverKind: string | null
   coverValue: string | null
   themeDefault: string | null
@@ -486,6 +492,8 @@ export type GroupBranding = {
   logoUrl: string | null
   hasBanner: boolean
   bannerUrl: string | null
+  hasFavicon: boolean
+  faviconUrl: string | null
   showSonivoCredit: boolean
   version: number
 }
@@ -510,6 +518,11 @@ export async function updateGroupBranding(
     displayName?: string | null
     accentHex?: string | null
     secondaryHex?: string | null
+    accentColorHex?: string | null
+    successHex?: string | null
+    warningHex?: string | null
+    errorHex?: string | null
+    typography?: string | null
     coverKind?: string | null
     coverValue?: string | null
     themeDefault?: string | null
@@ -534,6 +547,14 @@ export async function uploadGroupBrandingImage(
   file: File,
 ): Promise<GroupBranding> {
   return apiUpload<GroupBranding>(`/api/groups/${groupId}/branding/${kind}`, file)
+}
+
+/** Uploads the group favicon/app icon (multipart). */
+export async function uploadGroupBrandingFavicon(
+  groupId: string,
+  file: File,
+): Promise<GroupBranding> {
+  return apiUpload<GroupBranding>(`/api/groups/${groupId}/branding/favicon`, file)
 }
 
 /** Anonymous, uniform branding read for the branded access screen. */
@@ -1256,6 +1277,28 @@ export async function cancelEvent(
     method: 'POST',
     body: { expectedVersion },
   })
+}
+
+export async function duplicateEvent(
+  groupId: string,
+  eventId: string,
+  expectedVersion: number,
+): Promise<EventDetail> {
+  return apiRequest<EventDetail>(
+    `/api/groups/${groupId}/events/${eventId}/duplicate`,
+    { method: 'POST', body: { expectedVersion } },
+  )
+}
+
+export async function deleteEvent(
+  groupId: string,
+  eventId: string,
+  expectedVersion: number,
+): Promise<void> {
+  await apiRequest<void>(
+    `/api/groups/${groupId}/events/${eventId}?expectedVersion=${expectedVersion}`,
+    { method: 'DELETE' },
+  )
 }
 
 export async function applySetlistToEvent(

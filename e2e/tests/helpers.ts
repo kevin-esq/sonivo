@@ -76,7 +76,9 @@ export async function createGroup(page: Page, name: string) {
   await page.getByLabel('Nombre').fill(name)
   await page.getByRole('button', { name: 'Crear grupo' }).click()
   await expect(page.getByRole('heading', { name })).toBeVisible()
-  await expect(page.getByRole('complementary').getByText('Organizador', { exact: true })).toBeVisible()
+  // El rol aparece en el rail (marca + tarjeta de usuario); asertamos sobre la marca
+  // para evitar la duplicación intencional del texto dentro del landmark complementary.
+  await expect(page.getByTestId('rail-brand').getByText('Organizador', { exact: true })).toBeVisible()
 }
 
 export async function openLibrary(page: Page) {
@@ -243,7 +245,13 @@ export function eventPlanItem(page: Page, songTitle: string, arrangementLabel: s
 }
 
 export async function inviteMemberAndReadLink(page: Page): Promise<string> {
-  await page.getByRole('button', { name: 'Invitar miembro' }).click()
+  // The group home now renders "Invitar miembro" twice: a quick action
+  // (region "Acciones rápidas") and the actual submit inside the owner
+  // "Administrar" section — scope to the latter.
+  await page
+    .getByRole('region', { name: 'Administrar' })
+    .getByRole('button', { name: 'Invitar miembro' })
+    .click()
   const inviteLink = page.getByLabel('Enlace de invitación')
   await expect(inviteLink).toBeVisible()
   const url = await inviteLink.inputValue()

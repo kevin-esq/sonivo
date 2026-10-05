@@ -5,10 +5,11 @@ namespace Sonivo.Domain.Tasks;
 public static class TaskStatuses
 {
     public const string Open = "open";
+    public const string InProgress = "in_progress";
     public const string Done = "done";
 
     public static bool IsValid(string? value)
-        => value is Open or Done;
+        => value is Open or InProgress or Done;
 }
 
 /// <summary>
@@ -150,15 +151,14 @@ public sealed class GroupTask : IVersionedEntity
     {
         if (string.IsNullOrWhiteSpace(status))
         {
-            throw new ArgumentException("Task status is required.", nameof(status));
+            throw new ArgumentException("Task status is required.");
         }
 
         var trimmed = status.Trim();
         if (!TaskStatuses.IsValid(trimmed))
         {
             throw new ArgumentException(
-                "Task status must be open or done.",
-                nameof(status));
+                "Task status must be open, in_progress, or done.");
         }
 
         return trimmed;

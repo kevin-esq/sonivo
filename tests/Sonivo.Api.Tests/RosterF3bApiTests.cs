@@ -123,8 +123,9 @@ public class RosterF3bApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var report = await response.Content.ReadFromJsonAsync<ImportReport>();
         Assert.NotNull(report);
-        Assert.Equal(3, report!.Created);
-        Assert.Equal(2, report.Failed);
+        // Volcar el reporte completo en el fallo para diagnosticar errores por fila.
+        var reportDump = System.Text.Json.JsonSerializer.Serialize(report);
+        Assert.True(report!.Created == 3 && report.Failed == 2, reportDump);
         Assert.Contains(report.Rows, r => r.Row == 3 && r.Status == "error");
         Assert.Contains(report.Rows, r => r.Row == 5 && r.Status == "error");
 
