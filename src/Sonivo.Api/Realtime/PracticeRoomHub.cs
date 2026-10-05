@@ -69,6 +69,9 @@ public sealed class PracticeRoomHub : Hub
 
     public async Task LeaveRoom(Guid eventId)
     {
+        // Defense-in-depth: only authenticated connections may mutate room
+        // presence. JoinRoom/BroadcastPosition additionally re-check membership.
+        await RequireUserAsync();
         var room = PracticeRoomState.RoomKey(eventId);
         _rooms.RemoveFromRoom(room, Context.ConnectionId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, room);

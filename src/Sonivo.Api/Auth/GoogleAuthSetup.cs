@@ -179,8 +179,9 @@ public static class GoogleAuthSetup
                 });
             })
             .WithName("GoogleTestCallback")
-            .AllowAnonymous()
-            .DisableAntiforgery();
+            // No per-endpoint CSRF opt-out: the global antiforgery middleware
+            // protects this dev-only hook like every other unsafe method (B3).
+            .AllowAnonymous();
         }
     }
 
