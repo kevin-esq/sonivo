@@ -25,6 +25,7 @@ import {
   ProblemAlert,
 } from '../repertoire/ui'
 import { EmptyPanel } from '../repertoire/chrome'
+import { ListSkeleton, PageSkeleton } from '../ui/skeleton'
 import { Button, primaryButtonClass, secondaryButtonClass } from '../ui/button'
 import { cn } from '../ui/cn'
 import { useT } from '../i18n'
@@ -32,7 +33,7 @@ import { useT } from '../i18n'
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
 
 const TILE_CLASS =
-  'flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none'
+  'flex min-w-0 items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none'
 
 const TILE_ICON_CLASS =
   'grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink'
@@ -229,7 +230,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">{t('inicio.loading')}</p>
+    return <PageSkeleton label={t('inicio.loading')} />
   }
 
   if (group === null) {
@@ -405,9 +406,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             {t('inicio.nextEvent')}
           </h3>
           {events === null ? (
-            <p aria-live="polite" className="text-sm text-muted">
-              {t('inicio.loadingEvents')}
-            </p>
+            <ListSkeleton rows={2} label={t('inicio.loadingEvents')} />
           ) : nextEvent ? (
             <div
               className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-3"
@@ -456,7 +455,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               }
               action={
                 <Link
-                  className="font-semibold text-primary-ink no-underline hover:underline"
+                  className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline"
                   to={`/groups/${group.id}/events`}
                   data-testid="home-empty-events"
                 >
@@ -480,16 +479,14 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             </Link>
           </div>
           {latestSongs === null ? (
-            <p aria-live="polite" className="text-sm text-muted">
-              {t('inicio.loadingSongs')}
-            </p>
+            <ListSkeleton rows={2} label={t('inicio.loadingSongs')} />
           ) : latestSongs.length === 0 ? (
             <EmptyPanel
               title={t('inicio.noSongsTitle')}
               description={isOwner ? t('inicio.noSongsOwner') : t('inicio.noSongsMember')}
               action={
                 <Link
-                  className="font-semibold text-primary-ink no-underline hover:underline"
+                  className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline"
                   to={`/groups/${group.id}/library`}
                 >
                   {t('inicio.goSongs')}

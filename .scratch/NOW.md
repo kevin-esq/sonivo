@@ -1,37 +1,46 @@
 # NOW - agent focus
 
-**Updated:** 2026-10-04
+**Updated:** 2026-10-05
 
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE - Group white-label identity propagation + membership relocation
-  Branch: feature/group-white-label-identity -> MERGED to develop via PR #207 (2add820)
-  Commits: a9c4263 branding, 38f58a0 account, 3094e53 tests
+Implementation: COMPLETE - Groups UX refresh + plans/personalization docs
+  Branch: feature/groups-ux-refresh (from develop)
+  Commits:
+    147aab6 feat(groups): mobile-first responsive redesign
+    be66834 docs(now): record groups responsive redesign checkpoint
+    63c66ce feat(branding): display typography, live preview and account menu
+    (docs)  feat: plans/personalization spec + ADR-0061/0062/0063
   Scope:
-    - Semantic brand tokens: group accent now drives --color-primary / -strong / -ink /
-      -foreground / secondary / accent / shell-link / font (light + dark, AA-clamped).
-    - GroupSettingsPage hardcoded slate -> semantic tokens; group "Membresía" tab removed.
-    - Account-level Membership page (/cuenta/membresia) + account sidebar entry.
-    - Branding editor: draft-driven component preview using the real tokens.
-    - New E2E: e2e/tests/w23-brand-identity.spec.ts.
-Human approval: APPROVED (owner: "Estas autorizado a todo", 2026-10-04)
-Git checkpoint: COMMITTED + MERGED (PR #207)
-Remote: PUSHED (branch deleted after merge)
-CI: PASSING (PR #207: Backend, Frontend, SCA, CodeQL, Analyze C#, Playwright E2E 8m6s)
+    - Responsive: nav (single "Mas", 4 tabs), 44px targets, agenda <640,
+      skeletons, AA tokens (light+dark).
+    - Branding/UX: display typography (ADR-0060, 10 fonts), live brand preview,
+      liquid-glass --brand-wash, account dropdown + safer logout, floating
+      unsaved-changes bar.
+    - Docs: PHASE-PLANS-SPEC.md; ADR-0061 (entitlements + gated personalization),
+      ADR-0062 (organization), ADR-0063 (payments IN, supersedes ADR-0042).
+Human approval: APPROVED (owner: "Autorizo todo", 2026-10-05)
+Git checkpoint: COMMITTED (branch)
+Remote: NOT PUSHED
+CI: NOT RUN
 ```
 
-### Verified this session (live stack: API 5171, Vite 5173, Postgres 5433)
-- `npm run build` PASS · `npm run lint` PASS (0 errors, pre-existing warnings only)
-- Playwright MCP screenshots: group home/songs/members/settings light + dark, mobile 390px
-- Targeted E2E: w1-shell, home-dashboard, w6-light-theme, w9-surfaces, w20-branding, cuenta — PASS
-- New E2E w23-brand-identity (brand token drives buttons; membership is account-level) — PASS
+### Next implementation (authorized, not started)
+- Fase A: entitlements catalog (single source of truth) + effective-plan
+  capability filter on brand render (spec §6/§10.1-10.3). No payments yet.
+- Fase B: OKLCH derivation + intensity + gradientStyle + 10 themes + contrast guard.
+- Then level-gated editor, backend plan validation, usage meters, downgrade rules.
+- Billing/provider is placeholder (ADR-0063) and needs a provider decision (§9.13).
+
+### Verified this session
+- `npm run build` PASS · `npm run lint` (oxlint) exit 0.
+- Overflow 0 (dark/light x 320/390/768 x 11 routes); contrast 0 (binary); focus 0 missing.
+- Live preview, floating bar, account menu verified via Playwright screenshots.
+- Full E2E not run locally (API lacks Auth__EnableTestHook).
 
 ### Notes / follow-ups
-- Console: pre-existing `/g/{slug}/manifest.webmanifest` JSON parse error (unrelated).
-- Account pages (SettingsLayout / security sections) still use `dark:` + slate; a
-  `@custom-variant dark` was added so those now follow `data-theme`, but they were
-  not fully re-tokenized.
-- Unrelated local working-tree changes present (not from this task): new `.agents/skills/*`,
-  docs/tooling SKILLS-INVENTORY / TOOLING-AUDIT / DECISIONS, SKILLS-ECOSYSTEM-RESEARCH,
-  `.vscode/`, `w-h-live-viewer.png` - left untouched.
+- Backend `GroupBranding` typography allowlist extended to 10 ids; API must be
+  rebuilt/restarted for the new ids to be accepted.
+- Unrelated local working-tree changes present (not from this task): `.vscode/`,
+  `w-h-live-viewer.png`, `.scratch/shots/` - left untouched.

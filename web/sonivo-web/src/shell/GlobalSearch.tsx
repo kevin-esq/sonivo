@@ -108,7 +108,7 @@ export function GlobalSearch() {
         aria-controls="global-search-results"
         aria-autocomplete="list"
         autoComplete="off"
-        className="h-10 w-full rounded-full border border-border-subtle bg-surface pl-9 pr-3 text-sm text-ink placeholder:text-muted focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="h-11 w-full rounded-full border border-border-subtle bg-surface pl-9 pr-3 text-sm text-ink placeholder:text-muted focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         placeholder={t("app.searchPlaceholder")}
         value={query}
         onChange={(event) => {

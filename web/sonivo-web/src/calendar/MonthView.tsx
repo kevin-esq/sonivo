@@ -70,7 +70,7 @@ export function MonthView({
                   type="button"
                   onClick={() => onSelectDay(day)}
                   className={cn(
-                    "mb-1 grid h-6 w-6 place-items-center rounded-full text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                    "mb-1 grid h-11 w-11 place-items-center rounded-full text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                     isToday(day)
                       ? "bg-primary-strong text-primary-foreground"
                       : inMonth

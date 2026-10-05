@@ -218,7 +218,7 @@ function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="relative z-10 grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-primary"
+        className="relative z-10 grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-primary"
       >
         <MoreVertical className="h-5 w-5" aria-hidden="true" />
       </button>
@@ -758,7 +758,7 @@ function GroupCardItem({
         aria-pressed={pinned}
         aria-label={`${t("grupos.pin")}: ${group.name}`}
         title={pinned ? t("grupos.unpin") : t("grupos.pin")}
-        className={`grid h-10 w-10 place-items-center rounded-lg transition motion-reduce:transition-none focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-primary sm:h-9 sm:w-9 ${
+        className={`grid h-11 w-11 place-items-center rounded-lg transition motion-reduce:transition-none focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-primary ${
           pinned
             ? "text-amber-500 hover:bg-amber-50"
             : "text-muted hover:bg-surface-hover hover:text-muted [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
@@ -1079,7 +1079,7 @@ export function GroupsPage({
   const resultsActive = !!query || filter !== "all";
 
   const chip = (active: boolean) =>
-    `inline-flex h-9 items-center rounded-full border px-3 text-sm font-medium transition motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
+    `inline-flex min-h-11 items-center rounded-full border px-3 text-sm font-medium transition motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
       active
         ? "border-primary bg-primary/10 text-shell-link"
         : "border-border-subtle bg-surface text-muted hover:border-primary/40"
@@ -1243,7 +1243,7 @@ export function GroupsPage({
                   <input
                     id={searchId}
                     type="search"
-                    className={`${fieldClass} h-9 pl-9`}
+                    className={`${fieldClass} min-h-11 pl-9`}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder={t("grupos.searchPlaceholder")}
@@ -1279,7 +1279,7 @@ export function GroupsPage({
               <div className="ml-auto flex items-center gap-2">
                 {/* Selector de orden: <select> real (accesible y usable en móvil) con
                     apariencia propia y una etiqueta visible "Ordenar: Nombre". */}
-                <div className="flex h-9 items-center gap-1.5 rounded-xl border border-border-subtle bg-surface pl-3 pr-2 text-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25">
+                <div className="flex min-h-11 items-center gap-1.5 rounded-xl border border-border-subtle bg-surface pl-3 pr-2 text-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25">
                   <label
                     htmlFor={`${searchId}-sort`}
                     className="whitespace-nowrap text-shell-foreground/70"
@@ -1323,7 +1323,7 @@ export function GroupsPage({
                             : "grupos.viewList",
                         )}
                         onClick={() => setView(mode)}
-                        className={`grid h-9 w-9 place-items-center transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
+                        className={`grid h-11 w-11 place-items-center transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
                           view === mode
                             ? "bg-primary/10 text-shell-link"
                             : "bg-surface text-muted hover:bg-surface-hover"

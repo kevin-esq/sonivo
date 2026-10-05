@@ -24,7 +24,7 @@ export function ProfileHeader({
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm sm:flex-row sm:items-center">
       <span
-        className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-primary text-xl font-bold text-primary-foreground"
+        className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-primary-strong text-xl font-bold text-primary-foreground"
         aria-hidden="true"
       >
         {initialsOf(user)}

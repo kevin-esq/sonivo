@@ -51,7 +51,7 @@ export function MiniMonth({
           type="button"
           onClick={onPrev}
           aria-label={t("calendario.prev")}
-          className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -62,7 +62,7 @@ export function MiniMonth({
           type="button"
           onClick={onNext}
           aria-label={t("calendario.next")}
-          className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -87,7 +87,9 @@ export function MiniMonth({
               onClick={() => onSelect(day)}
               aria-pressed={isSelected}
               className={cn(
-                "relative grid h-7 w-7 place-items-center rounded-full text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                // 44px cells everywhere; the calendar rail is widened to 24rem
+                // at lg so the 7-column grid still fits without scroll.
+                "relative grid h-11 w-11 place-items-center rounded-full text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                 isSelected
                   ? "bg-primary-strong font-semibold text-primary-foreground"
                   : inMonth

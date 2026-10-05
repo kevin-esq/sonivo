@@ -53,7 +53,7 @@ export function AppTopBar({
             to="/cuenta"
             aria-label={t("app.userMenu")}
             data-testid="app-user-avatar"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+            className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full bg-primary-strong text-xs font-bold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
           >
             {initialsOf(user)}
           </Link>

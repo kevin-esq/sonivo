@@ -1,5 +1,5 @@
 import { getGroupBranding, type GroupBranding } from '../api/client'
-import { deriveGroupThemeTokens } from '../brand/tokens'
+import { deriveGroupThemeTokens, typographyFamily } from '../brand/tokens'
 
 export type ServerBranding = {
   accentHex: string | null
@@ -80,7 +80,9 @@ export function brandTokenStyle(
     success: branding?.successHex,
     warning: branding?.warningHex,
     error: branding?.errorHex,
-    typography: branding?.typography,
+    // `branding.typography` is the option id; resolve it to a CSS stack here so
+    // the token never becomes a bare `font-family: serif` (generic Times).
+    typography: typographyFamily(branding?.typography),
     theme: options.theme,
   })
 }
