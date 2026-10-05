@@ -1,0 +1,30 @@
+@host = http://localhost:5199
+
+### Health
+GET {{host}}/health
+Accept: application/json
+
+### Default locale (Spanish is the platform default)
+GET {{host}}/api/v1/tenants/grace-community/branding
+Accept: application/json
+
+### Explicit locale: English
+GET {{host}}/api/v1/tenants/grace-community/branding?lang=en
+Accept: application/json
+
+### Content negotiation: Accept-Language with q-values
+GET {{host}}/api/v1/tenants/riverside-band/branding
+Accept: application/json
+Accept-Language: pt;q=0.9, en;q=0.8
+
+### Unknown tenant -> 404 problem
+GET {{host}}/api/v1/tenants/does-not-exist/branding
+Accept: application/json
+
+### Invalid slug -> 400 problem
+GET {{host}}/api/v1/tenants/Invalid_Slug!/branding
+Accept: application/json
+
+### Tenant logo (SVG placeholder)
+GET {{host}}/api/v1/tenants/grace-community/branding/logo
+Accept: image/svg+xml

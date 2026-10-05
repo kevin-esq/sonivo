@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>Sonivo.Migration.Api</RootNamespace>
+    <AssemblyName>Sonivo.Migration.Api</AssemblyName>
+    <!-- Route/handler source generation for Minimal APIs stays on by default. -->
+    <PublishAot>false</PublishAot>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Built-in OpenAPI document generation (no Swashbuckle). 10.0.12 is the
+         first 10.0.x patch whose transitive Microsoft.OpenApi range (>= 2.12.0)
+         clears GHSA-v5pm-xwqc-g5wc; 10.0.9 pinned the vulnerable 2.0.0. -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+  </ItemGroup>
+
+</Project>

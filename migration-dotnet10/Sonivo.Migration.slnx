@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sonivo.Migration.Api/Sonivo.Migration.Api.csproj" />
+  </Folder>
+</Solution>
