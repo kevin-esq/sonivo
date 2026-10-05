@@ -75,7 +75,7 @@ Skills are **file-discovered**, not "installed" by a command.
 | `/mcps` + Space | ✅ Correct (`mcp.list`, `dialog.mcp.toggle` = space). |
 
 The tutorial also targeted a **Next.js** stack; Sonivo is React 19 + Vite +
-Tailwind (frontend) and .NET 9 / ASP.NET Core (backend), so its "skills" were
+Tailwind (frontend) and .NET 10 / ASP.NET Core (backend), so its "skills" were
 re-authored to match this repo.
 
 ## 4. Adopted for Sonivo (2026-10-05)

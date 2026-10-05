@@ -38,7 +38,7 @@ client validation is UX only.
 
 | Layer | Reality in Sonivo |
 | ----- | ----------------- |
-| Backend | .NET 9 / ASP.NET Core. Validation uses the project's existing mechanisms (data annotations / existing patterns). **FluentValidation is NOT adopted.** |
+| Backend | .NET 10 / ASP.NET Core. Validation uses the project's existing mechanisms (data annotations / existing patterns). **FluentValidation is NOT adopted.** |
 | Frontend | React 19 + TypeScript + Vite. **Zod is NOT adopted** (and there is no Next.js). |
 | Tests | Validate with the project's xUnit + Playwright suites. |
 
