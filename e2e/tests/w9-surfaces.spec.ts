@@ -130,8 +130,10 @@ test.describe('W9 outside surfaces', () => {
     await page.goto(`/groups/${groupId}/ajustes`)
     await expect(page.getByRole('heading', { name: 'Ajustes del grupo' })).toBeVisible()
 
-    // ADR-0054: the server brand editor renders (flag defaults ON); the primary
-    // and secondary swatch groups each carry accessible colour names.
+    // ADR-0054: the server brand editor renders (flag defaults ON) behind the
+    // "Identidad visual" tab (redesigned Ajustes); the primary and secondary
+    // swatch groups each carry accessible colour names.
+    await page.getByRole('tab', { name: 'Identidad visual' }).click()
     const editor = page.getByTestId('branding-editor')
     await expect(editor).toBeVisible()
     for (const name of ['Violeta', 'Celeste', 'Esmeralda', 'Ámbar', 'Rojo', 'Lila']) {
@@ -150,12 +152,18 @@ test.describe('W9 outside surfaces', () => {
     // "Sin portada" exists, is selectable, and round-trips through the server.
     const noCover = editor.getByRole('button', { name: 'Sin portada', exact: true })
     await expect(noCover).toBeVisible()
+    // The save button stays disabled until the draft differs from the server
+    // state, and a brand-new group already has no cover — so make a second,
+    // independent change (an accent swatch) to keep the draft dirty.
+    await editor.getByRole('button', { name: 'Esmeralda', exact: true }).first().click()
     await noCover.click()
     await expect(noCover).toHaveAttribute('aria-pressed', 'true')
     await editor.getByRole('button', { name: /Guardar identidad|Save identity/ }).click()
     await expect(page.getByText(/Identidad guardada|Identity saved/)).toBeVisible()
 
     await page.reload()
+    // The tab selection is in-memory, so re-open the branding tab after reload.
+    await page.getByRole('tab', { name: 'Identidad visual' }).click()
     await expect(
       page.getByTestId('branding-editor').getByRole('button', { name: 'Sin portada', exact: true }),
     ).toHaveAttribute('aria-pressed', 'true')

@@ -337,21 +337,23 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             <Library className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
             {t('inicio.quickAddResource')}
           </Link>
-          <button
-            type="button"
-            onClick={() => {
-              setInviteEmail('')
-              setInviteUrl(null)
-              setInviteError(null)
-              setInviteEmailWarning(false)
-              setCopied(false)
-              setInviting(false)
-            }}
-            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
-          >
-            <UserPlus className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
-            {t('inicio.quickInviteMember')}
-          </button>
+          {isOwner ? (
+            <button
+              type="button"
+              onClick={() => {
+                setInviteEmail('')
+                setInviteUrl(null)
+                setInviteError(null)
+                setInviteEmailWarning(false)
+                setCopied(false)
+                setInviting(false)
+              }}
+              className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+            >
+              <UserPlus className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+              {t('inicio.quickInviteMember')}
+            </button>
+          ) : null}
         </div>
       </section>
 

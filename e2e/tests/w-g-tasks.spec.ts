@@ -22,7 +22,7 @@ test.describe('W-G tasks', () => {
     await expect(page.getByText(`W-G Tarea ${stamp}`)).toBeVisible()
 
     // Switch to list view to complete the task
-    await page.getByRole('tab', { name: 'Lista' }).click()
+    await page.getByRole('button', { name: 'Lista' }).click()
     await expect(page.getByRole('button', { name: 'Marcar completada' })).toBeVisible()
 
     await page.getByRole('button', { name: 'Marcar completada' }).click()
@@ -63,7 +63,7 @@ test.describe('W-G tasks', () => {
       await dialog.getByRole('button', { name: 'Crear tarea' }).click()
     }
 
-    await page.getByRole('tab', { name: 'Tablero' }).click()
+    await page.getByRole('button', { name: 'Tablero' }).click()
     await expect(page.getByRole('heading', { name: 'No iniciado' })).toBeVisible()
     await expect(page.getByText(`Board A ${stamp}`)).toBeVisible()
     await expect(page.getByText(`Board B ${stamp}`)).toBeVisible()
