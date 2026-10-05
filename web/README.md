@@ -9,6 +9,7 @@ backend; no app here accesses PostgreSQL directly.
 |---|---|---|---|
 | `@sonivo/app` | `apps/app` | `sonvo.lat`, `app.sonvo.lat`, `slug.sonvo.lat` | Product shell: marketing (`(saas)`), auth, tenant workspace, session handoff |
 | `@sonivo/docs` | `apps/docs` | `docs.sonvo.lat` / `/docs` | Documentation (Fumadocs) |
+| `@sonivo/mobile` *(FUTURE)* | `apps/mobile` | App stores | Reserved placeholder for the future mobile app (Expo/React Native); not implemented |
 
 `sonivo-web/` is the legacy Vite SPA; it stays the production UI until the Next
 shell reaches parity (strangler migration).

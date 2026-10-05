@@ -96,6 +96,7 @@ Each app owns its own `package.json`, `next.config`, `tsconfig` and `middleware`
 | **T-NEXT-06** | Page-by-page strangler migration of remaining Vite routes | T-NEXT-02 | FUTURE |
 | **T-NEXT-07** | Backend message/mail localisation (ADR-0043 phase 2) | T-NEXT-03 | FUTURE |
 | **T-NEXT-08** | `GroupDomain` table + TXT/CNAME verification + custom domains | T-NEXT-05 | FUTURE (ADR-0049 D3) |
+| **T-NEXT-09** | Mobile app at `web/apps/mobile` (Expo/React Native) consuming shared `packages/*` + the .NET API | T-NEXT-02 | FUTURE (placeholder reserved) |
 
 ## 6. Out of scope (explicit)
 
