@@ -61,9 +61,11 @@ test.describe('Home dashboard (ADR-0053)', () => {
     await register(page, uniqueEmail('home-nav'))
     await page.goto('/')
 
-    // Billing / notifications are deliberate disabled placeholders (ADR-0053 H4).
+    // Notifications stays a deliberate disabled placeholder (ADR-0053 H4).
+    // Membership is no longer group-owned: it lives in account settings, so the
+    // old billing placeholder is now the real /cuenta/membresia route.
     await expect(page.getByTestId('nav-disabled-notifications')).toBeVisible()
-    await expect(page.getByTestId('nav-disabled-plan')).toBeVisible()
+    await expect(page.getByTestId('nav-membership')).toBeVisible()
 
     await page.getByTestId('nav-join').click()
     await expect(page).toHaveURL(/\/unirse$/)
