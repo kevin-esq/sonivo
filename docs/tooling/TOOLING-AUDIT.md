@@ -44,15 +44,17 @@ Audit method: existing project-local `webappsec-review` skill (two-pass) — no 
 Rejected as redundant (see [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md) §8): Security Code Scan, OWASP Dependency-Check. `System.Formats.Cbor` for the Critical C1 passkey fix: **PENDING explicit approval**.
 Findings/plan of record: [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md).
 
-## Project-local verified state (22 skill directories)
+## Project-local verified state (23 skill directories)
 
-**13 Matt Pocock + 1 Impeccable + 8 knowledge workflows** under `.agents/skills/`:
+**13 Matt Pocock + 1 Impeccable + 8 knowledge workflows + 1 user-authorized exception** under `.agents/skills/`:
 
 `codebase-design` · `code-review` · `diagnosing-bugs` · `domain-modeling` · `grilling` · `grill-with-docs` · `impeccable` · `implement` · `prototype` · `research` · `resolving-merge-conflicts` · `tdd` · `to-spec` · `to-tickets`
 
 `context-optimization` · `decision-record` · `knowledge-architecture` · `knowledge-maintenance` · `knowledge-retrieval` · `memory-writeback` · `project-documentation` · `session-handoff`
 
 `skills-lock.json` has **13** Matt entries only; the eight local workflows are not external packages. Root `.obsidian/` vault configuration remains local and was not changed.
+
+**User-authorized exception (2026-10-04):** `creative-frameworks` (`SKILL.md` added under `.agents/skills/`) **and** root `opencode.json` MCP servers (`drawio`, `excalidraw`, `sequential-thinking`, `fetch`) were installed under **explicit user authorization that overrode the documented prohibition** in `AGENTS.md`. These are **NOT** part of the ADR-0002/0039/0041 allowlist and are **not ratified** — present and user-directed, pending a ratifying ADR or removal. All four MCP servers were verified connected via `opencode mcp list`; the earlier `@cmd8/excalidraw-mcp` candidate was dropped because it ships broken (`ERR_MODULE_NOT_FOUND`).
 
 | Artifact                                | State                                    |
 | --------------------------------------- | ---------------------------------------- |

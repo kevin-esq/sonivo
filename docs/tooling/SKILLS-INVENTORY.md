@@ -31,9 +31,9 @@ Distinguish: **PRESENT** (on disk) · **AUTHORIZED** (Sonivo allowlist) · **DEF
 
 ---
 
-## PRESENT project-local skills (filesystem = allowlist)
+## PRESENT project-local skills (allowlist + 1 user-authorized exception)
 
-Exactly **22** directories under `.agents/skills/`:
+**23** directories under `.agents/skills/` — **22** allowlisted plus **1** user-authorized exception (see below):
 
 | Directory                   | Role        |
 | --------------------------- | ----------- |
@@ -59,8 +59,11 @@ Exactly **22** directories under `.agents/skills/`:
 | `memory-writeback`          | KNOWLEDGE   |
 | `project-documentation`     | KNOWLEDGE   |
 | `session-handoff`           | KNOWLEDGE   |
+| `creative-frameworks`       | EXCEPTION   |
 
-= **13** Matt Pocock + **1** Impeccable + **8** ADR-0039 knowledge workflows (**AUTHORIZED**)
+= **13** Matt Pocock + **1** Impeccable + **8** ADR-0039 knowledge workflows (**AUTHORIZED**) + **1** user-authorized exception (`creative-frameworks`, **NOT** in the binding allowlist).
+
+> **User-authorized exception (2026-10-04):** `creative-frameworks` is present and discoverable by OpenCode but is **not** part of the ADR-0002/0039/0041 binding allowlist. It was added under explicit user authorization that overrode the documented prohibition. Requires a ratifying ADR or removal.
 
 Removed skills are **not** listed as installed.
 
@@ -68,7 +71,7 @@ Removed skills are **not** listed as installed.
 
 | Path               | Notes                                                                                 |
 | ------------------ | ------------------------------------------------------------------------------------- |
-| `.agents/skills/`  | Sole project-local skills directory; contains all 22 authorized `SKILL.md` procedures |
+| `.agents/skills/`  | Sole project-local skills directory; contains 22 authorized + 1 user-authorized exception `SKILL.md` procedures |
 | `.obsidian/`       | Local vault configuration; intentionally not modified                                 |
 | `skills-lock.json` | **13** Matt entries only; local memory workflows are not external packages            |
 
