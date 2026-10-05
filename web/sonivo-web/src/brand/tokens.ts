@@ -83,6 +83,25 @@ export function mixWithBlack(hex: string, amount: number): string {
   return darken(hex, amount);
 }
 
+/**
+ * Nudge `hex` toward black or white until it meets `minRatio` against
+ * `background`. Used to derive contrast-safe semantic tokens from an arbitrary
+ * group brand colour so branding can never produce unreadable UI (WCAG AA).
+ */
+export function accessibleInk(
+  hex: string,
+  background: string,
+  prefer: 'dark' | 'light',
+  minRatio = 4.5,
+): string {
+  let result = hex;
+  for (let i = 0; i < 30; i += 1) {
+    if (contrastRatio(result, background) >= minRatio) return result;
+    result = prefer === 'dark' ? darken(result, 0.08) : lighten(result, 0.08);
+  }
+  return result;
+}
+
 /** Add alpha to a hex color. */
 export function withAlpha(hex: string, alpha: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(hex) ? `${hex}${alpha}` : hex;
@@ -161,6 +180,77 @@ export function deriveBrandTokens(input: {
     '--color-error-strong': darken(error, 0.1),
     '--group-accent': primary,
   };
+}
+
+export type GroupThemeInput = {
+  /** Required brand colour; drives primary buttons, links, active states. */
+  primary: string;
+  secondary?: string | null;
+  accent?: string | null;
+  success?: string | null;
+  warning?: string | null;
+  error?: string | null;
+  typography?: string | null;
+  theme?: 'light' | 'dark';
+};
+
+/** Content surface the token set will be rendered on (matches index.css). */
+const LIGHT_SURFACE = '#ffffff';
+const DARK_SURFACE = '#111a2e';
+const LIGHT_SHELL = '#ffffff';
+const DARK_SHELL = '#0f172a';
+
+/**
+ * Derive the semantic token overrides that make a group's identity drive the
+ * whole workspace. The `--color-*` names are exactly the ones Tailwind's
+ * `@theme` exposes (`bg-primary`, `text-primary-ink`, `outline-primary`…), so
+ * setting them on the group shell repaints every descendant at once — including
+ * light/dark variants — without hard-coding brand colours into components.
+ *
+ * Every text-bearing token is contrast-clamped to WCAG AA so a group cannot
+ * render an unusable interface through branding (see `accessibleInk`).
+ */
+export function deriveGroupThemeTokens(input: GroupThemeInput): Record<string, string> {
+  const theme = input.theme ?? 'light';
+  const primary = input.primary;
+  const brand = deriveBrandTokens({
+    primary,
+    secondary: input.secondary,
+    accent: input.accent,
+    success: input.success,
+    warning: input.warning,
+    error: input.error,
+  });
+
+  const onPrimary = onColor(primary);
+  // Solid primary used behind text (`Button` primary, player controls). Keep it
+  // readable with the same foreground token used on `bg-primary`.
+  const primaryStrong =
+    onPrimary === '#ffffff'
+      ? accessibleInk(primary, '#ffffff', 'dark')
+      : accessibleInk(primary, '#0f172a', 'light');
+  const surface = theme === 'dark' ? DARK_SURFACE : LIGHT_SURFACE;
+  const shell = theme === 'dark' ? DARK_SHELL : LIGHT_SHELL;
+
+  const tokens: Record<string, string> = {
+    ...brand,
+    '--color-primary': primary,
+    '--color-primary-foreground': onPrimary,
+    '--color-primary-ink': accessibleInk(primary, surface, theme === 'dark' ? 'light' : 'dark'),
+    '--color-primary-strong': primaryStrong,
+    '--color-shell-link': accessibleInk(primary, shell, theme === 'dark' ? 'light' : 'dark'),
+  };
+
+  if (input.secondary) {
+    tokens['--color-secondary'] = input.secondary;
+    tokens['--color-secondary-foreground'] = onColor(input.secondary);
+  }
+  if (input.accent) tokens['--color-accent'] = input.accent;
+  if (input.success) tokens['--color-success'] = input.success;
+  if (input.warning) tokens['--color-warning'] = input.warning;
+  if (input.error) tokens['--color-error'] = input.error;
+  if (input.typography) tokens['--font-sans'] = input.typography;
+  return tokens;
 }
 
 // ---------- Preset palettes ----------

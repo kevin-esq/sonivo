@@ -81,10 +81,10 @@ export const sidebarSections: SidebarSection[] = [
     id: "secondary",
     items: [
       {
-        id: "plan",
-        labelKey: "sidebar.plan",
+        id: "membership",
+        labelKey: "sidebar.membership",
         icon: CreditCard,
-        disabled: true,
+        to: "/cuenta/membresia",
       },
       { id: "help", labelKey: "sidebar.help", icon: CircleHelp, disabled: true },
     ],

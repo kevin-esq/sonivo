@@ -78,8 +78,10 @@ export function groupCoverStyle(cover: string, accent: string): CSSProperties {
     // of a flat neutral block, so "no cover" still reads as the group's colour.
     return {
       backgroundImage: `linear-gradient(135deg, ${withAlpha(accent, '26')}, ${withAlpha(accent, '0a')})`,
-      backgroundColor: '#ffffff',
-      color: '#0f172a',
+      // Theme-aware surface/ink so "no cover" is not a white block in dark mode
+      // and still carries the group accent wash in light mode.
+      backgroundColor: 'var(--color-surface, #ffffff)',
+      color: 'var(--color-ink, #0f172a)',
     }
   }
   if (isGradientCover(cover)) {

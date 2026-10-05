@@ -25,9 +25,10 @@ test.describe('W1 shell: Grupo vs Cuenta', () => {
     for (const tab of ['Perfil', 'Preferencias']) {
       await expect(cuentaNav.getByRole('link', { name: tab })).toBeVisible()
     }
-    // Notifications / plan are disabled placeholders (ADR-0053 H4).
+    // Notifications stays a disabled placeholder (ADR-0053 H4); membership is a
+    // real account route now (moved out of the group workspace).
     await expect(page.getByTestId('nav-disabled-notifications')).toBeVisible()
-    await expect(page.getByTestId('nav-disabled-plan')).toBeVisible()
+    await expect(page.getByTestId('nav-membership')).toBeVisible()
   })
 
   test('/settings/security redirects to /cuenta/seguridad with passkey section', async ({ page }) => {
