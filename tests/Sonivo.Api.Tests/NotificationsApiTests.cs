@@ -144,7 +144,7 @@ public class NotificationsApiTests : IClassFixture<NotificationsOnFactory>, ICla
     private sealed record EventResponse(Guid Id, string Title);
 }
 
-/// <summary>Captures outbound email instead of hitting Gmail.</summary>
+/// <summary>Captures outbound email instead of hitting the email transport.</summary>
 public sealed class CapturingEmailSender : IEmailSender
 {
     private readonly List<OutboundEmail> _sent = [];
@@ -193,10 +193,10 @@ public sealed class NotificationsOnFactory : WebApplicationFactory<Program>
         builder.UseSetting("UseInMemoryDatabase", "true");
         builder.UseSetting("InMemoryDatabaseName", _dbName);
         builder.UseSetting("ConnectionStrings:Default", "Host=unused;Database=unused;Username=unused;Password=unused");
-        builder.UseSetting("Gmail:ClientId", "");
-        builder.UseSetting("Gmail:ClientSecret", "");
-        builder.UseSetting("Gmail:RefreshToken", "");
-        builder.UseSetting("Gmail:From", "");
+        builder.UseSetting("Email:Endpoint", "");
+        builder.UseSetting("Email:ApiKey", "");
+        builder.UseSetting("Email:ApiKey", "");
+        builder.UseSetting("Email:From", "");
         builder.UseSetting("PublicOrigin", "");
         builder.UseSetting("Authentication:Google:ClientId", "");
         builder.UseSetting("Authentication:Google:ClientSecret", "");

@@ -3,10 +3,10 @@ using Sonivo.Application.Abstractions;
 namespace Sonivo.Api.Auth;
 
 /// <summary>
-/// T-AU-01: best-effort verification / password-reset mail over the Phase 3.9
-/// Gmail API HTTPS sender. Never throws: transport gaps degrade to
-/// <c>mailed=false</c> + a warning log (existing T-3.9 pattern).
-/// No generic SMTP, no Event/RSVP mail (firewall).
+/// T-AU-01: best-effort verification / password-reset mail over the configured
+/// email transport (<see cref="IEmailSender"/>, provider-agnostic). Never throws:
+/// transport gaps degrade to <c>mailed=false</c> + a warning log (existing T-3.9
+/// pattern). No Event/RSVP mail (firewall).
 /// </summary>
 internal static class VerificationMail
 {

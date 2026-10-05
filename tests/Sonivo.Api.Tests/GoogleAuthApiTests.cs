@@ -263,10 +263,10 @@ public sealed class GoogleAuthApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("UseInMemoryDatabase", "true");
         builder.UseSetting("InMemoryDatabaseName", _dbName);
         builder.UseSetting("ConnectionStrings:Default", "Host=unused;Database=unused;Username=unused;Password=unused");
-        builder.UseSetting("Gmail:ClientId", "");
-        builder.UseSetting("Gmail:ClientSecret", "");
-        builder.UseSetting("Gmail:RefreshToken", "");
-        builder.UseSetting("Gmail:From", "");
+        builder.UseSetting("Email:Endpoint", "");
+        builder.UseSetting("Email:ApiKey", "");
+        builder.UseSetting("Email:ApiKey", "");
+        builder.UseSetting("Email:From", "");
         builder.UseSetting("PublicOrigin", "");
         builder.UseSetting("Authentication:Google:ClientId", "test-google-client-id.apps.googleusercontent.com");
         builder.UseSetting("Authentication:Google:ClientSecret", "test-google-client-secret");

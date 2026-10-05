@@ -7,7 +7,7 @@ using Sonivo.Infrastructure.Identity;
 namespace Sonivo.Infrastructure.Notifications;
 
 /// <summary>
-/// ADR-0052: event/RSVP mail over the existing Gmail API sender. Flag-gated
+/// ADR-0052: event/RSVP mail over the configured email transport. Flag-gated
 /// (<c>Features:Notifications</c>, default off) and best-effort: no mailbox or a
 /// transport gap degrades to no mail, never a failed request. Members without an
 /// email are covered by the in-app surfaces (group events + ICS feed).

@@ -1,9 +1,9 @@
 namespace Sonivo.Infrastructure;
 
-// Pure shape check for the Gmail:From setting (bare addr or "Name <addr>").
-// Gmail silently rewrites the From header to the OAuth account unless the
-// address is a verified SendAs alias with an exact match — see PHASE-AUTH-SPEC.
-public static class GmailFromValidator
+// Pure shape check for the Email:From setting (bare addr or "Name <addr>").
+// Email APIs reject or silently rewrite a malformed From sender, so the value
+// must resolve to an exact addr@domain before it is trusted.
+public static class EmailFromValidator
 {
     public static bool IsValid(string? from) =>
         TryExtractAddress(from, out _);
