@@ -21,7 +21,7 @@ Sonivo introduces a **Next.js App Router frontend** that behaves as a **BFF over
 
 ## 2. Why this is safe to add without breaking the shipped app
 
-- The Next app lives in a **new directory** (`web/sonivo-next/`) alongside the shipped Vite SPA (`web/sonivo-web/`). The existing Docker image, CI frontend build, and Playwright suites are untouched.
+- The Next app lives in the **Turborepo workspace** (`web/apps/app/`) alongside the shipped Vite SPA (`web/sonivo-web/`). The existing Docker image, CI frontend build, and Playwright suites are untouched.
 - The .NET API keeps its routes and contract; new capabilities are **additive** (`/api/session/handoff*`).
 - Rollout is a **strangler** migration (ADR-0043 waves): Vite stays the production UI until the Next shell reaches parity and is switched at the edge.
 
@@ -52,26 +52,33 @@ Browser ──host: slug.sonvo.lat──► Next middleware ──rewrite──�
                                            └─ /api/session/handoff/start|redeem
 ```
 
-### Folder layout (`web/sonivo-next/`)
+### Monorepo layout (`web/`)
 
 ```text
-app/
-  layout.tsx                     # <html>/<body> + SSR theme vars (reads x-tenant-slug / x-locale)
-  (saas)/page.tsx                # sonvo.lat landing
-  (saas)/login/page.tsx          # apex auth
-  (saas)/pricing/page.tsx
-  [tenant]/[locale]/
-    layout.tsx                   # validates tenant, provides dictionary
-    page.tsx  rehearsals/page.tsx  repertoire/page.tsx
-    session/handoff/route.ts     # POST redeem (same-origin)
-    not-found.tsx
-lib/i18n/{config,dictionaries,I18nProvider}.ts(x) + messages/{es,en,pt}.json
-lib/api/{client,server,branding,types}.ts
-lib/theme/vars.ts
-components/AttendanceTracker.tsx  # 'use client' example
-middleware.ts
-next.config.ts
+web/                          # Turborepo workspace (root package.json + turbo.json)
+  apps/
+    app/                      # @sonivo/app — product shell (Next.js)
+      app/
+        layout.tsx            # <html>/<body> + SSR theme vars (x-tenant-slug / x-locale)
+        (saas)/page.tsx       # sonvo.lat landing
+        (saas)/login/page.tsx # apex auth
+        (saas)/pricing/page.tsx
+        [tenant]/[locale]/    # slug.sonvo.lat workspace
+          layout.tsx          # validates tenant, provides dictionary
+          page.tsx  rehearsals/page.tsx  repertoire/page.tsx
+          session/handoff/    # POST redeem (same-origin CSRF)
+          not-found.tsx
+      lib/i18n/... lib/api/... lib/theme/... components/AttendanceTracker.tsx
+      middleware.ts  next.config.ts
+    docs/                     # @sonivo/docs — Fumadocs (docs.sonvo.lat / /docs)
+      app/docs/[[...slug]]/page.tsx  app/api/search/route.ts
+      content/docs/*.mdx  lib/source.ts
+  packages/                   # shared code (ui / i18n / api-client / config), extracted incrementally
+  sonivo-web/                 # legacy Vite SPA (retired after parity)
 ```
+
+Each app owns its own `package.json`, `next.config`, `tsconfig` and `middleware`.
+`sonivo-web/` (Vite) remains the production UI until the Next shell reaches parity.
 
 ### Backend additions (.NET, additive)
 
@@ -103,5 +110,5 @@ next.config.ts
 
 - `dotnet build Sonivo.slnx -c Release` → green.
 - `dotnet test Sonivo.slnx -c Release --filter SessionHandoff` → green (handoff service).
-- `web/sonivo-next`: `npm install` + `npm run build` (+ `next lint` if configured).
+- `web`: `npm install` + `turbo run build` (builds `@sonivo/app` and `@sonivo/docs`).
 - Manual: middleware host/locale matrix; handoff single-use/expiry/replay/UA-mismatch/non-member cases.

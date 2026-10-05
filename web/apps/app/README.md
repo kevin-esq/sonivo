@@ -1,4 +1,4 @@
-# sonivo-next
+# @sonivo/app
 
 Next.js App Router BFF for Sonivo (ADR-0067). It is the multi-tenant shell over
 the existing ASP.NET Core API in `src/`; the .NET modular monolith remains the

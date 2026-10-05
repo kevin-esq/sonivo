@@ -34,7 +34,7 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ### Rollout
 
-Strangler migration: the Vite SPA stays the production UI until the Next shell reaches parity and is switched at the edge. New code is additive (`web/sonivo-next/`, `/api/session/handoff*`).
+Strangler migration: the Vite SPA stays the production UI until the Next shell reaches parity and is switched at the edge. New code is additive (`web/apps/app/`, `web/apps/docs/`, `/api/session/handoff*`).
 
 ---
 
