@@ -85,6 +85,14 @@ Flow:
 4. The host bridge forwards `{slug}.sonivo.lat/…` to the existing `/g/{slug}`
    resolver, which re-verifies membership server-side.
 
+**App scope (`app.sonivo.lat`).** `start` with **no slug** (or a blank one) issues
+a user-scoped handoff for the product host: any authenticated user may start it,
+and redeem skips the membership check because there is no group to authorize
+(the code is still single-use, 256-bit, 90 s, UA-bound). This lets the apex or
+`account` hand a session to `app.sonivo.lat`. The redirect is enabled by setting
+`NEXT_PUBLIC_APP_HOST=app.sonivo.lat` on the frontend; when unset, the apex keeps
+serving the product directly.
+
 Handoff code guarantees: ≥256-bit CSPRNG, opaque, stored only as SHA-256 hash,
 **single-use (atomic `TryRemove`)**, TTL 90 s (≤120 s ceiling), advisory
 User-Agent binding, per-IP rate limit (`session-handoff`, 20/min).
@@ -196,8 +204,9 @@ cd deploy && docker compose --env-file .env up -d --build
 
 1. Create a Vercel project from `kevin-esq/sonivo` with **Root Directory**
    `web/apps/app` (Turborepo is detected; build command `next build`).
-2. Environment: `API_ORIGIN=https://api.sonivo.lat`
-   (and `NEXT_PUBLIC_ROOT_DOMAIN=sonivo.lat`).
+2. Environment: `API_ORIGIN=https://api.sonivo.lat`,
+   `NEXT_PUBLIC_ROOT_DOMAIN=sonivo.lat`, and `NEXT_PUBLIC_APP_HOST=app.sonivo.lat`
+   (the last one enables the apex -> app handoff redirect).
 3. Build **without** `NEXT_EXPORT=1` so Next runs as a server (BFF): its
    `beforeFiles` rewrites proxy `/api/:path*` and `/hubs/:path*` to
    `API_ORIGIN`. The static export (`NEXT_EXPORT=1`) is only for the Render

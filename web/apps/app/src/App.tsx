@@ -23,6 +23,7 @@ import {
   fetchCurrentUser,
   leaveGroup,
   logoutUser,
+  startHandoff,
   updateGroup,
   type CurrentUser,
 } from "./api/client";
@@ -38,7 +39,7 @@ import { AppShell } from "./shell/AppShell";
 import { useAuth, type AuthContext } from "./shell/authContext";
 import { GroupWorkspace } from "./shell/GroupWorkspace";
 import { GroupSlugResolver } from "./tenancy/GroupSlugResolver";
-import { tenantSlugFromHost } from "./tenancy/tenantHost";
+import { tenantSlugFromHost, appHost, isApexHost } from "./tenancy/tenantHost";
 import { BrandedLoginPage } from "./shell/BrandedLoginPage";
 import { MustChangePassword } from "./shell/MustChangePassword";
 import { RailPresenceProvider } from "./shell/railPresence";
@@ -405,6 +406,33 @@ export default function App() {
     if (pathname.startsWith("/g/") || pathname === "/session/handoff") return;
     window.location.replace(`/g/${slug}${pathname}${search}`);
   }, []);
+
+  // Apex -> product entry (ADR-0067 app handoff): when NEXT_PUBLIC_APP_HOST is
+  // configured and an authenticated session lands on the apex (or www), exchange
+  // a single-use code for a host-only cookie on the app host. Disabled by default
+  // so staging and local development are unaffected.
+  useEffect(() => {
+    if (session.status !== "authenticated") return;
+    const target = appHost();
+    if (!target || !isApexHost(window.location.hostname)) return;
+
+    // Guard against a redirect loop if the exchange fails.
+    const guard = "sonivo:handoff:app";
+    try {
+      if (window.sessionStorage.getItem(guard) === "1") return;
+      window.sessionStorage.setItem(guard, "1");
+    } catch {
+      // storage unavailable; proceed once
+    }
+
+    void startHandoff()
+      .then((result) => {
+        window.location.replace(result.redirect || `https://${target}/`);
+      })
+      .catch(() => {
+        // Stay on the apex; the user can retry by reloading.
+      });
+  }, [session.status]);
 
   const onLogout = useCallback(() => {
     void (async () => {
