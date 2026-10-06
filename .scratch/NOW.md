@@ -6,8 +6,8 @@
 
 ```text
 Implementation: COMPLETE - prod topology defined + tenancy/handoff hardened
-  Branch: develop (integration); work on 3 PRs from develop
-  Delivered this session (PRs open):
+  Branch: develop (integration); work merged from 3 PRs
+  Delivered this session (merged):
     - #226 feat(tenancy): reserved-slug list extended to the full host map
       (apex, www, app, account, api, staging, dashboard, panel, signup, billing,
       status, cdn, docs, blog, smtp, dev, test, internal, system, ...) + domain
@@ -27,11 +27,12 @@ Implementation: COMPLETE - prod topology defined + tenancy/handoff hardened
   Infra configured (unchanged this session): staging on Render free +
     staging.sonivo.lat, Neon staging branch, provider-agnostic email (Delivered).
 Human approval: APPROVED (owner authorized full execution)
-Git checkpoint: COMMITTED + PUSHED; PRs #226, #227, #228 open (not yet merged)
+Git checkpoint: COMMITTED + MERGED (PRs #226, #227, #228 into develop)
 Remote: PUSHED
-CI: PR checks running; develop CI intermittently fails with a GitHub runner
-    infrastructure error ("job was not acquired by Runner of type hosted"),
-    not a code failure -> re-run when runners are available.
+CI: PR checks green (CI + CodeQL + Security + Playwright E2E). develop CI
+    intermittently fails with a GitHub runner infrastructure error
+    ("job was not acquired by Runner of type hosted"), not a code failure
+    -> re-run when runners are available.
 ```
 
 ## Prod topology (decided - ADR-0069)
