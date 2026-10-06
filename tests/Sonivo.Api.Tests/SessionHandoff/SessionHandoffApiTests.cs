@@ -35,14 +35,34 @@ public class SessionHandoffApiTests : IClassFixture<SonivoApiFactory>
     }
 
     [Fact]
-    public async Task Start_blank_slug_returns_404()
+    public async Task Start_without_slug_issues_an_app_handoff()
+    {
+        var owner = await CreateAuthenticatedClientAsync(NewEmail("start-app"));
+
+        var response = await owner.PostAsJsonAsync(
+            "/api/session/handoff/start", new { });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<HandoffStartResponse>(JsonOptions);
+        Assert.NotNull(payload);
+        var redirect = new Uri(payload.Redirect);
+        Assert.Equal("app.localhost", redirect.Host);
+        Assert.Equal("/session/handoff", redirect.AbsolutePath);
+        Assert.False(string.IsNullOrWhiteSpace(CodeFrom(redirect)));
+    }
+
+    [Fact]
+    public async Task Start_blank_slug_is_treated_as_app_scope()
     {
         var owner = await CreateAuthenticatedClientAsync(NewEmail("start-blank"));
 
         var response = await owner.PostAsJsonAsync(
             "/api/session/handoff/start", new { slug = "   " });
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<HandoffStartResponse>(JsonOptions);
+        Assert.NotNull(payload);
+        Assert.Equal("app.localhost", new Uri(payload.Redirect).Host);
     }
 
     [Fact]
@@ -163,6 +183,43 @@ public class SessionHandoffApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Redeem_app_handoff_sets_a_host_only_cookie()
+    {
+        var owner = await CreateAuthenticatedClientAsync(NewEmail("redeem-app"));
+        var code = await StartAppHandoffAsync(owner);
+
+        var app = NewClient();
+        await EnsureCsrfAsync(app);
+        var response = await app.PostAsJsonAsync("/api/session/handoff/redeem", new { code });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var setCookie = response.Headers.TryGetValues("Set-Cookie", out var values)
+            ? string.Join("\n", values)
+            : string.Empty;
+        Assert.Contains("sonivo.auth=", setCookie);
+        Assert.DoesNotContain("Domain=", setCookie);
+
+        var me = await app.GetAsync("/api/auth/me");
+        Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+    }
+
+    [Fact]
+    public async Task Redeem_app_handoff_is_single_use()
+    {
+        var owner = await CreateAuthenticatedClientAsync(NewEmail("redeem-app-replay"));
+        var code = await StartAppHandoffAsync(owner);
+
+        var app = NewClient();
+        await EnsureCsrfAsync(app);
+        var first = await app.PostAsJsonAsync("/api/session/handoff/redeem", new { code });
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        await EnsureCsrfAsync(app);
+        var second = await app.PostAsJsonAsync("/api/session/handoff/redeem", new { code });
+        Assert.Equal(HttpStatusCode.BadRequest, second.StatusCode);
+    }
+
     private HttpClient NewClient() =>
         _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -215,6 +272,15 @@ public class SessionHandoffApiTests : IClassFixture<SonivoApiFactory>
     {
         var response = await client.PostAsJsonAsync(
             "/api/session/handoff/start", new { slug });
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<HandoffStartResponse>(JsonOptions);
+        var redirect = new Uri(payload?.Redirect ?? throw new InvalidOperationException("Missing redirect"));
+        return CodeFrom(redirect);
+    }
+
+    private static async Task<string> StartAppHandoffAsync(HttpClient client)
+    {
+        var response = await client.PostAsJsonAsync("/api/session/handoff/start", new { });
         response.EnsureSuccessStatusCode();
         var payload = await response.Content.ReadFromJsonAsync<HandoffStartResponse>(JsonOptions);
         var redirect = new Uri(payload?.Redirect ?? throw new InvalidOperationException("Missing redirect"));
