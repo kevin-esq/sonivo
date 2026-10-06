@@ -12,6 +12,7 @@ import {
   updateGroupBranding,
   uploadGroupBrandingImage,
   uploadGroupBrandingFavicon,
+  type BrandingCapabilities,
   type CurrentUser,
   type GroupBranding,
   type GroupDetail,
@@ -199,6 +200,14 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
 
+  // Plan gating mirrors the server-enforced branding PUT (validation symmetry):
+  // a forbidden control is disabled, and the save payload echoes the saved value
+  // for gated fields so a lower plan never clears advanced config.
+  const caps = group?.capabilities
+  const can = (key: keyof BrandingCapabilities) => Boolean(caps?.[key])
+  const locked = (key: keyof BrandingCapabilities) => (caps ? !can(key) : false)
+  const planLimited = caps ? Object.values(caps).some((value) => !value) : false
+
   // Phase 4.3 / ADR-0054: server-side White Label editor behind Features:GroupBranding.
   const [brandingEnabled, setBrandingEnabled] = useState(false)
   const [branding, setBranding] = useState<GroupBranding | null>(null)
@@ -363,27 +372,32 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     setSavingBrand(true)
     setBrandError(null)
     setBrandConflict(null)
-    const cover = coverToBranding(draft.cover)
+    // Echo the currently-saved value for gated fields when the plan forbids them,
+    // so a lower plan preserves (rather than clears) advanced configuration.
+    const saved = draftFromBranding(branding)
+    const cover = coverToBranding(can('icon') ? draft.cover : saved.cover)
     try {
       const updated = await updateGroupBranding(group.id, {
         expectedVersion: branding.version,
-        displayName: draft.displayName.trim() || null,
-        accentHex: draft.accentHex.trim() || null,
-        secondaryHex: draft.secondaryHex.trim() || null,
-        accentColorHex: draft.accentColorHex.trim() || null,
-        successHex: draft.successHex.trim() || null,
-        warningHex: draft.warningHex.trim() || null,
-        errorHex: draft.errorHex.trim() || null,
-        typography: draft.typography || null,
+        displayName: can('brandName') ? draft.displayName.trim() || null : saved.displayName.trim() || null,
+        accentHex: can('accent') ? draft.accentHex.trim() || null : saved.accentHex.trim() || null,
+        secondaryHex: can('splitColors') ? draft.secondaryHex.trim() || null : saved.secondaryHex.trim() || null,
+        accentColorHex: can('accent') ? draft.accentColorHex.trim() || null : saved.accentColorHex.trim() || null,
+        successHex: can('splitColors') ? draft.successHex.trim() || null : saved.successHex.trim() || null,
+        warningHex: can('splitColors') ? draft.warningHex.trim() || null : saved.warningHex.trim() || null,
+        errorHex: can('splitColors') ? draft.errorHex.trim() || null : saved.errorHex.trim() || null,
+        typography: can('font') ? draft.typography || null : saved.typography || null,
         coverKind: cover.coverKind,
         coverValue: cover.coverValue,
         themeDefault: draft.themeDefault || null,
         defaultLocale: draft.defaultLocale || null,
-        welcomeText: draft.welcomeText.trim() || null,
-        loginHeadline: draft.loginHeadline.trim() || null,
-        tagline: draft.tagline.trim() || null,
-        verse: draft.verse.trim() || null,
-        showSonivoCredit: draft.showSonivoCredit,
+        welcomeText: can('welcomeText') ? draft.welcomeText.trim() || null : saved.welcomeText.trim() || null,
+        loginHeadline: can('loginBranding')
+          ? draft.loginHeadline.trim() || null
+          : saved.loginHeadline.trim() || null,
+        tagline: can('brandName') ? draft.tagline.trim() || null : saved.tagline.trim() || null,
+        verse: can('brandName') ? draft.verse.trim() || null : saved.verse.trim() || null,
+        showSonivoCredit: can('removePoweredBy') ? draft.showSonivoCredit : true,
       })
       setBranding(updated)
       setDraft(draftFromBranding(updated))
@@ -556,7 +570,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   type="text"
                   data-testid="brand-display-name"
                   value={draft.displayName}
-                  disabled={!isOwner}
+                  disabled={!isOwner || locked('brandName')}
                   maxLength={120}
                   onChange={(e) => patchDraft({ displayName: e.target.value })}
                 />
@@ -568,7 +582,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   className={fieldClass}
                   type="text"
                   value={draft.welcomeText}
-                  disabled={!isOwner}
+                  disabled={!isOwner || locked('welcomeText')}
                   maxLength={500}
                   onChange={(e) => patchDraft({ welcomeText: e.target.value })}
                 />
@@ -579,7 +593,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   className={fieldClass}
                   type="text"
                   value={draft.loginHeadline}
-                  disabled={!isOwner}
+                  disabled={!isOwner || locked('loginBranding')}
                   maxLength={500}
                   onChange={(e) => patchDraft({ loginHeadline: e.target.value })}
                 />
@@ -591,7 +605,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     className={fieldClass}
                     type="text"
                     value={draft.tagline}
-                    disabled={!isOwner}
+                    disabled={!isOwner || locked('brandName')}
                     maxLength={160}
                     onChange={(e) => patchDraft({ tagline: e.target.value })}
                   />
@@ -602,7 +616,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     className={fieldClass}
                     type="text"
                     value={draft.verse}
-                    disabled={!isOwner}
+                    disabled={!isOwner || locked('brandName')}
                     maxLength={200}
                     onChange={(e) => patchDraft({ verse: e.target.value })}
                   />
@@ -613,7 +627,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   type="checkbox"
                   className="h-5 w-5"
                   checked={draft.showSonivoCredit}
-                  disabled={!isOwner}
+                  disabled={!isOwner || locked('removePoweredBy')}
                   onChange={(e) => patchDraft({ showSonivoCredit: e.target.checked })}
                 />
                 {t('ajustes.showSonivoCredit')}
@@ -632,6 +646,22 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </h2>
             <p className="text-sm text-muted">{t('ajustes.brandingSubtitle')}</p>
           </div>
+
+          {planLimited ? (
+            <div
+              data-testid="brand-plan-lock"
+              className="space-y-1 rounded-2xl border border-border-subtle bg-surface-hover px-4 py-3"
+            >
+              <p className="text-sm font-semibold text-ink">{t('ajustes.planLockedTitle')}</p>
+              <p className="text-sm text-muted">{t('ajustes.planLockedBody')}</p>
+              <Link
+                to="/cuenta/membresia"
+                className="inline-block text-sm font-semibold text-primary-ink no-underline hover:underline"
+              >
+                {t('ajustes.planUpgrade')}
+              </Link>
+            </div>
+          ) : null}
 
           {/* Live preview: header with banner (or cover), logo and both brand colours. */}
           <div
@@ -787,7 +817,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           ) : null}
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('accent')}>
             <legend className="font-medium">{t('ajustes.primaryColor')}</legend>
             <p className="text-sm text-muted">{t('ajustes.colorHint')}</p>
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.primaryColor')}>
@@ -817,7 +847,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('splitColors')}>
             <legend className="font-medium">{t('ajustes.secondaryColor')}</legend>
             <p className="text-sm text-muted">{t('ajustes.secondaryHint')}</p>
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.secondaryColor')}>
@@ -850,7 +880,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('accent')}>
             <legend className="font-medium">{t('ajustes.accentColor')}</legend>
             <p className="text-sm text-muted">{t('ajustes.accentColorHint')}</p>
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.accentColor')}>
@@ -883,7 +913,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('splitColors')}>
             <legend className="font-medium">{t('ajustes.semanticColors')}</legend>
             <p className="text-sm text-muted">{t('ajustes.semanticColorsHint')}</p>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -935,7 +965,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('font')}>
             <legend className="font-medium">{t('ajustes.typography')}</legend>
             <p className="text-sm text-muted">{t('ajustes.typographyHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.typography')}>
@@ -957,7 +987,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('accent') || locked('splitColors')}>
             <legend className="font-medium">{t('ajustes.palettesTitle')}</legend>
             <p className="text-sm text-muted">{t('ajustes.palettesHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.palettesTitle')}>
@@ -986,7 +1016,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('icon')}>
             <legend className="font-medium">{t('ajustes.cover')}</legend>
             <p className="text-sm text-muted">{t('ajustes.coverHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.cover')}>
@@ -1043,7 +1073,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
-                disabled={!isOwner || uploading !== null}
+                disabled={!isOwner || locked('logo') || uploading !== null}
                 aria-label={t('ajustes.uploadLogo')}
                 onChange={(e) => void onUploadImage('logo', e)}
               />
@@ -1055,7 +1085,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
-                disabled={!isOwner || uploading !== null}
+                disabled={!isOwner || locked('banner') || uploading !== null}
                 aria-label={t('ajustes.uploadBanner')}
                 onChange={(e) => void onUploadImage('banner', e)}
               />

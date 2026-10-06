@@ -130,8 +130,27 @@ export type GroupSummary = {
   lastActivityAt?: string | null
 }
 
+/** Plan-gated branding capabilities returned with the group (camelCase). */
+export type BrandingCapabilities = {
+  themes: boolean
+  accent: boolean
+  intensity: boolean
+  icon: boolean
+  splitColors: boolean
+  gradientStyle: boolean
+  font: boolean
+  brandName: boolean
+  welcomeText: boolean
+  loginBranding: boolean
+  logo: boolean
+  banner: boolean
+  removePoweredBy: boolean
+}
+
 export type GroupDetail = GroupSummary & {
   updatedAt: string
+  planId: string
+  capabilities: BrandingCapabilities
 }
 
 export async function fetchHealth(): Promise<{ status: string }> {
@@ -458,6 +477,26 @@ export async function createGroup(name: string): Promise<GroupDetail> {
 
 export async function getGroup(groupId: string): Promise<GroupDetail> {
   return apiRequest<GroupDetail>(`/api/groups/${groupId}`)
+}
+
+/** Plan catalog exposed by the API (`GET /api/plans`). */
+export type PlanCatalogEntry = {
+  id: string
+  priceMonthlyMxn: number
+  trialDays: number
+  trialRequiresCard: boolean
+  limits: Record<string, unknown>
+  features: Record<string, unknown>
+  capabilities: BrandingCapabilities
+}
+
+export type PlanCatalog = {
+  defaultPlanId: string
+  plans: PlanCatalogEntry[]
+}
+
+export async function getPlanCatalog(): Promise<PlanCatalog> {
+  return apiRequest<PlanCatalog>('/api/plans')
 }
 
 export type GroupBySlug = GroupDetail & { moved?: boolean }
