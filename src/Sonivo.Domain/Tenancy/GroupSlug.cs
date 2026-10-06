@@ -14,13 +14,22 @@ public static partial class GroupSlug
     public const int MinLength = 3;
     public const int MaxLength = 40;
 
-    /// <summary>Segments that must never become a tenant path (/g/{slug}).</summary>
+    /// <summary>
+    /// Segments that must never become a tenant path or host (ADR-0047/ADR-0067):
+    /// one reservation protects both <c>/g/{slug}</c> path tenancy and the
+    /// <c>{slug}.sonivo.lat</c> host map (apex, app, account, api, www, staging,
+    /// infrastructure and reserved product routes). Keep in sync with the host
+    /// map in <c>docs/03-architecture/DEPLOYMENT.md</c>; the server list is
+    /// authoritative and the client mirror is UX only.
+    /// </summary>
     private static readonly HashSet<string> Reserved = new(StringComparer.Ordinal)
     {
-        "api", "auth", "admin", "app", "account", "assets", "cuenta", "error",
-        "favicon", "g", "group", "groups", "health", "help", "join", "login",
-        "logout", "mail", "manifest", "privacy", "register", "robots", "settings",
-        "sitemap", "static", "support", "terms", "www"
+        "account", "admin", "api", "app", "assets", "auth", "billing", "blog",
+        "cdn", "cuenta", "dashboard", "dev", "docs", "error", "favicon", "g",
+        "group", "groups", "health", "help", "internal", "join", "login",
+        "logout", "mail", "manifest", "panel", "privacy", "register", "robots",
+        "settings", "signup", "sitemap", "smtp", "staging", "static", "status",
+        "support", "system", "terms", "test", "www"
     };
 
     public static bool IsReserved(string slug) => Reserved.Contains(slug);
