@@ -192,7 +192,63 @@ export type GroupThemeInput = {
   error?: string | null;
   typography?: string | null;
   theme?: 'light' | 'dark';
+  /** Wash strength for the liquid-glass background. Defaults to `medium`. */
+  intensity?: 'subtle' | 'medium' | 'intense';
+  /** `fixed` keeps the two-stop wash; `liquid` adds a richer three-stop glass. */
+  gradientStyle?: 'fixed' | 'liquid';
 };
+
+// ---------- Predefined themes ----------
+
+export type BrandTheme = {
+  id: string;
+  labelKey: string;
+  primary: string;
+  secondary: string;
+};
+
+/**
+ * The ten predefined themes (PHASE-PLANS-SPEC §5.5). Hex are placeholders that
+ * the AA contrast guard validates at render time. `sonivo` is the current brand
+ * default, so an untouched group matches the product identity.
+ */
+export const BRAND_THEMES: BrandTheme[] = [
+  { id: 'sonivo', labelKey: 'ajustes.themeSonivo', primary: '#8366f1', secondary: '#e8c4f6' },
+  { id: 'emerald', labelKey: 'ajustes.themeEmerald', primary: '#047857', secondary: '#0E7490' },
+  { id: 'ocean', labelKey: 'ajustes.themeOcean', primary: '#0369A1', secondary: '#4338CA' },
+  { id: 'indigo', labelKey: 'ajustes.themeIndigo', primary: '#4338CA', secondary: '#BE185D' },
+  { id: 'violet', labelKey: 'ajustes.themeViolet', primary: '#7C3AED', secondary: '#0369A1' },
+  { id: 'fuchsia', labelKey: 'ajustes.themeFuchsia', primary: '#BE185D', secondary: '#7C3AED' },
+  { id: 'crimson', labelKey: 'ajustes.themeCrimson', primary: '#B91C1C', secondary: '#B45309' },
+  { id: 'amber', labelKey: 'ajustes.themeAmber', primary: '#B45309', secondary: '#047857' },
+  { id: 'turquoise', labelKey: 'ajustes.themeTurquoise', primary: '#0F766E', secondary: '#0369A1' },
+  { id: 'graphite', labelKey: 'ajustes.themeGraphite', primary: '#1F2937', secondary: '#64748B' },
+];
+
+export type IntensityOption = {
+  id: 'subtle' | 'medium' | 'intense';
+  labelKey: string;
+  /** Alpha suffix appended to the wash colours (~12% / 24% / 38%). */
+  washAlpha: string;
+};
+
+/** Prevalidated wash strengths (PHASE-PLANS-SPEC §5.3). */
+export const INTENSITY_OPTIONS: IntensityOption[] = [
+  { id: 'subtle', labelKey: 'ajustes.intensitySubtle', washAlpha: '1f' },
+  { id: 'medium', labelKey: 'ajustes.intensityMedium', washAlpha: '3d' },
+  { id: 'intense', labelKey: 'ajustes.intensityIntense', washAlpha: '61' },
+];
+
+export type GradientStyleOption = {
+  id: 'fixed' | 'liquid';
+  labelKey: string;
+};
+
+/** Background wash styles; `liquid` layers an extra centre stop. */
+export const GRADIENT_STYLES: GradientStyleOption[] = [
+  { id: 'fixed', labelKey: 'ajustes.gradientFixed' },
+  { id: 'liquid', labelKey: 'ajustes.gradientLiquid' },
+];
 
 /** Shell surfaces the token set will be rendered on (matches index.css). */
 const LIGHT_SHELL = '#ffffff';
@@ -236,6 +292,18 @@ export function deriveGroupThemeTokens(input: GroupThemeInput): Record<string, s
   const prefer = theme === 'dark' ? 'light' : 'dark';
   const shell = theme === 'dark' ? DARK_SHELL : LIGHT_SHELL;
 
+  // Wash strength + style drive the liquid-glass background. `medium`/`fixed`
+  // reproduce the previous two-stop wash so existing brands are unchanged.
+  const intensity =
+    INTENSITY_OPTIONS.find((option) => option.id === (input.intensity ?? 'medium')) ??
+    INTENSITY_OPTIONS[1];
+  const washAlpha = intensity.washAlpha;
+  const secondaryWash = brand['--brand-secondary'];
+  const wash =
+    input.gradientStyle === 'liquid'
+      ? `radial-gradient(120% 80% at 100% 0%, ${withAlpha(primary, washAlpha)} 0%, ${withAlpha(primary, '00')} 60%), radial-gradient(120% 80% at 0% 100%, ${withAlpha(secondaryWash, washAlpha)} 0%, ${withAlpha(secondaryWash, '00')} 60%), radial-gradient(90% 70% at 50% 50%, ${withAlpha(primary, washAlpha)} 0%, ${withAlpha(primary, '00')} 70%)`
+      : `radial-gradient(120% 80% at 100% 0%, ${withAlpha(primary, washAlpha)} 0%, ${withAlpha(primary, '00')} 62%), radial-gradient(120% 80% at 0% 100%, ${withAlpha(secondaryWash, washAlpha)} 0%, ${withAlpha(secondaryWash, '00')} 62%)`;
+
   const tokens: Record<string, string> = {
     ...brand,
     '--color-primary': primary,
@@ -248,9 +316,10 @@ export function deriveGroupThemeTokens(input: GroupThemeInput): Record<string, s
     // (~2.96:1). Clamp both error and success inks to the themed surface.
     '--color-error-ink': accessibleInk(brand['--color-error'], inkBg, prefer),
     '--color-success-ink': accessibleInk(brand['--color-success'], inkBg, prefer),
-    // "Liquid glass" wash: a very low-alpha accent gradient layered over the
-    // canvas so a colour change is visible app-wide without harming AA text.
-    '--brand-wash': `radial-gradient(120% 80% at 100% 0%, ${withAlpha(primary, '26')} 0%, ${withAlpha(primary, '00')} 62%), radial-gradient(120% 80% at 0% 100%, ${withAlpha(brand['--brand-secondary'], '18')} 0%, ${withAlpha(brand['--brand-secondary'], '00')} 62%)`,
+    // "Liquid glass" wash: a low-alpha accent gradient layered over the canvas
+    // so a colour change is visible app-wide without harming AA text. Intensity
+    // scales the alpha and `gradientStyle` adds a centre stop for `liquid`.
+    '--brand-wash': wash,
   };
 
   if (input.secondary) {

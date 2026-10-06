@@ -539,6 +539,9 @@ export type GroupBranding = {
   onPrimary: string | null
   onSecondary: string | null
   onAccent: string | null
+  themeId: string | null
+  intensity: string | null
+  gradientStyle: string | null
   coverKind: string | null
   coverValue: string | null
   themeDefault: string | null
@@ -591,6 +594,9 @@ export async function updateGroupBranding(
     tagline?: string | null
     verse?: string | null
     showSonivoCredit?: boolean
+    themeId?: string | null
+    intensity?: string | null
+    gradientStyle?: string | null
   },
 ): Promise<GroupBranding> {
   return apiRequest<GroupBranding>(`/api/groups/${groupId}/branding`, {

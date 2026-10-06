@@ -12,6 +12,9 @@ export type ServerBranding = {
   onPrimary: string | null
   onSecondary: string | null
   onAccent: string | null
+  themeId: string | null
+  intensity: string | null
+  gradientStyle: string | null
   coverKind: string | null
   coverValue: string | null
   displayName: string | null
@@ -41,6 +44,9 @@ export async function loadServerBranding(groupId: string): Promise<ServerBrandin
       onPrimary: branding.onPrimary,
       onSecondary: branding.onSecondary,
       onAccent: branding.onAccent,
+      themeId: branding.themeId,
+      intensity: branding.intensity,
+      gradientStyle: branding.gradientStyle,
       coverKind: branding.coverKind,
       coverValue: branding.coverValue,
       displayName: branding.displayName,
@@ -84,7 +90,21 @@ export function brandTokenStyle(
     // the token never becomes a bare `font-family: serif` (generic Times).
     typography: typographyFamily(branding?.typography),
     theme: options.theme,
+    intensity: asIntensity(branding?.intensity),
+    gradientStyle: asGradientStyle(branding?.gradientStyle),
   })
+}
+
+/** Narrow a stored intensity string to the union the token engine accepts. */
+function asIntensity(
+  value: string | null | undefined,
+): 'subtle' | 'medium' | 'intense' | undefined {
+  return value === 'subtle' || value === 'medium' || value === 'intense' ? value : undefined
+}
+
+/** Narrow a stored gradient style string to the union the token engine accepts. */
+function asGradientStyle(value: string | null | undefined): 'fixed' | 'liquid' | undefined {
+  return value === 'fixed' || value === 'liquid' ? value : undefined
 }
 
 function setMeta(name: string, content: string): void {

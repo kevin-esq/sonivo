@@ -17,7 +17,7 @@ import {
   type GroupBranding,
   type GroupDetail,
 } from '../api/client'
-import { TYPOGRAPHY_OPTIONS, deriveGroupThemeTokens } from '../brand/tokens'
+import { BRAND_THEMES, GRADIENT_STYLES, INTENSITY_OPTIONS, TYPOGRAPHY_OPTIONS, deriveGroupThemeTokens } from '../brand/tokens'
 import { useBrandPreview } from './brandPreview'
 import { useTheme } from '../brand/theme'
 import { useT, type I18nKey } from '../i18n'
@@ -134,6 +134,19 @@ type BrandDraft = {
   tagline: string
   verse: string
   showSonivoCredit: boolean
+  themeId: string
+  intensity: 'subtle' | 'medium' | 'intense'
+  gradientStyle: 'fixed' | 'liquid'
+}
+
+/** Narrow a stored intensity string to the union the token engine accepts. */
+function asIntensity(value: string | null | undefined): 'subtle' | 'medium' | 'intense' {
+  return value === 'subtle' || value === 'intense' ? value : 'medium'
+}
+
+/** Narrow a stored gradient style string to the union the token engine accepts. */
+function asGradientStyle(value: string | null | undefined): 'fixed' | 'liquid' {
+  return value === 'liquid' ? 'liquid' : 'fixed'
 }
 
 function coverFromBranding(branding: GroupBranding): string {
@@ -166,6 +179,9 @@ function draftFromBranding(branding: GroupBranding): BrandDraft {
     tagline: branding.tagline ?? '',
     verse: branding.verse ?? '',
     showSonivoCredit: branding.showSonivoCredit,
+    themeId: branding.themeId ?? 'sonivo',
+    intensity: asIntensity(branding.intensity),
+    gradientStyle: asGradientStyle(branding.gradientStyle),
   }
 }
 
@@ -237,6 +253,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             error: draft.errorHex || null,
             typography: previewFontFamily,
             theme,
+            intensity: draft.intensity,
+            gradientStyle: draft.gradientStyle,
           })
         : {},
     [draft, previewFontFamily, theme],
@@ -398,6 +416,9 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         tagline: can('brandName') ? draft.tagline.trim() || null : saved.tagline.trim() || null,
         verse: can('brandName') ? draft.verse.trim() || null : saved.verse.trim() || null,
         showSonivoCredit: can('removePoweredBy') ? draft.showSonivoCredit : true,
+        themeId: can('themes') ? draft.themeId : saved.themeId,
+        intensity: can('intensity') ? draft.intensity : saved.intensity,
+        gradientStyle: can('gradientStyle') ? draft.gradientStyle : saved.gradientStyle,
       })
       setBranding(updated)
       setDraft(draftFromBranding(updated))
@@ -817,6 +838,50 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           ) : null}
 
+          <fieldset className="space-y-3" disabled={!isOwner || locked('themes')}>
+            <legend className="font-medium">{t('ajustes.themesTitle')}</legend>
+            <p className="text-sm text-muted">{t('ajustes.themesHint')}</p>
+            <div
+              className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5"
+              role="group"
+              aria-label={t('ajustes.themesTitle')}
+            >
+              {BRAND_THEMES.map((themeOption) => {
+                const active = draft.themeId === themeOption.id
+                return (
+                  <button
+                    key={themeOption.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() =>
+                      patchDraft({
+                        themeId: themeOption.id,
+                        accentHex: themeOption.primary,
+                        secondaryHex: themeOption.secondary,
+                      })
+                    }
+                    className={cn(
+                      'flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                      active ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
+                    )}
+                  >
+                    <span className="flex shrink-0 -space-x-1" aria-hidden="true">
+                      <span
+                        className="h-5 w-5 rounded-full ring-1 ring-black/10"
+                        style={{ backgroundColor: themeOption.primary }}
+                      />
+                      <span
+                        className="h-5 w-5 rounded-full ring-1 ring-black/10"
+                        style={{ backgroundColor: themeOption.secondary }}
+                      />
+                    </span>
+                    <span className="truncate">{t(themeOption.labelKey as I18nKey)}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+
           <fieldset className="space-y-3" disabled={!isOwner || locked('accent')}>
             <legend className="font-medium">{t('ajustes.primaryColor')}</legend>
             <p className="text-sm text-muted">{t('ajustes.colorHint')}</p>
@@ -1013,6 +1078,46 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   </button>
                 )
               })}
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-3" disabled={!isOwner || locked('intensity')}>
+            <legend className="font-medium">{t('ajustes.intensityTitle')}</legend>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.intensityTitle')}>
+              {INTENSITY_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={draft.intensity === option.id}
+                  onClick={() => patchDraft({ intensity: option.id })}
+                  className={cn(
+                    'h-11 rounded-xl border px-4 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                    draft.intensity === option.id ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
+                  )}
+                >
+                  {t(option.labelKey as I18nKey)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-3" disabled={!isOwner || locked('gradientStyle')}>
+            <legend className="font-medium">{t('ajustes.gradientTitle')}</legend>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.gradientTitle')}>
+              {GRADIENT_STYLES.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={draft.gradientStyle === option.id}
+                  onClick={() => patchDraft({ gradientStyle: option.id })}
+                  className={cn(
+                    'h-11 rounded-xl border px-4 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                    draft.gradientStyle === option.id ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
+                  )}
+                >
+                  {t(option.labelKey as I18nKey)}
+                </button>
+              ))}
             </div>
           </fieldset>
 
