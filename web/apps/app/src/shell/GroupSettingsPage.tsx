@@ -7,6 +7,7 @@ import {
   fetchFeatures,
   getGroup,
   getGroupBranding,
+  getGroupUsage,
   problemDetail,
   updateGroup,
   updateGroupBranding,
@@ -16,6 +17,7 @@ import {
   type CurrentUser,
   type GroupBranding,
   type GroupDetail,
+  type GroupUsage,
 } from '../api/client'
 import { BRAND_THEMES, GRADIENT_STYLES, INTENSITY_OPTIONS, TYPOGRAPHY_OPTIONS, deriveGroupThemeTokens } from '../brand/tokens'
 import { useBrandPreview } from './brandPreview'
@@ -185,19 +187,33 @@ function draftFromBranding(branding: GroupBranding): BrandDraft {
   }
 }
 
-type SettingsTab = 'general' | 'branding' | 'permissions' | 'notifications' | 'integrations' | 'advanced' | 'danger'
+type SettingsTab = 'general' | 'branding' | 'plan' | 'permissions' | 'notifications' | 'integrations' | 'advanced' | 'danger'
 
 // Membership/billing is account-level (see /cuenta/membresia), not group-owned;
 // the group centre only exposes group-scoped settings.
 const SETTINGS_TABS: { id: SettingsTab; labelKey: I18nKey }[] = [
   { id: 'general', labelKey: 'ajustes.tabGeneral' },
   { id: 'branding', labelKey: 'ajustes.tabBranding' },
+  { id: 'plan', labelKey: 'ajustes.tabPlan' },
   { id: 'permissions', labelKey: 'ajustes.tabPermissions' },
   { id: 'notifications', labelKey: 'ajustes.tabNotifications' },
   { id: 'integrations', labelKey: 'ajustes.tabIntegrations' },
   { id: 'advanced', labelKey: 'ajustes.tabAdvanced' },
   { id: 'danger', labelKey: 'ajustes.tabDanger' },
 ]
+
+/** Human-readable byte size for the storage usage row. */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let value = bytes / 1024
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`
+}
 
 export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
@@ -215,6 +231,22 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const [usage, setUsage] = useState<GroupUsage | null>(null)
+
+  useEffect(() => {
+    if (!groupId) return
+    let cancelled = false
+    getGroupUsage(groupId)
+      .then((result) => {
+        if (!cancelled) setUsage(result)
+      })
+      .catch(() => {
+        if (!cancelled) setUsage(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [groupId])
 
   // Plan gating mirrors the server-enforced branding PUT (validation symmetry):
   // a forbidden control is disabled, and the save payload echoes the saved value
@@ -1382,6 +1414,68 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       {activeTab === 'integrations' ? (
         <div className="space-y-4">
           <p className="text-sm text-muted">{t('ajustes.integrationsComingSoon')}</p>
+        </div>
+      ) : null}
+
+      {/* Plan tab (ADR-0071): effective plan + usage vs limits (spec §7). */}
+      {activeTab === 'plan' ? (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">{t('ajustes.planTitle')}</h2>
+          {usage ? (
+            <div className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-5">
+              <p className="text-sm font-semibold text-ink">
+                {usage.planId === 'starter'
+                  ? t('ajustes.planStarter')
+                  : usage.planId === 'pro'
+                    ? t('ajustes.planPro')
+                    : t('ajustes.planStudio')}
+              </p>
+              <div className="space-y-3">
+                {[
+                  { key: 'members', label: t('ajustes.usageMembers'), metric: usage.members, bytes: false },
+                  { key: 'songs', label: t('ajustes.usageSongs'), metric: usage.songs, bytes: false },
+                  { key: 'setlists', label: t('ajustes.usageSetlists'), metric: usage.setlists, bytes: false },
+                  { key: 'events', label: t('ajustes.usageEvents'), metric: usage.eventsThisMonth, bytes: false },
+                  { key: 'storage', label: t('ajustes.usageStorage'), metric: usage.storageBytes, bytes: true },
+                ].map((row) => (
+                  <div key={row.key} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-ink">{row.label}</span>
+                      <span className="text-muted">
+                        {row.metric.limit === null
+                          ? t('ajustes.usageUnlimited')
+                          : `${row.bytes ? formatBytes(row.metric.used) : row.metric.used} / ${
+                              row.bytes ? formatBytes(row.metric.limit) : row.metric.limit
+                            }`}
+                      </span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-surface-hover">
+                      <div
+                        className="h-full rounded-full bg-primary-strong"
+                        style={{
+                          width:
+                            row.metric.limit === null
+                              ? '8%'
+                              : `${Math.min(
+                                  100,
+                                  Math.round((row.metric.used / Math.max(1, row.metric.limit)) * 100),
+                                )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link
+                to="/cuenta/membresia"
+                className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
+              >
+                {t('ajustes.changePlan')}
+              </Link>
+            </div>
+          ) : (
+            <p className="text-sm text-muted">{t('ajustes.usageLoading')}</p>
+          )}
         </div>
       ) : null}
 

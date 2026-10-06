@@ -499,6 +499,22 @@ export async function getPlanCatalog(): Promise<PlanCatalog> {
   return apiRequest<PlanCatalog>('/api/plans')
 }
 
+/** Usage metric: how much is used and the plan limit (null = unlimited). */
+export type UsageMetric = { used: number; limit: number | null }
+
+export type GroupUsage = {
+  planId: string
+  members: UsageMetric
+  songs: UsageMetric
+  setlists: UsageMetric
+  eventsThisMonth: UsageMetric
+  storageBytes: UsageMetric
+}
+
+export async function getGroupUsage(groupId: string): Promise<GroupUsage> {
+  return apiRequest<GroupUsage>(`/api/groups/${groupId}/usage`)
+}
+
 export type GroupBySlug = GroupDetail & { moved?: boolean }
 
 /** Resolves a path slug to its group (current or historical, with `moved`). */
