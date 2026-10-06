@@ -317,7 +317,9 @@ plan does not allow is ignored at render, but not deleted from storage.
 10. Is the Basic group icon a closed library or free emoji?
 11. What happens to archived groups (retention and for how long)?
 12. Write the terms rule that Studio is for one organization, and how it is enforced.
-13. Billing integration (provider, CFDI invoicing for Mexico, taxes).
+13. Billing integration (provider, CFDI invoicing for Mexico, taxes). **Partially resolved
+    (ADR-0075):** the provider-agnostic boundary + a signed Sandbox gateway ship now; the
+    commercial provider and CFDI remain OPEN.
 
 ## 10. Suggested implementation order
 1. Plan catalog + entitlements (§6.1/6.2) as a single source of truth.

@@ -33,6 +33,7 @@ public sealed class SonivoDbContext : IdentityDbContext<ApplicationUser, Identit
     public DbSet<EventSetlistItem> EventSetlistItems => Set<EventSetlistItem>();
     public DbSet<Rsvp> Rsvps => Set<Rsvp>();
     public DbSet<GroupTask> Tasks => Set<GroupTask>();
+    public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)

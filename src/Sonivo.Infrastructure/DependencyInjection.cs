@@ -6,9 +6,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Billing.Payments;
 using Sonivo.Infrastructure.Blobs;
 using Sonivo.Infrastructure.Identity;
 using Sonivo.Infrastructure.Notifications;
+using Sonivo.Infrastructure.Payments;
 using Sonivo.Infrastructure.Persistence;
 using Sonivo.Infrastructure.Whisper;
 
@@ -91,6 +93,7 @@ public static class DependencyInjection
         services.AddScoped<ISetlistStore, EfSetlistStore>();
         services.AddScoped<IEventStore, EfEventStore>();
         services.AddScoped<ITaskStore, EfTaskStore>();
+        services.AddScoped<IWebhookEventStore, EfWebhookEventStore>();
         services.AddScoped<IEventGroupResolver, EfEventGroupResolver>();
         services.AddScoped<IUserDirectory, EfUserDirectory>();
         services.AddScoped<IEventNotifier, EventNotifier>();
@@ -109,6 +112,21 @@ public static class DependencyInjection
         {
             services.AddSingleton<IEmailSender, SmtpEmailSender>();
         }
+        // ADR-0073 §9.13: provider-agnostic payments. "manual" (default) is the
+        // invoice-based flow with no gateway; "sandbox" is a signed test gateway.
+        // Secrets come from configuration only and are never logged.
+        var paymentsProvider = configuration["Payments:Provider"];
+        if (string.Equals(paymentsProvider, "sandbox", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton<IPaymentProvider>(_ => new SandboxPaymentProvider(
+                configuration["Payments:WebhookSecret"] ?? string.Empty,
+                configuration["Payments:CheckoutBaseUrl"] ?? string.Empty));
+        }
+        else
+        {
+            services.AddSingleton<IPaymentProvider, ManualPaymentProvider>();
+        }
+
         // ADR-0032: Whisper config has no secrets; the fake transcriber replaces
         // IAudioTranscriber in unit/API tests so no model is ever downloaded there.
         services.Configure<DigitizeOptions>(configuration.GetSection("Whisper"));
