@@ -1,34 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent, MouseEvent } from 'react'
+import type { MouseEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronRight, MoreVertical } from 'lucide-react'
-import {
-  createSong,
-  listSongs,
-  type CurrentUser,
-  type SongListItem,
-  type SongOriginKind,
-} from '../api/client'
+import { ChevronRight, Library, MoreVertical, Music2 } from 'lucide-react'
+import { listSongs, type CurrentUser, type SongListItem } from '../api/client'
 import { useT, type I18nKey } from '../i18n'
-import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
-import { fieldClass } from '../ui/field'
-import { ListSkeleton, PageSkeleton } from '../ui/skeleton'
 import {
-  AddSongButton,
-  EmptyPanel,
-  Field,
-  FormActions,
-  OriginBadge,
-  OriginMark,
-  PageBreadcrumb,
-  ReadinessChip,
-} from './chrome'
+  GroupButton,
+  GroupEmptyState,
+  GroupErrorState,
+  GroupIconButton,
+  GroupLink,
+  GroupListSkeleton,
+  GroupPageHeader,
+  GroupPageSkeleton,
+  GroupSelect,
+  groupFieldClass,
+  useGroupDataSignal,
+} from '../groups/ui'
+import { CreateSongDialog } from '../groups/dialogs'
+import { OriginBadge, OriginMark, ReadinessChip } from './chrome'
 import { plural } from '../ui/plural'
 import {
   canManageContentRole,
   mutationErrorMessage,
-  ProblemAlert,
   useGroupContext,
 } from './ui'
 
@@ -51,7 +46,7 @@ const LIBRARY_SORTS: { id: LibrarySort; labelKey: I18nKey }[] = [
 
 export function LibraryPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
-  const { group, error: groupError } = useGroupContext(groupId, user.id)
+  const { group, error: groupError, reload: reloadGroup } = useGroupContext(groupId, user.id)
   const [songs, setSongs] = useState<SongListItem[] | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -99,7 +94,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
 
   const searching = query.trim().length > 0
 
-  const showHeaderAdd = isOwner && !showCreate && songs !== null && songs.length > 0
+  const showHeaderAdd = isOwner && songs !== null && songs.length > 0
 
   useEffect(() => {
     if (!groupId || !group) return
@@ -122,21 +117,6 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
     }
   }, [groupId, group])
 
-  if (group === undefined) {
-    return <PageSkeleton label={t('canciones.loadingLibrary')} />
-  }
-
-  if (group === null) {
-    return (
-      <div className="space-y-3">
-        <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
-          {t('canciones.myGroups')}
-        </Link>
-      </div>
-    )
-  }
-
   async function reloadSongs() {
     if (!groupId) return
     setListError(null)
@@ -148,25 +128,56 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
     }
   }
 
+  // Live refresh when songs change elsewhere (creation dialog, other tab).
+  useGroupDataSignal('songs', groupId, () => void reloadSongs())
+
+  if (group === undefined) {
+    return <GroupPageSkeleton label={t('canciones.loadingLibrary')} />
+  }
+
+  if (group === null) {
+    return (
+      <div className="space-y-3">
+        <GroupErrorState message={groupError} onRetry={() => void reloadGroup()} />
+        <GroupLink variant="soft" to="/">
+          {t('canciones.myGroups')}
+        </GroupLink>
+      </div>
+    )
+  }
+
+  const sortOptions = LIBRARY_SORTS.map((item) => ({ value: item.id, label: t(item.labelKey) }))
+
   return (
     <section className="space-y-6" aria-labelledby="library-heading">
-      <header data-testid="library-hero" className="space-y-3">
-        <PageBreadcrumb items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('canciones.pageTitle') }]} />
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="min-w-0 space-y-1">
-            <h1 id="library-heading" className="text-3xl font-bold tracking-tight text-ink">
-              {t('canciones.pageTitle')}
-            </h1>
-            <p className="max-w-lg text-sm text-muted">{t('canciones.pageSubtitle')}</p>
-            {!isOwner ? <p className="text-sm text-muted">{t('canciones.readonly')}</p> : null}
-          </div>
-          {songs !== null ? (
-            <ReadinessChip testId="library-count" tone="neutral">
-              {plural(songs.length, t('common.songOne'), t('common.songMany'))}
-            </ReadinessChip>
-          ) : null}
-        </div>
-      </header>
+      <div data-testid="library-hero">
+        <GroupPageHeader
+          headingId="library-heading"
+          icon={Library}
+          title={t('canciones.pageTitle')}
+          subtitle={t('canciones.pageSubtitle')}
+          breadcrumb={[
+            { to: `/groups/${group.id}`, label: group.name },
+            { label: t('canciones.pageTitle') },
+          ]}
+          actions={
+            <>
+              {songs !== null ? (
+                <ReadinessChip testId="library-count" tone="neutral">
+                  {plural(songs.length, t('common.songOne'), t('common.songMany'))}
+                </ReadinessChip>
+              ) : null}
+              {showHeaderAdd ? (
+                <GroupButton onClick={() => setShowCreate(true)}>
+                  {t('canciones.addSong')}
+                </GroupButton>
+              ) : null}
+            </>
+          }
+        >
+          {!isOwner ? <p className="text-sm text-muted">{t('canciones.readonly')}</p> : null}
+        </GroupPageHeader>
+      </div>
 
       {songs !== null && songs.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
@@ -187,23 +198,13 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-1">
-            <label htmlFor="library-sort" className="sr-only">
-              {t('canciones.sortLabel')}
-            </label>
-            <select
-              id="library-sort"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as LibrarySort)}
-              className="min-h-11 rounded-xl border border-border-subtle bg-surface px-2 text-sm text-ink"
+          <div className="min-w-40">
+            <GroupSelect
               aria-label={t('canciones.sortLabel')}
-            >
-              {LIBRARY_SORTS.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {t(item.labelKey)}
-                </option>
-              ))}
-            </select>
+              value={sort}
+              options={sortOptions}
+              onChange={(value) => setSort(value as LibrarySort)}
+            />
           </div>
         </div>
       ) : null}
@@ -222,11 +223,10 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
               placeholder={t('listas.searchPlaceholder')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className={cn(fieldClass, 'min-h-11')}
+              className={groupFieldClass}
               maxLength={200}
             />
           </div>
-          {showHeaderAdd ? <AddSongButton onClick={() => setShowCreate(true)} /> : null}
         </div>
       ) : null}
       {searching && filtered !== null ? (
@@ -235,41 +235,35 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
         </p>
       ) : null}
 
-      <ProblemAlert message={listError} />
+      <GroupErrorState message={listError} />
 
       {songs === null || filtered === null ? (
-        <ListSkeleton rows={4} label={t('canciones.loadingSongs')} />
+        <GroupListSkeleton rows={4} label={t('canciones.loadingSongs')} />
       ) : songs.length === 0 ? (
-        showCreate ? null : (
-        <EmptyPanel
+        <GroupEmptyState
+          icon={Music2}
           title={t('canciones.emptyTitle')}
-          description={
-            isOwner ? t('canciones.emptyOwner') : t('canciones.emptyMember')
-          }
+          description={isOwner ? t('canciones.emptyOwner') : t('canciones.emptyMember')}
           action={
             isOwner ? (
-              <Button data-testid="library-empty-add-song" onClick={() => setShowCreate(true)}>
+              <GroupButton data-testid="library-empty-add-song" onClick={() => setShowCreate(true)}>
                 {t('canciones.addSong')}
-              </Button>
+              </GroupButton>
             ) : (
-              <Link
-                className="font-semibold text-primary-ink no-underline hover:underline"
-                to={`/groups/${group.id}`}
-              >
+              <GroupLink variant="soft" to={`/groups/${group.id}`}>
                 {t('canciones.backHome')}
-              </Link>
+              </GroupLink>
             )
           }
         />
-        )
       ) : filtered.length === 0 ? (
-        <EmptyPanel
+        <GroupEmptyState
           title={t('listas.noResultsTitle')}
           description={t('listas.noResultsBody')}
           action={
-            <Button variant="secondary" onClick={() => setQuery('')}>
+            <GroupButton variant="secondary" onClick={() => setQuery('')}>
               {t('listas.clearSearch')}
-            </Button>
+            </GroupButton>
           }
         />
       ) : (
@@ -321,17 +315,16 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                   <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
                 </Link>
                 {isOwner ? (
-                  <button
-                    type="button"
-                    className="absolute right-2 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-lg p-1 text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                    aria-label={`Más opciones para ${song.title}`}
+                  <GroupIconButton
+                    label={`Más opciones para ${song.title}`}
+                    className="absolute right-2 top-1/2 -translate-y-1/2"
                     onClick={(e: MouseEvent) => {
                       e.preventDefault()
                       setContextMenuSongId(song.id)
                     }}
                   >
                     <MoreVertical className="h-4 w-4" aria-hidden="true" />
-                  </button>
+                  </GroupIconButton>
                 ) : null}
                 {contextMenuSongId === song.id ? (
                   <SongContextMenu
@@ -349,120 +342,16 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
       )}
 
       {isOwner && showCreate ? (
-        <SongCreateForm
+        <CreateSongDialog
           groupId={group.id}
-          onCancel={() => setShowCreate(false)}
-          onCreated={async () => {
+          onClose={() => setShowCreate(false)}
+          onCreated={() => {
             setShowCreate(false)
-            await reloadSongs()
+            void reloadSongs()
           }}
         />
       ) : null}
     </section>
-  )
-}
-
-function SongCreateForm({
-  groupId,
-  onCreated,
-  onCancel,
-}: {
-  groupId: string
-  onCreated: () => Promise<void>
-  onCancel: () => void
-}) {
-  const [title, setTitle] = useState('')
-  const [originKind, setOriginKind] = useState<SongOriginKind>('original')
-  const [attribution, setAttribution] = useState('')
-  const [rightsNotes, setRightsNotes] = useState('')
-  const [tags, setTags] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
-  const { t } = useT()
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    setPending(true)
-    setError(null)
-    try {
-      await createSong(groupId, {
-        title: title.trim(),
-        originKind,
-        attribution: attribution.trim() || null,
-        rightsNotes: rightsNotes.trim() || null,
-        tags: tags
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-      })
-      await onCreated()
-    } catch (err) {
-      setError(mutationErrorMessage(err))
-    } finally {
-      setPending(false)
-    }
-  }
-
-  return (
-    <form className="max-w-lg space-y-4 border-t border-border-subtle pt-6" onSubmit={onSubmit} noValidate>
-      <h2 className="text-lg font-semibold">{t('canciones.createTitle')}</h2>
-      <ProblemAlert message={error} />
-      <Field label={t('canciones.titleLabel')}>
-        <input
-          className={fieldClass}
-          required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={200}
-        />
-      </Field>
-      <Field label={t('canciones.originLabel')}>
-        <select
-          className={fieldClass}
-          required
-          value={originKind}
-          onChange={(e) => setOriginKind(e.target.value as SongOriginKind)}
-        >
-          <option value="original">{t('canciones.originOriginal')}</option>
-          <option value="cover">{t('canciones.originCover')}</option>
-          <option value="other">{t('canciones.originOther')}</option>
-        </select>
-      </Field>
-      <Field label={t('canciones.attributionLabel')}>
-        <input
-          className={fieldClass}
-          value={attribution}
-          onChange={(e) => setAttribution(e.target.value)}
-          maxLength={500}
-        />
-      </Field>
-      <Field label={t('canciones.tagsLabel')}>
-        <input
-          className={fieldClass}
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          maxLength={200}
-          placeholder={t('canciones.tagsPlaceholder')}
-        />
-      </Field>
-      <Field label={t('canciones.rightsLabel')}>
-        <textarea
-          className={fieldClass}
-          rows={3}
-          value={rightsNotes}
-          onChange={(e) => setRightsNotes(e.target.value)}
-          maxLength={2000}
-        />
-      </Field>
-      <FormActions>
-        <Button type="submit" disabled={pending}>
-          {pending ? t('canciones.creating') : t('canciones.create')}
-        </Button>
-        <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          {t('canciones.cancel')}
-        </Button>
-      </FormActions>
-    </form>
   )
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
   getGroup,
   listEvents,
@@ -9,11 +9,8 @@ import {
   type GroupDetail,
 } from "../api/client";
 import { useT } from "../i18n";
-import { ListSkeleton, PageSkeleton } from "../ui/skeleton";
-import { Button } from "../ui/button";
 import { cn } from "../ui/cn";
-import { canManageContentRole, ProblemAlert } from "../repertoire/ui";
-import { CreateEventDialog } from "../calendar/CreateEventDialog";
+import { canManageContentRole } from "../repertoire/ui";
 import { DayView } from "../calendar/DayView";
 import { MiniMonth } from "../calendar/MiniMonth";
 import { MonthView } from "../calendar/MonthView";
@@ -32,6 +29,15 @@ import {
   type CalendarEvent,
   type CalendarView,
 } from "../calendar/calendarUtils";
+import {
+  GroupButton,
+  GroupErrorState,
+  GroupLink,
+  GroupListSkeleton,
+  GroupPageHeader,
+  GroupPageSkeleton,
+} from "./ui";
+import { CreateEventDialog } from "./dialogs";
 
 /** Group-scoped event into the shared calendar shape (ADR-0055 W-C). */
 function toCalendarEvent(
@@ -165,16 +171,16 @@ export function GroupCalendarPage() {
   }
 
   if (group === undefined) {
-    return <PageSkeleton label={t("calendario.loading")} />;
+    return <GroupPageSkeleton label={t("calendario.loading")} />;
   }
 
   if (group === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error} />
-        <Button variant="secondary" onClick={() => navigate("/grupos")}>
+        <GroupErrorState message={error} />
+        <GroupLink variant="soft" to="/grupos">
           {t("workspace.myGroups")}
-        </Button>
+        </GroupLink>
       </div>
     );
   }
@@ -189,64 +195,68 @@ export function GroupCalendarPage() {
 
   return (
     <section className="space-y-4" aria-labelledby="group-calendar-heading">
-      <header className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <h1
-              id="group-calendar-heading"
-              className="text-3xl font-bold tracking-tight text-ink"
+      <GroupPageHeader
+        headingId="group-calendar-heading"
+        icon={CalendarDays}
+        title={t("calendario.title")}
+        subtitle={t("calendario.groupSubtitle")}
+        actions={
+          canCreate ? (
+            <GroupButton
+              className="hidden lg:inline-flex"
+              onClick={() => setShowCreate(true)}
             >
-              {t("calendario.title")}
-            </h1>
-            <p className="text-muted">{t("calendario.groupSubtitle")}</p>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {t("calendario.newEvent")}
+            </GroupButton>
+          ) : null
+        }
+      >
+        <div className="hidden items-center gap-2 lg:flex">
+          <GroupButton variant="secondary" onClick={() => setCursor(new Date())}>
+            {t("calendario.today")}
+          </GroupButton>
+          <div className="flex items-center gap-1 rounded-xl border border-border-subtle bg-surface px-1">
+            <button
+              type="button"
+              onClick={() => shift(-1)}
+              aria-label={t("calendario.prev")}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <p
+              className="min-w-[9rem] text-center text-sm font-semibold text-ink first-letter:uppercase"
+              aria-live="polite"
+            >
+              {navLabel}
+            </p>
+            <button
+              type="button"
+              onClick={() => shift(1)}
+              aria-label={t("calendario.next")}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
           </div>
-
-          <div className="hidden items-center gap-2 lg:flex">
-            <Button variant="secondary" onClick={() => setCursor(new Date())}>
-              {t("calendario.today")}
-            </Button>
-            <div className="flex items-center gap-1 rounded-xl border border-border-subtle bg-surface px-1">
+          <div className="flex rounded-xl border border-border-subtle bg-surface p-0.5">
+            {views.map((option) => (
               <button
+                key={option.id}
                 type="button"
-                onClick={() => shift(-1)}
-                aria-label={t("calendario.prev")}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                aria-pressed={view === option.id}
+                onClick={() => setView(option.id)}
+                className={cn(
+                  "min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                  view === option.id
+                    ? "bg-primary-strong text-primary-foreground"
+                    : "text-muted hover:text-ink",
+                )}
               >
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                {option.label}
               </button>
-              <p
-                className="min-w-[9rem] text-center text-sm font-semibold text-ink first-letter:uppercase"
-                aria-live="polite"
-              >
-                {navLabel}
-              </p>
-              <button
-                type="button"
-                onClick={() => shift(1)}
-                aria-label={t("calendario.next")}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="flex rounded-xl border border-border-subtle bg-surface p-0.5">
-              {views.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  aria-pressed={view === option.id}
-                  onClick={() => setView(option.id)}
-                  className={cn(
-                    "min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-                    view === option.id
-                      ? "bg-primary-strong text-primary-foreground"
-                      : "text-muted hover:text-ink",
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
 
@@ -275,37 +285,18 @@ export function GroupCalendarPage() {
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
-          <Button variant="secondary" onClick={() => setCursor(new Date())}>
+          <GroupButton variant="secondary" onClick={() => setCursor(new Date())}>
             {t("calendario.today")}
-          </Button>
+          </GroupButton>
         </div>
+      </GroupPageHeader>
 
-        {canCreate ? (
-          <div className="flex items-center gap-2">
-            <Button
-              className="hidden lg:inline-flex"
-              onClick={() => setShowCreate(true)}
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              {t("calendario.newEvent")}
-            </Button>
-          </div>
-        ) : null}
-      </header>
-
-      {error ? (
-        <div
-          role="alert"
-          className="flex flex-col items-start gap-3 rounded-2xl border border-error/20 bg-error/10 px-5 py-4"
-        >
-          <p className="text-sm text-error-ink">{error}</p>
-        </div>
-      ) : null}
+      <GroupErrorState message={error} />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-4">
           {events === null ? (
-            <ListSkeleton rows={4} label={t("calendario.loading")} />
+            <GroupListSkeleton rows={4} label={t("calendario.loading")} />
           ) : view === "month" ? (
             <>
               <div className="hidden lg:block">
@@ -383,7 +374,7 @@ export function GroupCalendarPage() {
 
       {showCreate ? (
         <CreateEventDialog
-          groups={[group]}
+          groupId={group.id}
           initialDate={cursor}
           onClose={() => setShowCreate(false)}
           onCreated={() => {

@@ -1,36 +1,33 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronRight, ListMusic, Music2, Search, Star } from 'lucide-react'
-import {
-  createSetlist,
-  listSetlists,
-  type CurrentUser,
-  type SetlistListItem,
-} from '../api/client'
-import { Button } from '../ui/button'
+import { listSetlists, type CurrentUser, type SetlistListItem } from '../api/client'
 import { cn } from '../ui/cn'
-import { fieldClass } from '../ui/field'
-import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '../repertoire/chrome'
-import { ListSkeleton } from '../ui/skeleton'
+import {
+  GroupButton,
+  GroupEmptyState,
+  GroupErrorState,
+  GroupIconWell,
+  GroupLink,
+  GroupListSkeleton,
+  GroupPageHeader,
+  groupFieldClass,
+  useGroupDataSignal,
+} from '../groups/ui'
+import { CreateSetlistDialog } from '../groups/dialogs'
+import { ReadinessChip } from '../repertoire/chrome'
 import {
   canManageContentRole,
   mutationErrorMessage,
-  ProblemAlert,
   useGroupContext,
 } from '../repertoire/ui'
 import { useT } from '../i18n'
 import { plural } from '../ui/plural'
 
-const SETLIST_TILES = [
-  { Icon: ListMusic, tileClass: 'bg-primary/15 text-primary-ink' },
-  { Icon: Music2, tileClass: 'bg-success/20 text-ink' },
-  { Icon: Star, tileClass: 'bg-accent/20 text-accent' },
-  { Icon: ListMusic, tileClass: 'bg-secondary text-ink' },
-] as const
+const SETLIST_ICONS = [ListMusic, Music2, Star, ListMusic] as const
 
-function setlistTile(index: number) {
-  return SETLIST_TILES[index % SETLIST_TILES.length]!
+function setlistIcon(index: number) {
+  return SETLIST_ICONS[index % SETLIST_ICONS.length]!
 }
 
 function formatUpdatedAt(iso: string): string {
@@ -47,8 +44,9 @@ function formatUpdatedAt(iso: string): string {
 
 export function SetlistListPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
-  const { group, error: groupError } = useGroupContext(groupId, user.id)
+  const { group, error: groupError, reload: reloadGroup } = useGroupContext(groupId, user.id)
   const { t } = useT()
+  const navigate = useNavigate()
   const [setlists, setSetlists] = useState<SetlistListItem[] | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -95,45 +93,55 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
     }
   }, [groupId, group])
 
+  // Live refresh when setlists change elsewhere (creation dialog, other tab).
+  useGroupDataSignal('setlists', groupId, () => void reload())
+
   if (group === undefined) {
-    return <p aria-live="polite">Cargando listas…</p>
+    return <GroupListSkeleton rows={4} label={t('agenda.loadingSetlists')} />
   }
 
   if (group === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
+        <GroupErrorState message={groupError} onRetry={() => void reloadGroup()} />
+        <GroupLink variant="soft" to="/">
           Mis grupos
-        </Link>
+        </GroupLink>
       </div>
     )
   }
 
-  const showHeaderAdd = isOwner && !showCreate && setlists !== null && setlists.length > 0
+  const showHeaderAdd = isOwner && setlists !== null && setlists.length > 0
   const searching = query.trim().length > 0
 
   return (
     <section className="space-y-6" aria-labelledby="setlists-heading">
-      <header data-testid="setlists-hero" className="space-y-3">
-        <PageBreadcrumb
-          items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('agenda.setlistsTitle') }]}
-        />
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="min-w-0 space-y-1">
-            <h1 id="setlists-heading" className="text-3xl font-bold tracking-tight text-ink">
-              {t('agenda.setlistsTitle')}
-            </h1>
-            <p className="max-w-lg text-sm text-muted">{t('agenda.setlistsSubtitle')}</p>
-            {!isOwner ? <p className="text-sm text-muted">Solo lectura</p> : null}
-          </div>
-          {setlists !== null ? (
-            <ReadinessChip testId="setlists-count" tone="neutral">
-              {plural(setlists.length, t('common.setlistOne'), t('common.setlistMany'))}
-            </ReadinessChip>
-          ) : null}
-        </div>
-      </header>
+      <div data-testid="setlists-hero">
+        <GroupPageHeader
+          headingId="setlists-heading"
+          icon={ListMusic}
+          title={t('agenda.setlistsTitle')}
+          subtitle={t('agenda.setlistsSubtitle')}
+          breadcrumb={[
+            { to: `/groups/${group.id}`, label: group.name },
+            { label: t('agenda.setlistsTitle') },
+          ]}
+          actions={
+            <>
+              {setlists !== null ? (
+                <ReadinessChip testId="setlists-count" tone="neutral">
+                  {plural(setlists.length, t('common.setlistOne'), t('common.setlistMany'))}
+                </ReadinessChip>
+              ) : null}
+              {showHeaderAdd ? (
+                <GroupButton onClick={() => setShowCreate(true)}>Nueva lista</GroupButton>
+              ) : null}
+            </>
+          }
+        >
+          {!isOwner ? <p className="text-sm text-muted">Solo lectura</p> : null}
+        </GroupPageHeader>
+      </div>
 
       {setlists !== null && setlists.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
@@ -148,7 +156,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
             <input
               id="setlists-search"
               data-testid="setlists-search"
-              className={cn(fieldClass, 'min-h-11 pl-9')}
+              className={cn(groupFieldClass, 'pl-9')}
               type="search"
               placeholder={t('agenda.setlistsSearchPlaceholder')}
               value={query}
@@ -156,7 +164,6 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
               aria-label={t('agenda.setlistsSearchLabel')}
             />
           </div>
-          {showHeaderAdd ? <Button onClick={() => setShowCreate(true)}>Nueva lista</Button> : null}
         </div>
       ) : null}
       {searching && filtered !== null ? (
@@ -165,37 +172,33 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
         </p>
       ) : null}
 
-      <ProblemAlert message={listError} />
+      <GroupErrorState message={listError} />
 
       {setlists === null ? (
-        <ListSkeleton rows={4} label={t('agenda.loadingSetlists')} />
+        <GroupListSkeleton rows={4} label={t('agenda.loadingSetlists')} />
       ) : setlists.length === 0 ? (
-        showCreate ? null : (
-          <EmptyPanel
-            title="Aún no hay listas"
-            description={
-              isOwner
-                ? 'Crea una lista con arreglos de la biblioteca y aplícala a un evento cuando esté lista.'
-                : 'Cuando haya listas, aparecerán aquí para preparar el repertorio.'
-            }
-            action={
-              isOwner ? (
-                <Button data-testid="setlists-empty-create" onClick={() => setShowCreate(true)}>
-                  Nueva lista
-                </Button>
-              ) : (
-                <Link
-                  className="font-semibold text-primary-ink no-underline hover:underline"
-                  to={`/groups/${group.id}/library`}
-                >
-                  Ir a la biblioteca
-                </Link>
-              )
-            }
-          />
-        )
+        <GroupEmptyState
+          icon={ListMusic}
+          title="Aún no hay listas"
+          description={
+            isOwner
+              ? 'Crea una lista con arreglos de la biblioteca y aplícala a un evento cuando esté lista.'
+              : 'Cuando haya listas, aparecerán aquí para preparar el repertorio.'
+          }
+          action={
+            isOwner ? (
+              <GroupButton data-testid="setlists-empty-create" onClick={() => setShowCreate(true)}>
+                Nueva lista
+              </GroupButton>
+            ) : (
+              <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
+                Ir a la biblioteca
+              </GroupLink>
+            )
+          }
+        />
       ) : filtered && filtered.length === 0 ? (
-        <p className="text-sm text-muted">Ninguna lista coincide con «{query.trim()}».</p>
+        <GroupEmptyState title={`Ninguna lista coincide con «${query.trim()}».`} />
       ) : (
         <div className="space-y-1">
           <div
@@ -209,7 +212,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
           </div>
           <ul className="space-y-1 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
             {filtered!.map((setlist, index) => {
-              const { Icon, tileClass } = setlistTile(index)
+              const Icon = setlistIcon(index)
               const empty = setlist.itemCount === 0
               return (
                 <li
@@ -221,15 +224,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                     className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline shadow-sm transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
                     to={`/groups/${group.id}/setlists/${setlist.id}`}
                   >
-                    <span
-                      className={cn(
-                        'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11',
-                        tileClass,
-                      )}
-                      aria-hidden="true"
-                    >
-                      <Icon className="h-5 w-5" />
-                    </span>
+                    <GroupIconWell icon={Icon} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold text-ink">
                         {setlist.name}
@@ -266,69 +261,16 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       )}
 
       {isOwner && showCreate ? (
-        <SetlistCreateForm
+        <CreateSetlistDialog
           groupId={group.id}
-          onCancel={() => setShowCreate(false)}
-          onCreated={async () => {
+          onClose={() => setShowCreate(false)}
+          onCreated={(setlist) => {
             setShowCreate(false)
-            await reload()
+            void reload()
+            navigate(`/groups/${group.id}/setlists/${setlist.id}`)
           }}
         />
       ) : null}
     </section>
-  )
-}
-
-function SetlistCreateForm({
-  groupId,
-  onCreated,
-  onCancel,
-}: {
-  groupId: string
-  onCreated: () => Promise<void>
-  onCancel: () => void
-}) {
-  const [name, setName] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
-  const navigate = useNavigate()
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    setPending(true)
-    setError(null)
-    try {
-      const created = await createSetlist(groupId, name.trim())
-      await onCreated()
-      navigate(`/groups/${groupId}/setlists/${created.id}`)
-    } catch (err) {
-      setError(mutationErrorMessage(err))
-    } finally {
-      setPending(false)
-    }
-  }
-
-  return (
-    <form className="max-w-lg space-y-4 border-t border-border-subtle pt-6" onSubmit={onSubmit} noValidate>
-      <h2 className="text-lg font-semibold">Crear lista</h2>
-      <ProblemAlert message={error} />
-      <Field label="Nombre">
-        <input
-          className={fieldClass}
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={200}
-        />
-      </Field>
-      <FormActions>
-        <Button type="submit" disabled={pending}>
-          {pending ? 'Creando…' : 'Crear lista'}
-        </Button>
-        <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          Cancelar
-        </Button>
-      </FormActions>
-    </form>
   )
 }
