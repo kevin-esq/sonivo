@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Common;
 using Sonivo.Domain.Tenancy;
 
@@ -51,6 +52,15 @@ public sealed class UpdateGroupHandler
             command.UserId,
             command.GroupId);
 
-        return new GroupDto(group.Id, group.Name, group.Version, membership.Role, group.CreatedAt, group.UpdatedAt, group.Slug);
+        return new GroupDto(
+            group.Id,
+            group.Name,
+            group.Version,
+            membership.Role,
+            group.CreatedAt,
+            group.UpdatedAt,
+            group.Slug,
+            group.PlanId,
+            PlanCatalog.BrandingCapabilitiesFor(group.PlanId));
     }
 }

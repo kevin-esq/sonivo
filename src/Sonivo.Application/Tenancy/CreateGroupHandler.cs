@@ -1,10 +1,26 @@
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Tenancy;
 
 namespace Sonivo.Application.Tenancy;
 
 public sealed record CreateGroupCommand(Guid UserId, string Name);
-public sealed record GroupDto(Guid Id, string Name, int Version, string? Role, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string? Slug);
+
+/// <summary>
+/// Group detail. <paramref name="PlanId"/> + <paramref name="Capabilities"/> are the
+/// effective entitlements (ADR-0071): the client uses them to render locks; the
+/// server remains authoritative on writes.
+/// </summary>
+public sealed record GroupDto(
+    Guid Id,
+    string Name,
+    int Version,
+    string? Role,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    string? Slug,
+    string PlanId,
+    BrandingCapabilities Capabilities);
 
 public sealed class CreateGroupHandler
 {
@@ -33,7 +49,16 @@ public sealed class CreateGroupHandler
             await _store.AddAsync(group, ownership, cancellationToken);
             await _store.SaveChangesAsync(cancellationToken);
 
-            return new GroupDto(group.Id, group.Name, group.Version, MembershipRoles.Owner, group.CreatedAt, group.UpdatedAt, group.Slug);
+            return new GroupDto(
+                group.Id,
+                group.Name,
+                group.Version,
+                MembershipRoles.Owner,
+                group.CreatedAt,
+                group.UpdatedAt,
+                group.Slug,
+                group.PlanId,
+                PlanCatalog.BrandingCapabilitiesFor(group.PlanId));
         }
         catch (ArgumentException ex)
         {

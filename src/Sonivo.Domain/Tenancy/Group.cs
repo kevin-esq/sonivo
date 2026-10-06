@@ -1,3 +1,4 @@
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Common;
 
 namespace Sonivo.Domain.Tenancy;
@@ -6,6 +7,11 @@ public sealed class Group : IVersionedEntity
 {
     public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
+    /// <summary>
+    /// Entitlements plan id (ADR-0071). Placeholder default keeps existing groups on
+    /// the full-capability plan until billing assigns a real one.
+    /// </summary>
+    public string PlanId { get; private set; } = PlanCatalog.DefaultPlanId;
     /// <summary>Current path slug (ADR-0048 D1). Null only for rows awaiting backfill.</summary>
     public string? Slug { get; private set; }
     /// <summary>
@@ -38,10 +44,28 @@ public sealed class Group : IVersionedEntity
             Id = id ?? Guid.NewGuid(),
             Name = trimmed,
             Slug = resolvedSlug,
+            PlanId = PlanCatalog.DefaultPlanId,
             CreatedAt = now,
             UpdatedAt = now,
             Version = 1
         };
+    }
+
+    /// <summary>Assigns the entitlements plan (billing/admin). Validates against the catalog.</summary>
+    public void AssignPlan(string planId, DateTimeOffset now)
+    {
+        if (!PlanCatalog.IsKnown(planId))
+        {
+            throw new ArgumentException($"Unknown plan '{planId}'.", nameof(planId));
+        }
+
+        if (string.Equals(PlanId, planId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        PlanId = planId;
+        Touch(now);
     }
 
     /// <summary>Assigns the slug once (used by the migration backfill). Never overwrites.</summary>

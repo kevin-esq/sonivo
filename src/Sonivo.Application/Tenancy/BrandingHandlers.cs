@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Tenancy;
 
 namespace Sonivo.Application.Tenancy;
@@ -152,12 +153,18 @@ public sealed class UpdateGroupBrandingHandler
 {
     private readonly GroupAccessService _access;
     private readonly IGroupBrandingStore _store;
+    private readonly IGroupStore _groups;
     private readonly IClock _clock;
 
-    public UpdateGroupBrandingHandler(GroupAccessService access, IGroupBrandingStore store, IClock clock)
+    public UpdateGroupBrandingHandler(
+        GroupAccessService access,
+        IGroupBrandingStore store,
+        IGroupStore groups,
+        IClock clock)
     {
         _access = access;
         _store = store;
+        _groups = groups;
         _clock = clock;
     }
 
@@ -166,6 +173,12 @@ public sealed class UpdateGroupBrandingHandler
         CancellationToken cancellationToken)
     {
         await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+
+        // Plan gating (ADR-0071): the server is authoritative — reject fields the
+        // group's plan does not include. The default plan keeps every capability.
+        var group = await _groups.GetByIdAsync(command.GroupId, cancellationToken)
+            ?? throw new NotFoundException("Group not found.");
+        BrandingGating.EnsureAllowed(PlanCatalog.BrandingCapabilitiesFor(group.PlanId), command);
 
         var branding = await _store.GetAsync(command.GroupId, cancellationToken);
         var now = _clock.UtcNow;

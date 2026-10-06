@@ -1,4 +1,5 @@
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Tenancy;
 
 namespace Sonivo.Application.Tenancy;
@@ -47,7 +48,9 @@ public sealed class GetGroupBySlugHandler
             membership.Role,
             group.CreatedAt,
             group.UpdatedAt,
-            group.Slug);
+            group.Slug,
+            group.PlanId,
+            PlanCatalog.BrandingCapabilitiesFor(group.PlanId));
 
         // A historical slug resolves to the same group: the caller should redirect
         // permanently to the current slug.

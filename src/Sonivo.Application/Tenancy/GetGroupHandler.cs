@@ -1,4 +1,5 @@
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Billing;
 
 namespace Sonivo.Application.Tenancy;
 
@@ -14,6 +15,15 @@ public sealed class GetGroupHandler
     public async Task<GroupDto> HandleAsync(Guid userId, Guid groupId, CancellationToken cancellationToken)
     {
         var (group, membership) = await _access.RequireMemberAsync(groupId, userId, cancellationToken);
-        return new GroupDto(group.Id, group.Name, group.Version, membership.Role, group.CreatedAt, group.UpdatedAt, group.Slug);
+        return new GroupDto(
+            group.Id,
+            group.Name,
+            group.Version,
+            membership.Role,
+            group.CreatedAt,
+            group.UpdatedAt,
+            group.Slug,
+            group.PlanId,
+            PlanCatalog.BrandingCapabilitiesFor(group.PlanId));
     }
 }

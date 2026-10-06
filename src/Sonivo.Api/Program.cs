@@ -17,6 +17,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Sonivo.Application;
 using Sonivo.Application.Abstractions;
+using Sonivo.Application.Billing;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tasks;
@@ -1877,6 +1878,13 @@ app.MapGet("/api/groups/{groupId:guid}/branding", async (
 })
 .WithName("GetGroupBranding")
 .RequireAuthorization();
+
+// ---------- Plans / entitlements catalog (ADR-0071) ----------
+
+app.MapGet("/api/plans", (GetPlanCatalogHandler handler) =>
+        Results.Ok(ToPlanCatalogResponse(handler.Handle())))
+    .WithName("GetPlanCatalog")
+    .RequireAuthorization();
 
 app.MapPut("/api/groups/{groupId:guid}/branding", async (
     Guid groupId,
@@ -4528,7 +4536,9 @@ static object ToGroupResponse(GroupDto group) => new
     version = group.Version,
     role = group.Role,
     createdAt = group.CreatedAt,
-    updatedAt = group.UpdatedAt
+    updatedAt = group.UpdatedAt,
+    planId = group.PlanId,
+    capabilities = group.Capabilities
 };
 
 static object ToGroupBySlugResponse(GroupBySlugResult result) => new
@@ -4540,7 +4550,24 @@ static object ToGroupBySlugResponse(GroupBySlugResult result) => new
     version = result.Group.Version,
     role = result.Group.Role,
     createdAt = result.Group.CreatedAt,
-    updatedAt = result.Group.UpdatedAt
+    updatedAt = result.Group.UpdatedAt,
+    planId = result.Group.PlanId,
+    capabilities = result.Group.Capabilities
+};
+
+static object ToPlanCatalogResponse(PlanCatalogDto catalog) => new
+{
+    defaultPlanId = catalog.DefaultPlanId,
+    plans = catalog.Plans.Select(plan => new
+    {
+        id = plan.Id,
+        priceMonthlyMxn = plan.PriceMonthlyMxn,
+        trialDays = plan.TrialDays,
+        trialRequiresCard = plan.TrialRequiresCard,
+        limits = plan.Limits,
+        features = plan.Features,
+        capabilities = plan.Capabilities
+    })
 };
 
 static object ToBrandingResponse(GroupBrandingDto branding) => new

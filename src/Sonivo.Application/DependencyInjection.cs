@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Sonivo.Application.Abstractions;
+using Sonivo.Application.Billing;
 using Sonivo.Application.Realtime;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
@@ -32,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<GetPublicBrandingHandler>();
         services.AddScoped<GetPublicBrandingLogoHandler>();
         services.AddScoped<GetPublicBrandingBannerHandler>();
+        services.AddScoped<GetPlanCatalogHandler>();
         services.AddScoped<UpdateGroupHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
         services.AddScoped<ListMembersHandler>();
