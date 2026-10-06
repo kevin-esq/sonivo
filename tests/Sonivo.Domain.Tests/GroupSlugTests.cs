@@ -35,6 +35,50 @@ public class GroupSlugTests
         Assert.Equal(expected, GroupSlug.IsValid(slug));
     }
 
+    // The host map (ADR-0067 / DEPLOYMENT.md) reserves these segments so a Group
+    // can never shadow `sonivo.lat`, `app.sonivo.lat`, `api.sonivo.lat`, etc.
+    [Theory]
+    [InlineData("www")]
+    [InlineData("app")]
+    [InlineData("account")]
+    [InlineData("api")]
+    [InlineData("admin")]
+    [InlineData("dashboard")]
+    [InlineData("panel")]
+    [InlineData("auth")]
+    [InlineData("login")]
+    [InlineData("signup")]
+    [InlineData("billing")]
+    [InlineData("status")]
+    [InlineData("static")]
+    [InlineData("cdn")]
+    [InlineData("docs")]
+    [InlineData("blog")]
+    [InlineData("help")]
+    [InlineData("support")]
+    [InlineData("mail")]
+    [InlineData("smtp")]
+    [InlineData("staging")]
+    [InlineData("dev")]
+    [InlineData("test")]
+    [InlineData("internal")]
+    [InlineData("system")]
+    public void Host_map_segments_are_reserved(string slug)
+    {
+        Assert.True(GroupSlug.IsReserved(slug));
+        Assert.False(GroupSlug.IsValid(slug));
+    }
+
+    [Theory]
+    [InlineData("staging", "staging-grupo")]
+    [InlineData("Staging", "staging-grupo")]
+    [InlineData("api", "api-grupo")]
+    [InlineData("Dashboard", "dashboard-grupo")]
+    public void Slugify_avoids_reserved_host_map_segments(string input, string expected)
+    {
+        Assert.Equal(expected, GroupSlug.Slugify(input));
+    }
+
     [Fact]
     public void WithSuffix_stays_within_the_length_limit()
     {
