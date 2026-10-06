@@ -1,4 +1,5 @@
 using Sonivo.Application.Abstractions;
+using Sonivo.Application.Billing;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Common;
 using Sonivo.Domain.Scheduling;
@@ -45,7 +46,11 @@ public sealed class CreateSetlistHandler
 
     public async Task<SetlistDetailDto> HandleAsync(CreateSetlistCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        var (group, _) = await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        PlanLimitGuard.EnsureWithinLimit(
+            group.PlanId,
+            PlanMetric.Setlists,
+            (await _setlists.ListByGroupAsync(command.GroupId, cancellationToken)).Count);
 
         try
         {

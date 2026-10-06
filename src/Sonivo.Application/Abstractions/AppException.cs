@@ -39,3 +39,21 @@ public sealed class ConflictException : AppException
     {
     }
 }
+
+/// <summary>
+/// The group's plan limit was reached (ADR-0071, PHASE-PLANS-SPEC §4.1). Maps to
+/// 403 with the metric + limit so the client can offer an upgrade.
+/// </summary>
+public sealed class PlanLimitException : AppException
+{
+    public PlanLimitException(string metric, long limit)
+        : base($"Plan limit reached for {metric} ({limit}).")
+    {
+        Metric = metric;
+        Limit = limit;
+    }
+
+    public string Metric { get; }
+
+    public long Limit { get; }
+}
