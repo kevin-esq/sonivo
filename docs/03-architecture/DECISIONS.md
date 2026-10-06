@@ -582,6 +582,35 @@ the entire workspace — controls included — into the fallback font.
 
 ---
 
+## ADR-0075 — Payment provider abstraction + Sandbox gateway
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-06 (chose "abstracción + sandbox" for ADR-0073 §9.13).
+- **Date:** 2026-10-06
+- **Amends:** ADR-0073 — resolves its §9.13 "provider + CFDI must be decided before wiring a gateway"
+  placeholder for the **wiring**, without picking a commercial provider yet.
+- **Spec:** [`PHASE-PLANS-SPEC.md`](PHASE-PLANS-SPEC.md) §4 / §9.13.
+
+### Decision
+- Introduce a provider-agnostic payments boundary (`IPaymentProvider`) with a normalized
+  `VerifiedWebhook`. The active provider is a **configuration** choice (`Payments:Provider`):
+  `manual` (default, no gateway; invoice-based) or `sandbox` (a deterministic, HMAC-signed test
+  gateway that exercises the subscription lifecycle end to end).
+- **Webhooks are verified by signature** (HMAC-SHA256, secret from configuration), and each
+  provider event id is processed **at most once** through an idempotency ledger
+  (`WebhookEvents`). The single unsafe-method CSRF exemption is the webhook path, authenticated
+  by that signature instead.
+- Real adapters (Stripe / Mercado Pago / Conekta) slot in as new `PaymentProviderKind` values +
+  implementations. **Provider choice and CFDI/tax handling remain OPEN** (§9.13) and are required
+  before charging real money.
+
+### Firewall
+- No payment keys/secrets in git; secrets come from configuration only and are never logged.
+- No anonymous write endpoint without signature verification; the webhook 404s under `manual`.
+- Billing never gates viewing/editing/deleting existing content (ADR-0071 stands).
+- Does **not** reintroduce the removed insecure scaffold; this is a new, signature-verified design.
+
+---
+
 ## Open decisions needing explicit authorization
 
 - **Subdominio/dominio custom** (`slug.sonivo.lat`): **ADR-0049 blocks it** — needs a superseding ADR.

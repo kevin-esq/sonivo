@@ -118,6 +118,13 @@ public sealed class Group : IVersionedEntity
         Touch(now);
     }
 
+    /// <summary>Marks the subscription past due (grace period; nothing is deleted).</summary>
+    public void MarkPastDue(DateTimeOffset now)
+    {
+        BillingStatus = BillingStatuses.PastDue;
+        Touch(now);
+    }
+
     private static void EnsureKnownPlan(string planId)
     {
         if (!PlanCatalog.IsKnown(planId))

@@ -17,7 +17,11 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Sonivo.Application;
 using Sonivo.Application.Abstractions;
+using System.Text;
 using Sonivo.Application.Billing;
+using Sonivo.Application.Billing.Payments;
+using Sonivo.Domain.Billing;
+using Sonivo.Domain.Billing.Payments;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tasks;
@@ -412,10 +416,17 @@ app.UseRateLimiter();
 app.Use(async (context, next) =>
 {
     var method = context.Request.Method;
-    if (HttpMethods.IsPost(method)
-        || HttpMethods.IsPut(method)
-        || HttpMethods.IsPatch(method)
-        || HttpMethods.IsDelete(method))
+    var path = context.Request.Path.Value ?? string.Empty;
+    // ADR-0073: payment provider webhooks are server-to-server and cannot carry a
+    // browser CSRF token; they are authenticated by an HMAC signature verified in
+    // the handler (with a config secret). This is the ONLY unsafe-method exemption
+    // and it lives behind an explicit, signature-verified endpoint.
+    var isSignatureAuthedWebhook = path.Equals("/api/payments/webhook", StringComparison.OrdinalIgnoreCase);
+    if (!isSignatureAuthedWebhook
+        && (HttpMethods.IsPost(method)
+            || HttpMethods.IsPut(method)
+            || HttpMethods.IsPatch(method)
+            || HttpMethods.IsDelete(method)))
     {
         var antiforgery = context.RequestServices.GetRequiredService<IAntiforgery>();
         try
@@ -1925,6 +1936,90 @@ app.MapPut("/api/groups/{groupId:guid}/plan", async (
     return Results.Ok(ToPlanStateResponse(state));
 })
 .WithName("UpdateGroupPlan")
+.RequireAuthorization();
+
+// ---------- Payments (ADR-0073 §9.13) ----------
+
+app.MapGet("/api/payments/provider", (IPaymentProvider provider) =>
+        Results.Ok(new
+        {
+            provider = provider.Kind.ToString().ToLowerInvariant(),
+            configured = provider.IsConfigured
+        }))
+    .WithName("GetPaymentProvider")
+    .RequireAuthorization();
+
+// Anonymous by nature (server-to-server), authenticated by the HMAC signature
+// verified in the handler — never a session or CSRF token. Returns 404 when the
+// active provider is Manual (no gateway to receive events from).
+app.MapPost("/api/payments/webhook", async (
+    HttpContext http,
+    IPaymentProvider provider,
+    ProcessPaymentWebhookHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    if (provider.Kind == PaymentProviderKind.Manual)
+    {
+        return Results.NotFound();
+    }
+
+    using var reader = new StreamReader(http.Request.Body, Encoding.UTF8);
+    var payload = await reader.ReadToEndAsync(cancellationToken);
+    var signature = http.Request.Headers["X-Sonivo-Signature"].ToString();
+    var result = await handler.HandleAsync(payload, signature, cancellationToken);
+
+    return result.Accepted
+        ? Results.Ok(new { received = true, duplicate = result.Duplicate })
+        : Results.BadRequest(new { error = result.Reason });
+})
+.WithName("ReceivePaymentWebhook")
+.AllowAnonymous();
+
+// Owner-only hosted checkout. Returns 409 when no gateway is configured so the
+// client falls back to manual/invoice assignment.
+app.MapPost("/api/groups/{groupId:guid}/billing/checkout", async (
+    Guid groupId,
+    CheckoutRequestDto request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    StartCheckoutHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!PlanCatalog.IsKnown(request.PlanId))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["planId"] = ["A valid planId is required."]
+        });
+    }
+
+    try
+    {
+        var result = await handler.HandleAsync(
+            new StartCheckoutCommand(
+                userId.Value,
+                groupId,
+                request.PlanId!,
+                request.SuccessUrl ?? string.Empty,
+                request.CancelUrl ?? string.Empty),
+            cancellationToken);
+        return Results.Ok(new { url = result.CheckoutUrl });
+    }
+    catch (PaymentNotConfiguredException)
+    {
+        return Results.Problem(
+            title: "payment-not-configured",
+            detail: "No hay una pasarela de pago configurada.",
+            statusCode: StatusCodes.Status409Conflict);
+    }
+})
+.WithName("StartGroupCheckout")
 .RequireAuthorization();
 
 app.MapPut("/api/groups/{groupId:guid}/branding", async (
@@ -4939,6 +5034,8 @@ internal sealed record DisableTwoFactorRequest(string? Password);
 internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
 internal sealed record UpdateGroupPlanRequest(string? Action, string? PlanId);
+
+internal sealed record CheckoutRequestDto(string? PlanId, string? SuccessUrl, string? CancelUrl);
 internal sealed record ChangeGroupSlugRequest(string? Slug);
 internal sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 internal sealed record UpdateProfileRequest(string? DisplayName);

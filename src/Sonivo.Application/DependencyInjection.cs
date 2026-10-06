@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Billing;
+using Sonivo.Application.Billing.Payments;
 using Sonivo.Application.Realtime;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
@@ -36,6 +37,8 @@ public static class DependencyInjection
         services.AddScoped<GetPlanCatalogHandler>();
         services.AddScoped<GetGroupUsageHandler>();
         services.AddScoped<UpdateGroupPlanHandler>();
+        services.AddScoped<ProcessPaymentWebhookHandler>();
+        services.AddScoped<StartCheckoutHandler>();
         services.AddScoped<UpdateGroupHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
         services.AddScoped<ListMembersHandler>();
