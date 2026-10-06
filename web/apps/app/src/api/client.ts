@@ -467,6 +467,14 @@ export async function getGroupBySlug(slug: string): Promise<GroupBySlug> {
   return apiRequest<GroupBySlug>(`/api/groups/by-slug/${encodeURIComponent(slug)}`)
 }
 
+/** Redeems a single-use handoff code; the API sets the host-only session cookie (ADR-0067). */
+export async function redeemHandoff(code: string): Promise<{ redirect: string }> {
+  return apiRequest<{ redirect: string }>('/api/session/handoff/redeem', {
+    method: 'POST',
+    body: { code },
+  })
+}
+
 export type GroupBranding = {
   groupId: string
   displayName: string | null

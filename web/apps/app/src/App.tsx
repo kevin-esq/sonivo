@@ -38,6 +38,7 @@ import { AppShell } from "./shell/AppShell";
 import { useAuth, type AuthContext } from "./shell/authContext";
 import { GroupWorkspace } from "./shell/GroupWorkspace";
 import { GroupSlugResolver } from "./tenancy/GroupSlugResolver";
+import { tenantSlugFromHost } from "./tenancy/tenantHost";
 import { BrandedLoginPage } from "./shell/BrandedLoginPage";
 import { MustChangePassword } from "./shell/MustChangePassword";
 import { RailPresenceProvider } from "./shell/railPresence";
@@ -105,6 +106,7 @@ const EventDetailPage = named(
 );
 const PeoplePage = named(() => import("./tenancy/PeoplePage"), "PeoplePage");
 const JoinPage = named(() => import("./tenancy/JoinPage"), "JoinPage");
+const HandoffPage = named(() => import("./tenancy/HandoffPage"), "HandoffPage");
 const GroupSettingsPage = named(
   () => import("./shell/GroupSettingsPage"),
   "GroupSettingsPage",
@@ -393,6 +395,17 @@ export default function App() {
     };
   }, [loadSession]);
 
+  // Host-based tenancy (ADR-0067): a request on `{slug}.sonivo.lat` forwards to
+  // the existing path resolver, which verifies membership server-side. The slug
+  // from the Host header is a SELECTOR, never authorization.
+  useEffect(() => {
+    const slug = tenantSlugFromHost(window.location.hostname);
+    if (!slug) return;
+    const { pathname, search } = window.location;
+    if (pathname.startsWith("/g/") || pathname === "/session/handoff") return;
+    window.location.replace(`/g/${slug}${pathname}${search}`);
+  }, []);
+
   const onLogout = useCallback(() => {
     void (async () => {
       try {
@@ -540,6 +553,9 @@ export default function App() {
               <Route path="/confirm" element={<ConfirmPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              {/* Tenant-host session handoff (ADR-0067): redeems a single-use
+                  code for a host-only cookie on `{slug}.sonivo.lat`. */}
+              <Route path="/session/handoff" element={<HandoffPage />} />
 
               {/* Redirecciones heredadas */}
               <Route
