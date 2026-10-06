@@ -15,6 +15,7 @@ This is the Obsidian entry point for durable project knowledge. It is a navigati
 
 - [Architecture decisions](../03-architecture/DECISIONS.md)
 - [Architecture](../03-architecture/ARCHITECTURE.md)
+- [Deployment and host map](../03-architecture/DEPLOYMENT.md)
 - [API](../03-architecture/API.md)
 - [Security](../03-architecture/SECURITY.md)
 - [Persistence](../03-architecture/PERSISTENCE.md)

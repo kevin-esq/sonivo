@@ -8,6 +8,58 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0069 - Production topology: Hetzner (API) + Vercel (BFF) + Neon + R2
+
+- **Status:** **ACCEPTED** - user-authorized 2026-10-05.
+- **Amends:** ADR-0067 rollout (concretizes where the BFF and API run). The .NET backend decision stands.
+- **Related:** ADR-0035 (R2), ADR-0049 (hosts), ADR-0068 (email transport), ADR-0020 (CSRF).
+- **See:** [`DEPLOYMENT.md`](./DEPLOYMENT.md).
+
+### Context
+
+ADR-0067 adopted a Next.js BFF with host-based tenancy and a handoff session but
+left hosting open. The owner will not enable GCP billing; prod must run on
+commodity infrastructure the owner controls.
+
+### Decision
+
+1. **Frontend / BFF:** Vercel, Next.js **server** build (not the static export).
+   Server-side rewrites proxy `/api` and `/hubs` to the API; the browser never
+   calls the API directly.
+2. **Backend:** Hetzner Cloud VPS running the existing Docker image behind
+   **Caddy** (automatic HTTPS for `api.sonivo.lat`). The API is not published to
+   the host; only Caddy binds 80/443. Configuration is env-only
+   (`deploy/docker-compose.yml`, `deploy/Caddyfile`, `deploy/env.production.example`).
+3. **Data:** Neon prod branch (isolated from staging); Cloudflare R2 `sonivo-prod`
+   bucket (isolated from staging). `SONIVO_MIGRATE_ON_START=true` applies EF
+   migrations on container start.
+4. **Host map** (also in DEPLOYMENT.md): apex + `www` + `app` + `account` on
+   Vercel; `{slug}.sonivo.lat` wildcard on Vercel; `api` on Hetzner; `staging`
+   stays on Render. `www` redirects to the apex.
+5. **Reserved slugs** grow to cover the host map (`staging`, `dashboard`, `panel`,
+   `signup`, `billing`, `status`, `cdn`, `docs`, `blog`, `smtp`, `dev`, `test`,
+   `internal`, `system`, …); the server list stays authoritative and the client
+   mirror is UX only.
+6. **Session:** unchanged ADR-0067 rule — central auth + single-use handoff code +
+   **host-only** cookie; a parent-domain cookie remains **PROHIBITED**.
+
+### Firewall
+
+- No GCP / Cloud Run / paid tier. Staging stays on Render free until the project
+  is finished.
+- No vendor name in source (storage/DB/email are config only).
+- No parent-domain cookie; no web JWT/BFF token storage.
+- No wildcard CSP/CORS or wildcard OAuth redirect URIs; passkeys stay apex-bound.
+- No secrets in git; the VPS reads `deploy/.env`.
+
+### Consequences
+
+Deployment config lives under `deploy/` and the runbook in `DEPLOYMENT.md`.
+Provisioning is **manual and owner-gated** (contract Hetzner, create the Vercel
+project, edit DNS); this ADR records intent, not a completed deployment.
+
+---
+
 ## ADR-0068 - Email: provider-agnostic transport (Resend today)
 
 - **Status:** **ACCEPTED** - user-authorized 2026-10-05.

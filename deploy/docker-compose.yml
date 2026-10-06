@@ -1,0 +1,64 @@
+# Sonivo production backend — Hetzner Cloud VPS.
+#
+# Topology (ADR-0067 / ADR-0069): the Next.js BFF runs on Vercel; this VPS runs
+# the .NET API (and SignalR /hubs) behind Caddy, which terminates TLS for
+# api.sonivo.lat with automatic certificates. The database is Neon; blobs are
+# Cloudflare R2; email is the provider-agnostic transport (ADR-0068).
+#
+# The API is NOT published to the host: only Caddy binds 80/443, so the API is
+# reachable solely through the reverse proxy on the private compose network.
+#
+# Usage on the VPS (see docs/03-architecture/DEPLOYMENT.md):
+#   cd /opt/sonivo
+#   docker compose --env-file .env up -d --build
+#
+# Secrets live in .env (never committed). Start from env.production.example.
+
+name: sonivo
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: sonivo-api:${SONIVO_TAG:-local}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # The Dockerfile EXPOSEs 8080 and Program.cs binds to PORT.
+      PORT: "8080"
+    expose:
+      - "8080"
+    networks:
+      - edge
+
+  caddy:
+    image: caddy:2.9
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file:
+      - .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  edge:
+    # Pinned so ForwardedHeaders__KnownNetworks can trust exactly this network
+    # (client IPs and scheme survive the proxy without trusting arbitrary XFF).
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
