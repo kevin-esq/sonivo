@@ -2,7 +2,7 @@
 
 - **Status:** ACCEPTED — user-authorized 2026-10-05 (owner: "Sí: ADR superador + implementar").
 - **ADR:** ADR-0067 (see [`DECISIONS.md`](./DECISIONS.md)).
-- **Related:** ADR-0009/0010/0011 (stack, Identity cookie), ADR-0043 (i18n), ADR-0048/0049 (white-label, hosts), ADR-0060 (typography), ADR-0054 (branding), ADR-0020 (CSRF).
+- **Related:** ADR-0009/0010/0011 (stack, Identity cookie), ADR-0043 (i18n), ADR-0048/0049 (white-label, hosts), ADR-0070 (typography), ADR-0054 (branding), ADR-0020 (CSRF).
 - **Branch:** `feature/nextjs-multitenant-bff`.
 
 ---
