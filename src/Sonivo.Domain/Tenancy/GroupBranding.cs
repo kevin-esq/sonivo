@@ -23,6 +23,11 @@ public sealed class GroupBranding : IVersionedEntity
     // TYPOGRAPHY_OPTIONS allowlist; 'system' is the default (no display face).
     private static readonly string[] Typographies =
         ["system", "rounded", "inter", "dmsans", "poppins", "space", "serif", "lora", "playfair", "mono"];
+    // Brand themes + wash controls (ADR-0071, PHASE-PLANS-SPEC §5.3/§5.5).
+    private static readonly string[] ThemeIds =
+        ["sonivo", "emerald", "ocean", "indigo", "violet", "fuchsia", "crimson", "amber", "turquoise", "graphite"];
+    private static readonly string[] Intensities = ["subtle", "medium", "intense"];
+    private static readonly string[] GradientStyles = ["fixed", "liquid"];
 
     public Guid GroupId { get; private set; }
     public string? DisplayName { get; private set; }
@@ -33,6 +38,9 @@ public sealed class GroupBranding : IVersionedEntity
     public string? WarningHex { get; private set; }
     public string? ErrorHex { get; private set; }
     public string? Typography { get; private set; }
+    public string? ThemeId { get; private set; }
+    public string? Intensity { get; private set; }
+    public string? GradientStyle { get; private set; }
     public string? CoverKind { get; private set; }
     public string? CoverValue { get; private set; }
     public string? ThemeDefault { get; private set; }
@@ -82,6 +90,9 @@ public sealed class GroupBranding : IVersionedEntity
         string? warningHex,
         string? errorHex,
         string? typography,
+        string? themeId,
+        string? intensity,
+        string? gradientStyle,
         string? coverKind,
         string? coverValue,
         string? themeDefault,
@@ -101,6 +112,9 @@ public sealed class GroupBranding : IVersionedEntity
         WarningHex = NormalizeSemanticColor(warningHex, nameof(warningHex));
         ErrorHex = NormalizeSemanticColor(errorHex, nameof(errorHex));
         Typography = CleanEnum(typography, Typographies, nameof(typography));
+        ThemeId = CleanEnum(themeId, ThemeIds, nameof(themeId));
+        Intensity = CleanEnum(intensity, Intensities, nameof(intensity));
+        GradientStyle = CleanEnum(gradientStyle, GradientStyles, nameof(gradientStyle));
         CoverKind = CleanEnum(coverKind, CoverKinds, nameof(coverKind));
         CoverValue = CleanOptional(coverValue, MaxCoverValueLength, nameof(coverValue));
         ThemeDefault = CleanEnum(themeDefault, Themes, nameof(themeDefault));

@@ -51,5 +51,20 @@ public static class BrandingGating
         {
             throw new ValidationException("Your plan does not allow removing the Sonivo credit.");
         }
+
+        if (!caps.Themes && c.ThemeId is not null && !string.Equals(c.ThemeId, "sonivo", StringComparison.Ordinal))
+        {
+            throw new ValidationException("Your plan does not include predefined themes.");
+        }
+
+        if (!caps.Intensity && c.Intensity is not null && !string.Equals(c.Intensity, "medium", StringComparison.Ordinal))
+        {
+            throw new ValidationException("Your plan does not include intensity control.");
+        }
+
+        if (!caps.GradientStyle && c.GradientStyle is not null && !string.Equals(c.GradientStyle, "fixed", StringComparison.Ordinal))
+        {
+            throw new ValidationException("Your plan does not include gradient styles.");
+        }
     }
 }

@@ -43,7 +43,7 @@ public class GroupBrandingTests
     {
         var branding = GroupBranding.Create(Guid.NewGuid(), Now);
 
-        branding.Update("Mi Banda", "#5B4BD6", "#F5C542", null, null, null, null, null, "gradient", "violeta", "dark", "es", "Bienvenido", "Entra", "Adorando juntos", "Salmo 150:6", false, Now.AddMinutes(1));
+        branding.Update("Mi Banda", "#5B4BD6", "#F5C542", null, null, null, null, null, null, null, null, "gradient", "violeta", "dark", "es", "Bienvenido", "Entra", "Adorando juntos", "Salmo 150:6", false, Now.AddMinutes(1));
 
         Assert.Equal("#5b4bd6", branding.AccentHex);
         Assert.Equal("#f5c542", branding.SecondaryHex);
@@ -62,11 +62,11 @@ public class GroupBrandingTests
         var branding = GroupBranding.Create(Guid.NewGuid(), Now);
 
         Assert.Throws<ArgumentException>(() =>
-            branding.Update(null, "#7a7a7a", null, null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now));
+            branding.Update(displayName: null, accentHex: "#7a7a7a", secondaryHex: null, accentColorHex: null, successHex: null, warningHex: null, errorHex: null, typography: null, themeId: null, intensity: null, gradientStyle: null, coverKind: null, coverValue: null, themeDefault: null, defaultLocale: null, welcomeText: null, loginHeadline: null, tagline: null, verse: null, showSonivoCredit: true, now: Now));
         Assert.Throws<ArgumentException>(() =>
-            branding.Update(null, "javascript:alert(1)", null, null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now));
+            branding.Update(displayName: null, accentHex: "javascript:alert(1)", secondaryHex: null, accentColorHex: null, successHex: null, warningHex: null, errorHex: null, typography: null, themeId: null, intensity: null, gradientStyle: null, coverKind: null, coverValue: null, themeDefault: null, defaultLocale: null, welcomeText: null, loginHeadline: null, tagline: null, verse: null, showSonivoCredit: true, now: Now));
         Assert.Throws<ArgumentException>(() =>
-            branding.Update("bad\u0007name", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now));
+            branding.Update(displayName: "bad\u0007name", accentHex: null, secondaryHex: null, accentColorHex: null, successHex: null, warningHex: null, errorHex: null, typography: null, themeId: null, intensity: null, gradientStyle: null, coverKind: null, coverValue: null, themeDefault: null, defaultLocale: null, welcomeText: null, loginHeadline: null, tagline: null, verse: null, showSonivoCredit: true, now: Now));
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class GroupBrandingTests
         var branding = GroupBranding.Create(Guid.NewGuid(), Now);
 
         Assert.Throws<ArgumentException>(() =>
-            branding.Update(null, null, "#7a7a7a", null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now));
+            branding.Update(displayName: null, accentHex: null, secondaryHex: "#7a7a7a", accentColorHex: null, successHex: null, warningHex: null, errorHex: null, typography: null, themeId: null, intensity: null, gradientStyle: null, coverKind: null, coverValue: null, themeDefault: null, defaultLocale: null, welcomeText: null, loginHeadline: null, tagline: null, verse: null, showSonivoCredit: true, now: Now));
     }
 
     [Fact]
@@ -83,10 +83,10 @@ public class GroupBrandingTests
     {
         var branding = GroupBranding.Create(Guid.NewGuid(), Now);
 
-        branding.Update(null, null, null, null, null, null, null, null, "emoji", "🎸", null, null, null, null, null, null, true, Now);
+        branding.Update(null, null, null, null, null, null, null, null, null, null, null, "emoji", "🎸", null, null, null, null, null, null, true, Now);
         Assert.Equal("emoji", branding.CoverKind);
 
-        branding.Update(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true, Now.AddMinutes(1));
+        branding.Update(displayName: null, accentHex: null, secondaryHex: null, accentColorHex: null, successHex: null, warningHex: null, errorHex: null, typography: null, themeId: null, intensity: null, gradientStyle: null, coverKind: null, coverValue: null, themeDefault: null, defaultLocale: null, welcomeText: null, loginHeadline: null, tagline: null, verse: null, showSonivoCredit: true, now: Now.AddMinutes(1));
         Assert.Null(branding.CoverKind);
         Assert.Null(branding.CoverValue);
     }

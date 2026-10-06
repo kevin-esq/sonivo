@@ -10,6 +10,9 @@ public class BrandingGatingTests
         string? accent = null,
         string? secondary = null,
         string? typography = null,
+        string? themeId = null,
+        string? intensity = null,
+        string? gradientStyle = null,
         string? coverKind = null,
         string? coverValue = null,
         string? displayName = null,
@@ -30,6 +33,9 @@ public class BrandingGatingTests
             null,
             null,
             typography,
+            themeId,
+            intensity,
+            gradientStyle,
             coverKind,
             coverValue,
             null,
@@ -68,6 +74,19 @@ public class BrandingGatingTests
         Assert.Throws<ValidationException>(() => BrandingGating.EnsureAllowed(basic, Command(typography: "lora")));
         Assert.Throws<ValidationException>(() => BrandingGating.EnsureAllowed(basic, Command(displayName: "X")));
         Assert.Throws<ValidationException>(() => BrandingGating.EnsureAllowed(basic, Command(showSonivoCredit: false)));
+    }
+
+    [Fact]
+    public void Themes_intensity_and_gradient_are_gated_but_defaults_are_allowed()
+    {
+        var none = BrandingCapabilities.None;
+
+        Assert.Throws<ValidationException>(() => BrandingGating.EnsureAllowed(none, Command(themeId: "ocean")));
+        Assert.Throws<ValidationException>(() => BrandingGating.EnsureAllowed(none, Command(intensity: "intense")));
+        Assert.Throws<ValidationException>(() => BrandingGating.EnsureAllowed(none, Command(gradientStyle: "liquid")));
+
+        // The plan's own defaults are always allowed.
+        BrandingGating.EnsureAllowed(none, Command(themeId: "sonivo", intensity: "medium", gradientStyle: "fixed"));
     }
 
     [Fact]

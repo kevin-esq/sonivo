@@ -15,6 +15,9 @@ public sealed record GroupBrandingDto(
     string? WarningHex,
     string? ErrorHex,
     string? Typography,
+    string? ThemeId,
+    string? Intensity,
+    string? GradientStyle,
     string? OnPrimary,
     string? OnSecondary,
     string? OnAccent,
@@ -44,6 +47,9 @@ public sealed record UpdateGroupBrandingCommand(
     string? WarningHex,
     string? ErrorHex,
     string? Typography,
+    string? ThemeId,
+    string? Intensity,
+    string? GradientStyle,
     string? CoverKind,
     string? CoverValue,
     string? ThemeDefault,
@@ -120,7 +126,7 @@ public sealed class GetGroupBrandingHandler
 
     internal static GroupBrandingDto ToDto(Guid groupId, GroupBranding? branding) =>
         branding is null
-            ? new GroupBrandingDto(groupId, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false, false, false, true, 0)
+            ? new GroupBrandingDto(groupId, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false, false, false, true, 0)
             : new GroupBrandingDto(
                 groupId,
                 branding.DisplayName,
@@ -131,6 +137,9 @@ public sealed class GetGroupBrandingHandler
                 branding.WarningHex,
                 branding.ErrorHex,
                 branding.Typography,
+                branding.ThemeId,
+                branding.Intensity,
+                branding.GradientStyle,
                 branding.AccentHex is null ? null : BrandAccent.OnColor(branding.AccentHex),
                 branding.SecondaryHex is null ? null : BrandAccent.OnColor(branding.SecondaryHex),
                 branding.AccentColorHex is null ? null : BrandAccent.OnColor(branding.AccentColorHex),
@@ -209,6 +218,9 @@ public sealed class UpdateGroupBrandingHandler
                 command.WarningHex,
                 command.ErrorHex,
                 command.Typography,
+                command.ThemeId,
+                command.Intensity,
+                command.GradientStyle,
                 command.CoverKind,
                 command.CoverValue,
                 command.ThemeDefault,
