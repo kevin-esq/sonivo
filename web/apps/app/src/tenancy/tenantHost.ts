@@ -48,3 +48,22 @@ export function tenantSlugFromHost(hostname: string): string | null {
 
   return label
 }
+
+/**
+ * The configured product host (`app.sonivo.lat`), or null when unset. Set
+ * `NEXT_PUBLIC_APP_HOST` to enable the apex -> app handoff redirect; when unset
+ * the apex keeps serving the product directly.
+ */
+export function appHost(): string | null {
+  const configured = process.env.NEXT_PUBLIC_APP_HOST
+  if (!configured || !configured.trim()) return null
+  return configured.trim().toLowerCase()
+}
+
+/** True for the apex (`sonivo.lat`) or its `www` alias. */
+export function isApexHost(hostname: string): boolean {
+  const root = rootDomain()
+  if (!root) return false
+  const host = hostname.trim().toLowerCase().replace(/\.$/, '')
+  return host === root || host === `www.${root}`
+}

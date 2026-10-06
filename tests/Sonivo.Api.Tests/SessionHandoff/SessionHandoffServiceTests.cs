@@ -34,6 +34,34 @@ public class SessionHandoffServiceTests
     }
 
     [Fact]
+    public void Create_without_group_is_app_scope()
+    {
+        var service = CreateService(new MutableTimeProvider(Start));
+        var userId = Guid.NewGuid();
+
+        var created = service.Create(userId, null, null, "UA");
+        var ticket = service.Consume(created.Code, "UA");
+
+        Assert.NotNull(ticket);
+        Assert.True(ticket!.IsAppScope);
+        Assert.Equal(userId, ticket.UserId);
+    }
+
+    [Fact]
+    public void Create_with_group_is_tenant_scope()
+    {
+        var service = CreateService(new MutableTimeProvider(Start));
+        var groupId = Guid.NewGuid();
+
+        var created = service.Create(Guid.NewGuid(), groupId, "coro", "UA");
+        var ticket = service.Consume(created.Code, "UA");
+
+        Assert.NotNull(ticket);
+        Assert.False(ticket!.IsAppScope);
+        Assert.Equal(groupId, ticket.GroupId);
+    }
+
+    [Fact]
     public void Consume_once_succeeds_then_returns_null()
     {
         var service = CreateService(new MutableTimeProvider(Start));

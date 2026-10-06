@@ -26,8 +26,8 @@ public sealed class SessionHandoffService
 
     public SessionHandoffCreated Create(
         Guid userId,
-        Guid groupId,
-        string slug,
+        Guid? groupId,
+        string? slug,
         string? userAgent)
     {
         // 32 random bytes = 256 bits of entropy.

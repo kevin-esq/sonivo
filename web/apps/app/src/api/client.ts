@@ -475,6 +475,18 @@ export async function redeemHandoff(code: string): Promise<{ redirect: string }>
   })
 }
 
+/**
+ * Issues a single-use handoff code. With a slug it targets the tenant host
+ * (`{slug}.sonivo.lat`); without one it targets the product host
+ * (`app.sonivo.lat`). Requires an authenticated session (ADR-0067).
+ */
+export async function startHandoff(slug?: string): Promise<{ redirect: string }> {
+  return apiRequest<{ redirect: string }>('/api/session/handoff/start', {
+    method: 'POST',
+    body: slug ? { slug } : {},
+  })
+}
+
 export type GroupBranding = {
   groupId: string
   displayName: string | null
