@@ -442,7 +442,7 @@ banner/group-name editing. Reuses the ADR-0054 `--brand-*` token contract and `G
 
 ---
 
-## ADR-0060 — Group typography picker (display fonts)
+## ADR-0070 — Group typography picker (display fonts)
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-05 ("lo que consideres, apruebo lo que consideres mejor").
 - **Date:** 2026-10-05
@@ -475,13 +475,13 @@ the entire workspace — controls included — into the fallback font.
 
 ---
 
-## ADR-0061 — Plans, entitlements and personalization levels
+## ADR-0071 — Plans, entitlements and personalization levels
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-05 ("esto definí" + "autorizo todo ... haz los cambios que tengas que hacer en doc").
 - **Date:** 2026-10-05
 - **Spec:** [`PHASE-PLANS-SPEC.md`](PHASE-PLANS-SPEC.md).
 - **Amends:** ADR-0054/0059 (brand editor) — brand capabilities are now **gated by plan level**.
-  Complements ADR-0060 (typography): the picker becomes **Advanced-only** under this gating.
+  Complements ADR-0070 (typography): the picker becomes **Advanced-only** under this gating.
 
 ### Decision
 - A single **entitlements catalog** is the one source of truth for limits and features per plan
@@ -496,13 +496,13 @@ the entire workspace — controls included — into the fallback font.
   saved brand config; the Sonivo theme applies while the plan excludes it.
 
 ### Firewall
-- **No payments in this ADR** (see ADR-0063); plan assignment can be manual/placeholder first.
+- **No payments in this ADR** (see ADR-0073); plan assignment can be manual/placeholder first.
 - No new provider/dependency; colours are server-validated hex; no free CSS.
 - Limits never block viewing/editing/deleting existing content.
 
 ---
 
-## ADR-0062 — Organization (multi-group container)
+## ADR-0072 — Organization (multi-group container)
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-05.
 - **Date:** 2026-10-05
@@ -520,11 +520,11 @@ the entire workspace — controls included — into the fallback font.
 ### Firewall
 - The organization is a **billing/limit container**, not a new ACL engine: group-scoped server-side
   authorization and Owner/Member roles are unchanged.
-- No payments here (ADR-0063); no subdomains/custom domains (ADR-0049 stays blocked).
+- No payments here (ADR-0073); no subdomains/custom domains (ADR-0049 stays blocked).
 
 ---
 
-## ADR-0063 — Payments IN (supersedes ADR-0042)
+## ADR-0073 — Payments IN (supersedes ADR-0042)
 
 - **Status:** **ACCEPTED** — user-authorized 2026-10-05 ("autorizo todo").
 - **Date:** 2026-10-05
@@ -545,7 +545,7 @@ the entire workspace — controls included — into the fallback font.
   `StripePaymentGateway`/`MercadoPagoPaymentGateway`, `WebhookEventLog`) as-is; a real gateway design
   (signature verification, secrets from config, idempotency) is required first.
 - No payment keys/secrets in git; webhooks verify signatures; no anonymous write endpoints.
-- Billing never gates viewing/editing/deleting existing content (ADR-0061 stands).
+- Billing never gates viewing/editing/deleting existing content (ADR-0071 stands).
 
 ---
 
@@ -590,7 +590,7 @@ the group library is an aggregation query, not a new aggregate.
 
 - No subdomains/custom domains (ADR-0049 stays blocked); no billing (ADR-0042); no web JWT/BFF.
 - No AuthZ/session/cookie change: membership required, non-member → 404; role predicates unchanged.
-- ~~No typography picker / new fonts~~ (picker superseded by ADR-0060); no new
+- ~~No typography picker / new fonts~~ (picker superseded by ADR-0070); no new
   provider/dependency beyond what the waves require.
 - Scope is limited to the eight waves above; anything else needs a new decision.
 
@@ -656,7 +656,7 @@ applied dynamically without breaking AA contrast.
 ### Firewall (explicit)
 
 - **No subdomains / custom domains**: ADR-0049 stays **documentation-only / BLOCKED**.
-- ~~**No typography picker and no new font**~~ — **superseded by ADR-0060** (curated group
+- ~~**No typography picker and no new font**~~ — **superseded by ADR-0070** (curated group
   display fonts; `--font-sans` still unchanged).
 - **No new IA sections**: no Tareas/Roles/Recursos/Archivos top-level nav — only a visual refresh over
   the current Inicio/Biblioteca/Listas/Eventos/Miembros/Ajustes structure.

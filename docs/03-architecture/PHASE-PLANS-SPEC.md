@@ -4,8 +4,8 @@
 **Date:** 2026-10-05
 **Type:** product + architecture spec. **Placeholder v0.1:** all prices, limits and values are
 provisional and meant to be implemented now and tuned later without touching the architecture.
-**ADRs:** [ADR-0061](DECISIONS.md) (entitlements + personalization levels),
-[ADR-0062](DECISIONS.md) (organization), [ADR-0063](DECISIONS.md) (payments IN, supersedes ADR-0042).
+**ADRs:** [ADR-0071](DECISIONS.md) (entitlements + personalization levels),
+[ADR-0072](DECISIONS.md) (organization), [ADR-0073](DECISIONS.md) (payments IN, supersedes ADR-0042).
 **Supersedes:** the ADR-0042 "payments OUT" prohibition and the "no billing" firewalls, only within
 the scope of this phase.
 

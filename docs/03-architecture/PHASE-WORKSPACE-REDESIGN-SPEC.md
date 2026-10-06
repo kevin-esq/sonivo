@@ -64,7 +64,7 @@ authorizes anything.
 ## 5. Out of scope
 
 Subdomains/custom domains (ADR-0049), billing (ADR-0042), web JWT/BFF. New fonts are no
-longer excluded for the group brand display face — see ADR-0060 (still no new provider).
+longer excluded for the group brand display face — see ADR-0070 (still no new provider).
 
 ## 6. Test plan
 

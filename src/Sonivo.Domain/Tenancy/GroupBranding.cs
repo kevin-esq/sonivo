@@ -19,7 +19,7 @@ public sealed class GroupBranding : IVersionedEntity
     private static readonly string[] CoverKinds = ["emoji", "gradient"];
     private static readonly string[] Themes = ["light", "dark", "system"];
     private static readonly string[] Locales = ["es", "en"];
-    // Curated display faces (ADR-0060). Kept in sync with the web
+    // Curated display faces (ADR-0070). Kept in sync with the web
     // TYPOGRAPHY_OPTIONS allowlist; 'system' is the default (no display face).
     private static readonly string[] Typographies =
         ["system", "rounded", "inter", "dmsans", "poppins", "space", "serif", "lora", "playfair", "mono"];
