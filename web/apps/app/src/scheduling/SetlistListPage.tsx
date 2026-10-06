@@ -8,12 +8,15 @@ import {
   GroupEmptyState,
   GroupErrorState,
   GroupIconWell,
+  GroupLimitNotice,
   GroupLink,
   GroupListSkeleton,
   GroupPageHeader,
   groupFieldClass,
+  limitReached,
   useGroupDataSignal,
 } from '../groups/ui'
+import { useGroupUsage } from '../groups/useGroupUsage'
 import { CreateSetlistDialog } from '../groups/dialogs'
 import { ReadinessChip } from '../repertoire/chrome'
 import {
@@ -53,6 +56,8 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
   const [query, setQuery] = useState('')
 
   const isOwner = canManageContentRole(group?.role)
+  const { usage, reload: reloadUsage } = useGroupUsage(groupId)
+  const setlistsAtLimit = limitReached(usage?.setlists)
 
   const filtered = useMemo(() => {
     if (!setlists) return null
@@ -94,7 +99,10 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
   }, [groupId, group])
 
   // Live refresh when setlists change elsewhere (creation dialog, other tab).
-  useGroupDataSignal('setlists', groupId, () => void reload())
+  useGroupDataSignal('setlists', groupId, () => {
+    void reload()
+    void reloadUsage()
+  })
 
   if (group === undefined) {
     return <GroupListSkeleton rows={4} label={t('agenda.loadingSetlists')} />
@@ -134,7 +142,9 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                 </ReadinessChip>
               ) : null}
               {showHeaderAdd ? (
-                <GroupButton onClick={() => setShowCreate(true)}>Nueva lista</GroupButton>
+                <GroupButton onClick={() => setShowCreate(true)} disabled={setlistsAtLimit}>
+                  Nueva lista
+                </GroupButton>
               ) : null}
             </>
           }
@@ -174,6 +184,12 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
 
       <GroupErrorState message={listError} />
 
+      <GroupLimitNotice
+        label="listas"
+        metric={usage?.setlists}
+        upgradeHref={`/groups/${group.id}/ajustes?tab=plan`}
+      />
+
       {setlists === null ? (
         <GroupListSkeleton rows={4} label={t('agenda.loadingSetlists')} />
       ) : setlists.length === 0 ? (
@@ -187,7 +203,11 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
           }
           action={
             isOwner ? (
-              <GroupButton data-testid="setlists-empty-create" onClick={() => setShowCreate(true)}>
+              <GroupButton
+                data-testid="setlists-empty-create"
+                onClick={() => setShowCreate(true)}
+                disabled={setlistsAtLimit}
+              >
                 Nueva lista
               </GroupButton>
             ) : (
@@ -267,6 +287,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
           onCreated={(setlist) => {
             setShowCreate(false)
             void reload()
+            void reloadUsage()
             navigate(`/groups/${group.id}/setlists/${setlist.id}`)
           }}
         />

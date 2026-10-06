@@ -10,14 +10,17 @@ import {
   GroupEmptyState,
   GroupErrorState,
   GroupIconButton,
+  GroupLimitNotice,
   GroupLink,
   GroupListSkeleton,
   GroupPageHeader,
   GroupPageSkeleton,
   GroupSelect,
   groupFieldClass,
+  limitReached,
   useGroupDataSignal,
 } from '../groups/ui'
+import { useGroupUsage } from '../groups/useGroupUsage'
 import { CreateSongDialog } from '../groups/dialogs'
 import { OriginBadge, OriginMark, ReadinessChip } from './chrome'
 import { plural } from '../ui/plural'
@@ -57,6 +60,8 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
   const { t } = useT()
 
   const isOwner = canManageContentRole(group?.role)
+  const { usage, reload: reloadUsage } = useGroupUsage(groupId)
+  const songsAtLimit = limitReached(usage?.songs)
 
   const filtered = useMemo(() => {
     if (!songs) return songs
@@ -129,7 +134,10 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
   }
 
   // Live refresh when songs change elsewhere (creation dialog, other tab).
-  useGroupDataSignal('songs', groupId, () => void reloadSongs())
+  useGroupDataSignal('songs', groupId, () => {
+    void reloadSongs()
+    void reloadUsage()
+  })
 
   if (group === undefined) {
     return <GroupPageSkeleton label={t('canciones.loadingLibrary')} />
@@ -168,7 +176,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                 </ReadinessChip>
               ) : null}
               {showHeaderAdd ? (
-                <GroupButton onClick={() => setShowCreate(true)}>
+                <GroupButton onClick={() => setShowCreate(true)} disabled={songsAtLimit}>
                   {t('canciones.addSong')}
                 </GroupButton>
               ) : null}
@@ -237,6 +245,12 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
 
       <GroupErrorState message={listError} />
 
+      <GroupLimitNotice
+        label="canciones"
+        metric={usage?.songs}
+        upgradeHref={`/groups/${group.id}/ajustes?tab=plan`}
+      />
+
       {songs === null || filtered === null ? (
         <GroupListSkeleton rows={4} label={t('canciones.loadingSongs')} />
       ) : songs.length === 0 ? (
@@ -246,7 +260,11 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
           description={isOwner ? t('canciones.emptyOwner') : t('canciones.emptyMember')}
           action={
             isOwner ? (
-              <GroupButton data-testid="library-empty-add-song" onClick={() => setShowCreate(true)}>
+              <GroupButton
+                data-testid="library-empty-add-song"
+                onClick={() => setShowCreate(true)}
+                disabled={songsAtLimit}
+              >
                 {t('canciones.addSong')}
               </GroupButton>
             ) : (
@@ -348,6 +366,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
           onCreated={() => {
             setShowCreate(false)
             void reloadSongs()
+            void reloadUsage()
           }}
         />
       ) : null}

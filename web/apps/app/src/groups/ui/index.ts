@@ -53,4 +53,9 @@ export {
 } from './GroupField'
 export { GroupSelect, type GroupSelectProps, type GroupSelectOption } from './GroupSelect'
 export { GroupDialog, type GroupDialogProps } from './GroupDialog'
+export {
+  GroupLimitNotice,
+  limitReached,
+  type GroupLimitNoticeProps,
+} from './GroupLimitNotice'
 export { useGroupDataSignal } from './live'

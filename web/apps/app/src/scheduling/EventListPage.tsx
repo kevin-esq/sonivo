@@ -8,13 +8,16 @@ import {
   GroupEmptyState,
   GroupErrorState,
   GroupIconWell,
+  GroupLimitNotice,
   GroupLink,
   GroupListSkeleton,
   GroupPageHeader,
   GroupPageSkeleton,
   groupFieldClass,
+  limitReached,
   useGroupDataSignal,
 } from '../groups/ui'
+import { useGroupUsage } from '../groups/useGroupUsage'
 import { CreateEventDialog } from '../groups/dialogs'
 import { ReadinessChip } from '../repertoire/chrome'
 import {
@@ -58,6 +61,8 @@ export function EventListPage({ user }: { user: CurrentUser }) {
   }, [])
 
   const isOwner = canManageContentRole(group?.role)
+  const { usage, reload: reloadUsage } = useGroupUsage(groupId)
+  const eventsAtLimit = limitReached(usage?.eventsThisMonth)
 
   const filtered = useMemo(() => {
     if (!events) return null
@@ -103,7 +108,10 @@ export function EventListPage({ user }: { user: CurrentUser }) {
   }, [groupId, group])
 
   // Live refresh when events change elsewhere (creation dialog, other tab).
-  useGroupDataSignal('events', groupId, () => void reload())
+  useGroupDataSignal('events', groupId, () => {
+    void reload()
+    void reloadUsage()
+  })
 
   if (group === undefined) {
     return <GroupPageSkeleton label={t('agenda.loadingEvents')} />
@@ -154,7 +162,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                 </>
               ) : null}
               {showHeaderAdd ? (
-                <GroupButton onClick={() => setShowCreate(true)}>Nuevo evento</GroupButton>
+                <GroupButton onClick={() => setShowCreate(true)} disabled={eventsAtLimit}>Nuevo evento</GroupButton>
               ) : null}
             </>
           }
@@ -194,6 +202,12 @@ export function EventListPage({ user }: { user: CurrentUser }) {
 
       <GroupErrorState message={listError} />
 
+      <GroupLimitNotice
+        label="eventos este mes"
+        metric={usage?.eventsThisMonth}
+        upgradeHref={`/groups/${group.id}/ajustes?tab=plan`}
+      />
+
       {events === null ? (
         <GroupListSkeleton rows={3} label={t('agenda.loadingEvents')} />
       ) : events.length === 0 ? (
@@ -207,7 +221,11 @@ export function EventListPage({ user }: { user: CurrentUser }) {
           }
           action={
             isOwner ? (
-              <GroupButton data-testid="events-empty-create" onClick={() => setShowCreate(true)}>
+              <GroupButton
+                data-testid="events-empty-create"
+                onClick={() => setShowCreate(true)}
+                disabled={eventsAtLimit}
+              >
                 Nuevo evento
               </GroupButton>
             ) : (
@@ -275,6 +293,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
           onCreated={(event) => {
             setShowCreate(false)
             void reload()
+            void reloadUsage()
             navigate(`/groups/${group.id}/events/${event.id}`)
           }}
         />

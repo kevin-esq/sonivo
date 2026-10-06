@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ApiError,
   deleteGroup,
@@ -230,7 +230,19 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedTab = searchParams.get('tab') as SettingsTab | null
+  const [activeTab, setActiveTabState] = useState<SettingsTab>(
+    requestedTab && SETTINGS_TABS.some((tab) => tab.id === requestedTab) ? requestedTab : 'general',
+  )
+  // Tabs are URL-addressable so the plan-limit upgrade CTA can deep-link here.
+  const setActiveTab = (tab: SettingsTab) => {
+    setActiveTabState(tab)
+    const next = new URLSearchParams(searchParams)
+    if (tab === 'general') next.delete('tab')
+    else next.set('tab', tab)
+    setSearchParams(next, { replace: true })
+  }
   const [usage, setUsage] = useState<GroupUsage | null>(null)
 
   useEffect(() => {
