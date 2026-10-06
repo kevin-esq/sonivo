@@ -91,10 +91,10 @@ project, edit DNS); this ADR records intent, not a completed deployment.
 ### Decision
 
 1. A **Next.js App Router** frontend is adopted as the product shell, operating as a **BFF over the existing ASP.NET Core API**. The .NET modular monolith remains the single backend; Next never accesses PostgreSQL.
-2. **Host-based tenancy:** `slug.sonvo.lat` is rewritten by middleware to internal `/[tenant]/[locale]/...` routes; the apex serves marketing/auth. The tenant slug from `Host` is a **selector**, never authorization.
+2. **Host-based tenancy:** `slug.sonivo.lat` is rewritten by middleware to internal `/[tenant]/[locale]/...` routes; the apex serves marketing/auth. The tenant slug from `Host` is a **selector**, never authorization.
 3. **i18n:** Spanish default, English + Portuguese; dictionaries loaded server-side; the existing `useT()` contract is preserved.
 4. **Branding** is fetched server-side and injected as CSS variables on `<html>`/`<body>`.
-5. **Session across subdomains:** central auth at the apex + a **single-use, short-lived handoff code** redeemed on the tenant host for a **host-only session cookie**. A parent-domain cookie (`Domain=.sonvo.lat`) is **PROHIBITED**.
+5. **Session across subdomains:** central auth at the apex + a **single-use, short-lived handoff code** redeemed on the tenant host for a **host-only session cookie**. A parent-domain cookie (`Domain=.sonivo.lat`) is **PROHIBITED**.
 
 ### Firewalls (explicit)
 

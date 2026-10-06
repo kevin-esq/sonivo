@@ -12,10 +12,10 @@
 Sonivo introduces a **Next.js App Router frontend** that behaves as a **BFF over the existing ASP.NET Core API**:
 
 - The **.NET modular monolith remains the only backend** (domain, Identity, EF Core, SignalR, OpenAPI contract). Next never touches PostgreSQL.
-- Tenancy is **host-based**: `slug.sonvo.lat` is rewritten internally to `/[tenant]/[locale]/...`. The apex (`sonvo.lat`) serves marketing/auth pages.
+- Tenancy is **host-based**: `slug.sonivo.lat` is rewritten internally to `/[tenant]/[locale]/...`. The apex (`sonivo.lat`) serves marketing/auth pages.
 - **i18n**: Spanish default, English and Portuguese selectable. `Locale` negotiation happens in middleware; dictionaries are loaded server-side and hydrated into a client provider that preserves the existing `useT()` shape.
 - **Branding**: group colours/typography/theme are fetched server-side and injected as native CSS variables (`--color-primary`, `--color-secondary`) on `<html>`/`<body>`.
-- **Session across subdomains**: central authentication at the apex + **single-use, short-lived handoff code** exchanged on the tenant host for a **host-only session cookie**. A parent-domain cookie (`Domain=.sonvo.lat`) is **PROHIBITED**.
+- **Session across subdomains**: central authentication at the apex + **single-use, short-lived handoff code** exchanged on the tenant host for a **host-only session cookie**. A parent-domain cookie (`Domain=.sonivo.lat`) is **PROHIBITED**.
 
 `ADR-0067` **amends** the frontend row and the "Do not introduce Next.js" principle of **ADR-0010**; the .NET backend decision stands. It **unblocks the host/subdomain work of ADR-0049** (documentation-only until now) and **extends ADR-0043** to Portuguese. Backend message/mail localisation stays out of scope (ADR-0043 phase 2).
 
@@ -38,13 +38,13 @@ Sonivo introduces a **Next.js App Router frontend** that behaves as a **BFF over
 | Handoff page | `Referrer-Policy: no-referrer`, `Cache-Control: no-store`, no third-party scripts, generic errors. | IETF draft §6.2/§6.4/§6.6 |
 | Tenant identity | `slug` from the `Host` header is a **selector only**; membership is verified server-side for the authenticated principal. | OWASP Multi-Tenant |
 | Passkeys / OAuth | Registered at the **apex origin only**; never rely on cross-subdomain WebAuthn or wildcard redirect URIs. | W3C WebAuthn; OWASP Subdomain Takeover |
-| CSP / CORS | No `*.sonvo.lat` wildcards; explicit allowlists; exact-match OAuth `redirect_uri`. | OWASP Subdomain Takeover |
-| DNS / TLS | Wildcard `*.sonvo.lat` + wildcard TLS; decommissioning runbook; CT-log monitoring. Requires a verified custom domain (ADR-0049 D2). | OWASP Subdomain Takeover |
+| CSP / CORS | No `*.sonivo.lat` wildcards; explicit allowlists; exact-match OAuth `redirect_uri`. | OWASP Subdomain Takeover |
+| DNS / TLS | Wildcard `*.sonivo.lat` + wildcard TLS; decommissioning runbook; CT-log monitoring. Requires a verified custom domain (ADR-0049 D2). | OWASP Subdomain Takeover |
 
 ## 4. Architecture
 
 ```
-Browser ──host: slug.sonvo.lat──► Next middleware ──rewrite──► /[tenant]/[locale]/...
+Browser ──host: slug.sonivo.lat──► Next middleware ──rewrite──► /[tenant]/[locale]/...
    │                                                     │
    │                                                     └─ SSR fetches branding (public API)
    │
@@ -64,7 +64,7 @@ web/                          # Turborepo workspace (root package.json + turbo.j
       app/page.tsx            # client mount of the ported SPA (src/Mount.tsx)
       src/**                  # ported product source (components, pages, providers)
       next.config.ts          # API proxy (dev) + static export (prod)
-    docs/                     # @sonivo/docs — Fumadocs (docs.sonvo.lat / /docs)
+    docs/                     # @sonivo/docs — Fumadocs (docs.sonivo.lat / /docs)
       app/docs/[[...slug]]/page.tsx  app/api/search/route.ts
       content/docs/*.mdx  lib/source.ts
   packages/                   # shared code: @sonivo/api-client, @sonivo/i18n, @sonivo/ui

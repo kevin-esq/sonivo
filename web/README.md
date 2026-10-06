@@ -7,8 +7,8 @@ backend; no app here accesses PostgreSQL directly.
 
 | App | Path | Host(s) | Purpose |
 |---|---|---|---|
-| `@sonivo/app` | `apps/app` | `sonvo.lat`, `app.sonvo.lat`, `slug.sonvo.lat` | The product: marketing, auth, group workspace, session handoff |
-| `@sonivo/docs` | `apps/docs` | `docs.sonvo.lat` / `/docs` | Documentation (Fumadocs) |
+| `@sonivo/app` | `apps/app` | `sonivo.lat`, `app.sonivo.lat`, `slug.sonivo.lat` | The product: marketing, auth, group workspace, session handoff |
+| `@sonivo/docs` | `apps/docs` | `docs.sonivo.lat` / `/docs` | Documentation (Fumadocs) |
 | `@sonivo/mobile` | `apps/mobile` | App stores | Future mobile app (Expo/React Native); placeholder |
 
 `@sonivo/app` currently runs the ported product SPA inside Next via a client-only
@@ -28,13 +28,20 @@ npm run build          # build every app
 
 ## Deployment model
 
-The product app is a **static export** served by the .NET host from `wwwroot`
-(same origin, SPA fallback to `index.html`), preserving the single-image model:
+Two shapes, one codebase (see
+[`DEPLOYMENT.md`](../docs/03-architecture/DEPLOYMENT.md)):
 
-```bash
-cd web
-NEXT_EXPORT=1 npm run build --workspace @sonivo/app   # -> apps/app/out -> wwwroot
-```
+- **Staging (Render):** the product app is a **static export** served by the .NET
+  host from `wwwroot` (same origin, SPA fallback to `index.html`).
+
+  ```bash
+  cd web
+  NEXT_EXPORT=1 npm run build --workspace @sonivo/app   # -> apps/app/out -> wwwroot
+  ```
+
+- **Production (Vercel):** the Next **server** build (BFF) runs without
+  `NEXT_EXPORT`; server-side rewrites proxy `/api` and `/hubs` to
+  `API_ORIGIN=https://api.sonivo.lat`.
 
 In dev/CI, Next proxies `/api` and `/hubs` to the API and serves a SPA fallback
 for deep links.
@@ -48,9 +55,14 @@ for deep links.
 | `@sonivo/ui` | Design tokens / brand CSS variables |
 | `@sonivo/config` | Shared tsconfig / tailwind / lint config (planned) |
 
-## Host routing (target)
+## Host routing
 
-- `sonvo.lat` — marketing + login (apex).
-- `app.sonvo.lat` — cross-group account/panel.
-- `slug.sonvo.lat` — a group workspace (host-based tenancy; ADR-0067).
-- `docs.sonvo.lat` — this documentation app.
+Authoritative host map and DNS/TLS runbook:
+[`DEPLOYMENT.md`](../docs/03-architecture/DEPLOYMENT.md) §2 and §5.
+
+- `sonivo.lat` (+ `www`) — marketing / entry to auth (apex).
+- `app.sonivo.lat` — authenticated product entry.
+- `account.sonivo.lat` (optional) — account/security/consent.
+- `slug.sonivo.lat` — a group workspace (host-based tenancy; ADR-0067).
+- `api.sonivo.lat` — the .NET API, consumed by the BFF (not the browser).
+- `docs.sonivo.lat` — this documentation app.

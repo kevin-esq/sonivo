@@ -39,7 +39,7 @@ idiomatic App Router routes and restore the ADR-0067 features:
 | Wave | Scope | Status |
 |---|---|---|
 | **W-B** | Decompose auth/account routes (login/register/verify/account/security) | TODO |
-| **W-C** | Decompose group routes + **restore subdomain tenancy** (`slug.sonvo.lat`) | TODO |
+| **W-C** | Decompose group routes + **restore subdomain tenancy** (`slug.sonivo.lat`) | TODO |
 | **W-D** | Repertoire routes | TODO |
 | **W-E** | Scheduling routes | TODO |
 | **W-F** | Practice routes (client-only APIs stay client components) | TODO |

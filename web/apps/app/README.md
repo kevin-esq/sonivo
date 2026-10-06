@@ -6,14 +6,21 @@ only backend and the only writer to PostgreSQL.
 
 ## What it provides
 
-- **Host-based tenancy**: `slug.sonvo.lat` is rewritten by `middleware.ts` to the
-  internal `/[tenant]/[locale]/...` routes. The apex serves marketing/auth.
-- **i18n**: Spanish (default), English and Portuguese dictionaries loaded
-  server-side and exposed through a client `useT()` provider.
-- **Dynamic theming (SSR)**: group branding is fetched server-side and injected
-  as native CSS variables (`--color-primary`, `--color-secondary`) on `<html>`.
+- **Host-based tenancy**: the ported product SPA runs in Next through a
+  client-only mount (`app/page.tsx` + `src/Mount.tsx`). A client host bridge
+  forwards `slug.sonivo.lat/...` to the existing `/g/{slug}` resolver, which
+  verifies membership server-side. The full `middleware.ts` +
+  `/[tenant]/[locale]` decomposition is deferred — see
+  [`PHASE-NEXTJS-PARITY-MIGRATION.md`](../../../docs/03-architecture/PHASE-NEXTJS-PARITY-MIGRATION.md).
+- **i18n**: Spanish (default) and English, exposed through a client `useT()`
+  provider (the shared `@sonivo/i18n` package also carries Portuguese).
+- **Theming**: group branding is applied client-side as native CSS variables
+  (`--color-primary`, `--color-secondary`) on `<html>`/`<body>`.
 - **Session handoff**: `/session/handoff?code=...` redeems a single-use code for a
-  host-only session cookie on the tenant host (see ADR-0067).
+  **host-only** session cookie. `start` targets a tenant (`{slug}`) or the product
+  host (no slug, `app.sonivo.lat`); the apex → app redirect is enabled with
+  `NEXT_PUBLIC_APP_HOST` (see ADR-0067 and
+  [`DEPLOYMENT.md`](../../../docs/03-architecture/DEPLOYMENT.md)).
 
 ## Security notes
 
