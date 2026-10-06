@@ -21,7 +21,7 @@ public class PlanLimitGuardTests
     [Fact]
     public void Starter_limits_members_setlists_and_events()
     {
-        Assert.Equal(3, PlanLimitGuard.LimitFor("starter", PlanMetric.Members));
+        Assert.Equal(5, PlanLimitGuard.LimitFor("starter", PlanMetric.Members));
         Assert.Equal(5, PlanLimitGuard.LimitFor("starter", PlanMetric.Setlists));
         Assert.Equal(10, PlanLimitGuard.LimitFor("starter", PlanMetric.EventsPerMonth));
     }
