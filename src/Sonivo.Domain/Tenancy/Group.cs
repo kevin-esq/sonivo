@@ -12,6 +12,15 @@ public sealed class Group : IVersionedEntity
     /// the full-capability plan until billing assigns a real one.
     /// </summary>
     public string PlanId { get; private set; } = PlanCatalog.DefaultPlanId;
+    /// <summary>
+    /// Billing lifecycle (ADR-0071/0073, PHASE-PLANS-SPEC §4). Placeholder model
+    /// until a payment provider is wired; managed manually.
+    /// </summary>
+    public string BillingStatus { get; private set; } = BillingStatuses.Active;
+    /// <summary>End of the 14-day trial, when <see cref="BillingStatus"/> is Trialing.</summary>
+    public DateTimeOffset? TrialEndsAt { get; private set; }
+    /// <summary>Plan to apply at the end of the paid period (downgrade/extra-group).</summary>
+    public string? ScheduledPlanId { get; private set; }
     /// <summary>Current path slug (ADR-0048 D1). Null only for rows awaiting backfill.</summary>
     public string? Slug { get; private set; }
     /// <summary>
@@ -54,11 +63,10 @@ public sealed class Group : IVersionedEntity
     /// <summary>Assigns the entitlements plan (billing/admin). Validates against the catalog.</summary>
     public void AssignPlan(string planId, DateTimeOffset now)
     {
-        if (!PlanCatalog.IsKnown(planId))
-        {
-            throw new ArgumentException($"Unknown plan '{planId}'.", nameof(planId));
-        }
-
+        EnsureKnownPlan(planId);
+        ScheduledPlanId = null;
+        BillingStatus = BillingStatuses.Active;
+        TrialEndsAt = null;
         if (string.Equals(PlanId, planId, StringComparison.Ordinal))
         {
             return;
@@ -66,6 +74,56 @@ public sealed class Group : IVersionedEntity
 
         PlanId = planId;
         Touch(now);
+    }
+
+    /// <summary>Starts the plan's trial (14 days by default). One trial per group (placeholder).</summary>
+    public void StartTrial(string planId, DateTimeOffset now)
+    {
+        EnsureKnownPlan(planId);
+        var days = PlanCatalog.Get(planId).TrialDays;
+        PlanId = planId;
+        BillingStatus = BillingStatuses.Trialing;
+        TrialEndsAt = now.AddDays(days);
+        ScheduledPlanId = null;
+        Touch(now);
+    }
+
+    /// <summary>Schedules a plan change (downgrade) to apply at the end of the period.</summary>
+    public void SchedulePlanChange(string planId, DateTimeOffset now)
+    {
+        EnsureKnownPlan(planId);
+        ScheduledPlanId = string.Equals(planId, PlanId, StringComparison.Ordinal) ? null : planId;
+        Touch(now);
+    }
+
+    /// <summary>Applies a scheduled plan change once the trial/period has elapsed.</summary>
+    public void ApplyScheduledPlan(DateTimeOffset now)
+    {
+        if (ScheduledPlanId is null)
+        {
+            return;
+        }
+
+        PlanId = ScheduledPlanId;
+        ScheduledPlanId = null;
+        BillingStatus = BillingStatuses.Active;
+        TrialEndsAt = null;
+        Touch(now);
+    }
+
+    /// <summary>Marks the group read-only (non-payment after grace). Nothing is deleted.</summary>
+    public void EnterReadOnly(DateTimeOffset now)
+    {
+        BillingStatus = BillingStatuses.ReadOnly;
+        Touch(now);
+    }
+
+    private static void EnsureKnownPlan(string planId)
+    {
+        if (!PlanCatalog.IsKnown(planId))
+        {
+            throw new ArgumentException($"Unknown plan '{planId}'.", nameof(planId));
+        }
     }
 
     /// <summary>Assigns the slug once (used by the migration backfill). Never overwrites.</summary>

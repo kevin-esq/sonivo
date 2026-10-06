@@ -669,6 +669,13 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("BillingStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("active");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -686,11 +693,18 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(16)")
                         .HasDefaultValue("studio");
 
+                    b.Property<string>("ScheduledPlanId")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.Property<string>("Slug")
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
                     b.Property<DateTimeOffset?>("SlugConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("TrialEndsAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("UpdatedAt")

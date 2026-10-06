@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<GetPublicBrandingBannerHandler>();
         services.AddScoped<GetPlanCatalogHandler>();
         services.AddScoped<GetGroupUsageHandler>();
+        services.AddScoped<UpdateGroupPlanHandler>();
         services.AddScoped<UpdateGroupHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
         services.AddScoped<ListMembersHandler>();

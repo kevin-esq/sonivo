@@ -1904,6 +1904,29 @@ app.MapGet("/api/groups/{groupId:guid}/usage", async (
 .WithName("GetGroupUsage")
 .RequireAuthorization();
 
+// Manual plan management (ADR-0073 placeholder; no payment gateway).
+app.MapPut("/api/groups/{groupId:guid}/plan", async (
+    Guid groupId,
+    UpdateGroupPlanRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    UpdateGroupPlanHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var state = await handler.HandleAsync(
+        new UpdateGroupPlanCommand(userId.Value, groupId, request.Action ?? "assign", request.PlanId),
+        cancellationToken);
+    return Results.Ok(ToPlanStateResponse(state));
+})
+.WithName("UpdateGroupPlan")
+.RequireAuthorization();
+
 app.MapPut("/api/groups/{groupId:guid}/branding", async (
     Guid groupId,
     UpdateGroupBrandingRequest request,
@@ -4594,11 +4617,22 @@ static object ToPlanCatalogResponse(PlanCatalogDto catalog) => new
 static object ToUsageResponse(GroupUsageDto usage) => new
 {
     planId = usage.PlanId,
+    billingStatus = usage.BillingStatus,
+    trialEndsAt = usage.TrialEndsAt,
+    scheduledPlanId = usage.ScheduledPlanId,
     members = new { used = usage.Members.Used, limit = usage.Members.Limit },
     songs = new { used = usage.Songs.Used, limit = usage.Songs.Limit },
     setlists = new { used = usage.Setlists.Used, limit = usage.Setlists.Limit },
     eventsThisMonth = new { used = usage.EventsThisMonth.Used, limit = usage.EventsThisMonth.Limit },
     storageBytes = new { used = usage.StorageBytes.Used, limit = usage.StorageBytes.Limit }
+};
+
+static object ToPlanStateResponse(GroupPlanStateDto state) => new
+{
+    planId = state.PlanId,
+    billingStatus = state.BillingStatus,
+    trialEndsAt = state.TrialEndsAt,
+    scheduledPlanId = state.ScheduledPlanId
 };
 
 static object ToBrandingResponse(GroupBrandingDto branding) => new
@@ -4904,6 +4938,7 @@ internal sealed record TwoFactorChallengeRequest(string? Code, bool RememberMe =
 internal sealed record DisableTwoFactorRequest(string? Password);
 internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
+internal sealed record UpdateGroupPlanRequest(string? Action, string? PlanId);
 internal sealed record ChangeGroupSlugRequest(string? Slug);
 internal sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 internal sealed record UpdateProfileRequest(string? DisplayName);

@@ -10,6 +10,9 @@ public sealed record UsageMetric(long Used, long? Limit);
 /// <summary>Group usage vs the effective plan limits (ADR-0071, PHASE-PLANS-SPEC §4.1/§7).</summary>
 public sealed record GroupUsageDto(
     string PlanId,
+    string BillingStatus,
+    DateTimeOffset? TrialEndsAt,
+    string? ScheduledPlanId,
     UsageMetric Members,
     UsageMetric Songs,
     UsageMetric Setlists,
@@ -68,6 +71,9 @@ public sealed class GetGroupUsageHandler
 
         return new GroupUsageDto(
             group.PlanId,
+            group.BillingStatus,
+            group.TrialEndsAt,
+            group.ScheduledPlanId,
             new UsageMetric(members, plan.Limits.Members),
             new UsageMetric(songs, plan.Limits.Songs),
             new UsageMetric(setlists, plan.Limits.Setlists),

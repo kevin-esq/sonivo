@@ -39,6 +39,31 @@ public class UsageApiTests : IClassFixture<SonivoApiFactory>
     }
 
     [Fact]
+    public async Task Manual_plan_assignment_changes_limits_and_trial_state()
+    {
+        var client = await CreateAuthenticatedClientAsync(_factory, "usage-plan@example.com");
+        var created = await client.PostAsJsonAsync("/api/groups", new { name = "Plan Switch" });
+        var group = await created.Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(group);
+
+        var assign = await client.PutAsJsonAsync($"/api/groups/{group.Id}/plan", new { action = "assign", planId = "starter" });
+        Assert.Equal(HttpStatusCode.OK, assign.StatusCode);
+
+        var usage = await client.GetFromJsonAsync<UsageResponse>($"/api/groups/{group.Id}/usage");
+        Assert.NotNull(usage);
+        Assert.Equal("starter", usage.PlanId);
+        Assert.Equal(5, usage.Members.Limit);
+
+        var trial = await client.PutAsJsonAsync($"/api/groups/{group.Id}/plan", new { action = "trial", planId = "pro" });
+        Assert.Equal(HttpStatusCode.OK, trial.StatusCode);
+        var trialed = await client.GetFromJsonAsync<UsageResponse>($"/api/groups/{group.Id}/usage");
+        Assert.NotNull(trialed);
+        Assert.Equal("pro", trialed.PlanId);
+        Assert.Equal("trialing", trialed.BillingStatus);
+        Assert.NotNull(trialed.TrialEndsAt);
+    }
+
+    [Fact]
     public async Task Usage_requires_membership()
     {
         var owner = await CreateAuthenticatedClientAsync(_factory, "usage-owner2@example.com");
@@ -88,6 +113,8 @@ public class UsageApiTests : IClassFixture<SonivoApiFactory>
 
     private sealed record UsageResponse(
         string PlanId,
+        string BillingStatus,
+        DateTimeOffset? TrialEndsAt,
         UsageMetricResponse Members,
         UsageMetricResponse Songs,
         UsageMetricResponse Setlists,

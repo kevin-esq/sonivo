@@ -65,6 +65,19 @@ public sealed record PlanFeatures(
     BrandingLevel Branding,
     bool RemovePoweredBy);
 
+/// <summary>Billing lifecycle states (ADR-0071/0073, PHASE-PLANS-SPEC §4).</summary>
+public static class BillingStatuses
+{
+    public const string Active = "active";
+    public const string Trialing = "trialing";
+    public const string PastDue = "past_due";
+    public const string ReadOnly = "read_only";
+
+    public static readonly IReadOnlyList<string> All = [Active, Trialing, PastDue, ReadOnly];
+
+    public static bool IsValid(string? value) => value is not null && All.Contains(value);
+}
+
 /// <summary>A plan definition from the single-source catalog.</summary>
 public sealed record PlanDefinition(
     string Id,
@@ -102,7 +115,7 @@ public static class PlanCatalog
                 PriceMonthlyMxn: 99,
                 TrialDays: 14,
                 TrialRequiresCard: false,
-                Limits: new PlanLimits(Members: 3, Groups: 1, Songs: 50, Setlists: 5, EventsPerMonth: 10, StorageGb: 1, StorageScope: "group"),
+                Limits: new PlanLimits(Members: 5, Groups: 1, Songs: 50, Setlists: 5, EventsPerMonth: 10, StorageGb: 1, StorageScope: "group"),
                 Features: new PlanFeatures(RolesLevel: "basic", HistoryLevel: "basic", Stats: false, Support: "email", Branding: BrandingLevel.None, RemovePoweredBy: false)),
 
             [Pro] = new(

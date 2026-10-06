@@ -15,6 +15,8 @@ public sealed class GroupConfiguration : IEntityTypeConfiguration<Group>
         builder.Property(x => x.Name).IsRequired();
         builder.Property(x => x.Slug).HasMaxLength(GroupSlug.MaxLength);
         builder.Property(x => x.PlanId).IsRequired().HasMaxLength(16).HasDefaultValue(PlanCatalog.DefaultPlanId);
+        builder.Property(x => x.BillingStatus).IsRequired().HasMaxLength(16).HasDefaultValue(BillingStatuses.Active);
+        builder.Property(x => x.ScheduledPlanId).HasMaxLength(16);
         builder.HasIndex(x => x.Slug).IsUnique().HasFilter("\"Slug\" IS NOT NULL");
         builder.Property(x => x.Version).IsConcurrencyToken();
         builder.HasQueryFilter(x => x.DeletedAt == null);
