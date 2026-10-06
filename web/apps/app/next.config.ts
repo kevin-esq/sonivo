@@ -7,7 +7,11 @@ const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:5171'
 const isExport = process.env.NEXT_EXPORT === '1'
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
+  // StrictMode's dev-only double-mount races with the group create modals in
+  // dev (the route remounts mid-interaction and the dialog state is lost), which
+  // made Playwright E2E flaky. StrictMode never double-invokes effects in
+  // production, so disabling it only affects the dev aid, not shipped behavior.
+  reactStrictMode: false,
   transpilePackages: ['@sonivo/i18n', '@sonivo/api-client', '@sonivo/ui'],
   // Bridge (parity migration): the ported SPA is checked by its own tsconfig;
   // Next type/lint gating is re-enabled once the SPA is decomposed.

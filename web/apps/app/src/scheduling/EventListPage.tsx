@@ -1,45 +1,42 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Calendar, CalendarDays, ChevronRight, Mic2, Search, Sparkles } from 'lucide-react'
-import {
-  createEvent,
-  fetchFeatures,
-  listEvents,
-  type CurrentUser,
-  type EventListItem,
-  type EventType,
-} from '../api/client'
-import { Button } from '../ui/button'
+import { fetchFeatures, listEvents, type CurrentUser, type EventListItem } from '../api/client'
 import { cn } from '../ui/cn'
-import { fieldClass } from '../ui/field'
-import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '../repertoire/chrome'
+import {
+  GroupButton,
+  GroupEmptyState,
+  GroupErrorState,
+  GroupIconWell,
+  GroupLink,
+  GroupListSkeleton,
+  GroupPageHeader,
+  GroupPageSkeleton,
+  groupFieldClass,
+  useGroupDataSignal,
+} from '../groups/ui'
+import { CreateEventDialog } from '../groups/dialogs'
+import { ReadinessChip } from '../repertoire/chrome'
 import {
   canManageContentRole,
   mutationErrorMessage,
-  ProblemAlert,
   useGroupContext,
 } from '../repertoire/ui'
 import { useT } from '../i18n'
-import { ListSkeleton, PageSkeleton } from '../ui/skeleton'
 import { plural } from '../ui/plural'
-import { formatEventType, formatStartsAt, fromDatetimeLocalValue } from './datetime'
+import { formatEventType, formatStartsAt } from './datetime'
 
-const EVENT_TILES = [
-  { Icon: CalendarDays, tileClass: 'bg-primary/15 text-primary-ink' },
-  { Icon: Mic2, tileClass: 'bg-accent/20 text-accent' },
-  { Icon: Sparkles, tileClass: 'bg-success/20 text-ink' },
-  { Icon: Calendar, tileClass: 'bg-secondary text-ink' },
-] as const
+const EVENT_ICONS = [CalendarDays, Mic2, Sparkles, Calendar] as const
 
-function eventTile(index: number) {
-  return EVENT_TILES[index % EVENT_TILES.length]!
+function eventIcon(index: number) {
+  return EVENT_ICONS[index % EVENT_ICONS.length]!
 }
 
 export function EventListPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
-  const { group, error: groupError } = useGroupContext(groupId, user.id)
+  const { group, error: groupError, reload: reloadGroup } = useGroupContext(groupId, user.id)
   const { t } = useT()
+  const navigate = useNavigate()
   const [events, setEvents] = useState<EventListItem[] | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -105,56 +102,66 @@ export function EventListPage({ user }: { user: CurrentUser }) {
     }
   }, [groupId, group])
 
+  // Live refresh when events change elsewhere (creation dialog, other tab).
+  useGroupDataSignal('events', groupId, () => void reload())
+
   if (group === undefined) {
-    return <PageSkeleton label={t('agenda.loadingEvents')} />
+    return <GroupPageSkeleton label={t('agenda.loadingEvents')} />
   }
 
   if (group === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
+        <GroupErrorState message={groupError} onRetry={() => void reloadGroup()} />
+        <GroupLink variant="soft" to="/">
           {t('agenda.myGroups')}
-        </Link>
+        </GroupLink>
       </div>
     )
   }
 
-  const showHeaderAdd = isOwner && !showCreate && events !== null && events.length > 0
+  const showHeaderAdd = isOwner && events !== null && events.length > 0
   const searching = query.trim().length > 0
 
   return (
     <section className="space-y-6" aria-labelledby="events-heading">
-      <header data-testid="events-hero" className="space-y-3">
-        <PageBreadcrumb
-          items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('agenda.eventsTitle') }]}
-        />
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="min-w-0 space-y-1">
-            <h1 id="events-heading" className="text-3xl font-bold tracking-tight text-ink">
-              {t('agenda.eventsTitle')}
-            </h1>
-            <p className="max-w-lg text-sm text-muted">{t('agenda.eventsSubtitle')}</p>
-            {!isOwner ? <p className="text-sm text-muted">Solo lectura</p> : null}
-          </div>
-          {events !== null ? (
-            <div className="flex items-center gap-4">
-              <ReadinessChip testId="events-count" tone="neutral">
-                {plural(events.length, t('common.eventOne'), t('common.eventMany'))}
-              </ReadinessChip>
-              {calendarEnabled && groupId ? (
-                <a
-                  data-testid="events-calendar-feed"
-                  className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
-                  href={`/api/groups/${groupId}/calendar.ics`}
-                >
-                  {t('agenda.calendarFeed')}
-                </a>
+      <div data-testid="events-hero">
+        <GroupPageHeader
+          headingId="events-heading"
+          icon={CalendarDays}
+          title={t('agenda.eventsTitle')}
+          subtitle={t('agenda.eventsSubtitle')}
+          breadcrumb={[
+            { to: `/groups/${group.id}`, label: group.name },
+            { label: t('agenda.eventsTitle') },
+          ]}
+          actions={
+            <>
+              {events !== null ? (
+                <>
+                  <ReadinessChip testId="events-count" tone="neutral">
+                    {plural(events.length, t('common.eventOne'), t('common.eventMany'))}
+                  </ReadinessChip>
+                  {calendarEnabled && groupId ? (
+                    <a
+                      data-testid="events-calendar-feed"
+                      className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
+                      href={`/api/groups/${groupId}/calendar.ics`}
+                    >
+                      {t('agenda.calendarFeed')}
+                    </a>
+                  ) : null}
+                </>
               ) : null}
-            </div>
-          ) : null}
-        </div>
-      </header>
+              {showHeaderAdd ? (
+                <GroupButton onClick={() => setShowCreate(true)}>Nuevo evento</GroupButton>
+              ) : null}
+            </>
+          }
+        >
+          {!isOwner ? <p className="text-sm text-muted">Solo lectura</p> : null}
+        </GroupPageHeader>
+      </div>
 
       {events !== null && events.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
@@ -169,7 +176,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
             <input
               id="events-search"
               data-testid="events-search"
-              className={cn(fieldClass, 'min-h-11 pl-9')}
+              className={cn(groupFieldClass, 'pl-9')}
               type="search"
               placeholder={t('agenda.eventsSearchPlaceholder')}
               value={query}
@@ -177,7 +184,6 @@ export function EventListPage({ user }: { user: CurrentUser }) {
               aria-label={t('agenda.eventsSearchLabel')}
             />
           </div>
-          {showHeaderAdd ? <Button onClick={() => setShowCreate(true)}>Nuevo evento</Button> : null}
         </div>
       ) : null}
       {searching && filtered !== null ? (
@@ -186,37 +192,33 @@ export function EventListPage({ user }: { user: CurrentUser }) {
         </p>
       ) : null}
 
-      <ProblemAlert message={listError} />
+      <GroupErrorState message={listError} />
 
       {events === null ? (
-        <ListSkeleton rows={3} label={t('agenda.loadingEvents')} />
+        <GroupListSkeleton rows={3} label={t('agenda.loadingEvents')} />
       ) : events.length === 0 ? (
-        showCreate ? null : (
-          <EmptyPanel
-            title="Aún no hay eventos"
-            description={
-              isOwner
-                ? 'Crea un ensayo o concierto y aplica una lista para copiar el plan de canciones.'
-                : 'Cuando haya eventos, aparecerán aquí para prepararte.'
-            }
-            action={
-              isOwner ? (
-                <Button data-testid="events-empty-create" onClick={() => setShowCreate(true)}>
-                  Nuevo evento
-                </Button>
-              ) : (
-                <Link
-                  className="font-semibold text-primary-ink no-underline hover:underline"
-                  to={`/groups/${group.id}/library`}
-                >
-                  Ir a la biblioteca
-                </Link>
-              )
-            }
-          />
-        )
+        <GroupEmptyState
+          icon={CalendarDays}
+          title="Aún no hay eventos"
+          description={
+            isOwner
+              ? 'Crea un ensayo o concierto y aplica una lista para copiar el plan de canciones.'
+              : 'Cuando haya eventos, aparecerán aquí para prepararte.'
+          }
+          action={
+            isOwner ? (
+              <GroupButton data-testid="events-empty-create" onClick={() => setShowCreate(true)}>
+                Nuevo evento
+              </GroupButton>
+            ) : (
+              <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
+                Ir a la biblioteca
+              </GroupLink>
+            )
+          }
+        />
       ) : filtered && filtered.length === 0 ? (
-        <p className="text-sm text-muted">Ningún evento coincide con «{query.trim()}».</p>
+        <GroupEmptyState title={`Ningún evento coincide con «${query.trim()}».`} />
       ) : (
         <div className="space-y-1">
           <div
@@ -230,7 +232,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
           </div>
           <ul className="space-y-1 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
             {filtered!.map((musicalEvent, index) => {
-              const { Icon, tileClass } = eventTile(index)
+              const Icon = eventIcon(index)
               const cancelled = musicalEvent.status === 'cancelled'
               return (
                 <li
@@ -242,15 +244,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                     className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline shadow-sm transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
                     to={`/groups/${group.id}/events/${musicalEvent.id}`}
                   >
-                    <span
-                      className={cn(
-                        'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11',
-                        tileClass,
-                      )}
-                      aria-hidden="true"
-                    >
-                      <Icon className="h-5 w-5" />
-                    </span>
+                    <GroupIconWell icon={Icon} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold text-ink">
                         {musicalEvent.title}
@@ -275,106 +269,16 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       )}
 
       {isOwner && showCreate ? (
-        <EventCreateForm
+        <CreateEventDialog
           groupId={group.id}
-          onCancel={() => setShowCreate(false)}
-          onCreated={async () => {
+          onClose={() => setShowCreate(false)}
+          onCreated={(event) => {
             setShowCreate(false)
-            await reload()
+            void reload()
+            navigate(`/groups/${group.id}/events/${event.id}`)
           }}
         />
       ) : null}
     </section>
-  )
-}
-
-function EventCreateForm({
-  groupId,
-  onCreated,
-  onCancel,
-}: {
-  groupId: string
-  onCreated: () => Promise<void>
-  onCancel: () => void
-}) {
-  const [title, setTitle] = useState('')
-  const [type, setType] = useState<EventType>('rehearsal')
-  const [startsAt, setStartsAt] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
-  const navigate = useNavigate()
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    setPending(true)
-    setError(null)
-    if (!startsAt) {
-      setError('La fecha y hora de inicio son obligatorias.')
-      setPending(false)
-      return
-    }
-    try {
-      const created = await createEvent(groupId, {
-        title: title.trim(),
-        type,
-        startsAt: fromDatetimeLocalValue(startsAt),
-      })
-      await onCreated()
-      navigate(`/groups/${groupId}/events/${created.id}`)
-    } catch (err) {
-      setError(mutationErrorMessage(err))
-    } finally {
-      setPending(false)
-    }
-  }
-
-  return (
-    <form className="max-w-lg space-y-4 border-t border-border-subtle pt-6" onSubmit={onSubmit} noValidate>
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">Crear evento</h2>
-        <p className="text-sm text-muted">
-          Define los detalles de tu evento y luego aplica una lista.
-        </p>
-      </div>
-      <ProblemAlert message={error} />
-      <Field label="Título">
-        <input
-          className={fieldClass}
-          required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={200}
-        />
-      </Field>
-      <Field label="Tipo">
-        <select
-          className={fieldClass}
-          required
-          value={type}
-          onChange={(e) => setType(e.target.value as EventType)}
-        >
-          <option value="rehearsal">Ensayo</option>
-          <option value="performance">Concierto</option>
-          <option value="other">Otro</option>
-        </select>
-      </Field>
-      <Field label="Fecha y hora">
-        <input
-          className={fieldClass}
-          type="datetime-local"
-          required
-          value={startsAt}
-          onChange={(e) => setStartsAt(e.target.value)}
-        />
-      </Field>
-      <FormActions>
-        <Button type="submit" disabled={pending}>
-          {pending ? 'Creando…' : 'Crear evento'}
-        </Button>
-        <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          Cancelar
-        </Button>
-      </FormActions>
-    </form>
   )
 }

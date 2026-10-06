@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, CheckSquare, Library, ListMusic, Music2, UserPlus } from 'lucide-react'
 import {
   ApiError,
@@ -18,25 +18,37 @@ import {
   type SongListItem,
 } from '../api/client'
 import {
-  fieldClass,
   formatMembershipRole,
   isOwnerRole,
   mutationErrorMessage,
-  ProblemAlert,
 } from '../repertoire/ui'
-import { EmptyPanel } from '../repertoire/chrome'
-import { ListSkeleton, PageSkeleton } from '../ui/skeleton'
-import { Button, primaryButtonClass, secondaryButtonClass } from '../ui/button'
-import { cn } from '../ui/cn'
 import { useT } from '../i18n'
 
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
+import {
+  CreateEventDialog,
+  CreateResourceDialog,
+  CreateSetlistDialog,
+  CreateSongDialog,
+  CreateTaskDialog,
+} from './dialogs'
+import {
+  GroupButton,
+  GroupCard,
+  GroupEmptyState,
+  GroupErrorState,
+  GroupIconWell,
+  GroupInput,
+  GroupLink,
+  GroupListSkeleton,
+  GroupPageHeader,
+  GroupPageSkeleton,
+  GroupSection,
+  GroupStat,
+  useGroupDataSignal,
+} from './ui'
 
-const TILE_CLASS =
-  'flex min-w-0 items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none'
-
-const TILE_ICON_CLASS =
-  'grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink'
+type HomeDialog = 'song' | 'setlist' | 'event' | 'task' | 'resource'
 
 function pickUpcomingEvent(events: EventListItem[]): EventListItem | null {
   const now = Date.now()
@@ -83,6 +95,7 @@ function formatRsvpLabel(response: EventRsvpResponse | string | null): string {
 
 export function GroupHomePage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
+  const navigate = useNavigate()
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [events, setEvents] = useState<EventListItem[] | null>(null)
@@ -97,6 +110,8 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   const [inviteEmailWarning, setInviteEmailWarning] = useState(false)
   const [inviting, setInviting] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [dialog, setDialog] = useState<HomeDialog | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
   const { t } = useT()
 
   useEffect(() => {
@@ -162,7 +177,12 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
     return () => {
       cancelled = true
     }
-  }, [groupId, group])
+  }, [groupId, group, reloadKey])
+
+  // Refresh the dashboard when songs/setlists/events change here or in another tab.
+  useGroupDataSignal(['songs', 'setlists', 'events'], groupId, () => {
+    setReloadKey((key) => key + 1)
+  })
 
   const isOwner = isOwnerRole(group?.role)
 
@@ -200,6 +220,19 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
     }
   }, [groupId, nextEvent, user.id])
 
+  function refresh() {
+    setReloadKey((key) => key + 1)
+  }
+
+  function resetInvite() {
+    setInviteEmail('')
+    setInviteUrl(null)
+    setInviteError(null)
+    setInviteEmailWarning(false)
+    setCopied(false)
+    setInviting(false)
+  }
+
   async function onInviteMember() {
     if (!group) return
     setInviting(true)
@@ -230,195 +263,179 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <PageSkeleton label={t('inicio.loading')} />
+    return <GroupPageSkeleton label={t('inicio.loading')} />
   }
 
   if (group === null) {
     return (
       <div className="space-y-3">
-        <p role="alert" className="text-error-ink">
-          {error}
-        </p>
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
+        <GroupErrorState message={error} />
+        <GroupLink variant="soft" to="/">
           {t('inicio.myGroups')}
-        </Link>
+        </GroupLink>
       </div>
     )
   }
 
   return (
     <section className="space-y-8" aria-label={group.name}>
-      <div className="space-y-2">
-        <h1 className="sr-only">{group.name}</h1>
-        <p className="text-sm text-muted">{t('inicio.summary')}</p>
+      <GroupPageHeader
+        headingId="home-heading"
+        icon={Music2}
+        title={group.name}
+        subtitle={t('inicio.summary')}
+      >
         <p className="text-sm text-muted">
-          {t('inicio.rolePrefix')}<strong>{formatMembershipRole(group.role)}</strong>.
+          {t('inicio.rolePrefix')}
+          <strong>{formatMembershipRole(group.role)}</strong>.
         </p>
-      </div>
+      </GroupPageHeader>
 
-      <ProblemAlert message={composeError} />
+      <GroupErrorState message={composeError} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Link to={`/groups/${group.id}/library`} data-testid="home-stat-songs" className={TILE_CLASS}>
-          <span className={TILE_ICON_CLASS} aria-hidden="true">
-            <Music2 className="h-5 w-5" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-ink">{t('inicio.tileSongs')}</span>
-            <span className="block truncate text-xs text-muted">{t('inicio.tileSongsDesc')}</span>
-          </span>
-        </Link>
-        <Link to={`/groups/${group.id}/events`} data-testid="home-stat-events" className={TILE_CLASS}>
-          <span className={TILE_ICON_CLASS} aria-hidden="true">
-            <CalendarDays className="h-5 w-5" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-ink">{t('inicio.tileCalendar')}</span>
-            <span className="block truncate text-xs text-muted">{t('inicio.tileCalendarDesc')}</span>
-          </span>
-        </Link>
-        <Link to={`/groups/${group.id}/recursos`} className={TILE_CLASS}>
-          <span className={TILE_ICON_CLASS} aria-hidden="true">
-            <Library className="h-5 w-5" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-ink">{t('inicio.tileResources')}</span>
-            <span className="block truncate text-xs text-muted">{t('inicio.tileResourcesDesc')}</span>
-          </span>
-        </Link>
-        <Link to={`/groups/${group.id}/tasks`} className={TILE_CLASS}>
-          <span className={TILE_ICON_CLASS} aria-hidden="true">
-            <CheckSquare className="h-5 w-5" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-ink">{t('inicio.tileTasks')}</span>
-            <span className="block truncate text-xs text-muted">{t('inicio.tileTasksDesc')}</span>
-          </span>
-        </Link>
+        <GroupStat
+          icon={Music2}
+          label={t('inicio.tileSongs')}
+          description={t('inicio.tileSongsDesc')}
+          to={`/groups/${group.id}/library`}
+          testId="home-stat-songs"
+        />
+        <GroupStat
+          icon={CalendarDays}
+          label={t('inicio.tileCalendar')}
+          description={t('inicio.tileCalendarDesc')}
+          to={`/groups/${group.id}/events`}
+          testId="home-stat-events"
+        />
+        <GroupStat
+          icon={Library}
+          label={t('inicio.tileResources')}
+          description={t('inicio.tileResourcesDesc')}
+          to={`/groups/${group.id}/recursos`}
+        />
+        <GroupStat
+          icon={CheckSquare}
+          label={t('inicio.tileTasks')}
+          description={t('inicio.tileTasksDesc')}
+          to={`/groups/${group.id}/tasks`}
+        />
       </div>
 
       {/* Quick actions */}
-      <section className="space-y-3" aria-labelledby="quick-actions-heading">
-        <h3 id="quick-actions-heading" className="font-semibold">
-          {t('inicio.quickActions')}
-        </h3>
+      <GroupSection title={t('inicio.quickActions')} headingId="quick-actions-heading">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <Link
-            to={`/groups/${group.id}/library?new=1`}
-            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          <GroupButton
+            variant="secondary"
+            className="justify-start"
+            onClick={() => setDialog('song')}
           >
             <Music2 className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
             {t('inicio.quickAddSong')}
-          </Link>
-          <Link
-            to={`/groups/${group.id}/setlists?new=1`}
-            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          </GroupButton>
+          <GroupButton
+            variant="secondary"
+            className="justify-start"
+            onClick={() => setDialog('setlist')}
           >
             <ListMusic className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
             {t('inicio.quickCreateList')}
-          </Link>
-          <Link
-            to={`/groups/${group.id}/events?new=1`}
-            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          </GroupButton>
+          <GroupButton
+            variant="secondary"
+            className="justify-start"
+            onClick={() => setDialog('event')}
           >
             <CalendarDays className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
             {t('inicio.quickCreateEvent')}
-          </Link>
-          <Link
-            to={`/groups/${group.id}/tasks?new=1`}
-            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          </GroupButton>
+          <GroupButton
+            variant="secondary"
+            className="justify-start"
+            onClick={() => setDialog('task')}
           >
             <CheckSquare className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
             {t('inicio.quickCreateTask')}
-          </Link>
-          <Link
-            to={`/groups/${group.id}/recursos?new=1`}
-            className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          </GroupButton>
+          <GroupButton
+            variant="secondary"
+            className="justify-start"
+            onClick={() => setDialog('resource')}
           >
             <Library className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
             {t('inicio.quickAddResource')}
-          </Link>
+          </GroupButton>
           {isOwner ? (
-            <button
-              type="button"
-              onClick={() => {
-                setInviteEmail('')
-                setInviteUrl(null)
-                setInviteError(null)
-                setInviteEmailWarning(false)
-                setCopied(false)
-                setInviting(false)
-              }}
-              className="flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm font-medium text-ink transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+            <GroupButton
+              variant="secondary"
+              className="justify-start"
+              onClick={resetInvite}
             >
               <UserPlus className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
               {t('inicio.quickInviteMember')}
-            </button>
+            </GroupButton>
           ) : null}
         </div>
-      </section>
+      </GroupSection>
 
       {isOwner && setlists?.length === 0 && events?.length === 0 && songCount === 0 ? (
-        <section
-          className="rounded-2xl border border-primary/25 bg-primary/5 p-5"
-          aria-labelledby="home-start-heading"
+        <GroupCard
+          tone="accent"
           data-testid="home-get-started"
+          aria-labelledby="home-start-heading"
+          className="space-y-2"
         >
-          <h3 id="home-start-heading" className="font-semibold text-ink">
+          <h3 id="home-start-heading" className="font-display text-lg font-semibold text-ink">
             {t('inicio.getStartedTitle')}
           </h3>
-          <p className="mt-1 text-sm text-muted">{t('inicio.getStartedIntro')}</p>
-          <ol className="mt-3 space-y-1.5">
+          <p className="text-sm text-muted">{t('inicio.getStartedIntro')}</p>
+          <ol className="space-y-1.5">
             <li>
-              <Link
+              <GroupLink
+                variant="ghost"
+                className="justify-start"
                 to={`/groups/${group.id}/library`}
-                className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline"
               >
                 <Music2 className="h-4 w-4" aria-hidden="true" />
                 {t('inicio.getStartedSongs')}
-              </Link>
+              </GroupLink>
             </li>
             <li>
-              <Link
+              <GroupLink
+                variant="ghost"
+                className="justify-start"
                 to={`/groups/${group.id}/setlists`}
-                className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline"
               >
                 <ListMusic className="h-4 w-4" aria-hidden="true" />
                 {t('inicio.getStartedSetlists')}
-              </Link>
+              </GroupLink>
             </li>
             <li>
-              <Link
+              <GroupLink
+                variant="ghost"
+                className="justify-start"
                 to={`/groups/${group.id}/events`}
-                className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline"
               >
                 <CalendarDays className="h-4 w-4" aria-hidden="true" />
                 {t('inicio.getStartedEvents')}
-              </Link>
+              </GroupLink>
             </li>
           </ol>
-        </section>
+        </GroupCard>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="space-y-3" aria-labelledby="next-event-heading">
-          <h3 id="next-event-heading" className="font-semibold">
-            {t('inicio.nextEvent')}
-          </h3>
+        <GroupSection title={t('inicio.nextEvent')} headingId="next-event-heading">
           {events === null ? (
-            <ListSkeleton rows={2} label={t('inicio.loadingEvents')} />
+            <GroupListSkeleton rows={2} label={t('inicio.loadingEvents')} />
           ) : nextEvent ? (
-            <div
-              className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-3"
+            <GroupCard
+              padding="sm"
+              className="space-y-3"
               data-testid="home-next-event"
             >
               <div className="flex flex-wrap items-center gap-3">
-                <span
-                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-ink"
-                  aria-hidden="true"
-                >
-                  <CalendarDays className="h-6 w-6" />
-                </span>
+                <GroupIconWell icon={CalendarDays} size="lg" />
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <p className="truncate font-semibold text-ink">{nextEvent.title}</p>
                   <p className="text-sm text-muted">{formatStartsAt(nextEvent.startsAt)}</p>
@@ -427,157 +444,134 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               </div>
               <p className="text-sm text-muted" data-testid="home-next-event-rsvp">
                 {t('inicio.myRsvp')}{' '}
-                <strong>
-                  {myRsvp === undefined ? '…' : formatRsvpLabel(myRsvp)}
-                </strong>
+                <strong>{myRsvp === undefined ? '…' : formatRsvpLabel(myRsvp)}</strong>
               </p>
               <div className="flex flex-wrap gap-2">
-                <Link
-                  className={cn(primaryButtonClass, 'min-h-11 no-underline')}
+                <GroupLink
+                  variant="primary"
                   to={`/groups/${group.id}/events/${nextEvent.id}`}
                   data-testid="home-next-event-plan"
                 >
                   {t('inicio.viewPlan')}
-                </Link>
-                <Link
-                  className={cn(secondaryButtonClass, 'min-h-11 no-underline')}
+                </GroupLink>
+                <GroupLink
+                  variant="secondary"
                   to={`/groups/${group.id}/events/${nextEvent.id}`}
                 >
                   {t('inicio.confirmRsvp')}
-                </Link>
+                </GroupLink>
               </div>
-            </div>
+            </GroupCard>
           ) : (
-            <EmptyPanel
+            <GroupEmptyState
+              icon={CalendarDays}
               title={t('inicio.noEventsTitle')}
-              description={
-                isOwner ? t('inicio.noEventsOwner') : t('inicio.noEventsMember')
-              }
+              description={isOwner ? t('inicio.noEventsOwner') : t('inicio.noEventsMember')}
               action={
-                <Link
-                  className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline"
+                <GroupLink
+                  variant="soft"
                   to={`/groups/${group.id}/events`}
                   data-testid="home-empty-events"
                 >
                   {t('inicio.goEvents')}
-                </Link>
+                </GroupLink>
               }
             />
           )}
-        </section>
+        </GroupSection>
 
-        <section className="space-y-3" aria-labelledby="recent-songs-heading">
-          <div className="flex items-center justify-between gap-3">
-            <h3 id="recent-songs-heading" className="font-semibold">
-              {t('inicio.recentSongs')}
-            </h3>
-            <Link
-              className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-ink no-underline hover:underline"
-              to={`/groups/${group.id}/library`}
-            >
+        <GroupSection
+          title={t('inicio.recentSongs')}
+          headingId="recent-songs-heading"
+          action={
+            <GroupLink variant="ghost" size="sm" to={`/groups/${group.id}/library`}>
               {t('inicio.viewAll')}
-            </Link>
-          </div>
+            </GroupLink>
+          }
+        >
           {latestSongs === null ? (
-            <ListSkeleton rows={2} label={t('inicio.loadingSongs')} />
+            <GroupListSkeleton rows={2} label={t('inicio.loadingSongs')} />
           ) : latestSongs.length === 0 ? (
-            <EmptyPanel
+            <GroupEmptyState
+              icon={Music2}
               title={t('inicio.noSongsTitle')}
               description={isOwner ? t('inicio.noSongsOwner') : t('inicio.noSongsMember')}
               action={
-                <Link
-                  className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline"
-                  to={`/groups/${group.id}/library`}
-                >
+                <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
                   {t('inicio.goSongs')}
-                </Link>
+                </GroupLink>
               }
             />
           ) : (
             <ul className="space-y-1.5">
               {latestSongs.map((song, index) => (
                 <li key={song.id}>
-                  <Link
-                    className="flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline transition duration-150 hover:border-primary/25 hover:bg-surface-hover"
+                  <GroupLink
+                    variant="secondary"
+                    block
+                    className="h-auto min-h-11 justify-start gap-3 px-3 py-2.5"
                     to={`/groups/${group.id}/songs/${song.id}`}
                     style={{ animationDelay: `${Math.min(index, 4) * 40}ms` }}
                   >
-                    <span
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success/20 text-ink"
-                      aria-hidden="true"
-                    >
-                      <Music2 className="h-5 w-5" />
-                    </span>
-                    <span className="min-w-0 flex-1">
+                    <GroupIconWell icon={Music2} tone="success" />
+                    <span className="min-w-0 flex-1 text-left">
                       <span className="block truncate font-semibold text-ink">{song.title}</span>
                       <span className="mt-0.5 block truncate text-sm text-muted">
                         {song.attribution ? `${song.attribution} · ` : ''}
                         {formatRelativeUpdated(song.updatedAt)}
                       </span>
                     </span>
-                  </Link>
+                  </GroupLink>
                 </li>
               ))}
             </ul>
           )}
-        </section>
+        </GroupSection>
       </div>
 
-      <div
-        className="overflow-hidden rounded-2xl px-5 py-6 text-white"
+      <GroupCard
+        padding="none"
+        className="overflow-hidden border-0 px-5 py-6 text-white"
         style={{ backgroundImage: 'linear-gradient(135deg, var(--brand-primary, #8366f1), #2b1a5e)' }}
       >
         <p className="max-w-xl text-lg font-semibold leading-snug">{t('inicio.promoTitle')}</p>
         <p className="mt-1 text-sm text-white/80">— {group.name}</p>
-      </div>
+      </GroupCard>
 
       {isOwner ? (
-        <section className="space-y-6 border-t border-border-subtle pt-6" aria-labelledby="admin-heading">
-          <h2 id="admin-heading" className="text-lg font-semibold">
-            {t('inicio.admin')}
-          </h2>
-
-          <div className="space-y-3">
+        <GroupSection
+          title={t('inicio.admin')}
+          headingId="admin-heading"
+          className="border-t border-border-subtle pt-6"
+        >
+          <GroupCard className="max-w-xl space-y-3">
             <h3 className="font-medium">{t('inicio.inviteTitle')}</h3>
-            <label className="block max-w-md space-y-1.5">
-              <span className="text-sm font-medium text-ink">
-                {t('inicio.inviteEmail')}
-              </span>
-              <input
-                className={fieldClass}
-                type="email"
-                autoComplete="off"
-                aria-label={t('inicio.inviteEmail')}
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </label>
-            <Button disabled={inviting} onClick={() => void onInviteMember()}>
+            <GroupInput
+              label={t('inicio.inviteEmail')}
+              type="email"
+              autoComplete="off"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+            />
+            <GroupButton disabled={inviting} onClick={() => void onInviteMember()}>
               {inviting ? t('inicio.working') : t('inicio.invite')}
-            </Button>
-            <ProblemAlert message={inviteError} />
+            </GroupButton>
+            <GroupErrorState message={inviteError} />
             {inviteEmailWarning ? (
-              <p
-                role="status"
-                className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-ink"
-              >
+              <GroupCard tone="muted" padding="sm" role="status" className="text-sm text-ink">
                 {t('inicio.inviteMailWarning')}
-              </p>
+              </GroupCard>
             ) : null}
             {inviteUrl ? (
-              <div className="max-w-md space-y-2">
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-ink">{t('inicio.inviteLinkLabel')}</span>
-                  <input
-                    className={fieldClass}
-                    readOnly
-                    aria-label={t('inicio.inviteLinkLabel')}
-                    value={inviteUrl}
-                  />
-                </label>
-                <Button variant="secondary" onClick={() => void onCopyInviteLink()}>
+              <div className="space-y-2">
+                <GroupInput
+                  label={t('inicio.inviteLinkLabel')}
+                  readOnly
+                  value={inviteUrl}
+                />
+                <GroupButton variant="secondary" onClick={() => void onCopyInviteLink()}>
                   {t('inicio.copyLink')}
-                </Button>
+                </GroupButton>
                 {copied ? (
                   <p aria-live="polite" className="text-sm text-muted">
                     {t('inicio.copied')}
@@ -585,8 +579,65 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                 ) : null}
               </div>
             ) : null}
-          </div>
-        </section>
+          </GroupCard>
+        </GroupSection>
+      ) : null}
+
+      {dialog === 'song' ? (
+        <CreateSongDialog
+          groupId={group.id}
+          onClose={() => setDialog(null)}
+          onCreated={() => {
+            setDialog(null)
+            refresh()
+          }}
+        />
+      ) : null}
+
+      {dialog === 'setlist' ? (
+        <CreateSetlistDialog
+          groupId={group.id}
+          onClose={() => setDialog(null)}
+          onCreated={(setlist) => {
+            setDialog(null)
+            refresh()
+            navigate(`/groups/${group.id}/setlists/${setlist.id}`)
+          }}
+        />
+      ) : null}
+
+      {dialog === 'event' ? (
+        <CreateEventDialog
+          groupId={group.id}
+          onClose={() => setDialog(null)}
+          onCreated={(event) => {
+            setDialog(null)
+            refresh()
+            navigate(`/groups/${group.id}/events/${event.id}`)
+          }}
+        />
+      ) : null}
+
+      {dialog === 'task' ? (
+        <CreateTaskDialog
+          groupId={group.id}
+          onClose={() => setDialog(null)}
+          onSaved={() => {
+            setDialog(null)
+            refresh()
+          }}
+        />
+      ) : null}
+
+      {dialog === 'resource' ? (
+        <CreateResourceDialog
+          groupId={group.id}
+          onClose={() => setDialog(null)}
+          onUploaded={() => {
+            setDialog(null)
+            refresh()
+          }}
+        />
       ) : null}
     </section>
   )

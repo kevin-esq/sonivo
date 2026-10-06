@@ -86,11 +86,46 @@ export async function openLibrary(page: Page) {
   await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
 }
 
+/**
+ * Drives a group-scoped custom `GroupSelect` (ADR-0074): it renders an ARIA
+ * combobox trigger + a listbox, not a native `<select>`, so `selectOption` no
+ * longer applies. Opens the combobox by its label and clicks the option.
+ */
+export async function chooseGroupOption(page: Page, label: string, optionName: string) {
+  await page.getByRole('combobox', { name: label }).click()
+  await page.getByRole('option', { name: optionName, exact: true }).click()
+}
+
+/**
+ * Opens a group create dialog and fills one field, retrying the whole
+ * open+fill as a unit. React's route transitions can occasionally replace the
+ * dialog right as the field is focused, detaching it; retrying absorbs that
+ * without weakening the assertion (the value must stick).
+ */
+async function openCreateDialogAndFill(
+  page: Page,
+  opts: { trigger: string; heading: string; label: string; value: string },
+) {
+  await expect(async () => {
+    const heading = page.getByRole('heading', { name: opts.heading })
+    if (!(await heading.isVisible().catch(() => false))) {
+      await page.getByRole('button', { name: opts.trigger }).first().click()
+    }
+    await expect(heading).toBeVisible({ timeout: 2000 })
+    const field = page.getByLabel(opts.label)
+    await field.fill(opts.value, { timeout: 3000 })
+    await expect(field).toHaveValue(opts.value, { timeout: 2000 })
+  }).toPass({ timeout: 30000 })
+}
+
 export async function createSong(page: Page, title: string) {
-  await page.getByRole('button', { name: 'Agregar canción' }).click()
-  await expect(page.getByRole('heading', { name: 'Crear canción' })).toBeVisible()
-  await page.getByLabel('Título').fill(title)
-  await page.getByLabel('Origen').selectOption('original')
+  await openCreateDialogAndFill(page, {
+    trigger: 'Agregar canción',
+    heading: 'Crear canción',
+    label: 'Título',
+    value: title,
+  })
+  await chooseGroupOption(page, 'Origen', 'Propia')
   await page.getByRole('button', { name: 'Crear canción' }).click()
   await expect(page.getByRole('link', { name: title })).toBeVisible()
 }
@@ -178,9 +213,12 @@ export async function openSetlists(page: Page) {
 }
 
 export async function createSetlist(page: Page, name: string) {
-  await page.getByRole('button', { name: 'Nueva lista' }).click()
-  await expect(page.getByRole('heading', { name: 'Crear lista' })).toBeVisible()
-  await page.getByLabel('Nombre').fill(name)
+  await openCreateDialogAndFill(page, {
+    trigger: 'Nueva lista',
+    heading: 'Crear lista',
+    label: 'Nombre',
+    value: name,
+  })
   await page.getByRole('button', { name: 'Crear lista' }).click()
   await expect(page.getByRole('heading', { name })).toBeVisible()
 }
@@ -223,10 +261,16 @@ export async function createEvent(
   page: Page,
   input: { title: string; type?: 'rehearsal' | 'performance' | 'other'; startsAt: string },
 ) {
-  await page.getByRole('button', { name: 'Nuevo evento' }).click()
-  await expect(page.getByRole('heading', { name: 'Crear evento' })).toBeVisible()
-  await page.getByLabel('Título').fill(input.title)
-  await page.getByLabel('Tipo').selectOption(input.type ?? 'rehearsal')
+  const typeOption = { rehearsal: 'Ensayo', performance: 'Concierto', other: 'Otro' }[
+    input.type ?? 'rehearsal'
+  ]
+  await openCreateDialogAndFill(page, {
+    trigger: 'Nuevo evento',
+    heading: 'Crear evento',
+    label: 'Título',
+    value: input.title,
+  })
+  await chooseGroupOption(page, 'Tipo', typeOption)
   await page.getByLabel('Fecha y hora').fill(input.startsAt)
   await page.getByRole('button', { name: 'Crear evento' }).click()
   await expect(page.getByRole('heading', { name: input.title })).toBeVisible()

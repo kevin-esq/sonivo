@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { UserRound, Users } from 'lucide-react'
 import {
   changeMemberRole,
@@ -13,20 +13,30 @@ import {
   type MemberListItem,
   type OutstandingInvitation,
 } from '../api/client'
-import { EmptyPanel, PageBreadcrumb } from '../repertoire/chrome'
 import { useT, type I18nKey, type TParams } from '../i18n'
 import {
   canManageContentRole,
   isOwnerRole,
   formatMembershipRole,
   mutationErrorMessage,
-  ProblemAlert,
   useGroupContext,
 } from '../repertoire/ui'
-import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
-import { fieldClass } from '../ui/field'
-import { ListSkeleton, PageSkeleton } from '../ui/skeleton'
+import {
+  GroupButton,
+  GroupCard,
+  GroupEmptyState,
+  GroupErrorState,
+  GroupIconWell,
+  GroupInput,
+  GroupLink,
+  GroupListSkeleton,
+  GroupPageHeader,
+  GroupPageSkeleton,
+  GroupSection,
+  GroupSelect,
+  useGroupDataSignal,
+} from '../groups/ui'
 
 function formatRole(role: string): string {
   return formatMembershipRole(role)
@@ -89,6 +99,9 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
       setListError(mutationErrorMessage(err))
     }
   }
+
+  // Live refresh when members change elsewhere (invite, role change, leave).
+  useGroupDataSignal('members', groupId, reloadMembers)
 
   useEffect(() => {
     if (!groupId || !group) return
@@ -204,16 +217,16 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
   }
 
   if (group === undefined) {
-    return <PageSkeleton label={t('gente.loading')} />
+    return <GroupPageSkeleton label={t('gente.loading')} />
   }
 
   if (group === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
+        <GroupErrorState message={groupError} />
+        <GroupLink variant="secondary" to="/">
           {t('gente.myGroups')}
-        </Link>
+        </GroupLink>
       </div>
     )
   }
@@ -232,16 +245,13 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
 
   return (
     <section className="space-y-6" aria-labelledby="people-heading">
-      <div className="space-y-2">
-        <PageBreadcrumb
-          items={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('gente.title') }]}
-        />
-        <h1 id="people-heading" className="text-2xl font-bold tracking-tight">
-          {t('gente.title')}
-        </h1>
-        <p className="text-sm text-muted">
-          {t('gente.subtitle')}
-        </p>
+      <GroupPageHeader
+        headingId="people-heading"
+        icon={Users}
+        title={t('gente.title')}
+        subtitle={t('gente.subtitle')}
+        breadcrumb={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('gente.title') }]}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('gente.title')}>
             {([
@@ -271,7 +281,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
             <label className="sr-only" htmlFor="people-search">
               {t('gente.searchLabel')}
             </label>
-            <input
+            <GroupInput
               id="people-search"
               type="search"
               data-testid="people-search"
@@ -279,21 +289,22 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
               placeholder={t('gente.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={cn(fieldClass, 'min-h-11')}
+              className="min-h-11"
               maxLength={200}
             />
           </div>
         </div>
-      </div>
+      </GroupPageHeader>
 
-      <ProblemAlert message={listError} />
-      <ProblemAlert message={actionError} />
-      <ProblemAlert message={inviteError} />
+      <GroupErrorState message={listError} />
+      <GroupErrorState message={actionError} />
+      <GroupErrorState message={inviteError} />
 
       {members === null ? (
-        <ListSkeleton rows={3} label={t('gente.loading')} />
+        <GroupListSkeleton rows={3} label={t('gente.loading')} />
       ) : visibleMembers.length === 0 ? (
-        <EmptyPanel
+        <GroupEmptyState
+          icon={Users}
           title={t('gente.emptyTitle')}
           description={t('gente.emptyBody')}
         />
@@ -305,103 +316,92 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
             return (
               <li
                 key={member.userId}
-                className="library-enter space-y-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3"
+                className="library-enter"
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-                      member.role === 'Owner'
-                        ? 'bg-primary/15 text-primary-ink'
-                        : 'bg-surface-hover text-muted',
-                    )}
-                    aria-hidden="true"
-                  >
-                    {member.role === 'Owner' ? (
-                      <Users className="h-5 w-5" />
-                    ) : (
-                      <UserRound className="h-5 w-5" />
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-ink">
-                      {member.displayName}
-                      {isSelf ? (
-                        <span className="ml-2 text-sm font-normal text-muted">{t('gente.you')}</span>
+                <GroupCard className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <GroupIconWell
+                      icon={member.role === 'Owner' ? Users : UserRound}
+                      tone={member.role === 'Owner' ? 'accent' : 'neutral'}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-ink">
+                        {member.displayName}
+                        {isSelf ? (
+                          <span className="ml-2 text-sm font-normal text-muted">{t('gente.you')}</span>
+                        ) : null}
+                      </p>
+                      <p className="text-sm text-muted">
+                        {formatRole(member.role)}
+                        {member.musicalRole ? ` · ${member.musicalRole}` : ''}
+                      </p>
+                      {member.email ? (
+                        <p className="truncate text-sm text-muted">{member.email}</p>
                       ) : null}
-                    </p>
-                    <p className="text-sm text-muted">
-                      {formatRole(member.role)}
-                      {member.musicalRole ? ` · ${member.musicalRole}` : ''}
-                    </p>
-                    {member.email ? (
-                      <p className="truncate text-sm text-muted">{member.email}</p>
-                    ) : null}
-                    <p className="text-xs text-muted">
-                      {presenceLabel(member.lastSeenAt, t, Date.now())}
-                    </p>
+                      <p className="text-xs text-muted">
+                        {presenceLabel(member.lastSeenAt, t, Date.now())}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                {isOwner || canManage ? (
-                  <div className="flex flex-wrap items-end gap-3 border-t border-border-subtle pt-3">
-                    {isOwner ? (
-                      <label className="block space-y-1.5">
-                        <span className="text-sm font-medium text-ink">{t('gente.roleLabel')}</span>
-                        <select
-                          className={fieldClass}
-                          aria-label={`${t('gente.roleOfPrefix')}${member.displayName}`}
-                          value={member.role}
+                  {isOwner || canManage ? (
+                    <div className="flex flex-wrap items-end gap-3 border-t border-border-subtle pt-3">
+                      {isOwner ? (
+                        <div className="min-w-48 flex-1">
+                          <GroupSelect
+                            label={t('gente.roleLabel')}
+                            aria-label={`${t('gente.roleOfPrefix')}${member.displayName}`}
+                            value={member.role}
+                            disabled={busy}
+                            onChange={(next) => {
+                              if (
+                                next === 'Owner' ||
+                                next === 'Manager' ||
+                                next === 'Member' ||
+                                next === 'Viewer'
+                              ) {
+                                void onChangeRole(member.userId, next)
+                              }
+                            }}
+                            options={[
+                              { value: 'Owner', label: t('gente.roleOwner') },
+                              { value: 'Manager', label: t('gente.roleManager') },
+                              { value: 'Member', label: t('gente.roleMember') },
+                              { value: 'Viewer', label: t('gente.roleViewer') },
+                            ]}
+                          />
+                        </div>
+                      ) : null}
+                      <div className="min-w-48 flex-1">
+                        <GroupInput
+                          label={t('gente.musicalRoleLabel')}
+                          type="text"
+                          maxLength={64}
+                          defaultValue={member.musicalRole ?? ''}
+                          placeholder={t('gente.musicalRolePlaceholder')}
+                          aria-label={`${t('gente.musicalRoleOfPrefix')}${member.displayName}`}
                           disabled={busy}
-                          onChange={(event) => {
+                          onBlur={(event) => {
                             const next = event.target.value
-                            if (
-                              next === 'Owner' ||
-                              next === 'Manager' ||
-                              next === 'Member' ||
-                              next === 'Viewer'
-                            ) {
-                              void onChangeRole(member.userId, next)
+                            if ((member.musicalRole ?? '') !== next) {
+                              void onSetMusicalRole(member.userId, next)
                             }
                           }}
+                        />
+                      </div>
+                      {isOwner && !isSelf ? (
+                        <GroupButton
+                          variant="danger"
+                          disabled={busy}
+                          aria-label={`${t('gente.removePrefix')}${member.displayName}`}
+                          onClick={() => void onRemove(member.userId)}
                         >
-                          <option value="Owner">{t('gente.roleOwner')}</option>
-                          <option value="Manager">{t('gente.roleManager')}</option>
-                          <option value="Member">{t('gente.roleMember')}</option>
-                          <option value="Viewer">{t('gente.roleViewer')}</option>
-                        </select>
-                      </label>
-                    ) : null}
-                    <label className="block space-y-1.5">
-                      <span className="text-sm font-medium text-ink">{t('gente.musicalRoleLabel')}</span>
-                      <input
-                        className={fieldClass}
-                        type="text"
-                        maxLength={64}
-                        defaultValue={member.musicalRole ?? ''}
-                        placeholder={t('gente.musicalRolePlaceholder')}
-                        aria-label={`${t('gente.musicalRoleOfPrefix')}${member.displayName}`}
-                        disabled={busy}
-                        onBlur={(event) => {
-                          const next = event.target.value
-                          if ((member.musicalRole ?? '') !== next) {
-                            void onSetMusicalRole(member.userId, next)
-                          }
-                        }}
-                      />
-                    </label>
-                    {isOwner && !isSelf ? (
-                      <Button
-                        variant="danger"
-                        disabled={busy}
-                        aria-label={`${t('gente.removePrefix')}${member.displayName}`}
-                        onClick={() => void onRemove(member.userId)}
-                      >
-                        {t('gente.remove')}
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : null}
+                          {t('gente.remove')}
+                        </GroupButton>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </GroupCard>
               </li>
             )
           })}
@@ -409,44 +409,40 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
       )}
 
       {isOwner ? (
-        <section className="space-y-3" aria-labelledby="invites-heading">
-          <h2 id="invites-heading" className="text-lg font-semibold">
-            {t('gente.invitesTitle')}
-          </h2>
+        <GroupSection title={t('gente.invitesTitle')} headingId="invites-heading">
           {invites === null ? (
-            <ListSkeleton rows={2} label={t('gente.loadingInvites')} />
+            <GroupListSkeleton rows={2} label={t('gente.loadingInvites')} />
           ) : invites.length === 0 ? (
-            <p className="text-sm text-muted">{t('gente.noInvites')}</p>
+            <GroupEmptyState title={t('gente.noInvites')} />
           ) : (
             <ul className="space-y-2">
               {invites.map((invite) => (
-                <li
-                  key={invite.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3"
-                >
-                  <p className="text-sm text-muted">
-                    {t('gente.expiresPrefix')}{new Date(invite.expiresAt).toLocaleString('es')}
-                  </p>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    disabled={revokingId === invite.id}
-                    aria-label={`${t('gente.revokePrefix')}${invite.expiresAt}`}
-                    onClick={() => void onRevoke(invite.id)}
-                  >
-                    {t('gente.revoke')}
-                  </Button>
+                <li key={invite.id}>
+                  <GroupCard className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-muted">
+                      {t('gente.expiresPrefix')}{new Date(invite.expiresAt).toLocaleString('es')}
+                    </p>
+                    <GroupButton
+                      variant="danger"
+                      size="sm"
+                      disabled={revokingId === invite.id}
+                      aria-label={`${t('gente.revokePrefix')}${invite.expiresAt}`}
+                      onClick={() => void onRevoke(invite.id)}
+                    >
+                      {t('gente.revoke')}
+                    </GroupButton>
+                  </GroupCard>
                 </li>
               ))}
             </ul>
           )}
-        </section>
+        </GroupSection>
       ) : null}
 
       {isOwner ? null : (
-        <Button variant="secondary" disabled={leaving} onClick={() => void onLeave()}>
+        <GroupButton variant="secondary" disabled={leaving} onClick={() => void onLeave()}>
           {leaving ? t('gente.leaving') : t('gente.leave')}
-        </Button>
+        </GroupButton>
       )}
     </section>
   )

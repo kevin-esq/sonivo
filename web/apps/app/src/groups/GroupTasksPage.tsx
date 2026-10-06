@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import type { FormEvent, ReactNode, KeyboardEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import type { ReactNode, KeyboardEvent } from 'react'
+import { useParams } from 'react-router-dom'
 import {
   CalendarClock,
   CheckCircle2,
@@ -16,7 +16,6 @@ import {
   X,
 } from 'lucide-react'
 import {
-  createTask,
   deleteTask,
   getGroup,
   listMembers,
@@ -28,7 +27,6 @@ import {
   type TaskItem,
 } from '../api/client'
 import { useT, type I18nKey, type TParams } from '../i18n'
-import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
 import { canManageContentRole, mutationErrorMessage, ProblemAlert } from '../repertoire/ui'
@@ -36,6 +34,18 @@ import { useAction } from '../hooks/useAction'
 import { useResource } from '../hooks/useResource'
 import { useAuth } from '../shell/authContext'
 import { ConfirmDialog } from '../ui/confirm-dialog'
+import { CreateTaskDialog } from './dialogs'
+import {
+  GroupButton,
+  GroupChip,
+  GroupEmptyState,
+  GroupErrorState,
+  GroupLink,
+  GroupListSkeleton,
+  GroupPageHeader,
+  GroupPageSkeleton,
+  useGroupDataSignal,
+} from './ui'
 import {
   DndContext,
   DragOverlay,
@@ -142,7 +152,6 @@ export function GroupTasksPage() {
   const { groupId } = useParams()
   const { t, lang } = useT()
   const { user } = useAuth()
-  const navigate = useNavigate()
   const [group, setGroup] = useState<Awaited<ReturnType<typeof getGroup>> | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<TaskFilter>('all')
@@ -211,6 +220,9 @@ export function GroupTasksPage() {
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
 
+  // Live refresh when tasks change elsewhere (creation dialogs, inline edits).
+  useGroupDataSignal('tasks', groupId, reload)
+
   const [confirmDelete, setConfirmDelete] = useState<TaskItem | null>(null)
 
   const doneCount = tasks.filter((x) => x.status === 'done').length
@@ -222,16 +234,16 @@ export function GroupTasksPage() {
   )
 
   if (group === undefined) {
-    return <p aria-live="polite">{t('tareas.loading')}</p>
+    return <GroupPageSkeleton label={t('tareas.loading')} />
   }
 
   if (group === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error} />
-        <Button variant="secondary" onClick={() => navigate('/')}>
+        <GroupErrorState message={error} />
+        <GroupLink variant="secondary" to="/">
           {t('workspace.myGroups')}
-        </Button>
+        </GroupLink>
       </div>
     )
   }
@@ -297,22 +309,19 @@ export function GroupTasksPage() {
       onDragCancel={() => { setActiveTask(null); setOverColumn(null) }}
     >
     <section className="space-y-4" aria-labelledby="tasks-heading">
-      <header className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <h1 id="tasks-heading" className="text-3xl font-bold tracking-tight text-ink">
-              {t('tareas.title')}
-            </h1>
-            <p className="text-muted">{t('tareas.subtitle')}</p>
-          </div>
-          {canManage ? (
-            <Button onClick={() => setShowCreate(true)}>
+      <GroupPageHeader
+        headingId="tasks-heading"
+        title={t('tareas.title')}
+        subtitle={t('tareas.subtitle')}
+        actions={
+          canManage ? (
+            <GroupButton onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4" aria-hidden="true" />
               {t('tareas.new')}
-            </Button>
-          ) : null}
-        </div>
-
+            </GroupButton>
+          ) : null
+        }
+      >
         {/* Progress bar */}
         {tasks.length > 0 ? (
           <div className="space-y-1">
@@ -378,29 +387,18 @@ export function GroupTasksPage() {
             ))}
           </div>
         </div>
-      </header>
+      </GroupPageHeader>
 
-      <ProblemAlert message={error} />
+      <GroupErrorState message={error} />
 
       {surface.loading && tasks.length === 0 ? (
-        <div aria-live="polite" className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-          {[1, 2, 3].map((col) => (
-            <div key={col} className="flex min-h-[200px] flex-col rounded-2xl border border-border-subtle bg-surface-hover/20 p-3">
-              <div className="mb-3 h-6 w-24 animate-pulse rounded-lg bg-surface-hover" />
-              <div className="flex flex-1 flex-col gap-2">
-                {[1, 2].map((card) => (
-                  <div key={card} className="h-20 animate-pulse rounded-xl bg-surface-hover" />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <GroupListSkeleton rows={3} label={t('tareas.loading')} />
       ) : visible.length === 0 && view === 'list' ? (
-        <div className="rounded-2xl border border-border-subtle bg-surface px-5 py-10 text-center">
-          <CheckCircle2 className="mx-auto h-8 w-8 text-muted" aria-hidden="true" />
-          <p className="mt-2 font-semibold text-ink">{t('tareas.emptyTitle')}</p>
-          <p className="text-sm text-muted">{t('tareas.emptyBody')}</p>
-        </div>
+        <GroupEmptyState
+          icon={CheckCircle2}
+          title={t('tareas.emptyTitle')}
+          description={t('tareas.emptyBody')}
+        />
       ) : view === 'board' ? (
         <TaskBoard
           tasks={visible}
@@ -426,9 +424,8 @@ export function GroupTasksPage() {
       )}
 
       {showCreate && canManage ? (
-        <TaskFormDialog
+        <CreateTaskDialog
           groupId={group.id}
-          mode="create"
           members={members}
           onClose={() => setShowCreate(false)}
           onSaved={() => {
@@ -543,15 +540,17 @@ function TaskListView({
                 <p className="line-clamp-2 whitespace-pre-wrap text-sm text-muted">{task.notes}</p>
               ) : null}
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
-                <span
-                  className={cn(
-                    'rounded-full px-2 py-0.5 font-medium',
-                    STATUS_META[task.status as BoardStatus]?.bgClass ?? 'bg-surface-hover',
-                    STATUS_META[task.status as BoardStatus]?.color ?? 'text-muted',
-                  )}
+                <GroupChip
+                  tone={
+                    task.status === 'done'
+                      ? 'success'
+                      : task.status === 'in_progress'
+                        ? 'accent'
+                        : 'neutral'
+                  }
                 >
                   {t(STATUS_META[task.status as BoardStatus]?.labelKey ?? 'tareas.statusOpen')}
-                </span>
+                </GroupChip>
                 {task.dueAt ? (
                   <span
                     className={cn(
@@ -1307,13 +1306,13 @@ function TaskDetailModal({
             <div className="flex flex-wrap items-center gap-2 border-t border-border-subtle pt-4">
               {isEditing ? (
                 <>
-                  <Button
+                  <GroupButton
                     onClick={() => void saveAction.run()}
                     disabled={saveAction.pending || !title.trim()}
                   >
                     {saveAction.pending ? t('tareas.saving') : t('tareas.save')}
-                  </Button>
-                  <Button variant="secondary" onClick={() => {
+                  </GroupButton>
+                  <GroupButton variant="secondary" onClick={() => {
                     setIsEditing(false)
                     setTitle(task.title)
                     setNotes(task.notes ?? '')
@@ -1321,22 +1320,22 @@ function TaskDetailModal({
                     setAssigneeUserId(task.assigneeUserId ?? '')
                   }}>
                     {t('tareas.cancel')}
-                  </Button>
+                  </GroupButton>
                 </>
               ) : (
                 <>
-                  <Button variant="secondary" onClick={() => setIsEditing(true)}>
+                  <GroupButton variant="secondary" onClick={() => setIsEditing(true)}>
                     <Pencil className="h-4 w-4" aria-hidden="true" />
                     {t('tareas.edit')}
-                  </Button>
-                  <Button
+                  </GroupButton>
+                  <GroupButton
                     variant="danger"
                     onClick={() => void deleteAction.run()}
                     disabled={deleteAction.pending}
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                     {t('tareas.delete')}
-                  </Button>
+                  </GroupButton>
                 </>
               )}
             </div>
@@ -1383,152 +1382,3 @@ function DetailField({ label, children }: { label: string; children: ReactNode }
   )
 }
 
-/* ─────────────── create / edit form dialog ─────────────── */
-
-function TaskFormDialog({
-  groupId,
-  mode,
-  task,
-  members,
-  onClose,
-  onSaved,
-}: {
-  groupId: string
-  mode: 'create' | 'edit'
-  task?: TaskItem
-  members: MemberListItem[]
-  onClose: () => void
-  onSaved: () => void
-}) {
-  const { t } = useT()
-  const dialogRef = useRef<HTMLDialogElement>(null)
-  const [title, setTitle] = useState(task?.title ?? '')
-  const [notes, setNotes] = useState(task?.notes ?? '')
-  const [dueAt, setDueAt] = useState(toLocalDate(task?.dueAt))
-  const [assigneeUserId, setAssigneeUserId] = useState(task?.assigneeUserId ?? '')
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (dialog && !dialog.open) {
-      dialog.showModal()
-    }
-  }, [])
-
-  const save = useAction(async () => {
-    setError(null)
-    const payload = {
-      title: title.trim(),
-      notes: notes.trim() || null,
-      dueAt: dueAt ? new Date(`${dueAt}T23:59:00`).toISOString() : null,
-      assigneeUserId: assigneeUserId || null,
-    }
-    if (mode === 'create') {
-      await createTask(groupId, payload)
-    } else if (task) {
-      await updateTask(groupId, task.id, { ...payload, expectedVersion: task.version })
-    }
-    onSaved()
-  })
-
-  return (
-    <dialog
-      ref={dialogRef}
-      onClose={onClose}
-      onCancel={(e) => { e.preventDefault(); onClose() }}
-      className={cn(
-        'w-[min(100%,32rem)] max-w-[calc(100%-2rem)] rounded-2xl border-0 bg-surface p-0 text-ink shadow-2xl',
-        'backdrop:bg-neutral-dark/60 backdrop:backdrop-blur-sm',
-        'animate-[modal-enter_250ms_cubic-bezier(0.22,1,0.36,1)_both]',
-      )}
-    >
-      <form
-        className="space-y-4 p-6"
-        onSubmit={(event: FormEvent) => {
-          event.preventDefault()
-          void save.run()
-        }}
-        noValidate
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">
-            {mode === 'create' ? t('tareas.new') : t('tareas.edit')}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink transition-colors"
-            aria-label={t('tareas.close')}
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
-        </div>
-
-        <ProblemAlert message={save.error != null ? mutationErrorMessage(save.error) : error} />
-
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-ink">{t('tareas.fieldTitle')}</span>
-          <input
-            className={fieldClass}
-            value={title}
-            maxLength={200}
-            disabled={save.pending}
-            onChange={(event) => setTitle(event.target.value)}
-            autoFocus
-          />
-        </label>
-
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-ink">{t('tareas.fieldNotes')}</span>
-          <textarea
-            className={fieldClass}
-            rows={3}
-            value={notes}
-            maxLength={2000}
-            disabled={save.pending}
-            onChange={(event) => setNotes(event.target.value)}
-          />
-        </label>
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-ink">{t('tareas.fieldDue')}</span>
-            <input
-              className={fieldClass}
-              type="date"
-              value={dueAt}
-              disabled={save.pending}
-              onChange={(event) => setDueAt(event.target.value)}
-            />
-          </label>
-
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-ink">{t('tareas.fieldAssignee')}</span>
-            <select
-              className={fieldClass}
-              value={assigneeUserId}
-              disabled={save.pending}
-              onChange={(event) => setAssigneeUserId(event.target.value)}
-            >
-              <option value="">—</option>
-              {members.filter((m) => m.userId).map((member) => (
-                <option key={member.userId} value={member.userId}>
-                  {member.displayName}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={save.pending}>
-            {t('tareas.cancel')}
-          </Button>
-          <Button type="submit" disabled={save.pending || !title.trim()}>
-            {save.pending ? t('tareas.saving') : mode === 'create' ? t('tareas.create') : t('tareas.save')}
-          </Button>
-        </div>
-      </form>
-    </dialog>
-  )
-}

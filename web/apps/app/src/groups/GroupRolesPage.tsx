@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
 import { listMembers, type MemberListItem } from '../api/client'
 import { useT } from '../i18n'
-import { PageBreadcrumb } from '../repertoire/chrome'
-import { useGroupContext, mutationErrorMessage, ProblemAlert } from '../repertoire/ui'
-import { Button } from '../ui/button'
+import { useGroupContext, mutationErrorMessage } from '../repertoire/ui'
 import { cn } from '../ui/cn'
-import { PageSkeleton } from '../ui/skeleton'
+import {
+  GroupButton,
+  GroupCard,
+  GroupChip,
+  GroupErrorState,
+  GroupLink,
+  GroupPageHeader,
+  GroupPageSkeleton,
+  useGroupDataSignal,
+} from './ui'
 
 type RoleInfo = {
   id: string
@@ -57,11 +64,11 @@ function PermissionCell({ granted }: { granted: boolean }) {
 export function GroupRolesPage() {
   const { groupId } = useParams()
   const { t } = useT()
-  const { group, error: groupError } = useGroupContext(groupId, '')
+  const { group, error: groupError, reload } = useGroupContext(groupId, '')
   const [members, setMembers] = useState<MemberListItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  function loadMembers() {
     if (!groupId) return
     let cancelled = false
     listMembers(groupId)
@@ -74,19 +81,30 @@ export function GroupRolesPage() {
     return () => {
       cancelled = true
     }
-  }, [groupId])
+  }
+
+  useEffect(loadMembers, [groupId])
+
+  // Live refresh when members change elsewhere (invite, role change, leave).
+  useGroupDataSignal('members', groupId, () => {
+    setError(null)
+    void loadMembers()
+  })
 
   if (group === undefined) {
-    return <PageSkeleton label={t('roles.loading')} />
+    return <GroupPageSkeleton label={t('roles.loading')} />
   }
 
   if (group === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
+        <GroupErrorState
+          message={groupError}
+          onRetry={() => void reload()}
+        />
+        <GroupLink variant="soft" to="/grupos">
           {t('workspace.myGroups')}
-        </Link>
+        </GroupLink>
       </div>
     )
   }
@@ -98,56 +116,36 @@ export function GroupRolesPage() {
 
   return (
     <section className="space-y-6" aria-labelledby="roles-heading">
-      <header className="space-y-3">
-        <PageBreadcrumb
-          items={[
-            { to: `/groups/${group.id}`, label: group.name },
-            { label: t('roles.title') },
-          ]}
-        />
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
-            <span
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-ink"
-              aria-hidden="true"
-            >
-              <ShieldCheck className="h-5 w-5" />
-            </span>
-            <div className="min-w-0 space-y-1">
-              <h1 id="roles-heading" className="text-3xl font-bold tracking-tight text-ink">
-                {t('roles.title')}
-              </h1>
-              <p className="text-sm text-muted">{t('roles.subtitle')}</p>
-            </div>
-          </div>
-          <Link to={`/groups/${group.id}/people`}>
-            <Button variant="secondary">{t('roles.manageMembers')}</Button>
-          </Link>
-        </div>
-      </header>
+      <GroupPageHeader
+        headingId="roles-heading"
+        icon={ShieldCheck}
+        title={t('roles.title')}
+        subtitle={t('roles.subtitle')}
+        breadcrumb={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('roles.title') }]}
+        actions={
+          <GroupLink to={`/groups/${group.id}/people`} variant="secondary">
+            {t('roles.manageMembers')}
+          </GroupLink>
+        }
+      />
 
-      <ProblemAlert message={error} />
+      <GroupErrorState message={error} />
 
       <div className="space-y-4">
         {ROLES.map((role) => (
-          <div
-            key={role.id}
-            className="rounded-2xl border border-border-subtle bg-surface p-5"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-ink">{t(role.labelKey as never)}</h2>
-                <p className="text-sm text-muted">{t(role.descriptionKey as never)}</p>
-              </div>
-              <span className="shrink-0 rounded-full bg-surface-hover px-3 py-1 text-sm font-medium text-muted">
-                {memberCounts.get(role.id) ?? 0} {t('roles.memberCount')}
-              </span>
+          <GroupCard key={role.id} className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="font-display text-lg font-semibold text-ink">{t(role.labelKey as never)}</h2>
+              <p className="text-sm text-muted">{t(role.descriptionKey as never)}</p>
             </div>
-          </div>
+            <GroupChip tone="neutral" className="shrink-0 px-3 py-1">
+              {memberCounts.get(role.id) ?? 0} {t('roles.memberCount')}
+            </GroupChip>
+          </GroupCard>
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-border-subtle bg-surface">
+      <GroupCard padding="none" className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-border-subtle">
@@ -172,7 +170,7 @@ export function GroupRolesPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </GroupCard>
     </section>
   )
 }
