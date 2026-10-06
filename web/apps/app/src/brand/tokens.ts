@@ -253,11 +253,20 @@ export const GRADIENT_STYLES: GradientStyleOption[] = [
 /** Shell surfaces the token set will be rendered on (matches index.css). */
 const LIGHT_SHELL = '#ffffff';
 const DARK_SHELL = '#0f172a';
-/* Ink tokens often sit on the canvas or `bg-surface-hover`, not the flat
-   surface. Clamp against the darkest (light theme) / lightest (dark theme)
-   shade they can land on so AA holds on every row. */
-const LIGHT_INK_BG = '#f1f5f9';
-const DARK_INK_BG = '#1f283b';
+
+/** Linear mix of two hex colours (t in 0..1). */
+function mix(a: string, b: string, t: number): string {
+  const ra = hexToRgb(a);
+  const rb = hexToRgb(b);
+  if (!ra || !rb) return a;
+  const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+  const k = clamp01(t);
+  return rgbToHex(
+    ra.r + (rb.r - ra.r) * k,
+    ra.g + (rb.g - ra.g) * k,
+    ra.b + (rb.b - ra.b) * k,
+  );
+}
 
 /**
  * Derive the semantic token overrides that make a group's identity drive the
@@ -288,9 +297,7 @@ export function deriveGroupThemeTokens(input: GroupThemeInput): Record<string, s
     onPrimary === '#ffffff'
       ? accessibleInk(primary, '#ffffff', 'dark')
       : accessibleInk(primary, '#0f172a', 'light');
-  const inkBg = theme === 'dark' ? DARK_INK_BG : LIGHT_INK_BG;
   const prefer = theme === 'dark' ? 'light' : 'dark';
-  const shell = theme === 'dark' ? DARK_SHELL : LIGHT_SHELL;
 
   // Wash strength + style drive the liquid-glass background. `medium`/`fixed`
   // reproduce the previous two-stop wash so existing brands are unchanged.
@@ -304,6 +311,22 @@ export function deriveGroupThemeTokens(input: GroupThemeInput): Record<string, s
       ? `radial-gradient(120% 80% at 100% 0%, ${withAlpha(primary, washAlpha)} 0%, ${withAlpha(primary, '00')} 60%), radial-gradient(120% 80% at 0% 100%, ${withAlpha(secondaryWash, washAlpha)} 0%, ${withAlpha(secondaryWash, '00')} 60%), radial-gradient(90% 70% at 50% 50%, ${withAlpha(primary, washAlpha)} 0%, ${withAlpha(primary, '00')} 70%)`
       : `radial-gradient(120% 80% at 100% 0%, ${withAlpha(primary, washAlpha)} 0%, ${withAlpha(primary, '00')} 62%), radial-gradient(120% 80% at 0% 100%, ${withAlpha(secondaryWash, washAlpha)} 0%, ${withAlpha(secondaryWash, '00')} 62%)`;
 
+  // ---- Accent-derived neutrals (theme v2) ----
+  // Stable structure, accent-driven identity: the canvas/surfaces/borders take a
+  // small tint of the group accent (scaled by intensity), while the accent itself
+  // stays strong in the header/active/borders. Scoped to the group shell, so the
+  // account/panel keep Sonivo's fixed identity.
+  const tint = intensity.id === 'subtle' ? 0.05 : intensity.id === 'intense' ? 0.13 : 0.09;
+  const neutral = (base: string) => mix(base, primary, tint);
+  const canvas = neutral(theme === 'dark' ? '#0b1220' : '#f1f5f9');
+  const surface = neutral(theme === 'dark' ? '#111a2e' : '#ffffff');
+  const surfaceHover = neutral(theme === 'dark' ? '#1a2436' : '#f8fafc');
+  const border = neutral(theme === 'dark' ? '#22304a' : '#e2e8f0');
+  const shell = neutral(theme === 'dark' ? DARK_SHELL : LIGHT_SHELL);
+  const shellHover = mix(theme === 'dark' ? '#1a2436' : '#f1f5f9', primary, tint * 1.6);
+  const shellBorder = neutral(theme === 'dark' ? '#22304a' : '#e2e8f0');
+  const inkBg = surfaceHover;
+
   const tokens: Record<string, string> = {
     ...brand,
     '--color-primary': primary,
@@ -311,6 +334,14 @@ export function deriveGroupThemeTokens(input: GroupThemeInput): Record<string, s
     '--color-primary-ink': accessibleInk(primary, inkBg, prefer),
     '--color-primary-strong': primaryStrong,
     '--color-shell-link': accessibleInk(primary, shell, prefer),
+    // Accent-tinted structure (scoped to the group shell).
+    '--color-canvas': canvas,
+    '--color-surface': surface,
+    '--color-surface-hover': surfaceHover,
+    '--color-border-subtle': border,
+    '--color-shell': shell,
+    '--color-shell-hover': shellHover,
+    '--color-shell-border': shellBorder,
     // Theme-aware semantic inks. `deriveBrandTokens` emits a theme-agnostic
     // `--color-error-ink: darken(error)`; on dark that produced a dark red
     // (~2.96:1). Clamp both error and success inks to the themed surface.

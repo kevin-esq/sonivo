@@ -549,6 +549,39 @@ the entire workspace — controls included — into the fallback font.
 
 ---
 
+## ADR-0074 — Group-scoped adaptive theme + shared group components
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-06 ("refactor total del design en los grupos"; reference: a music app whose UI hue shifts with the theme while the structure stays fixed).
+- **Date:** 2026-10-06
+- **Amends:** ADR-0071 (personalization) — deepens the theme so the accent drives the
+  **neutrals** (canvas/surfaces/borders/sidebar), not only the primary/ink tokens.
+- **Spec:** [`PHASE-PLANS-SPEC.md`](PHASE-PLANS-SPEC.md) §5.2 (tinted neutrals).
+
+### Decision
+1. **Three-level theme:** (a) stable structure, (b) variable accent identity, (c) surfaces
+   tinted lightly with the accent hue. The dark theme is no longer a fixed Sonivo navy: it is
+   derived from the group accent (near-black canvas tinted by the accent hue), and the light
+   theme gains accent-tinted surfaces/borders. Tint scales with **intensity** (subtle/medium/intense).
+2. **Group-scoped only.** These token overrides apply on the **group shell**. The account/panel
+   (`/cuenta`, auth, marketing) keep Sonivo's **fixed** identity — the group is personalizable and
+   independent of Sonivo; the panel is not.
+3. **Real-time.** The editor keeps repainting the whole group workspace live (`brandPreview`), now
+   including the tinted neutrals.
+4. **Shared group components.** Extract group-scoped UI primitives (headers, cards, sections,
+   buttons/links, empty/error/loading states, form fields, selects, dialogs) into a shared
+   group module consumed by every group page, all driven by the group tokens. **Not** shared with the
+   account/panel, which has its own fixed components.
+5. **Modal-based creation + personalized controls.** Creation flows (song/setlist/event/task/resource)
+   move to modals/dialogs; selects and inputs adopt the group-scoped components.
+
+### Firewall
+- The account/panel UI stays Sonivo-fixed; no group branding leaks outside the group shell (ADR-0048/0054).
+- Every text-bearing token remains AA-clamped against the **actual tinted** surface; the accent tint
+  stays small (≤ ~13%) so contrast holds in light and dark.
+- No new dependency; no free CSS (tokens are the contract).
+
+---
+
 ## Open decisions needing explicit authorization
 
 - **Subdominio/dominio custom** (`slug.sonivo.lat`): **ADR-0049 blocks it** — needs a superseding ADR.
