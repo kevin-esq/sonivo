@@ -1886,6 +1886,24 @@ app.MapGet("/api/plans", (GetPlanCatalogHandler handler) =>
     .WithName("GetPlanCatalog")
     .RequireAuthorization();
 
+app.MapGet("/api/groups/{groupId:guid}/usage", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetGroupUsageHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(ToUsageResponse(await handler.HandleAsync(userId.Value, groupId, cancellationToken)));
+})
+.WithName("GetGroupUsage")
+.RequireAuthorization();
+
 app.MapPut("/api/groups/{groupId:guid}/branding", async (
     Guid groupId,
     UpdateGroupBrandingRequest request,
@@ -4571,6 +4589,16 @@ static object ToPlanCatalogResponse(PlanCatalogDto catalog) => new
         features = plan.Features,
         capabilities = plan.Capabilities
     })
+};
+
+static object ToUsageResponse(GroupUsageDto usage) => new
+{
+    planId = usage.PlanId,
+    members = new { used = usage.Members.Used, limit = usage.Members.Limit },
+    songs = new { used = usage.Songs.Used, limit = usage.Songs.Limit },
+    setlists = new { used = usage.Setlists.Used, limit = usage.Setlists.Limit },
+    eventsThisMonth = new { used = usage.EventsThisMonth.Used, limit = usage.EventsThisMonth.Limit },
+    storageBytes = new { used = usage.StorageBytes.Used, limit = usage.StorageBytes.Limit }
 };
 
 static object ToBrandingResponse(GroupBrandingDto branding) => new
