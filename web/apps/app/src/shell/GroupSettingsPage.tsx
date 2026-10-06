@@ -851,7 +851,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </p>
           ) : null}
 
-          {/* Reset to default button */}
+          {/* Reset to Sonivo (spec §5.6): restores the default theme look while
+              keeping the group's brand text. Always available. */}
           {isOwner ? (
             <div className="flex justify-end">
               <Button
@@ -859,13 +860,28 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  if (branding) {
-                    setDraft(draftFromBranding(branding))
-                    setBrandSaved(false)
-                  }
+                  setDraft((current) =>
+                    current
+                      ? {
+                          ...current,
+                          themeId: 'sonivo',
+                          accentHex: '#8366f1',
+                          secondaryHex: '#e8c4f6',
+                          accentColorHex: '#9d8bda',
+                          successHex: '',
+                          warningHex: '',
+                          errorHex: '',
+                          typography: 'system',
+                          intensity: 'medium',
+                          gradientStyle: 'fixed',
+                          cover: GROUP_COVER_EMOJIS[0] ?? '🎵',
+                        }
+                      : current,
+                  )
+                  setBrandSaved(false)
                 }}
               >
-                {t('ajustes.resetToDefault')}
+                {t('ajustes.resetToSonivo')}
               </Button>
             </div>
           ) : null}
