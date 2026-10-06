@@ -1,0 +1,25 @@
+# Caddy reverse proxy for the Sonivo API (Hetzner VPS).
+# Automatic HTTPS via Let's Encrypt; certificates are stored in the caddy_data
+# volume. The API container is only reachable on the private compose network.
+#
+# API_HOST defaults to api.sonivo.lat; ACME_EMAIL must be a real address that
+# can receive expiry notices (set it in .env).
+
+{
+	email {$ACME_EMAIL}
+	# Uncomment while bringing the host up for the first time if you need the
+	# staging CA to avoid Let's Encrypt rate limits:
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$API_HOST:api.sonivo.lat} {
+	encode zstd gzip
+	reverse_proxy api:8080
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}
