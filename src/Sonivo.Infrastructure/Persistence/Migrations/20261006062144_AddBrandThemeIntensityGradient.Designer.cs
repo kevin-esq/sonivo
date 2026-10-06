@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sonivo.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Sonivo.Infrastructure.Persistence;
 namespace Sonivo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SonivoDbContext))]
-    partial class SonivoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261006062144_AddBrandThemeIntensityGradient")]
+    partial class AddBrandThemeIntensityGradient
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -669,13 +672,6 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("BillingStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)")
-                        .HasDefaultValue("active");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -693,18 +689,11 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(16)")
                         .HasDefaultValue("studio");
 
-                    b.Property<string>("ScheduledPlanId")
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
                     b.Property<string>("Slug")
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
                     b.Property<DateTimeOffset?>("SlugConfirmedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("TrialEndsAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("UpdatedAt")

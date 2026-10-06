@@ -7,16 +7,19 @@ import {
   fetchFeatures,
   getGroup,
   getGroupBranding,
+  getGroupUsage,
   problemDetail,
   updateGroup,
   updateGroupBranding,
   uploadGroupBrandingImage,
   uploadGroupBrandingFavicon,
+  type BrandingCapabilities,
   type CurrentUser,
   type GroupBranding,
   type GroupDetail,
+  type GroupUsage,
 } from '../api/client'
-import { TYPOGRAPHY_OPTIONS, deriveGroupThemeTokens } from '../brand/tokens'
+import { BRAND_THEMES, GRADIENT_STYLES, INTENSITY_OPTIONS, TYPOGRAPHY_OPTIONS, deriveGroupThemeTokens } from '../brand/tokens'
 import { useBrandPreview } from './brandPreview'
 import { useTheme } from '../brand/theme'
 import { useT, type I18nKey } from '../i18n'
@@ -133,6 +136,19 @@ type BrandDraft = {
   tagline: string
   verse: string
   showSonivoCredit: boolean
+  themeId: string
+  intensity: 'subtle' | 'medium' | 'intense'
+  gradientStyle: 'fixed' | 'liquid'
+}
+
+/** Narrow a stored intensity string to the union the token engine accepts. */
+function asIntensity(value: string | null | undefined): 'subtle' | 'medium' | 'intense' {
+  return value === 'subtle' || value === 'intense' ? value : 'medium'
+}
+
+/** Narrow a stored gradient style string to the union the token engine accepts. */
+function asGradientStyle(value: string | null | undefined): 'fixed' | 'liquid' {
+  return value === 'liquid' ? 'liquid' : 'fixed'
 }
 
 function coverFromBranding(branding: GroupBranding): string {
@@ -165,22 +181,39 @@ function draftFromBranding(branding: GroupBranding): BrandDraft {
     tagline: branding.tagline ?? '',
     verse: branding.verse ?? '',
     showSonivoCredit: branding.showSonivoCredit,
+    themeId: branding.themeId ?? 'sonivo',
+    intensity: asIntensity(branding.intensity),
+    gradientStyle: asGradientStyle(branding.gradientStyle),
   }
 }
 
-type SettingsTab = 'general' | 'branding' | 'permissions' | 'notifications' | 'integrations' | 'advanced' | 'danger'
+type SettingsTab = 'general' | 'branding' | 'plan' | 'permissions' | 'notifications' | 'integrations' | 'advanced' | 'danger'
 
 // Membership/billing is account-level (see /cuenta/membresia), not group-owned;
 // the group centre only exposes group-scoped settings.
 const SETTINGS_TABS: { id: SettingsTab; labelKey: I18nKey }[] = [
   { id: 'general', labelKey: 'ajustes.tabGeneral' },
   { id: 'branding', labelKey: 'ajustes.tabBranding' },
+  { id: 'plan', labelKey: 'ajustes.tabPlan' },
   { id: 'permissions', labelKey: 'ajustes.tabPermissions' },
   { id: 'notifications', labelKey: 'ajustes.tabNotifications' },
   { id: 'integrations', labelKey: 'ajustes.tabIntegrations' },
   { id: 'advanced', labelKey: 'ajustes.tabAdvanced' },
   { id: 'danger', labelKey: 'ajustes.tabDanger' },
 ]
+
+/** Human-readable byte size for the storage usage row. */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let value = bytes / 1024
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`
+}
 
 export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
@@ -198,6 +231,30 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const [usage, setUsage] = useState<GroupUsage | null>(null)
+
+  useEffect(() => {
+    if (!groupId) return
+    let cancelled = false
+    getGroupUsage(groupId)
+      .then((result) => {
+        if (!cancelled) setUsage(result)
+      })
+      .catch(() => {
+        if (!cancelled) setUsage(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [groupId])
+
+  // Plan gating mirrors the server-enforced branding PUT (validation symmetry):
+  // a forbidden control is disabled, and the save payload echoes the saved value
+  // for gated fields so a lower plan never clears advanced config.
+  const caps = group?.capabilities
+  const can = (key: keyof BrandingCapabilities) => Boolean(caps?.[key])
+  const locked = (key: keyof BrandingCapabilities) => (caps ? !can(key) : false)
+  const planLimited = caps ? Object.values(caps).some((value) => !value) : false
 
   // Phase 4.3 / ADR-0054: server-side White Label editor behind Features:GroupBranding.
   const [brandingEnabled, setBrandingEnabled] = useState(false)
@@ -228,6 +285,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             error: draft.errorHex || null,
             typography: previewFontFamily,
             theme,
+            intensity: draft.intensity,
+            gradientStyle: draft.gradientStyle,
           })
         : {},
     [draft, previewFontFamily, theme],
@@ -363,27 +422,35 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     setSavingBrand(true)
     setBrandError(null)
     setBrandConflict(null)
-    const cover = coverToBranding(draft.cover)
+    // Echo the currently-saved value for gated fields when the plan forbids them,
+    // so a lower plan preserves (rather than clears) advanced configuration.
+    const saved = draftFromBranding(branding)
+    const cover = coverToBranding(can('icon') ? draft.cover : saved.cover)
     try {
       const updated = await updateGroupBranding(group.id, {
         expectedVersion: branding.version,
-        displayName: draft.displayName.trim() || null,
-        accentHex: draft.accentHex.trim() || null,
-        secondaryHex: draft.secondaryHex.trim() || null,
-        accentColorHex: draft.accentColorHex.trim() || null,
-        successHex: draft.successHex.trim() || null,
-        warningHex: draft.warningHex.trim() || null,
-        errorHex: draft.errorHex.trim() || null,
-        typography: draft.typography || null,
+        displayName: can('brandName') ? draft.displayName.trim() || null : saved.displayName.trim() || null,
+        accentHex: can('accent') ? draft.accentHex.trim() || null : saved.accentHex.trim() || null,
+        secondaryHex: can('splitColors') ? draft.secondaryHex.trim() || null : saved.secondaryHex.trim() || null,
+        accentColorHex: can('accent') ? draft.accentColorHex.trim() || null : saved.accentColorHex.trim() || null,
+        successHex: can('splitColors') ? draft.successHex.trim() || null : saved.successHex.trim() || null,
+        warningHex: can('splitColors') ? draft.warningHex.trim() || null : saved.warningHex.trim() || null,
+        errorHex: can('splitColors') ? draft.errorHex.trim() || null : saved.errorHex.trim() || null,
+        typography: can('font') ? draft.typography || null : saved.typography || null,
         coverKind: cover.coverKind,
         coverValue: cover.coverValue,
         themeDefault: draft.themeDefault || null,
         defaultLocale: draft.defaultLocale || null,
-        welcomeText: draft.welcomeText.trim() || null,
-        loginHeadline: draft.loginHeadline.trim() || null,
-        tagline: draft.tagline.trim() || null,
-        verse: draft.verse.trim() || null,
-        showSonivoCredit: draft.showSonivoCredit,
+        welcomeText: can('welcomeText') ? draft.welcomeText.trim() || null : saved.welcomeText.trim() || null,
+        loginHeadline: can('loginBranding')
+          ? draft.loginHeadline.trim() || null
+          : saved.loginHeadline.trim() || null,
+        tagline: can('brandName') ? draft.tagline.trim() || null : saved.tagline.trim() || null,
+        verse: can('brandName') ? draft.verse.trim() || null : saved.verse.trim() || null,
+        showSonivoCredit: can('removePoweredBy') ? draft.showSonivoCredit : true,
+        themeId: can('themes') ? draft.themeId : saved.themeId,
+        intensity: can('intensity') ? draft.intensity : saved.intensity,
+        gradientStyle: can('gradientStyle') ? draft.gradientStyle : saved.gradientStyle,
       })
       setBranding(updated)
       setDraft(draftFromBranding(updated))
@@ -556,7 +623,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   type="text"
                   data-testid="brand-display-name"
                   value={draft.displayName}
-                  disabled={!isOwner}
+                  disabled={!isOwner || locked('brandName')}
                   maxLength={120}
                   onChange={(e) => patchDraft({ displayName: e.target.value })}
                 />
@@ -568,7 +635,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   className={fieldClass}
                   type="text"
                   value={draft.welcomeText}
-                  disabled={!isOwner}
+                  disabled={!isOwner || locked('welcomeText')}
                   maxLength={500}
                   onChange={(e) => patchDraft({ welcomeText: e.target.value })}
                 />
@@ -579,7 +646,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   className={fieldClass}
                   type="text"
                   value={draft.loginHeadline}
-                  disabled={!isOwner}
+                  disabled={!isOwner || locked('loginBranding')}
                   maxLength={500}
                   onChange={(e) => patchDraft({ loginHeadline: e.target.value })}
                 />
@@ -591,7 +658,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     className={fieldClass}
                     type="text"
                     value={draft.tagline}
-                    disabled={!isOwner}
+                    disabled={!isOwner || locked('brandName')}
                     maxLength={160}
                     onChange={(e) => patchDraft({ tagline: e.target.value })}
                   />
@@ -602,7 +669,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     className={fieldClass}
                     type="text"
                     value={draft.verse}
-                    disabled={!isOwner}
+                    disabled={!isOwner || locked('brandName')}
                     maxLength={200}
                     onChange={(e) => patchDraft({ verse: e.target.value })}
                   />
@@ -613,7 +680,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   type="checkbox"
                   className="h-5 w-5"
                   checked={draft.showSonivoCredit}
-                  disabled={!isOwner}
+                  disabled={!isOwner || locked('removePoweredBy')}
                   onChange={(e) => patchDraft({ showSonivoCredit: e.target.checked })}
                 />
                 {t('ajustes.showSonivoCredit')}
@@ -632,6 +699,22 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </h2>
             <p className="text-sm text-muted">{t('ajustes.brandingSubtitle')}</p>
           </div>
+
+          {planLimited ? (
+            <div
+              data-testid="brand-plan-lock"
+              className="space-y-1 rounded-2xl border border-border-subtle bg-surface-hover px-4 py-3"
+            >
+              <p className="text-sm font-semibold text-ink">{t('ajustes.planLockedTitle')}</p>
+              <p className="text-sm text-muted">{t('ajustes.planLockedBody')}</p>
+              <Link
+                to="/cuenta/membresia"
+                className="inline-block text-sm font-semibold text-primary-ink no-underline hover:underline"
+              >
+                {t('ajustes.planUpgrade')}
+              </Link>
+            </div>
+          ) : null}
 
           {/* Live preview: header with banner (or cover), logo and both brand colours. */}
           <div
@@ -768,7 +851,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </p>
           ) : null}
 
-          {/* Reset to default button */}
+          {/* Reset to Sonivo (spec §5.6): restores the default theme look while
+              keeping the group's brand text. Always available. */}
           {isOwner ? (
             <div className="flex justify-end">
               <Button
@@ -776,18 +860,77 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  if (branding) {
-                    setDraft(draftFromBranding(branding))
-                    setBrandSaved(false)
-                  }
+                  setDraft((current) =>
+                    current
+                      ? {
+                          ...current,
+                          themeId: 'sonivo',
+                          accentHex: '#8366f1',
+                          secondaryHex: '#e8c4f6',
+                          accentColorHex: '#9d8bda',
+                          successHex: '',
+                          warningHex: '',
+                          errorHex: '',
+                          typography: 'system',
+                          intensity: 'medium',
+                          gradientStyle: 'fixed',
+                          cover: GROUP_COVER_EMOJIS[0] ?? '🎵',
+                        }
+                      : current,
+                  )
+                  setBrandSaved(false)
                 }}
               >
-                {t('ajustes.resetToDefault')}
+                {t('ajustes.resetToSonivo')}
               </Button>
             </div>
           ) : null}
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('themes')}>
+            <legend className="font-medium">{t('ajustes.themesTitle')}</legend>
+            <p className="text-sm text-muted">{t('ajustes.themesHint')}</p>
+            <div
+              className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5"
+              role="group"
+              aria-label={t('ajustes.themesTitle')}
+            >
+              {BRAND_THEMES.map((themeOption) => {
+                const active = draft.themeId === themeOption.id
+                return (
+                  <button
+                    key={themeOption.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() =>
+                      patchDraft({
+                        themeId: themeOption.id,
+                        accentHex: themeOption.primary,
+                        secondaryHex: themeOption.secondary,
+                      })
+                    }
+                    className={cn(
+                      'flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                      active ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
+                    )}
+                  >
+                    <span className="flex shrink-0 -space-x-1" aria-hidden="true">
+                      <span
+                        className="h-5 w-5 rounded-full ring-1 ring-black/10"
+                        style={{ backgroundColor: themeOption.primary }}
+                      />
+                      <span
+                        className="h-5 w-5 rounded-full ring-1 ring-black/10"
+                        style={{ backgroundColor: themeOption.secondary }}
+                      />
+                    </span>
+                    <span className="truncate">{t(themeOption.labelKey as I18nKey)}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-3" disabled={!isOwner || locked('accent')}>
             <legend className="font-medium">{t('ajustes.primaryColor')}</legend>
             <p className="text-sm text-muted">{t('ajustes.colorHint')}</p>
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.primaryColor')}>
@@ -817,7 +960,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('splitColors')}>
             <legend className="font-medium">{t('ajustes.secondaryColor')}</legend>
             <p className="text-sm text-muted">{t('ajustes.secondaryHint')}</p>
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.secondaryColor')}>
@@ -850,7 +993,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('accent')}>
             <legend className="font-medium">{t('ajustes.accentColor')}</legend>
             <p className="text-sm text-muted">{t('ajustes.accentColorHint')}</p>
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.accentColor')}>
@@ -883,7 +1026,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('splitColors')}>
             <legend className="font-medium">{t('ajustes.semanticColors')}</legend>
             <p className="text-sm text-muted">{t('ajustes.semanticColorsHint')}</p>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -935,7 +1078,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('font')}>
             <legend className="font-medium">{t('ajustes.typography')}</legend>
             <p className="text-sm text-muted">{t('ajustes.typographyHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.typography')}>
@@ -957,7 +1100,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('accent') || locked('splitColors')}>
             <legend className="font-medium">{t('ajustes.palettesTitle')}</legend>
             <p className="text-sm text-muted">{t('ajustes.palettesHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.palettesTitle')}>
@@ -986,7 +1129,47 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={!isOwner}>
+          <fieldset className="space-y-3" disabled={!isOwner || locked('intensity')}>
+            <legend className="font-medium">{t('ajustes.intensityTitle')}</legend>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.intensityTitle')}>
+              {INTENSITY_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={draft.intensity === option.id}
+                  onClick={() => patchDraft({ intensity: option.id })}
+                  className={cn(
+                    'h-11 rounded-xl border px-4 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                    draft.intensity === option.id ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
+                  )}
+                >
+                  {t(option.labelKey as I18nKey)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-3" disabled={!isOwner || locked('gradientStyle')}>
+            <legend className="font-medium">{t('ajustes.gradientTitle')}</legend>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.gradientTitle')}>
+              {GRADIENT_STYLES.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={draft.gradientStyle === option.id}
+                  onClick={() => patchDraft({ gradientStyle: option.id })}
+                  className={cn(
+                    'h-11 rounded-xl border px-4 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                    draft.gradientStyle === option.id ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
+                  )}
+                >
+                  {t(option.labelKey as I18nKey)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-3" disabled={!isOwner || locked('icon')}>
             <legend className="font-medium">{t('ajustes.cover')}</legend>
             <p className="text-sm text-muted">{t('ajustes.coverHint')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.cover')}>
@@ -1043,7 +1226,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
-                disabled={!isOwner || uploading !== null}
+                disabled={!isOwner || locked('logo') || uploading !== null}
                 aria-label={t('ajustes.uploadLogo')}
                 onChange={(e) => void onUploadImage('logo', e)}
               />
@@ -1055,7 +1238,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
-                disabled={!isOwner || uploading !== null}
+                disabled={!isOwner || locked('banner') || uploading !== null}
                 aria-label={t('ajustes.uploadBanner')}
                 onChange={(e) => void onUploadImage('banner', e)}
               />
@@ -1247,6 +1430,68 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       {activeTab === 'integrations' ? (
         <div className="space-y-4">
           <p className="text-sm text-muted">{t('ajustes.integrationsComingSoon')}</p>
+        </div>
+      ) : null}
+
+      {/* Plan tab (ADR-0071): effective plan + usage vs limits (spec §7). */}
+      {activeTab === 'plan' ? (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">{t('ajustes.planTitle')}</h2>
+          {usage ? (
+            <div className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-5">
+              <p className="text-sm font-semibold text-ink">
+                {usage.planId === 'starter'
+                  ? t('ajustes.planStarter')
+                  : usage.planId === 'pro'
+                    ? t('ajustes.planPro')
+                    : t('ajustes.planStudio')}
+              </p>
+              <div className="space-y-3">
+                {[
+                  { key: 'members', label: t('ajustes.usageMembers'), metric: usage.members, bytes: false },
+                  { key: 'songs', label: t('ajustes.usageSongs'), metric: usage.songs, bytes: false },
+                  { key: 'setlists', label: t('ajustes.usageSetlists'), metric: usage.setlists, bytes: false },
+                  { key: 'events', label: t('ajustes.usageEvents'), metric: usage.eventsThisMonth, bytes: false },
+                  { key: 'storage', label: t('ajustes.usageStorage'), metric: usage.storageBytes, bytes: true },
+                ].map((row) => (
+                  <div key={row.key} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-ink">{row.label}</span>
+                      <span className="text-muted">
+                        {row.metric.limit === null
+                          ? t('ajustes.usageUnlimited')
+                          : `${row.bytes ? formatBytes(row.metric.used) : row.metric.used} / ${
+                              row.bytes ? formatBytes(row.metric.limit) : row.metric.limit
+                            }`}
+                      </span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-surface-hover">
+                      <div
+                        className="h-full rounded-full bg-primary-strong"
+                        style={{
+                          width:
+                            row.metric.limit === null
+                              ? '8%'
+                              : `${Math.min(
+                                  100,
+                                  Math.round((row.metric.used / Math.max(1, row.metric.limit)) * 100),
+                                )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link
+                to="/cuenta/membresia"
+                className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
+              >
+                {t('ajustes.changePlan')}
+              </Link>
+            </div>
+          ) : (
+            <p className="text-sm text-muted">{t('ajustes.usageLoading')}</p>
+          )}
         </div>
       ) : null}
 

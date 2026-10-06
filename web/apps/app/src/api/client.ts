@@ -130,8 +130,27 @@ export type GroupSummary = {
   lastActivityAt?: string | null
 }
 
+/** Plan-gated branding capabilities returned with the group (camelCase). */
+export type BrandingCapabilities = {
+  themes: boolean
+  accent: boolean
+  intensity: boolean
+  icon: boolean
+  splitColors: boolean
+  gradientStyle: boolean
+  font: boolean
+  brandName: boolean
+  welcomeText: boolean
+  loginBranding: boolean
+  logo: boolean
+  banner: boolean
+  removePoweredBy: boolean
+}
+
 export type GroupDetail = GroupSummary & {
   updatedAt: string
+  planId: string
+  capabilities: BrandingCapabilities
 }
 
 export async function fetchHealth(): Promise<{ status: string }> {
@@ -460,6 +479,42 @@ export async function getGroup(groupId: string): Promise<GroupDetail> {
   return apiRequest<GroupDetail>(`/api/groups/${groupId}`)
 }
 
+/** Plan catalog exposed by the API (`GET /api/plans`). */
+export type PlanCatalogEntry = {
+  id: string
+  priceMonthlyMxn: number
+  trialDays: number
+  trialRequiresCard: boolean
+  limits: Record<string, unknown>
+  features: Record<string, unknown>
+  capabilities: BrandingCapabilities
+}
+
+export type PlanCatalog = {
+  defaultPlanId: string
+  plans: PlanCatalogEntry[]
+}
+
+export async function getPlanCatalog(): Promise<PlanCatalog> {
+  return apiRequest<PlanCatalog>('/api/plans')
+}
+
+/** Usage metric: how much is used and the plan limit (null = unlimited). */
+export type UsageMetric = { used: number; limit: number | null }
+
+export type GroupUsage = {
+  planId: string
+  members: UsageMetric
+  songs: UsageMetric
+  setlists: UsageMetric
+  eventsThisMonth: UsageMetric
+  storageBytes: UsageMetric
+}
+
+export async function getGroupUsage(groupId: string): Promise<GroupUsage> {
+  return apiRequest<GroupUsage>(`/api/groups/${groupId}/usage`)
+}
+
 export type GroupBySlug = GroupDetail & { moved?: boolean }
 
 /** Resolves a path slug to its group (current or historical, with `moved`). */
@@ -500,6 +555,9 @@ export type GroupBranding = {
   onPrimary: string | null
   onSecondary: string | null
   onAccent: string | null
+  themeId: string | null
+  intensity: string | null
+  gradientStyle: string | null
   coverKind: string | null
   coverValue: string | null
   themeDefault: string | null
@@ -552,6 +610,9 @@ export async function updateGroupBranding(
     tagline?: string | null
     verse?: string | null
     showSonivoCredit?: boolean
+    themeId?: string | null
+    intensity?: string | null
+    gradientStyle?: string | null
   },
 ): Promise<GroupBranding> {
   return apiRequest<GroupBranding>(`/api/groups/${groupId}/branding`, {

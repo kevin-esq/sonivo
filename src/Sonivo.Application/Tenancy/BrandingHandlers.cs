@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Tenancy;
 
 namespace Sonivo.Application.Tenancy;
@@ -14,6 +15,9 @@ public sealed record GroupBrandingDto(
     string? WarningHex,
     string? ErrorHex,
     string? Typography,
+    string? ThemeId,
+    string? Intensity,
+    string? GradientStyle,
     string? OnPrimary,
     string? OnSecondary,
     string? OnAccent,
@@ -43,6 +47,9 @@ public sealed record UpdateGroupBrandingCommand(
     string? WarningHex,
     string? ErrorHex,
     string? Typography,
+    string? ThemeId,
+    string? Intensity,
+    string? GradientStyle,
     string? CoverKind,
     string? CoverValue,
     string? ThemeDefault,
@@ -119,7 +126,7 @@ public sealed class GetGroupBrandingHandler
 
     internal static GroupBrandingDto ToDto(Guid groupId, GroupBranding? branding) =>
         branding is null
-            ? new GroupBrandingDto(groupId, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false, false, false, true, 0)
+            ? new GroupBrandingDto(groupId, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false, false, false, true, 0)
             : new GroupBrandingDto(
                 groupId,
                 branding.DisplayName,
@@ -130,6 +137,9 @@ public sealed class GetGroupBrandingHandler
                 branding.WarningHex,
                 branding.ErrorHex,
                 branding.Typography,
+                branding.ThemeId,
+                branding.Intensity,
+                branding.GradientStyle,
                 branding.AccentHex is null ? null : BrandAccent.OnColor(branding.AccentHex),
                 branding.SecondaryHex is null ? null : BrandAccent.OnColor(branding.SecondaryHex),
                 branding.AccentColorHex is null ? null : BrandAccent.OnColor(branding.AccentColorHex),
@@ -152,12 +162,18 @@ public sealed class UpdateGroupBrandingHandler
 {
     private readonly GroupAccessService _access;
     private readonly IGroupBrandingStore _store;
+    private readonly IGroupStore _groups;
     private readonly IClock _clock;
 
-    public UpdateGroupBrandingHandler(GroupAccessService access, IGroupBrandingStore store, IClock clock)
+    public UpdateGroupBrandingHandler(
+        GroupAccessService access,
+        IGroupBrandingStore store,
+        IGroupStore groups,
+        IClock clock)
     {
         _access = access;
         _store = store;
+        _groups = groups;
         _clock = clock;
     }
 
@@ -166,6 +182,12 @@ public sealed class UpdateGroupBrandingHandler
         CancellationToken cancellationToken)
     {
         await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+
+        // Plan gating (ADR-0071): the server is authoritative — reject fields the
+        // group's plan does not include. The default plan keeps every capability.
+        var group = await _groups.GetByIdAsync(command.GroupId, cancellationToken)
+            ?? throw new NotFoundException("Group not found.");
+        BrandingGating.EnsureAllowed(PlanCatalog.BrandingCapabilitiesFor(group.PlanId), command);
 
         var branding = await _store.GetAsync(command.GroupId, cancellationToken);
         var now = _clock.UtcNow;
@@ -196,6 +218,9 @@ public sealed class UpdateGroupBrandingHandler
                 command.WarningHex,
                 command.ErrorHex,
                 command.Typography,
+                command.ThemeId,
+                command.Intensity,
+                command.GradientStyle,
                 command.CoverKind,
                 command.CoverValue,
                 command.ThemeDefault,

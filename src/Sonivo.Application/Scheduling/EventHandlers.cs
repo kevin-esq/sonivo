@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Sonivo.Application.Abstractions;
+using Sonivo.Application.Billing;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Common;
 using Sonivo.Domain.Scheduling;
@@ -92,7 +93,11 @@ public sealed class CreateEventHandler
 
     public async Task<EventDetailDto> HandleAsync(CreateEventCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        var (group, _) = await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        var now = _clock.UtcNow;
+        var eventsThisMonth = (await _events.ListActiveByGroupAsync(command.GroupId, cancellationToken))
+            .Count(e => e.StartsAt.Year == now.Year && e.StartsAt.Month == now.Month);
+        PlanLimitGuard.EnsureWithinLimit(group.PlanId, PlanMetric.EventsPerMonth, eventsThisMonth);
 
         try
         {

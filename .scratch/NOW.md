@@ -5,62 +5,35 @@
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE - prod topology defined + tenancy/handoff hardened
-  Branch: develop (integration); work merged from 4 PRs
-  Delivered this session (merged):
-    - #226 feat(tenancy): reserved-slug list extended to the full host map
-      (apex, www, app, account, api, staging, dashboard, panel, signup, billing,
-      status, cdn, docs, blog, smtp, dev, test, internal, system, ...) + domain
-      tests. Server list is authoritative.
-    - #227 test(session): endpoint-level handoff verification (401/404, host-only
-      cookie, single-use, UA binding) + web `/session/handoff` redemption route +
-      client host bridge `{slug}.sonivo.lat -> /g/{slug}` (ADR-0067).
-    - #228 docs(deploy): ADR-0069 + docs/03-architecture/DEPLOYMENT.md (host map,
-      reserved slugs, handoff flow, DNS/TLS, Hetzner VPS runbook, Vercel BFF,
-      Neon/R2 per env, smoke tests) + deploy/docker-compose.yml + Caddyfile +
-      env.production.example. Provisioning is owner-gated (contract Hetzner).
-    - #229 feat(session): app-scope handoff for the product host. `start` accepts
-      an optional slug (no slug => app.sonivo.lat, user-scoped; slug => tenant,
-      membership-checked) + web `startHandoff()` + env-gated apex -> app redirect
-      (`NEXT_PUBLIC_APP_HOST`, inert unless set) + docs.
-  Validation run locally:
-    - dotnet test Sonivo.slnx (Release): Domain 170, Application 211,
-      Integration 58, API 246 - all green.
-    - web: npm run build --workspace @sonivo/app (BFF) + NEXT_EXPORT=1 export:
-      both green.
-  Infra configured (unchanged this session): staging on Render free +
-    staging.sonivo.lat, Neon staging branch, provider-agnostic email (Delivered).
-    Staging observed cold-starting (503) then healthy (200) after ~45s; that is
-    why prod targets always-warm Vercel + Hetzner.
-Human approval: APPROVED (owner authorized full execution)
-Git checkpoint: COMMITTED + MERGED (PRs #226, #227, #228, #229 into develop)
-Remote: PUSHED
-CI: PR checks green (CI + CodeQL + Security + Playwright E2E). develop CI
-    intermittently fails with a GitHub runner infrastructure error
-    ("job was not acquired by Runner of type hosted"), not a code failure
-    -> re-run when runners are available.
+Implementation: IN PROGRESS - Plans & personalization (ADR-0071/0072/0073)
+  Branch: feature/plans-entitlements (from develop)
+  PR: #231 (open, not merged)
+  Delivered so far:
+    - Fase A backend: PlanCatalog (single source of truth), Group.PlanId
+      (migration AddGroupPlan), GroupDto planId+capabilities, branding PUT
+      plan-gated (BrandingGating), GET /api/plans, API tests.
+    - Fase A frontend: consume planId+capabilities; disable controls per
+      capability; save echoes saved values for forbidden fields; lock card.
+    - Fase B backend: ThemeId/Intensity/GradientStyle fields
+      (migration AddBrandThemeIntensityGradient) + gating.
+    - Fase D backend: GET /api/groups/{id}/usage (usage vs limits) + tests.
+  In flight (subagent): Fase B frontend (10 themes, intensity, gradient
+    style, token derivation + editor pickers).
+  Remaining: Fase B frontend audit/merge, Fase C (editor by level polish),
+    Fase D frontend (usage meters UI + limit notices), downgrade rules,
+    and Fase E billing (provider pending - needs a decision, spec §9.13).
+Human approval: APPROVED (owner: "Haz todo ... no pares hasta terminar")
+Git checkpoint: COMMITTED on branch (PR #231 open)
+Remote: PUSHED (branch)
+CI: PR #231 checks to verify before merge
 ```
 
-## Prod topology (decided - ADR-0069)
+### Verified
+- Backend: Domain 176, Application 215, API 248, Integration 58 - green.
+- Frontend (`web/apps/app`): `next build` exit 0.
+- Migrations: AddGroupPlan, AddBrandThemeIntensityGradient (not applied to prod).
 
-- Frontend/BFF -> **Vercel** (Next server build, `API_ORIGIN=https://api.sonivo.lat`).
-- Backend -> **Hetzner Cloud VPS** (existing Docker image + Caddy TLS on `api.sonivo.lat`).
-- DB -> **Neon** prod branch; storage -> **Cloudflare R2** `sonivo-prod`; email -> provider-agnostic (ADR-0068).
-- Host map: apex/www/app/account + `*.sonivo.lat` on Vercel; `api` on Hetzner; `staging` stays on Render.
-- Session: apex auth + single-use handoff code + **host-only** cookie; parent-domain cookie PROHIBITED.
-  App scope (`app.sonivo.lat`, no slug) is enabled; apex -> app redirect is gated by
-  `NEXT_PUBLIC_APP_HOST` (set on Vercel, unset on staging).
-- Owner action remaining: contract Hetzner, create the Vercel project, set DNS, then
-  `docker compose --env-file .env up -d --build` (see DEPLOYMENT.md §6).
-
-## Follow-ups
-- Wire the group list "open" action to `POST /api/session/handoff/start { slug }`
-  when the target is a tenant host (today `/g/{slug}` path tenancy still works).
-- Set `NEXT_PUBLIC_APP_HOST=app.sonivo.lat` on Vercel to activate the apex -> app redirect.
-- SignalR through the Vercel BFF: hub origin guard compares Origin to the API
-  request host; needs a same-host origin from the BFF (no wildcard allow-list).
-- Next middleware / `[tenant]/[locale]` decomposition (ADR-0067 T-NEXT-06, FUTURE).
-- develop CI keeps hitting the GitHub hosted-runner shortage; re-run when green.
-- R2 staging vs prod bucket split when prod exists.
-- Google sign-in: add prod redirect URIs (`https://sonivo.lat`, `https://app.sonivo.lat`).
+### Notes
+- Active frontend is `web/apps/app/src` (Next shell, ADR-0067); `web/sonivo-web` is legacy.
+- Default plan is `studio` so existing groups keep full capabilities until billing.
 - Unrelated untracked files remain: .vscode/, .turbo/, .scratch/shots/, .scratch/security-sweep-26df6f5/.

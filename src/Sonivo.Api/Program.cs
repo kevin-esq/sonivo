@@ -17,6 +17,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Sonivo.Application;
 using Sonivo.Application.Abstractions;
+using Sonivo.Application.Billing;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tasks;
@@ -1878,6 +1879,54 @@ app.MapGet("/api/groups/{groupId:guid}/branding", async (
 .WithName("GetGroupBranding")
 .RequireAuthorization();
 
+// ---------- Plans / entitlements catalog (ADR-0071) ----------
+
+app.MapGet("/api/plans", (GetPlanCatalogHandler handler) =>
+        Results.Ok(ToPlanCatalogResponse(handler.Handle())))
+    .WithName("GetPlanCatalog")
+    .RequireAuthorization();
+
+app.MapGet("/api/groups/{groupId:guid}/usage", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GetGroupUsageHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(ToUsageResponse(await handler.HandleAsync(userId.Value, groupId, cancellationToken)));
+})
+.WithName("GetGroupUsage")
+.RequireAuthorization();
+
+// Manual plan management (ADR-0073 placeholder; no payment gateway).
+app.MapPut("/api/groups/{groupId:guid}/plan", async (
+    Guid groupId,
+    UpdateGroupPlanRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    UpdateGroupPlanHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var state = await handler.HandleAsync(
+        new UpdateGroupPlanCommand(userId.Value, groupId, request.Action ?? "assign", request.PlanId),
+        cancellationToken);
+    return Results.Ok(ToPlanStateResponse(state));
+})
+.WithName("UpdateGroupPlan")
+.RequireAuthorization();
+
 app.MapPut("/api/groups/{groupId:guid}/branding", async (
     Guid groupId,
     UpdateGroupBrandingRequest request,
@@ -1911,6 +1960,9 @@ app.MapPut("/api/groups/{groupId:guid}/branding", async (
             request.WarningHex,
             request.ErrorHex,
             request.Typography,
+            request.ThemeId,
+            request.Intensity,
+            request.GradientStyle,
             request.CoverKind,
             request.CoverValue,
             request.ThemeDefault,
@@ -4528,7 +4580,9 @@ static object ToGroupResponse(GroupDto group) => new
     version = group.Version,
     role = group.Role,
     createdAt = group.CreatedAt,
-    updatedAt = group.UpdatedAt
+    updatedAt = group.UpdatedAt,
+    planId = group.PlanId,
+    capabilities = group.Capabilities
 };
 
 static object ToGroupBySlugResponse(GroupBySlugResult result) => new
@@ -4540,7 +4594,45 @@ static object ToGroupBySlugResponse(GroupBySlugResult result) => new
     version = result.Group.Version,
     role = result.Group.Role,
     createdAt = result.Group.CreatedAt,
-    updatedAt = result.Group.UpdatedAt
+    updatedAt = result.Group.UpdatedAt,
+    planId = result.Group.PlanId,
+    capabilities = result.Group.Capabilities
+};
+
+static object ToPlanCatalogResponse(PlanCatalogDto catalog) => new
+{
+    defaultPlanId = catalog.DefaultPlanId,
+    plans = catalog.Plans.Select(plan => new
+    {
+        id = plan.Id,
+        priceMonthlyMxn = plan.PriceMonthlyMxn,
+        trialDays = plan.TrialDays,
+        trialRequiresCard = plan.TrialRequiresCard,
+        limits = plan.Limits,
+        features = plan.Features,
+        capabilities = plan.Capabilities
+    })
+};
+
+static object ToUsageResponse(GroupUsageDto usage) => new
+{
+    planId = usage.PlanId,
+    billingStatus = usage.BillingStatus,
+    trialEndsAt = usage.TrialEndsAt,
+    scheduledPlanId = usage.ScheduledPlanId,
+    members = new { used = usage.Members.Used, limit = usage.Members.Limit },
+    songs = new { used = usage.Songs.Used, limit = usage.Songs.Limit },
+    setlists = new { used = usage.Setlists.Used, limit = usage.Setlists.Limit },
+    eventsThisMonth = new { used = usage.EventsThisMonth.Used, limit = usage.EventsThisMonth.Limit },
+    storageBytes = new { used = usage.StorageBytes.Used, limit = usage.StorageBytes.Limit }
+};
+
+static object ToPlanStateResponse(GroupPlanStateDto state) => new
+{
+    planId = state.PlanId,
+    billingStatus = state.BillingStatus,
+    trialEndsAt = state.TrialEndsAt,
+    scheduledPlanId = state.ScheduledPlanId
 };
 
 static object ToBrandingResponse(GroupBrandingDto branding) => new
@@ -4554,6 +4646,9 @@ static object ToBrandingResponse(GroupBrandingDto branding) => new
     warningHex = branding.WarningHex,
     errorHex = branding.ErrorHex,
     typography = branding.Typography,
+    themeId = branding.ThemeId,
+    intensity = branding.Intensity,
+    gradientStyle = branding.GradientStyle,
     onPrimary = branding.OnPrimary,
     onSecondary = branding.OnSecondary,
     onAccent = branding.OnAccent,
@@ -4843,6 +4938,7 @@ internal sealed record TwoFactorChallengeRequest(string? Code, bool RememberMe =
 internal sealed record DisableTwoFactorRequest(string? Password);
 internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
+internal sealed record UpdateGroupPlanRequest(string? Action, string? PlanId);
 internal sealed record ChangeGroupSlugRequest(string? Slug);
 internal sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 internal sealed record UpdateProfileRequest(string? DisplayName);
@@ -4858,6 +4954,9 @@ internal sealed record UpdateGroupBrandingRequest(
     string? WarningHex,
     string? ErrorHex,
     string? Typography,
+    string? ThemeId,
+    string? Intensity,
+    string? GradientStyle,
     string? CoverKind,
     string? CoverValue,
     string? ThemeDefault,
@@ -4995,6 +5094,7 @@ public sealed class AppExceptionHandler : IExceptionHandler
         {
             NotFoundException => StatusCodes.Status404NotFound,
             ForbiddenException => StatusCodes.Status403Forbidden,
+            PlanLimitException => StatusCodes.Status403Forbidden,
             ConflictException => StatusCodes.Status409Conflict,
             ValidationException => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status500InternalServerError

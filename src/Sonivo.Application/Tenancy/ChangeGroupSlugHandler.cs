@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Tenancy;
 
 namespace Sonivo.Application.Tenancy;
@@ -94,6 +95,8 @@ public sealed class ChangeGroupSlugHandler
             membership.Role,
             group.CreatedAt,
             group.UpdatedAt,
-            group.Slug);
+            group.Slug,
+            group.PlanId,
+            PlanCatalog.BrandingCapabilitiesFor(group.PlanId));
     }
 }
