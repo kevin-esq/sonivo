@@ -666,6 +666,15 @@ function AuthScreen({
                       : t("auth.loginLink")}
                   </Link>
                 </p>
+
+                <p className="text-sm text-slate-600">
+                  <Link
+                    className="font-semibold text-shell-link no-underline hover:underline"
+                    to="/bienvenido"
+                  >
+                    {t("marketing.discover")}
+                  </Link>
+                </p>
               </form>
             )}
           </div>

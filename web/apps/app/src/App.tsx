@@ -58,6 +58,10 @@ const named = <T extends Record<string, any>, K extends keyof T>(
 
 const HomePage = named(() => import("./home/HomePage"), "HomePage");
 const GroupsPage = named(() => import("./groups/GroupsPage"), "GroupsPage");
+const MarketingPage = named(
+  () => import("./marketing/MarketingPage"),
+  "MarketingPage",
+);
 const JoinGroupPage = named(
   () => import("./tenancy/JoinGroupPage"),
   "JoinGroupPage",
@@ -554,6 +558,7 @@ export default function App() {
               </Route>
 
               {/* Public routes */}
+              <Route path="/bienvenido" element={<MarketingPage />} />
               <Route
                 path="/join/:token"
                 element={
