@@ -31,6 +31,7 @@ using Sonivo.Api.Session;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Scheduling;
 using Sonivo.Domain.Tenancy;
+using Sonivo.Domain.Notifications;
 using Sonivo.Api.Auth;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Blobs;
@@ -837,6 +838,7 @@ app.MapPost("/api/auth/change-password", async (
     UserManager<ApplicationUser> users,
     SignInManager<ApplicationUser> signInManager,
     IAccountAuditStore audit,
+    INotificationStore notifications,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -869,6 +871,17 @@ app.MapPost("/api/auth/change-password", async (
         AccountAudit.Create(AccountAudit.ActionPasswordChanged, clock.UtcNow, actorUserId: appUser.Id),
         cancellationToken);
     await audit.SaveChangesAsync(cancellationToken);
+
+    // ADR-0077: account-scoped security notification.
+    await notifications.AddAsync(
+        Notification.Create(
+            appUser.Id,
+            NotificationScope.Account,
+            Notification.KindPasswordChanged,
+            clock.UtcNow,
+            actorUserId: appUser.Id),
+        cancellationToken);
+    await notifications.SaveChangesAsync(cancellationToken);
 
     // Rotate the session cookie so the new security stamp is honoured.
     await signInManager.RefreshSignInAsync(appUser);
@@ -3232,6 +3245,8 @@ app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     ChangeMemberRoleHandler handler,
+    INotificationStore notifications,
+    IClock clock,
     CancellationToken cancellationToken) =>
 {
     var userId = await RequireUserIdAsync(principal, users);
@@ -3243,6 +3258,23 @@ app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async
     await handler.HandleAsync(
         new ChangeMemberRoleCommand(userId.Value, groupId, targetUserId, request.Role),
         cancellationToken);
+
+    // ADR-0077: tell the affected member their role changed (skip self-changes).
+    if (targetUserId != userId.Value)
+    {
+        await notifications.AddAsync(
+            Notification.Create(
+                targetUserId,
+                NotificationScope.Group,
+                Notification.KindRoleChanged,
+                clock.UtcNow,
+                groupId: groupId,
+                actorUserId: userId.Value,
+                metadata: request.Role),
+            cancellationToken);
+        await notifications.SaveChangesAsync(cancellationToken);
+    }
+
     return Results.NoContent();
 })
 .WithName("ChangeGroupMemberRole")
@@ -3305,6 +3337,119 @@ app.MapGet("/api/groups/{groupId:guid}/audit", async (
 .WithName("ListGroupAudit")
 .RequireAuthorization();
 
+// ---- In-app notifications (ADR-0077). Account and group inboxes are distinct:
+// "account" (security/credentials, one user) vs "group" (membership/repertoire,
+// one group, membership required). ----
+
+static NotificationScope ParseNotificationScope(string? scope) =>
+    string.Equals(scope, "group", StringComparison.OrdinalIgnoreCase)
+        ? NotificationScope.Group
+        : NotificationScope.Account;
+
+app.MapGet("/api/notifications", async (
+    string? scope,
+    Guid? groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    INotificationStore notifications,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var resolved = ParseNotificationScope(scope);
+    if (resolved == NotificationScope.Group)
+    {
+        if (groupId is null || groupId == Guid.Empty)
+        {
+            return Results.Problem(
+                detail: "groupId is required for group notifications.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        await access.RequireMemberAsync(groupId.Value, userId.Value, cancellationToken);
+    }
+
+    var items = await notifications.ListAsync(userId.Value, resolved, groupId, 50, cancellationToken);
+    var unreadCount = await notifications.CountUnreadAsync(userId.Value, resolved, groupId, cancellationToken);
+    return Results.Ok(new
+    {
+        unreadCount,
+        items = items.Select(n => new
+        {
+            id = n.Id,
+            kind = n.Kind,
+            groupId = n.GroupId,
+            actorUserId = n.ActorUserId,
+            metadata = n.Metadata,
+            createdAt = n.CreatedAt,
+            readAt = n.ReadAt
+        })
+    });
+})
+.WithName("ListNotifications")
+.RequireAuthorization();
+
+app.MapPost("/api/notifications/{notificationId:guid}/read", async (
+    Guid notificationId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    INotificationStore notifications,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var notification = await notifications.GetOwnedAsync(notificationId, userId.Value, cancellationToken);
+    if (notification is null)
+    {
+        return Results.NotFound();
+    }
+
+    notification.MarkRead(clock.UtcNow);
+    await notifications.SaveChangesAsync(cancellationToken);
+    return Results.NoContent();
+})
+.WithName("MarkNotificationRead")
+.RequireAuthorization();
+
+app.MapPost("/api/notifications/read-all", async (
+    string? scope,
+    Guid? groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    INotificationStore notifications,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var resolved = ParseNotificationScope(scope);
+    if (resolved == NotificationScope.Group && groupId is not null && groupId != Guid.Empty)
+    {
+        await access.RequireMemberAsync(groupId.Value, userId.Value, cancellationToken);
+    }
+
+    var updated = await notifications.MarkAllReadAsync(
+        userId.Value, resolved, groupId, clock.UtcNow, cancellationToken);
+    return Results.Ok(new { updated });
+})
+.WithName("MarkAllNotificationsRead")
+.RequireAuthorization();
+
 app.MapPost("/api/groups/{groupId:guid}/leave", async (
     Guid groupId,
     ClaimsPrincipal principal,
@@ -3331,6 +3476,7 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
     UserManager<ApplicationUser> users,
     CreateInvitationHandler handler,
     IGroupAuditStore audit,
+    INotificationStore notifications,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -3349,6 +3495,26 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
         GroupAuditEntry.Create(groupId, GroupAuditEntry.ActionInvitationCreated, clock.UtcNow, actorUserId: userId.Value),
         cancellationToken);
     await audit.SaveChangesAsync(cancellationToken);
+
+    // ADR-0077: if the invited email belongs to an existing user, drop a group
+    // notification in their inbox (best effort; unknown emails get nothing).
+    if (!string.IsNullOrWhiteSpace(request?.Email))
+    {
+        var invitee = await users.FindByEmailAsync(request!.Email!.Trim());
+        if (invitee is not null)
+        {
+            await notifications.AddAsync(
+                Notification.Create(
+                    invitee.Id,
+                    NotificationScope.Group,
+                    Notification.KindInvitationCreated,
+                    clock.UtcNow,
+                    groupId: groupId,
+                    actorUserId: userId.Value),
+                cancellationToken);
+            await notifications.SaveChangesAsync(cancellationToken);
+        }
+    }
 
     return Results.Created(
         $"/api/groups/{groupId}/invitations/{created.Id}",

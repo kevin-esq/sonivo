@@ -75,6 +75,10 @@ const PlaceholderPage = named(
   "PlaceholderPage",
 );
 const PlansPage = named(() => import("./plans/PlansPage"), "PlansPage");
+const AccountNotificationsPage = named(
+  () => import("./notifications/AccountNotificationsPage"),
+  "AccountNotificationsPage",
+);
 const CalendarPage = named(
   () => import("./calendar/CalendarPage"),
   "CalendarPage",
@@ -591,7 +595,7 @@ export default function App() {
                   />
                   <Route
                     path="/cuenta/notificaciones"
-                    element={<PlaceholderPage />}
+                    element={<AccountNotificationsPage />}
                   />
                   <Route
                     path="/cuenta/grupos"

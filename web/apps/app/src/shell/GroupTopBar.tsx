@@ -14,6 +14,7 @@ import { useT, type I18nKey } from '../i18n'
 import { cn } from '../ui/cn'
 import { formatMembershipRole } from '../repertoire/ui'
 import { GroupSwitcher } from './GroupSwitcher'
+import { GroupNotificationsBell } from '../groups/GroupNotificationsBell'
 
 type SearchHit = { id: string; label: string; hint: I18nKey; to: string; kind: 'song' | 'event' | 'task' }
 
@@ -172,13 +173,7 @@ export function GroupTopBar({
         <GroupSwitcher currentGroupId={groupId} />
       </div>
 
-      <Link
-        to="/cuenta/notificaciones"
-        aria-label={t('workspace.account')}
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border-subtle bg-surface text-muted transition-colors hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      >
-        <Bell className="h-5 w-5" aria-hidden="true" />
-      </Link>
+      <GroupNotificationsBell groupId={groupId} />
 
       <details className="relative shrink-0" data-testid="topbar-user-menu">
         <summary
@@ -194,6 +189,13 @@ export function GroupTopBar({
           <p className="px-3 py-2 text-xs text-muted">{formatMembershipRole(role, t)}</p>
           <Link to="/grupos" className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
             {t('workspace.myGroups')}
+          </Link>
+          <Link
+            to="/cuenta/notificaciones"
+            className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
+          >
+            <Bell className="h-4 w-4" aria-hidden="true" />
+            {t('notifications.accountTitle')}
           </Link>
           <Link to="/cuenta" className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
             {t('workspace.account')}
