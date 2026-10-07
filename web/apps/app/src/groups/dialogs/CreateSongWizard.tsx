@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, FileAudio, Music2, Plus, SkipForward, Trash2, Upload, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, FileAudio, Music2, Pause, Play, Plus, SkipForward, Trash2, Upload, X } from 'lucide-react'
 import {
   createArrangement,
   createFileResource,
@@ -87,6 +87,14 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<SongDetail | null>(null)
 
+  // Real audio preview: encoded object URL, decoded peaks for the waveform, and
+  // playback position so the preview is truthful rather than decorative.
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null)
+  const [peaks, setPeaks] = useState<number[] | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const [positionMs, setPositionMs] = useState(0)
+
   const originOptions = [
     { value: 'original', label: t('songCreate.originOriginal') },
     { value: 'cover', label: t('songCreate.originCover') },
@@ -122,7 +130,74 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
     }
   }, [file])
 
-  const bars = useMemo(() => waveformBars(title.length + sections.length + 7, 64), [title.length, sections.length])
+  // Object URL for the inline preview player (revoked when the file changes).
+  useEffect(() => {
+    if (!file) {
+      setPreviewSrc(null)
+      setPlaying(false)
+      setPositionMs(0)
+      return
+    }
+    const url = URL.createObjectURL(file)
+    setPreviewSrc(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
+  // Decode the audio and downsample it into waveform peaks (falls back to the
+  // decorative pattern when the browser cannot decode the codec).
+  useEffect(() => {
+    let cancelled = false
+    if (!file) {
+      setPeaks(null)
+      return
+    }
+    const AudioCtor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!AudioCtor) {
+      setPeaks(null)
+      return
+    }
+    const context = new AudioCtor()
+    file
+      .arrayBuffer()
+      .then((buffer) => context.decodeAudioData(buffer))
+      .then((decoded) => {
+        const channel = decoded.getChannelData(0)
+        const count = 72
+        const block = Math.max(1, Math.floor(channel.length / count))
+        const next: number[] = []
+        for (let i = 0; i < count; i += 1) {
+          let peak = 0
+          const start = i * block
+          for (let j = 0; j < block; j += 1) {
+            const value = Math.abs(channel[start + j] ?? 0)
+            if (value > peak) peak = value
+          }
+          next.push(Math.max(6, Math.round(peak * 100)))
+        }
+        if (!cancelled) setPeaks(next)
+      })
+      .catch(() => {
+        if (!cancelled) setPeaks(null)
+      })
+      .finally(() => {
+        void context.close().catch(() => undefined)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [file])
+
+  function togglePreview() {
+    const audio = audioRef.current
+    if (!audio) return
+    if (audio.paused) void audio.play().catch(() => undefined)
+    else audio.pause()
+  }
+
+  const bars = useMemo(() => waveformBars(title.length + sections.length + 7, 72), [title.length, sections.length])
+  const wave = peaks ?? bars
 
   function pickFile(next: File | null) {
     setFileError(null)
@@ -501,18 +576,53 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
             />
           </div>
 
-          {/* Decorative track preview with one lane per section. */}
-          <div className="space-y-2 rounded-2xl border border-border-subtle bg-surface p-4">
-            <div className="flex items-end gap-[2px]" aria-hidden="true">
-              {bars.map((height, index) => (
-                <span
-                  key={index}
-                  className="flex-1 rounded-full bg-primary/40"
-                  style={{ height: `${height * 0.5}px` }}
-                />
-              ))}
+          {/* Real audio preview: decoded waveform + inline player + section lanes. */}
+          <div className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={togglePreview}
+                aria-label={playing ? t('songCreate.wizardPausePreview') : t('songCreate.wizardPlayPreview')}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary-strong text-primary-foreground shadow-sm transition hover:bg-primary-strong/90"
+              >
+                {playing ? (
+                  <Pause className="h-5 w-5" aria-hidden="true" />
+                ) : (
+                  <Play className="h-5 w-5" aria-hidden="true" />
+                )}
+              </button>
+              <div className="flex h-16 min-w-0 flex-1 items-center gap-[2px] overflow-hidden rounded-lg bg-surface-hover/60 px-1">
+                {wave.map((height, index, all) => {
+                  const total = durationMs ?? 0
+                  const passed = total > 0 ? (index / all.length) * total <= positionMs : false
+                  return (
+                    <span
+                      key={index}
+                      aria-hidden="true"
+                      className={cn('w-[2px] shrink-0 rounded-full', passed ? 'bg-primary' : 'bg-primary/35')}
+                      style={{ height: `${height}%` }}
+                    />
+                  )
+                })}
+              </div>
+              <span className="w-24 shrink-0 text-right text-xs tabular-nums text-muted">
+                {formatDuration(positionMs)} / {formatDuration(durationMs)}
+              </span>
             </div>
-            <p className="text-right text-xs tabular-nums text-muted">{formatDuration(durationMs)}</p>
+            <audio
+              ref={audioRef}
+              src={previewSrc ?? undefined}
+              preload="metadata"
+              onPlay={() => setPlaying(true)}
+              onPause={() => setPlaying(false)}
+              onEnded={() => {
+                setPlaying(false)
+                setPositionMs(0)
+              }}
+              onTimeUpdate={(event) => setPositionMs(event.currentTarget.currentTime * 1000)}
+              className="sr-only"
+            />
+            <p className="text-xs text-muted">{t('songCreate.wizardPreviewHint')}</p>
           </div>
 
           <div className="space-y-3">
