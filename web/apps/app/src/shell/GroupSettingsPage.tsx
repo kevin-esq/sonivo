@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -393,19 +393,37 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   }
 
   /**
-   * Controlled `input[type=color]`: the browser normalizes the value and fires a
-   * change event even when the user did not change it. Patching state on such a
-   * no-op change re-renders the controlled input, which fires another change —
-   * React then aborts with "Maximum update depth exceeded". Only apply a valid
-   * 6-digit hex that actually differs from the current value.
+   * Controlled `input[type=color]` is unreliable: the browser fires a change for
+   * every step while the OS picker is dragged, and each one previously scheduled
+   * a state update, so a fast drag exceeded React's nested-update limit
+   * ("Maximum update depth exceeded"). Coalesce a burst into one update per frame
+   * and ignore non-hex / unchanged values.
    */
+  const pendingColor = useRef<{ field: keyof BrandDraft; value: string } | null>(null)
+  const colorFrame = useRef<number | null>(null)
+
   function setDraftColor(field: keyof BrandDraft, value: string) {
     const next = value.toLowerCase()
     if (!/^#[0-9a-f]{6}$/.test(next)) return
     if (String(draft?.[field] ?? '').toLowerCase() === next) return
-    setDraft((prev) => (prev ? ({ ...prev, [field]: next } as BrandDraft) : prev))
-    setBrandSaved(false)
+    pendingColor.current = { field, value: next }
+    if (colorFrame.current != null) return
+    colorFrame.current = window.requestAnimationFrame(() => {
+      colorFrame.current = null
+      const pending = pendingColor.current
+      pendingColor.current = null
+      if (!pending) return
+      setDraft((prev) => (prev ? ({ ...prev, [pending.field]: pending.value } as BrandDraft) : prev))
+      setBrandSaved(false)
+    })
   }
+
+  useEffect(
+    () => () => {
+      if (colorFrame.current != null) window.cancelAnimationFrame(colorFrame.current)
+    },
+    [],
+  )
 
   const isDirty = useMemo(() => {
     if (!draft || !branding) return false
@@ -981,8 +999,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <input
                 type="color"
                 aria-label={t('settings.customColor')}
-                value={draft.accentHex || '#8366f1'}
-                onChange={(e) => setDraftColor('accentHex', e.target.value)}
+                defaultValue={draft.accentHex || '#8366f1'}
+                onBlur={(e) => setDraftColor('accentHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
             </div>
@@ -1011,8 +1029,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <input
                 type="color"
                 aria-label={t('settings.customColor')}
-                value={draft.secondaryHex || '#f5c542'}
-                onChange={(e) => setDraftColor('secondaryHex', e.target.value)}
+                defaultValue={draft.secondaryHex || '#f5c542'}
+                onBlur={(e) => setDraftColor('secondaryHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ secondaryHex: '' })}>
@@ -1044,8 +1062,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <input
                 type="color"
                 aria-label={t('settings.customColor')}
-                value={draft.accentColorHex || '#9d8bda'}
-                onChange={(e) => setDraftColor('accentColorHex', e.target.value)}
+                defaultValue={draft.accentColorHex || '#9d8bda'}
+                onBlur={(e) => setDraftColor('accentColorHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ accentColorHex: '' })}>
@@ -1064,8 +1082,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   <input
                     type="color"
                     aria-label={t('settings.successColor')}
-                    value={draft.successHex || '#10b981'}
-                    onChange={(e) => setDraftColor('successHex', e.target.value)}
+                    defaultValue={draft.successHex || '#10b981'}
+                    onBlur={(e) => setDraftColor('successHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ successHex: '' })}>
@@ -1079,8 +1097,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   <input
                     type="color"
                     aria-label={t('settings.warningColor')}
-                    value={draft.warningHex || '#f59e0b'}
-                    onChange={(e) => setDraftColor('warningHex', e.target.value)}
+                    defaultValue={draft.warningHex || '#f59e0b'}
+                    onBlur={(e) => setDraftColor('warningHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ warningHex: '' })}>
@@ -1094,8 +1112,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   <input
                     type="color"
                     aria-label={t('settings.errorColor')}
-                    value={draft.errorHex || '#ef4444'}
-                    onChange={(e) => setDraftColor('errorHex', e.target.value)}
+                    defaultValue={draft.errorHex || '#ef4444'}
+                    onBlur={(e) => setDraftColor('errorHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ errorHex: '' })}>
