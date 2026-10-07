@@ -3330,6 +3330,8 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     CreateInvitationHandler handler,
+    IGroupAuditStore audit,
+    IClock clock,
     CancellationToken cancellationToken) =>
 {
     var userId = await RequireUserIdAsync(principal, users);
@@ -3341,6 +3343,12 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
     var created = await handler.HandleAsync(
         new CreateInvitationCommand(userId.Value, groupId, request?.Email),
         cancellationToken);
+
+    // ADR-0051: invitation lifecycle is part of the group audit trail.
+    await audit.AddAsync(
+        GroupAuditEntry.Create(groupId, GroupAuditEntry.ActionInvitationCreated, clock.UtcNow, actorUserId: userId.Value),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
 
     return Results.Created(
         $"/api/groups/{groupId}/invitations/{created.Id}",
@@ -3382,6 +3390,8 @@ app.MapDelete("/api/groups/{groupId:guid}/invitations/{invitationId:guid}", asyn
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     RevokeInvitationHandler handler,
+    IGroupAuditStore audit,
+    IClock clock,
     CancellationToken cancellationToken) =>
 {
     var userId = await RequireUserIdAsync(principal, users);
@@ -3393,6 +3403,12 @@ app.MapDelete("/api/groups/{groupId:guid}/invitations/{invitationId:guid}", asyn
     await handler.HandleAsync(
         new RevokeInvitationCommand(userId.Value, groupId, invitationId),
         cancellationToken);
+
+    // ADR-0051: invitation lifecycle is part of the group audit trail.
+    await audit.AddAsync(
+        GroupAuditEntry.Create(groupId, GroupAuditEntry.ActionInvitationRevoked, clock.UtcNow, actorUserId: userId.Value),
+        cancellationToken);
+    await audit.SaveChangesAsync(cancellationToken);
     return Results.NoContent();
 })
 .WithName("RevokeGroupInvitation")
