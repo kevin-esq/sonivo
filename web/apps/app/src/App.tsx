@@ -71,6 +71,7 @@ const PlaceholderPage = named(
   () => import("./shell/PlaceholderPage"),
   "PlaceholderPage",
 );
+const PlansPage = named(() => import("./plans/PlansPage"), "PlansPage");
 const CalendarPage = named(
   () => import("./calendar/CalendarPage"),
   "CalendarPage",
@@ -507,7 +508,7 @@ export default function App() {
                   <Route path="/grupos" element={<GroupsPageWithActions />} />
                   <Route path="/unirse" element={<JoinGroupPage />} />
                   <Route path="/calendario" element={<CalendarPage />} />
-                  <Route path="/plan" element={<PlaceholderPage />} />
+                  <Route path="/plan" element={<PlansPage />} />
                   <Route path="/ayuda" element={<PlaceholderPage />} />
                   <Route path="/cuenta" element={<SettingsProfilePage />} />
                   <Route
