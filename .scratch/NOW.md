@@ -5,36 +5,37 @@
 ## Checkpoint state
 
 ```text
-Branch: refactor/frontend-restructure (from develop 38d72ad)
-Language policy (HARD, user 2026-10-07): code/comments/logs/tests/back-end/routes/
-  commits = English; only UI copy is localized via t(); locales es(default)/en/pt.
+Branch: refactor/frontend-restructure (from develop 38d72ad) - one big PR (owner choice)
+Language policy (HARD): code/comments/logs/tests/back-end/routes/commits = English;
+  only UI copy localized via t(); locales es(default)/en/pt.
   Recorded in AGENTS.md + .agents/skills/frontend-architecture/SKILL.md.
 
-DONE (in this branch so far):
-  - Group shell redesign (WIP commit): top bar with group search, persistent right
-    context rail (Tu semana / Hoy / Tus listas / Tu progreso), and a new group home
-    (welcome hero + quick-action cards + upcoming events).
-  - i18n split: i18n/locales/{es,en,pt}.ts + thin index.tsx + keys.ts. Added a
-    complete Brazilian Portuguese locale (1229 keys, parity es=en=pt).
-  - Spanglish sweep of the components introduced/merged: GroupContextRail, GroupTopBar,
-    GroupHomePage, GroupLimitNotice, GroupStates, GroupDialog now use t(); new keys
-    added to all 3 locales (home.*, rail.*, topbar.*, plan.*, state.*, common.close).
-  - frontend-architecture skill created; SKILLS-INVENTORY updated.
+DONE on this branch:
+  - i18n split: i18n/locales/{es,en,pt}.ts + thin index.tsx + keys.ts.
+  - Portuguese locale: 1229 keys, parity es=en=pt; language picker shows 3.
+  - api split: api/client.ts -> thin barrel + api/http.ts + per-domain modules (152 exports).
+  - Spanglish sweep: Spanish comments -> English; hardcoded UI copy -> t() (new keys in es/en/pt).
+  - Group shell redesign: top bar (group search) + persistent right context rail
+    (Semana / Hoy / Listas / Tu progreso) + new group home (welcome hero + quick-action
+    cards + upcoming events). Profile de-duplicated (removed from the sidebar; lives in
+    the top bar). Banner moved into the content column (aligns with the card).
+  - Fixed extra document scroll: group workspace is now a fixed full-viewport app frame
+    (md:fixed md:inset-0) so only the inner content scrolls.
+  - Themed scrollbars + color-scheme (app/globals.css) - the active stylesheet.
+  - E2E: hardened create helpers (custom-select step inside the retried unit); specs
+    updated for the new role presentation and player labels.
 
-PENDING (big restructure, one PR as requested):
-  - api/client.ts (1309 lines, 152 exports) -> api/http.ts + per-domain modules.
-  - Split god pages: GroupSettingsPage(9), GroupsPage(14), GroupTasksPage(14),
+PENDING:
+  - Verify the full E2E green (running), then push + open the PR (big restructure).
+  - Split the god pages: GroupSettingsPage(9), GroupsPage(14), GroupTasksPage(14),
     ArrangementDetailPage(7), PracticePage(5), EventDetailPage(6), GroupWorkspace.
-  - Finish the Spanglish sweep across the WHOLE frontend (pre-existing literals)
-    and English-ify back-end messages/hub errors (no Spanish strings in code).
-
-Verification so far: tsc clean (only pre-existing main.tsx TS5097); next build green;
-E2E subset running.
-Human approval: APPROVED (owner: "haz todo ... un PR grande ... no pares")
-Git checkpoint: IN PROGRESS (branch not pushed)
+  - "Back-end in English" is NOT done: still many Spanish back-end messages and ~49 E2E
+    assertions depend on them. Doing it needs error codes + client-side mapping (the UI
+    must stop rendering raw backend text) and E2E updates - a separate, larger slice.
 ```
 
 ### Notes
-- Active frontend: `web/apps/app/src`. Legacy `web/sonivo-web` is ignored.
-- Do not run `next build` while the dev server is up (it clobbers `.next`).
+- Active frontend: `web/apps/app/src`; the ACTIVE stylesheet is `app/globals.css`
+  (`src/index.css` is not bundled by the Next shell). Do not run `next build` while the
+  dev server is up (clobbers `.next`).
 - Unrelated untracked files: .vscode/, .turbo/, .scratch/shots/, .scratch/security-sweep-*.
