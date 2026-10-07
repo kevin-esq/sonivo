@@ -185,7 +185,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       <GroupErrorState message={listError} />
 
       <GroupLimitNotice
-        label="listas"
+        label={t('plan.labelSetlists')}
         metric={usage?.setlists}
         upgradeHref={`/groups/${group.id}/ajustes?tab=plan`}
       />

@@ -1,41 +1,40 @@
 # NOW - agent focus
 
-**Updated:** 2026-10-06
+**Updated:** 2026-10-07
 
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE - Groups UI refactor + plan follow-ups (notices + payments)
-  Merged to develop:
-    - PR #233 feature/group-ui-refactor (ADR-0074): groups/ui kit, creation modals,
-      custom GroupSelect, real-time group data bus, all group pages migrated.
-    - PR #234 feature/plan-limit-notices (PHASE-PLANS-SPEC §4.1): 80%/100% limit notices
-      on Library/Setlists/Events + ?tab=plan deep link.
-    - PR #235 feature/payments-abstraction (ADR-0075): provider-agnostic IPaymentProvider,
-      Manual default + HMAC-signed Sandbox gateway, signature-verified idempotent webhooks
-      (WebhookEvents migration), owner-only checkout, single signed CSRF exemption.
-  Verification (all green):
-    - Frontend: tsc clean (pre-existing main.tsx TS5097 only), next build green,
-      Playwright E2E 88 passed / 3 skipped / 0 failed.
-    - Backend: Domain 181, Application 222, Integration 66, Api 251.
-    - CI: PRs #233/#234/#235 all checks pass; merged.
-Human approval: APPROVED
-Git checkpoint: COMMITTED + MERGED (#233, #234, #235)
-Remote: PUSHED (branches deleted after merge)
-CI: PASSING
+Branch: refactor/frontend-restructure (from develop 38d72ad)
+Language policy (HARD, user 2026-10-07): code/comments/logs/tests/back-end/routes/
+  commits = English; only UI copy is localized via t(); locales es(default)/en/pt.
+  Recorded in AGENTS.md + .agents/skills/frontend-architecture/SKILL.md.
+
+DONE (in this branch so far):
+  - Group shell redesign (WIP commit): top bar with group search, persistent right
+    context rail (Tu semana / Hoy / Tus listas / Tu progreso), and a new group home
+    (welcome hero + quick-action cards + upcoming events).
+  - i18n split: i18n/locales/{es,en,pt}.ts + thin index.tsx + keys.ts. Added a
+    complete Brazilian Portuguese locale (1229 keys, parity es=en=pt).
+  - Spanglish sweep of the components introduced/merged: GroupContextRail, GroupTopBar,
+    GroupHomePage, GroupLimitNotice, GroupStates, GroupDialog now use t(); new keys
+    added to all 3 locales (home.*, rail.*, topbar.*, plan.*, state.*, common.close).
+  - frontend-architecture skill created; SKILLS-INVENTORY updated.
+
+PENDING (big restructure, one PR as requested):
+  - api/client.ts (1309 lines, 152 exports) -> api/http.ts + per-domain modules.
+  - Split god pages: GroupSettingsPage(9), GroupsPage(14), GroupTasksPage(14),
+    ArrangementDetailPage(7), PracticePage(5), EventDetailPage(6), GroupWorkspace.
+  - Finish the Spanglish sweep across the WHOLE frontend (pre-existing literals)
+    and English-ify back-end messages/hub errors (no Spanish strings in code).
+
+Verification so far: tsc clean (only pre-existing main.tsx TS5097); next build green;
+E2E subset running.
+Human approval: APPROVED (owner: "haz todo ... un PR grande ... no pares")
+Git checkpoint: IN PROGRESS (branch not pushed)
 ```
 
-### Remaining (not started; needs a dedicated, verified pass)
-- **Organization model (ADR-0072)** — large and tenancy-critical: a new `Organization`
-  entity + migration + backfill, `Group.OrganizationId`, group-limit validation against the
-  organization, and moving plan/billing to the organization in Studio. Deferred rather than
-  rushed because it touches billing/tenancy invariants and deserves its own delivery.
-- **Commercial payment provider + CFDI/tax (ADR-0075 leaves these OPEN)** — the sandbox
-  gateway and the abstraction ship now; a real adapter + Mexican invoicing are a follow-up.
-
 ### Notes
-- Active frontend is `web/apps/app/src` (Next shell, ADR-0067).
-- `/grupos` (GroupsPage) is account/panel chrome (ADR-0074 §2) and stays on Sonivo-fixed `ui/`.
-- `reactStrictMode` is disabled in `web/apps/app/next.config.ts` (dev-only double-mount raced
-  the create modals; production never double-invokes effects).
-- Unrelated untracked files remain: .vscode/, .turbo/, .scratch/shots/, .scratch/security-sweep-*.
+- Active frontend: `web/apps/app/src`. Legacy `web/sonivo-web` is ignored.
+- Do not run `next build` while the dev server is up (it clobbers `.next`).
+- Unrelated untracked files: .vscode/, .turbo/, .scratch/shots/, .scratch/security-sweep-*.

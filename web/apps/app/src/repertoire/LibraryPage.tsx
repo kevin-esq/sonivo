@@ -246,7 +246,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
       <GroupErrorState message={listError} />
 
       <GroupLimitNotice
-        label="canciones"
+        label={t('plan.labelSongs')}
         metric={usage?.songs}
         upgradeHref={`/groups/${group.id}/ajustes?tab=plan`}
       />

@@ -10,11 +10,11 @@ import {
   type SongListItem,
   type TaskItem,
 } from '../api/client'
-import { useT } from '../i18n'
+import { useT, type I18nKey } from '../i18n'
 import { cn } from '../ui/cn'
 import { formatMembershipRole } from '../repertoire/ui'
 
-type SearchHit = { id: string; label: string; hint: string; to: string; kind: 'song' | 'event' | 'task' }
+type SearchHit = { id: string; label: string; hint: I18nKey; to: string; kind: 'song' | 'event' | 'task' }
 
 /**
  * Desktop top bar for the group shell (owner reference 2026-10-07): a
@@ -72,15 +72,15 @@ export function GroupTopBar({
     const songHits: SearchHit[] = songs
       .filter((song) => song.title.toLowerCase().includes(q))
       .slice(0, 5)
-      .map((song) => ({ id: `s-${song.id}`, label: song.title, hint: 'Canción', to: `/groups/${groupId}/songs/${song.id}`, kind: 'song' }))
+      .map((song) => ({ id: `s-${song.id}`, label: song.title, hint: 'topbar.kindSong' as const, to: `/groups/${groupId}/songs/${song.id}`, kind: 'song' as const }))
     const eventHits: SearchHit[] = events
       .filter((event) => event.title.toLowerCase().includes(q))
       .slice(0, 5)
-      .map((event) => ({ id: `e-${event.id}`, label: event.title, hint: 'Evento', to: `/groups/${groupId}/events/${event.id}`, kind: 'event' }))
+      .map((event) => ({ id: `e-${event.id}`, label: event.title, hint: 'topbar.kindEvent' as const, to: `/groups/${groupId}/events/${event.id}`, kind: 'event' as const }))
     const taskHits: SearchHit[] = tasks
       .filter((task) => task.title.toLowerCase().includes(q))
       .slice(0, 5)
-      .map((task) => ({ id: `t-${task.id}`, label: task.title, hint: 'Tarea', to: `/groups/${groupId}/tasks`, kind: 'task' }))
+      .map((task) => ({ id: `t-${task.id}`, label: task.title, hint: 'topbar.kindTask' as const, to: `/groups/${groupId}/tasks`, kind: 'task' as const }))
     return [...songHits, ...eventHits, ...taskHits].slice(0, 8)
   }, [query, songs, events, tasks, groupId])
 
@@ -108,7 +108,7 @@ export function GroupTopBar({
           autoComplete="off"
           data-testid="group-search"
           className="h-11 w-full rounded-full border border-border-subtle bg-surface pl-9 pr-3 text-sm text-ink placeholder:text-muted focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          placeholder="Buscar canciones, eventos, tareas…"
+          placeholder={t('topbar.searchPlaceholder')}
           value={query}
           onChange={(event) => {
             setQuery(event.target.value)
@@ -158,7 +158,7 @@ export function GroupTopBar({
                   >
                     <HitIcon className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate">{hit.label}</span>
-                    <span className="shrink-0 text-xs text-muted">{hit.hint}</span>
+                    <span className="shrink-0 text-xs text-muted">{t(hit.hint)}</span>
                   </button>
                 )
               })

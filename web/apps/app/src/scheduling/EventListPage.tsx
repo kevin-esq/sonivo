@@ -203,7 +203,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       <GroupErrorState message={listError} />
 
       <GroupLimitNotice
-        label="eventos este mes"
+        label={t('plan.labelEvents')}
         metric={usage?.eventsThisMonth}
         upgradeHref={`/groups/${group.id}/ajustes?tab=plan`}
       />

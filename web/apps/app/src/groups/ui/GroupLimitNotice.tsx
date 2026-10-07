@@ -1,5 +1,6 @@
 import { ArrowUpRight, Gauge } from 'lucide-react'
 import { cn } from '../../ui/cn'
+import { useT } from '../../i18n'
 import { GroupLink } from './GroupButton'
 import type { UsageMetric } from '../../api/client'
 
@@ -11,7 +12,7 @@ export function limitReached(metric: UsageMetric | undefined): boolean {
 }
 
 export type GroupLimitNoticeProps = {
-  /** Plural noun, e.g. "canciones", "listas", "eventos este mes". */
+  /** Localized plural noun already resolved by the caller (e.g. t('plan.labelSongs')). */
   label: string
   metric: UsageMetric | undefined
   /** Where the upgrade CTA goes (group settings → Plan tab). */
@@ -25,6 +26,7 @@ export type GroupLimitNoticeProps = {
  * enforces the limit (403), so this is UX only; existing content is never blocked.
  */
 export function GroupLimitNotice({ label, metric, upgradeHref, className }: GroupLimitNoticeProps) {
+  const { t } = useT()
   if (!metric || metric.limit == null || metric.limit <= 0) return null
   const { used, limit } = metric
   if (used / limit < WARN_RATIO) return null
@@ -40,13 +42,11 @@ export function GroupLimitNotice({ label, metric, upgradeHref, className }: Grou
       >
         <div className="flex items-center gap-2">
           <Gauge className="h-5 w-5 shrink-0 text-primary-ink" aria-hidden="true" />
-          <p className="font-semibold text-ink">Alcanzaste el límite de {label}</p>
+          <p className="font-semibold text-ink">{t('plan.limitReached', { label })}</p>
         </div>
-        <p className="text-sm text-muted">
-          Usas {used} de {limit}. Mejora tu plan para crear más; lo que ya tienes sigue disponible.
-        </p>
+        <p className="text-sm text-muted">{t('plan.limitReachedBody', { used, limit })}</p>
         <GroupLink to={upgradeHref} variant="primary" className="self-start">
-          Ver planes y mejorar
+          {t('plan.upgrade')}
           <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
         </GroupLink>
       </div>
@@ -62,9 +62,7 @@ export function GroupLimitNotice({ label, metric, upgradeHref, className }: Grou
       )}
     >
       <Gauge className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
-      <span>
-        Llevas <strong>{used}</strong> de {limit} {label}. Te queda poco margen.
-      </span>
+      <span>{t('plan.nearLimit', { used, limit, label })}</span>
     </p>
   )
 }

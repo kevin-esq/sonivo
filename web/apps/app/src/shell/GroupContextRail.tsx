@@ -12,6 +12,7 @@ import {
 import { useT } from '../i18n'
 import { cn } from '../ui/cn'
 import { addDays, dayKey, isSameDay, startOfWeek, timeLabel, weekdayShort } from '../calendar/calendarUtils'
+import { plural } from '../ui/plural'
 import { GroupCard, GroupChip, GroupIconWell, GroupLink, useGroupDataSignal } from '../groups/ui'
 
 /**
@@ -108,9 +109,9 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
 
       {/* Hoy */}
       <GroupCard className="space-y-3">
-        <h2 className="font-display text-base font-semibold text-ink">Hoy</h2>
+        <h2 className="font-display text-base font-semibold text-ink">{t('rail.today')}</h2>
         {todayEvents.length === 0 ? (
-          <p className="text-sm text-muted">Nada agendado para hoy.</p>
+          <p className="text-sm text-muted">{t('rail.nothingToday')}</p>
         ) : (
           <ul className="space-y-2">
             {todayEvents.map((event) => (
@@ -140,7 +141,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
           </GroupLink>
         </div>
         {topSetlists.length === 0 ? (
-          <p className="text-sm text-muted">Aún no hay listas.</p>
+          <p className="text-sm text-muted">{t('rail.noSetlists')}</p>
         ) : (
           <ul className="space-y-2">
             {topSetlists.map((setlist) => (
@@ -153,7 +154,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-ink">{setlist.name}</span>
                     <span className="block truncate text-xs text-muted">
-                      {setlist.itemCount} {setlist.itemCount === 1 ? 'canción' : 'canciones'}
+                      {plural(setlist.itemCount, t('rail.songOne'), t('rail.songMany'))}
                     </span>
                   </span>
                 </Link>
@@ -165,12 +166,12 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
 
       {/* Tu progreso */}
       <GroupCard className="space-y-3">
-        <h2 className="font-display text-base font-semibold text-ink">Tu progreso</h2>
+        <h2 className="font-display text-base font-semibold text-ink">{t('rail.progress')}</h2>
         <div className="flex items-center gap-4">
           <ProgressRing value={progress} />
           <div className="min-w-0 flex-1 space-y-1">
             <p className="text-sm font-medium text-ink">
-              {doneTasks}/{tasks.length || 0} tareas
+              {doneTasks}/{tasks.length || 0} {t('rail.tasks')}
             </p>
             <div className="h-1.5 overflow-hidden rounded-full bg-surface-hover">
               <div className="h-full rounded-full bg-success transition-all duration-500" style={{ width: `${progress}%` }} />
@@ -178,12 +179,12 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
             {tasks.length > 0 && doneTasks === tasks.length ? (
               <p className="flex items-center gap-1 text-xs text-success-ink">
                 <CheckSquare className="h-3.5 w-3.5" aria-hidden="true" />
-                ¡Vas muy bien!
+                {t('rail.greatJob')}
               </p>
             ) : (
               <p className="flex items-center gap-1 text-xs text-muted">
                 <Music2 className="h-3.5 w-3.5" aria-hidden="true" />
-                Sigue así
+                {t('rail.keepGoing')}
               </p>
             )}
           </div>

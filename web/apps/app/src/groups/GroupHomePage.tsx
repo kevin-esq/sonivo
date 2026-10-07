@@ -261,11 +261,11 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   }
 
   const quickActions: { id: HomeDialog; icon: typeof Music2; title: string; subtitle: string }[] = [
-    { id: 'song', icon: Music2, title: 'Agregar canción', subtitle: 'A tu biblioteca' },
-    { id: 'setlist', icon: ListMusic, title: 'Crear lista', subtitle: 'Organiza tu música' },
-    { id: 'event', icon: CalendarDays, title: 'Crear evento', subtitle: 'Programa algo' },
-    { id: 'task', icon: CheckSquare, title: 'Crear tarea', subtitle: 'Mantén el control' },
-    { id: 'resource', icon: Library, title: 'Agregar recurso', subtitle: 'Archivos y materiales' },
+    { id: 'song', icon: Music2, title: t('home.quickAddSong'), subtitle: t('home.quickAddSongHint') },
+    { id: 'setlist', icon: ListMusic, title: t('home.quickCreateList'), subtitle: t('home.quickCreateListHint') },
+    { id: 'event', icon: CalendarDays, title: t('home.quickCreateEvent'), subtitle: t('home.quickCreateEventHint') },
+    { id: 'task', icon: CheckSquare, title: t('home.quickCreateTask'), subtitle: t('home.quickCreateTaskHint') },
+    { id: 'resource', icon: Library, title: t('home.quickAddResource'), subtitle: t('home.quickAddResourceHint') },
   ]
 
   return (
@@ -276,12 +276,12 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
         data-testid="home-hero"
         style={{ backgroundImage: 'linear-gradient(120deg, var(--color-primary) 0%, #1b1035 100%)' }}
       >
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Bienvenido de nuevo</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">{t('home.welcomeTitle')}</p>
         <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">
           {group.name}
         </h1>
         <p className="mt-1 max-w-xl text-sm text-white/85">
-          Organiza tu música, tus eventos y mantén todo en un solo lugar.
+          {t('home.welcomeSubtitle')}
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <GroupLink
@@ -290,7 +290,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             className="border-0 bg-white/15 text-white hover:bg-white/25"
           >
             <Play className="h-4 w-4" aria-hidden="true" />
-            Explorar mi música
+            {t('home.exploreMusic')}
           </GroupLink>
           <span className="hidden text-xs text-white/70 sm:inline">
             {formatMembershipRole(group.role)}
@@ -337,8 +337,8 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             >
               <GroupIconWell icon={UserPlus} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-ink">Agregar miembro</span>
-                <span className="block truncate text-xs text-muted">Invita a tu equipo</span>
+                <span className="block truncate text-sm font-semibold text-ink">{t('home.quickAddMember')}</span>
+                <span className="block truncate text-xs text-muted">{t('home.quickAddMemberHint')}</span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
             </button>
