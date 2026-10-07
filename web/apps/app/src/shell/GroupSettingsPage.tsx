@@ -21,6 +21,7 @@ import {
 } from '../api/client'
 import { BRAND_THEMES, GRADIENT_STYLES, INTENSITY_OPTIONS, TYPOGRAPHY_OPTIONS, deriveGroupThemeTokens } from '../brand/tokens'
 import { useBrandPreview } from './brandPreview'
+import { GroupAuditPanel } from '../groups/GroupAuditPanel'
 import { useTheme } from '../brand/theme'
 import { useT, type I18nKey } from '../i18n'
 import {
@@ -187,7 +188,7 @@ function draftFromBranding(branding: GroupBranding): BrandDraft {
   }
 }
 
-type SettingsTab = 'general' | 'branding' | 'plan' | 'permissions' | 'notifications' | 'integrations' | 'danger'
+type SettingsTab = 'general' | 'branding' | 'plan' | 'permissions' | 'notifications' | 'integrations' | 'audit' | 'danger'
 
 // Membership/billing is account-level (see /cuenta/membresia), not group-owned;
 // the group centre only exposes group-scoped settings.
@@ -198,6 +199,7 @@ const SETTINGS_TABS: { id: SettingsTab; labelKey: I18nKey }[] = [
   { id: 'permissions', labelKey: 'settings.tabPermissions' },
   { id: 'notifications', labelKey: 'settings.tabNotifications' },
   { id: 'integrations', labelKey: 'settings.tabIntegrations' },
+  { id: 'audit', labelKey: 'audit.tab' },
   { id: 'danger', labelKey: 'settings.tabDanger' },
 ]
 
@@ -576,7 +578,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
       {/* Tab navigation */}
       <div className="flex flex-wrap gap-1 rounded-xl bg-surface-hover p-1" role="tablist" aria-label={t('settings.tabsLabel')}>
-        {SETTINGS_TABS.map((tab) => (
+        {SETTINGS_TABS.filter((tab) => tab.id !== 'audit' || isOwner).map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -1505,6 +1507,9 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           )}
         </div>
       ) : null}
+
+      {/* Audit tab (Owner only): append-only group activity log (ADR-0051). */}
+      {activeTab === 'audit' && isOwner ? <GroupAuditPanel groupId={group.id} /> : null}
 
       {/* Danger Zone tab */}
       {activeTab === 'danger' && isOwner ? (
