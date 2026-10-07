@@ -44,7 +44,7 @@ import {
   loadLiveArrangementOptions,
   type LiveArrangementOption,
 } from './liveArrangements'
-import { useT } from '../i18n'
+import { useT, type I18nKey } from '../i18n'
 import { plural } from '../ui/plural'
 
 type DraftItem = {
@@ -55,15 +55,18 @@ type DraftItem = {
   arrangementLabel: string
 }
 
-function toDraft(items: SetlistItem[]): DraftItem[] {
+function toDraft(
+  items: SetlistItem[],
+  t: (key: I18nKey) => string,
+): DraftItem[] {
   return [...items]
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((item, index) => ({
       key: item.id,
       arrangementId: item.arrangementId,
       sortOrder: index + 1,
-      songTitle: item.songTitle ?? 'Canción desconocida',
-      arrangementLabel: item.arrangementLabel ?? 'Arreglo desconocido',
+      songTitle: item.songTitle ?? t('lista.unknownSong'),
+      arrangementLabel: item.arrangementLabel ?? t('lista.unknownArrangement'),
     }))
 }
 
@@ -92,6 +95,7 @@ function SortableSetlistItem({
   onMoveDown: () => void
   onRemove: () => void
 }) {
+  const { t } = useT()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.key,
   })
@@ -125,7 +129,7 @@ function SortableSetlistItem({
           <button
             type="button"
             className="grid h-9 w-9 cursor-grab items-center justify-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:cursor-grabbing"
-            aria-label={`Arrastrar ítem ${item.sortOrder}`}
+            aria-label={`${t('lista.dragPrefix')}${item.sortOrder}`}
             {...attributes}
             {...listeners}
           >
@@ -135,30 +139,30 @@ function SortableSetlistItem({
             variant="secondary"
             size="sm"
             disabled={index === 0}
-            aria-label={`Subir ítem ${item.sortOrder}`}
+            aria-label={`${t('lista.moveUpPrefix')}${item.sortOrder}`}
             onClick={onMoveUp}
           >
             <ChevronUp className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">Subir</span>
+            <span className="sr-only">{t('lista.moveUp')}</span>
           </Button>
           <Button
             variant="secondary"
             size="sm"
             disabled={isLast}
-            aria-label={`Bajar ítem ${item.sortOrder}`}
+            aria-label={`${t('lista.moveDownPrefix')}${item.sortOrder}`}
             onClick={onMoveDown}
           >
             <ChevronDown className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">Bajar</span>
+            <span className="sr-only">{t('lista.moveDown')}</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            aria-label={`Quitar ítem ${item.sortOrder}`}
+            aria-label={`${t('lista.removePrefix')}${item.sortOrder}`}
             onClick={onRemove}
           >
             <Trash2 className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">Quitar</span>
+            <span className="sr-only">{t('lista.remove')}</span>
           </Button>
         </div>
       ) : null}
@@ -196,7 +200,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
       loadLiveArrangementOptions(groupId),
     ])
     setSetlist(nextSetlist)
-    setDraft(toDraft(nextSetlist.items))
+    setDraft(toDraft(nextSetlist.items, t))
     setOptions(nextOptions)
     if (nextOptions[0] && !selectedArrangementId) {
       setSelectedArrangementId(nextOptions[0].arrangementId)
@@ -217,7 +221,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
         ])
         if (cancelled) return
         setSetlist(nextSetlist)
-        setDraft(toDraft(nextSetlist.items))
+        setDraft(toDraft(nextSetlist.items, t))
         setOptions(nextOptions)
         setSelectedArrangementId(nextOptions[0]?.arrangementId ?? '')
       } catch (err) {
@@ -294,7 +298,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
         })),
       )
       setSetlist(updated)
-      setDraft(toDraft(updated.items))
+      setDraft(toDraft(updated.items, t))
     } catch (err) {
       if (isConflictError(err)) {
         setConflict(CONFLICT_MESSAGE)
@@ -312,7 +316,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando lista…</p>
+    return <p aria-live="polite">{t('lista.loading')}</p>
   }
 
   if (group === null) {
@@ -327,18 +331,18 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (setlist === undefined) {
-    return <p aria-live="polite">Cargando lista…</p>
+    return <p aria-live="polite">{t('lista.loading')}</p>
   }
 
   if (setlist === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? 'No se encontró la lista o no tienes acceso.'} />
+        <ProblemAlert message={error ?? t('lista.notFound')} />
         <Link
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/setlists`}
         >
-          Listas
+          {t('lista.setlists')}
         </Link>
       </div>
     )
@@ -370,7 +374,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
               </h1>
               <p className="text-sm text-muted">
                 {plural(draft.length, t('common.songOne'), t('common.songMany'))}
-                {!isOwner ? <span> · Solo lectura</span> : null}
+                {!isOwner ? <span> · {t('lista.readonly')}</span> : null}
               </p>
             </div>
           </div>
@@ -393,7 +397,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                 disabled={saving}
                 onClick={() => void saveItems()}
               >
-                {saving ? 'Guardando…' : 'Guardar orden'}
+                {saving ? t('lista.saving') : t('lista.saveOrder')}
               </Button>
             ) : null}
           </div>
@@ -407,26 +411,25 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
         <section className="space-y-4" aria-labelledby="composition-heading">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="composition-heading" className="text-lg font-semibold">
-              Composición
+              {t('lista.composition')}
             </h2>
             {isOwner && draft.length > 0 && !showAdd ? (
               <Button variant="ghost" onClick={() => setShowAdd(true)}>
-                Agregar a la lista
+                {t('lista.addToList')}
               </Button>
             ) : null}
           </div>
           <p className="text-sm text-muted">
-            Ordena los arreglos que se tocan. Se permiten duplicados. Guardar reemplaza la lista
-            completa.
+            {t('lista.compositionHint')}
           </p>
 
           {draft.length === 0 ? (
             <EmptyPanel
-              title="Aún no hay arreglos en esta lista"
+              title={t('agenda.emptySetlistTitle')}
               description={
                 isOwner
-                  ? 'Agrega arreglos de la biblioteca para preparar el repertorio del evento.'
-                  : 'Aún no hay arreglos en esta lista.'
+                  ? t('lista.emptyOwner')
+                  : t('lista.emptyMember')
               }
             />
           ) : (
@@ -435,9 +438,9 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                 aria-hidden="true"
                 className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[2.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
               >
-                <span>N.º</span>
-                <span>Arreglo</span>
-                <span>Acciones</span>
+                <span>{t('lista.colNumber')}</span>
+                <span>{t('lista.colArrangement')}</span>
+                <span>{t('lista.colActions')}</span>
               </div>
               <DndContext
                 sensors={sensors}
@@ -470,14 +473,14 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
           {addPanelOpen ? (
             <div className="max-w-md space-y-3 rounded-2xl border border-border-subtle bg-surface-hover p-4">
               {options === null ? (
-                <p aria-live="polite">Cargando arreglos…</p>
+                <p aria-live="polite">{t('lista.loadingArrangements')}</p>
               ) : options.length === 0 ? (
                 <p className="text-sm text-muted">
-                  No hay arreglos en la biblioteca. Agrega uno primero.
+                  {t('lista.noOptions')}
                 </p>
               ) : (
                 <>
-                  <Field label="Arreglo">
+                  <Field label={t('lista.arrangementLabel')}>
                     <select
                       className={fieldClass}
                       value={selectedArrangementId}
@@ -491,10 +494,10 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                     </select>
                   </Field>
                   <FormActions>
-                    <Button onClick={addSelectedArrangement}>Agregar a la lista</Button>
+                    <Button onClick={addSelectedArrangement}>{t('lista.addToList')}</Button>
                     {draft.length > 0 ? (
                       <Button variant="secondary" onClick={() => setShowAdd(false)}>
-                        Cancelar
+                        {t('lista.cancel')}
                       </Button>
                     ) : null}
                   </FormActions>
@@ -506,7 +509,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
 
         <aside className="space-y-4 rounded-2xl bg-surface-hover p-5">
           <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">
-            Detalles
+            {t('lista.detailsTitle')}
           </h2>
           {renaming && isOwner ? (
             <RenameSetlistForm
@@ -531,7 +534,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
           ) : (
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-muted">Nombre</dt>
+                <dt className="text-muted">{t('lista.nameLabel')}</dt>
                 <dd className="font-medium text-ink">{setlist.name}</dd>
               </div>
             </dl>
@@ -539,13 +542,13 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
 
           {!renaming ? (
             <p className="text-xs text-muted">
-              Una lista se puede aplicar a eventos cuando esté lista.
+              {t('lista.readyHint')}
             </p>
           ) : null}
 
           {isOwner && !renaming ? (
             <Button variant="secondary" onClick={() => setRenaming(true)}>
-              Renombrar lista
+              {t('lista.rename')}
             </Button>
           ) : null}
         </aside>
@@ -567,6 +570,7 @@ function RenameSetlistForm({
   onSaved: (setlist: SetlistDetail) => void
   onConflict: () => Promise<void>
 }) {
+  const { t } = useT()
   const [name, setName] = useState(setlist.name)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -591,9 +595,9 @@ function RenameSetlistForm({
 
   return (
     <form className="space-y-3" onSubmit={onSubmit} noValidate>
-      <p className="text-xs text-muted">Cambia el nombre de esta lista</p>
+      <p className="text-xs text-muted">{t('lista.renameHint')}</p>
       <ProblemAlert message={error} />
-      <Field label="Nombre">
+      <Field label={t('lista.nameLabel')}>
         <input
           className={fieldClass}
           required
@@ -604,10 +608,10 @@ function RenameSetlistForm({
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending} size="sm">
-          {pending ? 'Guardando…' : 'Guardar nombre'}
+          {pending ? t('lista.saving') : t('lista.saveName')}
         </Button>
         <Button variant="secondary" size="sm" disabled={pending} onClick={onCancel}>
-          Cancelar
+          {t('lista.cancel')}
         </Button>
       </FormActions>
     </form>

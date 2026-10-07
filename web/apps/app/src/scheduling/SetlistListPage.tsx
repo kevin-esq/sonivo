@@ -143,13 +143,13 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
               ) : null}
               {showHeaderAdd ? (
                 <GroupButton onClick={() => setShowCreate(true)} disabled={setlistsAtLimit}>
-                  Nueva lista
+                  {t('agenda.newSetlist')}
                 </GroupButton>
               ) : null}
             </>
           }
         >
-          {!isOwner ? <p className="text-sm text-muted">Solo lectura</p> : null}
+          {!isOwner ? <p className="text-sm text-muted">{t('agenda.readonly')}</p> : null}
         </GroupPageHeader>
       </div>
 
@@ -195,11 +195,11 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       ) : setlists.length === 0 ? (
         <GroupEmptyState
           icon={ListMusic}
-          title="Aún no hay listas"
+          title={t('agenda.emptySetlistsTitle')}
           description={
             isOwner
-              ? 'Crea una lista con arreglos de la biblioteca y aplícala a un evento cuando esté lista.'
-              : 'Cuando haya listas, aparecerán aquí para preparar el repertorio.'
+              ? t('agenda.emptySetlistsOwner')
+              : t('agenda.emptySetlistsMember')
           }
           action={
             isOwner ? (
@@ -208,17 +208,17 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                 onClick={() => setShowCreate(true)}
                 disabled={setlistsAtLimit}
               >
-                Nueva lista
+                {t('agenda.newSetlist')}
               </GroupButton>
             ) : (
               <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
-                Ir a la biblioteca
+                {t('agenda.goLibrary')}
               </GroupLink>
             )
           }
         />
       ) : filtered && filtered.length === 0 ? (
-        <GroupEmptyState title={`Ninguna lista coincide con «${query.trim()}».`} />
+        <GroupEmptyState title={`${t('agenda.noSetlistsPrefix')}${query.trim()}${t('agenda.noMatchSuffix')}`} />
       ) : (
         <div className="space-y-1">
           <div

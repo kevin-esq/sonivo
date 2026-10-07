@@ -39,21 +39,21 @@ function readStoredLanguage(): Language | null {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     return isLanguage(stored) ? stored : null;
   } catch {
-    return null; // almacenamiento no disponible (modo privado)
+    return null; // storage unavailable (private mode)
   }
 }
 
-// es por defecto: nunca cambia solo según el idioma del navegador (mantiene E2E y SSR deterministas);
-// el inglés solo se aplica tras una elección explícita del usuario vía setLang.
+// Spanish is the default: it never changes on its own based on the browser language (keeps E2E and SSR deterministic);
+// English only applies after an explicit user choice via setLang.
 function detectInitialLanguage(): Language {
   return readStoredLanguage() ?? "es";
 }
 
 /**
- * Reemplaza marcadores {nombre}. Permite claves como
- * 'Hola, {name}' en vez de armar frases con Prefix + valor + Suffix,
- * que rompen el orden de palabras en otros idiomas.
- * Las claves actuales (…Prefix / …Suffix) siguen funcionando igual.
+ * Replaces {name} placeholders. Allows keys like
+ * 'Hello, {name}' instead of building sentences with Prefix + value + Suffix,
+ * which break word order in other languages.
+ * The current keys (…Prefix / …Suffix) keep working the same.
  */
 function format(text: string, params?: TParams): string {
   if (!params) return text;
@@ -79,16 +79,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
     } catch {
-      // guardar es best-effort
+      // saving is best-effort
     }
   }, []);
 
-  // Accesibilidad y SEO: lectores de pantalla, corrección ortográfica y traducción automática usan <html lang>.
+  // Accessibility and SEO: screen readers, spell checking and auto-translation use <html lang>.
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  // Mantiene sincronizadas varias pestañas abiertas.
+  // Keeps multiple open tabs in sync.
   useEffect(() => {
     function onStorage(event: StorageEvent) {
       if (event.key !== STORAGE_KEY) return;

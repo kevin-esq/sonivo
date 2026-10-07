@@ -300,7 +300,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           ) : (
             <div className="space-y-6">
               {grouped.map((groupItem) => (
-                <section key={groupItem.purpose} className="space-y-2" aria-label={formatPurpose(groupItem.purpose)}>
+                <section key={groupItem.purpose} className="space-y-2" aria-label={formatPurpose(groupItem.purpose, t)}>
                   <PurposeHeading purpose={groupItem.purpose} />
                   <ul className="divide-y divide-border-subtle">
                     {groupItem.resources.map((resource) => (
@@ -696,7 +696,7 @@ function ArrangementEditForm({
     if (defaultBpm.trim()) {
       const parsed = Number(defaultBpm)
       if (!Number.isInteger(parsed) || parsed < 1 || parsed > 400) {
-        setError('El tempo (BPM) debe ser un entero entre 1 y 400.')
+        setError(t('arreglo.tempoInvalid'))
         setPending(false)
         return
       }
@@ -1029,7 +1029,7 @@ function ResourceCreateForm({
         >
           {RESOURCE_PURPOSE_ORDER.map((value) => (
             <option key={value} value={value}>
-              {formatPurpose(value)}
+              {formatPurpose(value, t)}
             </option>
           ))}
         </select>
@@ -1094,10 +1094,10 @@ function FileResourceCreateForm({
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     if (!file) {
-      setError('Selecciona un archivo.')
+      setError(t('arreglo.selectFile'))
       return
     }
-    const clientError = validateFileForUpload(file)
+    const clientError = validateFileForUpload(file, t)
     if (clientError) {
       setError(clientError)
       return
@@ -1114,7 +1114,7 @@ function FileResourceCreateForm({
       })
       await onCreated()
     } catch (err) {
-      setError(fileUploadErrorMessage(err))
+      setError(fileUploadErrorMessage(err, t))
     } finally {
       setPending(false)
     }
@@ -1149,7 +1149,7 @@ function FileResourceCreateForm({
         >
           {RESOURCE_PURPOSE_ORDER.map((value) => (
             <option key={value} value={value}>
-              {formatPurpose(value)}
+              {formatPurpose(value, t)}
             </option>
           ))}
         </select>
@@ -1285,7 +1285,7 @@ function ResourceEditForm({
         >
           {RESOURCE_PURPOSE_ORDER.map((value) => (
             <option key={value} value={value}>
-              {formatPurpose(value)}
+              {formatPurpose(value, t)}
             </option>
           ))}
         </select>

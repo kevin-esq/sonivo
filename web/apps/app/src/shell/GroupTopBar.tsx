@@ -186,7 +186,7 @@ export function GroupTopBar({
           aria-label={t('workspace.account')}
           className="absolute right-0 top-full z-50 mt-1 w-56 space-y-0.5 rounded-xl border border-border-subtle bg-surface p-1 text-ink shadow-lg"
         >
-          <p className="px-3 py-2 text-xs text-muted">{formatMembershipRole(role)}</p>
+          <p className="px-3 py-2 text-xs text-muted">{formatMembershipRole(role, t)}</p>
           <Link to="/grupos" className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
             {t('workspace.myGroups')}
           </Link>

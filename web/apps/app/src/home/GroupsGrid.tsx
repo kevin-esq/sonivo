@@ -53,7 +53,7 @@ function HomeGroupCard({ group }: { group: GroupSummary }) {
               {owner ? (
                 <Crown className="h-3 w-3" aria-hidden="true" />
               ) : null}
-              {formatMembershipRole(group.role)}
+              {formatMembershipRole(group.role, t)}
             </span>
           </span>
           <span className="mt-auto flex items-center justify-between border-t border-border-subtle pt-2 text-xs text-muted">

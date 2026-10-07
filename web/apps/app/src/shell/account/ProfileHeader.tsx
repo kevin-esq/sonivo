@@ -9,7 +9,7 @@ function initialsOf(user: CurrentUser): string {
   return source.slice(0, 2).toUpperCase();
 }
 
-/** Account header: avatar, name, email, role badge and "Editar perfil". */
+/** Account header: avatar, name, email, role badge and "Edit profile". */
 export function ProfileHeader({
   user,
   roleLabel,

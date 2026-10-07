@@ -27,7 +27,7 @@ export function PasskeysSection() {
         const list = await fetchPasskeys()
         if (!cancelled) setPasskeys(list)
       } catch {
-        // Ignorar si no hay sesión
+        // Ignore when there is no session
       }
     }
     void loadPasskeys()

@@ -38,7 +38,7 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
       navigate(`/groups/${accepted.groupId}`)
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
-        setError('Esta invitación no es válida o ha caducado.')
+        setError(t('unirse.invalid'))
       } else if (err instanceof ApiError && err.status === 409) {
         setAlreadyMember(true)
       } else {

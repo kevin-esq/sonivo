@@ -28,7 +28,7 @@ import {
   type SongListItem,
 } from '../api/client'
 import { fieldClass, formatMembershipRole, isOwnerRole, mutationErrorMessage, ProblemAlert } from '../repertoire/ui'
-import { useT } from '../i18n'
+import { useT, type I18nKey } from '../i18n'
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
 import {
   CreateEventDialog,
@@ -71,16 +71,19 @@ function formatRelativeUpdated(iso: string): string {
   }
 }
 
-function formatRsvpLabel(response: EventRsvpResponse | string | null): string {
+function formatRsvpLabel(
+  response: EventRsvpResponse | string | null,
+  t: (key: I18nKey) => string,
+): string {
   switch (response) {
     case 'yes':
-      return 'Sí'
+      return t('evento.rsvpYes')
     case 'no':
-      return 'No'
+      return t('evento.rsvpNo')
     case 'maybe':
-      return 'Quizás'
+      return t('evento.rsvpMaybe')
     default:
-      return 'Aún no confirmaste tu asistencia'
+      return t('evento.rsvpPending')
   }
 }
 
@@ -293,7 +296,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             {t('home.exploreMusic')}
           </GroupLink>
           <span className="hidden text-xs text-white/70 sm:inline">
-            {formatMembershipRole(group.role)}
+            {formatMembershipRole(group.role, t)}
           </span>
         </div>
         <div className="pointer-events-none absolute right-6 top-1/2 hidden -translate-y-1/2 flex-col items-end gap-2 md:flex">
@@ -394,12 +397,12 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold text-ink">{event.title}</span>
                       <span className="block truncate text-sm text-muted">
-                        {formatEventType(event.type)} · {formatStartsAt(event.startsAt)}
+                        {formatEventType(event.type, t)} · {formatStartsAt(event.startsAt)}
                       </span>
                     </span>
                     {index === 0 ? (
                       <span className="hidden text-sm text-muted sm:block" data-testid="home-next-event-rsvp">
-                        {t('inicio.myRsvp')} {myRsvp === undefined ? '…' : formatRsvpLabel(myRsvp)}
+                        {t('inicio.myRsvp')} {myRsvp === undefined ? '…' : formatRsvpLabel(myRsvp, t)}
                       </span>
                     ) : null}
                     <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />

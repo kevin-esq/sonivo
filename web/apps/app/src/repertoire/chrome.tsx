@@ -94,8 +94,9 @@ export function FormActions({ children }: { children: ReactNode }) {
 }
 
 export function PageBreadcrumb({ items }: { items: { to?: string; label: string }[] }) {
+  const { t } = useT()
   return (
-    <nav aria-label="Ruta" className="text-sm text-muted">
+    <nav aria-label={t('a11y.breadcrumb')} className="text-sm text-muted">
       <ol className="flex flex-wrap items-center gap-1">
         {items.map((item, index) => (
           <li key={`${item.label}-${index}`} className="flex items-center gap-1">
@@ -153,9 +154,10 @@ export function OriginMark({ kind }: { kind: string }) {
 }
 
 export function OriginBadge({ kind }: { kind: string }) {
+  const { t } = useT()
   return (
     <span className="inline-flex items-center rounded-full bg-surface-hover px-2.5 py-0.5 text-xs font-semibold text-muted">
-      {formatOriginKind(kind)}
+      {formatOriginKind(kind, t)}
     </span>
   )
 }
@@ -190,10 +192,11 @@ export function AddSongButton({ onClick }: { onClick: () => void }) {
 }
 
 export function PurposeHeading({ purpose }: { purpose: string }) {
+  const { t } = useT()
   return (
     <h4 className="flex items-center gap-2 text-sm font-semibold text-muted">
       <PurposeMark purpose={purpose} />
-      {formatPurpose(purpose)}
+      {formatPurpose(purpose, t)}
     </h4>
   )
 }

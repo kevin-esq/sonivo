@@ -31,7 +31,7 @@ function Chip({
   );
 }
 
-/** Desktop filter chips: Todos · groups · Otras actividades. */
+/** Desktop filter chips: All · groups · Other activities. */
 export function CalendarChips({
   groups,
   selectedGroupIds,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, NavLink, useParams } from 'react-router-dom'
-import { ChevronUp, ChevronsLeft, ChevronsRight, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
 import {
   ApiError,
   fetchFeatures,
@@ -89,7 +89,7 @@ export function GroupWorkspace({
     }
   }, [])
 
-  // Registra el rail ante el reproductor global (oculta la barra inferior en >=768px).
+  // Registers the rail with the global player (hides the bottom bar at >=768px).
   useEffect(() => {
     setRailPresent(true)
     return () => setRailPresent(false)
@@ -99,7 +99,7 @@ export function GroupWorkspace({
     try {
       localStorage.setItem(SIDEBAR_KEY, rail)
     } catch {
-      // Almacenamiento no disponible; la preferencia solo vive en memoria.
+      // Storage unavailable; the preference only lives in memory.
     }
   }, [rail])
 
@@ -192,7 +192,7 @@ export function GroupWorkspace({
     : deviceAppearance
   const plainCover = isNoneCover(appearance.cover)
   const collapsed = rail === 'collapsed'
-  const groupRole = group ? formatMembershipRole(group.role) : ''
+  const groupRole = group ? formatMembershipRole(group.role, t) : ''
   const accent = appearance.accent
   // Banner image wins over the gradient/emoji cover (ADR-0054 precedence).
   const headerStyle: CSSProperties = serverBrand?.bannerUrl
@@ -215,7 +215,7 @@ export function GroupWorkspace({
   return (
     <BrandPreviewContext.Provider value={{ tokens: previewTokens, setTokens: setPreviewTokens }}>
     <div
-      className="min-h-screen bg-canvas font-sans md:flex md:h-screen md:overflow-hidden"
+      className="min-h-screen bg-canvas font-sans md:fixed md:inset-0 md:flex md:overflow-hidden"
       data-testid="grupo-shell"
       style={shellStyle}
     >
@@ -365,66 +365,6 @@ export function GroupWorkspace({
           ) : null}
         </div>
 
-        {/* User menu: avatar-only summary that opens the account actions. Sign
-            out lives inside the menu so it can't be hit by accident. */}
-        {group && user ? (
-          <details
-            data-testid="rail-user-menu"
-            className={cn(
-              'relative shrink-0 border-t border-shell-border py-3',
-              collapsed ? 'px-2' : 'px-3',
-            )}
-          >
-            <summary
-              aria-label={user.displayName ?? t('workspace.account')}
-              className={cn(
-                'flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg py-1.5 text-shell-foreground transition-colors hover:bg-shell-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary [&::-webkit-details-marker]:hidden',
-                collapsed ? 'justify-center px-0' : 'px-2',
-              )}
-            >
-              <span
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-shell-hover text-sm font-semibold text-shell-foreground"
-                aria-hidden="true"
-              >
-                {(user.displayName ?? '').trim().slice(0, 1).toUpperCase()}
-              </span>
-              {collapsed ? null : (
-                <>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{user.displayName}</span>
-                    <span className="block truncate text-xs text-shell-foreground/60">{groupRole}</span>
-                  </span>
-                  <ChevronUp className="h-4 w-4 shrink-0 text-shell-foreground/60" aria-hidden="true" />
-                </>
-              )}
-            </summary>
-            <nav
-              aria-label={t('workspace.account')}
-              className={cn(
-                'absolute bottom-full z-50 mb-1 space-y-0.5 rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg',
-                collapsed ? 'left-0 w-56' : 'inset-x-0',
-              )}
-            >
-              <Link to="/grupos" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
-                <Users className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-                {t('workspace.myGroups')}
-              </Link>
-              <Link to="/cuenta" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
-                <UserRound className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-                {t('workspace.account')}
-              </Link>
-              <button
-                type="button"
-                onClick={onLogout}
-                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm font-medium text-error-ink transition-colors hover:bg-error/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-                {t('workspace.logout')}
-              </button>
-            </nav>
-          </details>
-        ) : null}
-
         {/* Powered by Sonivo - subtle attribution */}
         {group ? (
           <div
@@ -446,7 +386,7 @@ export function GroupWorkspace({
         ) : null}
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col md:h-screen md:overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col md:h-screen md:min-h-0 md:overflow-hidden">
         {group ? (
           <GroupTopBar groupId={group.id} user={user} role={group.role} onLogout={onLogout} />
         ) : null}
@@ -456,7 +396,7 @@ export function GroupWorkspace({
             <span className="font-semibold text-shell-foreground">Sonivo</span>
           </Link>
           <div className="flex items-center gap-1">
-            {/* Single "Más" lives in the bottom tab bar; the top bar keeps only
+            {/* Single "More" lives in the bottom tab bar; the top bar keeps only
                 account + sign-out so there is exactly one overflow menu per
                 breakpoint (owner request 2026-10-05). */}
             <details className="relative" data-testid="mobile-user-menu">
@@ -495,10 +435,12 @@ export function GroupWorkspace({
           className="flex flex-1 flex-col md:min-h-0 md:overflow-y-auto"
           data-testid="group-content-scroll"
         >
-          {group ? (
-            <div className="px-3 pt-3">
-              <div
-                data-testid="group-bar"
+          <div className="flex min-w-0 flex-1 md:min-h-0">
+            <div className="min-w-0 flex-1 md:min-h-0">
+              {group ? (
+                <div className="px-3 pt-3">
+                  <div
+                    data-testid="group-bar"
                 className="overflow-hidden rounded-2xl"
                 style={headerStyle}
               >
@@ -534,7 +476,7 @@ export function GroupWorkspace({
                       </p>
                     ) : (
                       <p className={cn('mt-0.5 text-sm', lightHeaderText ? 'text-white/80' : 'text-muted')}>
-                        {formatMembershipRole(group.role)}
+                        {formatMembershipRole(group.role, t)}
                       </p>
                     )}
                     {serverBrand?.verse ? (
@@ -585,13 +527,12 @@ export function GroupWorkspace({
                 {t('grupo.ajustes')}
               </Link>
             </div>
-          ) : null}
+              ) : null}
 
-          <div className="flex min-w-0 flex-1">
-            <main
-              data-testid="group-content"
-              className="m-3 flex-1 rounded-2xl bg-surface text-ink"
-            >
+              <main
+                data-testid="group-content"
+                className="m-3 flex-1 rounded-2xl bg-surface text-ink"
+              >
               <div className="px-5 py-6 pb-24 md:px-8 md:pb-8">
                 {group === null ? (
                   <div className="space-y-3">
@@ -607,6 +548,7 @@ export function GroupWorkspace({
                 )}
               </div>
             </main>
+            </div>
             {group ? (
               <div className="py-3 pr-3">
                 <GroupContextRail groupId={group.id} />

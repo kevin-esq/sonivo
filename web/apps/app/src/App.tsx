@@ -48,8 +48,9 @@ import { Button, primaryButtonClass } from "./ui/button";
 import { cn } from "./ui/cn";
 import { ToastProvider } from "./ui/toast";
 import { PageSkeleton } from "./ui/skeleton";
+import { useT } from "./i18n";
 
-// ---------- Lazy loading (menos JS inicial) ----------
+// ---------- Lazy loading (less initial JS) ----------
 const named = <T extends Record<string, any>, K extends keyof T>(
   loader: () => Promise<T>,
   key: K,
@@ -148,18 +149,18 @@ const SettingsMembershipPage = named(
   "SettingsMembershipPage",
 );
 
-// ---------- Estado de sesión ----------
+// ---------- Session state ----------
 type SessionState =
   | { status: "loading" }
   | { status: "error" }
   | { status: "guest" }
   | { status: "authenticated"; user: CurrentUser };
 
-// ---------- Utilidades ----------
+// ---------- Utilities ----------
 
 function RouteFallback() {
   // Route-level loading uses the shared skeleton (Wave C, Step 4) instead of a
-  // bare "Cargando…" screen, so the transition reads as content arriving.
+  // bare "Loading…" screen, so the transition reads as content arriving.
   return (
     <div className="min-h-screen bg-canvas px-6 py-10">
       <div className="mx-auto w-full max-w-4xl">
@@ -208,6 +209,24 @@ function FallbackScreen({
   );
 }
 
+function ErrorFallback() {
+  const { t } = useT();
+  return (
+    <div role="alert">
+      <FallbackScreen
+        icon={TriangleAlert}
+        title={t("state.errorTitle")}
+        message={t("state.errorBody")}
+        action={
+          <Button onClick={() => window.location.reload()}>
+            {t("state.reload")}
+          </Button>
+        }
+      />
+    </div>
+  );
+}
+
 class ErrorBoundary extends Component<
   { children: ReactNode },
   { failed: boolean }
@@ -217,41 +236,31 @@ class ErrorBoundary extends Component<
     return { failed: true };
   }
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("UI error:", error, info.componentStack); // conectar a Sentry, etc.
+    console.error("UI error:", error, info.componentStack); // connect to Sentry, etc.
   }
   render() {
     if (!this.state.failed) return this.props.children;
-    return (
-      <div role="alert">
-        <FallbackScreen
-          icon={TriangleAlert}
-          title="Algo salió mal"
-          message="Ocurrió un error inesperado. Puedes recargar la página."
-          action={
-            <Button onClick={() => window.location.reload()}>Recargar</Button>
-          }
-        />
-      </div>
-    );
+    return <ErrorFallback />;
   }
 }
 
 function NotFoundPage() {
+  const { t } = useT();
   return (
     <FallbackScreen
       icon={Compass}
-      title="Página no encontrada"
-      message="La dirección que buscas no existe o fue movida."
+      title={t("state.notFoundTitle")}
+      message={t("state.notFoundBody")}
       action={
         <Link to="/" className={cn(primaryButtonClass, "no-underline")}>
-          Volver al inicio
+          {t("state.backHome")}
         </Link>
       }
     />
   );
 }
 
-// ---------- Layouts de ruta ----------
+// ---------- Route layouts ----------
 function RequireAuth({
   session,
   onLogout,
@@ -264,25 +273,26 @@ function RequireAuth({
   onUserChange: (user: CurrentUser) => void;
 }) {
   const location = useLocation();
+  const { t } = useT();
 
   if (session.status === "loading")
-    return <SessionScreen message="Comprobando sesión…" />;
+    return <SessionScreen message={t("state.checkingSession")} />;
 
   if (session.status === "error") {
     return (
       <div role="alert">
         <FallbackScreen
           icon={WifiOff}
-          title="Sin conexión"
-          message="No pudimos verificar tu sesión. Revisa tu conexión."
-          action={<Button onClick={onRetry}>Reintentar</Button>}
+          title={t("state.offlineTitle")}
+          message={t("state.offlineBody")}
+          action={<Button onClick={onRetry}>{t("state.retry")}</Button>}
         />
       </div>
     );
   }
 
   if (session.status === "guest") {
-    // Guardamos la ruta para volver después del login
+    // Remember the route so we can return after login
     const next = location.pathname + location.search;
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
   }
@@ -318,13 +328,13 @@ function GroupLayout() {
   );
 }
 
-// Wrappers que inyectan `user` sin usar `!`
+// Wrappers that inject `user` without using `!`
 const withUser = (Page: React.ComponentType<{ user: CurrentUser }>) =>
   function Wrapped() {
     return <Page user={useAuth().user} />;
   };
 
-/** Acciones reales de GroupsPage; todas rechazan si el backend falla. */
+/** Real GroupsPage actions; all reject when the backend fails. */
 const groupsPageActions: GroupsPageActions = {
   onRename: async (group, name) => {
     await updateGroup(group.id, { name, expectedVersion: group.version });
@@ -341,7 +351,7 @@ const groupsPageActions: GroupsPageActions = {
   },
 };
 
-/** GroupsPage con usuario y acciones; la página refresca su propia lista tras cada acción. */
+/** GroupsPage with user and actions; the page refreshes its own list after each action. */
 function GroupsPageWithActions() {
   return <GroupsPage user={useAuth().user} actions={groupsPageActions} />;
 }
@@ -359,13 +369,13 @@ const ArrangementDetailPageR = withUser(ArrangementDetailPage);
 const PracticePageR = withUser(PracticePage);
 const GroupSettingsPageR = withUser(GroupSettingsPage);
 
-/** El reproductor solo existe con sesión activa. */
+/** The player only exists with an active session. */
 function AuthenticatedPlayer({ active }: { active: boolean }) {
   const { closeTrack } = useAudioPlayer();
   useEffect(() => {
-    if (!active) closeTrack(); // detiene audio al cerrar sesión
+    if (!active) closeTrack(); // stops audio on logout
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]); // solo al cambiar de sesión (closeTrack cambia de identidad)
+  }, [active]); // only on session change (closeTrack changes identity)
   return active ? <PersistentGlobalPlayer /> : null;
 }
 
@@ -384,7 +394,7 @@ export default function App() {
           : { status: "guest" },
       );
     } catch {
-      if (!signal?.cancelled) setSession({ status: "error" }); // ya no se queda colgado
+      if (!signal?.cancelled) setSession({ status: "error" }); // no longer gets stuck
     }
   }, []);
 
@@ -440,7 +450,7 @@ export default function App() {
         await logoutUser();
       } finally {
         setSession({ status: "guest" });
-        // Limpia datos sensibles en memoria/caché (React Query, localStorage propio, etc.)
+        // Clear sensitive data from memory/cache (React Query, own localStorage, etc.)
       }
     })();
   }, []);
@@ -466,7 +476,7 @@ export default function App() {
           <ToastProvider>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
-              {/* Rutas protegidas */}
+              {/* Protected routes */}
               <Route
                 element={
                   <RequireAuth
@@ -543,7 +553,7 @@ export default function App() {
                 <Route path="/g/:slug/*" element={<GroupSlugResolver />} />
               </Route>
 
-              {/* Rutas públicas */}
+              {/* Public routes */}
               <Route
                 path="/join/:token"
                 element={
@@ -585,7 +595,7 @@ export default function App() {
                   code for a host-only cookie on `{slug}.sonivo.lat`. */}
               <Route path="/session/handoff" element={<HandoffPage />} />
 
-              {/* Redirecciones heredadas */}
+              {/* Legacy redirects */}
               <Route
                 path="/security"
                 element={<Navigate to="/cuenta/seguridad" replace />}

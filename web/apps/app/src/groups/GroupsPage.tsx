@@ -49,12 +49,12 @@ import { useToast } from "../ui/toast";
 import { parseInviteToken } from "../tenancy/inviteToken";
 
 /* ================================================================== */
-/* Tipos y contrato de integración                                     */
+/* Types and integration contract                                    */
 /* ================================================================== */
 
 /**
- * Campos opcionales que la API puede empezar a devolver en GroupSummary.
- * La tarjeta los muestra solo si existen, así que puedes añadirlos al backend cuando quieras.
+ * Optional fields the API may start returning in GroupSummary.
+ * The card shows them only if present, so you can add them to the backend whenever you want.
  */
 export type GroupCardData = GroupSummary & {
   memberCount?: number;
@@ -63,17 +63,17 @@ export type GroupCardData = GroupSummary & {
 };
 
 /**
- * Funciones que debes conectar al backend. Mientras falten, la UI avisa "próximamente"
- * en lugar de fallar. Todas deben lanzar un error si la operación falla.
+ * Functions you must wire to the backend. While they are missing, the UI warns "coming soon"
+ * instead of failing. All of them must throw an error if the operation fails.
  */
 export type GroupsPageActions = {
-  /** Renombrar (solo organizador). */
+  /** Rename (owner only). */
   onRename?: (group: GroupCardData, name: string) => Promise<void>;
-  /** Salir del grupo (solo miembros). */
+  /** Leave the group (members only). */
   onLeave?: (group: GroupCardData) => Promise<void>;
-  /** Eliminar el grupo (solo organizador). */
+  /** Delete the group (owner only). */
   onDelete?: (group: GroupCardData) => Promise<void>;
-  /** Crear un enlace de invitación y devolver su URL completa. */
+  /** Create an invitation link and return its full URL. */
   onCreateInvite?: (group: GroupCardData) => Promise<string>;
 };
 
@@ -89,17 +89,17 @@ type DialogState =
   | { type: "leave"; group: GroupCardData }
   | { type: "delete"; group: GroupCardData };
 
-const SEARCH_THRESHOLD = 6; // desde aquí aparece el buscador
-const TOOLBAR_THRESHOLD = 4; // desde aquí aparecen filtros, orden y vista
+const SEARCH_THRESHOLD = 6; // from here the search box appears
+const TOOLBAR_THRESHOLD = 4; // from here filters, sorting and view appear
 
 const isOwner = (group: GroupCardData) =>
   String(group.role).toLowerCase() === "owner";
 
 /* ================================================================== */
-/* Piezas reutilizables: Modal, menú de acciones                       */
+/* Reusable pieces: Modal, action menu                                  */
 /* ================================================================== */
 
-/** Modal accesible basado en <dialog> nativo (foco atrapado, Esc y backdrop gratis). */
+/** Accessible modal built on the native <dialog> (focus trapped, Esc and backdrop for free). */
 function Modal({
   open,
   onClose,
@@ -129,7 +129,7 @@ function Modal({
       aria-labelledby={titleId}
       onClose={onClose}
       onClick={(e) => {
-        if (e.target === ref.current) onClose(); // clic en el fondo
+        if (e.target === ref.current) onClose(); // click on the backdrop
       }}
       className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-border-subtle bg-surface p-0 text-ink shadow-xl backdrop:bg-slate-900/40"
     >
@@ -165,7 +165,7 @@ type MenuItem = {
   separatorBefore?: boolean;
 };
 
-/** Menú "⋮" con teclado: flechas, Inicio/Fin, Esc y clic fuera. */
+/** "⋮" menu with keyboard: arrows, Home/End, Esc and click outside. */
 function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -273,7 +273,7 @@ function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
 }
 
 /* ================================================================== */
-/* Formularios dentro de los modales                                   */
+/* Forms inside the modals                                             */
 /* ================================================================== */
 
 type TFn = ReturnType<typeof useT>["t"];
@@ -302,7 +302,7 @@ function NameForm({
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    // Se espera a que el <dialog> esté abierto antes de enfocar.
+    // Wait for the <dialog> to be open before focusing.
     const frame = requestAnimationFrame(() => {
       inputRef.current?.focus();
       inputRef.current?.select();
@@ -506,12 +506,12 @@ function ConfirmForm({
 }
 
 /* ================================================================== */
-/* Tarjeta de grupo                                                    */
+/* Group card                                                          */
 /* ================================================================== */
 
-/* ---- Ayudas visuales de la tarjeta ---- */
+/* ---- Card visual helpers ---- */
 
-// Clases completas y literales para que Tailwind las detecte.
+// Full literal class names so Tailwind detects them.
 const AVATAR_TINTS = [
   "bg-primary/15 text-primary-ink",
   "bg-emerald-100 text-emerald-700",
@@ -521,14 +521,14 @@ const AVATAR_TINTS = [
   "bg-violet-100 text-violet-700",
 ];
 
-/** Color estable por grupo: el mismo grupo siempre tiene el mismo color. */
+/** Stable color per group: the same group always gets the same color. */
 function tintFor(id: string | number): string {
   let hash = 0;
   for (const char of String(id)) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   return AVATAR_TINTS[hash % AVATAR_TINTS.length];
 }
 
-/** "Banda de Rock" → "BR"; "Coro" → "CO". */
+/** "Rock Band" → "RB"; "Choir" → "CH". */
 function initialsOf(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return "?";
@@ -540,7 +540,7 @@ function initialsOf(name: string): string {
 const startOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
-/** Próximo evento en lenguaje natural ("hoy", "mañana", "dentro de 3 días") o fecha corta si falta mucho. */
+/** Next event in natural language ("today", "tomorrow", "in 3 days") or a short date if it is far off. */
 function describeNextEvent(
   date: Date,
   lang: string,
@@ -548,7 +548,7 @@ function describeNextEvent(
   const days = Math.round(
     (startOfDay(date) - startOfDay(new Date())) / 86_400_000,
   );
-  if (days < 0) return null; // eventos pasados no se muestran
+  if (days < 0) return null; // past events are not shown
   if (days <= 6) {
     return {
       text: new Intl.RelativeTimeFormat(lang, { numeric: "auto" }).format(
@@ -567,11 +567,11 @@ function describeNextEvent(
   };
 }
 
-/** "hace 5 min", "hace 2 h", "hace 3 días"; fecha corta pasado un mes. */
+/** "5 min ago", "2 h ago", "3 days ago"; short date after a month. */
 function describeActivity(date: Date, lang: string): string | null {
   const diff = Date.now() - date.getTime();
   if (diff < 0) return null;
-  // Estilo corto: "hace 3 min", "hace 2 h" (mismos tramos: min, h, d).
+  // Short style: "3 min ago", "2 h ago" (same steps: min, h, d).
   const rtf = new Intl.RelativeTimeFormat(lang, {
     style: "short",
     numeric: "auto",
@@ -589,7 +589,7 @@ function describeActivity(date: Date, lang: string): string | null {
   }).format(date);
 }
 
-/** True cuando el usuario ya guardó una identidad para este grupo en el dispositivo. */
+/** True when the user has already saved an identity for this group on the device. */
 function hasStoredAppearance(groupId: string | number): boolean {
   try {
     return (
@@ -601,9 +601,9 @@ function hasStoredAppearance(groupId: string | number): boolean {
 }
 
 /**
- * Avatar con la identidad del grupo: emoji y/o acento guardados en este dispositivo
- * (los mismos que edita GroupSettingsPage). Si no hay identidad guardada se mantiene
- * el comportamiento anterior: iniciales con el color estable derivado del id.
+ * Avatar with the group identity: emoji and/or accent saved on this device
+ * (the same ones edited by GroupSettingsPage). If no identity is saved the
+ * previous behavior is kept: initials with the stable color derived from the id.
  */
 function GroupAvatar({ group }: { group: GroupCardData }) {
   const key = String(group.id);
@@ -679,8 +679,8 @@ function GroupCardItem({
     pinned ? "border-primary/30" : "border-border-subtle"
   }`;
 
-  // Enlace "estirado": toda la tarjeta es clicable sin anidar botones dentro de <a>.
-  // El recorte del nombre vive en un <span> interior para no recortar el ::after.
+  // "Stretched" link: the whole card is clickable without nesting buttons inside <a>.
+  // The name truncation lives in an inner <span> so it does not clip the ::after.
   const linkClass =
     "block min-w-0 text-base font-semibold text-ink no-underline after:absolute after:inset-0 after:rounded-2xl after:content-[''] group-hover:text-primary-ink focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-primary focus-visible:after:ring-offset-2";
 
@@ -706,7 +706,7 @@ function GroupCardItem({
       }`}
     >
       {owner ? <Crown className="h-3 w-3" aria-hidden="true" /> : null}
-      {formatMembershipRole(group.role)}
+      {formatMembershipRole(group.role, t)}
     </span>
   );
 
@@ -736,8 +736,8 @@ function GroupCardItem({
           {t("grupos.nextEvent", { date: nextEvent.text })}
         </span>
       ) : activity ? (
-        // Sin evento próximo, la última actividad ocupa su lugar. Solo se ve "hace 3 min";
-        // la frase completa ("Última actividad: …") va para lectores de pantalla.
+        // With no upcoming event, the last activity takes its place. Only "3 min ago" is shown;
+        // the full sentence ("Last activity: …") goes to screen readers.
         <span className="inline-flex shrink-0 items-center gap-1">
           <Clock className="h-3.5 w-3.5" aria-hidden="true" />
           <span aria-hidden="true">{activity}</span>
@@ -751,7 +751,7 @@ function GroupCardItem({
 
   const actions = (
     <div className="relative z-10 flex shrink-0 items-center">
-      {/* La estrella solo estorba cuando no está fijada: en escritorio aparece al pasar o enfocar. */}
+      {/* The star only gets in the way when unpinned: on desktop it appears on hover or focus. */}
       <button
         type="button"
         onClick={onTogglePin}
@@ -774,7 +774,7 @@ function GroupCardItem({
         label={t("grupos.menuLabel", { name: group.name })}
         items={menu}
       />
-      {/* La flecha solo acompaña a la fila horizontal; en cuadrícula no aporta. */}
+      {/* The arrow only accompanies the horizontal row; in grid view it adds nothing. */}
       {view === "list" ? (
         <ChevronRight
           className="ml-0.5 hidden h-5 w-5 shrink-0 text-muted transition duration-150 group-hover:translate-x-0.5 group-hover:text-primary-ink motion-reduce:transform-none motion-reduce:transition-none sm:block"
@@ -785,8 +785,8 @@ function GroupCardItem({
   );
 
   if (view === "list") {
-    // Fila horizontal: avatar · nombre · rol · metadatos · acciones.
-    // En móvil los metadatos bajan a su propia línea (order-last + ancho completo).
+    // Horizontal row: avatar · name · role · metadata · actions.
+    // On mobile the metadata drops to its own line (order-last + full width).
     return (
       <div
         className={`${cardClass} flex h-full flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-3 sm:px-4`}
@@ -802,8 +802,8 @@ function GroupCardItem({
     );
   }
 
-  // Tarjeta vertical: avatar y acciones arriba, nombre a ancho completo,
-  // luego el rol y, separados por un borde, los metadatos en una sola línea.
+  // Vertical card: avatar and actions on top, full-width name,
+  // then the role and, separated by a border, the metadata on a single line.
   return (
     <div
       className={`${cardClass} flex h-full flex-col gap-3 px-3 py-3.5 sm:px-4`}
@@ -827,7 +827,7 @@ function GroupCardItem({
   );
 }
 
-/** Esqueleto con la misma cuadrícula y estructura que la tarjeta vertical. */
+/** Skeleton with the same grid and structure as the vertical card. */
 function GroupCardSkeleton({ label }: { label: string }) {
   const slots = [0, 1, 2, 3, 4, 5];
   return (
@@ -864,7 +864,7 @@ function GroupCardSkeleton({ label }: { label: string }) {
   );
 }
 /* ================================================================== */
-/* Página                                                              */
+/* Page                                                                */
 /* ================================================================== */
 
 export function GroupsPage({
@@ -972,7 +972,7 @@ export function GroupsPage({
     [groups, lastGroupId],
   );
 
-  // Fijados y resto se pintan como secciones separadas cuando hay fijados.
+  // Pinned and the rest are rendered as separate sections when there are pinned ones.
   const pinnedGroups = useMemo(
     () => visible.filter((g) => pinned.includes(String(g.id))),
     [visible, pinned],
@@ -1117,7 +1117,7 @@ export function GroupsPage({
       aria-labelledby="groups-heading"
       aria-busy={loading}
     >
-      {/* Cabecera con las acciones principales (sustituye al formulario fijo de abajo) */}
+      {/* Header with the main actions (replaces the fixed form below) */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
@@ -1138,7 +1138,7 @@ export function GroupsPage({
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-          {/* Secundaria discreta: unirse con enlace. */}
+          {/* Discrete secondary: join with a link. */}
           <Button
             type="button"
             variant="secondary"
@@ -1148,7 +1148,7 @@ export function GroupsPage({
             <Link2 className="h-4 w-4" aria-hidden="true" />
             {t("grupos.join")}
           </Button>
-          {/* Acción principal. */}
+          {/* Primary action. */}
           <Button
             type="button"
             className="w-full justify-center sm:w-auto"
@@ -1208,7 +1208,7 @@ export function GroupsPage({
         </div>
       ) : groups ? (
         <div className="space-y-4">
-          {/* Acceso rápido al último grupo abierto */}
+          {/* Quick access to the last opened group */}
           {lastGroup && total > 1 ? (
             <Link
               to={`/groups/${lastGroup.id}`}
@@ -1277,8 +1277,8 @@ export function GroupsPage({
               </div>
 
               <div className="ml-auto flex items-center gap-2">
-                {/* Selector de orden: <select> real (accesible y usable en móvil) con
-                    apariencia propia y una etiqueta visible "Ordenar: Nombre". */}
+                {/* Sort selector: a real <select> (accessible and usable on mobile) with
+                    custom styling and a visible label "Sort: Name". */}
                 <div className="flex min-h-11 items-center gap-1.5 rounded-xl border border-border-subtle bg-surface pl-3 pr-2 text-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25">
                   <label
                     htmlFor={`${searchId}-sort`}
@@ -1344,7 +1344,7 @@ export function GroupsPage({
               : ""}
           </p>
 
-          {/* Recuento visible cuando hay búsqueda o filtro activos. */}
+          {/* Visible count when a search or filter is active. */}
           {resultsActive ? (
             <p
               className="text-sm font-medium text-shell-foreground/70"
@@ -1402,7 +1402,7 @@ export function GroupsPage({
         </div>
       ) : null}
 
-      {/* ---------------- Diálogos ---------------- */}
+      {/* ---------------- Dialogs ---------------- */}
       <Modal
         open={dialog?.type === "create"}
         onClose={closeDialog}

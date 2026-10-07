@@ -31,9 +31,10 @@ const MIN_PASSWORD = 8;
 const RESEND_COOLDOWN_S = 30;
 
 /**
- * Único responsable de navegar tras autenticarse: cuando `onSuccess` actualiza
- * el usuario, esta ruta redirige a `next` (ya validado). AuthScreen NO llama a
- * `navigate()`, así se evita la doble navegación que había antes.
+ * Solely responsible for navigating after authentication: when `onSuccess`
+ * updates the user, this route redirects to `next` (already validated).
+ * AuthScreen does NOT call `navigate()`, avoiding the double navigation that
+ * existed before.
  */
 export function GuestAuthRoute({
   user,
@@ -57,7 +58,7 @@ export function GuestAuthRoute({
 }
 
 /* ------------------------------------------------------------------ */
-/* Campo de contraseña: TextField compartido + botón de ver la clave.  */
+/* Password field: shared TextField + show-password button.            */
 /* ------------------------------------------------------------------ */
 function PasswordField({
   label,
@@ -101,7 +102,7 @@ function PasswordField({
 }
 
 function ErrorBanner({ message }: { message: string | null }) {
-  // El contenedor live vive siempre en el DOM para que los lectores de pantalla anuncien el error.
+  // The live container always lives in the DOM so screen readers announce the error.
   return (
     <div role="alert" aria-live="assertive">
       {message ? (
@@ -114,7 +115,7 @@ function ErrorBanner({ message }: { message: string | null }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Paso 2FA                                                            */
+/* 2FA step                                                            */
 /* ------------------------------------------------------------------ */
 function TwoFactorStep({
   headingId,
@@ -144,7 +145,7 @@ function TwoFactorStep({
     setPending(true);
     setError(null);
     try {
-      // La cookie temporal de 2FA (no una sesión) autoriza esta llamada.
+      // The temporary 2FA cookie (not a session) authorizes this call.
       const user = useRecovery
         ? await recoverTwoFactor(value)
         : await challengeTwoFactor(value);
@@ -227,7 +228,7 @@ function TwoFactorStep({
 }
 
 /* ------------------------------------------------------------------ */
-/* Reenviar confirmación (con cooldown y mensaje genérico)             */
+/* Resend confirmation (with cooldown and generic message)              */
 /* ------------------------------------------------------------------ */
 function ResendBlock({ initialEmail }: { initialEmail: string }) {
   const { t } = useT();
@@ -255,7 +256,7 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
     try {
       await resendConfirmation(email.trim());
     } catch {
-      // Respuesta deliberadamente genérica: no revelar si el correo existe o ya está verificado.
+      // Deliberately generic response: do not reveal whether the email exists or is already verified.
     } finally {
       setSent(true);
       setCooldown(RESEND_COOLDOWN_S);
@@ -317,7 +318,7 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Pantalla principal                                                  */
+/* Main screen                                                         */
 /* ------------------------------------------------------------------ */
 function AuthScreen({
   mode,
@@ -357,7 +358,7 @@ function AuthScreen({
         ? "registered"
         : "form";
 
-  // Mueve el foco al título al cambiar de paso (mejor accesibilidad con teclado y lector de pantalla).
+  // Move focus to the title when the step changes (better keyboard and screen-reader accessibility).
   const firstRender = useRef(true);
   useEffect(() => {
     if (firstRender.current) {
@@ -402,7 +403,7 @@ function AuthScreen({
     setPending(true);
     try {
       if (mode === "register") {
-        // T-AU-01: el registro nunca inicia sesión; primero hay que verificar el correo.
+        // T-AU-01: registration never signs in; the email must be verified first.
         await registerUser({
           email: email.trim(),
           password,
@@ -420,11 +421,11 @@ function AuthScreen({
               password,
             })
           : await loginUser({ email: identifier, password });
-        setPassword(""); // no mantener la contraseña en memoria más de lo necesario
+        setPassword(""); // do not keep the password in memory longer than necessary
         if (isSecondStepRequired(result)) {
           setSecondStep(true);
         } else {
-          onSuccess(result); // GuestAuthRoute redirige a `next`
+          onSuccess(result); // GuestAuthRoute redirects to `next`
         }
       }
     } catch (err) {
@@ -445,7 +446,7 @@ function AuthScreen({
     try {
       const { challenge, rpId } = await startPasskeyLogin();
       const result = await performWebAuthnLogin(challenge, rpId);
-      // Sin fallback manual: una passkey solo es válida con firma y clientData reales.
+      // No manual fallback: a passkey is only valid with real signature and clientData.
       if (
         !result.credentialId ||
         !result.signature ||
@@ -462,7 +463,7 @@ function AuthScreen({
       });
       onSuccess(user);
     } catch (err) {
-      // Cancelar el diálogo del navegador no es un error que mostrar.
+      // Cancelling the browser dialog is not an error worth showing.
       if (err instanceof DOMException && err.name === "NotAllowedError") return;
       setError(problemDetail(err));
     } finally {

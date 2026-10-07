@@ -38,8 +38,8 @@ import {
   useGroupDataSignal,
 } from '../groups/ui'
 
-function formatRole(role: string): string {
-  return formatMembershipRole(role)
+function formatRole(role: string, t: (key: I18nKey) => string): string {
+  return formatMembershipRole(role, t)
 }
 
 type RoleTab = 'all' | 'admins' | 'leaders' | 'members'
@@ -333,7 +333,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                         ) : null}
                       </p>
                       <p className="text-sm text-muted">
-                        {formatRole(member.role)}
+                        {formatRole(member.role, t)}
                         {member.musicalRole ? ` · ${member.musicalRole}` : ''}
                       </p>
                       {member.email ? (

@@ -86,7 +86,7 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
     value: arrangement.id,
     label: arrangement.label,
   }))
-  const purposeOptions = PURPOSES.map((value) => ({ value, label: formatPurpose(value) }))
+  const purposeOptions = PURPOSES.map((value) => ({ value, label: formatPurpose(value, t) }))
 
   async function submit() {
     setError(null)

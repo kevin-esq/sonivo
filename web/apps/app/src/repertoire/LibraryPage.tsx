@@ -334,7 +334,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                 </Link>
                 {isOwner ? (
                   <GroupIconButton
-                    label={`Más opciones para ${song.title}`}
+                    label={t('canciones.moreOptions', { title: song.title })}
                     className="absolute right-2 top-1/2 -translate-y-1/2"
                     onClick={(e: MouseEvent) => {
                       e.preventDefault()

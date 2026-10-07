@@ -68,7 +68,7 @@ export function SettingsProfilePage() {
         if (!cancelled) setStatus(result)
       })
       .catch(() => {
-        // best effort: the row falls back to "Desactivada"
+        // best effort: the row falls back to "Disabled"
       })
     return () => {
       cancelled = true
@@ -368,7 +368,7 @@ export function SettingsTeamPage() {
 /**
  * `/cuenta/membresia` — account-level membership. Billing/subscription is not a
  * group-owned concern (ADR-0055) and the group centre no longer hosts a
- * "Membresía" tab; this page owns the plan summary and the user's group
+ * "Membership" tab; this page owns the plan summary and the user's group
  * memberships. No real billing UI yet (ADR firewall: no billing).
  */
 export function SettingsMembershipPage() {
@@ -442,7 +442,7 @@ export function SettingsMembershipPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium text-ink">{group.name}</p>
                   <p className="text-xs text-muted">
-                    {t('membresia.roleLabel')}: {formatMembershipRole(group.role)}
+                    {t('membresia.roleLabel')}: {formatMembershipRole(group.role, t)}
                     {typeof group.memberCount === 'number'
                       ? ` · ${group.memberCount} ${t('membresia.membersLabel').toLowerCase()}`
                       : ''}

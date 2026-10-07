@@ -57,7 +57,7 @@ test.describe('Invite journeys', () => {
 
     await page.getByRole('link', { name: groupName, exact: true }).click()
     await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
-    await expect(page.getByRole('strong').filter({ hasText: 'Organizador' })).toBeVisible()
+    await expect(page.getByTestId('group-rail').getByText('Organizador', { exact: true })).toBeVisible()
 
     const inviteUrl = await inviteMemberAndReadLink(page)
 
@@ -67,7 +67,7 @@ test.describe('Invite journeys', () => {
     await acceptInvite(page)
 
     await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
-    await expect(page.getByRole('strong').filter({ hasText: 'Miembro' })).toBeVisible()
+    await expect(page.getByTestId('group-rail').getByText('Miembro', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Invitar miembro' })).toHaveCount(0)
 
     await openEvents(page)

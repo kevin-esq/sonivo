@@ -1,5 +1,5 @@
 // tenancy/safeNextPath.ts
-/** Solo rutas internas de la app. Rechaza URLs absolutas, //host, backslashes y bucles a /login o /register. */
+/** Internal app paths only. Rejects absolute URLs, //host, backslashes and loops back to /login or /register. */
 export function safeNextPath(value: string | null | undefined): string | null {
   if (
     !value ||

@@ -2,7 +2,7 @@ import { CalendarDays } from "lucide-react";
 import { useT, type I18nKey } from "../i18n";
 import { colorFor, shortDate, timeLabel, type CalendarEvent } from "./calendarUtils";
 
-/** "Próximos eventos" rail list. */
+/** "Upcoming events" rail list. */
 export function UpcomingList({
   events,
   loading,

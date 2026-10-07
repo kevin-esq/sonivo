@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useT } from '../i18n'
 import { Button } from '../ui/button'
 import { useAudioPlayer } from './AudioPlayerContext'
 import type { PracticeAudioSource } from './pickPracticeAudio'
@@ -27,9 +28,9 @@ function resolveInitialTrack(
 }
 
 /**
- * Reproductor de práctica. Ya no crea su propio <audio>: publica la pista en el
- * AudioPlayerContext compartido, así el rail (y la barra inferior en móvil)
- * muestran y controlan la MISMA reproducción.
+ * Practice player. It no longer creates its own <audio>: it publishes the track
+ * to the shared AudioPlayerContext, so the rail (and the bottom bar on mobile)
+ * show and control the SAME playback.
  */
 export function PracticePlayer({
   groupId,
@@ -58,6 +59,7 @@ export function PracticePlayer({
     seek,
     setVolume,
   } = useAudioPlayer()
+  const { t } = useT()
   const prefs = useMemo(
     () => readPracticePlayerPrefs(groupId, arrangementId),
     [groupId, arrangementId],
@@ -74,13 +76,13 @@ export function PracticePlayer({
   const selected =
     tracks.find((t) => t.resourceId === selectedId) ?? resolveInitialTrack(tracks, null)
 
-  // Cue de la pista elegida en el motor compartido (en pausa).
+  // Cues the selected track in the shared engine (paused).
   useEffect(() => {
     loadTrack({ id: selected.resourceId, title: selected.label, url: selected.src })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected.resourceId, selected.src])
 
-  // El volumen de práctica es por arreglo; se aplica al motor al entrar.
+  // The practice volume is per arrangement; it is applied to the engine on entry.
   useEffect(() => {
     setVolume(prefs.volume)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -137,14 +139,14 @@ export function PracticePlayer({
     >
       <div className="space-y-1">
         <h2 id="practice-audio-heading" className="text-lg font-semibold tracking-tight text-ink">
-          Audio de práctica
+          {t('practica.audio.title')}
         </h2>
-        <p className="text-sm text-muted">Elige una pista y ensaya con la letra abajo.</p>
+        <p className="text-sm text-muted">{t('practica.audio.subtitle')}</p>
       </div>
 
       <div className="space-y-1.5">
         <label htmlFor={trackId} className="block text-sm font-medium text-ink">
-          Pista
+          {t('practica.audio.trackLabel')}
         </label>
         <select
           id={trackId}
@@ -167,16 +169,16 @@ export function PracticePlayer({
           variant="secondary"
           className="min-h-11 min-w-28"
           onClick={() => void togglePlay()}
-          aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
+          aria-label={isPlaying ? t('player.pause') : t('player.play')}
           disabled={!hasTrack}
           data-testid="practice-play-pause"
         >
-          {isPlaying ? 'Pausar' : 'Reproducir'}
+          {isPlaying ? t('player.pause') : t('player.play')}
         </Button>
         <p
           className="tabular-nums text-sm font-medium text-ink"
           aria-live="off"
-          aria-label={`Tiempo ${formatTime(progress)} de ${formatTime(duration)}`}
+          aria-label={`${t('practica.audio.timeLabel')} ${formatTime(progress)} ${t('practica.audio.ofWord')} ${formatTime(duration)}`}
         >
           <span data-testid="practice-current-time">{formatTime(progress)}</span>
           {' / '}
@@ -186,7 +188,7 @@ export function PracticePlayer({
 
       <div className="max-w-xl space-y-1.5">
         <label htmlFor={seekId} className="block text-sm font-medium text-ink">
-          Posición
+          {t('practica.audio.position')}
         </label>
         <input
           id={seekId}
@@ -199,14 +201,14 @@ export function PracticePlayer({
           onInput={(e) => onSeek(Number((e.target as HTMLInputElement).value))}
           onChange={(e) => onSeek(Number(e.target.value))}
           className="h-11 w-full accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-valuetext={`${formatTime(progress)} de ${formatTime(duration)}`}
+          aria-valuetext={`${formatTime(progress)} ${t('practica.audio.ofWord')} ${formatTime(duration)}`}
           data-testid="practice-seek"
         />
       </div>
 
       <div className="max-w-xs space-y-1.5">
         <label htmlFor={volumeId} className="block text-sm font-medium text-ink">
-          Volumen ({volumePct}%)
+          {t('practica.audio.volume', { percent: volumePct })}
         </label>
         <input
           id={volumeId}
@@ -217,7 +219,7 @@ export function PracticePlayer({
           value={volume}
           onChange={(e) => setVolume(Number(e.target.value))}
           className="h-11 w-full accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-valuetext={`${volumePct} por ciento`}
+          aria-valuetext={t('practica.audio.volumeValue', { percent: volumePct })}
           data-testid="practice-volume"
         />
       </div>

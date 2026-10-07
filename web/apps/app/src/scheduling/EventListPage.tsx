@@ -71,9 +71,9 @@ export function EventListPage({ user }: { user: CurrentUser }) {
     return events.filter(
       (item) =>
         item.title.toLowerCase().includes(q) ||
-        formatEventType(item.type).toLowerCase().includes(q),
+        formatEventType(item.type, t).toLowerCase().includes(q),
     )
-  }, [events, query])
+  }, [events, query, t])
 
   async function reload() {
     if (!groupId) return
@@ -162,12 +162,12 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                 </>
               ) : null}
               {showHeaderAdd ? (
-                <GroupButton onClick={() => setShowCreate(true)} disabled={eventsAtLimit}>Nuevo evento</GroupButton>
+                <GroupButton onClick={() => setShowCreate(true)} disabled={eventsAtLimit}>{t('agenda.newEvent')}</GroupButton>
               ) : null}
             </>
           }
         >
-          {!isOwner ? <p className="text-sm text-muted">Solo lectura</p> : null}
+          {!isOwner ? <p className="text-sm text-muted">{t('agenda.readonly')}</p> : null}
         </GroupPageHeader>
       </div>
 
@@ -213,11 +213,11 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       ) : events.length === 0 ? (
         <GroupEmptyState
           icon={CalendarDays}
-          title="Aún no hay eventos"
+          title={t('agenda.emptyEventsTitle')}
           description={
             isOwner
-              ? 'Crea un ensayo o concierto y aplica una lista para copiar el plan de canciones.'
-              : 'Cuando haya eventos, aparecerán aquí para prepararte.'
+              ? t('agenda.emptyEventsOwner')
+              : t('agenda.emptyEventsMember')
           }
           action={
             isOwner ? (
@@ -226,17 +226,17 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                 onClick={() => setShowCreate(true)}
                 disabled={eventsAtLimit}
               >
-                Nuevo evento
+                {t('agenda.newEvent')}
               </GroupButton>
             ) : (
               <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
-                Ir a la biblioteca
+                {t('agenda.goLibrary')}
               </GroupLink>
             )
           }
         />
       ) : filtered && filtered.length === 0 ? (
-        <GroupEmptyState title={`Ningún evento coincide con «${query.trim()}».`} />
+        <GroupEmptyState title={`${t('agenda.noEventsPrefix')}${query.trim()}${t('agenda.noMatchSuffix')}`} />
       ) : (
         <div className="space-y-1">
           <div
@@ -268,7 +268,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                         {musicalEvent.title}
                       </span>
                       <span className="mt-0.5 block text-sm text-muted">
-                        {formatEventType(musicalEvent.type)} · {formatStartsAt(musicalEvent.startsAt)}
+                        {formatEventType(musicalEvent.type, t)} · {formatStartsAt(musicalEvent.startsAt)}
                       </span>
                     </span>
                     <ReadinessChip

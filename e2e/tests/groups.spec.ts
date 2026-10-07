@@ -8,9 +8,8 @@ test.describe('Group journeys', () => {
     await register(page, email)
 
     await createGroup(page, groupName)
-    await expect(page.getByText('Tu rol en este grupo:')).toBeVisible()
-    await expect(page.getByRole('region').getByText('Organizador', { exact: true })).toBeVisible()
-    await expect(page.getByRole('main').getByText('Canciones', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('group-rail').getByText('Organizador', { exact: true })).toBeVisible()
+    await expect(page.getByRole('main').getByRole('heading', { name: groupName })).toBeVisible()
 
     await page.goto('/grupos')
     await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()

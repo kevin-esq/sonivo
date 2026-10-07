@@ -41,17 +41,21 @@ import {
   fromDatetimeLocalValue,
   toDatetimeLocalValue,
 } from './datetime'
-import { useT } from '../i18n'
+import { useT, type I18nKey } from '../i18n'
 import { plural } from '../ui/plural'
 
-const RSVP_CHOICES: { value: EventRsvpResponse; label: string }[] = [
-  { value: 'yes', label: 'Sí' },
-  { value: 'no', label: 'No' },
-  { value: 'maybe', label: 'Quizás' },
+const RSVP_CHOICES: { value: EventRsvpResponse; labelKey: I18nKey }[] = [
+  { value: 'yes', labelKey: 'evento.rsvpYes' },
+  { value: 'no', labelKey: 'evento.rsvpNo' },
+  { value: 'maybe', labelKey: 'evento.rsvpMaybe' },
 ]
 
-function formatRsvpResponse(response: string): string {
-  return RSVP_CHOICES.find((choice) => choice.value === response)?.label ?? response
+function formatRsvpResponse(
+  response: string,
+  t: (key: I18nKey) => string,
+): string {
+  const choice = RSVP_CHOICES.find((item) => item.value === response)
+  return choice ? t(choice.labelKey) : response
 }
 
 type RsvpLoad =
@@ -312,7 +316,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">Cargando evento…</p>
+    return <p aria-live="polite">{t('evento.loading')}</p>
   }
 
   if (group === null) {
@@ -327,18 +331,18 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (musicalEvent === undefined) {
-    return <p aria-live="polite">Cargando evento…</p>
+    return <p aria-live="polite">{t('evento.loading')}</p>
   }
 
   if (musicalEvent === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? 'No se encontró el evento o no tienes acceso.'} />
+        <ProblemAlert message={error ?? t('evento.notFound')} />
         <Link
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/events`}
         >
-          Eventos
+          {t('evento.events')}
         </Link>
       </div>
     )
@@ -369,8 +373,8 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                 {musicalEvent.title}
               </h1>
               <p className="text-sm text-muted">
-                {formatEventType(musicalEvent.type)} · {formatStartsAt(musicalEvent.startsAt)}
-                {!isOwner ? <span> · Solo lectura</span> : null}
+                {formatEventType(musicalEvent.type, t)} · {formatStartsAt(musicalEvent.startsAt)}
+                {!isOwner ? <span> · {t('agenda.readonly')}</span> : null}
               </p>
             </div>
           </div>
@@ -410,17 +414,17 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     setEditing(true)
                   }}
                 >
-                  Editar evento
+                  {t('evento.editEvent')}
                 </Button>
                 <Button
                   variant="secondary"
                   disabled={duplicating}
                   onClick={() => void handleDuplicateEvent()}
                 >
-                  {duplicating ? 'Duplicando…' : 'Duplicar'}
+                  {duplicating ? t('evento.duplicating') : t('evento.duplicate')}
                 </Button>
                 <Button variant="secondary" onClick={handleShareEvent}>
-                  Compartir
+                  {t('evento.share')}
                 </Button>
               </>
             ) : null}
@@ -434,7 +438,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       <div
         className="flex gap-1 rounded-xl bg-surface-hover p-1"
         role="tablist"
-        aria-label="Secciones del evento"
+        aria-label={t('evento.tabsLabel')}
       >
         <TabButton
           selected={activeTab === 'plan'}
@@ -443,13 +447,13 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
             setTab('plan')
           }}
         >
-          Plan del evento
+          {t('evento.planTab')}
         </TabButton>
         <TabButton
           selected={activeTab === 'details'}
           onClick={() => setTab('details')}
         >
-          Detalles
+          {t('evento.detailsTab')}
         </TabButton>
       </div>
 
@@ -458,16 +462,15 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 id="plan-heading" className="text-lg font-semibold">
-                Plan del evento
+                {t('evento.planTab')}
               </h2>
               <span className="inline-flex items-center gap-1 rounded-lg bg-accent/15 px-2 py-0.5 text-xs font-medium text-accent">
                 <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                Copia
+                {t('evento.copyBadge')}
               </span>
             </div>
             <p className="text-sm text-muted">
-              Plan de canciones (copiado de la lista). Los cambios posteriores a la lista no
-              actualizan este plan hasta que vuelvas a aplicar.
+              {t('evento.planHint')}
             </p>
             {hasPlan && isLive ? (
               <p>
@@ -479,7 +482,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   to={practiceQueueHref(group.id, musicalEvent.id, plan[0]!)}
                   data-testid="ensayar-plan"
                 >
-                  Ensayar plan
+                  {t('evento.rehearsePlan')}
                 </Link>
               </p>
             ) : null}
@@ -487,11 +490,11 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
 
           {plan.length === 0 ? (
             <EmptyPanel
-              title="Aún no hay plan"
+              title={t('agenda.emptyPlanTitle')}
               description={
                 isOwner && isLive
-                  ? 'Aplica una lista para copiar sus arreglos actuales a este evento.'
-                  : 'Cuando haya un plan, las canciones aparecerán numeradas aquí.'
+                  ? t('evento.noPlanOwner')
+                  : t('evento.noPlanMember')
               }
               action={
                 isOwner && isLive ? (
@@ -500,7 +503,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                       className="font-semibold text-primary-ink no-underline hover:underline"
                       to={`/groups/${group.id}/setlists`}
                     >
-                      Ir a Listas
+                      {t('evento.goSetlists')}
                     </Link>
                   ) : (
                     <Button
@@ -512,7 +515,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                         })
                       }}
                     >
-                      Aplicar una lista
+                      {t('evento.applyCta')}
                     </Button>
                   )
                 ) : (
@@ -520,7 +523,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     className="font-semibold text-primary-ink no-underline hover:underline"
                     to={`/groups/${group.id}/library`}
                   >
-                    Ir a la biblioteca
+                    {t('evento.goLibrary')}
                   </Link>
                 )
               }
@@ -531,9 +534,9 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                 aria-hidden="true"
                 className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[2.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
               >
-                <span>N.º</span>
-                <span>Canción</span>
-                <span>Acción</span>
+                <span>{t('evento.colNumber')}</span>
+                <span>{t('evento.colSong')}</span>
+                <span>{t('evento.colAction')}</span>
               </div>
               <ol className="space-y-1.5 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
               {plan.map((item, index) => (
@@ -564,7 +567,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                       to={practiceQueueHref(group.id, musicalEvent.id, item)}
                       data-testid={`practicar-item-${item.id}`}
                     >
-                      Practicar
+                      {t('evento.practice')}
                     </Link>
                   ) : null}
                 </li>
@@ -579,12 +582,12 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               aria-labelledby="apply-heading"
             >
               <h3 id="apply-heading" className="font-semibold">
-                Aplicar lista
+                {t('evento.applyTitle')}
               </h3>
               {setlists === null ? (
-                <p aria-live="polite">Cargando listas…</p>
+                <p aria-live="polite">{t('evento.loadingSetlists')}</p>
               ) : setlists.length === 0 ? (
-                <p className="text-sm text-muted">Aún no hay listas. Crea una primero.</p>
+                <p className="text-sm text-muted">{t('evento.noSetlists')}</p>
               ) : (
                 <form
                   className="space-y-3"
@@ -593,7 +596,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     requestApply()
                   }}
                 >
-                  <Field label="Lista">
+                  <Field label={t('evento.setlistLabel')}>
                     <select
                       className={fieldClass}
                       value={selectedSetlistId}
@@ -608,7 +611,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     </select>
                   </Field>
                   <Button type="submit" disabled={applying || !selectedSetlistId}>
-                    {applying ? 'Aplicando…' : 'Aplicar lista'}
+                    {applying ? t('evento.applying') : t('evento.apply')}
                   </Button>
                 </form>
               )}
@@ -618,7 +621,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       ) : (
         <section className="space-y-4" aria-labelledby="details-heading">
           <h2 id="details-heading" className="sr-only">
-            Detalles
+            {t('evento.detailsTab')}
           </h2>
           {editing && isOwner && isLive ? (
             <EventEditForm
@@ -643,19 +646,19 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
           ) : (
             <dl className="grid max-w-lg gap-4 rounded-2xl bg-surface-hover p-5 sm:grid-cols-2">
               <div>
-                <dt className="text-sm text-muted">Tipo</dt>
-                <dd className="font-medium text-ink">{formatEventType(musicalEvent.type)}</dd>
+                <dt className="text-sm text-muted">{t('evento.typeLabel')}</dt>
+                <dd className="font-medium text-ink">{formatEventType(musicalEvent.type, t)}</dd>
               </div>
               <div>
-                <dt className="text-sm text-muted">Fecha y hora</dt>
+                <dt className="text-sm text-muted">{t('evento.startsAtLabel')}</dt>
                 <dd className="font-medium text-ink">
                   {formatStartsAt(musicalEvent.startsAt)}
                 </dd>
               </div>
               <div>
-                <dt className="text-sm text-muted">Estado</dt>
+                <dt className="text-sm text-muted">{t('evento.statusLabel')}</dt>
                 <dd className="font-medium text-ink" title={t('agenda.statusHint')}>
-                  {formatEventStatus(musicalEvent.status)}
+                  {formatEventStatus(musicalEvent.status, t)}
                 </dd>
               </div>
             </dl>
@@ -670,11 +673,11 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
         >
           <div className="space-y-1">
             <h2 id="attendance-heading" className="text-lg font-semibold">
-              Asistencia
+              {t('evento.rsvpTitle')}
             </h2>
-            <p className="text-sm text-muted">Indica si vas a este evento.</p>
+            <p className="text-sm text-muted">{t('evento.rsvpHint')}</p>
           </div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Tu respuesta">
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t('evento.rsvpGroup')}>
             {RSVP_CHOICES.map((choice) => {
               const selected = myResponse === choice.value
               return (
@@ -685,13 +688,13 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   disabled={savingRsvp}
                   onClick={() => void setOwnRsvp(choice.value)}
                 >
-                  {choice.label}
+                  {t(choice.labelKey)}
                 </Button>
               )
             })}
           </div>
           {rsvps === null ? null : rsvps.length === 0 ? (
-            <p className="text-sm text-muted">Aún no hay respuestas.</p>
+            <p className="text-sm text-muted">{t('evento.noRsvps')}</p>
           ) : (
             <ul className="space-y-2">
               {rsvps.map((item) => (
@@ -700,7 +703,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface px-3 py-2 text-sm"
                 >
                   <span className="font-medium text-ink">{item.displayName}</span>
-                  <span className="text-muted">{formatRsvpResponse(item.response)}</span>
+                  <span className="text-muted">{formatRsvpResponse(item.response, t)}</span>
                 </li>
               ))}
             </ul>
@@ -719,10 +722,10 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
           </h2>
           <div className="flex flex-wrap gap-2">
             <Button variant="danger" onClick={() => setConfirmCancel(true)}>
-              Cancelar evento
+              {t('evento.cancelEvent')}
             </Button>
             <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-              Eliminar evento
+              {t('evento.deleteEvent')}
             </Button>
           </div>
         </section>
@@ -730,47 +733,44 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
 
       <ConfirmDialog
         open={confirmReplace}
-        title="¿Reemplazar plan del evento?"
-        confirmLabel="Reemplazar plan"
-        cancelLabel="Cancelar"
-        pendingLabel="Reemplazando…"
+        title={t('evento.replaceTitle')}
+        confirmLabel={t('evento.replaceConfirm')}
+        cancelLabel={t('evento.cancel')}
+        pendingLabel={t('evento.replacing')}
         pending={applying}
         onCancel={() => setConfirmReplace(false)}
         onConfirm={() => void apply(true)}
       >
         <p>
-          Este evento ya tiene un plan. Aplicar una lista reemplaza la copia actual. No se puede
-          deshacer desde esta pantalla.
+          {t('evento.replaceBody')}
         </p>
       </ConfirmDialog>
       <ConfirmDialog
         open={confirmCancel}
-        title="¿Cancelar evento?"
-        confirmLabel="Cancelar evento"
-        cancelLabel="Volver"
-        pendingLabel="Cancelando…"
+        title={t('evento.cancelTitle')}
+        confirmLabel={t('evento.cancelEvent')}
+        cancelLabel={t('evento.back')}
+        pendingLabel={t('evento.cancelling')}
         pending={cancelling}
         onCancel={() => setConfirmCancel(false)}
         onConfirm={() => void handleCancelEvent()}
       >
         <p>
-          Esto oculta el evento de la lista. El plan copiado y las respuestas de asistencia se
-          conservan en el evento.
+          {t('evento.cancelBody')}
         </p>
       </ConfirmDialog>
       <ConfirmDialog
         open={confirmDelete}
-        title="¿Eliminar evento?"
-        confirmLabel="Eliminar evento"
-        cancelLabel="Volver"
-        pendingLabel="Eliminando…"
+        title={t('evento.deleteTitle')}
+        confirmLabel={t('evento.deleteEvent')}
+        cancelLabel={t('evento.back')}
+        pendingLabel={t('evento.deleting')}
         pending={deleting}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => void handleDeleteEvent()}
       >
         <p>
-          Esto elimina permanentemente el evento, su plan y las respuestas de asistencia. No se
-          puede deshacer.
+          {t('evento.deleteBody')}
         </p>
       </ConfirmDialog>
     </section>
@@ -817,6 +817,7 @@ function EventEditForm({
   onSaved: (next: EventDetail) => Promise<void>
   onConflict: () => Promise<void>
 }) {
+  const { t } = useT()
   const [title, setTitle] = useState(musicalEvent.title)
   const [type, setType] = useState<EventType>(musicalEvent.type as EventType)
   const [startsAt, setStartsAt] = useState(toDatetimeLocalValue(musicalEvent.startsAt))
@@ -828,7 +829,7 @@ function EventEditForm({
     setPending(true)
     setError(null)
     if (!startsAt) {
-      setError('La fecha y hora de inicio son obligatorias.')
+      setError(t('evento.startsAtRequired'))
       setPending(false)
       return
     }
@@ -853,10 +854,10 @@ function EventEditForm({
 
   return (
     <form className="max-w-lg space-y-4" onSubmit={onSubmit} noValidate>
-      <h3 className="text-lg font-semibold">Editar evento</h3>
-      <p className="text-sm text-muted">Guardando cambios · {musicalEvent.version}</p>
+      <h3 className="text-lg font-semibold">{t('evento.editEvent')}</h3>
+      <p className="text-sm text-muted">{t('evento.versionPrefix')}{musicalEvent.version}</p>
       <ProblemAlert message={error} />
-      <Field label="Título">
+      <Field label={t('evento.titleLabel')}>
         <input
           className={fieldClass}
           required
@@ -865,19 +866,19 @@ function EventEditForm({
           maxLength={200}
         />
       </Field>
-      <Field label="Tipo">
+      <Field label={t('evento.typeLabel')}>
         <select
           className={fieldClass}
           required
           value={type}
           onChange={(e) => setType(e.target.value as EventType)}
         >
-          <option value="rehearsal">Ensayo</option>
-          <option value="performance">Concierto</option>
-          <option value="other">Otro</option>
+          <option value="rehearsal">{t('evento.typeRehearsal')}</option>
+          <option value="performance">{t('evento.typePerformance')}</option>
+          <option value="other">{t('evento.typeOther')}</option>
         </select>
       </Field>
-      <Field label="Fecha y hora">
+      <Field label={t('evento.startsAtLabel')}>
         <input
           className={fieldClass}
           type="datetime-local"
@@ -888,10 +889,10 @@ function EventEditForm({
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? 'Guardando…' : 'Guardar cambios'}
+          {pending ? t('evento.saving') : t('evento.save')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          Cancelar
+          {t('evento.cancel')}
         </Button>
       </FormActions>
     </form>

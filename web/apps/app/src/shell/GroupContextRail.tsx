@@ -17,7 +17,7 @@ import { GroupCard, GroupChip, GroupIconWell, GroupLink, useGroupDataSignal } fr
 
 /**
  * Persistent right-hand context rail for the group workspace (owner reference
- * 2026-10-07): "Tu semana", "Hoy", "Tus listas" and "Tu progreso". Hidden below
+ * 2026-10-07): "Your week", "Today", "Your setlists" and "Your progress". Hidden below
  * xl so the main content keeps full width on smaller screens.
  */
 export function GroupContextRail({ groupId }: { groupId: string }) {

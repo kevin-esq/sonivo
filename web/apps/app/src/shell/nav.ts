@@ -75,8 +75,8 @@ export const groupNavSections: GroupNavSection[] = [
 export const groupNavItems: GroupNavItem[] = groupNavSections.flatMap((section) => section.items)
 
 /**
- * Primary mobile destinations (approved 2026-10-05): Inicio, Canciones,
- * Eventos, Tareas. Picked for the four highest-frequency tasks so the bottom
+ * Primary mobile destinations (approved 2026-10-05): Home, Songs,
+ * Events, Tasks. Picked for the four highest-frequency tasks so the bottom
  * bar carries four real tabs (the previous list resolved to three, leaving a
  * dead 5th column in a `grid-cols-5`).
  */
@@ -87,7 +87,7 @@ export const mobileTabItems: GroupNavItem[] = MOBILE_TAB_IDS
   .filter((item): item is GroupNavItem => Boolean(item))
 
 /**
- * Everything else lives in the single "Más" sheet (nav.ts), plus Ajustes which
+ * Everything else lives in the single "More" sheet (nav.ts), plus Settings which
  * the workspace appends. Keeps full parity with the desktop rail.
  */
 export const mobileMoreItems = groupNavItems.filter(

@@ -14,7 +14,7 @@ interface AudioPlayerContextType {
   duration: number
   volume: number
   playTrack: (track: Track) => void
-  /** Carga una pista en pausa (sin autoplay); la usan superficies como Practicar. */
+  /** Loads a paused track (no autoplay); used by surfaces such as Practice. */
   loadTrack: (track: Track) => void
   togglePlay: () => void
   closeTrack: () => void
@@ -118,6 +118,6 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
 export function useAudioPlayer() {
   const context = useContext(AudioPlayerContext)
-  if (!context) throw new Error('useAudioPlayer debe ser usado dentro de AudioPlayerProvider')
+  if (!context) throw new Error('useAudioPlayer must be used within AudioPlayerProvider')
   return context
 }

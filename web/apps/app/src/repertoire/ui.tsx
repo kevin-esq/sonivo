@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ApiError, getGroup, problemDetail, type GroupDetail } from '../api/client'
+import type { I18nKey } from '../i18n'
 
 export { ConflictAlert, ProblemAlert } from '../ui/alert'
 export { ConfirmDialog } from '../ui/dialog'
@@ -30,51 +31,60 @@ export function canParticipateRole(role: string | undefined): boolean {
   return role === 'Owner' || role === 'Manager' || role === 'Member'
 }
 
-/** API role → Spanish label for musicians (values stay Owner|Manager|Member|Viewer on the wire). */
-export function formatMembershipRole(role: string | undefined): string {
+/** API role → localized label for musicians (values stay Owner|Manager|Member|Viewer on the wire). */
+export function formatMembershipRole(
+  role: string | undefined,
+  t: (key: I18nKey) => string,
+): string {
   switch (role) {
     case 'Owner':
-      return 'Organizador'
+      return t('roles.roleOwner')
     case 'Manager':
-      return 'Encargado'
+      return t('roles.roleManager')
     case 'Member':
-      return 'Miembro'
+      return t('roles.roleMember')
     case 'Viewer':
-      return 'Lector'
+      return t('roles.roleViewer')
     default:
       return role ?? ''
   }
 }
 
-export function formatOriginKind(kind: string): string {
+export function formatOriginKind(
+  kind: string,
+  t: (key: I18nKey) => string,
+): string {
   switch (kind) {
     case 'original':
-      return 'Propia'
+      return t('canciones.originOriginal')
     case 'cover':
-      return 'Versión'
+      return t('canciones.originCover')
     case 'other':
-      return 'Otro'
+      return t('canciones.originOther')
     default:
       return kind
   }
 }
 
-export function formatPurpose(purpose: string): string {
+export function formatPurpose(
+  purpose: string,
+  t: (key: I18nKey) => string,
+): string {
   switch (purpose) {
     case 'chart':
-      return 'Partitura'
+      return t('recursos.purposeChart')
     case 'lyrics':
-      return 'Letra'
+      return t('recursos.purposeLyrics')
     case 'audio':
-      return 'Audio'
+      return t('recursos.purposeAudio')
     case 'click':
-      return 'Metrónomo'
+      return t('recursos.purposeClick')
     case 'practice':
-      return 'Ensayo'
+      return t('recursos.purposePractice')
     case 'reference':
-      return 'Referencia'
+      return t('recursos.purposeReference')
     case 'other':
-      return 'Otro'
+      return t('recursos.purposeOther')
     default:
       return purpose.charAt(0).toUpperCase() + purpose.slice(1)
   }

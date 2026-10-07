@@ -16,9 +16,9 @@ function formatTime(seconds: number): string {
 }
 
 /**
- * Tarjeta "Reproduciendo" del rail. Reutiliza el MISMO `useAudioPlayer()` que
- * la barra inferior: una sola superficie de audio. En rail colapsado degrada a
- * un indicador + play/pausa + cerrar apilados para no desbordar.
+ * "Now playing" card for the rail. Reuses the SAME `useAudioPlayer()` as the
+ * bottom bar: a single audio surface. When the rail is collapsed it degrades to
+ * an indicator + play/pause + close stacked so it does not overflow.
  */
 export function RailNowPlaying({ collapsed }: { collapsed: boolean }) {
   const { currentTrack, isPlaying, progress, duration, togglePlay, seek, closeTrack } =

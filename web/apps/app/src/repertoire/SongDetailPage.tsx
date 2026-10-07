@@ -457,7 +457,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
               </div>
               <div>
                 <dt className="text-muted">{t('cancion.originLabel')}</dt>
-                <dd className="font-medium">{formatOriginKind(song.originKind)}</dd>
+                <dd className="font-medium">{formatOriginKind(song.originKind, t)}</dd>
               </div>
               <div>
                 <dt className="text-muted">{t('cancion.rightsLabel')}</dt>
@@ -668,7 +668,7 @@ function ArrangementCreateForm({
     if (defaultBpm.trim()) {
       const parsed = Number(defaultBpm)
       if (!Number.isInteger(parsed) || parsed < 1 || parsed > 400) {
-        setError('El tempo (BPM) debe ser un entero entre 1 y 400.')
+        setError(t('arreglo.tempoInvalid'))
         setPending(false)
         return
       }

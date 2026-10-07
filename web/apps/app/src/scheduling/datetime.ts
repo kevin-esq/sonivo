@@ -1,3 +1,5 @@
+import type { I18nKey } from '../i18n'
+
 /** Convert a datetime-local value to UTC ISO for `startsAt`. */
 export function fromDatetimeLocalValue(value: string): string {
   return new Date(value).toISOString()
@@ -24,25 +26,31 @@ export function formatStartsAt(iso: string): string {
   }
 }
 
-export function formatEventType(type: string): string {
+export function formatEventType(
+  type: string,
+  t: (key: I18nKey) => string,
+): string {
   switch (type) {
     case 'rehearsal':
-      return 'Ensayo'
+      return t('agenda.typeRehearsal')
     case 'performance':
-      return 'Concierto'
+      return t('agenda.typePerformance')
     case 'other':
-      return 'Otro'
+      return t('agenda.typeOther')
     default:
       return type
   }
 }
 
-export function formatEventStatus(status: string): string {
+export function formatEventStatus(
+  status: string,
+  t: (key: I18nKey) => string,
+): string {
   switch (status) {
     case 'scheduled':
-      return 'Programado'
+      return t('agenda.statusScheduled')
     case 'cancelled':
-      return 'Cancelado'
+      return t('evento.statusCancelled')
     default:
       return status
   }
