@@ -5,37 +5,51 @@
 ## Checkpoint state
 
 ```text
-Branch: refactor/frontend-restructure (from develop 38d72ad) - one big PR (owner choice)
-Language policy (HARD): code/comments/logs/tests/back-end/routes/commits = English;
-  only UI copy localized via t(); locales es(default)/en/pt.
-  Recorded in AGENTS.md + .agents/skills/frontend-architecture/SKILL.md.
-
-DONE on this branch:
-  - i18n split: i18n/locales/{es,en,pt}.ts + thin index.tsx + keys.ts.
-  - Portuguese locale: 1229 keys, parity es=en=pt; language picker shows 3.
-  - api split: api/client.ts -> thin barrel + api/http.ts + per-domain modules (152 exports).
-  - Spanglish sweep: Spanish comments -> English; hardcoded UI copy -> t() (new keys in es/en/pt).
-  - Group shell redesign: top bar (group search) + persistent right context rail
-    (Semana / Hoy / Listas / Tu progreso) + new group home (welcome hero + quick-action
-    cards + upcoming events). Profile de-duplicated (removed from the sidebar; lives in
-    the top bar). Banner moved into the content column (aligns with the card).
-  - Fixed extra document scroll: group workspace is now a fixed full-viewport app frame
-    (md:fixed md:inset-0) so only the inner content scrolls.
-  - Themed scrollbars + color-scheme (app/globals.css) - the active stylesheet.
-  - E2E: hardened create helpers (custom-select step inside the retried unit); specs
-    updated for the new role presentation and player labels.
-
-PENDING:
-  - Verify the full E2E green (running), then push + open the PR (big restructure).
-  - Split the god pages: GroupSettingsPage(9), GroupsPage(14), GroupTasksPage(14),
-    ArrangementDetailPage(7), PracticePage(5), EventDetailPage(6), GroupWorkspace.
-  - "Back-end in English" is NOT done: still many Spanish back-end messages and ~49 E2E
-    assertions depend on them. Doing it needs error codes + client-side mapping (the UI
-    must stop rendering raw backend text) and E2E updates - a separate, larger slice.
+Branch: refactor/frontend-restructure  ->  PR #238 (base develop)
+Implementation: IN PROGRESS
+Human approval: PENDING
+Git checkpoint: PARTIAL (latest commits not yet pushed)
+Remote: PUSHED UP TO 25bbcdc / NEW COMMITS LOCAL
+CI: NOT RUN (pending push)
 ```
 
-### Notes
-- Active frontend: `web/apps/app/src`; the ACTIVE stylesheet is `app/globals.css`
-  (`src/index.css` is not bundled by the Next shell). Do not run `next build` while the
-  dev server is up (clobbers `.next`).
-- Unrelated untracked files: .vscode/, .turbo/, .scratch/shots/, .scratch/security-sweep-*.
+### Committed on this branch (newest first)
+- 636d525 feat(web): real audio preview in the create-song wizard
+- 532b84d refactor(web): English i18n key namespaces (1084 keys)
+- b7a46d5 refactor(web): home metrics, home-only rail, invite dialog, account-scoped theme
+- (earlier) marketing landing + pre-paint theme; guided create-song wizard
+
+### Language policy (HARD)
+- Code/comments/logs/tests/back-end/routes/commits: English.
+- i18n **keys/tags: English** (`songs.*`, `settings.*`, `dashboard.*`, `songCreate.*` …).
+  Only user-visible copy is localized: es (default), en, pt.
+
+## Done this session
+- Group banner removed; group switcher moved to the top bar.
+- Home-only live metrics from the usage endpoint; context rail is home-only.
+- Member invitation is an owner dialog on the Members tab.
+- Group-level theme/locale controls removed from settings (account-scoped); the
+  shell no longer forces a theme default and re-fetches branding on group update.
+- Branding cached per group → group colour paints on the first frame (no flash).
+- Public marketing landing at `/bienvenido` (+ pre-paint theme script).
+- Guided create-song wizard (Details → Audio → Arrangement → Review → Done) with
+  drag-and-drop, validation, sections and a **real decoded waveform + preview player**.
+- i18n tags fully renamed to English (tsc clean; i18n-sensitive E2E green).
+
+## Remaining (not done)
+- **Arrangement editor UI/UX** (`ArrangementDetailPage`) 2-column redesign + preview.
+  NOTE: track/stem lanes (Voz/Batería/Bajo…) need a new model — today there is a
+  single `audio` resource per arrangement; UI must not fake multi-track data.
+- **Notifications** via SignalR (hub + inbox + bell). `/cuenta/notificaciones` is a
+  placeholder; `GroupHub` is NOT in this branch.
+- **Observability / error handling**: global ErrorBoundary, client error reporting
+  endpoint, advanced audit view (audit endpoint exists: `GET /api/groups/{id}/audit`).
+- **Plans**: `/plan` is a placeholder; pricing/gating needs definition.
+- **boneyard-js** skeletons (authorized; install + CLI capture pending).
+- **Push + CI + merge of PR #238.**
+
+## Notes
+- Local stack: API 127.0.0.1:5171 (`Auth__EnableTestHook=true`), Next dev 5173, Postgres 5433.
+- Do NOT run `next build` while the dev server is up.
+- Untracked non-project files to never commit: `.vscode/`, `.turbo/`, `.scratch/shots/`,
+  `.scratch/security-sweep-26df6f5/`, `.scratch/*.mjs` scratch scripts.
