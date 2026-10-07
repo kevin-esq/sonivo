@@ -162,6 +162,18 @@ Always preserve these invariants: Group-scoped server-side authorization (never 
 - ADR status: **PROPOSED** | **ACCEPTED** | **SUPERSEDED**
 - Do not create empty docs to fill the tree
 
+## Language policy (hard)
+
+- **Code is English:** identifiers, file/folder names, types, **comments**, logs, tests,
+  route paths, and commit messages. No Spanish identifiers, comments, or log strings
+  ("no Spanglish").
+- **Back-end and business logic are English** (domain/application/infrastructure, hub
+  errors, validation messages). The client maps error codes to localized copy and never
+  renders a raw back-end string.
+- **Only user-visible UI copy is localized**, always through `t()`; never hardcode a UI
+  string in JSX/TS. Locales: **es (default), en, pt** under `web/apps/app/src/i18n/locales`.
+- Structure and rules: [`.agents/skills/frontend-architecture/`](.agents/skills/frontend-architecture/SKILL.md).
+
 ---
 
 ## Engineering discipline (when implementation is approved)
