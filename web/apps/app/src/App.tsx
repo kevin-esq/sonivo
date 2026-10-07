@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { ErrorInfo, ReactNode } from "react";
+import type { CSSProperties, ErrorInfo, ReactNode } from "react";
 import {
   Link,
   Navigate,
@@ -48,6 +48,9 @@ import { Button, primaryButtonClass } from "./ui/button";
 import { cn } from "./ui/cn";
 import { ToastProvider } from "./ui/toast";
 import { PageSkeleton } from "./ui/skeleton";
+import { useTheme } from "./brand/theme";
+import { brandTokenStyle, readCachedBranding } from "./shell/serverBranding";
+import { readGroupAppearance } from "./shell/groupAccent";
 import { installGlobalErrorHandlers, reportClientError } from "./diagnostics/clientTelemetry";
 import { useT } from "./i18n";
 
@@ -167,10 +170,76 @@ type SessionState =
 function RouteFallback() {
   // Route-level loading uses the shared skeleton (Wave C, Step 4) instead of a
   // bare "Loading…" screen, so the transition reads as content arriving.
+  //
+  // Group routes render OUTSIDE the group shell at this point (the shell chunk is
+  // still loading), so we re-apply the group's brand tokens from the local cache
+  // and mirror the shell layout — otherwise the group tab flashes a generic,
+  // account-themed skeleton that does not match the group's colour.
+  const location = useLocation();
+  const { theme } = useTheme();
+  const groupMatch = location.pathname.match(/^\/groups\/([^/]+)/);
+  const groupId = groupMatch ? decodeURIComponent(groupMatch[1]!) : null;
+
+  if (groupId) {
+    const cached = readCachedBranding(groupId);
+    const accent = cached?.accentHex ?? readGroupAppearance(groupId).accent;
+    const tokens = brandTokenStyle(cached, {
+      primary: accent,
+      theme,
+    }) as CSSProperties;
+    return (
+      <div className="min-h-screen bg-canvas text-ink" style={tokens}>
+        <GroupShellSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-canvas px-6 py-10">
       <div className="mx-auto w-full max-w-4xl">
         <PageSkeleton />
+      </div>
+    </div>
+  );
+}
+
+/** Shell-shaped skeleton that follows the active group's brand tokens. */
+function GroupShellSkeleton() {
+  const { t } = useT();
+  const label = t("state.loading");
+  return (
+    <div
+      className="min-h-screen md:flex md:min-h-0 md:h-screen md:overflow-hidden"
+      role="status"
+      aria-live="polite"
+      aria-label={label}
+    >
+      <span className="sr-only">{label}</span>
+      <aside className="hidden w-60 shrink-0 flex-col gap-2 border-r border-shell-border bg-shell p-4 md:flex">
+        <div className="mb-3 h-11 animate-pulse rounded-xl bg-shell-hover motion-reduce:animate-none" />
+        {Array.from({ length: 7 }, (_, i) => (
+          <div key={i} className="h-9 animate-pulse rounded-lg bg-shell-hover motion-reduce:animate-none" />
+        ))}
+      </aside>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-3 border-b border-border-subtle px-4 py-3">
+          <div className="h-10 flex-1 animate-pulse rounded-xl bg-surface-hover/80 motion-reduce:animate-none" />
+          <div className="hidden h-10 w-40 animate-pulse rounded-xl bg-surface-hover/80 motion-reduce:animate-none sm:block" />
+          <div className="h-10 w-10 animate-pulse rounded-full bg-surface-hover/80 motion-reduce:animate-none" />
+        </div>
+        <div className="space-y-4 p-4 md:p-6">
+          <div className="h-36 animate-pulse rounded-2xl bg-surface-hover/80 motion-reduce:animate-none" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="h-20 animate-pulse rounded-2xl bg-surface-hover/80 motion-reduce:animate-none" />
+            ))}
+          </div>
+          <div className="space-y-2">
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="h-16 animate-pulse rounded-2xl bg-surface-hover/80 motion-reduce:animate-none" />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
