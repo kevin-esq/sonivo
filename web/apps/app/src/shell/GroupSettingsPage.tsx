@@ -392,6 +392,21 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     setBrandSaved(false)
   }
 
+  /**
+   * Controlled `input[type=color]`: the browser normalizes the value and fires a
+   * change event even when the user did not change it. Patching state on such a
+   * no-op change re-renders the controlled input, which fires another change —
+   * React then aborts with "Maximum update depth exceeded". Only apply a valid
+   * 6-digit hex that actually differs from the current value.
+   */
+  function setDraftColor(field: keyof BrandDraft, value: string) {
+    const next = value.toLowerCase()
+    if (!/^#[0-9a-f]{6}$/.test(next)) return
+    if (String(draft?.[field] ?? '').toLowerCase() === next) return
+    setDraft((prev) => (prev ? ({ ...prev, [field]: next } as BrandDraft) : prev))
+    setBrandSaved(false)
+  }
+
   const isDirty = useMemo(() => {
     if (!draft || !branding) return false
     const current = draftFromBranding(branding)
@@ -967,7 +982,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 type="color"
                 aria-label={t('settings.customColor')}
                 value={draft.accentHex || '#8366f1'}
-                onChange={(e) => patchDraft({ accentHex: e.target.value })}
+                onChange={(e) => setDraftColor('accentHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
             </div>
@@ -997,7 +1012,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 type="color"
                 aria-label={t('settings.customColor')}
                 value={draft.secondaryHex || '#f5c542'}
-                onChange={(e) => patchDraft({ secondaryHex: e.target.value })}
+                onChange={(e) => setDraftColor('secondaryHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ secondaryHex: '' })}>
@@ -1030,7 +1045,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 type="color"
                 aria-label={t('settings.customColor')}
                 value={draft.accentColorHex || '#9d8bda'}
-                onChange={(e) => patchDraft({ accentColorHex: e.target.value })}
+                onChange={(e) => setDraftColor('accentColorHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ accentColorHex: '' })}>
@@ -1050,7 +1065,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     type="color"
                     aria-label={t('settings.successColor')}
                     value={draft.successHex || '#10b981'}
-                    onChange={(e) => patchDraft({ successHex: e.target.value })}
+                    onChange={(e) => setDraftColor('successHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ successHex: '' })}>
@@ -1065,7 +1080,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     type="color"
                     aria-label={t('settings.warningColor')}
                     value={draft.warningHex || '#f59e0b'}
-                    onChange={(e) => patchDraft({ warningHex: e.target.value })}
+                    onChange={(e) => setDraftColor('warningHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ warningHex: '' })}>
@@ -1080,7 +1095,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     type="color"
                     aria-label={t('settings.errorColor')}
                     value={draft.errorHex || '#ef4444'}
-                    onChange={(e) => patchDraft({ errorHex: e.target.value })}
+                    onChange={(e) => setDraftColor('errorHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ errorHex: '' })}>
