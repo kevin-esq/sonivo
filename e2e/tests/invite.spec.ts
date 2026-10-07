@@ -117,15 +117,8 @@ test.describe('Invite journeys', () => {
 
     await register(page, ownerEmail)
     await createGroup(page, groupName)
-    await page.getByLabel('Correo del invitado (opcional)').fill(uniqueEmail('invitee'))
-    const inviteUrl = await inviteMemberAndReadLink(page)
+    // The invite dialog shows the generated link; the helper reads it and closes the dialog.
+    const inviteUrl = await inviteMemberAndReadLink(page, uniqueEmail('invitee'))
     expect(inviteUrl).toContain('/join/')
-    // Local/CI often have no Gmail; when configured, emailed=true and no warning — both OK.
-    const warning = page.getByRole('status').filter({ hasText: 'el correo no se envió' })
-    const emailedOk = page.getByLabel('Enlace de invitación')
-    await expect(emailedOk).toBeVisible()
-    if (await warning.count()) {
-      await expect(warning).toBeVisible()
-    }
   })
 })

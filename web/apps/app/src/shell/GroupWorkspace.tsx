@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Link, NavLink, useParams } from 'react-router-dom'
+import { Link, NavLink, useLocation, useParams } from 'react-router-dom'
 import { ChevronsLeft, ChevronsRight, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
 import {
   ApiError,
@@ -12,19 +12,24 @@ import {
   type GroupDetail,
   type MemberListItem,
 } from '../api/client'
-import { plural } from '../ui/plural'
 import { BrandLockup, SonivoMark } from '../brand/SonivoMark'
 import { useT } from '../i18n'
 import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
 import { cn } from '../ui/cn'
-import { coverUsesLightText, groupCoverStyle, isGradientCover, isNoneCover, readGroupAppearance } from './groupAccent'
+import { readGroupAppearance } from './groupAccent'
 import { GROUP_UPDATED_EVENT } from './groupEvents'
 import { groupNavSections, mobileTabItems, mobileMoreItems } from './nav'
-import { applyDocumentBranding, brandTokenStyle, loadServerBranding, type ServerBranding } from './serverBranding'
+import {
+  applyDocumentBranding,
+  brandTokenStyle,
+  loadServerBranding,
+  readCachedBranding,
+  writeCachedBranding,
+  type ServerBranding,
+} from './serverBranding'
 import { useTheme } from '../brand/theme'
 import { rememberLastGroup } from '../tenancy/groupSlug'
 import { RailNowPlaying } from './RailNowPlaying'
-import { GroupSwitcher } from './GroupSwitcher'
 import { useRailPresence } from './railPresence'
 import { BrandPreviewContext, type BrandTokenMap } from './brandPreview'
 import { GroupTopBar } from './GroupTopBar'
@@ -62,17 +67,38 @@ export function GroupWorkspace({
   children: React.ReactNode
 }) {
   const { groupId } = useParams()
+  const location = useLocation()
+  // The context rail (Semana / Hoy / Listas / Tu progreso) is home-only chrome.
+  const onGroupHome = Boolean(groupId) && (location.pathname === `/groups/${groupId}` || location.pathname === `/groups/${groupId}/`)
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [rail, setRail] = useState<RailState>(() => readRailState())
-  const [brandingEnabled, setBrandingEnabled] = useState(false)
-  const [serverBrand, setServerBrand] = useState<ServerBranding | null>(null)
+  const [brandingEnabled, setBrandingEnabled] = useState<boolean | null>(null)
+  // Branding resolved from the server for the current group; `null` while the
+  // first load is in flight. Keyed by group so switching groups never flashes
+  // the previous group's colour.
+  const [fetchedBrand, setFetchedBrand] = useState<{
+    groupId: string
+    brand: ServerBranding | null
+  } | null>(null)
+  // First-paint hint from the last resolved branding, so a returning visit paints
+  // the group colour immediately instead of the default and then swapping.
+  const cachedBrand = useMemo(() => readCachedBranding(groupId), [groupId])
+  const serverBrand =
+    fetchedBrand && fetchedBrand.groupId === groupId
+      ? fetchedBrand.brand
+      : brandingEnabled === false
+        ? null
+        : cachedBrand
   const [members, setMembers] = useState<MemberListItem[] | null>(null)
+  // Bumped when the group entity changes (rename, branding save) so the shell
+  // re-fetches branding instead of showing the previous theme until a reload.
+  const [brandReloadKey, setBrandReloadKey] = useState(0)
   // Live brand preview while the branding editor is open (see brandPreview.tsx).
   const [previewTokens, setPreviewTokens] = useState<BrandTokenMap | null>(null)
   const { t } = useT()
   const { setRailPresent } = useRailPresence()
-  const { theme, applyDefault } = useTheme()
+  const { theme } = useTheme()
 
   // Phase 4.3: per-group branding behind Features:GroupBranding.
   useEffect(() => {
@@ -125,6 +151,7 @@ export function GroupWorkspace({
     void load(true)
     function onGroupUpdated() {
       void load(false)
+      setBrandReloadKey((key) => key + 1)
     }
     window.addEventListener(GROUP_UPDATED_EVENT, onGroupUpdated)
     return () => {
@@ -133,20 +160,26 @@ export function GroupWorkspace({
     }
   }, [groupId, user.id])
 
-  // Phase 4.3: load server-side branding (best effort) and apply document identity.
+  // Phase 4.3: load server-side branding (best effort) and cache it so the next
+  // entry paints the group colour on the first frame (no default→brand flash).
   useEffect(() => {
-    let cancelled = false
-    if (!group || !brandingEnabled) {
-      setServerBrand(null)
+    if (!group) return
+    if (brandingEnabled === false) {
+      setFetchedBrand({ groupId: group.id, brand: null })
+      writeCachedBranding(group.id, null)
       return
     }
+    if (brandingEnabled !== true) return
+    let cancelled = false
     void loadServerBranding(group.id).then((branding) => {
-      if (!cancelled) setServerBrand(branding)
+      if (cancelled) return
+      setFetchedBrand({ groupId: group.id, brand: branding })
+      writeCachedBranding(group.id, branding)
     })
     return () => {
       cancelled = true
     }
-  }, [group?.id, brandingEnabled])
+  }, [group?.id, brandingEnabled, brandReloadKey])
 
   // Group identity block: member avatars + count (best effort; never blocks).
   useEffect(() => {
@@ -167,7 +200,11 @@ export function GroupWorkspace({
     }
   }, [group?.id])
 
-  useEffect(() => {
+  // Layout effect so document identity (title, favicon, theme-color) follows the
+  // cached/fetched branding from the first frame. Theme is account-scoped only
+  // (ADR-0054 group theme default retired): the workspace never overrides the
+  // user's chosen theme, so switching it in settings persists across navigation.
+  useLayoutEffect(() => {
     if (!group) return
     rememberLastGroup(group.id)
     applyDocumentBranding({
@@ -176,9 +213,7 @@ export function GroupWorkspace({
       accentHex: serverBrand?.accentHex ?? null,
       logoUrl: serverBrand?.logoUrl ?? null,
     })
-    // ADR-0054: the group theme default applies only if the user has not chosen.
-    applyDefault(serverBrand?.themeDefault)
-  }, [group, serverBrand, applyDefault])
+  }, [group, serverBrand])
 
   const deviceAppearance = readGroupAppearance(group?.id)
   const serverCover =
@@ -190,19 +225,9 @@ export function GroupWorkspace({
   const appearance = serverBrand
     ? { accent: serverBrand.accentHex ?? deviceAppearance.accent, cover: serverCover ?? deviceAppearance.cover }
     : deviceAppearance
-  const plainCover = isNoneCover(appearance.cover)
   const collapsed = rail === 'collapsed'
   const groupRole = group ? formatMembershipRole(group.role, t) : ''
   const accent = appearance.accent
-  // Banner image wins over the gradient/emoji cover (ADR-0054 precedence).
-  const headerStyle: CSSProperties = serverBrand?.bannerUrl
-    ? {
-        backgroundImage: `linear-gradient(rgba(15,23,42,0.45), rgba(15,23,42,0.45)), url(${serverBrand.bannerUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }
-    : groupCoverStyle(appearance.cover, appearance.accent)
-  const lightHeaderText = serverBrand?.bannerUrl ? true : coverUsesLightText(appearance.cover)
 
   const brandTokens = brandTokenStyle(serverBrand, { primary: accent, theme })
   const shellStyle = {
@@ -437,97 +462,6 @@ export function GroupWorkspace({
         >
           <div className="flex min-w-0 flex-1 md:min-h-0">
             <div className="min-w-0 flex-1 md:min-h-0">
-              {group ? (
-                <div className="px-3 pt-3">
-                  <div
-                    data-testid="group-bar"
-                className="overflow-hidden rounded-2xl"
-                style={headerStyle}
-              >
-                <div className="flex items-center gap-4 px-5 py-5">
-                  <span
-                    role="img"
-                    aria-label={t('grupo.coverArt')}
-                    className={cn(
-                      'grid h-14 w-14 shrink-0 place-items-center rounded-xl text-3xl font-semibold',
-                      plainCover ? 'bg-black/5 text-ink' : 'bg-black/25',
-                    )}
-                  >
-                    {serverBrand?.logoUrl ? (
-                      <img src={serverBrand.logoUrl} alt="" className="h-9 w-9 rounded object-contain" />
-                    ) : isGradientCover(appearance.cover) || plainCover ? (
-                      group.name.slice(0, 1).toUpperCase()
-                    ) : (
-                      appearance.cover
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={cn(
-                        'truncate font-display text-2xl font-semibold tracking-tight md:text-3xl',
-                        lightHeaderText ? 'text-white' : 'text-ink',
-                      )}
-                    >
-                      {serverBrand?.displayName ?? group.name}
-                    </p>
-                    {serverBrand?.tagline ? (
-                      <p className={cn('mt-0.5 truncate text-sm', lightHeaderText ? 'text-white/85' : 'text-muted')}>
-                        {serverBrand.tagline}
-                      </p>
-                    ) : (
-                      <p className={cn('mt-0.5 text-sm', lightHeaderText ? 'text-white/80' : 'text-muted')}>
-                        {formatMembershipRole(group.role, t)}
-                      </p>
-                    )}
-                    {serverBrand?.verse ? (
-                      <p className={cn('mt-1 truncate text-xs italic', lightHeaderText ? 'text-white/70' : 'text-muted')}>
-                        {serverBrand.verse}
-                      </p>
-                    ) : null}
-                  </div>
-                  {members && members.length > 0 ? (
-                    <div className="hidden items-center gap-2 sm:flex">
-                      <div className="flex -space-x-2" aria-hidden="true">
-                        {members.slice(0, 4).map((member) => (
-                          <span
-                            key={member.userId}
-                            className="grid h-8 w-8 place-items-center rounded-full border-2 border-black/10 bg-primary-strong text-[11px] font-bold text-primary-foreground"
-                          >
-                            {member.displayName.trim().slice(0, 1).toUpperCase()}
-                          </span>
-                        ))}
-                      </div>
-                      <span className={cn('text-xs font-medium', lightHeaderText ? 'text-white/85' : 'text-muted')}>
-                        {plural(members.length, t('grupo.memberOne'), t('grupo.memberMany'))}
-                      </span>
-                    </div>
-                  ) : null}
-                  <Link
-                    to={`/groups/${group.id}/ajustes`}
-                    className={cn(
-                      'hidden min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium no-underline focus-visible:outline-2 focus-visible:outline-offset-2 md:inline-flex',
-                      lightHeaderText
-                        ? 'bg-black/25 text-white focus-visible:outline-white'
-                        : 'bg-black/5 text-ink focus-visible:outline-secondary',
-                    )}
-                  >
-                    <Settings2 className="h-4 w-4" aria-hidden="true" />
-                    {t('grupo.ajustes')}
-                  </Link>
-                  <div className="hidden md:block">
-                    <GroupSwitcher currentGroupId={group.id} />
-                  </div>
-                </div>
-              </div>
-              <Link
-                to={`/groups/${group.id}/ajustes`}
-                className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary md:hidden"
-              >
-                <Settings2 className="h-4 w-4" aria-hidden="true" />
-                {t('grupo.ajustes')}
-              </Link>
-            </div>
-              ) : null}
 
               <main
                 data-testid="group-content"
@@ -549,7 +483,7 @@ export function GroupWorkspace({
               </div>
             </main>
             </div>
-            {group ? (
+            {group && onGroupHome ? (
               <div className="py-3 pr-3">
                 <GroupContextRail groupId={group.id} />
               </div>

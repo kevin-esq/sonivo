@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { UserRound, Users } from 'lucide-react'
+import { UserPlus, UserRound, Users } from 'lucide-react'
 import {
   changeMemberRole,
+  createInvitation,
   leaveGroup,
   listInvitations,
   listMembers,
@@ -19,6 +20,7 @@ import {
   isOwnerRole,
   formatMembershipRole,
   mutationErrorMessage,
+  ProblemAlert,
   useGroupContext,
 } from '../repertoire/ui'
 import { cn } from '../ui/cn'
@@ -27,6 +29,7 @@ import {
   GroupCard,
   GroupEmptyState,
   GroupErrorState,
+  GroupDialog,
   GroupIconWell,
   GroupInput,
   GroupLink,
@@ -84,6 +87,13 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
   const [invites, setInvites] = useState<OutstandingInvitation[] | null>(null)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [revokingId, setRevokingId] = useState<string | null>(null)
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null)
+  const [inviteFlowError, setInviteFlowError] = useState<string | null>(null)
+  const [inviteWarning, setInviteWarning] = useState(false)
+  const [inviting, setInviting] = useState(false)
+  const [copied, setCopied] = useState(false)
   const { t } = useT()
 
   const isOwner = isOwnerRole(group?.role)
@@ -202,6 +212,44 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
     }
   }
 
+  function openInviteDialog() {
+    setInviteEmail('')
+    setInviteUrl(null)
+    setInviteFlowError(null)
+    setInviteWarning(false)
+    setCopied(false)
+    setInviteOpen(true)
+  }
+
+  async function onInviteMember(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!groupId) return
+    setInviting(true)
+    setInviteFlowError(null)
+    setInviteWarning(false)
+    setCopied(false)
+    try {
+      const created = await createInvitation(groupId, inviteEmail)
+      setInviteUrl(`${window.location.origin}/join/${created.token}`)
+      if (inviteEmail.trim() && !created.emailed) setInviteWarning(true)
+      setInvites(await listInvitations(groupId))
+    } catch (err) {
+      setInviteFlowError(mutationErrorMessage(err))
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  async function onCopyInviteLink() {
+    if (!inviteUrl) return
+    try {
+      await navigator.clipboard.writeText(inviteUrl)
+      setCopied(true)
+    } catch {
+      setCopied(false)
+    }
+  }
+
   async function onLeave() {
     if (!groupId) return
     setLeaving(true)
@@ -253,6 +301,12 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
         breadcrumb={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('gente.title') }]}
       >
         <div className="flex flex-wrap items-center gap-2">
+          {isOwner ? (
+            <GroupButton onClick={openInviteDialog} className="whitespace-nowrap">
+              <UserPlus className="h-4 w-4" aria-hidden="true" />
+              {t('inicio.invite')}
+            </GroupButton>
+          ) : null}
           <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('gente.title')}>
             {([
               { id: 'all', label: t('gente.tabAll') },
@@ -444,6 +498,65 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
           {leaving ? t('gente.leaving') : t('gente.leave')}
         </GroupButton>
       )}
+
+      {isOwner ? (
+        <GroupDialog
+          open={inviteOpen}
+          onClose={() => setInviteOpen(false)}
+          title={t('inicio.inviteTitle')}
+          onSubmit={(event) => void onInviteMember(event)}
+          pending={inviting}
+          testId="invite-member-dialog"
+          footer={
+            <>
+              <GroupButton
+                variant="secondary"
+                type="button"
+                disabled={inviting}
+                onClick={() => setInviteOpen(false)}
+              >
+                {t('common.close')}
+              </GroupButton>
+              <GroupButton type="submit" disabled={inviting}>
+                {inviting ? t('inicio.working') : t('inicio.invite')}
+              </GroupButton>
+            </>
+          }
+        >
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-ink">{t('inicio.inviteEmail')}</span>
+            <GroupInput
+              type="email"
+              autoComplete="off"
+              aria-label={t('inicio.inviteEmail')}
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+            />
+          </label>
+          <ProblemAlert message={inviteFlowError} />
+          {inviteWarning ? (
+            <p role="status" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-ink">
+              {t('inicio.inviteMailWarning')}
+            </p>
+          ) : null}
+          {inviteUrl ? (
+            <div className="space-y-2">
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-ink">{t('inicio.inviteLinkLabel')}</span>
+                <GroupInput readOnly aria-label={t('inicio.inviteLinkLabel')} value={inviteUrl} />
+              </label>
+              <GroupButton variant="secondary" type="button" onClick={() => void onCopyInviteLink()}>
+                {t('inicio.copyLink')}
+              </GroupButton>
+              {copied ? (
+                <p aria-live="polite" className="text-sm text-muted">
+                  {t('inicio.copied')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </GroupDialog>
+      ) : null}
     </section>
   )
 }

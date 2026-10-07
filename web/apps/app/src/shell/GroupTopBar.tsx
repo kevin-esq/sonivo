@@ -13,6 +13,7 @@ import {
 import { useT, type I18nKey } from '../i18n'
 import { cn } from '../ui/cn'
 import { formatMembershipRole } from '../repertoire/ui'
+import { GroupSwitcher } from './GroupSwitcher'
 
 type SearchHit = { id: string; label: string; hint: I18nKey; to: string; kind: 'song' | 'event' | 'task' }
 
@@ -165,6 +166,10 @@ export function GroupTopBar({
             )}
           </div>
         ) : null}
+      </div>
+
+      <div className="hidden lg:block">
+        <GroupSwitcher currentGroupId={groupId} />
       </div>
 
       <Link

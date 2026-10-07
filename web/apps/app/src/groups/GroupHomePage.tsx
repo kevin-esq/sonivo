@@ -9,11 +9,11 @@ import {
   Music2,
   Play,
   UserPlus,
+  Users,
   Zap,
 } from 'lucide-react'
 import {
   ApiError,
-  createInvitation,
   getGroup,
   listEventRsvps,
   listEvents,
@@ -27,7 +27,7 @@ import {
   type SetlistListItem,
   type SongListItem,
 } from '../api/client'
-import { fieldClass, formatMembershipRole, isOwnerRole, mutationErrorMessage, ProblemAlert } from '../repertoire/ui'
+import { formatMembershipRole, isOwnerRole, mutationErrorMessage } from '../repertoire/ui'
 import { useT, type I18nKey } from '../i18n'
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
 import {
@@ -39,7 +39,6 @@ import {
 } from './dialogs'
 import {
   GroupButton,
-  GroupCard,
   GroupEmptyState,
   GroupErrorState,
   GroupIconWell,
@@ -47,8 +46,10 @@ import {
   GroupListSkeleton,
   GroupPageSkeleton,
   GroupSection,
+  GroupStat,
   useGroupDataSignal,
 } from './ui'
+import { useGroupUsage } from './useGroupUsage'
 
 type HomeDialog = 'song' | 'setlist' | 'event' | 'task' | 'resource'
 
@@ -104,15 +105,10 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   const [recentSongs, setRecentSongs] = useState<SongListItem[] | null>(null)
   const [composeError, setComposeError] = useState<string | null>(null)
   const [myRsvp, setMyRsvp] = useState<EventRsvpResponse | string | null | undefined>(undefined)
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null)
-  const [inviteError, setInviteError] = useState<string | null>(null)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteEmailWarning, setInviteEmailWarning] = useState(false)
-  const [inviting, setInviting] = useState(false)
-  const [copied, setCopied] = useState(false)
   const [dialog, setDialog] = useState<HomeDialog | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const { t } = useT()
+  const { usage, reload: reloadUsage } = useGroupUsage(groupId)
 
   useEffect(() => {
     let cancelled = false
@@ -120,11 +116,6 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       if (!groupId) return
       setGroup(undefined)
       setError(null)
-      setInviteUrl(null)
-      setInviteError(null)
-      setInviteEmail('')
-      setInviteEmailWarning(false)
-      setCopied(false)
       setEvents(null)
       setSetlists(null)
       setRecentSongs(null)
@@ -173,7 +164,10 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
     }
   }, [groupId, group, reloadKey])
 
-  useGroupDataSignal(['songs', 'setlists', 'events'], groupId, () => setReloadKey((key) => key + 1))
+  useGroupDataSignal(['songs', 'setlists', 'events'], groupId, () => {
+    setReloadKey((key) => key + 1)
+    void reloadUsage()
+  })
 
   const isOwner = isOwnerRole(group?.role)
   const upcoming = useMemo(() => (events ? pickUpcoming(events) : null), [events])
@@ -210,42 +204,6 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
 
   function refresh() {
     setReloadKey((key) => key + 1)
-  }
-
-  function resetInvite() {
-    setInviteEmail('')
-    setInviteUrl(null)
-    setInviteError(null)
-    setInviteEmailWarning(false)
-    setCopied(false)
-    setInviting(false)
-  }
-
-  async function onInviteMember() {
-    if (!group) return
-    setInviting(true)
-    setInviteError(null)
-    setInviteEmailWarning(false)
-    setCopied(false)
-    try {
-      const created = await createInvitation(group.id, inviteEmail)
-      setInviteUrl(`${window.location.origin}/join/${created.token}`)
-      if (inviteEmail.trim() && !created.emailed) setInviteEmailWarning(true)
-    } catch (err) {
-      setInviteError(mutationErrorMessage(err))
-    } finally {
-      setInviting(false)
-    }
-  }
-
-  async function onCopyInviteLink() {
-    if (!inviteUrl) return
-    try {
-      await navigator.clipboard.writeText(inviteUrl)
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
   }
 
   if (group === undefined) {
@@ -310,6 +268,38 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
 
       <GroupErrorState message={composeError} />
 
+      {/* Metrics (home only): live counts from the group usage endpoint. */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="home-metrics">
+        <GroupStat
+          icon={Music2}
+          label={t('canciones.pageTitle')}
+          value={usage?.songs.used ?? '—'}
+          to={`/groups/${group.id}/library`}
+          testId="home-metric-songs"
+        />
+        <GroupStat
+          icon={ListMusic}
+          label={t('nav.setlists')}
+          value={usage?.setlists.used ?? '—'}
+          to={`/groups/${group.id}/setlists`}
+          testId="home-metric-setlists"
+        />
+        <GroupStat
+          icon={CalendarDays}
+          label={t('nav.events')}
+          value={usage?.eventsThisMonth.used ?? '—'}
+          to={`/groups/${group.id}/events`}
+          testId="home-metric-events"
+        />
+        <GroupStat
+          icon={Users}
+          label={t('nav.people')}
+          value={usage?.members.used ?? '—'}
+          to={`/groups/${group.id}/people`}
+          testId="home-metric-members"
+        />
+      </div>
+
       {/* Quick actions */}
       <GroupSection
         title={t('inicio.quickActions')}
@@ -333,10 +323,9 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             </button>
           ))}
           {isOwner ? (
-            <button
-              type="button"
-              onClick={resetInvite}
-              className="flex min-h-[4.5rem] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 text-left transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+            <Link
+              to={`/groups/${group.id}/people`}
+              className="flex min-h-[4.5rem] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
             >
               <GroupIconWell icon={UserPlus} />
               <span className="min-w-0 flex-1">
@@ -344,7 +333,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                 <span className="block truncate text-xs text-muted">{t('home.quickAddMemberHint')}</span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
-            </button>
+            </Link>
           ) : null}
         </div>
       </GroupSection>
@@ -459,54 +448,6 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           </ul>
         )}
       </GroupSection>
-
-      {isOwner ? (
-        <GroupSection
-          title={t('inicio.admin')}
-          headingId="admin-heading"
-          className="border-t border-border-subtle pt-6"
-        >
-          <GroupCard className="max-w-xl space-y-3">
-            <h3 className="font-medium">{t('inicio.inviteTitle')}</h3>
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-ink">{t('inicio.inviteEmail')}</span>
-              <input
-                className={fieldClass}
-                type="email"
-                autoComplete="off"
-                aria-label={t('inicio.inviteEmail')}
-                value={inviteEmail}
-                onChange={(event) => setInviteEmail(event.target.value)}
-              />
-            </label>
-            <GroupButton disabled={inviting} onClick={() => void onInviteMember()}>
-              {inviting ? t('inicio.working') : t('inicio.invite')}
-            </GroupButton>
-            <ProblemAlert message={inviteError} />
-            {inviteEmailWarning ? (
-              <p role="status" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-ink">
-                {t('inicio.inviteMailWarning')}
-              </p>
-            ) : null}
-            {inviteUrl ? (
-              <div className="space-y-2">
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-ink">{t('inicio.inviteLinkLabel')}</span>
-                  <input className={fieldClass} readOnly aria-label={t('inicio.inviteLinkLabel')} value={inviteUrl} />
-                </label>
-                <GroupButton variant="secondary" onClick={() => void onCopyInviteLink()}>
-                  {t('inicio.copyLink')}
-                </GroupButton>
-                {copied ? (
-                  <p aria-live="polite" className="text-sm text-muted">
-                    {t('inicio.copied')}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </GroupCard>
-        </GroupSection>
-      ) : null}
 
       {/* Gathering state for existing members */}
       {setlists?.length === 0 && events?.length === 0 && (recentSongs?.length ?? 0) === 0 && isOwner ? (

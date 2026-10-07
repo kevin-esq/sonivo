@@ -187,7 +187,7 @@ function draftFromBranding(branding: GroupBranding): BrandDraft {
   }
 }
 
-type SettingsTab = 'general' | 'branding' | 'plan' | 'permissions' | 'notifications' | 'integrations' | 'advanced' | 'danger'
+type SettingsTab = 'general' | 'branding' | 'plan' | 'permissions' | 'notifications' | 'integrations' | 'danger'
 
 // Membership/billing is account-level (see /cuenta/membresia), not group-owned;
 // the group centre only exposes group-scoped settings.
@@ -198,7 +198,6 @@ const SETTINGS_TABS: { id: SettingsTab; labelKey: I18nKey }[] = [
   { id: 'permissions', labelKey: 'ajustes.tabPermissions' },
   { id: 'notifications', labelKey: 'ajustes.tabNotifications' },
   { id: 'integrations', labelKey: 'ajustes.tabIntegrations' },
-  { id: 'advanced', labelKey: 'ajustes.tabAdvanced' },
   { id: 'danger', labelKey: 'ajustes.tabDanger' },
 ]
 
@@ -1504,40 +1503,6 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           ) : (
             <p className="text-sm text-muted">{t('ajustes.usageLoading')}</p>
           )}
-        </div>
-      ) : null}
-
-      {/* Advanced tab */}
-      {activeTab === 'advanced' && brandingEnabled && draft ? (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">{t('ajustes.tabAdvanced')}</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-ink">{t('ajustes.themeDefault')}</span>
-              <select
-                className={fieldClass}
-                value={draft.themeDefault}
-                disabled={!isOwner}
-                onChange={(e) => patchDraft({ themeDefault: e.target.value })}
-              >
-                <option value="system">{t('ajustes.themeSystem')}</option>
-                <option value="light">{t('ajustes.themeLight')}</option>
-                <option value="dark">{t('ajustes.themeDark')}</option>
-              </select>
-            </label>
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-ink">{t('ajustes.localeDefault')}</span>
-              <select
-                className={fieldClass}
-                value={draft.defaultLocale}
-                disabled={!isOwner}
-                onChange={(e) => patchDraft({ defaultLocale: e.target.value })}
-              >
-                <option value="es">{t('ajustes.localeEs')}</option>
-                <option value="en">{t('ajustes.localeEn')}</option>
-              </select>
-            </label>
-          </div>
         </div>
       ) : null}
 

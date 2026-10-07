@@ -220,7 +220,7 @@ export async function deleteSong(page: Page, title: string) {
 }
 
 export async function openSetlists(page: Page) {
-  await page.getByRole('link', { name: 'Listas' }).first().click()
+  await page.getByTestId('group-rail').getByRole('link', { name: 'Listas', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Listas' })).toBeVisible()
 }
 
@@ -300,18 +300,23 @@ export function eventPlanItem(page: Page, songTitle: string, arrangementLabel: s
     .filter({ hasText: arrangementLabel })
 }
 
-export async function inviteMemberAndReadLink(page: Page): Promise<string> {
-  // The group home now renders "Invitar miembro" twice: a quick action
-  // (region "Acciones rápidas") and the actual submit inside the owner
-  // "Administrar" section — scope to the latter.
-  await page
-    .getByRole('region', { name: 'Administrar' })
-    .getByRole('button', { name: 'Invitar miembro' })
-    .click()
-  const inviteLink = page.getByLabel('Enlace de invitación')
+export async function inviteMemberAndReadLink(page: Page, email?: string): Promise<string> {
+  // Inviting is owner-only and lives on the Members tab inside a dialog.
+  await openPeople(page)
+  await page.getByRole('button', { name: 'Invitar miembro' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  if (email) {
+    await dialog.getByLabel('Correo del invitado (opcional)').fill(email)
+  }
+  await dialog.getByRole('button', { name: 'Invitar miembro' }).click()
+  const inviteLink = dialog.getByLabel('Enlace de invitación')
   await expect(inviteLink).toBeVisible()
   const url = await inviteLink.inputValue()
   expect(url).toContain('/join/')
+  // Close the dialog so the caller can keep driving the page.
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
   // Path-only so Playwright stays on baseURL host (localhost vs 127.0.0.1 cookie jar).
   return new URL(url, page.url()).pathname
 }
@@ -324,7 +329,7 @@ export async function acceptInvite(page: Page) {
 }
 
 export async function openPeople(page: Page) {
-  await page.getByRole('link', { name: 'Miembros' }).click()
+  await page.getByTestId('group-rail').getByRole('link', { name: 'Miembros', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Miembros' })).toBeVisible()
 }
 
