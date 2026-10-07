@@ -104,7 +104,13 @@ export async function chooseGroupOption(page: Page, label: string, optionName: s
  */
 async function openCreateDialogAndFill(
   page: Page,
-  opts: { trigger: string; heading: string; label: string; value: string },
+  opts: {
+    trigger: string
+    heading: string
+    label: string
+    value: string
+    option?: { label: string; name: string }
+  },
 ) {
   await expect(async () => {
     const heading = page.getByRole('heading', { name: opts.heading })
@@ -115,6 +121,12 @@ async function openCreateDialogAndFill(
     const field = page.getByLabel(opts.label)
     await field.fill(opts.value, { timeout: 3000 })
     await expect(field).toHaveValue(opts.value, { timeout: 2000 })
+    if (opts.option) {
+      // The custom GroupSelect can be detached by a route-transition re-render
+      // too, so selecting the option is part of the retried unit.
+      await page.getByRole('combobox', { name: opts.option.label }).click({ timeout: 3000 })
+      await page.getByRole('option', { name: opts.option.name, exact: true }).click({ timeout: 3000 })
+    }
   }).toPass({ timeout: 30000 })
 }
 
@@ -124,8 +136,8 @@ export async function createSong(page: Page, title: string) {
     heading: 'Crear canción',
     label: 'Título',
     value: title,
+    option: { label: 'Origen', name: 'Propia' },
   })
-  await chooseGroupOption(page, 'Origen', 'Propia')
   await page.getByRole('button', { name: 'Crear canción' }).click()
   await expect(page.getByRole('link', { name: title })).toBeVisible()
 }
@@ -269,8 +281,8 @@ export async function createEvent(
     heading: 'Crear evento',
     label: 'Título',
     value: input.title,
+    option: { label: 'Tipo', name: typeOption },
   })
-  await chooseGroupOption(page, 'Tipo', typeOption)
   await page.getByLabel('Fecha y hora').fill(input.startsAt)
   await page.getByRole('button', { name: 'Crear evento' }).click()
   await expect(page.getByRole('heading', { name: input.title })).toBeVisible()
