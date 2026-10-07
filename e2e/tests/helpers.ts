@@ -131,14 +131,23 @@ async function openCreateDialogAndFill(
 }
 
 export async function createSong(page: Page, title: string) {
-  await openCreateDialogAndFill(page, {
-    trigger: 'Agregar canción',
-    heading: 'Crear canción',
-    label: 'Título',
-    value: title,
-    option: { label: 'Origen', name: 'Propia' },
-  })
-  await page.getByRole('button', { name: 'Crear canción' }).click()
+  // The create-song flow is now a wizard: Details → Audio (skipped) → Review →
+  // success. The whole run is retried as one unit so a mid-flight re-render
+  // cannot leave the dialog half-filled.
+  await expect(async () => {
+    const dialog = page.getByRole('dialog')
+    if (!(await dialog.isVisible().catch(() => false))) {
+      await page.getByRole('button', { name: 'Agregar canción' }).first().click()
+    }
+    await expect(dialog).toBeVisible({ timeout: 2000 })
+    await dialog.getByLabel('Título').fill(title, { timeout: 3000 })
+    await dialog.getByRole('combobox', { name: 'Origen' }).click({ timeout: 3000 })
+    await page.getByRole('option', { name: 'Propia', exact: true }).click({ timeout: 3000 })
+    await dialog.getByRole('button', { name: 'Continuar' }).click({ timeout: 3000 })
+    await dialog.getByRole('button', { name: 'Omitir audio' }).click({ timeout: 3000 })
+    await dialog.getByRole('button', { name: 'Crear canción' }).click({ timeout: 3000 })
+    await dialog.getByRole('button', { name: 'Ver en mi biblioteca' }).click({ timeout: 5000 })
+  }).toPass({ timeout: 30000 })
   await expect(page.getByRole('link', { name: title })).toBeVisible()
 }
 
