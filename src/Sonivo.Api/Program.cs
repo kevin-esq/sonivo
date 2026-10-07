@@ -186,6 +186,8 @@ builder.Services.AddRateLimiter(options =>
     // T-AU-03: Passkeys / WebAuthn challenge & management rate limits
     options.AddPolicy("auth-passkeys-challenge", http => PerIp(http, 10));
     options.AddPolicy("auth-passkeys-manage", http => PerIp(http, 30));
+    // Observability: client error reports are cheap but client-controlled — cap per IP.
+    options.AddPolicy("client-errors", http => PerIp(http, 60));
     // SECURITY-AUDIT-2026-10 (B11): previously unlimited surfaces — uploads
     // (branding + file resources + LRC import), invite acceptance, digitize
     // starts (expensive) and GDPR-style exports.
@@ -514,6 +516,38 @@ app.MapGet("/api/auth/csrf", (HttpContext http, IAntiforgery antiforgery) =>
 })
 .WithName("GetCsrfToken")
 .AllowAnonymous();
+
+// Observability (ADR-0076): best-effort client error reporting. Authenticated so
+// the log line can be tied to a user; the payload is truncated before logging and
+// never stored, so no PII/data-retention surface is introduced.
+app.MapPost("/api/client-errors", (
+    ClientErrorReport request,
+    ClaimsPrincipal principal,
+    ILoggerFactory loggerFactory) =>
+{
+    var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
+    var logger = loggerFactory.CreateLogger("Sonivo.ClientError");
+
+    static string Trim(string? value, int max)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var collapsed = value.Trim().Replace("\r", " ");
+        return collapsed.Length > max ? collapsed[..max] : collapsed;
+    }
+
+    logger.LogWarning(
+        "Client error [{Source}] at {Url} (user {UserId}): {Message} | {Stack}",
+        Trim(request.Source, 60),
+        Trim(request.Url, 300),
+        userId,
+        Trim(request.Message, 500),
+        Trim(request.Stack, 4000));
+
+    return Results.Accepted();
+})
+.WithName("ReportClientError")
+.RequireAuthorization()
+.RequireRateLimiting("client-errors");
 
 app.MapPost("/api/auth/register", async (
     RegisterRequest request,
@@ -5221,6 +5255,12 @@ public sealed class AppExceptionHandler : IExceptionHandler
 }
 
 public partial class Program;
+
+/// <summary>
+/// Best-effort client error report (observability). All fields are untrusted
+/// client input; the endpoint truncates and logs them, and never persists them.
+/// </summary>
+public sealed record ClientErrorReport(string? Source, string? Message, string? Stack, string? Url);
 
 internal sealed record CreateTaskRequest(string? Title, string? Notes, DateTimeOffset? DueAt, Guid? AssigneeUserId);
 internal sealed record UpdateTaskRequest(string? Title, string? Notes, DateTimeOffset? DueAt, Guid? AssigneeUserId, int ExpectedVersion);

@@ -48,6 +48,7 @@ import { Button, primaryButtonClass } from "./ui/button";
 import { cn } from "./ui/cn";
 import { ToastProvider } from "./ui/toast";
 import { PageSkeleton } from "./ui/skeleton";
+import { installGlobalErrorHandlers, reportClientError } from "./diagnostics/clientTelemetry";
 import { useT } from "./i18n";
 
 // ---------- Lazy loading (less initial JS) ----------
@@ -240,7 +241,12 @@ class ErrorBoundary extends Component<
     return { failed: true };
   }
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("UI error:", error, info.componentStack); // connect to Sentry, etc.
+    console.error("UI error:", error, info.componentStack);
+    reportClientError({
+      source: "react",
+      message: error.message || String(error),
+      stack: error.stack,
+    });
   }
   render() {
     if (!this.state.failed) return this.props.children;
@@ -409,6 +415,9 @@ export default function App() {
       signal.cancelled = true;
     };
   }, [loadSession]);
+
+  // Observability: capture uncaught errors and unhandled rejections once per session.
+  useEffect(() => installGlobalErrorHandlers(), []);
 
   // Host-based tenancy (ADR-0067): a request on `{slug}.sonivo.lat` forwards to
   // the existing path resolver, which verifies membership server-side. The slug
