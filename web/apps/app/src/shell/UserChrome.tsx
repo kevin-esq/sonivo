@@ -6,6 +6,7 @@ import { Button } from '../ui/button'
 const languageOptions: Array<{ value: Language; labelKey: I18nKey }> = [
   { value: 'es', labelKey: 'cuenta.spanish' },
   { value: 'en', labelKey: 'cuenta.english' },
+  { value: 'pt', labelKey: 'cuenta.portuguese' },
 ]
 
 const themeOptions: Array<{ value: Theme; labelKey: I18nKey }> = [

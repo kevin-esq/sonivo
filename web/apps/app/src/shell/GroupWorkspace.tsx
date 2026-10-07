@@ -27,6 +27,8 @@ import { RailNowPlaying } from './RailNowPlaying'
 import { GroupSwitcher } from './GroupSwitcher'
 import { useRailPresence } from './railPresence'
 import { BrandPreviewContext, type BrandTokenMap } from './brandPreview'
+import { GroupTopBar } from './GroupTopBar'
+import { GroupContextRail } from './GroupContextRail'
 
 const SIDEBAR_KEY = 'sonivo:sidebar'
 
@@ -445,6 +447,9 @@ export function GroupWorkspace({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col md:h-screen md:overflow-hidden">
+        {group ? (
+          <GroupTopBar groupId={group.id} user={user} role={group.role} onLogout={onLogout} />
+        ) : null}
         <header className="flex items-center justify-between gap-2 px-4 py-3 md:hidden">
           <Link to="/" className="flex min-h-11 items-center gap-2 no-underline">
             <SonivoMark className="h-7 w-7 text-shell-link" />
@@ -582,25 +587,32 @@ export function GroupWorkspace({
             </div>
           ) : null}
 
-          <main
-            data-testid="group-content"
-            className="m-3 flex-1 rounded-2xl bg-surface text-ink"
-          >
-            <div className="px-5 py-6 pb-24 md:px-8 md:pb-8">
-              {group === null ? (
-                <div className="space-y-3">
-                  <p role="alert" className="text-error-ink">
-                    {error}
-                  </p>
-                  <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
-                    {t('workspace.myGroups')}
-                  </Link>
-                </div>
-              ) : (
-                children
-              )}
-            </div>
-          </main>
+          <div className="flex min-w-0 flex-1">
+            <main
+              data-testid="group-content"
+              className="m-3 flex-1 rounded-2xl bg-surface text-ink"
+            >
+              <div className="px-5 py-6 pb-24 md:px-8 md:pb-8">
+                {group === null ? (
+                  <div className="space-y-3">
+                    <p role="alert" className="text-error-ink">
+                      {error}
+                    </p>
+                    <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
+                      {t('workspace.myGroups')}
+                    </Link>
+                  </div>
+                ) : (
+                  children
+                )}
+              </div>
+            </main>
+            {group ? (
+              <div className="py-3 pr-3">
+                <GroupContextRail groupId={group.id} />
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
