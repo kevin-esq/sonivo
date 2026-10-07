@@ -47,10 +47,10 @@ import { useT, type I18nKey } from '../i18n'
 type SongTab = 'lyrics' | 'chords' | 'notes' | 'files'
 
 const SONG_TABS: { id: SongTab; labelKey: I18nKey }[] = [
-  { id: 'lyrics', labelKey: 'cancion.tabLyrics' },
-  { id: 'chords', labelKey: 'cancion.tabChords' },
-  { id: 'notes', labelKey: 'cancion.tabNotes' },
-  { id: 'files', labelKey: 'cancion.tabFiles' },
+  { id: 'lyrics', labelKey: 'song.tabLyrics' },
+  { id: 'chords', labelKey: 'song.tabChords' },
+  { id: 'notes', labelKey: 'song.tabNotes' },
+  { id: 'files', labelKey: 'song.tabFiles' },
 ]
 
 export function SongDetailPage({ user }: { user: CurrentUser }) {
@@ -115,7 +115,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
   })
 
   if (group === undefined) {
-    return <p aria-live="polite">{t('cancion.loading')}</p>
+    return <p aria-live="polite">{t('song.loading')}</p>
   }
 
   if (group === null) {
@@ -123,7 +123,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
         <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
-          {t('cancion.myGroups')}
+          {t('song.myGroups')}
         </Link>
       </div>
     )
@@ -132,7 +132,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
   const loaded = surface.data
   if (loaded === undefined) {
     if (surface.error == null) {
-      return <p aria-live="polite">{t('cancion.loading')}</p>
+      return <p aria-live="polite">{t('song.loading')}</p>
     }
     return (
       <div className="space-y-3">
@@ -141,7 +141,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/library`}
         >
-          {t('cancion.library')}
+          {t('song.library')}
         </Link>
       </div>
     )
@@ -157,11 +157,11 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
 
   const arrangementCountLabel =
     song.arrangementCount === 0
-      ? t('listas.noArrangements')
+      ? t('setlists.noArrangements')
       : plural(
           song.arrangementCount,
-          t('agenda.setlistArrangementsOne'),
-          t('agenda.setlistArrangementsMany'),
+          t('schedule.setlistArrangementsOne'),
+          t('schedule.setlistArrangementsMany'),
         )
 
   const tabContent: Record<SongTab, string | null> = {
@@ -172,10 +172,10 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
   }
 
   const emptyKey: Record<SongTab, I18nKey> = {
-    lyrics: 'cancion.noLyrics',
-    chords: 'cancion.noChords',
-    notes: 'cancion.noNotes',
-    files: 'cancion.noRelatedFiles',
+    lyrics: 'song.noLyrics',
+    chords: 'song.noChords',
+    notes: 'song.noNotes',
+    files: 'song.noRelatedFiles',
   }
 
   const resources: ResourceSummary[] = arrangementDetail?.resources ?? []
@@ -186,7 +186,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
         <PageBreadcrumb
           items={[
             { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/library`, label: t('canciones.pageTitle') },
+            { to: `/groups/${group.id}/library`, label: t('songs.pageTitle') },
             { label: song.title },
           ]}
         />
@@ -199,7 +199,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
             {song.attribution || !isOwner ? (
               <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
                 {song.attribution ? <span>{song.attribution}</span> : null}
-                {!isOwner ? <span>{t('cancion.readonly')}</span> : null}
+                {!isOwner ? <span>{t('song.readonly')}</span> : null}
               </p>
             ) : null}
             <div className="flex flex-wrap items-center gap-2">
@@ -229,11 +229,11 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="space-y-8">
           {/* W-F: arrangement content tabs (lyrics / chords / notes / files). */}
-          <section className="space-y-4" aria-label={t('cancion.tabsLabel')}>
+          <section className="space-y-4" aria-label={t('song.tabsLabel')}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div
                 role="tablist"
-                aria-label={t('cancion.tabsLabel')}
+                aria-label={t('song.tabsLabel')}
                 className="flex flex-wrap gap-1 rounded-xl border border-border-subtle bg-surface p-0.5"
               >
                 {SONG_TABS.map((option) => (
@@ -260,7 +260,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
 
               {arrangements.length > 1 ? (
                 <label className="flex items-center gap-2 text-sm text-muted">
-                  <span>{t('cancion.arrangementPicker')}</span>
+                  <span>{t('song.arrangementPicker')}</span>
                   <select
                     className={cn(fieldClass, 'min-w-40')}
                     value={selectedArrangementId ?? ''}
@@ -284,14 +284,14 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
               className="min-h-40 rounded-2xl border border-border-subtle bg-surface p-5"
             >
               {!selectedArrangement ? (
-                <p className="text-sm text-muted">{t('cancion.noArrangementForTabs')}</p>
+                <p className="text-sm text-muted">{t('song.noArrangementForTabs')}</p>
               ) : detail.loading ? (
                 <p aria-live="polite" className="text-sm text-muted">
-                  {t('cancion.loadingArrangements')}
+                  {t('song.loadingArrangements')}
                 </p>
               ) : tab === 'files' ? (
                 resources.length === 0 ? (
-                  <p className="text-sm text-muted">{t('cancion.noRelatedFiles')}</p>
+                  <p className="text-sm text-muted">{t('song.noRelatedFiles')}</p>
                 ) : (
                   <ul className="space-y-2">
                     {resources.map((resource) => (
@@ -333,23 +333,23 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           <section className="space-y-4" aria-labelledby="arrangements-heading">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 id="arrangements-heading" className="text-lg font-semibold">
-                {t('cancion.arrangementsTitle')}
+                {t('song.arrangementsTitle')}
               </h2>
               {showAddArrangement && arrangements.length > 0 ? (
-                <Button onClick={() => setCreatingArrangement(true)}>{t('cancion.addArrangement')}</Button>
+                <Button onClick={() => setCreatingArrangement(true)}>{t('song.addArrangement')}</Button>
               ) : null}
             </div>
             <p className="text-sm text-muted">
-              {t('cancion.arrangementsHint')}
+              {t('song.arrangementsHint')}
             </p>
 
             {arrangements.length === 0 && !creatingArrangement ? (
               <EmptyPanel
-                title={t('cancion.noArrangementsTitle')}
-                description={t('cancion.noArrangementsBody')}
+                title={t('song.noArrangementsTitle')}
+                description={t('song.noArrangementsBody')}
                 action={
                   showAddArrangement ? (
-                    <Button onClick={() => setCreatingArrangement(true)}>{t('cancion.addArrangement')}</Button>
+                    <Button onClick={() => setCreatingArrangement(true)}>{t('song.addArrangement')}</Button>
                   ) : null
                 }
               />
@@ -373,7 +373,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                           {arrangement.defaultBpm != null
                             ? `${arrangement.defaultKey ? ' · ' : ''}${arrangement.defaultBpm} BPM`
                             : !arrangement.defaultKey
-                              ? t('cancion.noKeyTempo')
+                              ? t('song.noKeyTempo')
                               : ''}
                         </span>
                       </span>
@@ -383,7 +383,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                       >
                         {arrangement.defaultKey
                           ? `${arrangement.defaultKey}${arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm}` : ''}`
-                          : t('listas.noKey')}
+                          : t('setlists.noKey')}
                       </ReadinessChip>
                       <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
                     </Link>
@@ -411,7 +411,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-5 shadow-sm"
         >
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            {t('cancion.infoTitle')}
+            {t('song.infoTitle')}
           </h3>
           {editing && isOwner ? (
             <SongEditForm
@@ -432,19 +432,19 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           ) : (
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-muted">{t('cancion.infoTitleLabel')}</dt>
+                <dt className="text-muted">{t('song.infoTitleLabel')}</dt>
                 <dd className="font-medium">{song.title}</dd>
               </div>
               <div>
-                <dt className="text-muted">{t('cancion.infoArtist')}</dt>
+                <dt className="text-muted">{t('song.infoArtist')}</dt>
                 <dd className="font-medium">{song.attribution ?? '—'}</dd>
               </div>
               <div>
-                <dt className="text-muted">{t('cancion.infoKey')}</dt>
+                <dt className="text-muted">{t('song.infoKey')}</dt>
                 <dd className="font-medium">{selectedArrangement?.defaultKey ?? '—'}</dd>
               </div>
               <div>
-                <dt className="text-muted">{t('cancion.infoTempo')}</dt>
+                <dt className="text-muted">{t('song.infoTempo')}</dt>
                 <dd className="font-medium">
                   {selectedArrangement?.defaultBpm != null
                     ? `${selectedArrangement.defaultBpm} BPM`
@@ -452,15 +452,15 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                 </dd>
               </div>
               <div>
-                <dt className="text-muted">{t('cancion.infoTags')}</dt>
+                <dt className="text-muted">{t('song.infoTags')}</dt>
                 <dd className="font-medium">{song.tags.length > 0 ? song.tags.join(', ') : '—'}</dd>
               </div>
               <div>
-                <dt className="text-muted">{t('cancion.originLabel')}</dt>
+                <dt className="text-muted">{t('song.originLabel')}</dt>
                 <dd className="font-medium">{formatOriginKind(song.originKind, t)}</dd>
               </div>
               <div>
-                <dt className="text-muted">{t('cancion.rightsLabel')}</dt>
+                <dt className="text-muted">{t('song.rightsLabel')}</dt>
                 <dd className="whitespace-pre-wrap font-medium">{song.rightsNotes ?? '—'}</dd>
               </div>
             </dl>
@@ -469,17 +469,17 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           {isOwner && !editing ? (
             <div className="flex flex-wrap gap-3 pt-2">
               <Button variant="secondary" onClick={() => setEditing(true)}>
-                {t('cancion.editSong')}
+                {t('song.editSong')}
               </Button>
             </div>
           ) : null}
 
           <div className="space-y-2 border-t border-border-subtle pt-3">
             <h4 className="text-sm font-semibold text-muted">
-              {t('cancion.relatedFiles')}
+              {t('song.relatedFiles')}
             </h4>
             {resources.length === 0 ? (
-              <p className="text-sm text-muted">{t('cancion.noRelatedFiles')}</p>
+              <p className="text-sm text-muted">{t('song.noRelatedFiles')}</p>
             ) : (
               <ul className="space-y-2">
                 {resources.slice(0, 6).map((resource) => (
@@ -515,23 +515,23 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
             {t('common.dangerZone')}
           </h2>
           <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-            {t('cancion.deleteSong')}
+            {t('song.deleteSong')}
           </Button>
         </section>
       ) : null}
 
       <ConfirmDialog
         open={confirmDelete}
-        title={t('cancion.deleteTitle')}
-        confirmLabel={t('cancion.deleteSong')}
-        cancelLabel={t('cancion.cancel')}
-        pendingLabel={t('cancion.deleting')}
+        title={t('song.deleteTitle')}
+        confirmLabel={t('song.deleteSong')}
+        cancelLabel={t('song.cancel')}
+        pendingLabel={t('song.deleting')}
         pending={remove.pending}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => void remove.run()}
       >
         <p>
-          {t('cancion.deleteBody')}
+          {t('song.deleteBody')}
         </p>
       </ConfirmDialog>
     </section>
@@ -585,9 +585,9 @@ function SongEditForm({
       }}
       noValidate
     >
-      <h3 className="font-semibold">{t('cancion.editSong')}</h3>
+      <h3 className="font-semibold">{t('song.editSong')}</h3>
       <ProblemAlert message={save.error != null ? mutationErrorMessage(save.error) : null} />
-      <Field label={t('canciones.titleLabel')}>
+      <Field label={t('songs.titleLabel')}>
         <input
           className={fieldClass}
           required
@@ -596,19 +596,19 @@ function SongEditForm({
           maxLength={200}
         />
       </Field>
-      <Field label={t('cancion.originLabel')}>
+      <Field label={t('song.originLabel')}>
         <select
           className={fieldClass}
           required
           value={originKind}
           onChange={(e) => setOriginKind(e.target.value as SongOriginKind)}
         >
-          <option value="original">{t('cancion.originOriginal')}</option>
-          <option value="cover">{t('cancion.originCover')}</option>
-          <option value="other">{t('cancion.originOther')}</option>
+          <option value="original">{t('song.originOriginal')}</option>
+          <option value="cover">{t('song.originCover')}</option>
+          <option value="other">{t('song.originOther')}</option>
         </select>
       </Field>
-      <Field label={t('canciones.attributionLabel')} hint={t('cancion.clearAttributionHint')}>
+      <Field label={t('songs.attributionLabel')} hint={t('song.clearAttributionHint')}>
         <input
           className={fieldClass}
           value={attribution}
@@ -616,7 +616,7 @@ function SongEditForm({
           maxLength={500}
         />
       </Field>
-      <Field label={t('canciones.rightsLabel')} hint={t('cancion.clearRightsHint')}>
+      <Field label={t('songs.rightsLabel')} hint={t('song.clearRightsHint')}>
         <textarea
           className={fieldClass}
           rows={3}
@@ -627,10 +627,10 @@ function SongEditForm({
       </Field>
       <FormActions>
         <Button type="submit" disabled={save.pending}>
-          {save.pending ? t('cancion.saving') : t('cancion.save')}
+          {save.pending ? t('song.saving') : t('song.save')}
         </Button>
         <Button variant="secondary" disabled={save.pending} onClick={onCancel}>
-          {t('cancion.cancel')}
+          {t('song.cancel')}
         </Button>
       </FormActions>
     </form>
@@ -668,7 +668,7 @@ function ArrangementCreateForm({
     if (defaultBpm.trim()) {
       const parsed = Number(defaultBpm)
       if (!Number.isInteger(parsed) || parsed < 1 || parsed > 400) {
-        setError(t('arreglo.tempoInvalid'))
+        setError(t('arrangement.tempoInvalid'))
         setPending(false)
         return
       }
@@ -695,9 +695,9 @@ function ArrangementCreateForm({
 
   return (
     <form className="space-y-4 border-t border-border-subtle pt-4" onSubmit={onSubmit} noValidate>
-      <h3 className="font-semibold">{t('cancion.createArrangement')}</h3>
+      <h3 className="font-semibold">{t('song.createArrangement')}</h3>
       <ProblemAlert message={error} />
-      <Field label={t('cancion.labelLabel')}>
+      <Field label={t('song.labelLabel')}>
         <input
           className={fieldClass}
           required
@@ -706,7 +706,7 @@ function ArrangementCreateForm({
           maxLength={200}
         />
       </Field>
-      <Field label={t('cancion.keyLabel')}>
+      <Field label={t('song.keyLabel')}>
         <input
           className={fieldClass}
           value={defaultKey}
@@ -714,7 +714,7 @@ function ArrangementCreateForm({
           maxLength={32}
         />
       </Field>
-      <Field label={t('cancion.bpmLabel')}>
+      <Field label={t('song.bpmLabel')}>
         <input
           className={fieldClass}
           type="number"
@@ -725,13 +725,13 @@ function ArrangementCreateForm({
           onChange={(e) => setDefaultBpm(e.target.value)}
         />
       </Field>
-      <Field label={t('cancion.lyricsLabel')}>
+      <Field label={t('song.lyricsLabel')}>
         <textarea className={fieldClass} rows={3} value={lyrics} onChange={(e) => setLyrics(e.target.value)} />
       </Field>
-      <Field label={t('cancion.chordsLabel')}>
+      <Field label={t('song.chordsLabel')}>
         <textarea className={fieldClass} rows={3} value={chords} onChange={(e) => setChords(e.target.value)} data-testid="arrangement-chords" />
       </Field>
-      <Field label={t('cancion.structureLabel')}>
+      <Field label={t('song.structureLabel')}>
         <textarea
           className={fieldClass}
           rows={2}
@@ -739,15 +739,15 @@ function ArrangementCreateForm({
           onChange={(e) => setStructure(e.target.value)}
         />
       </Field>
-      <Field label={t('cancion.notesLabel')}>
+      <Field label={t('song.notesLabel')}>
         <textarea className={fieldClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? t('cancion.creating') : t('cancion.createArrangement')}
+          {pending ? t('song.creating') : t('song.createArrangement')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          {t('cancion.cancel')}
+          {t('song.cancel')}
         </Button>
       </FormActions>
     </form>

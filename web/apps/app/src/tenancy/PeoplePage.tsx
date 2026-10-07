@@ -63,12 +63,12 @@ function presenceLabel(
   t: (key: I18nKey, params?: TParams) => string,
   now: number,
 ): string {
-  if (!lastSeenAt) return t('gente.neverSeen')
+  if (!lastSeenAt) return t('people.neverSeen')
   const diffMs = now - new Date(lastSeenAt).getTime()
-  if (Number.isNaN(diffMs) || diffMs < 5 * 60 * 1000) return t('gente.online')
+  if (Number.isNaN(diffMs) || diffMs < 5 * 60 * 1000) return t('people.online')
   const hours = Math.floor(diffMs / 3_600_000)
-  if (hours < 24) return t('gente.lastSeenHours', { count: hours })
-  return t('gente.lastSeenDays', { count: Math.floor(hours / 24) })
+  if (hours < 24) return t('people.lastSeenHours', { count: hours })
+  return t('people.lastSeenDays', { count: Math.floor(hours / 24) })
 }
 
 export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter?: string }) {
@@ -265,7 +265,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
   }
 
   if (group === undefined) {
-    return <GroupPageSkeleton label={t('gente.loading')} />
+    return <GroupPageSkeleton label={t('people.loading')} />
   }
 
   if (group === null) {
@@ -273,7 +273,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
       <div className="space-y-3">
         <GroupErrorState message={groupError} />
         <GroupLink variant="secondary" to="/">
-          {t('gente.myGroups')}
+          {t('people.myGroups')}
         </GroupLink>
       </div>
     )
@@ -296,23 +296,23 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
       <GroupPageHeader
         headingId="people-heading"
         icon={Users}
-        title={t('gente.title')}
-        subtitle={t('gente.subtitle')}
-        breadcrumb={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('gente.title') }]}
+        title={t('people.title')}
+        subtitle={t('people.subtitle')}
+        breadcrumb={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('people.title') }]}
       >
         <div className="flex flex-wrap items-center gap-2">
           {isOwner ? (
             <GroupButton onClick={openInviteDialog} className="whitespace-nowrap">
               <UserPlus className="h-4 w-4" aria-hidden="true" />
-              {t('inicio.invite')}
+              {t('dashboard.invite')}
             </GroupButton>
           ) : null}
-          <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('gente.title')}>
+          <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('people.title')}>
             {([
-              { id: 'all', label: t('gente.tabAll') },
-              { id: 'admins', label: t('gente.tabAdmins') },
-              { id: 'leaders', label: t('gente.tabLeaders') },
-              { id: 'members', label: t('gente.tabMembers') },
+              { id: 'all', label: t('people.tabAll') },
+              { id: 'admins', label: t('people.tabAdmins') },
+              { id: 'leaders', label: t('people.tabLeaders') },
+              { id: 'members', label: t('people.tabMembers') },
             ] as { id: RoleTab; label: string }[]).map((tab) => (
               <button
                 key={tab.id}
@@ -333,14 +333,14 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
           </div>
           <div className="min-w-48 flex-1">
             <label className="sr-only" htmlFor="people-search">
-              {t('gente.searchLabel')}
+              {t('people.searchLabel')}
             </label>
             <GroupInput
               id="people-search"
               type="search"
               data-testid="people-search"
-              aria-label={t('gente.searchLabel')}
-              placeholder={t('gente.searchPlaceholder')}
+              aria-label={t('people.searchLabel')}
+              placeholder={t('people.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="min-h-11"
@@ -355,12 +355,12 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
       <GroupErrorState message={inviteError} />
 
       {members === null ? (
-        <GroupListSkeleton rows={3} label={t('gente.loading')} />
+        <GroupListSkeleton rows={3} label={t('people.loading')} />
       ) : visibleMembers.length === 0 ? (
         <GroupEmptyState
           icon={Users}
-          title={t('gente.emptyTitle')}
-          description={t('gente.emptyBody')}
+          title={t('people.emptyTitle')}
+          description={t('people.emptyBody')}
         />
       ) : (
         <ul className="space-y-2">
@@ -383,7 +383,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                       <p className="truncate font-semibold text-ink">
                         {member.displayName}
                         {isSelf ? (
-                          <span className="ml-2 text-sm font-normal text-muted">{t('gente.you')}</span>
+                          <span className="ml-2 text-sm font-normal text-muted">{t('people.you')}</span>
                         ) : null}
                       </p>
                       <p className="text-sm text-muted">
@@ -403,8 +403,8 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                       {isOwner ? (
                         <div className="min-w-48 flex-1">
                           <GroupSelect
-                            label={t('gente.roleLabel')}
-                            aria-label={`${t('gente.roleOfPrefix')}${member.displayName}`}
+                            label={t('people.roleLabel')}
+                            aria-label={`${t('people.roleOfPrefix')}${member.displayName}`}
                             value={member.role}
                             disabled={busy}
                             onChange={(next) => {
@@ -418,22 +418,22 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                               }
                             }}
                             options={[
-                              { value: 'Owner', label: t('gente.roleOwner') },
-                              { value: 'Manager', label: t('gente.roleManager') },
-                              { value: 'Member', label: t('gente.roleMember') },
-                              { value: 'Viewer', label: t('gente.roleViewer') },
+                              { value: 'Owner', label: t('people.roleOwner') },
+                              { value: 'Manager', label: t('people.roleManager') },
+                              { value: 'Member', label: t('people.roleMember') },
+                              { value: 'Viewer', label: t('people.roleViewer') },
                             ]}
                           />
                         </div>
                       ) : null}
                       <div className="min-w-48 flex-1">
                         <GroupInput
-                          label={t('gente.musicalRoleLabel')}
+                          label={t('people.musicalRoleLabel')}
                           type="text"
                           maxLength={64}
                           defaultValue={member.musicalRole ?? ''}
-                          placeholder={t('gente.musicalRolePlaceholder')}
-                          aria-label={`${t('gente.musicalRoleOfPrefix')}${member.displayName}`}
+                          placeholder={t('people.musicalRolePlaceholder')}
+                          aria-label={`${t('people.musicalRoleOfPrefix')}${member.displayName}`}
                           disabled={busy}
                           onBlur={(event) => {
                             const next = event.target.value
@@ -447,10 +447,10 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                         <GroupButton
                           variant="danger"
                           disabled={busy}
-                          aria-label={`${t('gente.removePrefix')}${member.displayName}`}
+                          aria-label={`${t('people.removePrefix')}${member.displayName}`}
                           onClick={() => void onRemove(member.userId)}
                         >
-                          {t('gente.remove')}
+                          {t('people.remove')}
                         </GroupButton>
                       ) : null}
                     </div>
@@ -463,27 +463,27 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
       )}
 
       {isOwner ? (
-        <GroupSection title={t('gente.invitesTitle')} headingId="invites-heading">
+        <GroupSection title={t('people.invitesTitle')} headingId="invites-heading">
           {invites === null ? (
-            <GroupListSkeleton rows={2} label={t('gente.loadingInvites')} />
+            <GroupListSkeleton rows={2} label={t('people.loadingInvites')} />
           ) : invites.length === 0 ? (
-            <GroupEmptyState title={t('gente.noInvites')} />
+            <GroupEmptyState title={t('people.noInvites')} />
           ) : (
             <ul className="space-y-2">
               {invites.map((invite) => (
                 <li key={invite.id}>
                   <GroupCard className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-muted">
-                      {t('gente.expiresPrefix')}{new Date(invite.expiresAt).toLocaleString('es')}
+                      {t('people.expiresPrefix')}{new Date(invite.expiresAt).toLocaleString('es')}
                     </p>
                     <GroupButton
                       variant="danger"
                       size="sm"
                       disabled={revokingId === invite.id}
-                      aria-label={`${t('gente.revokePrefix')}${invite.expiresAt}`}
+                      aria-label={`${t('people.revokePrefix')}${invite.expiresAt}`}
                       onClick={() => void onRevoke(invite.id)}
                     >
-                      {t('gente.revoke')}
+                      {t('people.revoke')}
                     </GroupButton>
                   </GroupCard>
                 </li>
@@ -495,7 +495,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
 
       {isOwner ? null : (
         <GroupButton variant="secondary" disabled={leaving} onClick={() => void onLeave()}>
-          {leaving ? t('gente.leaving') : t('gente.leave')}
+          {leaving ? t('people.leaving') : t('people.leave')}
         </GroupButton>
       )}
 
@@ -503,7 +503,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
         <GroupDialog
           open={inviteOpen}
           onClose={() => setInviteOpen(false)}
-          title={t('inicio.inviteTitle')}
+          title={t('dashboard.inviteTitle')}
           onSubmit={(event) => void onInviteMember(event)}
           pending={inviting}
           testId="invite-member-dialog"
@@ -518,17 +518,17 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                 {t('common.close')}
               </GroupButton>
               <GroupButton type="submit" disabled={inviting}>
-                {inviting ? t('inicio.working') : t('inicio.invite')}
+                {inviting ? t('dashboard.working') : t('dashboard.invite')}
               </GroupButton>
             </>
           }
         >
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-ink">{t('inicio.inviteEmail')}</span>
+            <span className="text-sm font-medium text-ink">{t('dashboard.inviteEmail')}</span>
             <GroupInput
               type="email"
               autoComplete="off"
-              aria-label={t('inicio.inviteEmail')}
+              aria-label={t('dashboard.inviteEmail')}
               value={inviteEmail}
               onChange={(event) => setInviteEmail(event.target.value)}
             />
@@ -536,21 +536,21 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
           <ProblemAlert message={inviteFlowError} />
           {inviteWarning ? (
             <p role="status" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-ink">
-              {t('inicio.inviteMailWarning')}
+              {t('dashboard.inviteMailWarning')}
             </p>
           ) : null}
           {inviteUrl ? (
             <div className="space-y-2">
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-ink">{t('inicio.inviteLinkLabel')}</span>
-                <GroupInput readOnly aria-label={t('inicio.inviteLinkLabel')} value={inviteUrl} />
+                <span className="text-sm font-medium text-ink">{t('dashboard.inviteLinkLabel')}</span>
+                <GroupInput readOnly aria-label={t('dashboard.inviteLinkLabel')} value={inviteUrl} />
               </label>
               <GroupButton variant="secondary" type="button" onClick={() => void onCopyInviteLink()}>
-                {t('inicio.copyLink')}
+                {t('dashboard.copyLink')}
               </GroupButton>
               {copied ? (
                 <p aria-live="polite" className="text-sm text-muted">
-                  {t('inicio.copied')}
+                  {t('dashboard.copied')}
                 </p>
               ) : null}
             </div>

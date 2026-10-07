@@ -105,7 +105,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
   })
 
   if (group === undefined) {
-    return <GroupListSkeleton rows={4} label={t('agenda.loadingSetlists')} />
+    return <GroupListSkeleton rows={4} label={t('schedule.loadingSetlists')} />
   }
 
   if (group === null) {
@@ -128,11 +128,11 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
         <GroupPageHeader
           headingId="setlists-heading"
           icon={ListMusic}
-          title={t('agenda.setlistsTitle')}
-          subtitle={t('agenda.setlistsSubtitle')}
+          title={t('schedule.setlistsTitle')}
+          subtitle={t('schedule.setlistsSubtitle')}
           breadcrumb={[
             { to: `/groups/${group.id}`, label: group.name },
-            { label: t('agenda.setlistsTitle') },
+            { label: t('schedule.setlistsTitle') },
           ]}
           actions={
             <>
@@ -143,13 +143,13 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
               ) : null}
               {showHeaderAdd ? (
                 <GroupButton onClick={() => setShowCreate(true)} disabled={setlistsAtLimit}>
-                  {t('agenda.newSetlist')}
+                  {t('schedule.newSetlist')}
                 </GroupButton>
               ) : null}
             </>
           }
         >
-          {!isOwner ? <p className="text-sm text-muted">{t('agenda.readonly')}</p> : null}
+          {!isOwner ? <p className="text-sm text-muted">{t('schedule.readonly')}</p> : null}
         </GroupPageHeader>
       </div>
 
@@ -161,17 +161,17 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
               aria-hidden="true"
             />
             <label className="sr-only" htmlFor="setlists-search">
-              {t('agenda.setlistsSearchLabel')}
+              {t('schedule.setlistsSearchLabel')}
             </label>
             <input
               id="setlists-search"
               data-testid="setlists-search"
               className={cn(groupFieldClass, 'pl-9')}
               type="search"
-              placeholder={t('agenda.setlistsSearchPlaceholder')}
+              placeholder={t('schedule.setlistsSearchPlaceholder')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              aria-label={t('agenda.setlistsSearchLabel')}
+              aria-label={t('schedule.setlistsSearchLabel')}
             />
           </div>
         </div>
@@ -191,15 +191,15 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       />
 
       {setlists === null ? (
-        <GroupListSkeleton rows={4} label={t('agenda.loadingSetlists')} />
+        <GroupListSkeleton rows={4} label={t('schedule.loadingSetlists')} />
       ) : setlists.length === 0 ? (
         <GroupEmptyState
           icon={ListMusic}
-          title={t('agenda.emptySetlistsTitle')}
+          title={t('schedule.emptySetlistsTitle')}
           description={
             isOwner
-              ? t('agenda.emptySetlistsOwner')
-              : t('agenda.emptySetlistsMember')
+              ? t('schedule.emptySetlistsOwner')
+              : t('schedule.emptySetlistsMember')
           }
           action={
             isOwner ? (
@@ -208,26 +208,26 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                 onClick={() => setShowCreate(true)}
                 disabled={setlistsAtLimit}
               >
-                {t('agenda.newSetlist')}
+                {t('schedule.newSetlist')}
               </GroupButton>
             ) : (
               <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
-                {t('agenda.goLibrary')}
+                {t('schedule.goLibrary')}
               </GroupLink>
             )
           }
         />
       ) : filtered && filtered.length === 0 ? (
-        <GroupEmptyState title={`${t('agenda.noSetlistsPrefix')}${query.trim()}${t('agenda.noMatchSuffix')}`} />
+        <GroupEmptyState title={`${t('schedule.noSetlistsPrefix')}${query.trim()}${t('schedule.noMatchSuffix')}`} />
       ) : (
         <div className="space-y-1">
           <div
             aria-hidden="true"
             className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto_1.5rem] sm:items-center sm:gap-3"
           >
-            <span>{t('agenda.setlistsColList')}</span>
-            <span>{t('agenda.setlistsColSongs')}</span>
-            <span>{t('agenda.setlistsColUpdated')}</span>
+            <span>{t('schedule.setlistsColList')}</span>
+            <span>{t('schedule.setlistsColSongs')}</span>
+            <span>{t('schedule.setlistsColUpdated')}</span>
             <span />
           </div>
           <ul className="space-y-1 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
@@ -261,11 +261,11 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                       testId={`setlist-status-${setlist.id}`}
                     >
                       {empty
-                        ? t('agenda.setlistVacant')
+                        ? t('schedule.setlistVacant')
                         : plural(
                             setlist.itemCount,
-                            t('agenda.setlistArrangementsOne'),
-                            t('agenda.setlistArrangementsMany'),
+                            t('schedule.setlistArrangementsOne'),
+                            t('schedule.setlistArrangementsMany'),
                           )}
                     </ReadinessChip>
                     <span className="hidden text-xs text-muted sm:block">

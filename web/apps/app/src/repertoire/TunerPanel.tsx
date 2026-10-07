@@ -26,10 +26,10 @@ function centsLabel(
   cents: number,
   t: (key: I18nKey, params?: Record<string, string | number>) => string,
 ): string {
-  if (cents === 0) return t('practica.tuner.inTune')
+  if (cents === 0) return t('practice.tuner.inTune')
   return cents > 0
-    ? t('practica.tuner.sharp', { cents })
-    : t('practica.tuner.flat', { cents })
+    ? t('practice.tuner.sharp', { cents })
+    : t('practice.tuner.flat', { cents })
 }
 
 export function TunerPanel() {
@@ -124,7 +124,7 @@ export function TunerPanel() {
 
     const mediaDevices = navigator.mediaDevices
     if (!mediaDevices?.getUserMedia) {
-      setError(t('practica.tuner.browserUnsupported'))
+      setError(t('practice.tuner.browserUnsupported'))
       setStatus('error')
       return
     }
@@ -142,11 +142,11 @@ export function TunerPanel() {
       stopAudio()
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setError(
-          t('practica.tuner.denied'),
+          t('practice.tuner.denied'),
         )
         setStatus('denied')
       } else {
-        setError(t('practica.tuner.openFailed'))
+        setError(t('practice.tuner.openFailed'))
         setStatus('error')
       }
       return
@@ -237,7 +237,7 @@ export function TunerPanel() {
       }
     } catch {
       stopAudio()
-      setError(t('practica.tuner.startFailed'))
+      setError(t('practice.tuner.startFailed'))
       setStatus('error')
     }
   }
@@ -266,15 +266,15 @@ export function TunerPanel() {
             else void openTuner()
           }}
         >
-          {open ? t('common.close') : t('practica.tuner.open')}
+          {open ? t('common.close') : t('practice.tuner.open')}
         </Button>
         {status === 'requesting' ? (
-          <p className="text-sm text-muted">{t('practica.tuner.requesting')}</p>
+          <p className="text-sm text-muted">{t('practice.tuner.requesting')}</p>
         ) : null}
       </div>
 
       <p className="text-xs text-muted" data-testid="tuner-hint">
-        {t('practica.tuner.hint')}
+        {t('practice.tuner.hint')}
       </p>
 
       {open || status === 'denied' || status === 'error' ? (
@@ -294,22 +294,22 @@ export function TunerPanel() {
                 {note ? note.display : '—'}
               </p>
               <p className="text-sm text-muted" data-testid="tuner-hz">
-                {freqHz != null ? `${freqHz.toFixed(1)} Hz` : t('practica.tuner.listening')}
+                {freqHz != null ? `${freqHz.toFixed(1)} Hz` : t('practice.tuner.listening')}
               </p>
               <p className="text-sm text-muted" data-testid="tuner-cents">
                 {note
                   ? centsLabel(note.cents, t)
                   : hearingSound
-                    ? t('practica.tuner.noClearPitch')
-                    : t('practica.tuner.silence')}
+                    ? t('practice.tuner.noClearPitch')
+                    : t('practice.tuner.silence')}
               </p>
               <div
                 className="relative h-2 w-full max-w-xs overflow-hidden rounded-full bg-surface-hover"
                 role="img"
                 aria-label={
                   note
-                    ? t('practica.tuner.deviation', { value: centsLabel(note.cents, t) })
-                    : t('practica.tuner.noReading')
+                    ? t('practice.tuner.deviation', { value: centsLabel(note.cents, t) })
+                    : t('practice.tuner.noReading')
                 }
               >
                 <div

@@ -56,11 +56,11 @@ export function formatOriginKind(
 ): string {
   switch (kind) {
     case 'original':
-      return t('canciones.originOriginal')
+      return t('songs.originOriginal')
     case 'cover':
-      return t('canciones.originCover')
+      return t('songs.originCover')
     case 'other':
-      return t('canciones.originOther')
+      return t('songs.originOther')
     default:
       return kind
   }
@@ -72,19 +72,19 @@ export function formatPurpose(
 ): string {
   switch (purpose) {
     case 'chart':
-      return t('recursos.purposeChart')
+      return t('resources.purposeChart')
     case 'lyrics':
-      return t('recursos.purposeLyrics')
+      return t('resources.purposeLyrics')
     case 'audio':
-      return t('recursos.purposeAudio')
+      return t('resources.purposeAudio')
     case 'click':
-      return t('recursos.purposeClick')
+      return t('resources.purposeClick')
     case 'practice':
-      return t('recursos.purposePractice')
+      return t('resources.purposePractice')
     case 'reference':
-      return t('recursos.purposeReference')
+      return t('resources.purposeReference')
     case 'other':
-      return t('recursos.purposeOther')
+      return t('resources.purposeOther')
     default:
       return purpose.charAt(0).toUpperCase() + purpose.slice(1)
   }

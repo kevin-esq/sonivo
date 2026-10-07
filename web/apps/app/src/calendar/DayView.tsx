@@ -16,7 +16,7 @@ export function DayView({
   if (list.length === 0) {
     return (
       <div className="rounded-2xl border border-border-subtle bg-surface p-8 text-center text-sm text-muted">
-        {t("calendario.noEvents")}
+        {t("calendar.noEvents")}
       </div>
     );
   }

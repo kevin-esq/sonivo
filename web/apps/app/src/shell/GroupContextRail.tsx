@@ -68,9 +68,9 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
       {/* Tu semana */}
       <GroupCard className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-display text-base font-semibold text-ink">{t('calendario.week')}</h2>
+          <h2 className="font-display text-base font-semibold text-ink">{t('calendar.week')}</h2>
           <GroupLink variant="ghost" size="sm" to={`/groups/${groupId}/calendario`}>
-            {t('calendario.viewFull')}
+            {t('calendar.viewFull')}
           </GroupLink>
         </div>
         <ol className="grid grid-cols-7 gap-1">
@@ -137,7 +137,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-display text-base font-semibold text-ink">{t('nav.setlists')}</h2>
           <GroupLink variant="ghost" size="sm" to={`/groups/${groupId}/setlists`}>
-            {t('inicio.viewAll')}
+            {t('dashboard.viewAll')}
           </GroupLink>
         </div>
         {topSetlists.length === 0 ? (

@@ -100,7 +100,7 @@ export function useConductorRoom(eventId: string | null) {
         setConnectionState('connected')
       } catch (err) {
         if (cancelled) return
-        setError(hubErrorMessage(err) ?? t('practica.live.joinFailed'))
+        setError(hubErrorMessage(err) ?? t('practice.live.joinFailed'))
         setConnectionState('failed')
       }
     }

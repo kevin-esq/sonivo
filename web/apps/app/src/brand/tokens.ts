@@ -213,16 +213,16 @@ export type BrandTheme = {
  * default, so an untouched group matches the product identity.
  */
 export const BRAND_THEMES: BrandTheme[] = [
-  { id: 'sonivo', labelKey: 'ajustes.themeSonivo', primary: '#8366f1', secondary: '#e8c4f6' },
-  { id: 'emerald', labelKey: 'ajustes.themeEmerald', primary: '#047857', secondary: '#0E7490' },
-  { id: 'ocean', labelKey: 'ajustes.themeOcean', primary: '#0369A1', secondary: '#4338CA' },
-  { id: 'indigo', labelKey: 'ajustes.themeIndigo', primary: '#4338CA', secondary: '#BE185D' },
-  { id: 'violet', labelKey: 'ajustes.themeViolet', primary: '#7C3AED', secondary: '#0369A1' },
-  { id: 'fuchsia', labelKey: 'ajustes.themeFuchsia', primary: '#BE185D', secondary: '#7C3AED' },
-  { id: 'crimson', labelKey: 'ajustes.themeCrimson', primary: '#B91C1C', secondary: '#B45309' },
-  { id: 'amber', labelKey: 'ajustes.themeAmber', primary: '#B45309', secondary: '#047857' },
-  { id: 'turquoise', labelKey: 'ajustes.themeTurquoise', primary: '#0F766E', secondary: '#0369A1' },
-  { id: 'graphite', labelKey: 'ajustes.themeGraphite', primary: '#1F2937', secondary: '#64748B' },
+  { id: 'sonivo', labelKey: 'settings.themeSonivo', primary: '#8366f1', secondary: '#e8c4f6' },
+  { id: 'emerald', labelKey: 'settings.themeEmerald', primary: '#047857', secondary: '#0E7490' },
+  { id: 'ocean', labelKey: 'settings.themeOcean', primary: '#0369A1', secondary: '#4338CA' },
+  { id: 'indigo', labelKey: 'settings.themeIndigo', primary: '#4338CA', secondary: '#BE185D' },
+  { id: 'violet', labelKey: 'settings.themeViolet', primary: '#7C3AED', secondary: '#0369A1' },
+  { id: 'fuchsia', labelKey: 'settings.themeFuchsia', primary: '#BE185D', secondary: '#7C3AED' },
+  { id: 'crimson', labelKey: 'settings.themeCrimson', primary: '#B91C1C', secondary: '#B45309' },
+  { id: 'amber', labelKey: 'settings.themeAmber', primary: '#B45309', secondary: '#047857' },
+  { id: 'turquoise', labelKey: 'settings.themeTurquoise', primary: '#0F766E', secondary: '#0369A1' },
+  { id: 'graphite', labelKey: 'settings.themeGraphite', primary: '#1F2937', secondary: '#64748B' },
 ];
 
 export type IntensityOption = {
@@ -234,9 +234,9 @@ export type IntensityOption = {
 
 /** Prevalidated wash strengths (PHASE-PLANS-SPEC §5.3). */
 export const INTENSITY_OPTIONS: IntensityOption[] = [
-  { id: 'subtle', labelKey: 'ajustes.intensitySubtle', washAlpha: '1f' },
-  { id: 'medium', labelKey: 'ajustes.intensityMedium', washAlpha: '3d' },
-  { id: 'intense', labelKey: 'ajustes.intensityIntense', washAlpha: '61' },
+  { id: 'subtle', labelKey: 'settings.intensitySubtle', washAlpha: '1f' },
+  { id: 'medium', labelKey: 'settings.intensityMedium', washAlpha: '3d' },
+  { id: 'intense', labelKey: 'settings.intensityIntense', washAlpha: '61' },
 ];
 
 export type GradientStyleOption = {
@@ -246,8 +246,8 @@ export type GradientStyleOption = {
 
 /** Background wash styles; `liquid` layers an extra centre stop. */
 export const GRADIENT_STYLES: GradientStyleOption[] = [
-  { id: 'fixed', labelKey: 'ajustes.gradientFixed' },
-  { id: 'liquid', labelKey: 'ajustes.gradientLiquid' },
+  { id: 'fixed', labelKey: 'settings.gradientFixed' },
+  { id: 'liquid', labelKey: 'settings.gradientLiquid' },
 ];
 
 /** Shell surfaces the token set will be rendered on (matches index.css). */
@@ -401,16 +401,16 @@ export type TypographyOption = {
  * Legacy ids `system`/`serif`/`mono`/`rounded` are preserved for stored brands.
  */
 export const TYPOGRAPHY_OPTIONS: TypographyOption[] = [
-  { id: 'system', labelKey: 'ajustes.fontSystem', fontFamily: '"Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif' },
-  { id: 'rounded', labelKey: 'ajustes.fontRounded', fontFamily: '"Nunito", "Plus Jakarta Sans", system-ui, sans-serif' },
-  { id: 'inter', labelKey: 'ajustes.fontInter', fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif' },
-  { id: 'dmsans', labelKey: 'ajustes.fontDmSans', fontFamily: '"DM Sans", "Segoe UI", system-ui, sans-serif' },
-  { id: 'poppins', labelKey: 'ajustes.fontPoppins', fontFamily: '"Poppins", "Segoe UI", system-ui, sans-serif' },
-  { id: 'space', labelKey: 'ajustes.fontSpace', fontFamily: '"Space Grotesk", "Segoe UI", system-ui, sans-serif' },
-  { id: 'serif', labelKey: 'ajustes.fontSerif', fontFamily: '"Source Serif 4", Georgia, serif' },
-  { id: 'lora', labelKey: 'ajustes.fontLora', fontFamily: '"Lora", Georgia, serif' },
-  { id: 'playfair', labelKey: 'ajustes.fontPlayfair', fontFamily: '"Playfair Display", Georgia, serif' },
-  { id: 'mono', labelKey: 'ajustes.fontMono', fontFamily: '"JetBrains Mono", "Fira Code", Consolas, monospace' },
+  { id: 'system', labelKey: 'settings.fontSystem', fontFamily: '"Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif' },
+  { id: 'rounded', labelKey: 'settings.fontRounded', fontFamily: '"Nunito", "Plus Jakarta Sans", system-ui, sans-serif' },
+  { id: 'inter', labelKey: 'settings.fontInter', fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif' },
+  { id: 'dmsans', labelKey: 'settings.fontDmSans', fontFamily: '"DM Sans", "Segoe UI", system-ui, sans-serif' },
+  { id: 'poppins', labelKey: 'settings.fontPoppins', fontFamily: '"Poppins", "Segoe UI", system-ui, sans-serif' },
+  { id: 'space', labelKey: 'settings.fontSpace', fontFamily: '"Space Grotesk", "Segoe UI", system-ui, sans-serif' },
+  { id: 'serif', labelKey: 'settings.fontSerif', fontFamily: '"Source Serif 4", Georgia, serif' },
+  { id: 'lora', labelKey: 'settings.fontLora', fontFamily: '"Lora", Georgia, serif' },
+  { id: 'playfair', labelKey: 'settings.fontPlayfair', fontFamily: '"Playfair Display", Georgia, serif' },
+  { id: 'mono', labelKey: 'settings.fontMono', fontFamily: '"JetBrains Mono", "Fira Code", Consolas, monospace' },
 ];
 
 /**

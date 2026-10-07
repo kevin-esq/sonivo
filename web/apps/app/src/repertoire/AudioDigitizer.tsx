@@ -93,7 +93,7 @@ export function AudioDigitizer({
       setJob({
         phase: 'failed',
         resourceId,
-        message: current.error ?? t('practica.digitize.failed'),
+        message: current.error ?? t('practice.digitize.failed'),
       })
       return
     }
@@ -142,7 +142,7 @@ export function AudioDigitizer({
         expectedVersion: arrangement.version,
         chordTimingJson: serializeChordTimingJson(merged),
       })
-      setSuccess(t('practica.digitize.marksApplied'))
+      setSuccess(t('practice.digitize.marksApplied'))
       await onChanged()
     } catch (err) {
       setError(mutationErrorMessage(err))
@@ -164,7 +164,7 @@ export function AudioDigitizer({
         expectedVersion: arrangement.version,
         lyrics: next,
       })
-      setSuccess(t('practica.digitize.lyricsAdded'))
+      setSuccess(t('practice.digitize.lyricsAdded'))
       await onChanged()
     } catch (err) {
       setError(mutationErrorMessage(err))
@@ -190,16 +190,16 @@ export function AudioDigitizer({
       data-testid="audio-digitizer"
     >
       <h3 id="digitize-heading" className="font-semibold">
-        {t('practica.digitize.title')}
+        {t('practice.digitize.title')}
       </h3>
       <p className="text-sm text-muted">
-        {t('practica.digitize.subtitle')}
+        {t('practice.digitize.subtitle')}
       </p>
 
       {job.phase === 'idle' ? (
         <div className="space-y-2">
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-ink">{t('practica.digitize.audioLabel')}</span>
+            <span className="text-sm font-medium text-ink">{t('practice.digitize.audioLabel')}</span>
             <select
               className={fieldClass}
               value={selectedResourceId ?? ''}
@@ -222,7 +222,7 @@ export function AudioDigitizer({
             }}
             data-testid="digitize-start"
           >
-            {t('practica.digitize.start')}
+            {t('practice.digitize.start')}
           </Button>
         </div>
       ) : null}
@@ -235,8 +235,8 @@ export function AudioDigitizer({
           data-testid="digitize-status"
         >
           {job.jobId === ''
-            ? t('practica.digitize.starting')
-            : t('practica.digitize.working')}{' '}
+            ? t('practice.digitize.starting')
+            : t('practice.digitize.working')}{' '}
           {workingResourceLabel ? `(${workingResourceLabel})` : null}
         </p>
       ) : null}
@@ -245,17 +245,17 @@ export function AudioDigitizer({
         <div className="space-y-2" data-testid="digitize-status">
           <ProblemAlert message={job.message} />
           <Button variant="secondary" size="sm" onClick={handleDiscard} data-testid="digitize-discard">
-            {t('practica.digitize.discard')}
+            {t('practice.digitize.discard')}
           </Button>
         </div>
       ) : null}
 
       {job.phase === 'ready' ? (
         <div className="space-y-3">
-          <h4 className="text-sm font-semibold">{t('practica.digitize.review')}</h4>
+          <h4 className="text-sm font-semibold">{t('practice.digitize.review')}</h4>
           {job.segments.length === 0 ? (
             <p className="text-sm text-muted" data-testid="digitize-segments">
-              {t('practica.digitize.noVoice')}
+              {t('practice.digitize.noVoice')}
             </p>
           ) : (
             <ul className="max-h-64 space-y-2 overflow-y-auto" data-testid="digitize-segments">
@@ -269,7 +269,7 @@ export function AudioDigitizer({
                   </span>
                   <span className="min-w-0 flex-1 text-sm">{segment.text}</span>
                   <label className="flex items-center gap-1 text-xs text-muted">
-                    {t('practica.digitize.line')}
+                    {t('practice.digitize.line')}
                     <input
                       className={`${fieldClass} w-20`}
                       type="number"
@@ -312,7 +312,7 @@ export function AudioDigitizer({
                 onClick={handleSuggestMapping}
                 data-testid="digitize-suggest"
               >
-                {t('practica.digitize.suggest')}
+                {t('practice.digitize.suggest')}
               </Button>
             ) : null}
             {job.segments.length > 0 ? (
@@ -322,7 +322,7 @@ export function AudioDigitizer({
                 onClick={() => void handleApplyMarks()}
                 data-testid="digitize-apply-marks"
               >
-                {pending ? t('practica.digitize.applying') : t('practica.digitize.applyMarks')}
+                {pending ? t('practice.digitize.applying') : t('practice.digitize.applyMarks')}
               </Button>
             ) : null}
             {job.segments.length > 0 ? (
@@ -333,7 +333,7 @@ export function AudioDigitizer({
                 onClick={() => void handleAppendLyrics()}
                 data-testid="digitize-append-lyrics"
               >
-                {pending ? t('practica.digitize.adding') : t('practica.digitize.appendLyrics')}
+                {pending ? t('practice.digitize.adding') : t('practice.digitize.appendLyrics')}
               </Button>
             ) : null}
             <Button
@@ -343,7 +343,7 @@ export function AudioDigitizer({
               onClick={handleDiscard}
               data-testid="digitize-discard"
             >
-              {t('practica.digitize.discard')}
+              {t('practice.digitize.discard')}
             </Button>
           </div>
         </div>

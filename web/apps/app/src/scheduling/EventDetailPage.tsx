@@ -45,9 +45,9 @@ import { useT, type I18nKey } from '../i18n'
 import { plural } from '../ui/plural'
 
 const RSVP_CHOICES: { value: EventRsvpResponse; labelKey: I18nKey }[] = [
-  { value: 'yes', labelKey: 'evento.rsvpYes' },
-  { value: 'no', labelKey: 'evento.rsvpNo' },
-  { value: 'maybe', labelKey: 'evento.rsvpMaybe' },
+  { value: 'yes', labelKey: 'event.rsvpYes' },
+  { value: 'no', labelKey: 'event.rsvpNo' },
+  { value: 'maybe', labelKey: 'event.rsvpMaybe' },
 ]
 
 function formatRsvpResponse(
@@ -316,7 +316,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">{t('evento.loading')}</p>
+    return <p aria-live="polite">{t('event.loading')}</p>
   }
 
   if (group === null) {
@@ -331,18 +331,18 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (musicalEvent === undefined) {
-    return <p aria-live="polite">{t('evento.loading')}</p>
+    return <p aria-live="polite">{t('event.loading')}</p>
   }
 
   if (musicalEvent === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? t('evento.notFound')} />
+        <ProblemAlert message={error ?? t('event.notFound')} />
         <Link
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/events`}
         >
-          {t('evento.events')}
+          {t('event.events')}
         </Link>
       </div>
     )
@@ -356,7 +356,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
         <PageBreadcrumb
           items={[
             { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/events`, label: t('agenda.eventsTitle') },
+            { to: `/groups/${group.id}/events`, label: t('schedule.eventsTitle') },
             { label: musicalEvent.title },
           ]}
         />
@@ -374,7 +374,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               </h1>
               <p className="text-sm text-muted">
                 {formatEventType(musicalEvent.type, t)} · {formatStartsAt(musicalEvent.startsAt)}
-                {!isOwner ? <span> · {t('agenda.readonly')}</span> : null}
+                {!isOwner ? <span> · {t('schedule.readonly')}</span> : null}
               </p>
             </div>
           </div>
@@ -384,10 +384,10 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               testId="event-status-chip"
             >
               {!isLive
-                ? t('agenda.statusCancelled')
+                ? t('schedule.statusCancelled')
                 : hasPlan
-                  ? t('agenda.statusPlan')
-                  : t('agenda.statusDraft')}
+                  ? t('schedule.statusPlan')
+                  : t('schedule.statusDraft')}
             </ReadinessChip>
             <span
               className={cn(
@@ -400,10 +400,10 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               )}
             >
               {!isLive
-                ? t('evento.statusCancelled')
+                ? t('event.statusCancelled')
                 : new Date(musicalEvent.startsAt) < new Date()
-                  ? t('evento.statusCompleted')
-                  : t('evento.statusConfirmed')}
+                  ? t('event.statusCompleted')
+                  : t('event.statusConfirmed')}
             </span>
             {isOwner && isLive && !editing ? (
               <>
@@ -414,17 +414,17 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     setEditing(true)
                   }}
                 >
-                  {t('evento.editEvent')}
+                  {t('event.editEvent')}
                 </Button>
                 <Button
                   variant="secondary"
                   disabled={duplicating}
                   onClick={() => void handleDuplicateEvent()}
                 >
-                  {duplicating ? t('evento.duplicating') : t('evento.duplicate')}
+                  {duplicating ? t('event.duplicating') : t('event.duplicate')}
                 </Button>
                 <Button variant="secondary" onClick={handleShareEvent}>
-                  {t('evento.share')}
+                  {t('event.share')}
                 </Button>
               </>
             ) : null}
@@ -438,7 +438,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       <div
         className="flex gap-1 rounded-xl bg-surface-hover p-1"
         role="tablist"
-        aria-label={t('evento.tabsLabel')}
+        aria-label={t('event.tabsLabel')}
       >
         <TabButton
           selected={activeTab === 'plan'}
@@ -447,13 +447,13 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
             setTab('plan')
           }}
         >
-          {t('evento.planTab')}
+          {t('event.planTab')}
         </TabButton>
         <TabButton
           selected={activeTab === 'details'}
           onClick={() => setTab('details')}
         >
-          {t('evento.detailsTab')}
+          {t('event.detailsTab')}
         </TabButton>
       </div>
 
@@ -462,15 +462,15 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 id="plan-heading" className="text-lg font-semibold">
-                {t('evento.planTab')}
+                {t('event.planTab')}
               </h2>
               <span className="inline-flex items-center gap-1 rounded-lg bg-accent/15 px-2 py-0.5 text-xs font-medium text-accent">
                 <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                {t('evento.copyBadge')}
+                {t('event.copyBadge')}
               </span>
             </div>
             <p className="text-sm text-muted">
-              {t('evento.planHint')}
+              {t('event.planHint')}
             </p>
             {hasPlan && isLive ? (
               <p>
@@ -482,7 +482,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   to={practiceQueueHref(group.id, musicalEvent.id, plan[0]!)}
                   data-testid="ensayar-plan"
                 >
-                  {t('evento.rehearsePlan')}
+                  {t('event.rehearsePlan')}
                 </Link>
               </p>
             ) : null}
@@ -490,11 +490,11 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
 
           {plan.length === 0 ? (
             <EmptyPanel
-              title={t('agenda.emptyPlanTitle')}
+              title={t('schedule.emptyPlanTitle')}
               description={
                 isOwner && isLive
-                  ? t('evento.noPlanOwner')
-                  : t('evento.noPlanMember')
+                  ? t('event.noPlanOwner')
+                  : t('event.noPlanMember')
               }
               action={
                 isOwner && isLive ? (
@@ -503,7 +503,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                       className="font-semibold text-primary-ink no-underline hover:underline"
                       to={`/groups/${group.id}/setlists`}
                     >
-                      {t('evento.goSetlists')}
+                      {t('event.goSetlists')}
                     </Link>
                   ) : (
                     <Button
@@ -515,7 +515,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                         })
                       }}
                     >
-                      {t('evento.applyCta')}
+                      {t('event.applyCta')}
                     </Button>
                   )
                 ) : (
@@ -523,7 +523,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     className="font-semibold text-primary-ink no-underline hover:underline"
                     to={`/groups/${group.id}/library`}
                   >
-                    {t('evento.goLibrary')}
+                    {t('event.goLibrary')}
                   </Link>
                 )
               }
@@ -534,9 +534,9 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                 aria-hidden="true"
                 className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[2.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
               >
-                <span>{t('evento.colNumber')}</span>
-                <span>{t('evento.colSong')}</span>
-                <span>{t('evento.colAction')}</span>
+                <span>{t('event.colNumber')}</span>
+                <span>{t('event.colSong')}</span>
+                <span>{t('event.colAction')}</span>
               </div>
               <ol className="space-y-1.5 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
               {plan.map((item, index) => (
@@ -567,7 +567,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                       to={practiceQueueHref(group.id, musicalEvent.id, item)}
                       data-testid={`practicar-item-${item.id}`}
                     >
-                      {t('evento.practice')}
+                      {t('event.practice')}
                     </Link>
                   ) : null}
                 </li>
@@ -582,12 +582,12 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               aria-labelledby="apply-heading"
             >
               <h3 id="apply-heading" className="font-semibold">
-                {t('evento.applyTitle')}
+                {t('event.applyTitle')}
               </h3>
               {setlists === null ? (
-                <p aria-live="polite">{t('evento.loadingSetlists')}</p>
+                <p aria-live="polite">{t('event.loadingSetlists')}</p>
               ) : setlists.length === 0 ? (
-                <p className="text-sm text-muted">{t('evento.noSetlists')}</p>
+                <p className="text-sm text-muted">{t('event.noSetlists')}</p>
               ) : (
                 <form
                   className="space-y-3"
@@ -596,7 +596,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     requestApply()
                   }}
                 >
-                  <Field label={t('evento.setlistLabel')}>
+                  <Field label={t('event.setlistLabel')}>
                     <select
                       className={fieldClass}
                       value={selectedSetlistId}
@@ -611,7 +611,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     </select>
                   </Field>
                   <Button type="submit" disabled={applying || !selectedSetlistId}>
-                    {applying ? t('evento.applying') : t('evento.apply')}
+                    {applying ? t('event.applying') : t('event.apply')}
                   </Button>
                 </form>
               )}
@@ -621,7 +621,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       ) : (
         <section className="space-y-4" aria-labelledby="details-heading">
           <h2 id="details-heading" className="sr-only">
-            {t('evento.detailsTab')}
+            {t('event.detailsTab')}
           </h2>
           {editing && isOwner && isLive ? (
             <EventEditForm
@@ -646,18 +646,18 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
           ) : (
             <dl className="grid max-w-lg gap-4 rounded-2xl bg-surface-hover p-5 sm:grid-cols-2">
               <div>
-                <dt className="text-sm text-muted">{t('evento.typeLabel')}</dt>
+                <dt className="text-sm text-muted">{t('event.typeLabel')}</dt>
                 <dd className="font-medium text-ink">{formatEventType(musicalEvent.type, t)}</dd>
               </div>
               <div>
-                <dt className="text-sm text-muted">{t('evento.startsAtLabel')}</dt>
+                <dt className="text-sm text-muted">{t('event.startsAtLabel')}</dt>
                 <dd className="font-medium text-ink">
                   {formatStartsAt(musicalEvent.startsAt)}
                 </dd>
               </div>
               <div>
-                <dt className="text-sm text-muted">{t('evento.statusLabel')}</dt>
-                <dd className="font-medium text-ink" title={t('agenda.statusHint')}>
+                <dt className="text-sm text-muted">{t('event.statusLabel')}</dt>
+                <dd className="font-medium text-ink" title={t('schedule.statusHint')}>
                   {formatEventStatus(musicalEvent.status, t)}
                 </dd>
               </div>
@@ -673,11 +673,11 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
         >
           <div className="space-y-1">
             <h2 id="attendance-heading" className="text-lg font-semibold">
-              {t('evento.rsvpTitle')}
+              {t('event.rsvpTitle')}
             </h2>
-            <p className="text-sm text-muted">{t('evento.rsvpHint')}</p>
+            <p className="text-sm text-muted">{t('event.rsvpHint')}</p>
           </div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label={t('evento.rsvpGroup')}>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t('event.rsvpGroup')}>
             {RSVP_CHOICES.map((choice) => {
               const selected = myResponse === choice.value
               return (
@@ -694,7 +694,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
             })}
           </div>
           {rsvps === null ? null : rsvps.length === 0 ? (
-            <p className="text-sm text-muted">{t('evento.noRsvps')}</p>
+            <p className="text-sm text-muted">{t('event.noRsvps')}</p>
           ) : (
             <ul className="space-y-2">
               {rsvps.map((item) => (
@@ -722,10 +722,10 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
           </h2>
           <div className="flex flex-wrap gap-2">
             <Button variant="danger" onClick={() => setConfirmCancel(true)}>
-              {t('evento.cancelEvent')}
+              {t('event.cancelEvent')}
             </Button>
             <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-              {t('evento.deleteEvent')}
+              {t('event.deleteEvent')}
             </Button>
           </div>
         </section>
@@ -733,44 +733,44 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
 
       <ConfirmDialog
         open={confirmReplace}
-        title={t('evento.replaceTitle')}
-        confirmLabel={t('evento.replaceConfirm')}
-        cancelLabel={t('evento.cancel')}
-        pendingLabel={t('evento.replacing')}
+        title={t('event.replaceTitle')}
+        confirmLabel={t('event.replaceConfirm')}
+        cancelLabel={t('event.cancel')}
+        pendingLabel={t('event.replacing')}
         pending={applying}
         onCancel={() => setConfirmReplace(false)}
         onConfirm={() => void apply(true)}
       >
         <p>
-          {t('evento.replaceBody')}
+          {t('event.replaceBody')}
         </p>
       </ConfirmDialog>
       <ConfirmDialog
         open={confirmCancel}
-        title={t('evento.cancelTitle')}
-        confirmLabel={t('evento.cancelEvent')}
-        cancelLabel={t('evento.back')}
-        pendingLabel={t('evento.cancelling')}
+        title={t('event.cancelTitle')}
+        confirmLabel={t('event.cancelEvent')}
+        cancelLabel={t('event.back')}
+        pendingLabel={t('event.cancelling')}
         pending={cancelling}
         onCancel={() => setConfirmCancel(false)}
         onConfirm={() => void handleCancelEvent()}
       >
         <p>
-          {t('evento.cancelBody')}
+          {t('event.cancelBody')}
         </p>
       </ConfirmDialog>
       <ConfirmDialog
         open={confirmDelete}
-        title={t('evento.deleteTitle')}
-        confirmLabel={t('evento.deleteEvent')}
-        cancelLabel={t('evento.back')}
-        pendingLabel={t('evento.deleting')}
+        title={t('event.deleteTitle')}
+        confirmLabel={t('event.deleteEvent')}
+        cancelLabel={t('event.back')}
+        pendingLabel={t('event.deleting')}
         pending={deleting}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => void handleDeleteEvent()}
       >
         <p>
-          {t('evento.deleteBody')}
+          {t('event.deleteBody')}
         </p>
       </ConfirmDialog>
     </section>
@@ -829,7 +829,7 @@ function EventEditForm({
     setPending(true)
     setError(null)
     if (!startsAt) {
-      setError(t('evento.startsAtRequired'))
+      setError(t('event.startsAtRequired'))
       setPending(false)
       return
     }
@@ -854,10 +854,10 @@ function EventEditForm({
 
   return (
     <form className="max-w-lg space-y-4" onSubmit={onSubmit} noValidate>
-      <h3 className="text-lg font-semibold">{t('evento.editEvent')}</h3>
-      <p className="text-sm text-muted">{t('evento.versionPrefix')}{musicalEvent.version}</p>
+      <h3 className="text-lg font-semibold">{t('event.editEvent')}</h3>
+      <p className="text-sm text-muted">{t('event.versionPrefix')}{musicalEvent.version}</p>
       <ProblemAlert message={error} />
-      <Field label={t('evento.titleLabel')}>
+      <Field label={t('event.titleLabel')}>
         <input
           className={fieldClass}
           required
@@ -866,19 +866,19 @@ function EventEditForm({
           maxLength={200}
         />
       </Field>
-      <Field label={t('evento.typeLabel')}>
+      <Field label={t('event.typeLabel')}>
         <select
           className={fieldClass}
           required
           value={type}
           onChange={(e) => setType(e.target.value as EventType)}
         >
-          <option value="rehearsal">{t('evento.typeRehearsal')}</option>
-          <option value="performance">{t('evento.typePerformance')}</option>
-          <option value="other">{t('evento.typeOther')}</option>
+          <option value="rehearsal">{t('event.typeRehearsal')}</option>
+          <option value="performance">{t('event.typePerformance')}</option>
+          <option value="other">{t('event.typeOther')}</option>
         </select>
       </Field>
-      <Field label={t('evento.startsAtLabel')}>
+      <Field label={t('event.startsAtLabel')}>
         <input
           className={fieldClass}
           type="datetime-local"
@@ -889,10 +889,10 @@ function EventEditForm({
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? t('evento.saving') : t('evento.save')}
+          {pending ? t('event.saving') : t('event.save')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          {t('evento.cancel')}
+          {t('event.cancel')}
         </Button>
       </FormActions>
     </form>

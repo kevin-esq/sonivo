@@ -78,13 +78,13 @@ function formatRsvpLabel(
 ): string {
   switch (response) {
     case 'yes':
-      return t('evento.rsvpYes')
+      return t('event.rsvpYes')
     case 'no':
-      return t('evento.rsvpNo')
+      return t('event.rsvpNo')
     case 'maybe':
-      return t('evento.rsvpMaybe')
+      return t('event.rsvpMaybe')
     default:
-      return t('evento.rsvpPending')
+      return t('event.rsvpPending')
   }
 }
 
@@ -126,7 +126,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       } catch (err) {
         if (cancelled) return
         setGroup(null)
-        setError(err instanceof ApiError && err.status === 404 ? t('inicio.notFound') : problemDetail(err))
+        setError(err instanceof ApiError && err.status === 404 ? t('dashboard.notFound') : problemDetail(err))
       }
     }
     void load()
@@ -207,7 +207,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <GroupPageSkeleton label={t('inicio.loading')} />
+    return <GroupPageSkeleton label={t('dashboard.loading')} />
   }
 
   if (group === null) {
@@ -215,7 +215,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <GroupErrorState message={error} />
         <GroupLink variant="soft" to="/">
-          {t('inicio.myGroups')}
+          {t('dashboard.myGroups')}
         </GroupLink>
       </div>
     )
@@ -272,7 +272,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="home-metrics">
         <GroupStat
           icon={Music2}
-          label={t('canciones.pageTitle')}
+          label={t('songs.pageTitle')}
           value={usage?.songs.used ?? '—'}
           to={`/groups/${group.id}/library`}
           testId="home-metric-songs"
@@ -302,7 +302,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
 
       {/* Quick actions */}
       <GroupSection
-        title={t('inicio.quickActions')}
+        title={t('dashboard.quickActions')}
         headingId="quick-actions-heading"
         action={<Zap className="h-4 w-4 text-primary-ink" aria-hidden="true" />}
       >
@@ -340,24 +340,24 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
 
       {/* Upcoming events */}
       <GroupSection
-        title={t('inicio.nextEvent')}
+        title={t('dashboard.nextEvent')}
         headingId="upcoming-events-heading"
         action={
           <GroupLink variant="ghost" size="sm" to={`/groups/${group.id}/events`}>
-            {t('inicio.viewAll')}
+            {t('dashboard.viewAll')}
           </GroupLink>
         }
       >
         {upcoming === null ? (
-          <GroupListSkeleton rows={3} label={t('inicio.loadingEvents')} />
+          <GroupListSkeleton rows={3} label={t('dashboard.loadingEvents')} />
         ) : upcoming.length === 0 ? (
           <GroupEmptyState
             icon={CalendarDays}
-            title={t('inicio.noEventsTitle')}
-            description={isOwner ? t('inicio.noEventsOwner') : t('inicio.noEventsMember')}
+            title={t('dashboard.noEventsTitle')}
+            description={isOwner ? t('dashboard.noEventsOwner') : t('dashboard.noEventsMember')}
             action={
               <GroupLink variant="soft" to={`/groups/${group.id}/events`} data-testid="home-empty-events">
-                {t('inicio.goEvents')}
+                {t('dashboard.goEvents')}
               </GroupLink>
             }
           />
@@ -391,7 +391,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                     </span>
                     {index === 0 ? (
                       <span className="hidden text-sm text-muted sm:block" data-testid="home-next-event-rsvp">
-                        {t('inicio.myRsvp')} {myRsvp === undefined ? '…' : formatRsvpLabel(myRsvp, t)}
+                        {t('dashboard.myRsvp')} {myRsvp === undefined ? '…' : formatRsvpLabel(myRsvp, t)}
                       </span>
                     ) : null}
                     <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
@@ -405,24 +405,24 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
 
       {/* Recent songs */}
       <GroupSection
-        title={t('inicio.recentSongs')}
+        title={t('dashboard.recentSongs')}
         headingId="recent-songs-heading"
         action={
           <GroupLink variant="ghost" size="sm" to={`/groups/${group.id}/library`}>
-            {t('inicio.viewAll')}
+            {t('dashboard.viewAll')}
           </GroupLink>
         }
       >
         {latestSongs === null ? (
-          <GroupListSkeleton rows={2} label={t('inicio.loadingSongs')} />
+          <GroupListSkeleton rows={2} label={t('dashboard.loadingSongs')} />
         ) : latestSongs.length === 0 ? (
           <GroupEmptyState
             icon={Music2}
-            title={t('inicio.noSongsTitle')}
-            description={isOwner ? t('inicio.noSongsOwner') : t('inicio.noSongsMember')}
+            title={t('dashboard.noSongsTitle')}
+            description={isOwner ? t('dashboard.noSongsOwner') : t('dashboard.noSongsMember')}
             action={
               <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
-                {t('inicio.goSongs')}
+                {t('dashboard.goSongs')}
               </GroupLink>
             }
           />
@@ -451,7 +451,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
 
       {/* Gathering state for existing members */}
       {setlists?.length === 0 && events?.length === 0 && (recentSongs?.length ?? 0) === 0 && isOwner ? (
-        <p className="sr-only">{t('inicio.getStartedTitle')}</p>
+        <p className="sr-only">{t('dashboard.getStartedTitle')}</p>
       ) : null}
 
       {dialog === 'song' ? (

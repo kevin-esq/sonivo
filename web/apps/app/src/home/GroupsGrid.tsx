@@ -60,8 +60,8 @@ function HomeGroupCard({ group }: { group: GroupSummary }) {
             <span className="inline-flex items-center gap-1">
               <Users className="h-3.5 w-3.5" aria-hidden="true" />
               {group.memberCount === 1
-                ? t("grupos.membersOne")
-                : t("grupos.members", { count: group.memberCount ?? 0 })}
+                ? t("groups.membersOne")
+                : t("groups.members", { count: group.memberCount ?? 0 })}
             </span>
             <Music2 className="h-3.5 w-3.5" aria-hidden="true" />
           </span>
@@ -108,15 +108,15 @@ export function GroupsGrid({ groups }: { groups: GroupSummary[] | null }) {
           <Users className="h-6 w-6" />
         </span>
         <div className="space-y-1">
-          <p className="font-semibold text-ink">{t("grupos.emptyTitle")}</p>
-          <p className="max-w-md text-sm text-muted">{t("grupos.empty")}</p>
+          <p className="font-semibold text-ink">{t("groups.emptyTitle")}</p>
+          <p className="max-w-md text-sm text-muted">{t("groups.empty")}</p>
         </div>
         <Link
           to="/grupos"
           state={{ create: true }}
           className="inline-flex min-h-11 items-center rounded-xl bg-primary-strong px-4 text-sm font-semibold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          {t("grupos.emptyCta")}
+          {t("groups.emptyCta")}
         </Link>
       </div>
     );

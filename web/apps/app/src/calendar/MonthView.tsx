@@ -88,7 +88,7 @@ export function MonthView({
                   ))}
                   {list.length > MAX_CHIPS ? (
                     <li className="px-1.5 text-[11px] font-medium text-muted">
-                      {t("calendario.more", {
+                      {t("calendar.more", {
                         count: list.length - MAX_CHIPS,
                       })}
                     </li>

@@ -32,11 +32,11 @@ export function formatEventType(
 ): string {
   switch (type) {
     case 'rehearsal':
-      return t('agenda.typeRehearsal')
+      return t('schedule.typeRehearsal')
     case 'performance':
-      return t('agenda.typePerformance')
+      return t('schedule.typePerformance')
     case 'other':
-      return t('agenda.typeOther')
+      return t('schedule.typeOther')
     default:
       return type
   }
@@ -48,9 +48,9 @@ export function formatEventStatus(
 ): string {
   switch (status) {
     case 'scheduled':
-      return t('agenda.statusScheduled')
+      return t('schedule.statusScheduled')
     case 'cancelled':
-      return t('evento.statusCancelled')
+      return t('event.statusCancelled')
     default:
       return status
   }

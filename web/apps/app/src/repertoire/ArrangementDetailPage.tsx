@@ -169,7 +169,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">{t('arreglo.loading')}</p>
+    return <p aria-live="polite">{t('arrangement.loading')}</p>
   }
 
   if (group === null) {
@@ -177,25 +177,25 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
         <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
-          {t('arreglo.myGroups')}
+          {t('arrangement.myGroups')}
         </Link>
       </div>
     )
   }
 
   if (arrangement === undefined) {
-    return <p aria-live="polite">{t('arreglo.loading')}</p>
+    return <p aria-live="polite">{t('arrangement.loading')}</p>
   }
 
   if (arrangement === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? t('arreglo.notFound')} />
+        <ProblemAlert message={error ?? t('arrangement.notFound')} />
         <Link
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/library`}
         >
-          {t('arreglo.library')}
+          {t('arrangement.library')}
         </Link>
       </div>
     )
@@ -207,8 +207,8 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
   const hasChart = arrangement.resources.some((resource) => resource.purpose === 'chart')
   const resourceCountLabel =
     arrangement.resources.length === 0
-      ? t('listas.noResources')
-      : plural(arrangement.resources.length, t('listas.resourceOne'), t('listas.resourcesMany'))
+      ? t('setlists.noResources')
+      : plural(arrangement.resources.length, t('setlists.resourceOne'), t('setlists.resourcesMany'))
 
   return (
     <section className="space-y-6" aria-labelledby="arrangement-heading">
@@ -216,8 +216,8 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
         <PageBreadcrumb
           items={[
             { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/library`, label: t('listas.title') },
-            { to: songHref, label: songTitle ?? t('arreglo.songFallback') },
+            { to: `/groups/${group.id}/library`, label: t('setlists.title') },
+            { to: songHref, label: songTitle ?? t('arrangement.songFallback') },
             { label: arrangement.label },
           ]}
         />
@@ -226,17 +226,17 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
             {arrangement.label}
           </h1>
           <p className="text-sm text-muted">
-            {t('arreglo.ofPrefix')}
+            {t('arrangement.ofPrefix')}
             {songTitle ? (
               <Link className="font-medium text-primary-ink no-underline hover:underline" to={songHref}>
                 {songTitle}
               </Link>
             ) : (
-              t('arreglo.thisSong')
+              t('arrangement.thisSong')
             )}
             {arrangement.defaultKey ? ` · ${arrangement.defaultKey}` : ''}
             {arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm} BPM` : ''}
-            {!isOwner ? ` · ${t('arreglo.readonly')}` : ''}
+            {!isOwner ? ` · ${t('arrangement.readonly')}` : ''}
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <ReadinessChip
@@ -246,7 +246,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               {resourceCountLabel}
             </ReadinessChip>
             <ReadinessChip testId="arrangement-chart-chip" tone={hasChart ? 'accent' : 'neutral'}>
-              {hasChart ? t('listas.hasChart') : t('listas.noChart')}
+              {hasChart ? t('setlists.hasChart') : t('setlists.noChart')}
             </ReadinessChip>
           </div>
           <div className="pt-1">
@@ -254,7 +254,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               className={buttonVariants({ variant: 'primary' })}
               to={`/groups/${group.id}/arrangements/${arrangement.id}/practice`}
             >
-              {t('arreglo.practice')}
+              {t('arrangement.practice')}
             </Link>
           </div>
         </div>
@@ -267,31 +267,31 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
         <section className="space-y-4" aria-labelledby="resources-heading">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="resources-heading" className="text-lg font-semibold">
-              {t('arreglo.resourcesTitle')}
+              {t('arrangement.resourcesTitle')}
             </h2>
             {showAddResource && arrangement.resources.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => setCreatingResource(true)}>{t('arreglo.addLink')}</Button>
+                <Button onClick={() => setCreatingResource(true)}>{t('arrangement.addLink')}</Button>
                 <Button variant="secondary" onClick={() => setCreatingFileResource(true)}>
-                  {t('arreglo.uploadFile')}
+                  {t('arrangement.uploadFile')}
                 </Button>
               </div>
             ) : null}
           </div>
           <p className="text-sm text-muted">
-            {t('arreglo.resourcesHint')}
+            {t('arrangement.resourcesHint')}
           </p>
 
           {arrangement.resources.length === 0 && !creatingResource && !creatingFileResource ? (
             <EmptyPanel
-              title={t('arreglo.noMaterialsTitle')}
-              description={t('arreglo.noMaterialsBody')}
+              title={t('arrangement.noMaterialsTitle')}
+              description={t('arrangement.noMaterialsBody')}
               action={
                 showAddResource ? (
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => setCreatingResource(true)}>{t('arreglo.addLink')}</Button>
+                    <Button onClick={() => setCreatingResource(true)}>{t('arrangement.addLink')}</Button>
                     <Button variant="secondary" onClick={() => setCreatingFileResource(true)}>
-                      {t('arreglo.uploadFile')}
+                      {t('arrangement.uploadFile')}
                     </Button>
                   </div>
                 ) : null
@@ -393,38 +393,38 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
             <div className="space-y-5 text-sm">
               <section aria-labelledby="arrangement-tuning-heading" className="space-y-3">
                 <h3 id="arrangement-tuning-heading" className="text-sm font-semibold uppercase tracking-wide text-muted">
-                  {t('listas.tuningTitle')}
+                  {t('setlists.tuningTitle')}
                 </h3>
                 <dl className="space-y-3">
                   <div>
-                    <dt className="text-muted">{t('arreglo.keyLabel')}</dt>
+                    <dt className="text-muted">{t('arrangement.keyLabel')}</dt>
                     <dd className="font-medium">{arrangement.defaultKey ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted">{t('arreglo.tempoLabel')}</dt>
+                    <dt className="text-muted">{t('arrangement.tempoLabel')}</dt>
                     <dd className="font-medium">{arrangement.defaultBpm ?? '—'}</dd>
                   </div>
                 </dl>
               </section>
               <section aria-labelledby="arrangement-music-heading" className="space-y-3">
                 <h3 id="arrangement-music-heading" className="text-sm font-semibold uppercase tracking-wide text-muted">
-                  {t('listas.musicTitle')}
+                  {t('setlists.musicTitle')}
                 </h3>
                 <dl className="space-y-3">
                   <div>
-                    <dt className="text-muted">{t('arreglo.lyricsLabel')}</dt>
+                    <dt className="text-muted">{t('arrangement.lyricsLabel')}</dt>
                     <dd className="whitespace-pre-wrap font-medium">{arrangement.lyrics ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted">{t('arreglo.chordsLabel')}</dt>
+                    <dt className="text-muted">{t('arrangement.chordsLabel')}</dt>
                     <dd className="whitespace-pre-wrap font-medium">{arrangement.chords ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted">{t('arreglo.structureLabel')}</dt>
+                    <dt className="text-muted">{t('arrangement.structureLabel')}</dt>
                     <dd className="whitespace-pre-wrap font-medium">{arrangement.structure ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted">{t('arreglo.notesLabel')}</dt>
+                    <dt className="text-muted">{t('arrangement.notesLabel')}</dt>
                     <dd className="whitespace-pre-wrap font-medium">{arrangement.notes ?? '—'}</dd>
                   </div>
                 </dl>
@@ -435,7 +435,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           {isOwner && !editing ? (
             <div className="flex flex-wrap gap-3 pt-2">
               <Button variant="secondary" onClick={() => setEditing(true)}>
-                {t('arreglo.editArrangement')}
+                {t('arrangement.editArrangement')}
               </Button>
             </div>
           ) : null}
@@ -456,39 +456,39 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
             {t('common.dangerZone')}
           </h2>
           <Button variant="danger" onClick={() => setConfirmDeleteArrangement(true)}>
-            {t('arreglo.deleteArrangement')}
+            {t('arrangement.deleteArrangement')}
           </Button>
         </section>
       ) : null}
 
       <ConfirmDialog
         open={confirmDeleteArrangement}
-        title={t('arreglo.deleteArrTitle')}
-        confirmLabel={t('arreglo.deleteArrangement')}
-        cancelLabel={t('arreglo.cancel')}
-        pendingLabel={t('arreglo.deleting')}
+        title={t('arrangement.deleteArrTitle')}
+        confirmLabel={t('arrangement.deleteArrangement')}
+        cancelLabel={t('arrangement.cancel')}
+        pendingLabel={t('arrangement.deleting')}
         pending={deletingArrangement}
         onCancel={() => setConfirmDeleteArrangement(false)}
         onConfirm={() => void handleDeleteArrangement()}
       >
         <p>
-          {t('arreglo.deleteArrBody')}
+          {t('arrangement.deleteArrBody')}
         </p>
       </ConfirmDialog>
 
       <ConfirmDialog
         open={resourceToDelete != null}
-        title={t('arreglo.deleteResTitle')}
-        confirmLabel={t('arreglo.deleteResConfirm')}
-        cancelLabel={t('arreglo.cancel')}
-        pendingLabel={t('arreglo.deleting')}
+        title={t('arrangement.deleteResTitle')}
+        confirmLabel={t('arrangement.deleteResConfirm')}
+        cancelLabel={t('arrangement.cancel')}
+        pendingLabel={t('arrangement.deleting')}
         pending={deletingResource}
         onCancel={() => setResourceToDelete(null)}
         onConfirm={() => void handleDeleteResource()}
       >
         <p>
-          {t('arreglo.deleteResPrefix')}
-          {resourceToDelete ? ` “${resourceToDelete.label}”` : ''}{t('arreglo.deleteResSuffix')}
+          {t('arrangement.deleteResPrefix')}
+          {resourceToDelete ? ` “${resourceToDelete.label}”` : ''}{t('arrangement.deleteResSuffix')}
         </p>
       </ConfirmDialog>
     </section>
@@ -519,7 +519,7 @@ function ResourceRow({
   return (
     <div className="space-y-2">
       <p className="font-semibold text-ink">{resource.label}</p>
-      {resource.part ? <p className="text-sm text-muted">{t('arreglo.partPrefix')}{resource.part}</p> : null}
+      {resource.part ? <p className="text-sm text-muted">{t('arrangement.partPrefix')}{resource.part}</p> : null}
       {resource.note ? <p className="text-sm text-muted">{resource.note}</p> : null}
       {resource.url ? (
         <p>
@@ -535,20 +535,20 @@ function ResourceRow({
       ) : null}
       {isFile && downloadHref ? (
         <p className="text-sm text-muted">
-          {resource.originalFileName ?? t('arreglo.fileFallback')}
+          {resource.originalFileName ?? t('arrangement.fileFallback')}
           {resource.byteSize != null ? ` · ${formatByteSize(resource.byteSize)}` : ''}
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">
         {downloadHref ? (
           <a className={buttonVariants({ variant: 'primary', size: 'sm' })} href={downloadHref}>
-            {t('arreglo.download')}
+            {t('arrangement.download')}
           </a>
         ) : null}
         {isOwner ? (
           <>
             <Button variant="secondary" size="sm" onClick={onEdit}>
-              {t('arreglo.edit')}
+              {t('arrangement.edit')}
             </Button>
             <Button
               variant="ghost"
@@ -556,7 +556,7 @@ function ResourceRow({
               className="text-error-ink hover:text-error-ink"
               onClick={onDelete}
             >
-              {t('arreglo.delete')}
+              {t('arrangement.delete')}
             </Button>
           </>
         ) : null}
@@ -696,7 +696,7 @@ function ArrangementEditForm({
     if (defaultBpm.trim()) {
       const parsed = Number(defaultBpm)
       if (!Number.isInteger(parsed) || parsed < 1 || parsed > 400) {
-        setError(t('arreglo.tempoInvalid'))
+        setError(t('arrangement.tempoInvalid'))
         setPending(false)
         return
       }
@@ -719,9 +719,9 @@ function ArrangementEditForm({
 
   return (
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
-      <h3 className="font-semibold">{t('arreglo.editArrangement')}</h3>
+      <h3 className="font-semibold">{t('arrangement.editArrangement')}</h3>
       <ProblemAlert message={error} />
-      <Field label={t('arreglo.labelLabel')}>
+      <Field label={t('arrangement.labelLabel')}>
         <input
           className={fieldClass}
           required
@@ -730,7 +730,7 @@ function ArrangementEditForm({
           maxLength={200}
         />
       </Field>
-      <Field label={t('arreglo.keyOptional')} hint={t('arreglo.clearKeyHint')}>
+      <Field label={t('arrangement.keyOptional')} hint={t('arrangement.clearKeyHint')}>
         <input
           className={fieldClass}
           value={defaultKey}
@@ -739,8 +739,8 @@ function ArrangementEditForm({
         />
       </Field>
       <Field
-        label={t('arreglo.bpmLabel')}
-        hint={t('arreglo.keepTempoHint')}
+        label={t('arrangement.bpmLabel')}
+        hint={t('arrangement.keepTempoHint')}
       >
         <input
           className={fieldClass}
@@ -752,12 +752,12 @@ function ArrangementEditForm({
           onChange={(e) => setDefaultBpm(e.target.value)}
         />
       </Field>
-      <Field label={t('arreglo.lyricsOptional')}>
+      <Field label={t('arrangement.lyricsOptional')}>
         <textarea className={fieldClass} rows={3} value={lyrics} onChange={(e) => setLyrics(e.target.value)} />
       </Field>
       <div className="space-y-1.5">
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-ink">{t('arreglo.chordsLabel')}</span>
+          <span className="text-sm font-medium text-ink">{t('arrangement.chordsLabel')}</span>
           <textarea
             className={fieldClass}
             rows={5}
@@ -769,7 +769,7 @@ function ArrangementEditForm({
         </label>
         <label className="block space-y-1.5">
           <span className="text-sm font-medium text-ink">
-            {t('arreglo.importLabel')}
+            {t('arrangement.importLabel')}
           </span>
           <input
             className={fieldClass}
@@ -779,17 +779,17 @@ function ArrangementEditForm({
             data-testid="arrangement-chords-import"
           />
         </label>
-        {importError ? <p className="text-sm text-red-600">{t('arreglo.importError')}</p> : null}
+        {importError ? <p className="text-sm text-red-600">{t('arrangement.importError')}</p> : null}
 
         <div
           className="space-y-3 rounded-xl border border-border-subtle bg-surface-hover p-3"
           data-testid="chordpro-digitizer"
         >
-          <p className="text-sm font-semibold text-ink">{t('arreglo.digitizeTitle')}</p>
+          <p className="text-sm font-semibold text-ink">{t('arrangement.digitizeTitle')}</p>
           <p className="text-xs text-muted">
-            {t('arreglo.digitizeHint')}
+            {t('arrangement.digitizeHint')}
           </p>
-          <Field label={t('arreglo.digitizeLyrics')}>
+          <Field label={t('arrangement.digitizeLyrics')}>
             <textarea
               className={fieldClass}
               rows={3}
@@ -799,7 +799,7 @@ function ArrangementEditForm({
               spellCheck={false}
             />
           </Field>
-          <Field label={t('arreglo.digitizeChords')} hint={t('arreglo.digitizeExample')}>
+          <Field label={t('arrangement.digitizeChords')} hint={t('arrangement.digitizeExample')}>
             <textarea
               className={fieldClass}
               rows={2}
@@ -816,12 +816,12 @@ function ArrangementEditForm({
             onClick={onGenerateDigitizer}
             data-testid="digitizer-generate"
           >
-            {t('arreglo.generateChordPro')}
+            {t('arrangement.generateChordPro')}
           </Button>
           {chordCursors.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2 pt-1" data-testid="digitizer-studio">
               <label className="text-sm text-ink">
-                {t('arreglo.selectedChord')}{' '}
+                {t('arrangement.selectedChord')}{' '}
                 <select
                   className={fieldClass}
                   value={selectedChordIndex}
@@ -843,7 +843,7 @@ function ArrangementEditForm({
                 type="button"
                 variant="secondary"
                 size="sm"
-                aria-label={t('arreglo.nudgeLeft')}
+                aria-label={t('arrangement.nudgeLeft')}
                 onClick={() => onNudgeSelected(-1)}
                 data-testid="digitizer-nudge-left"
               >
@@ -853,7 +853,7 @@ function ArrangementEditForm({
                 type="button"
                 variant="secondary"
                 size="sm"
-                aria-label={t('arreglo.nudgeRight')}
+                aria-label={t('arrangement.nudgeRight')}
                 onClick={() => onNudgeSelected(1)}
                 data-testid="digitizer-nudge-right"
               >
@@ -867,11 +867,11 @@ function ArrangementEditForm({
           className="space-y-3 rounded-xl border border-border-subtle bg-surface-hover p-3"
           data-testid="chordpro-compose"
         >
-          <p className="text-sm font-semibold text-ink">{t('arreglo.composeTitle')}</p>
+          <p className="text-sm font-semibold text-ink">{t('arrangement.composeTitle')}</p>
           <p className="text-xs text-muted">
-            {t('arreglo.composeHint')}
+            {t('arrangement.composeHint')}
           </p>
-          <Field label={t('arreglo.genreLabel')}>
+          <Field label={t('arrangement.genreLabel')}>
             <input
               className={fieldClass}
               value={composeGenre}
@@ -880,7 +880,7 @@ function ArrangementEditForm({
               maxLength={64}
             />
           </Field>
-          <Field label={t('arreglo.keyFieldLabel')}>
+          <Field label={t('arrangement.keyFieldLabel')}>
             <input
               className={fieldClass}
               value={composeKey}
@@ -889,7 +889,7 @@ function ArrangementEditForm({
               maxLength={16}
             />
           </Field>
-          <Field label={t('arreglo.ideaLabel')}>
+          <Field label={t('arrangement.ideaLabel')}>
             <input
               className={fieldClass}
               value={composeIdea}
@@ -906,7 +906,7 @@ function ArrangementEditForm({
               onClick={onComposeGenerate}
               data-testid="compose-generate"
             >
-              {t('arreglo.generateSong')}
+              {t('arrangement.generateSong')}
             </Button>
             <Button
               type="button"
@@ -916,7 +916,7 @@ function ArrangementEditForm({
               data-testid="compose-vary-progression"
               disabled={!chords.includes('{start_of_')}
             >
-              {t('arreglo.varyProgression')}
+              {t('arrangement.varyProgression')}
             </Button>
             <Button
               type="button"
@@ -926,7 +926,7 @@ function ArrangementEditForm({
               data-testid="compose-rewrite-verse"
               disabled={!chords.includes('{start_of_verse}')}
             >
-              {t('arreglo.rewriteVerse')}
+              {t('arrangement.rewriteVerse')}
             </Button>
           </div>
         </div>
@@ -935,7 +935,7 @@ function ArrangementEditForm({
 
         {chords.trim() ? (
           <div className="space-y-2 pt-1">
-            <p className="text-sm font-medium text-ink">{t('arreglo.previewLabel')}</p>
+            <p className="text-sm font-medium text-ink">{t('arrangement.previewLabel')}</p>
             {looksLikeChordPro(chords) ? (
               <ChordProView
                 text={chords}
@@ -953,7 +953,7 @@ function ArrangementEditForm({
           </div>
         ) : null}
       </div>
-      <Field label={t('arreglo.structureOptional')}>
+      <Field label={t('arrangement.structureOptional')}>
         <textarea
           className={fieldClass}
           rows={2}
@@ -961,15 +961,15 @@ function ArrangementEditForm({
           onChange={(e) => setStructure(e.target.value)}
         />
       </Field>
-      <Field label={t('arreglo.notesOptional')}>
+      <Field label={t('arrangement.notesOptional')}>
         <textarea className={fieldClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? t('arreglo.saving') : t('arreglo.save')}
+          {pending ? t('arrangement.saving') : t('arrangement.save')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          {t('arreglo.cancel')}
+          {t('arrangement.cancel')}
         </Button>
       </FormActions>
     </form>
@@ -1018,9 +1018,9 @@ function ResourceCreateForm({
 
   return (
     <form className="space-y-4 border-t border-border-subtle pt-4" onSubmit={onSubmit} noValidate>
-      <h3 className="font-semibold">{t('arreglo.addLink')}</h3>
+      <h3 className="font-semibold">{t('arrangement.addLink')}</h3>
       <ProblemAlert message={error} />
-      <Field label={t('arreglo.purposeLabel')}>
+      <Field label={t('arrangement.purposeLabel')}>
         <select
           className={fieldClass}
           required
@@ -1034,7 +1034,7 @@ function ResourceCreateForm({
           ))}
         </select>
       </Field>
-      <Field label={t('arreglo.labelLabel')}>
+      <Field label={t('arrangement.labelLabel')}>
         <input
           className={fieldClass}
           required
@@ -1043,7 +1043,7 @@ function ResourceCreateForm({
           maxLength={200}
         />
       </Field>
-      <Field label={t('arreglo.urlLabel')}>
+      <Field label={t('arrangement.urlLabel')}>
         <input
           className={fieldClass}
           type="url"
@@ -1053,18 +1053,18 @@ function ResourceCreateForm({
           placeholder="https://"
         />
       </Field>
-      <Field label={t('arreglo.partOptional')}>
+      <Field label={t('arrangement.partOptional')}>
         <input className={fieldClass} value={part} onChange={(e) => setPart(e.target.value)} maxLength={100} />
       </Field>
-      <Field label={t('arreglo.noteOptional')}>
+      <Field label={t('arrangement.noteOptional')}>
         <textarea className={fieldClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? t('arreglo.creating') : t('arreglo.createLink')}
+          {pending ? t('arrangement.creating') : t('arrangement.createLink')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          {t('arreglo.cancel')}
+          {t('arrangement.cancel')}
         </Button>
       </FormActions>
     </form>
@@ -1094,7 +1094,7 @@ function FileResourceCreateForm({
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     if (!file) {
-      setError(t('arreglo.selectFile'))
+      setError(t('arrangement.selectFile'))
       return
     }
     const clientError = validateFileForUpload(file, t)
@@ -1127,7 +1127,7 @@ function FileResourceCreateForm({
       noValidate
       aria-busy={pending}
     >
-      <h3 className="font-semibold">{t('arreglo.uploadFile')}</h3>
+      <h3 className="font-semibold">{t('arrangement.uploadFile')}</h3>
       <ProblemAlert message={error} />
       {pending ? (
         <p
@@ -1136,10 +1136,10 @@ function FileResourceCreateForm({
           className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-ink"
           data-testid="file-upload-pending"
         >
-          {t('arreglo.uploadPending')}
+          {t('arrangement.uploadPending')}
         </p>
       ) : null}
-      <Field label={t('arreglo.purposeLabel')}>
+      <Field label={t('arrangement.purposeLabel')}>
         <select
           className={fieldClass}
           required
@@ -1154,7 +1154,7 @@ function FileResourceCreateForm({
           ))}
         </select>
       </Field>
-      <Field label={t('arreglo.labelLabel')}>
+      <Field label={t('arrangement.labelLabel')}>
         <input
           className={fieldClass}
           required
@@ -1165,8 +1165,8 @@ function FileResourceCreateForm({
         />
       </Field>
       <Field
-        label={t('arreglo.fileLabel')}
-        hint={t('arreglo.fileHint')}
+        label={t('arrangement.fileLabel')}
+        hint={t('arrangement.fileHint')}
       >
         <input
           className={fieldClass}
@@ -1180,7 +1180,7 @@ function FileResourceCreateForm({
           }}
         />
       </Field>
-      <Field label={t('arreglo.partOptional')}>
+      <Field label={t('arrangement.partOptional')}>
         <input
           className={fieldClass}
           value={part}
@@ -1189,7 +1189,7 @@ function FileResourceCreateForm({
           maxLength={100}
         />
       </Field>
-      <Field label={t('arreglo.noteOptional')}>
+      <Field label={t('arrangement.noteOptional')}>
         <textarea
           className={fieldClass}
           rows={2}
@@ -1200,10 +1200,10 @@ function FileResourceCreateForm({
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? t('arreglo.uploading') : t('arreglo.uploadFile')}
+          {pending ? t('arrangement.uploading') : t('arrangement.uploadFile')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          {t('arreglo.cancel')}
+          {t('arrangement.cancel')}
         </Button>
       </FormActions>
     </form>
@@ -1256,10 +1256,10 @@ function ResourceEditForm({
 
   return (
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
-      <h4 className="font-semibold">{t('arreglo.editResourceTitle')}</h4>
+      <h4 className="font-semibold">{t('arrangement.editResourceTitle')}</h4>
       {resource.url ? (
         <p className="text-sm text-muted">
-          {t('arreglo.urlLockedPrefix')}{' '}
+          {t('arrangement.urlLockedPrefix')}{' '}
           <a
             className="break-all font-medium text-primary-ink no-underline hover:underline"
             href={resource.url}
@@ -1272,11 +1272,11 @@ function ResourceEditForm({
       ) : null}
       {resource.kind === 'file' && resource.originalFileName ? (
         <p className="text-sm text-muted">
-          {t('arreglo.fileLockedPrefix')} {resource.originalFileName}
+          {t('arrangement.fileLockedPrefix')} {resource.originalFileName}
         </p>
       ) : null}
       <ProblemAlert message={error} />
-      <Field label={t('arreglo.purposeLabel')}>
+      <Field label={t('arrangement.purposeLabel')}>
         <select
           className={fieldClass}
           required
@@ -1290,7 +1290,7 @@ function ResourceEditForm({
           ))}
         </select>
       </Field>
-      <Field label={t('arreglo.labelLabel')}>
+      <Field label={t('arrangement.labelLabel')}>
         <input
           className={fieldClass}
           required
@@ -1299,18 +1299,18 @@ function ResourceEditForm({
           maxLength={200}
         />
       </Field>
-      <Field label={t('arreglo.partOptional')} hint={t('arreglo.clearPartHint')}>
+      <Field label={t('arrangement.partOptional')} hint={t('arrangement.clearPartHint')}>
         <input className={fieldClass} value={part} onChange={(e) => setPart(e.target.value)} maxLength={100} />
       </Field>
-      <Field label={t('arreglo.noteOptional')} hint={t('arreglo.clearNoteHint')}>
+      <Field label={t('arrangement.noteOptional')} hint={t('arrangement.clearNoteHint')}>
         <textarea className={fieldClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>
-          {pending ? t('arreglo.saving') : t('arreglo.saveShort')}
+          {pending ? t('arrangement.saving') : t('arrangement.saveShort')}
         </Button>
         <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          {t('arreglo.cancel')}
+          {t('arrangement.cancel')}
         </Button>
       </FormActions>
     </form>

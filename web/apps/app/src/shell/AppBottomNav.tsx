@@ -37,7 +37,7 @@ export function AppBottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
             }
           >
             <CalendarDays className="h-5 w-5" aria-hidden="true" />
-            {t("calendario.title")}
+            {t("calendar.title")}
           </NavLink>
         </li>
         <li className="flex">

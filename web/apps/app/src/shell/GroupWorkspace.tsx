@@ -380,12 +380,12 @@ export function GroupWorkspace({
             <NavLink
               to={`/groups/${group.id}/ajustes`}
               data-testid="rail-settings"
-              aria-label={collapsed ? t('grupo.ajustes') : undefined}
-              title={collapsed ? t('grupo.ajustes') : undefined}
+              aria-label={collapsed ? t('group.settings') : undefined}
+              title={collapsed ? t('group.settings') : undefined}
               className={({ isActive }) => railLinkClass(isActive, collapsed)}
             >
               <Settings2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className={cn(collapsed && 'sr-only')}>{t('grupo.ajustes')}</span>
+              <span className={cn(collapsed && 'sr-only')}>{t('group.settings')}</span>
             </NavLink>
           ) : null}
         </div>
@@ -553,7 +553,7 @@ export function GroupWorkspace({
                     className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
                   >
                     <Settings2 className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-                    {t('grupo.ajustes')}
+                    {t('group.settings')}
                   </NavLink>
                 </div>
               </details>

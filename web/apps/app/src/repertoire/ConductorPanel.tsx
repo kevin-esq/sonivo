@@ -10,13 +10,13 @@ import type {
 function connectionLabelKey(state: ConductorConnectionState): I18nKey | null {
   switch (state) {
     case 'connecting':
-      return 'practica.live.connecting'
+      return 'practice.live.connecting'
     case 'reconnecting':
-      return 'practica.live.reconnecting'
+      return 'practice.live.reconnecting'
     case 'disconnected':
-      return 'practica.live.disconnected'
+      return 'practice.live.disconnected'
     case 'failed':
-      return 'practica.live.offline'
+      return 'practice.live.offline'
     case 'connected':
       return null
   }
@@ -53,14 +53,14 @@ export function ConductorPanel({
           id="conductor-heading"
           className="text-lg font-semibold tracking-tight text-ink"
         >
-          {t('practica.live.title')}
+          {t('practice.live.title')}
         </h2>
         {isLive ? (
           <span
             className="rounded-full bg-success/20 px-2.5 py-1 text-xs font-semibold text-ink"
             data-testid="conductor-live-badge"
           >
-            {t('practica.live.badge')}
+            {t('practice.live.badge')}
           </span>
         ) : null}
       </div>
@@ -73,8 +73,8 @@ export function ConductorPanel({
         {stateLabel
           ? t(stateLabel)
           : isOwner
-            ? t('practica.live.broadcasting')
-            : t('practica.live.connected')}
+            ? t('practice.live.broadcasting')
+            : t('practice.live.connected')}
       </p>
 
       {error ? (
@@ -93,17 +93,17 @@ export function ConductorPanel({
             aria-pressed={followEnabled}
             onClick={onToggleFollow}
           >
-            {t('practica.live.follow')}
+            {t('practice.live.follow')}
           </Button>
         </div>
       ) : null}
 
       <div className="space-y-1.5">
         <h3 className="text-sm font-semibold text-ink">
-          {t('practica.live.inRoom', { count: presence.length })}
+          {t('practice.live.inRoom', { count: presence.length })}
         </h3>
         {presence.length === 0 ? (
-          <p className="text-sm text-muted">{t('practica.live.empty')}</p>
+          <p className="text-sm text-muted">{t('practice.live.empty')}</p>
         ) : (
           <ul className="space-y-1" data-testid="conductor-presence">
             {presence.map((entry) => (
@@ -113,7 +113,7 @@ export function ConductorPanel({
                 data-testid={`conductor-presence-${entry.userId}`}
               >
                 {entry.displayName}
-                {entry.role === 'owner' ? ` · ${t('practica.live.director')}` : null}
+                {entry.role === 'owner' ? ` · ${t('practice.live.director')}` : null}
               </li>
             ))}
           </ul>

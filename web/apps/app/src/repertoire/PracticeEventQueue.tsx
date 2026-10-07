@@ -50,13 +50,13 @@ export function PracticeEventQueue({
     >
       <div className="space-y-1">
         <p className="text-sm font-medium uppercase tracking-wide text-muted">
-          {t('cola.title')}
+          {t('queue.title')}
         </p>
         <h2 id="practice-queue-heading" className="text-lg font-semibold tracking-tight text-ink">
           {eventTitle}
         </h2>
         <p className="text-sm text-muted" aria-live="polite">
-          {t('cola.songPrefix')}{currentIndex + 1}{t('cola.songMiddle')}{items.length}
+          {t('queue.songPrefix')}{currentIndex + 1}{t('queue.songMiddle')}{items.length}
         </p>
       </div>
 
@@ -72,43 +72,43 @@ export function PracticeEventQueue({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3" role="group" aria-label={t('cola.navLabel')}>
+      <div className="flex flex-wrap gap-3" role="group" aria-label={t('queue.navLabel')}>
         {prev ? (
           <Link
             className={navLinkClass}
             to={practiceQueueHref(groupId, eventId, prev)}
-            aria-label={`${t('cola.prevPrefix')}${prev.displaySongTitle}`}
+            aria-label={`${t('queue.prevPrefix')}${prev.displaySongTitle}`}
             data-testid="practice-queue-prev"
           >
-            {t('cola.prev')}
+            {t('queue.prev')}
           </Link>
         ) : (
           <span
             className={navDisabledClass}
             aria-disabled="true"
-            aria-label={t('cola.prevDisabled')}
+            aria-label={t('queue.prevDisabled')}
             data-testid="practice-queue-prev"
           >
-            {t('cola.prev')}
+            {t('queue.prev')}
           </span>
         )}
         {next ? (
           <Link
             className={navLinkClass}
             to={practiceQueueHref(groupId, eventId, next)}
-            aria-label={`${t('cola.nextPrefix')}${next.displaySongTitle}`}
+            aria-label={`${t('queue.nextPrefix')}${next.displaySongTitle}`}
             data-testid="practice-queue-next"
           >
-            {t('cola.next')}
+            {t('queue.next')}
           </Link>
         ) : (
           <span
             className={navDisabledClass}
             aria-disabled="true"
-            aria-label={t('cola.nextDisabled')}
+            aria-label={t('queue.nextDisabled')}
             data-testid="practice-queue-next"
           >
-            {t('cola.next')}
+            {t('queue.next')}
           </span>
         )}
       </div>
@@ -118,7 +118,7 @@ export function PracticeEventQueue({
           className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           to={`/groups/${groupId}/events/${eventId}`}
         >
-          {t('cola.backToEvent')}
+          {t('queue.backToEvent')}
         </Link>
       </p>
     </section>

@@ -65,8 +65,8 @@ function toDraft(
       key: item.id,
       arrangementId: item.arrangementId,
       sortOrder: index + 1,
-      songTitle: item.songTitle ?? t('lista.unknownSong'),
-      arrangementLabel: item.arrangementLabel ?? t('lista.unknownArrangement'),
+      songTitle: item.songTitle ?? t('setlist.unknownSong'),
+      arrangementLabel: item.arrangementLabel ?? t('setlist.unknownArrangement'),
     }))
 }
 
@@ -129,7 +129,7 @@ function SortableSetlistItem({
           <button
             type="button"
             className="grid h-9 w-9 cursor-grab items-center justify-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:cursor-grabbing"
-            aria-label={`${t('lista.dragPrefix')}${item.sortOrder}`}
+            aria-label={`${t('setlist.dragPrefix')}${item.sortOrder}`}
             {...attributes}
             {...listeners}
           >
@@ -139,30 +139,30 @@ function SortableSetlistItem({
             variant="secondary"
             size="sm"
             disabled={index === 0}
-            aria-label={`${t('lista.moveUpPrefix')}${item.sortOrder}`}
+            aria-label={`${t('setlist.moveUpPrefix')}${item.sortOrder}`}
             onClick={onMoveUp}
           >
             <ChevronUp className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">{t('lista.moveUp')}</span>
+            <span className="sr-only">{t('setlist.moveUp')}</span>
           </Button>
           <Button
             variant="secondary"
             size="sm"
             disabled={isLast}
-            aria-label={`${t('lista.moveDownPrefix')}${item.sortOrder}`}
+            aria-label={`${t('setlist.moveDownPrefix')}${item.sortOrder}`}
             onClick={onMoveDown}
           >
             <ChevronDown className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">{t('lista.moveDown')}</span>
+            <span className="sr-only">{t('setlist.moveDown')}</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            aria-label={`${t('lista.removePrefix')}${item.sortOrder}`}
+            aria-label={`${t('setlist.removePrefix')}${item.sortOrder}`}
             onClick={onRemove}
           >
             <Trash2 className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">{t('lista.remove')}</span>
+            <span className="sr-only">{t('setlist.remove')}</span>
           </Button>
         </div>
       ) : null}
@@ -316,7 +316,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (group === undefined) {
-    return <p aria-live="polite">{t('lista.loading')}</p>
+    return <p aria-live="polite">{t('setlist.loading')}</p>
   }
 
   if (group === null) {
@@ -331,18 +331,18 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   }
 
   if (setlist === undefined) {
-    return <p aria-live="polite">{t('lista.loading')}</p>
+    return <p aria-live="polite">{t('setlist.loading')}</p>
   }
 
   if (setlist === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? t('lista.notFound')} />
+        <ProblemAlert message={error ?? t('setlist.notFound')} />
         <Link
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/setlists`}
         >
-          {t('lista.setlists')}
+          {t('setlist.setlists')}
         </Link>
       </div>
     )
@@ -356,7 +356,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
         <PageBreadcrumb
           items={[
             { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/setlists`, label: t('agenda.setlistsTitle') },
+            { to: `/groups/${group.id}/setlists`, label: t('schedule.setlistsTitle') },
             { label: setlist.name },
           ]}
         />
@@ -374,7 +374,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
               </h1>
               <p className="text-sm text-muted">
                 {plural(draft.length, t('common.songOne'), t('common.songMany'))}
-                {!isOwner ? <span> · {t('lista.readonly')}</span> : null}
+                {!isOwner ? <span> · {t('setlist.readonly')}</span> : null}
               </p>
             </div>
           </div>
@@ -384,11 +384,11 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
               testId="setlist-status-chip"
             >
               {draft.length === 0
-                ? t('agenda.setlistVacant')
+                ? t('schedule.setlistVacant')
                 : plural(
                     draft.length,
-                    t('agenda.setlistArrangementsOne'),
-                    t('agenda.setlistArrangementsMany'),
+                    t('schedule.setlistArrangementsOne'),
+                    t('schedule.setlistArrangementsMany'),
                   )}
             </ReadinessChip>
             {isOwner ? (
@@ -397,7 +397,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                 disabled={saving}
                 onClick={() => void saveItems()}
               >
-                {saving ? t('lista.saving') : t('lista.saveOrder')}
+                {saving ? t('setlist.saving') : t('setlist.saveOrder')}
               </Button>
             ) : null}
           </div>
@@ -411,25 +411,25 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
         <section className="space-y-4" aria-labelledby="composition-heading">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="composition-heading" className="text-lg font-semibold">
-              {t('lista.composition')}
+              {t('setlist.composition')}
             </h2>
             {isOwner && draft.length > 0 && !showAdd ? (
               <Button variant="ghost" onClick={() => setShowAdd(true)}>
-                {t('lista.addToList')}
+                {t('setlist.addToList')}
               </Button>
             ) : null}
           </div>
           <p className="text-sm text-muted">
-            {t('lista.compositionHint')}
+            {t('setlist.compositionHint')}
           </p>
 
           {draft.length === 0 ? (
             <EmptyPanel
-              title={t('agenda.emptySetlistTitle')}
+              title={t('schedule.emptySetlistTitle')}
               description={
                 isOwner
-                  ? t('lista.emptyOwner')
-                  : t('lista.emptyMember')
+                  ? t('setlist.emptyOwner')
+                  : t('setlist.emptyMember')
               }
             />
           ) : (
@@ -438,9 +438,9 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                 aria-hidden="true"
                 className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[2.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
               >
-                <span>{t('lista.colNumber')}</span>
-                <span>{t('lista.colArrangement')}</span>
-                <span>{t('lista.colActions')}</span>
+                <span>{t('setlist.colNumber')}</span>
+                <span>{t('setlist.colArrangement')}</span>
+                <span>{t('setlist.colActions')}</span>
               </div>
               <DndContext
                 sensors={sensors}
@@ -473,14 +473,14 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
           {addPanelOpen ? (
             <div className="max-w-md space-y-3 rounded-2xl border border-border-subtle bg-surface-hover p-4">
               {options === null ? (
-                <p aria-live="polite">{t('lista.loadingArrangements')}</p>
+                <p aria-live="polite">{t('setlist.loadingArrangements')}</p>
               ) : options.length === 0 ? (
                 <p className="text-sm text-muted">
-                  {t('lista.noOptions')}
+                  {t('setlist.noOptions')}
                 </p>
               ) : (
                 <>
-                  <Field label={t('lista.arrangementLabel')}>
+                  <Field label={t('setlist.arrangementLabel')}>
                     <select
                       className={fieldClass}
                       value={selectedArrangementId}
@@ -494,10 +494,10 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                     </select>
                   </Field>
                   <FormActions>
-                    <Button onClick={addSelectedArrangement}>{t('lista.addToList')}</Button>
+                    <Button onClick={addSelectedArrangement}>{t('setlist.addToList')}</Button>
                     {draft.length > 0 ? (
                       <Button variant="secondary" onClick={() => setShowAdd(false)}>
-                        {t('lista.cancel')}
+                        {t('setlist.cancel')}
                       </Button>
                     ) : null}
                   </FormActions>
@@ -509,7 +509,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
 
         <aside className="space-y-4 rounded-2xl bg-surface-hover p-5">
           <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">
-            {t('lista.detailsTitle')}
+            {t('setlist.detailsTitle')}
           </h2>
           {renaming && isOwner ? (
             <RenameSetlistForm
@@ -534,7 +534,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
           ) : (
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-muted">{t('lista.nameLabel')}</dt>
+                <dt className="text-muted">{t('setlist.nameLabel')}</dt>
                 <dd className="font-medium text-ink">{setlist.name}</dd>
               </div>
             </dl>
@@ -542,13 +542,13 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
 
           {!renaming ? (
             <p className="text-xs text-muted">
-              {t('lista.readyHint')}
+              {t('setlist.readyHint')}
             </p>
           ) : null}
 
           {isOwner && !renaming ? (
             <Button variant="secondary" onClick={() => setRenaming(true)}>
-              {t('lista.rename')}
+              {t('setlist.rename')}
             </Button>
           ) : null}
         </aside>
@@ -595,9 +595,9 @@ function RenameSetlistForm({
 
   return (
     <form className="space-y-3" onSubmit={onSubmit} noValidate>
-      <p className="text-xs text-muted">{t('lista.renameHint')}</p>
+      <p className="text-xs text-muted">{t('setlist.renameHint')}</p>
       <ProblemAlert message={error} />
-      <Field label={t('lista.nameLabel')}>
+      <Field label={t('setlist.nameLabel')}>
         <input
           className={fieldClass}
           required
@@ -608,10 +608,10 @@ function RenameSetlistForm({
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending} size="sm">
-          {pending ? t('lista.saving') : t('lista.saveName')}
+          {pending ? t('setlist.saving') : t('setlist.saveName')}
         </Button>
         <Button variant="secondary" size="sm" disabled={pending} onClick={onCancel}>
-          {t('lista.cancel')}
+          {t('setlist.cancel')}
         </Button>
       </FormActions>
     </form>

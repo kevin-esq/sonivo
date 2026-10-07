@@ -101,17 +101,17 @@ export function CreateTaskDialog({
     <GroupDialog
       open
       onClose={onClose}
-      title={editing ? t('tareas.edit') : t('tareas.new')}
+      title={editing ? t('tasks.edit') : t('tasks.new')}
       pending={pending}
       testId="task-form-dialog"
       onSubmit={() => void submit()}
       footer={
         <>
           <GroupButton variant="secondary" onClick={onClose} disabled={pending}>
-            {t('tareas.cancel')}
+            {t('tasks.cancel')}
           </GroupButton>
           <GroupButton type="submit" disabled={pending || !title.trim()}>
-            {pending ? t('tareas.saving') : editing ? t('tareas.save') : t('tareas.create')}
+            {pending ? t('tasks.saving') : editing ? t('tasks.save') : t('tasks.create')}
           </GroupButton>
         </>
       }
@@ -122,7 +122,7 @@ export function CreateTaskDialog({
         </p>
       ) : null}
       <GroupInput
-        label={t('tareas.fieldTitle')}
+        label={t('tasks.fieldTitle')}
         value={title}
         maxLength={200}
         disabled={pending}
@@ -130,7 +130,7 @@ export function CreateTaskDialog({
         data-autofocus
       />
       <GroupTextArea
-        label={t('tareas.fieldNotes')}
+        label={t('tasks.fieldNotes')}
         rows={3}
         value={notes}
         maxLength={2000}
@@ -139,14 +139,14 @@ export function CreateTaskDialog({
       />
       <div className="grid gap-3 sm:grid-cols-2">
         <GroupInput
-          label={t('tareas.fieldDue')}
+          label={t('tasks.fieldDue')}
           type="date"
           value={dueAt}
           disabled={pending}
           onChange={(event) => setDueAt(event.target.value)}
         />
         <GroupSelect
-          label={t('tareas.fieldAssignee')}
+          label={t('tasks.fieldAssignee')}
           value={assigneeUserId}
           options={assigneeOptions}
           disabled={pending}

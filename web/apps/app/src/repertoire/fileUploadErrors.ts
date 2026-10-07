@@ -29,17 +29,17 @@ const ALLOWED_EXTENSIONS = new Set([
   '.txt',
 ])
 
-const TYPE_HINT_KEY: I18nKey = 'arreglo.fileTypeNotAllowed'
+const TYPE_HINT_KEY: I18nKey = 'arrangement.fileTypeNotAllowed'
 
 export function validateFileForUpload(
   file: File,
   t: (key: I18nKey) => string,
 ): string | null {
   if (file.size <= 0) {
-    return t('arreglo.fileEmpty')
+    return t('arrangement.fileEmpty')
   }
   if (file.size > MAX_FILE_BYTES) {
-    return t('arreglo.fileTooLarge')
+    return t('arrangement.fileTooLarge')
   }
   const mime = (file.type || '').toLowerCase().split(';')[0]?.trim() ?? ''
   const extMatch = /\.[^.]+$/.exec(file.name.toLowerCase())
@@ -68,17 +68,17 @@ export function fileUploadErrorMessage(
     lower.includes('file must be') ||
     (lower.includes('5') && lower.includes('mib'))
   ) {
-    return t('arreglo.fileTooLarge')
+    return t('arrangement.fileTooLarge')
   }
   if (
     lower.includes('file is required') ||
     lower.includes('must not be empty') ||
     lower.includes('file must not be empty')
   ) {
-    return t('arreglo.fileInvalid')
+    return t('arrangement.fileInvalid')
   }
   if (raw === 'Unexpected error') {
-    return t('arreglo.uploadFailed')
+    return t('arrangement.uploadFailed')
   }
   return raw
 }

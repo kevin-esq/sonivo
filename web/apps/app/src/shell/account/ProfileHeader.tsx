@@ -39,7 +39,7 @@ export function ProfileHeader({
         </span>
       </div>
       <Button variant="secondary" onClick={onEdit} data-testid="profile-edit">
-        {t("perfil.edit")}
+        {t("profile.edit")}
       </Button>
     </section>
   );

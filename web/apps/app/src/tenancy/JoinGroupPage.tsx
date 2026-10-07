@@ -19,7 +19,7 @@ export function JoinGroupPage() {
     event.preventDefault();
     const token = parseInviteToken(value);
     if (!token) {
-      setError(t("grupos.joinInvalid"));
+      setError(t("groups.joinInvalid"));
       return;
     }
     navigate(`/join/${token}`);
@@ -52,7 +52,7 @@ export function JoinGroupPage() {
             htmlFor={id}
             className="block text-sm font-medium text-ink"
           >
-            {t("grupos.joinLabel")}
+            {t("groups.joinLabel")}
           </label>
           <input
             id={id}
@@ -61,7 +61,7 @@ export function JoinGroupPage() {
             autoComplete="off"
             autoCapitalize="none"
             spellCheck={false}
-            placeholder={t("grupos.joinDialogHint")}
+            placeholder={t("groups.joinDialogHint")}
             onChange={(event) => {
               setValue(event.target.value);
               if (error) setError(null);
@@ -85,7 +85,7 @@ export function JoinGroupPage() {
             {t("placeholder.back")}
           </Link>
           <Button type="submit" disabled={!value.trim()}>
-            {t("grupos.joinSubmit")}
+            {t("groups.joinSubmit")}
           </Button>
         </div>
       </form>

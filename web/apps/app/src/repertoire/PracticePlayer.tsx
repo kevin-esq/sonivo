@@ -139,14 +139,14 @@ export function PracticePlayer({
     >
       <div className="space-y-1">
         <h2 id="practice-audio-heading" className="text-lg font-semibold tracking-tight text-ink">
-          {t('practica.audio.title')}
+          {t('practice.audio.title')}
         </h2>
-        <p className="text-sm text-muted">{t('practica.audio.subtitle')}</p>
+        <p className="text-sm text-muted">{t('practice.audio.subtitle')}</p>
       </div>
 
       <div className="space-y-1.5">
         <label htmlFor={trackId} className="block text-sm font-medium text-ink">
-          {t('practica.audio.trackLabel')}
+          {t('practice.audio.trackLabel')}
         </label>
         <select
           id={trackId}
@@ -178,7 +178,7 @@ export function PracticePlayer({
         <p
           className="tabular-nums text-sm font-medium text-ink"
           aria-live="off"
-          aria-label={`${t('practica.audio.timeLabel')} ${formatTime(progress)} ${t('practica.audio.ofWord')} ${formatTime(duration)}`}
+          aria-label={`${t('practice.audio.timeLabel')} ${formatTime(progress)} ${t('practice.audio.ofWord')} ${formatTime(duration)}`}
         >
           <span data-testid="practice-current-time">{formatTime(progress)}</span>
           {' / '}
@@ -188,7 +188,7 @@ export function PracticePlayer({
 
       <div className="max-w-xl space-y-1.5">
         <label htmlFor={seekId} className="block text-sm font-medium text-ink">
-          {t('practica.audio.position')}
+          {t('practice.audio.position')}
         </label>
         <input
           id={seekId}
@@ -201,14 +201,14 @@ export function PracticePlayer({
           onInput={(e) => onSeek(Number((e.target as HTMLInputElement).value))}
           onChange={(e) => onSeek(Number(e.target.value))}
           className="h-11 w-full accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-valuetext={`${formatTime(progress)} ${t('practica.audio.ofWord')} ${formatTime(duration)}`}
+          aria-valuetext={`${formatTime(progress)} ${t('practice.audio.ofWord')} ${formatTime(duration)}`}
           data-testid="practice-seek"
         />
       </div>
 
       <div className="max-w-xs space-y-1.5">
         <label htmlFor={volumeId} className="block text-sm font-medium text-ink">
-          {t('practica.audio.volume', { percent: volumePct })}
+          {t('practice.audio.volume', { percent: volumePct })}
         </label>
         <input
           id={volumeId}
@@ -219,7 +219,7 @@ export function PracticePlayer({
           value={volume}
           onChange={(e) => setVolume(Number(e.target.value))}
           className="h-11 w-full accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-valuetext={t('practica.audio.volumeValue', { percent: volumePct })}
+          aria-valuetext={t('practice.audio.volumeValue', { percent: volumePct })}
           data-testid="practice-volume"
         />
       </div>

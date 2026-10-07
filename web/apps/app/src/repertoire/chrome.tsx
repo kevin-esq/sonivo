@@ -186,7 +186,7 @@ export function AddSongButton({ onClick }: { onClick: () => void }) {
   const { t } = useT()
   return (
     <Button onClick={onClick}>
-      {t('canciones.addSong')}
+      {t('songs.addSong')}
     </Button>
   )
 }
