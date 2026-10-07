@@ -27,6 +27,7 @@ import { RailNowPlaying } from './RailNowPlaying'
 import { GroupSwitcher } from './GroupSwitcher'
 import { useRailPresence } from './railPresence'
 import { BrandPreviewContext, type BrandTokenMap } from './brandPreview'
+import { useGroupLive } from '../groups/useGroupLive'
 
 const SIDEBAR_KEY = 'sonivo:sidebar'
 
@@ -71,6 +72,9 @@ export function GroupWorkspace({
   const { t } = useT()
   const { setRailPresent } = useRailPresence()
   const { theme, applyDefault } = useTheme()
+
+  // Cross-user real time for the current group (all group pages).
+  useGroupLive(group?.id)
 
   // Phase 4.3: per-group branding behind Features:GroupBranding.
   useEffect(() => {
