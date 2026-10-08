@@ -32,6 +32,7 @@ import { rememberLastGroup } from '../tenancy/groupSlug'
 import { RailNowPlaying } from './RailNowPlaying'
 import { useRailPresence } from './railPresence'
 import { BrandPreviewContext, type BrandTokenMap } from './brandPreview'
+import { useGroupLive } from '../groups/useGroupLive'
 import { GroupTopBar } from './GroupTopBar'
 import { GroupContextRail } from './GroupContextRail'
 
@@ -99,6 +100,9 @@ export function GroupWorkspace({
   const { t } = useT()
   const { setRailPresent } = useRailPresence()
   const { theme } = useTheme()
+
+  // Cross-user real time for the current group (all group pages).
+  useGroupLive(group?.id)
 
   // Phase 4.3: per-group branding behind Features:GroupBranding.
   useEffect(() => {

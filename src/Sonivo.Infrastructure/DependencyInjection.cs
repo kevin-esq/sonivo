@@ -4,14 +4,17 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Sonivo.Application.Abstractions;
+using Sonivo.Application.Realtime;
 using Sonivo.Domain.Billing.Payments;
 using Sonivo.Infrastructure.Blobs;
 using Sonivo.Infrastructure.Identity;
 using Sonivo.Infrastructure.Notifications;
 using Sonivo.Infrastructure.Payments;
 using Sonivo.Infrastructure.Persistence;
+using Sonivo.Infrastructure.Realtime;
 using Sonivo.Infrastructure.Whisper;
 
 namespace Sonivo.Infrastructure;
@@ -27,8 +30,13 @@ public static class DependencyInjection
 
         var useInMemory = configuration.GetValue("UseInMemoryDatabase", false);
 
-        services.AddDbContext<SonivoDbContext>(options =>
+        services.AddScoped<GroupChangeInterceptor>();
+        // Default no-op real-time transport; the API replaces it with SignalR.
+        services.TryAddScoped<IGroupNotifier, NoopGroupNotifier>();
+        services.AddDbContext<SonivoDbContext>((sp, options) =>
         {
+            // Cross-user real time: one interceptor broadcasts group data changes.
+            options.AddInterceptors(sp.GetRequiredService<GroupChangeInterceptor>());
             if (useInMemory)
             {
                 options.UseInMemoryDatabase(

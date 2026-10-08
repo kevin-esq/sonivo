@@ -27,6 +27,7 @@ using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tasks;
 using Sonivo.Application.Tenancy;
 using Sonivo.Api.Realtime;
+using Sonivo.Application.Realtime;
 using Sonivo.Api.Session;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Scheduling;
@@ -272,6 +273,8 @@ builder.Services.AddHttpContextAccessor();
 // The global antiforgery middleware above requires X-CSRF-TOKEN on the
 // /negotiate POST (Q9-Q3); GET/WebSocket hub traffic needs only the cookie.
 builder.Services.AddSignalR();
+// Cross-user real time (ADR-0074): broadcast group data changes to members.
+builder.Services.AddSingleton<IGroupNotifier, SignalRGroupNotifier>();
 builder.Services.AddScoped<INotificationPublisher, SignalRNotificationPublisher>();
 // SECURITY-AUDIT-2026-10 (B7): bounded digitize queue (replaces Task.Run).
 builder.Services.AddSingleton<DigitizeJobQueue>();
@@ -1733,6 +1736,7 @@ app.MapGoogleAuthEndpoints();
 // ADR-0036: Q9 conductor room. Cookie-authorized; per-method Membership
 // recheck inside the Hub (404 non-member/unknown, 403 non-Owner conduct).
 app.MapHub<PracticeRoomHub>("/hubs/practiceroom").RequireAuthorization();
+app.MapHub<GroupHub>("/hubs/group").RequireAuthorization();
 app.MapHub<NotificationHub>("/hubs/notifications").RequireAuthorization();
 
 app.MapGet("/api/groups", async (
