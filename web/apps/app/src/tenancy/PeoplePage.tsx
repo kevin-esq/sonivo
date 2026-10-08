@@ -91,6 +91,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [revokingId, setRevokingId] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
   const [inviteFlowError, setInviteFlowError] = useState<string | null>(null)
@@ -345,22 +346,9 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
       >
         <div className="flex flex-wrap items-center gap-2">
           {isOwner ? (
-            <GroupButton onClick={openInviteDialog} className="whitespace-nowrap">
+            <GroupButton onClick={() => setAddOpen(true)} className="whitespace-nowrap">
               <UserPlus className="h-4 w-4" aria-hidden="true" />
-              {t('dashboard.invite')}
-            </GroupButton>
-          ) : null}
-          {isOwner && managedEnabled ? (
-            <GroupButton
-              variant="secondary"
-              className="whitespace-nowrap"
-              onClick={() => {
-                setResetMember(null)
-                setRosterOpen(true)
-              }}
-            >
-              <KeyRound className="h-4 w-4" aria-hidden="true" />
-              {t('roster.addButton')}
+              {t('addMember.button')}
             </GroupButton>
           ) : null}
           <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('people.title')}>
@@ -569,6 +557,54 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
           {leaving ? t('people.leaving') : t('people.leave')}
         </GroupButton>
       )}
+
+      {isOwner && addOpen ? (
+        <GroupDialog
+          open
+          onClose={() => setAddOpen(false)}
+          title={t('addMember.title')}
+          description={t('addMember.hint')}
+          testId="add-member-dialog"
+        >
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => {
+                setAddOpen(false)
+                openInviteDialog()
+              }}
+              className="flex w-full items-start gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 text-left transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+            >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink" aria-hidden="true">
+                <UserPlus className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-ink">{t('addMember.withAccount')}</span>
+                <span className="block text-xs text-muted">{t('addMember.withAccountHint')}</span>
+              </span>
+            </button>
+            {managedEnabled ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setAddOpen(false)
+                  setResetMember(null)
+                  setRosterOpen(true)
+                }}
+                className="flex w-full items-start gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 text-left transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink" aria-hidden="true">
+                  <KeyRound className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-ink">{t('addMember.withoutAccount')}</span>
+                  <span className="block text-xs text-muted">{t('addMember.withoutAccountHint')}</span>
+                </span>
+              </button>
+            ) : null}
+          </div>
+        </GroupDialog>
+      ) : null}
 
       {isOwner ? (
         <GroupDialog
