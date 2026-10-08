@@ -41,6 +41,20 @@ export const MUSICAL_ROLE_CATEGORIES: { id: string; labelKey: I18nKey; presets: 
     labelKey: 'musicalRole.category.tech',
     presets: ['sound', 'director', 'composer'],
   },
+  {
+    id: 'ops',
+    labelKey: 'musicalRole.category.ops',
+    presets: [
+      'socialMedia',
+      'marketing',
+      'communication',
+      'photography',
+      'design',
+      'logistics',
+      'operations',
+      'finance',
+    ],
+  },
 ]
 
 const PRESET_KEYS: Record<string, I18nKey> = {
@@ -76,6 +90,14 @@ const PRESET_KEYS: Record<string, I18nKey> = {
   sound: 'musicalRole.sound',
   director: 'musicalRole.director',
   composer: 'musicalRole.composer',
+  socialMedia: 'musicalRole.socialMedia',
+  marketing: 'musicalRole.marketing',
+  communication: 'musicalRole.communication',
+  photography: 'musicalRole.photography',
+  design: 'musicalRole.design',
+  logistics: 'musicalRole.logistics',
+  operations: 'musicalRole.operations',
+  finance: 'musicalRole.finance',
 }
 
 export function parseMusicalRoles(value: string | null | undefined): string[] {
@@ -152,34 +174,31 @@ export function MusicalRolePicker({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-40 flex-1">
-          <GroupSelect
-            label={t('musicalRole.categoryLabel')}
-            value={categoryId}
-            disabled={disabled}
-            options={MUSICAL_ROLE_CATEGORIES.map((item) => ({ value: item.id, label: t(item.labelKey) }))}
-            onChange={onCategoryChange}
-          />
-        </div>
-        <div className="min-w-40 flex-1">
-          <GroupSelect
-            label={t('musicalRole.roleLabel')}
-            value={role}
-            disabled={disabled}
-            options={category.presets.map((preset) => ({ value: preset, label: t(PRESET_KEYS[preset]!) }))}
-            onChange={setRole}
-          />
-        </div>
-        <GroupButton
-          type="button"
-          variant="secondary"
-          disabled={disabled || !role || selected.includes(role)}
-          onClick={add}
-        >
-          {t('musicalRole.add')}
-        </GroupButton>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <GroupSelect
+          label={t('musicalRole.categoryLabel')}
+          value={categoryId}
+          disabled={disabled}
+          options={MUSICAL_ROLE_CATEGORIES.map((item) => ({ value: item.id, label: t(item.labelKey) }))}
+          onChange={onCategoryChange}
+        />
+        <GroupSelect
+          label={t('musicalRole.roleLabel')}
+          value={role}
+          disabled={disabled}
+          options={category.presets.map((preset) => ({ value: preset, label: t(PRESET_KEYS[preset]!) }))}
+          onChange={setRole}
+        />
       </div>
+      <GroupButton
+        type="button"
+        variant="secondary"
+        disabled={disabled || !role || selected.includes(role)}
+        onClick={add}
+        className="w-full sm:w-auto"
+      >
+        {t('musicalRole.add')}
+      </GroupButton>
     </div>
   )
 }

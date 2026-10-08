@@ -471,7 +471,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                           />
                         </div>
                       ) : null}
-                      <div className="min-w-48 flex-1">
+                      <div className="w-full basis-full">
                         <MusicalRolePicker
                           value={member.musicalRole}
                           disabled={busy}
