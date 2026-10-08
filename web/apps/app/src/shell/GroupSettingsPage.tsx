@@ -999,8 +999,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <input
                 type="color"
                 aria-label={t('settings.customColor')}
-                defaultValue={draft.accentHex || '#8366f1'}
-                onBlur={(e) => setDraftColor('accentHex', e.target.value)}
+                value={draft.accentHex || '#8366f1'}
+                onChange={(e) => setDraftColor('accentHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
             </div>
@@ -1029,8 +1029,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <input
                 type="color"
                 aria-label={t('settings.customColor')}
-                defaultValue={draft.secondaryHex || '#f5c542'}
-                onBlur={(e) => setDraftColor('secondaryHex', e.target.value)}
+                value={draft.secondaryHex || '#f5c542'}
+                onChange={(e) => setDraftColor('secondaryHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ secondaryHex: '' })}>
@@ -1062,8 +1062,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <input
                 type="color"
                 aria-label={t('settings.customColor')}
-                defaultValue={draft.accentColorHex || '#9d8bda'}
-                onBlur={(e) => setDraftColor('accentColorHex', e.target.value)}
+                value={draft.accentColorHex || '#9d8bda'}
+                onChange={(e) => setDraftColor('accentColorHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ accentColorHex: '' })}>
@@ -1082,8 +1082,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   <input
                     type="color"
                     aria-label={t('settings.successColor')}
-                    defaultValue={draft.successHex || '#10b981'}
-                    onBlur={(e) => setDraftColor('successHex', e.target.value)}
+                    value={draft.successHex || '#10b981'}
+                    onChange={(e) => setDraftColor('successHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ successHex: '' })}>
@@ -1097,8 +1097,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   <input
                     type="color"
                     aria-label={t('settings.warningColor')}
-                    defaultValue={draft.warningHex || '#f59e0b'}
-                    onBlur={(e) => setDraftColor('warningHex', e.target.value)}
+                    value={draft.warningHex || '#f59e0b'}
+                    onChange={(e) => setDraftColor('warningHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ warningHex: '' })}>
@@ -1112,8 +1112,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   <input
                     type="color"
                     aria-label={t('settings.errorColor')}
-                    defaultValue={draft.errorHex || '#ef4444'}
-                    onBlur={(e) => setDraftColor('errorHex', e.target.value)}
+                    value={draft.errorHex || '#ef4444'}
+                    onChange={(e) => setDraftColor('errorHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ errorHex: '' })}>
