@@ -5,7 +5,7 @@ export function rememberLastGroup(id: string): void {
   try {
     window.localStorage.setItem(LAST_GROUP_KEY, id)
   } catch {
-    // almacenamiento no disponible
+    // storage unavailable
   }
 }
 

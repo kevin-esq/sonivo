@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../ui/button'
+import { useT, type I18nKey } from '../i18n'
 import {
   TUNER_FRAME_SIZE,
   computeRms,
@@ -21,12 +22,18 @@ import { TUNER_WORKLET_NAME, TUNER_WORKLET_SOURCE } from './tunerWorklet'
 
 type TunerStatus = 'closed' | 'requesting' | 'active' | 'denied' | 'error'
 
-function centsLabel(cents: number): string {
-  if (cents === 0) return 'afinada'
-  return cents > 0 ? `+${cents} cents (alta)` : `${cents} cents (baja)`
+function centsLabel(
+  cents: number,
+  t: (key: I18nKey, params?: Record<string, string | number>) => string,
+): string {
+  if (cents === 0) return t('practice.tuner.inTune')
+  return cents > 0
+    ? t('practice.tuner.sharp', { cents })
+    : t('practice.tuner.flat', { cents })
 }
 
 export function TunerPanel() {
+  const { t } = useT()
   const [status, setStatus] = useState<TunerStatus>('closed')
   const [note, setNote] = useState<TunerNote | null>(null)
   const [freqHz, setFreqHz] = useState<number | null>(null)
@@ -117,7 +124,7 @@ export function TunerPanel() {
 
     const mediaDevices = navigator.mediaDevices
     if (!mediaDevices?.getUserMedia) {
-      setError('Este navegador no permite acceder al micrófono. Prueba con otro navegador.')
+      setError(t('practice.tuner.browserUnsupported'))
       setStatus('error')
       return
     }
@@ -135,11 +142,11 @@ export function TunerPanel() {
       stopAudio()
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setError(
-          'No se pudo acceder al micrófono. Revisa los permisos del navegador para poder afinar.',
+          t('practice.tuner.denied'),
         )
         setStatus('denied')
       } else {
-        setError('No se pudo abrir el micrófono. Inténtalo de nuevo.')
+        setError(t('practice.tuner.openFailed'))
         setStatus('error')
       }
       return
@@ -230,7 +237,7 @@ export function TunerPanel() {
       }
     } catch {
       stopAudio()
-      setError('No se pudo iniciar el afinador. Inténtalo de nuevo.')
+      setError(t('practice.tuner.startFailed'))
       setStatus('error')
     }
   }
@@ -259,16 +266,15 @@ export function TunerPanel() {
             else void openTuner()
           }}
         >
-          {open ? 'Cerrar' : 'Abrir afinador'}
+          {open ? t('common.close') : t('practice.tuner.open')}
         </Button>
         {status === 'requesting' ? (
-          <p className="text-sm text-muted">Pidiendo acceso al micrófono…</p>
+          <p className="text-sm text-muted">{t('practice.tuner.requesting')}</p>
         ) : null}
       </div>
 
       <p className="text-xs text-muted" data-testid="tuner-hint">
-        El micrófono solo se activa al abrir el afinador y se apaga al cerrarlo. Nada se
-        graba ni se guarda. Requiere HTTPS o localhost.
+        {t('practice.tuner.hint')}
       </p>
 
       {open || status === 'denied' || status === 'error' ? (
@@ -288,16 +294,22 @@ export function TunerPanel() {
                 {note ? note.display : '—'}
               </p>
               <p className="text-sm text-muted" data-testid="tuner-hz">
-                {freqHz != null ? `${freqHz.toFixed(1)} Hz` : 'Escuchando…'}
+                {freqHz != null ? `${freqHz.toFixed(1)} Hz` : t('practice.tuner.listening')}
               </p>
               <p className="text-sm text-muted" data-testid="tuner-cents">
-                {note ? centsLabel(note.cents) : hearingSound ? 'Sin tono claro' : 'Silencio'}
+                {note
+                  ? centsLabel(note.cents, t)
+                  : hearingSound
+                    ? t('practice.tuner.noClearPitch')
+                    : t('practice.tuner.silence')}
               </p>
               <div
                 className="relative h-2 w-full max-w-xs overflow-hidden rounded-full bg-surface-hover"
                 role="img"
                 aria-label={
-                  note ? `Desviación: ${centsLabel(note.cents)}` : 'Sin lectura de afinación'
+                  note
+                    ? t('practice.tuner.deviation', { value: centsLabel(note.cents, t) })
+                    : t('practice.tuner.noReading')
                 }
               >
                 <div

@@ -44,13 +44,13 @@ export function MiniMonth({
   return (
     <section
       className="rounded-2xl border border-border-subtle bg-surface p-3"
-      aria-label={t("calendario.title")}
+      aria-label={t("calendar.title")}
     >
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={onPrev}
-          aria-label={t("calendario.prev")}
+          aria-label={t("calendar.prev")}
           className="grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -61,7 +61,7 @@ export function MiniMonth({
         <button
           type="button"
           onClick={onNext}
-          aria-label={t("calendario.next")}
+          aria-label={t("calendar.next")}
           className="grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <ChevronRight className="h-4 w-4" aria-hidden="true" />

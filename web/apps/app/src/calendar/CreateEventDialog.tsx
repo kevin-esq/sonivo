@@ -44,11 +44,11 @@ export function CreateEventDialog({
     event.preventDefault();
     if (pending) return;
     if (!groupId) {
-      setError(t("calendario.groupRequired"));
+      setError(t("calendar.groupRequired"));
       return;
     }
     if (!title.trim()) {
-      setError(t("calendario.titleRequired"));
+      setError(t("calendar.titleRequired"));
       return;
     }
     setPending(true);
@@ -78,12 +78,12 @@ export function CreateEventDialog({
     >
       <form className="space-y-4 p-5" onSubmit={submit} noValidate>
         <h2 id={`${id}-title`} className="text-lg font-semibold">
-          {t("calendario.createTitle")}
+          {t("calendar.createTitle")}
         </h2>
 
         <label className="block space-y-1.5">
           <span className="text-sm font-medium text-ink">
-            {t("calendario.group")}
+            {t("calendar.group")}
           </span>
           <select
             className={fieldClass}
@@ -101,7 +101,7 @@ export function CreateEventDialog({
 
         <label className="block space-y-1.5">
           <span className="text-sm font-medium text-ink">
-            {t("calendario.titleField")}
+            {t("calendar.titleField")}
           </span>
           <input
             className={fieldClass}
@@ -117,7 +117,7 @@ export function CreateEventDialog({
 
         <label className="block space-y-1.5">
           <span className="text-sm font-medium text-ink">
-            {t("calendario.type")}
+            {t("calendar.type")}
           </span>
           <select
             className={fieldClass}
@@ -125,17 +125,17 @@ export function CreateEventDialog({
             disabled={pending}
             onChange={(event) => setType(event.target.value as EventType)}
           >
-            <option value="rehearsal">{t("calendario.typeRehearsal")}</option>
+            <option value="rehearsal">{t("calendar.typeRehearsal")}</option>
             <option value="performance">
-              {t("calendario.typePerformance")}
+              {t("calendar.typePerformance")}
             </option>
-            <option value="other">{t("calendario.typeOther")}</option>
+            <option value="other">{t("calendar.typeOther")}</option>
           </select>
         </label>
 
         <label className="block space-y-1.5">
           <span className="text-sm font-medium text-ink">
-            {t("calendario.dateTime")}
+            {t("calendar.dateTime")}
           </span>
           <input
             type="datetime-local"
@@ -157,13 +157,13 @@ export function CreateEventDialog({
             onClick={onClose}
             disabled={pending}
           >
-            {t("calendario.cancel")}
+            {t("calendar.cancel")}
           </Button>
           <Button
             type="submit"
             disabled={pending || !title.trim() || !groupId}
           >
-            {pending ? t("calendario.creating") : t("calendario.create")}
+            {pending ? t("calendar.creating") : t("calendar.create")}
           </Button>
         </div>
       </form>

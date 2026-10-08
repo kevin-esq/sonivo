@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { useT } from '../i18n'
 
 export function ProblemAlert({ message }: { message: string | null }) {
+  const { t } = useT()
   const [visible, setVisible] = useState(true)
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export function ProblemAlert({ message }: { message: string | null }) {
         type="button"
         onClick={() => setVisible(false)}
         className="shrink-0 text-error-ink/60 hover:text-error-ink"
-        aria-label="Cerrar"
+        aria-label={t('common.close')}
       >
         ×
       </button>

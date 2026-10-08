@@ -22,6 +22,7 @@ public sealed class SonivoDbContext : IdentityDbContext<ApplicationUser, Identit
     public DbSet<GroupBranding> GroupBrandings => Set<GroupBranding>();
     public DbSet<AccountAudit> AccountAudits => Set<AccountAudit>();
     public DbSet<GroupAuditEntry> GroupAuditLog => Set<GroupAuditEntry>();
+    public DbSet<Sonivo.Domain.Notifications.Notification> Notifications => Set<Sonivo.Domain.Notifications.Notification>();
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
     public DbSet<Song> Songs => Set<Song>();

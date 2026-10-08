@@ -104,10 +104,10 @@ function QueueSkeleton() {
       className="space-y-3 rounded-xl border border-border-subtle bg-surface-hover p-4"
       role="status"
       aria-live="polite"
-      aria-label={t('practica.queueLoading')}
+      aria-label={t('practice.queueLoading')}
       data-testid="practice-queue-skeleton"
     >
-      <span className="sr-only">{t('practica.queueLoading')}</span>
+      <span className="sr-only">{t('practice.queueLoading')}</span>
       <Skeleton className="h-4 w-28" />
       <Skeleton className="h-6 w-48" />
       <Skeleton className="h-4 w-32" />
@@ -290,7 +290,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   }, [metronomeOn, metronomeBpm])
 
   if (group === undefined) {
-    return <PracticePageSkeleton label={t('practica.loading')} />
+    return <PracticePageSkeleton label={t('practice.loading')} />
   }
 
   if (group === null) {
@@ -298,25 +298,25 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
         <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
-          {t('practica.myGroups')}
+          {t('practice.myGroups')}
         </Link>
       </div>
     )
   }
 
   if (arrangement === undefined) {
-    return <PracticePageSkeleton label={t('practica.loading')} />
+    return <PracticePageSkeleton label={t('practice.loading')} />
   }
 
   if (arrangement === null) {
     return (
       <div className="space-y-3">
-        <ProblemAlert message={error ?? t('practica.notFound')} />
+        <ProblemAlert message={error ?? t('practice.notFound')} />
         <Link
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={`/groups/${group.id}/library`}
         >
-          {t('practica.library')}
+          {t('practice.library')}
         </Link>
       </div>
     )
@@ -333,7 +333,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     eventDetail && arrangementId
       ? resolveQueueItem(queueItems, arrangementId, planItemId)
       : null
-  const displayTitle = queueItem?.displaySongTitle ?? songTitle ?? t('practica.songFallback')
+  const displayTitle = queueItem?.displaySongTitle ?? songTitle ?? t('practice.songFallback')
   const displayLabel = queueItem?.displayArrangementLabel ?? liveArrangement.label
 
   const sourceBody = liveArrangement.chords?.trim() || liveArrangement.lyrics?.trim() || ''
@@ -446,25 +446,25 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const breadcrumbItems = eventId
     ? [
         { to: `/groups/${liveGroup.id}`, label: liveGroup.name },
-        { to: `/groups/${liveGroup.id}/events`, label: t('agenda.eventsTitle') },
+        { to: `/groups/${liveGroup.id}/events`, label: t('schedule.eventsTitle') },
         {
           to: `/groups/${liveGroup.id}/events/${eventId}`,
-          label: eventDetail?.title ?? t('practica.eventFallback'),
+          label: eventDetail?.title ?? t('practice.eventFallback'),
         },
-        { label: t('practica.rehearsePlan') },
+        { label: t('practice.rehearsePlan') },
       ]
     : [
         { to: `/groups/${liveGroup.id}`, label: liveGroup.name },
-        { to: `/groups/${liveGroup.id}/library`, label: t('practica.library') },
-        { to: songHref, label: songTitle ?? t('practica.songFallback') },
+        { to: `/groups/${liveGroup.id}/library`, label: t('practice.library') },
+        { to: songHref, label: songTitle ?? t('practice.songFallback') },
         { to: arrangementHref, label: liveArrangement.label },
-        { label: t('practica.kicker') },
+        { label: t('practice.kicker') },
       ]
 
   const tabLabels: Record<PracticeTab, string> = {
-    estudiar: t('practica.tabs.estudiar'),
-    avanzado: t('practica.tabs.avanzado'),
-    afinar: t('practica.tabs.afinar'),
+    estudiar: t('practice.tabs.estudiar'),
+    avanzado: t('practice.tabs.avanzado'),
+    afinar: t('practice.tabs.afinar'),
   }
   const tabOrder: PracticeTab[] = ['estudiar', 'avanzado', 'afinar']
 
@@ -474,7 +474,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         <PageBreadcrumb items={breadcrumbItems} />
         <div className="space-y-2">
           <p className="text-sm font-medium uppercase tracking-wide text-muted">
-            {eventId ? t('practica.rehearsePlan') : t('practica.kicker')}
+            {eventId ? t('practice.rehearsePlan') : t('practice.kicker')}
           </p>
           <h1 id="practice-heading" className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             {displayTitle}
@@ -482,12 +482,12 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           <p className="text-base text-ink">{displayLabel}</p>
           <p className="text-sm text-muted">
             {liveArrangement.defaultKey
-              ? `${t('practica.keyPrefix')}${liveArrangement.defaultKey}`
-              : t('practica.keyEmpty')}
+              ? `${t('practice.keyPrefix')}${liveArrangement.defaultKey}`
+              : t('practice.keyEmpty')}
             {' · '}
             {liveArrangement.defaultBpm != null
-              ? `${t('practica.tempoPrefix')}${liveArrangement.defaultBpm}${t('practica.bpmSuffix')}`
-              : t('practica.tempoEmpty')}
+              ? `${t('practice.tempoPrefix')}${liveArrangement.defaultBpm}${t('practice.bpmSuffix')}`
+              : t('practice.tempoEmpty')}
           </p>
         </div>
       </div>
@@ -509,14 +509,14 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       {eventId && eventDetail && queueItems.length === 0 ? (
         <EmptyPanel
-          title={t('practica.noPlanTitle')}
-          description={t('practica.noPlanBody')}
+          title={t('practice.noPlanTitle')}
+          description={t('practice.noPlanBody')}
           action={
             <Link
               className="font-semibold text-primary-ink no-underline hover:underline"
               to={`/groups/${liveGroup.id}/events/${eventId}`}
             >
-              {t('practica.backToEvent')}
+              {t('practice.backToEvent')}
             </Link>
           }
         />
@@ -525,7 +525,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       <div
         className="flex gap-1 rounded-xl bg-surface-hover p-1"
         role="tablist"
-        aria-label={t('practica.tabs.label')}
+        aria-label={t('practice.tabs.label')}
       >
         {tabOrder.map((id) => (
           <button
@@ -582,7 +582,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       <section className="space-y-3 rounded-xl border border-border-subtle bg-surface p-4" aria-labelledby="practice-tuner-heading">
         <h2 id="practice-tuner-heading" className="text-base font-semibold tracking-tight text-ink">
-          {t('practica.tunerTitle')}
+          {t('practice.tunerTitle')}
         </h2>
         <TunerPanel />
       </section>
@@ -590,7 +590,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       {referenceResources.length > 0 ? (
         <section className="space-y-4" aria-labelledby="practice-reference-heading">
           <h2 id="practice-reference-heading" className="text-lg font-semibold tracking-tight text-ink">
-            {t('practica.referenceTitle')}
+            {t('practice.referenceTitle')}
           </h2>
           {referenceResources.map((resource) => (
             <ReferenceEmbed key={resource.id} resource={resource} />
@@ -607,7 +607,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             id="practice-transpose-heading"
             className="text-base font-semibold tracking-tight text-ink"
           >
-            {t('practica.toneViewTitle')}
+            {t('practice.toneViewTitle')}
           </h2>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -616,7 +616,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               data-testid="practice-transpose-down"
               onClick={() => setSemitoneOffset((n) => n - 1)}
             >
-              {t('practica.toneDown')}
+              {t('practice.toneDown')}
             </Button>
             <Button
               variant="secondary"
@@ -624,7 +624,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               data-testid="practice-transpose-up"
               onClick={() => setSemitoneOffset((n) => n + 1)}
             >
-              {t('practica.toneUp')}
+              {t('practice.toneUp')}
             </Button>
             <Button
               variant="secondary"
@@ -633,15 +633,15 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               disabled={semitoneOffset === 0}
               onClick={() => setSemitoneOffset(0)}
             >
-              {t('practica.toneReset')}
+              {t('practice.toneReset')}
             </Button>
           </div>
           <p className="text-sm text-muted" data-testid="practice-transpose-offset">
-            {t('practica.offsetPrefix')}
+            {t('practice.offsetPrefix')}
             {semitoneOffset > 0 ? `+${semitoneOffset}` : String(semitoneOffset)}
-            {effectiveKeyHint ? `${t('practica.effectivePrefix')}${effectiveKeyHint}` : null}
+            {effectiveKeyHint ? `${t('practice.effectivePrefix')}${effectiveKeyHint}` : null}
           </p>
-          <div className="flex flex-wrap gap-2" role="group" aria-label={t('practica.viewGroupLabel')}>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t('practice.viewGroupLabel')}>
             <Button
               variant={viewMode === 'singer' ? 'primary' : 'secondary'}
               size="sm"
@@ -649,7 +649,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               aria-pressed={viewMode === 'singer'}
               onClick={() => setViewModePersist('singer')}
             >
-              {t('practica.viewSinger')}
+              {t('practice.viewSinger')}
             </Button>
             <Button
               variant={viewMode === 'guitarist' ? 'primary' : 'secondary'}
@@ -658,7 +658,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               aria-pressed={viewMode === 'guitarist'}
               onClick={() => setViewModePersist('guitarist')}
             >
-              {t('practica.viewGuitarist')}
+              {t('practice.viewGuitarist')}
             </Button>
             {timingMarks.length > 0 ? (
               youTubeOnlyPractice ? (
@@ -671,13 +671,13 @@ export function PracticePage({ user }: { user: CurrentUser }) {
                     aria-pressed={false}
                     disabled
                   >
-                    {t('practica.followLyrics')}
+                    {t('practice.followLyrics')}
                   </Button>
                   <p
                     className="text-xs text-muted"
                     data-testid="practice-follow-along-youtube-note"
                   >
-                    {t('practica.youtubeNote')}
+                    {t('practice.youtubeNote')}
                   </p>
                 </div>
               ) : (
@@ -688,7 +688,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
                   aria-pressed={followAlong}
                   onClick={() => setFollowAlongPersist(!followAlong)}
                 >
-                  {t('practica.followLyrics')}
+                  {t('practice.followLyrics')}
                 </Button>
               )
             ) : null}
@@ -702,7 +702,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
                 disabled={semitoneOffset === 0 || savingTone}
                 onClick={() => setConfirmSaveTone(true)}
               >
-                {t('practica.saveTone')}
+                {t('practice.saveTone')}
               </Button>
             </div>
           ) : null}
@@ -720,20 +720,20 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       <section className="space-y-3" aria-labelledby="practice-lyrics-heading">
         <h2 id="practice-lyrics-heading" className="text-lg font-semibold tracking-tight text-ink">
-          {t('practica.lyricsTitle')}
+          {t('practice.lyricsTitle')}
         </h2>
         {(() => {
           if (!sourceBody) {
             return (
               <EmptyPanel
-                title={t('practica.noLyricsTitle')}
-                description={t('practica.noLyricsBody')}
+                title={t('practice.noLyricsTitle')}
+                description={t('practice.noLyricsBody')}
                 action={
                   <Link
                     className="font-semibold text-primary-ink no-underline hover:underline"
                     to={arrangementHref}
                   >
-                    {t('practica.viewArrangement')}
+                    {t('practice.viewArrangement')}
                   </Link>
                 }
               />
@@ -763,7 +763,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           data-testid="practice-panel-avanzado"
         >
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4">
-            <span className="text-sm font-medium text-ink">{t('practica.metronomeTitle')}</span>
+            <span className="text-sm font-medium text-ink">{t('practice.metronomeTitle')}</span>
             <input
               type="number"
               className={cn(fieldClass, 'w-20')}
@@ -774,7 +774,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               onChange={(e) =>
                 setMetronomeBpm(Math.max(1, Math.min(400, Number(e.target.value) || 1)))
               }
-              aria-label={t('practica.metronomeBpm')}
+              aria-label={t('practice.metronomeBpm')}
             />
             <Button
               variant={metronomeOn ? 'primary' : 'secondary'}
@@ -784,8 +784,8 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               aria-pressed={metronomeOn}
             >
               {metronomeOn
-                ? t('practica.metronomeStop')
-                : t('practica.metronomeStart')}
+                ? t('practice.metronomeStop')
+                : t('practice.metronomeStart')}
             </Button>
             <Button
               variant="secondary"
@@ -793,15 +793,15 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               data-testid="practice-live-open"
               onClick={() => setLiveOpen(true)}
             >
-              {t('practica.liveTitle')}
+              {t('practice.liveTitle')}
             </Button>
           </div>
 
           <div className="space-y-1">
             <h2 className="text-lg font-semibold tracking-tight text-ink">
-              {t('practica.avanzado.title')}
+              {t('practice.avanzado.title')}
             </h2>
-            <p className="text-sm text-muted">{t('practica.avanzado.hint')}</p>
+            <p className="text-sm text-muted">{t('practice.avanzado.hint')}</p>
           </div>
 
           <section
@@ -812,16 +812,16 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               id="practice-advanced-timing-heading"
               className="text-base font-semibold tracking-tight text-ink"
             >
-              {t('practica.avanzado.timingTitle')}
+              {t('practice.avanzado.timingTitle')}
             </h3>
-            <p className="text-sm text-muted">{t('practica.avanzado.timingHint')}</p>
+            <p className="text-sm text-muted">{t('practice.avanzado.timingHint')}</p>
             <p>
               <Link
                 className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 to={arrangementHref}
                 data-testid="practice-advanced-timing-link"
               >
-                {t('practica.avanzado.timingLink')}
+                {t('practice.avanzado.timingLink')}
               </Link>
             </p>
           </section>
@@ -834,16 +834,16 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               id="practice-advanced-digitize-heading"
               className="text-base font-semibold tracking-tight text-ink"
             >
-              {t('practica.avanzado.digitizeTitle')}
+              {t('practice.avanzado.digitizeTitle')}
             </h3>
-            <p className="text-sm text-muted">{t('practica.avanzado.digitizeHint')}</p>
+            <p className="text-sm text-muted">{t('practice.avanzado.digitizeHint')}</p>
             <p>
               <Link
                 className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 to={arrangementHref}
                 data-testid="practice-advanced-digitize-link"
               >
-                {t('practica.avanzado.digitizeLink')}
+                {t('practice.avanzado.digitizeLink')}
               </Link>
             </p>
             {isOwner ? (
@@ -859,7 +859,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
                   className="rounded-xl border border-border-subtle bg-surface-hover px-3 py-2 text-sm text-muted"
                   data-testid="practice-advanced-digitize-empty"
                 >
-                  {t('practica.avanzado.digitizeEmpty')}
+                  {t('practice.avanzado.digitizeEmpty')}
                 </p>
               )
             ) : null}
@@ -877,7 +877,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             />
           ) : (
             <p className="text-sm text-muted" data-testid="practice-advanced-conductor-hint">
-              {t('practica.avanzado.conductorHint')}
+              {t('practice.avanzado.conductorHint')}
             </p>
           )}
         </div>
@@ -892,9 +892,9 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           data-testid="practice-panel-afinar"
         >
           <h2 className="text-lg font-semibold tracking-tight text-ink">
-            {t('practica.afinar.title')}
+            {t('practice.afinar.title')}
           </h2>
-          <p className="text-sm text-muted">{t('practica.afinar.hint')}</p>
+          <p className="text-sm text-muted">{t('practice.afinar.hint')}</p>
           <TunerPanel />
         </section>
       ) : null}
@@ -905,31 +905,31 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             to={`/groups/${group.id}/events/${eventId}`}
           >
-            {t('practica.backToEvent')}
+            {t('practice.backToEvent')}
           </Link>
         ) : (
           <Link
             className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             to={arrangementHref}
           >
-            {t('practica.backToArrangement')}
+            {t('practice.backToArrangement')}
           </Link>
         )}
       </p>
 
       <ConfirmDialog
         open={confirmSaveTone}
-        title={t('practica.saveToneTitle')}
-        confirmLabel={t('practica.saveTone')}
-        cancelLabel={t('practica.cancel')}
-        pendingLabel={t('practica.saving')}
+        title={t('practice.saveToneTitle')}
+        confirmLabel={t('practice.saveTone')}
+        cancelLabel={t('practice.cancel')}
+        pendingLabel={t('practice.saving')}
         pending={savingTone}
         onCancel={() => setConfirmSaveTone(false)}
         onConfirm={() => void handleSaveTone()}
       >
         <p>
-          {t('practica.saveToneBody')}
-          {effectiveKeyHint ? `${t('practica.saveToneBodyKey')}${effectiveKeyHint}` : ''}{t('practica.saveToneBodySuffix')}
+          {t('practice.saveToneBody')}
+          {effectiveKeyHint ? `${t('practice.saveToneBodyKey')}${effectiveKeyHint}` : ''}{t('practice.saveToneBodySuffix')}
         </p>
       </ConfirmDialog>
 
@@ -945,7 +945,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             <button
               type="button"
               onClick={() => setLiveOpen(false)}
-              aria-label={t('practica.liveClose')}
+              aria-label={t('practice.liveClose')}
               className="grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               ✕
@@ -969,7 +969,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               aria-hidden="true"
             />
             <span className="text-sm text-muted">
-              {metronomeOn ? `${metronomeBpm} BPM` : t('practica.liveHint')}
+              {metronomeOn ? `${metronomeBpm} BPM` : t('practice.liveHint')}
             </span>
           </div>
         </dialog>

@@ -9,6 +9,7 @@ import {
 } from '../api/client'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
+import { useT } from '../i18n'
 import {
   formatTimestamp,
   isDigitizableResource,
@@ -31,7 +32,7 @@ type JobView =
 const POLL_MS = 1500
 
 /**
- * ADR-0032 T-W32-02: Owner-only audio digitizer review surface (Spanish).
+ * ADR-0032 T-W32-02: Owner-only audio digitizer review surface.
  * Drafts live in component state only — nothing persists until the Owner
  * explicitly applies via the existing Arrangement PATCH paths. Members never
  * see drafts (the parent renders this only for Owners).
@@ -46,6 +47,7 @@ export function AudioDigitizer({
   onChanged: () => Promise<void>
 }) {
   const eligible = arrangement.resources.filter(isDigitizableResource)
+  const { t } = useT()
   const [job, setJob] = useState<JobView>({ phase: 'idle' })
   const [lineFor, setLineFor] = useState<number[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -91,7 +93,7 @@ export function AudioDigitizer({
       setJob({
         phase: 'failed',
         resourceId,
-        message: current.error ?? 'No se pudo digitalizar el audio.',
+        message: current.error ?? t('practice.digitize.failed'),
       })
       return
     }
@@ -140,7 +142,7 @@ export function AudioDigitizer({
         expectedVersion: arrangement.version,
         chordTimingJson: serializeChordTimingJson(merged),
       })
-      setSuccess('Marcas aplicadas. Puedes revisarlas en Practicar con «Seguir letra».')
+      setSuccess(t('practice.digitize.marksApplied'))
       await onChanged()
     } catch (err) {
       setError(mutationErrorMessage(err))
@@ -162,7 +164,7 @@ export function AudioDigitizer({
         expectedVersion: arrangement.version,
         lyrics: next,
       })
-      setSuccess('Letra añadida al arreglo.')
+      setSuccess(t('practice.digitize.lyricsAdded'))
       await onChanged()
     } catch (err) {
       setError(mutationErrorMessage(err))
@@ -188,17 +190,16 @@ export function AudioDigitizer({
       data-testid="audio-digitizer"
     >
       <h3 id="digitize-heading" className="font-semibold">
-        Digitalizar audio
+        {t('practice.digitize.title')}
       </h3>
       <p className="text-sm text-muted">
-        Convierte un audio en un borrador de marcas de tiempo y letra. Nada se guarda hasta que lo
-        revises y lo apliques.
+        {t('practice.digitize.subtitle')}
       </p>
 
       {job.phase === 'idle' ? (
         <div className="space-y-2">
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-ink">Audio a digitalizar</span>
+            <span className="text-sm font-medium text-ink">{t('practice.digitize.audioLabel')}</span>
             <select
               className={fieldClass}
               value={selectedResourceId ?? ''}
@@ -221,7 +222,7 @@ export function AudioDigitizer({
             }}
             data-testid="digitize-start"
           >
-            Digitalizar audio
+            {t('practice.digitize.start')}
           </Button>
         </div>
       ) : null}
@@ -234,8 +235,8 @@ export function AudioDigitizer({
           data-testid="digitize-status"
         >
           {job.jobId === ''
-            ? 'Iniciando digitalización…'
-            : 'Digitalizando… Esto puede tardar unos segundos.'}{' '}
+            ? t('practice.digitize.starting')
+            : t('practice.digitize.working')}{' '}
           {workingResourceLabel ? `(${workingResourceLabel})` : null}
         </p>
       ) : null}
@@ -244,17 +245,17 @@ export function AudioDigitizer({
         <div className="space-y-2" data-testid="digitize-status">
           <ProblemAlert message={job.message} />
           <Button variant="secondary" size="sm" onClick={handleDiscard} data-testid="digitize-discard">
-            Descartar
+            {t('practice.digitize.discard')}
           </Button>
         </div>
       ) : null}
 
       {job.phase === 'ready' ? (
         <div className="space-y-3">
-          <h4 className="text-sm font-semibold">Revisar borrador</h4>
+          <h4 className="text-sm font-semibold">{t('practice.digitize.review')}</h4>
           {job.segments.length === 0 ? (
             <p className="text-sm text-muted" data-testid="digitize-segments">
-              No se detectó voz en el audio.
+              {t('practice.digitize.noVoice')}
             </p>
           ) : (
             <ul className="max-h-64 space-y-2 overflow-y-auto" data-testid="digitize-segments">
@@ -268,7 +269,7 @@ export function AudioDigitizer({
                   </span>
                   <span className="min-w-0 flex-1 text-sm">{segment.text}</span>
                   <label className="flex items-center gap-1 text-xs text-muted">
-                    Línea
+                    {t('practice.digitize.line')}
                     <input
                       className={`${fieldClass} w-20`}
                       type="number"
@@ -311,7 +312,7 @@ export function AudioDigitizer({
                 onClick={handleSuggestMapping}
                 data-testid="digitize-suggest"
               >
-                Sugerir mapeo
+                {t('practice.digitize.suggest')}
               </Button>
             ) : null}
             {job.segments.length > 0 ? (
@@ -321,7 +322,7 @@ export function AudioDigitizer({
                 onClick={() => void handleApplyMarks()}
                 data-testid="digitize-apply-marks"
               >
-                {pending ? 'Aplicando…' : 'Aplicar marcas'}
+                {pending ? t('practice.digitize.applying') : t('practice.digitize.applyMarks')}
               </Button>
             ) : null}
             {job.segments.length > 0 ? (
@@ -332,7 +333,7 @@ export function AudioDigitizer({
                 onClick={() => void handleAppendLyrics()}
                 data-testid="digitize-append-lyrics"
               >
-                {pending ? 'Añadiendo…' : 'Añadir a letra'}
+                {pending ? t('practice.digitize.adding') : t('practice.digitize.appendLyrics')}
               </Button>
             ) : null}
             <Button
@@ -342,7 +343,7 @@ export function AudioDigitizer({
               onClick={handleDiscard}
               data-testid="digitize-discard"
             >
-              Descartar
+              {t('practice.digitize.discard')}
             </Button>
           </div>
         </div>

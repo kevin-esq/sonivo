@@ -1,4 +1,5 @@
 import { cn } from './cn'
+import { useT } from '../i18n'
 
 export function Skeleton({ className }: { className?: string }) {
   return (
@@ -11,14 +12,16 @@ export function Skeleton({ className }: { className?: string }) {
 
 export function ListSkeleton({
   rows = 3,
-  label = 'Cargando…',
+  label,
 }: {
   rows?: number
   label?: string
 }) {
+  const { t } = useT()
+  const text = label ?? t('state.loading')
   return (
-    <div className="space-y-3" role="status" aria-live="polite" aria-label={label}>
-      <span className="sr-only">{label}</span>
+    <div className="space-y-3" role="status" aria-live="polite" aria-label={text}>
+      <span className="sr-only">{text}</span>
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="space-y-2 rounded-xl border border-border-subtle px-4 py-3">
           <Skeleton className="h-4 w-40" />
@@ -29,13 +32,15 @@ export function ListSkeleton({
   )
 }
 
-export function PageSkeleton({ label = 'Cargando…' }: { label?: string }) {
+export function PageSkeleton({ label }: { label?: string }) {
+  const { t } = useT()
+  const text = label ?? t('state.loading')
   return (
-    <div className="space-y-4" role="status" aria-live="polite" aria-label={label}>
-      <span className="sr-only">{label}</span>
+    <div className="space-y-4" role="status" aria-live="polite" aria-label={text}>
+      <span className="sr-only">{text}</span>
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-4 w-72 max-w-full" />
-      <ListSkeleton rows={3} label={label} />
+      <ListSkeleton rows={3} label={text} />
     </div>
   )
 }

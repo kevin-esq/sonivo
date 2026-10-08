@@ -71,9 +71,9 @@ export function EventListPage({ user }: { user: CurrentUser }) {
     return events.filter(
       (item) =>
         item.title.toLowerCase().includes(q) ||
-        formatEventType(item.type).toLowerCase().includes(q),
+        formatEventType(item.type, t).toLowerCase().includes(q),
     )
-  }, [events, query])
+  }, [events, query, t])
 
   async function reload() {
     if (!groupId) return
@@ -114,7 +114,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
   })
 
   if (group === undefined) {
-    return <GroupPageSkeleton label={t('agenda.loadingEvents')} />
+    return <GroupPageSkeleton label={t('schedule.loadingEvents')} />
   }
 
   if (group === null) {
@@ -122,7 +122,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <GroupErrorState message={groupError} onRetry={() => void reloadGroup()} />
         <GroupLink variant="soft" to="/">
-          {t('agenda.myGroups')}
+          {t('schedule.myGroups')}
         </GroupLink>
       </div>
     )
@@ -137,11 +137,11 @@ export function EventListPage({ user }: { user: CurrentUser }) {
         <GroupPageHeader
           headingId="events-heading"
           icon={CalendarDays}
-          title={t('agenda.eventsTitle')}
-          subtitle={t('agenda.eventsSubtitle')}
+          title={t('schedule.eventsTitle')}
+          subtitle={t('schedule.eventsSubtitle')}
           breadcrumb={[
             { to: `/groups/${group.id}`, label: group.name },
-            { label: t('agenda.eventsTitle') },
+            { label: t('schedule.eventsTitle') },
           ]}
           actions={
             <>
@@ -156,18 +156,18 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                       className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
                       href={`/api/groups/${groupId}/calendar.ics`}
                     >
-                      {t('agenda.calendarFeed')}
+                      {t('schedule.calendarFeed')}
                     </a>
                   ) : null}
                 </>
               ) : null}
               {showHeaderAdd ? (
-                <GroupButton onClick={() => setShowCreate(true)} disabled={eventsAtLimit}>Nuevo evento</GroupButton>
+                <GroupButton onClick={() => setShowCreate(true)} disabled={eventsAtLimit}>{t('schedule.newEvent')}</GroupButton>
               ) : null}
             </>
           }
         >
-          {!isOwner ? <p className="text-sm text-muted">Solo lectura</p> : null}
+          {!isOwner ? <p className="text-sm text-muted">{t('schedule.readonly')}</p> : null}
         </GroupPageHeader>
       </div>
 
@@ -179,17 +179,17 @@ export function EventListPage({ user }: { user: CurrentUser }) {
               aria-hidden="true"
             />
             <label className="sr-only" htmlFor="events-search">
-              {t('agenda.eventsSearchLabel')}
+              {t('schedule.eventsSearchLabel')}
             </label>
             <input
               id="events-search"
               data-testid="events-search"
               className={cn(groupFieldClass, 'pl-9')}
               type="search"
-              placeholder={t('agenda.eventsSearchPlaceholder')}
+              placeholder={t('schedule.eventsSearchPlaceholder')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              aria-label={t('agenda.eventsSearchLabel')}
+              aria-label={t('schedule.eventsSearchLabel')}
             />
           </div>
         </div>
@@ -203,21 +203,21 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       <GroupErrorState message={listError} />
 
       <GroupLimitNotice
-        label="eventos este mes"
+        label={t('plan.labelEvents')}
         metric={usage?.eventsThisMonth}
         upgradeHref={`/groups/${group.id}/ajustes?tab=plan`}
       />
 
       {events === null ? (
-        <GroupListSkeleton rows={3} label={t('agenda.loadingEvents')} />
+        <GroupListSkeleton rows={3} label={t('schedule.loadingEvents')} />
       ) : events.length === 0 ? (
         <GroupEmptyState
           icon={CalendarDays}
-          title="Aún no hay eventos"
+          title={t('schedule.emptyEventsTitle')}
           description={
             isOwner
-              ? 'Crea un ensayo o concierto y aplica una lista para copiar el plan de canciones.'
-              : 'Cuando haya eventos, aparecerán aquí para prepararte.'
+              ? t('schedule.emptyEventsOwner')
+              : t('schedule.emptyEventsMember')
           }
           action={
             isOwner ? (
@@ -226,26 +226,26 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                 onClick={() => setShowCreate(true)}
                 disabled={eventsAtLimit}
               >
-                Nuevo evento
+                {t('schedule.newEvent')}
               </GroupButton>
             ) : (
               <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
-                Ir a la biblioteca
+                {t('schedule.goLibrary')}
               </GroupLink>
             )
           }
         />
       ) : filtered && filtered.length === 0 ? (
-        <GroupEmptyState title={`Ningún evento coincide con «${query.trim()}».`} />
+        <GroupEmptyState title={`${t('schedule.noEventsPrefix')}${query.trim()}${t('schedule.noMatchSuffix')}`} />
       ) : (
         <div className="space-y-1">
           <div
             aria-hidden="true"
             className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto_1.5rem] sm:items-center sm:gap-3"
           >
-            <span>{t('agenda.eventsColEvent')}</span>
-            <span>{t('agenda.eventsColWhen')}</span>
-            <span>{t('agenda.eventsColStatus')}</span>
+            <span>{t('schedule.eventsColEvent')}</span>
+            <span>{t('schedule.eventsColWhen')}</span>
+            <span>{t('schedule.eventsColStatus')}</span>
             <span />
           </div>
           <ul className="space-y-1 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
@@ -268,14 +268,14 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                         {musicalEvent.title}
                       </span>
                       <span className="mt-0.5 block text-sm text-muted">
-                        {formatEventType(musicalEvent.type)} · {formatStartsAt(musicalEvent.startsAt)}
+                        {formatEventType(musicalEvent.type, t)} · {formatStartsAt(musicalEvent.startsAt)}
                       </span>
                     </span>
                     <ReadinessChip
                       tone={cancelled ? 'warn' : 'ok'}
                       testId={`event-status-${musicalEvent.id}`}
                     >
-                      {cancelled ? t('agenda.statusCancelled') : t('agenda.statusScheduled')}
+                      {cancelled ? t('schedule.statusCancelled') : t('schedule.statusScheduled')}
                     </ReadinessChip>
                     <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
                   </Link>

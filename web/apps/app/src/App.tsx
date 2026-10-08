@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { ErrorInfo, ReactNode } from "react";
+import type { CSSProperties, ErrorInfo, ReactNode } from "react";
 import {
   Link,
   Navigate,
@@ -48,8 +48,13 @@ import { Button, primaryButtonClass } from "./ui/button";
 import { cn } from "./ui/cn";
 import { ToastProvider } from "./ui/toast";
 import { PageSkeleton } from "./ui/skeleton";
+import { useTheme } from "./brand/theme";
+import { brandTokenStyle, readCachedBranding } from "./shell/serverBranding";
+import { readGroupAppearance } from "./shell/groupAccent";
+import { installGlobalErrorHandlers, reportClientError } from "./diagnostics/clientTelemetry";
+import { useT } from "./i18n";
 
-// ---------- Lazy loading (menos JS inicial) ----------
+// ---------- Lazy loading (less initial JS) ----------
 const named = <T extends Record<string, any>, K extends keyof T>(
   loader: () => Promise<T>,
   key: K,
@@ -57,6 +62,10 @@ const named = <T extends Record<string, any>, K extends keyof T>(
 
 const HomePage = named(() => import("./home/HomePage"), "HomePage");
 const GroupsPage = named(() => import("./groups/GroupsPage"), "GroupsPage");
+const MarketingPage = named(
+  () => import("./marketing/MarketingPage"),
+  "MarketingPage",
+);
 const JoinGroupPage = named(
   () => import("./tenancy/JoinGroupPage"),
   "JoinGroupPage",
@@ -64,6 +73,11 @@ const JoinGroupPage = named(
 const PlaceholderPage = named(
   () => import("./shell/PlaceholderPage"),
   "PlaceholderPage",
+);
+const PlansPage = named(() => import("./plans/PlansPage"), "PlansPage");
+const AccountNotificationsPage = named(
+  () => import("./notifications/AccountNotificationsPage"),
+  "AccountNotificationsPage",
 );
 const CalendarPage = named(
   () => import("./calendar/CalendarPage"),
@@ -148,22 +162,88 @@ const SettingsMembershipPage = named(
   "SettingsMembershipPage",
 );
 
-// ---------- Estado de sesión ----------
+// ---------- Session state ----------
 type SessionState =
   | { status: "loading" }
   | { status: "error" }
   | { status: "guest" }
   | { status: "authenticated"; user: CurrentUser };
 
-// ---------- Utilidades ----------
+// ---------- Utilities ----------
 
 function RouteFallback() {
   // Route-level loading uses the shared skeleton (Wave C, Step 4) instead of a
-  // bare "Cargando…" screen, so the transition reads as content arriving.
+  // bare "Loading…" screen, so the transition reads as content arriving.
+  //
+  // Group routes render OUTSIDE the group shell at this point (the shell chunk is
+  // still loading), so we re-apply the group's brand tokens from the local cache
+  // and mirror the shell layout — otherwise the group tab flashes a generic,
+  // account-themed skeleton that does not match the group's colour.
+  const location = useLocation();
+  const { theme } = useTheme();
+  const groupMatch = location.pathname.match(/^\/groups\/([^/]+)/);
+  const groupId = groupMatch ? decodeURIComponent(groupMatch[1]!) : null;
+
+  if (groupId) {
+    const cached = readCachedBranding(groupId);
+    const accent = cached?.accentHex ?? readGroupAppearance(groupId).accent;
+    const tokens = brandTokenStyle(cached, {
+      primary: accent,
+      theme,
+    }) as CSSProperties;
+    return (
+      <div className="min-h-screen bg-canvas text-ink" style={tokens}>
+        <GroupShellSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-canvas px-6 py-10">
       <div className="mx-auto w-full max-w-4xl">
         <PageSkeleton />
+      </div>
+    </div>
+  );
+}
+
+/** Shell-shaped skeleton that follows the active group's brand tokens. */
+function GroupShellSkeleton() {
+  const { t } = useT();
+  const label = t("state.loading");
+  return (
+    <div
+      className="min-h-screen md:flex md:min-h-0 md:h-screen md:overflow-hidden"
+      role="status"
+      aria-live="polite"
+      aria-label={label}
+    >
+      <span className="sr-only">{label}</span>
+      <aside className="hidden w-60 shrink-0 flex-col gap-2 border-r border-shell-border bg-shell p-4 md:flex">
+        <div className="mb-3 h-11 animate-pulse rounded-xl bg-shell-hover motion-reduce:animate-none" />
+        {Array.from({ length: 7 }, (_, i) => (
+          <div key={i} className="h-9 animate-pulse rounded-lg bg-shell-hover motion-reduce:animate-none" />
+        ))}
+      </aside>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-3 border-b border-border-subtle px-4 py-3">
+          <div className="h-10 flex-1 animate-pulse rounded-xl bg-surface-hover/80 motion-reduce:animate-none" />
+          <div className="hidden h-10 w-40 animate-pulse rounded-xl bg-surface-hover/80 motion-reduce:animate-none sm:block" />
+          <div className="h-10 w-10 animate-pulse rounded-full bg-surface-hover/80 motion-reduce:animate-none" />
+        </div>
+        <div className="space-y-4 p-4 md:p-6">
+          <div className="h-36 animate-pulse rounded-2xl bg-surface-hover/80 motion-reduce:animate-none" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="h-20 animate-pulse rounded-2xl bg-surface-hover/80 motion-reduce:animate-none" />
+            ))}
+          </div>
+          <div className="space-y-2">
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="h-16 animate-pulse rounded-2xl bg-surface-hover/80 motion-reduce:animate-none" />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -208,6 +288,24 @@ function FallbackScreen({
   );
 }
 
+function ErrorFallback() {
+  const { t } = useT();
+  return (
+    <div role="alert">
+      <FallbackScreen
+        icon={TriangleAlert}
+        title={t("state.errorTitle")}
+        message={t("state.errorBody")}
+        action={
+          <Button onClick={() => window.location.reload()}>
+            {t("state.reload")}
+          </Button>
+        }
+      />
+    </div>
+  );
+}
+
 class ErrorBoundary extends Component<
   { children: ReactNode },
   { failed: boolean }
@@ -217,41 +315,36 @@ class ErrorBoundary extends Component<
     return { failed: true };
   }
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("UI error:", error, info.componentStack); // conectar a Sentry, etc.
+    console.error("UI error:", error, info.componentStack);
+    reportClientError({
+      source: "react",
+      message: error.message || String(error),
+      stack: error.stack,
+    });
   }
   render() {
     if (!this.state.failed) return this.props.children;
-    return (
-      <div role="alert">
-        <FallbackScreen
-          icon={TriangleAlert}
-          title="Algo salió mal"
-          message="Ocurrió un error inesperado. Puedes recargar la página."
-          action={
-            <Button onClick={() => window.location.reload()}>Recargar</Button>
-          }
-        />
-      </div>
-    );
+    return <ErrorFallback />;
   }
 }
 
 function NotFoundPage() {
+  const { t } = useT();
   return (
     <FallbackScreen
       icon={Compass}
-      title="Página no encontrada"
-      message="La dirección que buscas no existe o fue movida."
+      title={t("state.notFoundTitle")}
+      message={t("state.notFoundBody")}
       action={
         <Link to="/" className={cn(primaryButtonClass, "no-underline")}>
-          Volver al inicio
+          {t("state.backHome")}
         </Link>
       }
     />
   );
 }
 
-// ---------- Layouts de ruta ----------
+// ---------- Route layouts ----------
 function RequireAuth({
   session,
   onLogout,
@@ -264,25 +357,26 @@ function RequireAuth({
   onUserChange: (user: CurrentUser) => void;
 }) {
   const location = useLocation();
+  const { t } = useT();
 
   if (session.status === "loading")
-    return <SessionScreen message="Comprobando sesión…" />;
+    return <SessionScreen message={t("state.checkingSession")} />;
 
   if (session.status === "error") {
     return (
       <div role="alert">
         <FallbackScreen
           icon={WifiOff}
-          title="Sin conexión"
-          message="No pudimos verificar tu sesión. Revisa tu conexión."
-          action={<Button onClick={onRetry}>Reintentar</Button>}
+          title={t("state.offlineTitle")}
+          message={t("state.offlineBody")}
+          action={<Button onClick={onRetry}>{t("state.retry")}</Button>}
         />
       </div>
     );
   }
 
   if (session.status === "guest") {
-    // Guardamos la ruta para volver después del login
+    // Remember the route so we can return after login
     const next = location.pathname + location.search;
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
   }
@@ -318,13 +412,13 @@ function GroupLayout() {
   );
 }
 
-// Wrappers que inyectan `user` sin usar `!`
+// Wrappers that inject `user` without using `!`
 const withUser = (Page: React.ComponentType<{ user: CurrentUser }>) =>
   function Wrapped() {
     return <Page user={useAuth().user} />;
   };
 
-/** Acciones reales de GroupsPage; todas rechazan si el backend falla. */
+/** Real GroupsPage actions; all reject when the backend fails. */
 const groupsPageActions: GroupsPageActions = {
   onRename: async (group, name) => {
     await updateGroup(group.id, { name, expectedVersion: group.version });
@@ -341,7 +435,7 @@ const groupsPageActions: GroupsPageActions = {
   },
 };
 
-/** GroupsPage con usuario y acciones; la página refresca su propia lista tras cada acción. */
+/** GroupsPage with user and actions; the page refreshes its own list after each action. */
 function GroupsPageWithActions() {
   return <GroupsPage user={useAuth().user} actions={groupsPageActions} />;
 }
@@ -359,13 +453,13 @@ const ArrangementDetailPageR = withUser(ArrangementDetailPage);
 const PracticePageR = withUser(PracticePage);
 const GroupSettingsPageR = withUser(GroupSettingsPage);
 
-/** El reproductor solo existe con sesión activa. */
+/** The player only exists with an active session. */
 function AuthenticatedPlayer({ active }: { active: boolean }) {
   const { closeTrack } = useAudioPlayer();
   useEffect(() => {
-    if (!active) closeTrack(); // detiene audio al cerrar sesión
+    if (!active) closeTrack(); // stops audio on logout
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]); // solo al cambiar de sesión (closeTrack cambia de identidad)
+  }, [active]); // only on session change (closeTrack changes identity)
   return active ? <PersistentGlobalPlayer /> : null;
 }
 
@@ -384,7 +478,7 @@ export default function App() {
           : { status: "guest" },
       );
     } catch {
-      if (!signal?.cancelled) setSession({ status: "error" }); // ya no se queda colgado
+      if (!signal?.cancelled) setSession({ status: "error" }); // no longer gets stuck
     }
   }, []);
 
@@ -395,6 +489,9 @@ export default function App() {
       signal.cancelled = true;
     };
   }, [loadSession]);
+
+  // Observability: capture uncaught errors and unhandled rejections once per session.
+  useEffect(() => installGlobalErrorHandlers(), []);
 
   // Host-based tenancy (ADR-0067): a request on `{slug}.sonivo.lat` forwards to
   // the existing path resolver, which verifies membership server-side. The slug
@@ -440,7 +537,7 @@ export default function App() {
         await logoutUser();
       } finally {
         setSession({ status: "guest" });
-        // Limpia datos sensibles en memoria/caché (React Query, localStorage propio, etc.)
+        // Clear sensitive data from memory/cache (React Query, own localStorage, etc.)
       }
     })();
   }, []);
@@ -466,7 +563,7 @@ export default function App() {
           <ToastProvider>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
-              {/* Rutas protegidas */}
+              {/* Protected routes */}
               <Route
                 element={
                   <RequireAuth
@@ -484,7 +581,7 @@ export default function App() {
                   <Route path="/grupos" element={<GroupsPageWithActions />} />
                   <Route path="/unirse" element={<JoinGroupPage />} />
                   <Route path="/calendario" element={<CalendarPage />} />
-                  <Route path="/plan" element={<PlaceholderPage />} />
+                  <Route path="/plan" element={<PlansPage />} />
                   <Route path="/ayuda" element={<PlaceholderPage />} />
                   <Route path="/cuenta" element={<SettingsProfilePage />} />
                   <Route
@@ -498,7 +595,7 @@ export default function App() {
                   />
                   <Route
                     path="/cuenta/notificaciones"
-                    element={<PlaceholderPage />}
+                    element={<AccountNotificationsPage />}
                   />
                   <Route
                     path="/cuenta/grupos"
@@ -543,7 +640,8 @@ export default function App() {
                 <Route path="/g/:slug/*" element={<GroupSlugResolver />} />
               </Route>
 
-              {/* Rutas públicas */}
+              {/* Public routes */}
+              <Route path="/bienvenido" element={<MarketingPage />} />
               <Route
                 path="/join/:token"
                 element={
@@ -585,7 +683,7 @@ export default function App() {
                   code for a host-only cookie on `{slug}.sonivo.lat`. */}
               <Route path="/session/handoff" element={<HandoffPage />} />
 
-              {/* Redirecciones heredadas */}
+              {/* Legacy redirects */}
               <Route
                 path="/security"
                 element={<Navigate to="/cuenta/seguridad" replace />}

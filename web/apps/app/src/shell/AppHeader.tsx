@@ -12,7 +12,7 @@ const linkClass =
 /**
  * Single application header (Phase AppHeader, W1). Sticky, 64px tall and
  * theme-aware through the `shell` tokens, so it follows light/dark like the
- * rest of the app. Guests get "Iniciar sesión"; the logged-in chrome keeps the
+ * rest of the app. Guests get "Sign in"; the logged-in chrome keeps the
  * account / security / sign-out affordances until the user menu lands in W2.
  */
 export function AppHeader({

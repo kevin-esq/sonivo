@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '../../ui/cn'
 import { GroupIconWell } from './GroupCard'
+import { useT } from '../../i18n'
 
 export type GroupBreadcrumbItem = { to?: string; label: string }
 
-/** Group-scoped breadcrumb: `Grupo / Sección`, each crumb a 44px target. */
+/** Group-scoped breadcrumb: `Group / Section`, each crumb a 44px target. */
 export function GroupBreadcrumb({
   items,
   className,
@@ -14,8 +15,9 @@ export function GroupBreadcrumb({
   items: GroupBreadcrumbItem[]
   className?: string
 }) {
+  const { t } = useT()
   return (
-    <nav aria-label="Ruta" className={cn('text-sm text-muted', className)}>
+    <nav aria-label={t('a11y.breadcrumb')} className={cn('text-sm text-muted', className)}>
       <ol className="flex flex-wrap items-center gap-1">
         {items.map((item, index) => (
           <li key={`${item.label}-${index}`} className="flex items-center gap-1">

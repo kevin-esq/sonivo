@@ -26,9 +26,9 @@ export function SecurityPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{t('seguridad.title')}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{t('security.title')}</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          {t('seguridad.subtitle')}
+          {t('security.subtitle')}
         </p>
       </div>
 

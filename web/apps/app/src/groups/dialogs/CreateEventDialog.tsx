@@ -33,9 +33,9 @@ export function CreateEventDialog({
   const [pending, setPending] = useState(false)
 
   const typeOptions = [
-    { value: 'rehearsal', label: t('calendario.typeRehearsal') },
-    { value: 'performance', label: t('calendario.typePerformance') },
-    { value: 'other', label: t('calendario.typeOther') },
+    { value: 'rehearsal', label: t('calendar.typeRehearsal') },
+    { value: 'performance', label: t('calendar.typePerformance') },
+    { value: 'other', label: t('calendar.typeOther') },
   ]
 
   async function submit() {
@@ -60,17 +60,17 @@ export function CreateEventDialog({
     <GroupDialog
       open
       onClose={onClose}
-      title={t('agenda.createEventTitle')}
+      title={t('schedule.createEventTitle')}
       pending={pending}
       testId="create-event-dialog"
       onSubmit={() => void submit()}
       footer={
         <>
           <GroupButton variant="secondary" onClick={onClose} disabled={pending}>
-            {t('calendario.cancel')}
+            {t('calendar.cancel')}
           </GroupButton>
           <GroupButton type="submit" disabled={pending || !title.trim() || !startsAt}>
-            {pending ? t('calendario.creating') : t('calendario.create')}
+            {pending ? t('calendar.creating') : t('calendar.create')}
           </GroupButton>
         </>
       }
@@ -81,7 +81,7 @@ export function CreateEventDialog({
         </p>
       ) : null}
       <GroupInput
-        label={t('calendario.titleField')}
+        label={t('calendar.titleField')}
         value={title}
         maxLength={200}
         disabled={pending}
@@ -89,14 +89,14 @@ export function CreateEventDialog({
         data-autofocus
       />
       <GroupSelect
-        label={t('calendario.type')}
+        label={t('calendar.type')}
         value={type}
         options={typeOptions}
         disabled={pending}
         onChange={(value) => setType(value as EventType)}
       />
       <GroupInput
-        label={t('calendario.dateTime')}
+        label={t('calendar.dateTime')}
         type="datetime-local"
         value={startsAt}
         disabled={pending}

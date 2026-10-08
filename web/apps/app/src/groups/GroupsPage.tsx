@@ -49,12 +49,12 @@ import { useToast } from "../ui/toast";
 import { parseInviteToken } from "../tenancy/inviteToken";
 
 /* ================================================================== */
-/* Tipos y contrato de integración                                     */
+/* Types and integration contract                                    */
 /* ================================================================== */
 
 /**
- * Campos opcionales que la API puede empezar a devolver en GroupSummary.
- * La tarjeta los muestra solo si existen, así que puedes añadirlos al backend cuando quieras.
+ * Optional fields the API may start returning in GroupSummary.
+ * The card shows them only if present, so you can add them to the backend whenever you want.
  */
 export type GroupCardData = GroupSummary & {
   memberCount?: number;
@@ -63,17 +63,17 @@ export type GroupCardData = GroupSummary & {
 };
 
 /**
- * Funciones que debes conectar al backend. Mientras falten, la UI avisa "próximamente"
- * en lugar de fallar. Todas deben lanzar un error si la operación falla.
+ * Functions you must wire to the backend. While they are missing, the UI warns "coming soon"
+ * instead of failing. All of them must throw an error if the operation fails.
  */
 export type GroupsPageActions = {
-  /** Renombrar (solo organizador). */
+  /** Rename (owner only). */
   onRename?: (group: GroupCardData, name: string) => Promise<void>;
-  /** Salir del grupo (solo miembros). */
+  /** Leave the group (members only). */
   onLeave?: (group: GroupCardData) => Promise<void>;
-  /** Eliminar el grupo (solo organizador). */
+  /** Delete the group (owner only). */
   onDelete?: (group: GroupCardData) => Promise<void>;
-  /** Crear un enlace de invitación y devolver su URL completa. */
+  /** Create an invitation link and return its full URL. */
   onCreateInvite?: (group: GroupCardData) => Promise<string>;
 };
 
@@ -89,17 +89,17 @@ type DialogState =
   | { type: "leave"; group: GroupCardData }
   | { type: "delete"; group: GroupCardData };
 
-const SEARCH_THRESHOLD = 6; // desde aquí aparece el buscador
-const TOOLBAR_THRESHOLD = 4; // desde aquí aparecen filtros, orden y vista
+const SEARCH_THRESHOLD = 6; // from here the search box appears
+const TOOLBAR_THRESHOLD = 4; // from here filters, sorting and view appear
 
 const isOwner = (group: GroupCardData) =>
   String(group.role).toLowerCase() === "owner";
 
 /* ================================================================== */
-/* Piezas reutilizables: Modal, menú de acciones                       */
+/* Reusable pieces: Modal, action menu                                  */
 /* ================================================================== */
 
-/** Modal accesible basado en <dialog> nativo (foco atrapado, Esc y backdrop gratis). */
+/** Accessible modal built on the native <dialog> (focus trapped, Esc and backdrop for free). */
 function Modal({
   open,
   onClose,
@@ -129,7 +129,7 @@ function Modal({
       aria-labelledby={titleId}
       onClose={onClose}
       onClick={(e) => {
-        if (e.target === ref.current) onClose(); // clic en el fondo
+        if (e.target === ref.current) onClose(); // click on the backdrop
       }}
       className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-border-subtle bg-surface p-0 text-ink shadow-xl backdrop:bg-slate-900/40"
     >
@@ -165,7 +165,7 @@ type MenuItem = {
   separatorBefore?: boolean;
 };
 
-/** Menú "⋮" con teclado: flechas, Inicio/Fin, Esc y clic fuera. */
+/** "⋮" menu with keyboard: arrows, Home/End, Esc and click outside. */
 function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -273,7 +273,7 @@ function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
 }
 
 /* ================================================================== */
-/* Formularios dentro de los modales                                   */
+/* Forms inside the modals                                             */
 /* ================================================================== */
 
 type TFn = ReturnType<typeof useT>["t"];
@@ -302,7 +302,7 @@ function NameForm({
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    // Se espera a que el <dialog> esté abierto antes de enfocar.
+    // Wait for the <dialog> to be open before focusing.
     const frame = requestAnimationFrame(() => {
       inputRef.current?.focus();
       inputRef.current?.select();
@@ -315,7 +315,7 @@ function NameForm({
     if (pending) return;
     const value = name.trim();
     if (!value) {
-      setError(t("grupos.nameRequired"));
+      setError(t("groups.nameRequired"));
       inputRef.current?.focus();
       return;
     }
@@ -337,7 +337,7 @@ function NameForm({
           htmlFor={id}
           className="block text-sm font-medium text-ink"
         >
-          {t("grupos.nameLabel")}
+          {t("groups.nameLabel")}
         </label>
         <input
           id={id}
@@ -369,7 +369,7 @@ function NameForm({
           onClick={onCancel}
           disabled={pending}
         >
-          {t("grupos.cancel")}
+          {t("groups.cancel")}
         </Button>
         <Button type="submit" disabled={pending || !name.trim()}>
           {pending ? pendingLabel : submitLabel}
@@ -395,7 +395,7 @@ function JoinForm({ onCancel, t }: { onCancel: () => void; t: TFn }) {
     event.preventDefault();
     const token = parseInviteToken(value);
     if (!token) {
-      setError(t("grupos.joinInvalid"));
+      setError(t("groups.joinInvalid"));
       inputRef.current?.focus();
       return;
     }
@@ -404,13 +404,13 @@ function JoinForm({ onCancel, t }: { onCancel: () => void; t: TFn }) {
 
   return (
     <form className="space-y-4" onSubmit={submit} noValidate>
-      <p className="text-sm text-muted">{t("grupos.joinDialogHint")}</p>
+      <p className="text-sm text-muted">{t("groups.joinDialogHint")}</p>
       <div className="space-y-1.5">
         <label
           htmlFor={id}
           className="block text-sm font-medium text-ink"
         >
-          {t("grupos.joinLabel")}
+          {t("groups.joinLabel")}
         </label>
         <input
           id={id}
@@ -437,10 +437,10 @@ function JoinForm({ onCancel, t }: { onCancel: () => void; t: TFn }) {
       </div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>
-          {t("grupos.cancel")}
+          {t("groups.cancel")}
         </Button>
         <Button type="submit" disabled={!value.trim()}>
-          {t("grupos.joinSubmit")}
+          {t("groups.joinSubmit")}
         </Button>
       </div>
     </form>
@@ -490,7 +490,7 @@ function ConfirmForm({
           onClick={onCancel}
           disabled={pending}
         >
-          {t("grupos.cancel")}
+          {t("groups.cancel")}
         </Button>
         <Button
           type="button"
@@ -506,12 +506,12 @@ function ConfirmForm({
 }
 
 /* ================================================================== */
-/* Tarjeta de grupo                                                    */
+/* Group card                                                          */
 /* ================================================================== */
 
-/* ---- Ayudas visuales de la tarjeta ---- */
+/* ---- Card visual helpers ---- */
 
-// Clases completas y literales para que Tailwind las detecte.
+// Full literal class names so Tailwind detects them.
 const AVATAR_TINTS = [
   "bg-primary/15 text-primary-ink",
   "bg-emerald-100 text-emerald-700",
@@ -521,14 +521,14 @@ const AVATAR_TINTS = [
   "bg-violet-100 text-violet-700",
 ];
 
-/** Color estable por grupo: el mismo grupo siempre tiene el mismo color. */
+/** Stable color per group: the same group always gets the same color. */
 function tintFor(id: string | number): string {
   let hash = 0;
   for (const char of String(id)) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   return AVATAR_TINTS[hash % AVATAR_TINTS.length];
 }
 
-/** "Banda de Rock" → "BR"; "Coro" → "CO". */
+/** "Rock Band" → "RB"; "Choir" → "CH". */
 function initialsOf(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return "?";
@@ -540,7 +540,7 @@ function initialsOf(name: string): string {
 const startOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
-/** Próximo evento en lenguaje natural ("hoy", "mañana", "dentro de 3 días") o fecha corta si falta mucho. */
+/** Next event in natural language ("today", "tomorrow", "in 3 days") or a short date if it is far off. */
 function describeNextEvent(
   date: Date,
   lang: string,
@@ -548,7 +548,7 @@ function describeNextEvent(
   const days = Math.round(
     (startOfDay(date) - startOfDay(new Date())) / 86_400_000,
   );
-  if (days < 0) return null; // eventos pasados no se muestran
+  if (days < 0) return null; // past events are not shown
   if (days <= 6) {
     return {
       text: new Intl.RelativeTimeFormat(lang, { numeric: "auto" }).format(
@@ -567,11 +567,11 @@ function describeNextEvent(
   };
 }
 
-/** "hace 5 min", "hace 2 h", "hace 3 días"; fecha corta pasado un mes. */
+/** "5 min ago", "2 h ago", "3 days ago"; short date after a month. */
 function describeActivity(date: Date, lang: string): string | null {
   const diff = Date.now() - date.getTime();
   if (diff < 0) return null;
-  // Estilo corto: "hace 3 min", "hace 2 h" (mismos tramos: min, h, d).
+  // Short style: "3 min ago", "2 h ago" (same steps: min, h, d).
   const rtf = new Intl.RelativeTimeFormat(lang, {
     style: "short",
     numeric: "auto",
@@ -589,7 +589,7 @@ function describeActivity(date: Date, lang: string): string | null {
   }).format(date);
 }
 
-/** True cuando el usuario ya guardó una identidad para este grupo en el dispositivo. */
+/** True when the user has already saved an identity for this group on the device. */
 function hasStoredAppearance(groupId: string | number): boolean {
   try {
     return (
@@ -601,9 +601,9 @@ function hasStoredAppearance(groupId: string | number): boolean {
 }
 
 /**
- * Avatar con la identidad del grupo: emoji y/o acento guardados en este dispositivo
- * (los mismos que edita GroupSettingsPage). Si no hay identidad guardada se mantiene
- * el comportamiento anterior: iniciales con el color estable derivado del id.
+ * Avatar with the group identity: emoji and/or accent saved on this device
+ * (the same ones edited by GroupSettingsPage). If no identity is saved the
+ * previous behavior is kept: initials with the stable color derived from the id.
  */
 function GroupAvatar({ group }: { group: GroupCardData }) {
   const key = String(group.id);
@@ -679,8 +679,8 @@ function GroupCardItem({
     pinned ? "border-primary/30" : "border-border-subtle"
   }`;
 
-  // Enlace "estirado": toda la tarjeta es clicable sin anidar botones dentro de <a>.
-  // El recorte del nombre vive en un <span> interior para no recortar el ::after.
+  // "Stretched" link: the whole card is clickable without nesting buttons inside <a>.
+  // The name truncation lives in an inner <span> so it does not clip the ::after.
   const linkClass =
     "block min-w-0 text-base font-semibold text-ink no-underline after:absolute after:inset-0 after:rounded-2xl after:content-[''] group-hover:text-primary-ink focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-primary focus-visible:after:ring-offset-2";
 
@@ -706,7 +706,7 @@ function GroupCardItem({
       }`}
     >
       {owner ? <Crown className="h-3 w-3" aria-hidden="true" /> : null}
-      {formatMembershipRole(group.role)}
+      {formatMembershipRole(group.role, t)}
     </span>
   );
 
@@ -719,8 +719,8 @@ function GroupCardItem({
         <span className="inline-flex shrink-0 items-center gap-1">
           <Users className="h-3.5 w-3.5" aria-hidden="true" />
           {group.memberCount === 1
-            ? t("grupos.membersOne")
-            : t("grupos.members", { count: group.memberCount as number })}
+            ? t("groups.membersOne")
+            : t("groups.members", { count: group.memberCount as number })}
         </span>
       ) : null}
 
@@ -733,16 +733,16 @@ function GroupCardItem({
           }`}
         >
           <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-          {t("grupos.nextEvent", { date: nextEvent.text })}
+          {t("groups.nextEvent", { date: nextEvent.text })}
         </span>
       ) : activity ? (
-        // Sin evento próximo, la última actividad ocupa su lugar. Solo se ve "hace 3 min";
-        // la frase completa ("Última actividad: …") va para lectores de pantalla.
+        // With no upcoming event, the last activity takes its place. Only "3 min ago" is shown;
+        // the full sentence ("Last activity: …") goes to screen readers.
         <span className="inline-flex shrink-0 items-center gap-1">
           <Clock className="h-3.5 w-3.5" aria-hidden="true" />
           <span aria-hidden="true">{activity}</span>
           <span className="sr-only">
-            {t("grupos.activity", { when: activity })}
+            {t("groups.activity", { when: activity })}
           </span>
         </span>
       ) : null}
@@ -751,13 +751,13 @@ function GroupCardItem({
 
   const actions = (
     <div className="relative z-10 flex shrink-0 items-center">
-      {/* La estrella solo estorba cuando no está fijada: en escritorio aparece al pasar o enfocar. */}
+      {/* The star only gets in the way when unpinned: on desktop it appears on hover or focus. */}
       <button
         type="button"
         onClick={onTogglePin}
         aria-pressed={pinned}
-        aria-label={`${t("grupos.pin")}: ${group.name}`}
-        title={pinned ? t("grupos.unpin") : t("grupos.pin")}
+        aria-label={`${t("groups.pin")}: ${group.name}`}
+        title={pinned ? t("groups.unpin") : t("groups.pin")}
         className={`grid h-11 w-11 place-items-center rounded-lg transition motion-reduce:transition-none focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-primary ${
           pinned
             ? "text-amber-500 hover:bg-amber-50"
@@ -771,10 +771,10 @@ function GroupCardItem({
         />
       </button>
       <ActionMenu
-        label={t("grupos.menuLabel", { name: group.name })}
+        label={t("groups.menuLabel", { name: group.name })}
         items={menu}
       />
-      {/* La flecha solo acompaña a la fila horizontal; en cuadrícula no aporta. */}
+      {/* The arrow only accompanies the horizontal row; in grid view it adds nothing. */}
       {view === "list" ? (
         <ChevronRight
           className="ml-0.5 hidden h-5 w-5 shrink-0 text-muted transition duration-150 group-hover:translate-x-0.5 group-hover:text-primary-ink motion-reduce:transform-none motion-reduce:transition-none sm:block"
@@ -785,8 +785,8 @@ function GroupCardItem({
   );
 
   if (view === "list") {
-    // Fila horizontal: avatar · nombre · rol · metadatos · acciones.
-    // En móvil los metadatos bajan a su propia línea (order-last + ancho completo).
+    // Horizontal row: avatar · name · role · metadata · actions.
+    // On mobile the metadata drops to its own line (order-last + full width).
     return (
       <div
         className={`${cardClass} flex h-full flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-3 sm:px-4`}
@@ -802,8 +802,8 @@ function GroupCardItem({
     );
   }
 
-  // Tarjeta vertical: avatar y acciones arriba, nombre a ancho completo,
-  // luego el rol y, separados por un borde, los metadatos en una sola línea.
+  // Vertical card: avatar and actions on top, full-width name,
+  // then the role and, separated by a border, the metadata on a single line.
   return (
     <div
       className={`${cardClass} flex h-full flex-col gap-3 px-3 py-3.5 sm:px-4`}
@@ -827,7 +827,7 @@ function GroupCardItem({
   );
 }
 
-/** Esqueleto con la misma cuadrícula y estructura que la tarjeta vertical. */
+/** Skeleton with the same grid and structure as the vertical card. */
 function GroupCardSkeleton({ label }: { label: string }) {
   const slots = [0, 1, 2, 3, 4, 5];
   return (
@@ -864,7 +864,7 @@ function GroupCardSkeleton({ label }: { label: string }) {
   );
 }
 /* ================================================================== */
-/* Página                                                              */
+/* Page                                                                */
 /* ================================================================== */
 
 export function GroupsPage({
@@ -921,7 +921,7 @@ export function GroupsPage({
 
   const notify = (kind: "ok" | "error" | "info", text: string) =>
     showToast({ kind, text });
-  const soon = () => notify("info", t("grupos.comingSoon"));
+  const soon = () => notify("info", t("groups.comingSoon"));
 
   function retry() {
     setGroups(null);
@@ -972,7 +972,7 @@ export function GroupsPage({
     [groups, lastGroupId],
   );
 
-  // Fijados y resto se pintan como secciones separadas cuando hay fijados.
+  // Pinned and the rest are rendered as separate sections when there are pinned ones.
   const pinnedGroups = useMemo(
     () => visible.filter((g) => pinned.includes(String(g.id))),
     [visible, pinned],
@@ -989,7 +989,7 @@ export function GroupsPage({
       const copied = await copy(url);
       notify(
         copied ? "ok" : "error",
-        copied ? t("grupos.inviteCopied") : t("grupos.copyFailed"),
+        copied ? t("groups.inviteCopied") : t("groups.copyFailed"),
       );
     } catch (err) {
       notify("error", problemDetail(err));
@@ -1026,7 +1026,7 @@ export function GroupsPage({
       },
       {
         key: "invite",
-        label: t("grupos.actionInvite"),
+        label: t("groups.actionInvite"),
         icon: Link2,
         separatorBefore: true,
         onSelect: () => void copyInvite(group),
@@ -1036,20 +1036,20 @@ export function GroupsPage({
       items.push(
         {
           key: "rename",
-          label: t("grupos.actionRename"),
+          label: t("groups.actionRename"),
           icon: Pencil,
           onSelect: () =>
             actions?.onRename ? setDialog({ type: "rename", group }) : soon(),
         },
         {
           key: "settings",
-          label: t("grupo.ajustes"),
+          label: t("group.settings"),
           icon: Settings,
           to: `${base}/ajustes`,
         },
         {
           key: "delete",
-          label: t("grupos.actionDelete"),
+          label: t("groups.actionDelete"),
           icon: Trash2,
           danger: true,
           separatorBefore: true,
@@ -1060,7 +1060,7 @@ export function GroupsPage({
     } else {
       items.push({
         key: "leave",
-        label: t("grupos.actionLeave"),
+        label: t("groups.actionLeave"),
         icon: LogOut,
         danger: true,
         separatorBefore: true,
@@ -1092,7 +1092,7 @@ export function GroupsPage({
           ? "grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] auto-rows-fr gap-3"
           : "space-y-2"
       }
-      aria-label={t("grupos.listLabel")}
+      aria-label={t("groups.listLabel")}
     >
       {list.map((group) => (
         <li key={group.id} className="h-full">
@@ -1117,7 +1117,7 @@ export function GroupsPage({
       aria-labelledby="groups-heading"
       aria-busy={loading}
     >
-      {/* Cabecera con las acciones principales (sustituye al formulario fijo de abajo) */}
+      {/* Header with the main actions (replaces the fixed form below) */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
@@ -1125,7 +1125,7 @@ export function GroupsPage({
               id="groups-heading"
               className="text-3xl font-bold tracking-tight text-shell-foreground"
             >
-              {t("grupos.title")}
+              {t("groups.title")}
             </h1>
             {total > 0 ? (
               <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-shell-link">
@@ -1134,11 +1134,11 @@ export function GroupsPage({
             ) : null}
           </div>
           <p className="max-w-lg text-sm text-shell-foreground/70">
-            {t("grupos.subtitle")}
+            {t("groups.subtitle")}
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-          {/* Secundaria discreta: unirse con enlace. */}
+          {/* Discrete secondary: join with a link. */}
           <Button
             type="button"
             variant="secondary"
@@ -1146,16 +1146,16 @@ export function GroupsPage({
             onClick={() => setDialog({ type: "join" })}
           >
             <Link2 className="h-4 w-4" aria-hidden="true" />
-            {t("grupos.join")}
+            {t("groups.join")}
           </Button>
-          {/* Acción principal. */}
+          {/* Primary action. */}
           <Button
             type="button"
             className="w-full justify-center sm:w-auto"
             onClick={() => setDialog({ type: "create" })}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
-            {t("grupos.new")}
+            {t("groups.new")}
           </Button>
         </div>
       </header>
@@ -1167,13 +1167,13 @@ export function GroupsPage({
         >
           <p className="text-sm text-error-ink">{loadError}</p>
           <Button type="button" variant="outline" onClick={retry}>
-            {t("grupos.retry")}
+            {t("groups.retry")}
           </Button>
         </div>
       ) : null}
 
       {loading ? (
-        <GroupCardSkeleton label={t("grupos.loading")} />
+        <GroupCardSkeleton label={t("groups.loading")} />
       ) : groups && groups.length === 0 ? (
         <div className="flex flex-col items-start gap-4 rounded-2xl border border-dashed border-border-subtle bg-surface-hover/60 px-5 py-8">
           <span
@@ -1184,31 +1184,31 @@ export function GroupsPage({
           </span>
           <div className="space-y-1">
             <p className="font-semibold text-shell-foreground">
-              {t("grupos.emptyTitle")}
+              {t("groups.emptyTitle")}
             </p>
             <p className="max-w-md text-sm text-muted">
-              {t("grupos.empty")}
+              {t("groups.empty")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" onClick={() => setDialog({ type: "create" })}>
-              {t("grupos.emptyCta")}
+              {t("groups.emptyCta")}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => setDialog({ type: "join" })}
             >
-              {t("grupos.join")}
+              {t("groups.join")}
             </Button>
           </div>
           <p className="max-w-md text-xs text-muted">
-            {t("grupos.joinHint")}
+            {t("groups.joinHint")}
           </p>
         </div>
       ) : groups ? (
         <div className="space-y-4">
-          {/* Acceso rápido al último grupo abierto */}
+          {/* Quick access to the last opened group */}
           {lastGroup && total > 1 ? (
             <Link
               to={`/groups/${lastGroup.id}`}
@@ -1216,7 +1216,7 @@ export function GroupsPage({
             >
               <span className="min-w-0">
                 <span className="block text-xs font-medium uppercase tracking-wide text-shell-link">
-                  {t("grupos.continue")}
+                  {t("groups.continue")}
                 </span>
                 <span className="block truncate font-semibold text-shell-foreground">
                   {lastGroup.name}
@@ -1234,7 +1234,7 @@ export function GroupsPage({
               {showSearch ? (
                 <div className="relative min-w-[12rem] flex-1">
                   <label htmlFor={searchId} className="sr-only">
-                    {t("grupos.searchLabel")}
+                    {t("groups.searchLabel")}
                   </label>
                   <Search
                     className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
@@ -1246,7 +1246,7 @@ export function GroupsPage({
                     className={`${fieldClass} min-h-11 pl-9`}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder={t("grupos.searchPlaceholder")}
+                    placeholder={t("groups.searchPlaceholder")}
                     autoComplete="off"
                   />
                 </div>
@@ -1254,7 +1254,7 @@ export function GroupsPage({
 
               <div
                 role="group"
-                aria-label={t("grupos.filterLabel")}
+                aria-label={t("groups.filterLabel")}
                 className="flex gap-1.5"
               >
                 {(["all", "owner", "member"] as const).map((value) => (
@@ -1267,24 +1267,24 @@ export function GroupsPage({
                   >
                     {t(
                       value === "all"
-                        ? "grupos.filterAll"
+                        ? "groups.filterAll"
                         : value === "owner"
-                          ? "grupos.filterOwner"
-                          : "grupos.filterMember",
+                          ? "groups.filterOwner"
+                          : "groups.filterMember",
                     )}
                   </button>
                 ))}
               </div>
 
               <div className="ml-auto flex items-center gap-2">
-                {/* Selector de orden: <select> real (accesible y usable en móvil) con
-                    apariencia propia y una etiqueta visible "Ordenar: Nombre". */}
+                {/* Sort selector: a real <select> (accessible and usable on mobile) with
+                    custom styling and a visible label "Sort: Name". */}
                 <div className="flex min-h-11 items-center gap-1.5 rounded-xl border border-border-subtle bg-surface pl-3 pr-2 text-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25">
                   <label
                     htmlFor={`${searchId}-sort`}
                     className="whitespace-nowrap text-shell-foreground/70"
                   >
-                    {t("grupos.sortLabel")}:
+                    {t("groups.sortLabel")}:
                   </label>
                   <span className="relative flex h-full items-center">
                     <select
@@ -1293,10 +1293,10 @@ export function GroupsPage({
                       value={sort}
                       onChange={(e) => setSort(e.target.value as SortKey)}
                     >
-                      <option value="name">{t("grupos.sortName")}</option>
-                      <option value="role">{t("grupos.sortRole")}</option>
+                      <option value="name">{t("groups.sortName")}</option>
+                      <option value="role">{t("groups.sortRole")}</option>
                       {hasRecent ? (
-                        <option value="recent">{t("grupos.sortRecent")}</option>
+                        <option value="recent">{t("groups.sortRecent")}</option>
                       ) : null}
                     </select>
                     <ChevronDown
@@ -1307,7 +1307,7 @@ export function GroupsPage({
                 </div>
                 <div
                   role="group"
-                  aria-label={t("grupos.viewLabel")}
+                  aria-label={t("groups.viewLabel")}
                   className="flex overflow-hidden rounded-xl border border-border-subtle"
                 >
                   {(["grid", "list"] as const).map((mode) => {
@@ -1319,8 +1319,8 @@ export function GroupsPage({
                         aria-pressed={view === mode}
                         aria-label={t(
                           mode === "grid"
-                            ? "grupos.viewGrid"
-                            : "grupos.viewList",
+                            ? "groups.viewGrid"
+                            : "groups.viewList",
                         )}
                         onClick={() => setView(mode)}
                         className={`grid h-11 w-11 place-items-center transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
@@ -1340,23 +1340,23 @@ export function GroupsPage({
 
           <p role="status" aria-live="polite" className="sr-only">
             {resultsActive
-              ? t("grupos.resultsCount", { count: visible.length })
+              ? t("groups.resultsCount", { count: visible.length })
               : ""}
           </p>
 
-          {/* Recuento visible cuando hay búsqueda o filtro activos. */}
+          {/* Visible count when a search or filter is active. */}
           {resultsActive ? (
             <p
               className="text-sm font-medium text-shell-foreground/70"
               aria-hidden="true"
             >
-              {t("grupos.resultsCount", { count: visible.length })}
+              {t("groups.resultsCount", { count: visible.length })}
             </p>
           ) : null}
 
           {visible.length === 0 ? (
             <div className="space-y-2 rounded-2xl border border-dashed border-border-subtle bg-surface-hover/60 px-5 py-6">
-              <p className="text-sm text-muted">{t("grupos.noMatches")}</p>
+              <p className="text-sm text-muted">{t("groups.noMatches")}</p>
               <button
                 type="button"
                 className="text-sm font-semibold text-shell-link hover:underline"
@@ -1365,7 +1365,7 @@ export function GroupsPage({
                   setFilter("all");
                 }}
               >
-                {t("grupos.clearSearch")}
+                {t("groups.clearSearch")}
               </button>
             </div>
           ) : (
@@ -1384,7 +1384,7 @@ export function GroupsPage({
                       fill="currentColor"
                       aria-hidden="true"
                     />
-                    {t("grupos.pinnedSection")}
+                    {t("groups.pinnedSection")}
                   </h2>
                   {renderCards(pinnedGroups)}
                 </section>
@@ -1392,7 +1392,7 @@ export function GroupsPage({
 
               {pinnedGroups.length > 0 && otherGroups.length > 0 ? (
                 <h2 className="text-sm font-semibold text-shell-foreground">
-                  {t("grupos.allSection")}
+                  {t("groups.allSection")}
                 </h2>
               ) : null}
 
@@ -1402,18 +1402,18 @@ export function GroupsPage({
         </div>
       ) : null}
 
-      {/* ---------------- Diálogos ---------------- */}
+      {/* ---------------- Dialogs ---------------- */}
       <Modal
         open={dialog?.type === "create"}
         onClose={closeDialog}
-        title={t("grupos.createTitle")}
-        closeLabel={t("grupos.close")}
+        title={t("groups.createTitle")}
+        closeLabel={t("groups.close")}
       >
         <NameForm
           initial=""
-          hint={t("grupos.createHint")}
-          submitLabel={t("grupos.create")}
-          pendingLabel={t("grupos.creating")}
+          hint={t("groups.createHint")}
+          submitLabel={t("groups.create")}
+          pendingLabel={t("groups.creating")}
           t={t}
           onCancel={closeDialog}
           onSubmit={async (name) => {
@@ -1427,8 +1427,8 @@ export function GroupsPage({
       <Modal
         open={dialog?.type === "join"}
         onClose={closeDialog}
-        title={t("grupos.joinTitle")}
-        closeLabel={t("grupos.close")}
+        title={t("groups.joinTitle")}
+        closeLabel={t("groups.close")}
       >
         <JoinForm t={t} onCancel={closeDialog} />
       </Modal>
@@ -1436,14 +1436,14 @@ export function GroupsPage({
       <Modal
         open={dialog?.type === "rename"}
         onClose={closeDialog}
-        title={t("grupos.renameTitle")}
-        closeLabel={t("grupos.close")}
+        title={t("groups.renameTitle")}
+        closeLabel={t("groups.close")}
       >
         {dialog?.type === "rename" ? (
           <NameForm
             initial={dialog.group.name}
-            submitLabel={t("grupos.renameSubmit")}
-            pendingLabel={t("inicio.working")}
+            submitLabel={t("groups.renameSubmit")}
+            pendingLabel={t("dashboard.working")}
             t={t}
             onCancel={closeDialog}
             onSubmit={async (name) => {
@@ -1455,7 +1455,7 @@ export function GroupsPage({
                   ) ?? prev,
               );
               closeDialog();
-              notify("ok", t("grupos.renamed"));
+              notify("ok", t("groups.renamed"));
             }}
           />
         ) : null}
@@ -1464,14 +1464,14 @@ export function GroupsPage({
       <Modal
         open={dialog?.type === "leave"}
         onClose={closeDialog}
-        title={t("grupos.leaveTitle")}
-        closeLabel={t("grupos.close")}
+        title={t("groups.leaveTitle")}
+        closeLabel={t("groups.close")}
       >
         {dialog?.type === "leave" ? (
           <ConfirmForm
-            body={t("grupos.leaveBody", { name: dialog.group.name })}
-            confirmLabel={t("grupos.leaveConfirm")}
-            pendingLabel={t("inicio.working")}
+            body={t("groups.leaveBody", { name: dialog.group.name })}
+            confirmLabel={t("groups.leaveConfirm")}
+            pendingLabel={t("dashboard.working")}
             t={t}
             onCancel={closeDialog}
             onConfirm={async () => {
@@ -1480,7 +1480,7 @@ export function GroupsPage({
                 (prev) => prev?.filter((g) => g.id !== dialog.group.id) ?? prev,
               );
               closeDialog();
-              notify("ok", t("grupos.left"));
+              notify("ok", t("groups.left"));
             }}
           />
         ) : null}
@@ -1489,14 +1489,14 @@ export function GroupsPage({
       <Modal
         open={dialog?.type === "delete"}
         onClose={closeDialog}
-        title={t("grupos.deleteTitle")}
-        closeLabel={t("grupos.close")}
+        title={t("groups.deleteTitle")}
+        closeLabel={t("groups.close")}
       >
         {dialog?.type === "delete" ? (
           <ConfirmForm
-            body={t("grupos.deleteBody", { name: dialog.group.name })}
-            confirmLabel={t("grupos.deleteConfirm")}
-            pendingLabel={t("inicio.deleting")}
+            body={t("groups.deleteBody", { name: dialog.group.name })}
+            confirmLabel={t("groups.deleteConfirm")}
+            pendingLabel={t("dashboard.deleting")}
             t={t}
             onCancel={closeDialog}
             onConfirm={async () => {
@@ -1505,7 +1505,7 @@ export function GroupsPage({
                 (prev) => prev?.filter((g) => g.id !== dialog.group.id) ?? prev,
               );
               closeDialog();
-              notify("ok", t("grupos.deleted"));
+              notify("ok", t("groups.deleted"));
             }}
           />
         ) : null}

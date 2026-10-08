@@ -1,41 +1,55 @@
 # NOW - agent focus
 
-**Updated:** 2026-10-06
+**Updated:** 2026-10-07
 
 ## Checkpoint state
 
 ```text
-Implementation: COMPLETE - Groups UI refactor + plan follow-ups (notices + payments)
-  Merged to develop:
-    - PR #233 feature/group-ui-refactor (ADR-0074): groups/ui kit, creation modals,
-      custom GroupSelect, real-time group data bus, all group pages migrated.
-    - PR #234 feature/plan-limit-notices (PHASE-PLANS-SPEC §4.1): 80%/100% limit notices
-      on Library/Setlists/Events + ?tab=plan deep link.
-    - PR #235 feature/payments-abstraction (ADR-0075): provider-agnostic IPaymentProvider,
-      Manual default + HMAC-signed Sandbox gateway, signature-verified idempotent webhooks
-      (WebhookEvents migration), owner-only checkout, single signed CSRF exemption.
-  Verification (all green):
-    - Frontend: tsc clean (pre-existing main.tsx TS5097 only), next build green,
-      Playwright E2E 88 passed / 3 skipped / 0 failed.
-    - Backend: Domain 181, Application 222, Integration 66, Api 251.
-    - CI: PRs #233/#234/#235 all checks pass; merged.
-Human approval: APPROVED
-Git checkpoint: COMMITTED + MERGED (#233, #234, #235)
-Remote: PUSHED (branches deleted after merge)
-CI: PASSING
+Branch: refactor/frontend-restructure  ->  PR #238 (base develop)
+Implementation: IN PROGRESS
+Human approval: PENDING
+Git checkpoint: PARTIAL (latest commits not yet pushed)
+Remote: PUSHED UP TO 25bbcdc / NEW COMMITS LOCAL
+CI: NOT RUN (pending push)
 ```
 
-### Remaining (not started; needs a dedicated, verified pass)
-- **Organization model (ADR-0072)** — large and tenancy-critical: a new `Organization`
-  entity + migration + backfill, `Group.OrganizationId`, group-limit validation against the
-  organization, and moving plan/billing to the organization in Studio. Deferred rather than
-  rushed because it touches billing/tenancy invariants and deserves its own delivery.
-- **Commercial payment provider + CFDI/tax (ADR-0075 leaves these OPEN)** — the sandbox
-  gateway and the abstraction ship now; a real adapter + Mexican invoicing are a follow-up.
+### Committed on this branch (newest first)
+- 636d525 feat(web): real audio preview in the create-song wizard
+- 532b84d refactor(web): English i18n key namespaces (1084 keys)
+- b7a46d5 refactor(web): home metrics, home-only rail, invite dialog, account-scoped theme
+- (earlier) marketing landing + pre-paint theme; guided create-song wizard
 
-### Notes
-- Active frontend is `web/apps/app/src` (Next shell, ADR-0067).
-- `/grupos` (GroupsPage) is account/panel chrome (ADR-0074 §2) and stays on Sonivo-fixed `ui/`.
-- `reactStrictMode` is disabled in `web/apps/app/next.config.ts` (dev-only double-mount raced
-  the create modals; production never double-invokes effects).
-- Unrelated untracked files remain: .vscode/, .turbo/, .scratch/shots/, .scratch/security-sweep-*.
+### Language policy (HARD)
+- Code/comments/logs/tests/back-end/routes/commits: English.
+- i18n **keys/tags: English** (`songs.*`, `settings.*`, `dashboard.*`, `songCreate.*` …).
+  Only user-visible copy is localized: es (default), en, pt.
+
+## Done this session
+- Group banner removed; group switcher moved to the top bar.
+- Home-only live metrics from the usage endpoint; context rail is home-only.
+- Member invitation is an owner dialog on the Members tab.
+- Group-level theme/locale controls removed from settings (account-scoped); the
+  shell no longer forces a theme default and re-fetches branding on group update.
+- Branding cached per group → group colour paints on the first frame (no flash).
+- Public marketing landing at `/bienvenido` (+ pre-paint theme script).
+- Guided create-song wizard (Details → Audio → Arrangement → Review → Done) with
+  drag-and-drop, validation, sections and a **real decoded waveform + preview player**.
+- i18n tags fully renamed to English (tsc clean; i18n-sensitive E2E green).
+
+## Remaining (not done)
+- **Arrangement editor UI/UX** (`ArrangementDetailPage`) 2-column redesign + preview.
+  NOTE: track/stem lanes (Voz/Batería/Bajo…) need a new model — today there is a
+  single `audio` resource per arrangement; UI must not fake multi-track data.
+- **Notifications** via SignalR (hub + inbox + bell). `/cuenta/notificaciones` is a
+  placeholder; `GroupHub` is NOT in this branch.
+- **Observability / error handling**: global ErrorBoundary, client error reporting
+  endpoint, advanced audit view (audit endpoint exists: `GET /api/groups/{id}/audit`).
+- **Plans**: `/plan` is a placeholder; pricing/gating needs definition.
+- **boneyard-js** skeletons (authorized; install + CLI capture pending).
+- **Push + CI + merge of PR #238.**
+
+## Notes
+- Local stack: API 127.0.0.1:5171 (`Auth__EnableTestHook=true`), Next dev 5173, Postgres 5433.
+- Do NOT run `next build` while the dev server is up.
+- Untracked non-project files to never commit: `.vscode/`, `.turbo/`, `.scratch/shots/`,
+  `.scratch/security-sweep-26df6f5/`, `.scratch/*.mjs` scratch scripts.

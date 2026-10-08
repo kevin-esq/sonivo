@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -21,6 +21,7 @@ import {
 } from '../api/client'
 import { BRAND_THEMES, GRADIENT_STYLES, INTENSITY_OPTIONS, TYPOGRAPHY_OPTIONS, deriveGroupThemeTokens } from '../brand/tokens'
 import { useBrandPreview } from './brandPreview'
+import { GroupAuditPanel } from '../groups/GroupAuditPanel'
 import { useTheme } from '../brand/theme'
 import { useT, type I18nKey } from '../i18n'
 import {
@@ -52,12 +53,12 @@ import { notifyGroupUpdated } from './groupEvents'
 
 /** Accessible colour names for the accent swatches (values stay hex). */
 const ACCENT_NAME_KEYS: Record<string, I18nKey> = {
-  '#8366f1': 'ajustes.accentViolet',
-  '#0ea5e9': 'ajustes.accentSky',
-  '#10b981': 'ajustes.accentEmerald',
-  '#f3b626': 'ajustes.accentAmber',
-  '#ef4444': 'ajustes.accentRed',
-  '#e8c4f6': 'ajustes.accentLilac',
+  '#8366f1': 'settings.accentViolet',
+  '#0ea5e9': 'settings.accentSky',
+  '#10b981': 'settings.accentEmerald',
+  '#f3b626': 'settings.accentAmber',
+  '#ef4444': 'settings.accentRed',
+  '#e8c4f6': 'settings.accentLilac',
 }
 
 /**
@@ -71,18 +72,18 @@ const BRAND_PRIMARY_PRESETS = ['#6d4ee0', '#0369a1', '#047857', '#b45309', '#b91
 const BRAND_SECONDARY_PRESETS = ['#0ea5e9', '#10b981', '#f3b626', '#ef4444', '#e8c4f6', '#a78bfa'] as const
 
 const BRAND_COLOR_NAME_KEYS: Record<string, I18nKey> = {
-  '#6d4ee0': 'ajustes.accentViolet',
-  '#0369a1': 'ajustes.accentSky',
-  '#047857': 'ajustes.accentEmerald',
-  '#b45309': 'ajustes.accentAmber',
-  '#b91c1c': 'ajustes.accentRed',
-  '#7e22ce': 'ajustes.accentLilac',
-  '#0ea5e9': 'ajustes.accentSky',
-  '#10b981': 'ajustes.accentEmerald',
-  '#f3b626': 'ajustes.accentAmber',
-  '#ef4444': 'ajustes.accentRed',
-  '#e8c4f6': 'ajustes.accentLilac',
-  '#a78bfa': 'ajustes.accentLilac',
+  '#6d4ee0': 'settings.accentViolet',
+  '#0369a1': 'settings.accentSky',
+  '#047857': 'settings.accentEmerald',
+  '#b45309': 'settings.accentAmber',
+  '#b91c1c': 'settings.accentRed',
+  '#7e22ce': 'settings.accentLilac',
+  '#0ea5e9': 'settings.accentSky',
+  '#10b981': 'settings.accentEmerald',
+  '#f3b626': 'settings.accentAmber',
+  '#ef4444': 'settings.accentRed',
+  '#e8c4f6': 'settings.accentLilac',
+  '#a78bfa': 'settings.accentLilac',
 }
 
 /** ADR-0059: predefined brand palettes (primary + secondary together). */
@@ -112,10 +113,10 @@ export function contrastRatio(foreground: string, background: string): number {
 
 /** Visible/accessible gradient names, translated while the storage id stays English. */
 const GRADIENT_NAME_KEYS: Record<string, I18nKey> = {
-  violet: 'ajustes.coverGradientViolet',
-  ocean: 'ajustes.coverGradientOcean',
-  forest: 'ajustes.coverGradientForest',
-  sunset: 'ajustes.coverGradientSunset',
+  violet: 'settings.coverGradientViolet',
+  ocean: 'settings.coverGradientOcean',
+  forest: 'settings.coverGradientForest',
+  sunset: 'settings.coverGradientSunset',
 }
 
 /** Brand editor draft (ADR-0054); colours stay as raw hex until saved/validated. */
@@ -187,19 +188,19 @@ function draftFromBranding(branding: GroupBranding): BrandDraft {
   }
 }
 
-type SettingsTab = 'general' | 'branding' | 'plan' | 'permissions' | 'notifications' | 'integrations' | 'advanced' | 'danger'
+type SettingsTab = 'general' | 'branding' | 'plan' | 'permissions' | 'notifications' | 'integrations' | 'audit' | 'danger'
 
 // Membership/billing is account-level (see /cuenta/membresia), not group-owned;
 // the group centre only exposes group-scoped settings.
 const SETTINGS_TABS: { id: SettingsTab; labelKey: I18nKey }[] = [
-  { id: 'general', labelKey: 'ajustes.tabGeneral' },
-  { id: 'branding', labelKey: 'ajustes.tabBranding' },
-  { id: 'plan', labelKey: 'ajustes.tabPlan' },
-  { id: 'permissions', labelKey: 'ajustes.tabPermissions' },
-  { id: 'notifications', labelKey: 'ajustes.tabNotifications' },
-  { id: 'integrations', labelKey: 'ajustes.tabIntegrations' },
-  { id: 'advanced', labelKey: 'ajustes.tabAdvanced' },
-  { id: 'danger', labelKey: 'ajustes.tabDanger' },
+  { id: 'general', labelKey: 'settings.tabGeneral' },
+  { id: 'branding', labelKey: 'settings.tabBranding' },
+  { id: 'plan', labelKey: 'settings.tabPlan' },
+  { id: 'permissions', labelKey: 'settings.tabPermissions' },
+  { id: 'notifications', labelKey: 'settings.tabNotifications' },
+  { id: 'integrations', labelKey: 'settings.tabIntegrations' },
+  { id: 'audit', labelKey: 'audit.tab' },
+  { id: 'danger', labelKey: 'settings.tabDanger' },
 ]
 
 /** Human-readable byte size for the storage usage row. */
@@ -391,6 +392,39 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     setBrandSaved(false)
   }
 
+  /**
+   * Controlled `input[type=color]` is unreliable: the browser fires a change for
+   * every step while the OS picker is dragged, and each one previously scheduled
+   * a state update, so a fast drag exceeded React's nested-update limit
+   * ("Maximum update depth exceeded"). Coalesce a burst into one update per frame
+   * and ignore non-hex / unchanged values.
+   */
+  const pendingColor = useRef<{ field: keyof BrandDraft; value: string } | null>(null)
+  const colorFrame = useRef<number | null>(null)
+
+  function setDraftColor(field: keyof BrandDraft, value: string) {
+    const next = value.toLowerCase()
+    if (!/^#[0-9a-f]{6}$/.test(next)) return
+    if (String(draft?.[field] ?? '').toLowerCase() === next) return
+    pendingColor.current = { field, value: next }
+    if (colorFrame.current != null) return
+    colorFrame.current = window.requestAnimationFrame(() => {
+      colorFrame.current = null
+      const pending = pendingColor.current
+      pendingColor.current = null
+      if (!pending) return
+      setDraft((prev) => (prev ? ({ ...prev, [pending.field]: pending.value } as BrandDraft) : prev))
+      setBrandSaved(false)
+    })
+  }
+
+  useEffect(
+    () => () => {
+      if (colorFrame.current != null) window.cancelAnimationFrame(colorFrame.current)
+    },
+    [],
+  )
+
   const isDirty = useMemo(() => {
     if (!draft || !branding) return false
     const current = draftFromBranding(branding)
@@ -562,22 +596,22 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     <section className="max-w-4xl space-y-6" aria-labelledby="ajustes-heading">
       <div className="space-y-1">
         <h1 id="ajustes-heading" className="text-2xl font-bold tracking-tight">
-          {t('ajustes.title')}
+          {t('settings.title')}
         </h1>
-        <p className="text-sm text-muted">{t('ajustes.subtitle')}</p>
+        <p className="text-sm text-muted">{t('settings.subtitle')}</p>
       </div>
 
       {isOwner ? (
-        <p className="rounded-xl border border-primary/25 bg-primary/10 px-3 py-2 text-sm">{t('ajustes.ownerHint')}</p>
+        <p className="rounded-xl border border-primary/25 bg-primary/10 px-3 py-2 text-sm">{t('settings.ownerHint')}</p>
       ) : (
         <p role="note" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm">
-          {t('ajustes.memberReadonly')}
+          {t('settings.memberReadonly')}
         </p>
       )}
 
       {/* Tab navigation */}
-      <div className="flex flex-wrap gap-1 rounded-xl bg-surface-hover p-1" role="tablist" aria-label={t('ajustes.tabsLabel')}>
-        {SETTINGS_TABS.map((tab) => (
+      <div className="flex flex-wrap gap-1 rounded-xl bg-surface-hover p-1" role="tablist" aria-label={t('settings.tabsLabel')}>
+        {SETTINGS_TABS.filter((tab) => tab.id !== 'audit' || isOwner).map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -601,11 +635,11 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       {activeTab === 'general' ? (
         <div className="space-y-6">
           <form className="space-y-3" onSubmit={(event) => void onRename(event)} noValidate>
-            <h2 className="text-lg font-semibold">{t('inicio.renameTitle')}</h2>
+            <h2 className="text-lg font-semibold">{t('dashboard.renameTitle')}</h2>
             <ConflictAlert message={renameConflict} />
             <ProblemAlert message={renameError} />
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-ink">{t('ajustes.name')}</span>
+              <span className="text-sm font-medium text-ink">{t('settings.name')}</span>
               <input
                 className={fieldClass}
                 type="text"
@@ -620,16 +654,16 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </label>
             {isOwner ? (
               <Button variant="secondary" type="submit" disabled={renaming}>
-                {renaming ? t('inicio.working') : t('inicio.saveName')}
+                {renaming ? t('dashboard.working') : t('dashboard.saveName')}
               </Button>
             ) : null}
           </form>
 
           {brandingEnabled && draft ? (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold">{t('ajustes.brandingTitle')}</h2>
+              <h2 className="text-lg font-semibold">{t('settings.brandingTitle')}</h2>
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-ink">{t('ajustes.displayNameOverride')}</span>
+                <span className="text-sm font-medium text-ink">{t('settings.displayNameOverride')}</span>
                 <input
                   className={fieldClass}
                   type="text"
@@ -639,10 +673,10 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   maxLength={120}
                   onChange={(e) => patchDraft({ displayName: e.target.value })}
                 />
-                <span className="text-xs text-muted">{t('ajustes.displayNameHint')}</span>
+                <span className="text-xs text-muted">{t('settings.displayNameHint')}</span>
               </label>
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-ink">{t('ajustes.welcomeText')}</span>
+                <span className="text-sm font-medium text-ink">{t('settings.welcomeText')}</span>
                 <input
                   className={fieldClass}
                   type="text"
@@ -653,7 +687,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 />
               </label>
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-ink">{t('ajustes.loginHeadline')}</span>
+                <span className="text-sm font-medium text-ink">{t('settings.loginHeadline')}</span>
                 <input
                   className={fieldClass}
                   type="text"
@@ -665,7 +699,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-ink">{t('ajustes.tagline')}</span>
+                  <span className="text-sm font-medium text-ink">{t('settings.tagline')}</span>
                   <input
                     className={fieldClass}
                     type="text"
@@ -676,7 +710,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   />
                 </label>
                 <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-ink">{t('ajustes.verse')}</span>
+                  <span className="text-sm font-medium text-ink">{t('settings.verse')}</span>
                   <input
                     className={fieldClass}
                     type="text"
@@ -695,7 +729,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   disabled={!isOwner || locked('removePoweredBy')}
                   onChange={(e) => patchDraft({ showSonivoCredit: e.target.checked })}
                 />
-                {t('ajustes.showSonivoCredit')}
+                {t('settings.showSonivoCredit')}
               </label>
             </div>
           ) : null}
@@ -707,9 +741,9 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         <section className="space-y-5" aria-labelledby="brand-heading" data-testid="branding-editor">
           <div className="space-y-1">
             <h2 id="brand-heading" className="text-lg font-semibold">
-              {t('ajustes.brandingTitle')}
+              {t('settings.brandingTitle')}
             </h2>
-            <p className="text-sm text-muted">{t('ajustes.brandingSubtitle')}</p>
+            <p className="text-sm text-muted">{t('settings.brandingSubtitle')}</p>
           </div>
 
           {planLimited ? (
@@ -717,13 +751,13 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               data-testid="brand-plan-lock"
               className="space-y-1 rounded-2xl border border-border-subtle bg-surface-hover px-4 py-3"
             >
-              <p className="text-sm font-semibold text-ink">{t('ajustes.planLockedTitle')}</p>
-              <p className="text-sm text-muted">{t('ajustes.planLockedBody')}</p>
+              <p className="text-sm font-semibold text-ink">{t('settings.planLockedTitle')}</p>
+              <p className="text-sm text-muted">{t('settings.planLockedBody')}</p>
               <Link
                 to="/cuenta/membresia"
                 className="inline-block text-sm font-semibold text-primary-ink no-underline hover:underline"
               >
-                {t('ajustes.planUpgrade')}
+                {t('settings.planUpgrade')}
               </Link>
             </div>
           ) : null}
@@ -785,7 +819,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   className="hidden rounded-full px-3 py-1 text-xs font-semibold sm:inline-block"
                   style={{ backgroundColor: draft.secondaryHex, color: branding.onSecondary ?? '#0f172a' }}
                 >
-                  {t('ajustes.preview')}
+                  {t('settings.preview')}
                 </span>
               ) : null}
               <span
@@ -796,10 +830,10 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     : 'bg-error/20 text-error-ink',
                 )}
               >
-                {t('ajustes.contrastLabel')}{' '}
+                {t('settings.contrastLabel')}{' '}
                 {contrastRatio(draft.accentHex || '#8366f1', '#ffffff') >= 4.5
-                  ? t('ajustes.contrastAA')
-                  : t('ajustes.contrastFail')}
+                  ? t('settings.contrastAA')
+                  : t('settings.contrastFail')}
               </span>
             </div>
           </div>
@@ -811,7 +845,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-4 font-sans"
             style={componentPreviewTokens as CSSProperties}
           >
-            <p className="text-sm font-medium text-ink">{t('ajustes.previewComponents')}</p>
+            <p className="text-sm font-medium text-ink">{t('settings.previewComponents')}</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-3">
                 <div className="space-y-1 rounded-xl bg-canvas p-2">
@@ -826,20 +860,20 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex h-9 items-center rounded-xl bg-primary-strong px-3 text-sm font-semibold text-primary-foreground">
-                    {t('ajustes.saveBranding')}
+                    {t('settings.saveBranding')}
                   </span>
                   <span className="inline-flex h-9 items-center rounded-xl border border-border-subtle px-3 text-sm font-medium text-ink">
-                    {t('ajustes.clearColor')}
+                    {t('settings.clearColor')}
                   </span>
                   <span className="inline-flex h-9 items-center px-1 text-sm font-semibold text-primary-ink underline">
-                    {t('ajustes.resetToDefault')}
+                    {t('settings.resetToDefault')}
                   </span>
                 </div>
               </div>
               <div className="space-y-3">
                 <div className="rounded-xl border border-border-subtle bg-surface p-3">
-                  <p className="text-sm font-semibold text-ink">{t('ajustes.previewCardTitle')}</p>
-                  <p className="text-xs text-muted">{t('ajustes.previewCardBody')}</p>
+                  <p className="text-sm font-semibold text-ink">{t('settings.previewCardTitle')}</p>
+                  <p className="text-xs text-muted">{t('settings.previewCardBody')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="grid h-8 w-8 place-items-center rounded-full bg-primary-strong text-xs font-bold text-primary-foreground">
@@ -859,7 +893,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           {/* Contrast validation warning */}
           {draft.accentHex && contrastRatio(draft.accentHex, '#ffffff') < 4.5 ? (
             <p role="alert" className="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-ink">
-              {t('ajustes.contrastWarning')}
+              {t('settings.contrastWarning')}
             </p>
           ) : null}
 
@@ -893,18 +927,18 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   setBrandSaved(false)
                 }}
               >
-                {t('ajustes.resetToSonivo')}
+                {t('settings.resetToSonivo')}
               </Button>
             </div>
           ) : null}
 
           <fieldset className="space-y-3" disabled={!isOwner || locked('themes')}>
-            <legend className="font-medium">{t('ajustes.themesTitle')}</legend>
-            <p className="text-sm text-muted">{t('ajustes.themesHint')}</p>
+            <legend className="font-medium">{t('settings.themesTitle')}</legend>
+            <p className="text-sm text-muted">{t('settings.themesHint')}</p>
             <div
               className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5"
               role="group"
-              aria-label={t('ajustes.themesTitle')}
+              aria-label={t('settings.themesTitle')}
             >
               {BRAND_THEMES.map((themeOption) => {
                 const active = draft.themeId === themeOption.id
@@ -943,15 +977,15 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner || locked('accent')}>
-            <legend className="font-medium">{t('ajustes.primaryColor')}</legend>
-            <p className="text-sm text-muted">{t('ajustes.colorHint')}</p>
-            <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.primaryColor')}>
+            <legend className="font-medium">{t('settings.primaryColor')}</legend>
+            <p className="text-sm text-muted">{t('settings.colorHint')}</p>
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('settings.primaryColor')}>
               {BRAND_PRIMARY_PRESETS.map((swatch) => (
                 <button
                   key={swatch}
                   type="button"
                   aria-pressed={draft.accentHex.toLowerCase() === swatch}
-                  aria-label={t(BRAND_COLOR_NAME_KEYS[swatch] ?? 'ajustes.primaryColor')}
+                  aria-label={t(BRAND_COLOR_NAME_KEYS[swatch] ?? 'settings.primaryColor')}
                   onClick={() => patchDraft({ accentHex: swatch })}
                   className={cn(
                     'h-11 w-11 rounded-full transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
@@ -964,24 +998,24 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               ))}
               <input
                 type="color"
-                aria-label={t('ajustes.customColor')}
+                aria-label={t('settings.customColor')}
                 value={draft.accentHex || '#8366f1'}
-                onChange={(e) => patchDraft({ accentHex: e.target.value })}
+                onChange={(e) => setDraftColor('accentHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
             </div>
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner || locked('splitColors')}>
-            <legend className="font-medium">{t('ajustes.secondaryColor')}</legend>
-            <p className="text-sm text-muted">{t('ajustes.secondaryHint')}</p>
-            <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.secondaryColor')}>
+            <legend className="font-medium">{t('settings.secondaryColor')}</legend>
+            <p className="text-sm text-muted">{t('settings.secondaryHint')}</p>
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('settings.secondaryColor')}>
               {BRAND_SECONDARY_PRESETS.map((swatch) => (
                 <button
                   key={swatch}
                   type="button"
                   aria-pressed={draft.secondaryHex.toLowerCase() === swatch}
-                  aria-label={t(BRAND_COLOR_NAME_KEYS[swatch] ?? 'ajustes.secondaryColor')}
+                  aria-label={t(BRAND_COLOR_NAME_KEYS[swatch] ?? 'settings.secondaryColor')}
                   onClick={() => patchDraft({ secondaryHex: swatch })}
                   className={cn(
                     'h-11 w-11 rounded-full transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
@@ -994,27 +1028,27 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               ))}
               <input
                 type="color"
-                aria-label={t('ajustes.customColor')}
+                aria-label={t('settings.customColor')}
                 value={draft.secondaryHex || '#f5c542'}
-                onChange={(e) => patchDraft({ secondaryHex: e.target.value })}
+                onChange={(e) => setDraftColor('secondaryHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ secondaryHex: '' })}>
-                {t('ajustes.clearColor')}
+                {t('settings.clearColor')}
               </Button>
             </div>
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner || locked('accent')}>
-            <legend className="font-medium">{t('ajustes.accentColor')}</legend>
-            <p className="text-sm text-muted">{t('ajustes.accentColorHint')}</p>
-            <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('ajustes.accentColor')}>
+            <legend className="font-medium">{t('settings.accentColor')}</legend>
+            <p className="text-sm text-muted">{t('settings.accentColorHint')}</p>
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('settings.accentColor')}>
               {BRAND_SECONDARY_PRESETS.map((swatch) => (
                 <button
                   key={swatch}
                   type="button"
                   aria-pressed={draft.accentColorHex.toLowerCase() === swatch}
-                  aria-label={t(BRAND_COLOR_NAME_KEYS[swatch] ?? 'ajustes.accentColor')}
+                  aria-label={t(BRAND_COLOR_NAME_KEYS[swatch] ?? 'settings.accentColor')}
                   onClick={() => patchDraft({ accentColorHex: swatch })}
                   className={cn(
                     'h-11 w-11 rounded-full transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
@@ -1027,63 +1061,63 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               ))}
               <input
                 type="color"
-                aria-label={t('ajustes.customColor')}
+                aria-label={t('settings.customColor')}
                 value={draft.accentColorHex || '#9d8bda'}
-                onChange={(e) => patchDraft({ accentColorHex: e.target.value })}
+                onChange={(e) => setDraftColor('accentColorHex', e.target.value)}
                 className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ accentColorHex: '' })}>
-                {t('ajustes.clearColor')}
+                {t('settings.clearColor')}
               </Button>
             </div>
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner || locked('splitColors')}>
-            <legend className="font-medium">{t('ajustes.semanticColors')}</legend>
-            <p className="text-sm text-muted">{t('ajustes.semanticColorsHint')}</p>
+            <legend className="font-medium">{t('settings.semanticColors')}</legend>
+            <p className="text-sm text-muted">{t('settings.semanticColorsHint')}</p>
             <div className="grid gap-4 sm:grid-cols-3">
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-ink">{t('ajustes.successColor')}</span>
+                <span className="text-sm font-medium text-ink">{t('settings.successColor')}</span>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    aria-label={t('ajustes.successColor')}
+                    aria-label={t('settings.successColor')}
                     value={draft.successHex || '#10b981'}
-                    onChange={(e) => patchDraft({ successHex: e.target.value })}
+                    onChange={(e) => setDraftColor('successHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ successHex: '' })}>
-                    {t('ajustes.clearColor')}
+                    {t('settings.clearColor')}
                   </Button>
                 </div>
               </label>
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-ink">{t('ajustes.warningColor')}</span>
+                <span className="text-sm font-medium text-ink">{t('settings.warningColor')}</span>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    aria-label={t('ajustes.warningColor')}
+                    aria-label={t('settings.warningColor')}
                     value={draft.warningHex || '#f59e0b'}
-                    onChange={(e) => patchDraft({ warningHex: e.target.value })}
+                    onChange={(e) => setDraftColor('warningHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ warningHex: '' })}>
-                    {t('ajustes.clearColor')}
+                    {t('settings.clearColor')}
                   </Button>
                 </div>
               </label>
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-ink">{t('ajustes.errorColor')}</span>
+                <span className="text-sm font-medium text-ink">{t('settings.errorColor')}</span>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    aria-label={t('ajustes.errorColor')}
+                    aria-label={t('settings.errorColor')}
                     value={draft.errorHex || '#ef4444'}
-                    onChange={(e) => patchDraft({ errorHex: e.target.value })}
+                    onChange={(e) => setDraftColor('errorHex', e.target.value)}
                     className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ errorHex: '' })}>
-                    {t('ajustes.clearColor')}
+                    {t('settings.clearColor')}
                   </Button>
                 </div>
               </label>
@@ -1091,9 +1125,9 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner || locked('font')}>
-            <legend className="font-medium">{t('ajustes.typography')}</legend>
-            <p className="text-sm text-muted">{t('ajustes.typographyHint')}</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.typography')}>
+            <legend className="font-medium">{t('settings.typography')}</legend>
+            <p className="text-sm text-muted">{t('settings.typographyHint')}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('settings.typography')}>
               {TYPOGRAPHY_OPTIONS.map((option) => (
                 <button
                   key={option.id}
@@ -1113,9 +1147,9 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner || locked('accent') || locked('splitColors')}>
-            <legend className="font-medium">{t('ajustes.palettesTitle')}</legend>
-            <p className="text-sm text-muted">{t('ajustes.palettesHint')}</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.palettesTitle')}>
+            <legend className="font-medium">{t('settings.palettesTitle')}</legend>
+            <p className="text-sm text-muted">{t('settings.palettesHint')}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('settings.palettesTitle')}>
               {BRAND_PALETTES.map((palette) => {
                 const active =
                   draft.accentHex.toLowerCase() === palette.primary &&
@@ -1125,7 +1159,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     key={palette.id}
                     type="button"
                     aria-pressed={active}
-                    aria-label={t(`ajustes.palette${palette.id.charAt(0).toUpperCase()}${palette.id.slice(1)}` as I18nKey)}
+                    aria-label={t(`settings.palette${palette.id.charAt(0).toUpperCase()}${palette.id.slice(1)}` as I18nKey)}
                     onClick={() => patchDraft({ accentHex: palette.primary, secondaryHex: palette.secondary })}
                     className={cn(
                       'flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
@@ -1134,7 +1168,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   >
                     <span className="h-5 w-5 rounded-full" style={{ backgroundColor: palette.primary }} aria-hidden="true" />
                     <span className="h-5 w-5 rounded-full" style={{ backgroundColor: palette.secondary }} aria-hidden="true" />
-                    {t(`ajustes.palette${palette.id.charAt(0).toUpperCase()}${palette.id.slice(1)}` as I18nKey)}
+                    {t(`settings.palette${palette.id.charAt(0).toUpperCase()}${palette.id.slice(1)}` as I18nKey)}
                   </button>
                 )
               })}
@@ -1142,8 +1176,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner || locked('intensity')}>
-            <legend className="font-medium">{t('ajustes.intensityTitle')}</legend>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.intensityTitle')}>
+            <legend className="font-medium">{t('settings.intensityTitle')}</legend>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('settings.intensityTitle')}>
               {INTENSITY_OPTIONS.map((option) => (
                 <button
                   key={option.id}
@@ -1162,8 +1196,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner || locked('gradientStyle')}>
-            <legend className="font-medium">{t('ajustes.gradientTitle')}</legend>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.gradientTitle')}>
+            <legend className="font-medium">{t('settings.gradientTitle')}</legend>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('settings.gradientTitle')}>
               {GRADIENT_STYLES.map((option) => (
                 <button
                   key={option.id}
@@ -1182,26 +1216,26 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner || locked('icon')}>
-            <legend className="font-medium">{t('ajustes.cover')}</legend>
-            <p className="text-sm text-muted">{t('ajustes.coverHint')}</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.cover')}>
+            <legend className="font-medium">{t('settings.cover')}</legend>
+            <p className="text-sm text-muted">{t('settings.coverHint')}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('settings.cover')}>
               <button
                 type="button"
                 aria-pressed={draft.cover === NO_COVER}
-                aria-label={t('ajustes.coverNone')}
+                aria-label={t('settings.coverNone')}
                 onClick={() => patchDraft({ cover: NO_COVER })}
                 className={cn(
                   'h-11 min-w-11 rounded-xl border px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
                   draft.cover === NO_COVER ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
                 )}
               >
-                {t('ajustes.coverNone')}
+                {t('settings.coverNone')}
               </button>
               {GROUP_COVER_EMOJIS.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
-                  aria-label={t('ajustes.coverEmojiLabel', { emoji })}
+                  aria-label={t('settings.coverEmojiLabel', { emoji })}
                   aria-pressed={draft.cover === emoji}
                   onClick={() => patchDraft({ cover: emoji })}
                   className={cn(
@@ -1216,7 +1250,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 <button
                   key={id}
                   type="button"
-                  aria-label={t(GRADIENT_NAME_KEYS[id] ?? 'ajustes.cover')}
+                  aria-label={t(GRADIENT_NAME_KEYS[id] ?? 'settings.cover')}
                   aria-pressed={draft.cover === `gradient:${id}`}
                   onClick={() => patchDraft({ cover: `gradient:${id}` })}
                   className={cn(
@@ -1225,7 +1259,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   )}
                   style={groupCoverStyle(`gradient:${id}`, previewAccent)}
                 >
-                  {t(GRADIENT_NAME_KEYS[id] ?? 'ajustes.cover')}
+                  {t(GRADIENT_NAME_KEYS[id] ?? 'settings.cover')}
                 </button>
               ))}
             </div>
@@ -1233,46 +1267,46 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
           <div className="grid gap-5 sm:grid-cols-3">
             <div className="space-y-2">
-              <p className="text-sm font-medium">{t('ajustes.uploadLogo')}</p>
-              <p className="text-xs text-muted">{t('ajustes.imageHint')}</p>
+              <p className="text-sm font-medium">{t('settings.uploadLogo')}</p>
+              <p className="text-xs text-muted">{t('settings.imageHint')}</p>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
                 disabled={!isOwner || locked('logo') || uploading !== null}
-                aria-label={t('ajustes.uploadLogo')}
+                aria-label={t('settings.uploadLogo')}
                 onChange={(e) => void onUploadImage('logo', e)}
               />
-              {uploading === 'logo' ? <p aria-live="polite" className="text-xs text-muted">{t('ajustes.uploading')}</p> : null}
+              {uploading === 'logo' ? <p aria-live="polite" className="text-xs text-muted">{t('settings.uploading')}</p> : null}
             </div>
             <div className="space-y-2">
-              <p className="text-sm font-medium">{t('ajustes.uploadBanner')}</p>
-              <p className="text-xs text-muted">{t('ajustes.imageHint')}</p>
+              <p className="text-sm font-medium">{t('settings.uploadBanner')}</p>
+              <p className="text-xs text-muted">{t('settings.imageHint')}</p>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
                 disabled={!isOwner || locked('banner') || uploading !== null}
-                aria-label={t('ajustes.uploadBanner')}
+                aria-label={t('settings.uploadBanner')}
                 onChange={(e) => void onUploadImage('banner', e)}
               />
-              {uploading === 'banner' ? <p aria-live="polite" className="text-xs text-muted">{t('ajustes.uploading')}</p> : null}
+              {uploading === 'banner' ? <p aria-live="polite" className="text-xs text-muted">{t('settings.uploading')}</p> : null}
             </div>
             <div className="space-y-2">
-              <p className="text-sm font-medium">{t('ajustes.uploadFavicon')}</p>
-              <p className="text-xs text-muted">{t('ajustes.faviconHint')}</p>
+              <p className="text-sm font-medium">{t('settings.uploadFavicon')}</p>
+              <p className="text-xs text-muted">{t('settings.faviconHint')}</p>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
                 disabled={!isOwner || uploading !== null}
-                aria-label={t('ajustes.uploadFavicon')}
+                aria-label={t('settings.uploadFavicon')}
                 onChange={(e) => void onUploadImage('favicon', e)}
               />
-              {uploading === 'favicon' ? <p aria-live="polite" className="text-xs text-muted">{t('ajustes.uploading')}</p> : null}
+              {uploading === 'favicon' ? <p aria-live="polite" className="text-xs text-muted">{t('settings.uploading')}</p> : null}
             </div>
           </div>
 
           {isOwner && brandSaved ? (
             <span aria-live="polite" className="text-sm text-muted">
-              {t('ajustes.brandingSaved')}
+              {t('settings.brandingSaved')}
             </span>
           ) : null}
 
@@ -1284,7 +1318,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               className="fixed inset-x-3 bottom-20 z-50 mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 shadow-xl md:bottom-4"
             >
               <p className="min-w-0 flex-1 text-sm font-medium text-ink">
-                {t('ajustes.unsavedChanges')}
+                {t('settings.unsavedChanges')}
               </p>
               <Button
                 type="button"
@@ -1298,10 +1332,10 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   }
                 }}
               >
-                {t('ajustes.discardChanges')}
+                {t('settings.discardChanges')}
               </Button>
               <Button type="button" size="sm" disabled={savingBrand} onClick={() => void onSaveBranding()}>
-                {savingBrand ? t('inicio.working') : t('ajustes.saveBranding')}
+                {savingBrand ? t('dashboard.working') : t('settings.saveBranding')}
               </Button>
             </div>
           ) : null}
@@ -1314,7 +1348,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           <div
             className="overflow-hidden rounded-2xl"
             role="img"
-            aria-label={t('grupo.coverArt')}
+            aria-label={t('group.coverArt')}
             style={groupCoverStyle(appearance.cover, appearance.accent)}
           >
             <div className="flex items-center gap-4 px-5 py-5">
@@ -1341,15 +1375,15 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </div>
 
           <fieldset className="space-y-3" disabled={!isOwner}>
-            <legend className="font-medium">{t('ajustes.accent')}</legend>
-            <p className="text-sm text-muted">{t('ajustes.accentHint')}</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.accent')}>
+            <legend className="font-medium">{t('settings.accent')}</legend>
+            <p className="text-sm text-muted">{t('settings.accentHint')}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('settings.accent')}>
               {GROUP_ACCENT_PRESETS.map((swatch) => (
                 <button
                   key={swatch}
                   type="button"
                   aria-pressed={appearance.accent === swatch}
-                  aria-label={t(ACCENT_NAME_KEYS[swatch] ?? 'ajustes.accent')}
+                  aria-label={t(ACCENT_NAME_KEYS[swatch] ?? 'settings.accent')}
                   onClick={() => update({ ...appearance, accent: swatch })}
                   className={cn(
                     'h-11 w-11 rounded-full transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
@@ -1362,26 +1396,26 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </fieldset>
 
           <fieldset className="space-y-3" disabled={!isOwner}>
-            <legend className="font-medium">{t('ajustes.cover')}</legend>
-            <p className="text-sm text-muted">{t('ajustes.coverHint')}</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t('ajustes.cover')}>
+            <legend className="font-medium">{t('settings.cover')}</legend>
+            <p className="text-sm text-muted">{t('settings.coverHint')}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('settings.cover')}>
               <button
                 type="button"
                 aria-pressed={appearance.cover === NO_COVER}
-                aria-label={t('ajustes.coverNone')}
+                aria-label={t('settings.coverNone')}
                 onClick={() => update({ ...appearance, cover: NO_COVER })}
                 className={cn(
                   'h-11 min-w-11 rounded-xl border px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
                   appearance.cover === NO_COVER ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
                 )}
               >
-                {t('ajustes.coverNone')}
+                {t('settings.coverNone')}
               </button>
               {GROUP_COVER_EMOJIS.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
-                  aria-label={t('ajustes.coverEmojiLabel', { emoji })}
+                  aria-label={t('settings.coverEmojiLabel', { emoji })}
                   aria-pressed={appearance.cover === emoji}
                   onClick={() => update({ ...appearance, cover: emoji })}
                   className={cn(
@@ -1396,7 +1430,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 <button
                   key={id}
                   type="button"
-                  aria-label={t(GRADIENT_NAME_KEYS[id] ?? 'ajustes.cover')}
+                  aria-label={t(GRADIENT_NAME_KEYS[id] ?? 'settings.cover')}
                   aria-pressed={appearance.cover === `gradient:${id}`}
                   onClick={() => update({ ...appearance, cover: `gradient:${id}` })}
                   className={cn(
@@ -1405,17 +1439,17 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   )}
                   style={groupCoverStyle(`gradient:${id}`, appearance.accent)}
                 >
-                  {t(GRADIENT_NAME_KEYS[id] ?? 'ajustes.cover')}
+                  {t(GRADIENT_NAME_KEYS[id] ?? 'settings.cover')}
                 </button>
               ))}
             </div>
           </fieldset>
 
-          <p className="rounded-xl border border-border-subtle px-3 py-2 text-sm text-muted">{t('ajustes.logoNote')}</p>
+          <p className="rounded-xl border border-border-subtle px-3 py-2 text-sm text-muted">{t('settings.logoNote')}</p>
 
           {saved ? (
             <p aria-live="polite" className="text-sm text-muted">
-              {t('ajustes.saved')}
+              {t('settings.saved')}
             </p>
           ) : null}
         </>
@@ -1434,44 +1468,44 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       {/* Notifications tab */}
       {activeTab === 'notifications' ? (
         <div className="space-y-4">
-          <p className="text-sm text-muted">{t('ajustes.notificationsComingSoon')}</p>
+          <p className="text-sm text-muted">{t('settings.notificationsComingSoon')}</p>
         </div>
       ) : null}
 
       {/* Integrations tab */}
       {activeTab === 'integrations' ? (
         <div className="space-y-4">
-          <p className="text-sm text-muted">{t('ajustes.integrationsComingSoon')}</p>
+          <p className="text-sm text-muted">{t('settings.integrationsComingSoon')}</p>
         </div>
       ) : null}
 
       {/* Plan tab (ADR-0071): effective plan + usage vs limits (spec §7). */}
       {activeTab === 'plan' ? (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">{t('ajustes.planTitle')}</h2>
+          <h2 className="text-lg font-semibold">{t('settings.planTitle')}</h2>
           {usage ? (
             <div className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-5">
               <p className="text-sm font-semibold text-ink">
                 {usage.planId === 'starter'
-                  ? t('ajustes.planStarter')
+                  ? t('settings.planStarter')
                   : usage.planId === 'pro'
-                    ? t('ajustes.planPro')
-                    : t('ajustes.planStudio')}
+                    ? t('settings.planPro')
+                    : t('settings.planStudio')}
               </p>
               <div className="space-y-3">
                 {[
-                  { key: 'members', label: t('ajustes.usageMembers'), metric: usage.members, bytes: false },
-                  { key: 'songs', label: t('ajustes.usageSongs'), metric: usage.songs, bytes: false },
-                  { key: 'setlists', label: t('ajustes.usageSetlists'), metric: usage.setlists, bytes: false },
-                  { key: 'events', label: t('ajustes.usageEvents'), metric: usage.eventsThisMonth, bytes: false },
-                  { key: 'storage', label: t('ajustes.usageStorage'), metric: usage.storageBytes, bytes: true },
+                  { key: 'members', label: t('settings.usageMembers'), metric: usage.members, bytes: false },
+                  { key: 'songs', label: t('settings.usageSongs'), metric: usage.songs, bytes: false },
+                  { key: 'setlists', label: t('settings.usageSetlists'), metric: usage.setlists, bytes: false },
+                  { key: 'events', label: t('settings.usageEvents'), metric: usage.eventsThisMonth, bytes: false },
+                  { key: 'storage', label: t('settings.usageStorage'), metric: usage.storageBytes, bytes: true },
                 ].map((row) => (
                   <div key={row.key} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-ink">{row.label}</span>
                       <span className="text-muted">
                         {row.metric.limit === null
-                          ? t('ajustes.usageUnlimited')
+                          ? t('settings.usageUnlimited')
                           : `${row.bytes ? formatBytes(row.metric.used) : row.metric.used} / ${
                               row.bytes ? formatBytes(row.metric.limit) : row.metric.limit
                             }`}
@@ -1498,48 +1532,17 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 to="/cuenta/membresia"
                 className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
               >
-                {t('ajustes.changePlan')}
+                {t('settings.changePlan')}
               </Link>
             </div>
           ) : (
-            <p className="text-sm text-muted">{t('ajustes.usageLoading')}</p>
+            <p className="text-sm text-muted">{t('settings.usageLoading')}</p>
           )}
         </div>
       ) : null}
 
-      {/* Advanced tab */}
-      {activeTab === 'advanced' && brandingEnabled && draft ? (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">{t('ajustes.tabAdvanced')}</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-ink">{t('ajustes.themeDefault')}</span>
-              <select
-                className={fieldClass}
-                value={draft.themeDefault}
-                disabled={!isOwner}
-                onChange={(e) => patchDraft({ themeDefault: e.target.value })}
-              >
-                <option value="system">{t('ajustes.themeSystem')}</option>
-                <option value="light">{t('ajustes.themeLight')}</option>
-                <option value="dark">{t('ajustes.themeDark')}</option>
-              </select>
-            </label>
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-ink">{t('ajustes.localeDefault')}</span>
-              <select
-                className={fieldClass}
-                value={draft.defaultLocale}
-                disabled={!isOwner}
-                onChange={(e) => patchDraft({ defaultLocale: e.target.value })}
-              >
-                <option value="es">{t('ajustes.localeEs')}</option>
-                <option value="en">{t('ajustes.localeEn')}</option>
-              </select>
-            </label>
-          </div>
-        </div>
-      ) : null}
+      {/* Audit tab (Owner only): append-only group activity log (ADR-0051). */}
+      {activeTab === 'audit' && isOwner ? <GroupAuditPanel groupId={group.id} /> : null}
 
       {/* Danger Zone tab */}
       {activeTab === 'danger' && isOwner ? (
@@ -1548,25 +1551,25 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           className="space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
         >
           <h2 id="ajustes-danger-heading" className="text-lg font-semibold text-error-ink">
-            {t('inicio.deleteTitle')}
+            {t('dashboard.deleteTitle')}
           </h2>
           <ProblemAlert message={deleteError} />
           <Button variant="danger" onClick={() => setDeleteOpen(true)}>
-            {t('inicio.deleteTitle')}
+            {t('dashboard.deleteTitle')}
           </Button>
           <ConfirmDialog
             open={deleteOpen}
-            title={t('inicio.deleteDialogTitle')}
-            confirmLabel={t('inicio.deleteTitle')}
-            cancelLabel={t('inicio.cancel')}
-            pendingLabel={t('inicio.deleting')}
+            title={t('dashboard.deleteDialogTitle')}
+            confirmLabel={t('dashboard.deleteTitle')}
+            cancelLabel={t('dashboard.cancel')}
+            pendingLabel={t('dashboard.deleting')}
             pending={deleting}
             onConfirm={() => void onConfirmDelete()}
             onCancel={() => {
               if (!deleting) setDeleteOpen(false)
             }}
           >
-            <p>{t('inicio.deleteBody')}</p>
+            <p>{t('dashboard.deleteBody')}</p>
           </ConfirmDialog>
         </section>
       ) : null}

@@ -9,7 +9,7 @@ function initialsOf(user: CurrentUser): string {
   return source.slice(0, 2).toUpperCase();
 }
 
-/** Account header: avatar, name, email, role badge and "Editar perfil". */
+/** Account header: avatar, name, email, role badge and "Edit profile". */
 export function ProfileHeader({
   user,
   roleLabel,
@@ -39,7 +39,7 @@ export function ProfileHeader({
         </span>
       </div>
       <Button variant="secondary" onClick={onEdit} data-testid="profile-edit">
-        {t("perfil.edit")}
+        {t("profile.edit")}
       </Button>
     </section>
   );

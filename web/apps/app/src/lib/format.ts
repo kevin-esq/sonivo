@@ -43,7 +43,7 @@ export function formatDateTime(value: DateInput, locale = 'es'): string {
   }
 }
 
-/** "hace 3 días" / "en 3 días"; falls back to a short date beyond ~a month. */
+/** "3 days ago" / "in 3 days"; falls back to a short date beyond ~a month. */
 export function formatRelative(value: DateInput, locale = 'es'): string {
   const date = toDate(value)
   if (!date) return invalidFallback(value)

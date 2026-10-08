@@ -13,8 +13,8 @@ export function PersistentGlobalPlayer() {
     useAudioPlayer()
   const { t } = useT()
   const { railPresent } = useRailPresence()
-  // Con un rail visible en >=768px, la barra inferior no se duplica; en móvil
-  // (rail oculto) y en rutas sin rail sigue igual que siempre.
+  // With a rail visible at >=768px, the bottom bar is not duplicated; on mobile
+  // (rail hidden) and on routes without a rail it behaves as always.
   const railHidden = railPresent ? 'md:hidden' : ''
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
@@ -28,7 +28,7 @@ export function PersistentGlobalPlayer() {
     try {
       localStorage.setItem('sonivo_player_collapsed', String(collapsed))
     } catch {
-      // Almacenamiento no disponible; la preferencia solo vive en memoria.
+      // Storage unavailable; the preference only lives in memory.
     }
   }, [collapsed])
 

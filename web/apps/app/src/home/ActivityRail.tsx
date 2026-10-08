@@ -24,7 +24,7 @@ function timeLabel(iso: string, lang: string): string {
   }).format(date);
 }
 
-/** "Tu próxima actividad": next events across the caller's groups (ADR-0053 H5). */
+/** "Your next activity": next events across the caller's groups (ADR-0053 H5). */
 export function ActivityRail({ items }: { items: UpcomingActivity[] | null }) {
   const { t, lang } = useT();
   return (
@@ -87,7 +87,7 @@ export function ActivityRail({ items }: { items: UpcomingActivity[] | null }) {
                   </span>
                 </span>
                 <span className="hidden shrink-0 text-xs text-muted sm:block">
-                  {formatEventType(item.type)}
+                  {formatEventType(item.type, t)}
                 </span>
               </Link>
             </li>

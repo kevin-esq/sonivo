@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { X } from 'lucide-react'
+import { useT } from '../i18n'
 
 export type ToastKind = 'ok' | 'error' | 'info'
 
@@ -21,6 +22,7 @@ const TOAST_TONE: Record<ToastKind, string> = {
 }
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
+  const { t } = useT()
   return (
     <div
       role={toast.kind === 'error' ? 'alert' : undefined}
@@ -29,7 +31,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
       <span className="min-w-0 flex-1">{toast.text}</span>
       <button
         type="button"
-        aria-label="Cerrar"
+        aria-label={t('common.close')}
         onClick={() => onDismiss(toast.id)}
         className="-m-1 shrink-0 rounded-lg p-1 opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transition-none"
       >

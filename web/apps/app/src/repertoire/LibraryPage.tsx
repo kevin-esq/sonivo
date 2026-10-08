@@ -34,17 +34,17 @@ type LibraryTab = 'all' | 'favorites' | 'recent' | 'theme'
 type LibrarySort = 'title' | 'artist' | 'recent' | 'updated'
 
 const LIBRARY_TABS: { id: LibraryTab; labelKey: I18nKey }[] = [
-  { id: 'all', labelKey: 'canciones.tabAll' },
-  { id: 'favorites', labelKey: 'canciones.tabFavorites' },
-  { id: 'recent', labelKey: 'canciones.tabRecent' },
-  { id: 'theme', labelKey: 'canciones.tabByTheme' },
+  { id: 'all', labelKey: 'songs.tabAll' },
+  { id: 'favorites', labelKey: 'songs.tabFavorites' },
+  { id: 'recent', labelKey: 'songs.tabRecent' },
+  { id: 'theme', labelKey: 'songs.tabByTheme' },
 ]
 
 const LIBRARY_SORTS: { id: LibrarySort; labelKey: I18nKey }[] = [
-  { id: 'title', labelKey: 'canciones.sortTitle' },
-  { id: 'artist', labelKey: 'canciones.sortArtist' },
-  { id: 'recent', labelKey: 'canciones.sortRecent' },
-  { id: 'updated', labelKey: 'canciones.sortUpdated' },
+  { id: 'title', labelKey: 'songs.sortTitle' },
+  { id: 'artist', labelKey: 'songs.sortArtist' },
+  { id: 'recent', labelKey: 'songs.sortRecent' },
+  { id: 'updated', labelKey: 'songs.sortUpdated' },
 ]
 
 export function LibraryPage({ user }: { user: CurrentUser }) {
@@ -140,7 +140,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
   })
 
   if (group === undefined) {
-    return <GroupPageSkeleton label={t('canciones.loadingLibrary')} />
+    return <GroupPageSkeleton label={t('songs.loadingLibrary')} />
   }
 
   if (group === null) {
@@ -148,7 +148,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <GroupErrorState message={groupError} onRetry={() => void reloadGroup()} />
         <GroupLink variant="soft" to="/">
-          {t('canciones.myGroups')}
+          {t('songs.myGroups')}
         </GroupLink>
       </div>
     )
@@ -162,11 +162,11 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
         <GroupPageHeader
           headingId="library-heading"
           icon={Library}
-          title={t('canciones.pageTitle')}
-          subtitle={t('canciones.pageSubtitle')}
+          title={t('songs.pageTitle')}
+          subtitle={t('songs.pageSubtitle')}
           breadcrumb={[
             { to: `/groups/${group.id}`, label: group.name },
-            { label: t('canciones.pageTitle') },
+            { label: t('songs.pageTitle') },
           ]}
           actions={
             <>
@@ -177,19 +177,19 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
               ) : null}
               {showHeaderAdd ? (
                 <GroupButton onClick={() => setShowCreate(true)} disabled={songsAtLimit}>
-                  {t('canciones.addSong')}
+                  {t('songs.addSong')}
                 </GroupButton>
               ) : null}
             </>
           }
         >
-          {!isOwner ? <p className="text-sm text-muted">{t('canciones.readonly')}</p> : null}
+          {!isOwner ? <p className="text-sm text-muted">{t('songs.readonly')}</p> : null}
         </GroupPageHeader>
       </div>
 
       {songs !== null && songs.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('canciones.tabsLabel')}>
+          <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('songs.tabsLabel')}>
             {LIBRARY_TABS.map((item) => (
               <button
                 key={item.id}
@@ -208,7 +208,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
           </div>
           <div className="min-w-40">
             <GroupSelect
-              aria-label={t('canciones.sortLabel')}
+              aria-label={t('songs.sortLabel')}
               value={sort}
               options={sortOptions}
               onChange={(value) => setSort(value as LibrarySort)}
@@ -221,14 +221,14 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-52 flex-1">
             <label className="sr-only" htmlFor="library-search">
-              {t('listas.searchLabel')}
+              {t('setlists.searchLabel')}
             </label>
             <input
               id="library-search"
               type="search"
               data-testid="library-search"
-              aria-label={t('listas.searchLabel')}
-              placeholder={t('listas.searchPlaceholder')}
+              aria-label={t('setlists.searchLabel')}
+              placeholder={t('setlists.searchPlaceholder')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className={groupFieldClass}
@@ -246,18 +246,18 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
       <GroupErrorState message={listError} />
 
       <GroupLimitNotice
-        label="canciones"
+        label={t('plan.labelSongs')}
         metric={usage?.songs}
         upgradeHref={`/groups/${group.id}/ajustes?tab=plan`}
       />
 
       {songs === null || filtered === null ? (
-        <GroupListSkeleton rows={4} label={t('canciones.loadingSongs')} />
+        <GroupListSkeleton rows={4} label={t('songs.loadingSongs')} />
       ) : songs.length === 0 ? (
         <GroupEmptyState
           icon={Music2}
-          title={t('canciones.emptyTitle')}
-          description={isOwner ? t('canciones.emptyOwner') : t('canciones.emptyMember')}
+          title={t('songs.emptyTitle')}
+          description={isOwner ? t('songs.emptyOwner') : t('songs.emptyMember')}
           action={
             isOwner ? (
               <GroupButton
@@ -265,22 +265,22 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                 onClick={() => setShowCreate(true)}
                 disabled={songsAtLimit}
               >
-                {t('canciones.addSong')}
+                {t('songs.addSong')}
               </GroupButton>
             ) : (
               <GroupLink variant="soft" to={`/groups/${group.id}`}>
-                {t('canciones.backHome')}
+                {t('songs.backHome')}
               </GroupLink>
             )
           }
         />
       ) : filtered.length === 0 ? (
         <GroupEmptyState
-          title={t('listas.noResultsTitle')}
-          description={t('listas.noResultsBody')}
+          title={t('setlists.noResultsTitle')}
+          description={t('setlists.noResultsBody')}
           action={
             <GroupButton variant="secondary" onClick={() => setQuery('')}>
-              {t('listas.clearSearch')}
+              {t('setlists.clearSearch')}
             </GroupButton>
           }
         />
@@ -291,8 +291,8 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
             className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[2.75rem_minmax(0,1fr)_auto_1.5rem] sm:items-center sm:gap-3"
           >
             <span />
-            <span>{t('listas.colSong')}</span>
-            <span>{t('listas.colOrigin')}</span>
+            <span>{t('setlists.colSong')}</span>
+            <span>{t('setlists.colOrigin')}</span>
             <span />
           </div>
           <ul className="space-y-1 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
@@ -334,7 +334,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                 </Link>
                 {isOwner ? (
                   <GroupIconButton
-                    label={`Más opciones para ${song.title}`}
+                    label={t('songs.moreOptions', { title: song.title })}
                     className="absolute right-2 top-1/2 -translate-y-1/2"
                     onClick={(e: MouseEvent) => {
                       e.preventDefault()
@@ -401,7 +401,7 @@ function SongContextMenu({
       />
       <div className="absolute right-2 top-8 z-50 min-w-48 rounded-xl border border-border-subtle bg-surface py-1 shadow-lg">
         <MenuItem
-          label={t('canciones.ctxOpen')}
+          label={t('songs.ctxOpen')}
           onClick={() => {
             onAction()
             window.location.href = `/groups/${groupId}/songs/${song.id}`
@@ -410,42 +410,42 @@ function SongContextMenu({
         {isOwner ? (
           <>
             <MenuItem
-              label={t('canciones.ctxEdit')}
+              label={t('songs.ctxEdit')}
               onClick={() => {
                 onAction()
                 window.location.href = `/groups/${groupId}/songs/${song.id}/edit`
               }}
             />
             <MenuItem
-              label={t('canciones.ctxAddToSetlist')}
+              label={t('songs.ctxAddToSetlist')}
               onClick={() => {
                 onAction()
                 window.location.href = `/groups/${groupId}/setlists?song=${song.id}`
               }}
             />
             <MenuItem
-              label={t('canciones.ctxDuplicate')}
+              label={t('songs.ctxDuplicate')}
               onClick={() => {
                 onAction()
                 // TODO: implement duplicate
               }}
             />
             <MenuItem
-              label={song.isFavorite ? t('canciones.ctxUnfavorite') : t('canciones.ctxFavorite')}
+              label={song.isFavorite ? t('songs.ctxUnfavorite') : t('songs.ctxFavorite')}
               onClick={() => {
                 onAction()
                 // TODO: implement favorite toggle
               }}
             />
             <MenuItem
-              label={t('canciones.ctxAttach')}
+              label={t('songs.ctxAttach')}
               onClick={() => {
                 onAction()
                 // TODO: implement attach
               }}
             />
             <MenuItem
-              label={t('canciones.ctxArchive')}
+              label={t('songs.ctxArchive')}
               onClick={() => {
                 onAction()
                 // TODO: implement archive
@@ -453,7 +453,7 @@ function SongContextMenu({
             />
             <div className="my-1 border-t border-border-subtle" />
             <MenuItem
-              label={t('canciones.ctxDelete')}
+              label={t('songs.ctxDelete')}
               danger
               onClick={() => {
                 onAction()

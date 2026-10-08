@@ -17,7 +17,7 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
   const { t } = useT()
 
   if (user === undefined) {
-    return <p aria-live="polite">{t('unirse.checking')}</p>
+    return <p aria-live="polite">{t('joinGroup.checking')}</p>
   }
 
   if (!user) {
@@ -38,7 +38,7 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
       navigate(`/groups/${accepted.groupId}`)
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
-        setError('Esta invitación no es válida o ha caducado.')
+        setError(t('joinGroup.invalid'))
       } else if (err instanceof ApiError && err.status === 409) {
         setAlreadyMember(true)
       } else {
@@ -53,23 +53,23 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
     <section className="space-y-4" aria-labelledby="join-heading">
       <div className="space-y-2">
         <h1 id="join-heading" className="text-2xl font-bold tracking-tight">
-          {t('unirse.title')}
+          {t('joinGroup.title')}
         </h1>
         <p className="text-sm text-muted">
-          {t('unirse.subtitle')}
+          {t('joinGroup.subtitle')}
         </p>
       </div>
       <ProblemAlert message={error} />
       {alreadyMember ? (
         <div className="space-y-2" role="alert">
-          <p>{t('unirse.alreadyMember')}</p>
+          <p>{t('joinGroup.alreadyMember')}</p>
           <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
-            {t('unirse.home')}
+            {t('joinGroup.home')}
           </Link>
         </div>
       ) : (
         <Button disabled={pending || !token} onClick={() => void onAccept()}>
-          {pending ? t('unirse.working') : t('unirse.accept')}
+          {pending ? t('joinGroup.working') : t('joinGroup.accept')}
         </Button>
       )}
     </section>

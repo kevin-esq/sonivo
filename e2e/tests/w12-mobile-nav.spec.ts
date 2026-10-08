@@ -20,7 +20,7 @@ test.describe('W12 mobile navigation completeness', () => {
     // lives in the bottom tab bar (the top bar keeps only account + sign-out).
     await page.getByTestId('mobile-tabbar').getByLabel('Más').click()
 
-    const people = page.getByRole('link', { name: 'Miembros' })
+    const people = page.getByTestId('mobile-more').getByRole('link', { name: 'Miembros' })
     await expect(people).toBeVisible()
     await people.click()
 

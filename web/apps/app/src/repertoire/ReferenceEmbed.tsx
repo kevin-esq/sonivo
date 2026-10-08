@@ -41,7 +41,7 @@ export function ReferenceEmbed({ resource }: { resource: ResourceSummary }) {
           className="h-full w-full"
           data-testid="reference-iframe"
           src={youTubeNocookieEmbedUrl(videoId)}
-          title={`${t('referencia.titlePrefix')}${resource.label}`}
+          title={`${t('reference.titlePrefix')}${resource.label}`}
           loading="lazy"
           referrerPolicy="strict-origin-when-cross-origin"
           allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

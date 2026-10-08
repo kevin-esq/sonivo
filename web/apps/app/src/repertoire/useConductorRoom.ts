@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as signalR from '@microsoft/signalr'
 import { ensureCsrfToken } from '../api/client'
+import { useT } from '../i18n'
 
 /** ADR-0036 Q9 conductor room client. Position broadcast only — no audio transport. */
 
@@ -32,12 +33,13 @@ export type ConductorLastPosition = {
   receivedAt: number
 }
 
-function hubErrorMessage(error: unknown): string {
+function hubErrorMessage(error: unknown): string | null {
   if (error instanceof Error && error.message) return error.message
-  return 'No se pudo unir a la sala en vivo.'
+  return null
 }
 
 export function useConductorRoom(eventId: string | null) {
+  const { t } = useT()
   const [connectionState, setConnectionState] =
     useState<ConductorConnectionState>('disconnected')
   const [presence, setPresence] = useState<ConductorPresenceEntry[]>([])
@@ -98,7 +100,7 @@ export function useConductorRoom(eventId: string | null) {
         setConnectionState('connected')
       } catch (err) {
         if (cancelled) return
-        setError(hubErrorMessage(err))
+        setError(hubErrorMessage(err) ?? t('practice.live.joinFailed'))
         setConnectionState('failed')
       }
     }
