@@ -27,6 +27,7 @@ import {
 } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { GroupRosterDialog } from '../groups/GroupRosterDialog'
+import { MusicalRoleChips, musicalRolesText } from '../groups/MusicalRoleChips'
 import {
   GroupButton,
   GroupCard,
@@ -432,7 +433,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                       </p>
                       <p className="text-sm text-muted">
                         {formatRole(member.role, t)}
-                        {member.musicalRole ? ` · ${member.musicalRole}` : ''}
+                        {member.musicalRole ? ` · ${musicalRolesText(member.musicalRole, t)}` : ''}
                       </p>
                       {member.email ? (
                         <p className="truncate text-sm text-muted">{member.email}</p>
@@ -471,20 +472,10 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                         </div>
                       ) : null}
                       <div className="min-w-48 flex-1">
-                        <GroupInput
-                          label={t('people.musicalRoleLabel')}
-                          type="text"
-                          maxLength={64}
-                          defaultValue={member.musicalRole ?? ''}
-                          placeholder={t('people.musicalRolePlaceholder')}
-                          aria-label={`${t('people.musicalRoleOfPrefix')}${member.displayName}`}
+                        <MusicalRoleChips
+                          value={member.musicalRole}
                           disabled={busy}
-                          onBlur={(event) => {
-                            const next = event.target.value
-                            if ((member.musicalRole ?? '') !== next) {
-                              void onSetMusicalRole(member.userId, next)
-                            }
-                          }}
+                          onChange={(next) => void onSetMusicalRole(member.userId, next)}
                         />
                       </div>
                       {isOwner && !isSelf && rosterByUser[member.userId] ? (
