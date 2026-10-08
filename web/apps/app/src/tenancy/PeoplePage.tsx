@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { UserPlus, UserRound, Users } from 'lucide-react'
+import { KeyRound, UserPlus, UserRound, Users } from 'lucide-react'
 import {
   changeMemberRole,
   createInvitation,
+  fetchFeatures,
   leaveGroup,
+  listRoster,
   listInvitations,
   listMembers,
   removeMember,
@@ -24,6 +26,7 @@ import {
   useGroupContext,
 } from '../repertoire/ui'
 import { cn } from '../ui/cn'
+import { GroupRosterDialog } from '../groups/GroupRosterDialog'
 import {
   GroupButton,
   GroupCard,
@@ -94,6 +97,24 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
   const [inviteWarning, setInviteWarning] = useState(false)
   const [inviting, setInviting] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [rosterOpen, setRosterOpen] = useState(false)
+  const [resetMember, setResetMember] = useState<{ memberId: string; displayName: string } | null>(null)
+  const [rosterByUser, setRosterByUser] = useState<Record<string, string>>({})
+  const [managedEnabled, setManagedEnabled] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchFeatures()
+      .then((flags) => {
+        if (!cancelled) setManagedEnabled(flags.managedAccounts)
+      })
+      .catch(() => {
+        if (!cancelled) setManagedEnabled(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
   const { t } = useT()
 
   const isOwner = isOwnerRole(group?.role)
@@ -112,6 +133,28 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
 
   // Live refresh when members change elsewhere (invite, role change, leave).
   useGroupDataSignal('members', groupId, reloadMembers)
+
+  // Managed-account map (Owners only): userId -> roster memberId, so a managed
+  // member row can regenerate access. 404 when the feature is off -> empty map.
+  useEffect(() => {
+    if (!groupId || !managedEnabled || !isOwnerRole(group?.role)) return
+    let cancelled = false
+    void listRoster(groupId)
+      .then((items) => {
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        for (const item of items) {
+          if (item.userId && item.hasAccess) map[item.userId] = item.memberId
+        }
+        setRosterByUser(map)
+      })
+      .catch(() => {
+        if (!cancelled) setRosterByUser({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [groupId, group?.role, managedEnabled])
 
   useEffect(() => {
     if (!groupId || !group) return
@@ -307,6 +350,19 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
               {t('dashboard.invite')}
             </GroupButton>
           ) : null}
+          {isOwner && managedEnabled ? (
+            <GroupButton
+              variant="secondary"
+              className="whitespace-nowrap"
+              onClick={() => {
+                setResetMember(null)
+                setRosterOpen(true)
+              }}
+            >
+              <KeyRound className="h-4 w-4" aria-hidden="true" />
+              {t('roster.addButton')}
+            </GroupButton>
+          ) : null}
           <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('people.title')}>
             {([
               { id: 'all', label: t('people.tabAll') },
@@ -443,6 +499,21 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                           }}
                         />
                       </div>
+                      {isOwner && !isSelf && rosterByUser[member.userId] ? (
+                        <GroupButton
+                          variant="secondary"
+                          disabled={busy}
+                          onClick={() => {
+                            setResetMember({
+                              memberId: rosterByUser[member.userId]!,
+                              displayName: member.displayName,
+                            })
+                            setRosterOpen(true)
+                          }}
+                        >
+                          {t('roster.reset')}
+                        </GroupButton>
+                      ) : null}
                       {isOwner && !isSelf ? (
                         <GroupButton
                           variant="danger"
@@ -556,6 +627,19 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
             </div>
           ) : null}
         </GroupDialog>
+      ) : null}
+
+      {rosterOpen ? (
+        <GroupRosterDialog
+          groupId={group.id}
+          groupSlug={group.slug ?? null}
+          resetMember={resetMember}
+          onClose={() => {
+            setRosterOpen(false)
+            setResetMember(null)
+          }}
+          onChanged={() => void reloadMembers()}
+        />
       ) : null}
     </section>
   )
