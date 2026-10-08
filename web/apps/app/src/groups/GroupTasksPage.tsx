@@ -75,22 +75,22 @@ const STATUS_META: Record<BoardStatus, {
   iconColor: string
 }> = {
   open: {
-    labelKey: 'tareas.statusOpen',
-    columnKey: 'tareas.boardNotStarted',
+    labelKey: 'tasks.statusOpen',
+    columnKey: 'tasks.boardNotStarted',
     color: 'text-muted',
     bgClass: 'bg-surface-hover/60',
     iconColor: 'text-muted',
   },
   in_progress: {
-    labelKey: 'tareas.statusInProgress',
-    columnKey: 'tareas.boardInProgress',
+    labelKey: 'tasks.statusInProgress',
+    columnKey: 'tasks.boardInProgress',
     color: 'text-primary-ink',
     bgClass: 'bg-primary/10',
     iconColor: 'text-primary-ink',
   },
   done: {
-    labelKey: 'tareas.statusDone',
-    columnKey: 'tareas.boardDone',
+    labelKey: 'tasks.statusDone',
+    columnKey: 'tasks.boardDone',
     color: 'text-success',
     bgClass: 'bg-success/10',
     iconColor: 'text-success',
@@ -234,7 +234,7 @@ export function GroupTasksPage() {
   )
 
   if (group === undefined) {
-    return <GroupPageSkeleton label={t('tareas.loading')} />
+    return <GroupPageSkeleton label={t('tasks.loading')} />
   }
 
   if (group === null) {
@@ -311,13 +311,13 @@ export function GroupTasksPage() {
     <section className="space-y-4" aria-labelledby="tasks-heading">
       <GroupPageHeader
         headingId="tasks-heading"
-        title={t('tareas.title')}
-        subtitle={t('tareas.subtitle')}
+        title={t('tasks.title')}
+        subtitle={t('tasks.subtitle')}
         actions={
           canManage ? (
             <GroupButton onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4" aria-hidden="true" />
-              {t('tareas.new')}
+              {t('tasks.new')}
             </GroupButton>
           ) : null
         }
@@ -326,7 +326,7 @@ export function GroupTasksPage() {
         {tasks.length > 0 ? (
           <div className="space-y-1">
             <p className="text-xs text-muted" aria-live="polite">
-              {t('tareas.progress', { done: doneCount, total: tasks.length })}
+              {t('tasks.progress', { done: doneCount, total: tasks.length })}
             </p>
             <div className="h-1.5 overflow-hidden rounded-full bg-surface-hover" role="progressbar" aria-valuenow={doneCount} aria-valuemin={0} aria-valuemax={tasks.length}>
               <div
@@ -339,10 +339,10 @@ export function GroupTasksPage() {
 
         {/* View toggle: List / Board */}
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex gap-1 rounded-xl bg-surface-hover/50 p-1" role="group" aria-label={t('tareas.title')}>
+          <div className="flex gap-1 rounded-xl bg-surface-hover/50 p-1" role="group" aria-label={t('tasks.title')}>
             {([
-              { id: 'board', label: t('tareas.viewBoard') },
-              { id: 'list', label: t('tareas.viewList') },
+              { id: 'board', label: t('tasks.viewBoard') },
+              { id: 'list', label: t('tasks.viewList') },
             ] as { id: 'list' | 'board'; label: string }[]).map((tab) => (
               <button
                 key={tab.id}
@@ -362,13 +362,13 @@ export function GroupTasksPage() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap gap-1" role="group" aria-label={t('tareas.filterLabel')}>
+          <div className="flex flex-wrap gap-1" role="group" aria-label={t('tasks.filterLabel')}>
             {([
-              { id: 'all', label: t('tareas.filterAll') },
-              { id: 'open', label: t('tareas.filterOpen') },
-              { id: 'done', label: t('tareas.filterDone') },
-              { id: 'mine', label: t('tareas.filterMine') },
-              { id: 'overdue', label: t('tareas.filterOverdue') },
+              { id: 'all', label: t('tasks.filterAll') },
+              { id: 'open', label: t('tasks.filterOpen') },
+              { id: 'done', label: t('tasks.filterDone') },
+              { id: 'mine', label: t('tasks.filterMine') },
+              { id: 'overdue', label: t('tasks.filterOverdue') },
             ] as { id: TaskFilter; label: string }[]).map((tab) => (
               <button
                 key={tab.id}
@@ -392,12 +392,12 @@ export function GroupTasksPage() {
       <GroupErrorState message={error} />
 
       {surface.loading && tasks.length === 0 ? (
-        <GroupListSkeleton rows={3} label={t('tareas.loading')} />
+        <GroupListSkeleton rows={3} label={t('tasks.loading')} />
       ) : visible.length === 0 && view === 'list' ? (
         <GroupEmptyState
           icon={CheckCircle2}
-          title={t('tareas.emptyTitle')}
-          description={t('tareas.emptyBody')}
+          title={t('tasks.emptyTitle')}
+          description={t('tasks.emptyBody')}
         />
       ) : view === 'board' ? (
         <TaskBoard
@@ -458,10 +458,10 @@ export function GroupTasksPage() {
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        title={t('tareas.deleteConfirmTitle')}
-        message={t('tareas.deleteConfirm')}
-        confirmLabel={t('tareas.delete')}
-        cancelLabel={t('tareas.cancel')}
+        title={t('tasks.deleteConfirmTitle')}
+        message={t('tasks.deleteConfirm')}
+        confirmLabel={t('tasks.delete')}
+        cancelLabel={t('tasks.cancel')}
         onConfirm={() => {
           if (confirmDelete) {
             void (async () => {
@@ -518,7 +518,7 @@ function TaskListView({
               <button
                 type="button"
                 onClick={() => onToggle(task)}
-                aria-label={done ? t('tareas.reopen') : t('tareas.complete')}
+                aria-label={done ? t('tasks.reopen') : t('tasks.complete')}
                 className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 {statusIcon(task.status, 'h-5 w-5')}
@@ -549,7 +549,7 @@ function TaskListView({
                         : 'neutral'
                   }
                 >
-                  {t(STATUS_META[task.status as BoardStatus]?.labelKey ?? 'tareas.statusOpen')}
+                  {t(STATUS_META[task.status as BoardStatus]?.labelKey ?? 'tasks.statusOpen')}
                 </GroupChip>
                 {task.dueAt ? (
                   <span
@@ -559,7 +559,7 @@ function TaskListView({
                     )}
                   >
                     <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
-                    {overdue ? t('tareas.overdue') : t('tareas.dueLabel')}{' '}
+                    {overdue ? t('tasks.overdue') : t('tasks.dueLabel')}{' '}
                     {formatDue(task.dueAt, lang)}
                   </span>
                 ) : null}
@@ -576,7 +576,7 @@ function TaskListView({
                 <button
                   type="button"
                   onClick={() => onEdit(task)}
-                  aria-label={`${t('tareas.edit')}: ${task.title}`}
+                  aria-label={`${t('tasks.edit')}: ${task.title}`}
                   className="grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -584,7 +584,7 @@ function TaskListView({
                 <button
                   type="button"
                   onClick={() => onDelete(task)}
-                  aria-label={`${t('tareas.delete')}: ${task.title}`}
+                  aria-label={`${t('tasks.delete')}: ${task.title}`}
                   className="grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-error-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -722,7 +722,7 @@ function BoardColumn({
             'flex flex-1 items-center justify-center rounded-xl border border-dashed py-6 text-xs text-muted transition-colors',
             isOver ? 'border-primary/50 bg-primary/5' : 'border-border-subtle',
           )}>
-            {isOver ? t('tareas.dropHere') : t('tareas.noTasks')}
+            {isOver ? t('tasks.dropHere') : t('tasks.noTasks')}
           </div>
         ) : (
           tasks.map((task) => (
@@ -880,7 +880,7 @@ function TaskCard({
             type="button"
             onClick={(e) => { e.stopPropagation(); onMove('left') }}
             disabled={task.status === 'open'}
-            aria-label={t('tareas.moveTo', { status: t(STATUS_META[BOARD_COLUMNS[BOARD_COLUMNS.indexOf(task.status as BoardStatus) - 1] ?? 'open'].columnKey) })}
+            aria-label={t('tasks.moveTo', { status: t(STATUS_META[BOARD_COLUMNS[BOARD_COLUMNS.indexOf(task.status as BoardStatus) - 1] ?? 'open'].columnKey) })}
             className="grid h-11 w-11 place-items-center rounded-full bg-surface text-muted shadow-sm hover:text-ink disabled:opacity-30"
           >
             <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
@@ -889,7 +889,7 @@ function TaskCard({
             type="button"
             onClick={(e) => { e.stopPropagation(); onMove('right') }}
             disabled={task.status === 'done'}
-            aria-label={t('tareas.moveTo', { status: t(STATUS_META[BOARD_COLUMNS[BOARD_COLUMNS.indexOf(task.status as BoardStatus) + 1] ?? 'done'].columnKey) })}
+            aria-label={t('tasks.moveTo', { status: t(STATUS_META[BOARD_COLUMNS[BOARD_COLUMNS.indexOf(task.status as BoardStatus) + 1] ?? 'done'].columnKey) })}
             className="grid h-11 w-11 place-items-center rounded-full bg-surface text-muted shadow-sm hover:text-ink disabled:opacity-30"
           >
             <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -937,7 +937,7 @@ function TaskCard({
             )}
           >
             <CalendarClock className="h-3 w-3" aria-hidden="true" />
-            {overdue ? `${t('tareas.overdue')} — ${formatDue(task.dueAt, lang)}` : formatDue(task.dueAt, lang)}
+            {overdue ? `${t('tasks.overdue')} — ${formatDue(task.dueAt, lang)}` : formatDue(task.dueAt, lang)}
           </span>
         ) : null}
 
@@ -984,7 +984,7 @@ function TaskCardOverlay({
             )}
           >
             <CalendarClock className="h-3 w-3" aria-hidden="true" />
-            {overdue ? `${t('tareas.overdue')} — ${formatDue(task.dueAt, lang)}` : formatDue(task.dueAt, lang)}
+            {overdue ? `${t('tasks.overdue')} — ${formatDue(task.dueAt, lang)}` : formatDue(task.dueAt, lang)}
           </span>
         ) : null}
         {assignee ? (
@@ -1134,7 +1134,7 @@ function TaskDetailModal({
             type="button"
             onClick={onClose}
             className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            aria-label={t('tareas.close')}
+            aria-label={t('tasks.close')}
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -1147,7 +1147,7 @@ function TaskDetailModal({
           {/* Title */}
           {isEditing ? (
             <div>
-              <label htmlFor={`${titleId}-title`} className="sr-only">{t('tareas.fieldTitle')}</label>
+              <label htmlFor={`${titleId}-title`} className="sr-only">{t('tasks.fieldTitle')}</label>
               <input
                 id={`${titleId}-title`}
                 className={cn(fieldClass, 'text-lg font-bold')}
@@ -1174,9 +1174,9 @@ function TaskDetailModal({
           {/* Metadata grid (Trello sidebar-style) */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
             {/* Status */}
-            <DetailField label={t('tareas.fieldStatus')}>
+            <DetailField label={t('tasks.fieldStatus')}>
               {canManage ? (
-                <div className="flex gap-1" role="group" aria-label={t('tareas.fieldStatus')}>
+                <div className="flex gap-1" role="group" aria-label={t('tasks.fieldStatus')}>
                   {BOARD_COLUMNS.map((s) => (
                     <button
                       key={s}
@@ -1207,7 +1207,7 @@ function TaskDetailModal({
             </DetailField>
 
             {/* Assignee */}
-            <DetailField label={t('tareas.fieldAssignee')}>
+            <DetailField label={t('tasks.fieldAssignee')}>
               {canManage && isEditing ? (
                 <select
                   className={cn(fieldClass, 'text-sm')}
@@ -1234,7 +1234,7 @@ function TaskDetailModal({
             </DetailField>
 
             {/* Due date */}
-            <DetailField label={t('tareas.fieldDue')}>
+            <DetailField label={t('tasks.fieldDue')}>
               {canManage && isEditing ? (
                 <input
                   type="date"
@@ -1248,7 +1248,7 @@ function TaskDetailModal({
                   overdue ? 'font-medium text-error-ink' : 'text-ink',
                 )}>
                   <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
-                  {overdue ? `${t('tareas.overdue')} — ` : ''}
+                  {overdue ? `${t('tasks.overdue')} — ` : ''}
                   {formatDue(task.dueAt, lang)}
                 </span>
               ) : (
@@ -1260,7 +1260,7 @@ function TaskDetailModal({
           {/* Notes */}
           <div>
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">
-              {t('tareas.fieldNotes')}
+              {t('tasks.fieldNotes')}
             </p>
             {canManage && isEditing ? (
               <textarea
@@ -1269,7 +1269,7 @@ function TaskDetailModal({
                 value={notes}
                 maxLength={2000}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder={t('tareas.addNotes')}
+                placeholder={t('tasks.addNotes')}
               />
             ) : task.notes ? (
               <p
@@ -1289,7 +1289,7 @@ function TaskDetailModal({
                 )}
                 onClick={() => canManage && setIsEditing(true)}
               >
-                {t('tareas.addNotes')}
+                {t('tasks.addNotes')}
               </p>
             )}
           </div>
@@ -1297,7 +1297,7 @@ function TaskDetailModal({
           {/* Created by */}
           {creator ? (
             <p className="text-xs text-muted">
-              {t('tareas.createdBy')}: {creator}
+              {t('tasks.createdBy')}: {creator}
             </p>
           ) : null}
 
@@ -1310,7 +1310,7 @@ function TaskDetailModal({
                     onClick={() => void saveAction.run()}
                     disabled={saveAction.pending || !title.trim()}
                   >
-                    {saveAction.pending ? t('tareas.saving') : t('tareas.save')}
+                    {saveAction.pending ? t('tasks.saving') : t('tasks.save')}
                   </GroupButton>
                   <GroupButton variant="secondary" onClick={() => {
                     setIsEditing(false)
@@ -1319,14 +1319,14 @@ function TaskDetailModal({
                     setDueAt(toLocalDate(task.dueAt))
                     setAssigneeUserId(task.assigneeUserId ?? '')
                   }}>
-                    {t('tareas.cancel')}
+                    {t('tasks.cancel')}
                   </GroupButton>
                 </>
               ) : (
                 <>
                   <GroupButton variant="secondary" onClick={() => setIsEditing(true)}>
                     <Pencil className="h-4 w-4" aria-hidden="true" />
-                    {t('tareas.edit')}
+                    {t('tasks.edit')}
                   </GroupButton>
                   <GroupButton
                     variant="danger"
@@ -1334,7 +1334,7 @@ function TaskDetailModal({
                     disabled={deleteAction.pending}
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    {t('tareas.delete')}
+                    {t('tasks.delete')}
                   </GroupButton>
                 </>
               )}
@@ -1345,10 +1345,10 @@ function TaskDetailModal({
 
       <ConfirmDialog
         open={confirmDiscard}
-        title={t('tareas.discardConfirmTitle')}
-        message={t('tareas.discardConfirm')}
-        confirmLabel={t('tareas.discard')}
-        cancelLabel={t('tareas.cancel')}
+        title={t('tasks.discardConfirmTitle')}
+        message={t('tasks.discardConfirm')}
+        confirmLabel={t('tasks.discard')}
+        cancelLabel={t('tasks.cancel')}
         onConfirm={() => {
           setConfirmDiscard(false)
           setIsEditing(false)
@@ -1359,10 +1359,10 @@ function TaskDetailModal({
 
       <ConfirmDialog
         open={confirmDelete}
-        title={t('tareas.deleteConfirmTitle')}
-        message={t('tareas.deleteConfirm')}
-        confirmLabel={t('tareas.delete')}
-        cancelLabel={t('tareas.cancel')}
+        title={t('tasks.deleteConfirmTitle')}
+        message={t('tasks.deleteConfirm')}
+        confirmLabel={t('tasks.delete')}
+        cancelLabel={t('tasks.cancel')}
         onConfirm={() => {
           setConfirmDelete(false)
           void deleteAction.run()

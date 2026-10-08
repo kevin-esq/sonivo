@@ -43,7 +43,7 @@ function ChordProLineView({
     if (section == null) return null
     return (
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-        {t(section === 'chorus' ? 'practica.chordpro.chorus' : 'practica.chordpro.verse')}
+        {t(section === 'chorus' ? 'practice.chordpro.chorus' : 'practice.chordpro.verse')}
       </p>
     )
   }

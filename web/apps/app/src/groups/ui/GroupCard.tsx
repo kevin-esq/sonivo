@@ -69,7 +69,7 @@ export function GroupStat({ icon: Icon, label, description, value, to, testId }:
         <Icon className="h-5 w-5" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-ink">{label}</span>
+        <span className="block text-sm font-semibold leading-tight text-ink">{label}</span>
         {description ? (
           <span className="block truncate text-xs text-muted">{description}</span>
         ) : null}
@@ -81,7 +81,7 @@ export function GroupStat({ icon: Icon, label, description, value, to, testId }:
   )
 
   const classes = cn(
-    'flex min-h-16 items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+    'flex min-h-16 items-center gap-2.5 rounded-2xl border border-border-subtle bg-surface px-3 py-3 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
   )
 
   if (to) {

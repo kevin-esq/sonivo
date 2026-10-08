@@ -86,19 +86,19 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
     value: arrangement.id,
     label: arrangement.label,
   }))
-  const purposeOptions = PURPOSES.map((value) => ({ value, label: formatPurpose(value) }))
+  const purposeOptions = PURPOSES.map((value) => ({ value, label: formatPurpose(value, t) }))
 
   async function submit() {
     setError(null)
     if (!arrangementId) {
-      setError(t('recursos.fieldArrangement'))
+      setError(t('resources.fieldArrangement'))
       return
     }
     setPending(true)
     try {
       if (mode === 'file') {
         if (!file) {
-          setError(t('recursos.fileRequired'))
+          setError(t('resources.fileRequired'))
           setPending(false)
           return
         }
@@ -128,20 +128,20 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
     <GroupDialog
       open
       onClose={onClose}
-      title={t('recursos.modalTitle')}
+      title={t('resources.modalTitle')}
       pending={pending}
       testId="create-resource-dialog"
       onSubmit={() => void submit()}
       footer={
         <>
           <GroupButton variant="secondary" onClick={onClose} disabled={pending}>
-            {t('recursos.cancel')}
+            {t('resources.cancel')}
           </GroupButton>
           <GroupButton
             type="submit"
             disabled={pending || !label.trim() || !arrangementId}
           >
-            {pending ? t('recursos.saving') : t('recursos.uploadButton')}
+            {pending ? t('resources.saving') : t('resources.uploadButton')}
           </GroupButton>
         </>
       }
@@ -154,7 +154,7 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
 
       <div
         role="tablist"
-        aria-label={t('recursos.fieldFile')}
+        aria-label={t('resources.fieldFile')}
         className="inline-flex rounded-xl border border-border-subtle bg-surface-hover p-0.5"
       >
         {(['file', 'link'] as const).map((option) => (
@@ -172,27 +172,27 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
                 : 'text-muted hover:text-ink',
             )}
           >
-            {option === 'file' ? t('recursos.fileKind') : t('recursos.linkKind')}
+            {option === 'file' ? t('resources.fileKind') : t('resources.linkKind')}
           </button>
         ))}
       </div>
 
       <GroupSelect
-        label={t('recursos.fieldSong')}
+        label={t('resources.fieldSong')}
         value={songId}
         options={songOptions}
         disabled={pending || songs === null}
         onChange={setSongId}
       />
       <GroupSelect
-        label={t('recursos.fieldArrangement')}
+        label={t('resources.fieldArrangement')}
         value={arrangementId}
         options={arrangementOptions}
         disabled={pending || !songId || arrangements === null}
         onChange={setArrangementId}
       />
       <GroupInput
-        label={t('recursos.fieldLabel')}
+        label={t('resources.fieldLabel')}
         value={label}
         maxLength={200}
         disabled={pending}
@@ -200,14 +200,14 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
         data-autofocus
       />
       <GroupSelect
-        label={t('recursos.fieldCategory')}
+        label={t('resources.fieldCategory')}
         value={purpose}
         options={purposeOptions}
         disabled={pending}
         onChange={(value) => setPurpose(value as ResourcePurpose)}
       />
       <GroupTextArea
-        label={t('recursos.fieldDescription')}
+        label={t('resources.fieldDescription')}
         rows={2}
         value={note}
         maxLength={2000}
@@ -218,9 +218,9 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
       {mode === 'file' ? (
         <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border-subtle bg-surface-hover/50 px-4 py-3 text-center text-sm text-muted focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary">
           <Upload className="h-5 w-5" aria-hidden="true" />
-          <span className="font-medium text-ink">{t('recursos.fieldFile')}</span>
-          <span>{file ? file.name : t('recursos.dropHint')}</span>
-          <span className="text-xs">{t('recursos.formatsHint')}</span>
+          <span className="font-medium text-ink">{t('resources.fieldFile')}</span>
+          <span>{file ? file.name : t('resources.dropHint')}</span>
+          <span className="text-xs">{t('resources.formatsHint')}</span>
           <input
             type="file"
             className="sr-only"
@@ -230,7 +230,7 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
         </label>
       ) : (
         <GroupInput
-          label={t('recursos.fieldFile')}
+          label={t('resources.fieldFile')}
           value={url}
           placeholder="https://"
           disabled={pending}

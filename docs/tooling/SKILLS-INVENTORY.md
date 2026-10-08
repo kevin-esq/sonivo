@@ -31,12 +31,20 @@ From first-party sources, audited before install:
 - `differential-review` — `trailofbits/skills`
 - `creative-frameworks` — user-authored
 
-### SECURITY HARDENING — PROJECT-LOCAL (ADR-0064, user-authorized 2026-10-05)
+### SECURITY HARDENING - PROJECT-LOCAL (ADR-0064, user-authorized 2026-10-05)
 
 Authored for Sonivo and adapted to its stack (not imported from third parties):
 
-- `dotnet-secure-architecture` — ASP.NET Core / EF Core / Identity / tenancy hardening and review
-- `react-frontend-security` — React 19 / Vite / Tailwind XSS, env-leak, token, and client-authz review
+- `dotnet-secure-architecture` - ASP.NET Core / EF Core / Identity / tenancy hardening and review
+- `react-frontend-security` - React 19 / Vite / Tailwind XSS, env-leak, token, and client-authz review
+
+### FRONTEND STRUCTURE - PROJECT-LOCAL (user-authorized 2026-10-07)
+
+Authored for Sonivo:
+
+- `frontend-architecture` - feature-folder structure, page-orchestration rule,
+  API/i18n layout, and the hard language rule (English code/back-end/routes; only
+  UI copy localized via `t()`, es/en/pt).
 
 ### GIT GOVERNANCE — PROJECT-LOCAL (ADR-0065, user-authorized 2026-10-05)
 

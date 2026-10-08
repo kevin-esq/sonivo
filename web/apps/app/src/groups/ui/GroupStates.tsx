@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link2, Package, TriangleAlert, type LucideIcon } from 'lucide-react'
 import { cn } from '../../ui/cn'
+import { useT } from '../../i18n'
 
 /** Group-scoped empty state: accent icon, title, body and one primary action. */
 export function GroupEmptyState({
@@ -44,9 +45,9 @@ export function GroupEmptyState({
 /** Group-scoped error state: `role="alert"`, optional retry. */
 export function GroupErrorState({
   message,
-  title = 'Algo salió mal',
+  title,
   onRetry,
-  retryLabel = 'Reintentar',
+  retryLabel,
   action,
   className,
 }: {
@@ -57,6 +58,7 @@ export function GroupErrorState({
   action?: ReactNode
   className?: string
 }) {
+  const { t } = useT()
   if (!message) return null
   return (
     <div
@@ -68,7 +70,7 @@ export function GroupErrorState({
     >
       <div className="flex items-center gap-2 text-error-ink">
         <TriangleAlert className="h-5 w-5 shrink-0" aria-hidden="true" />
-        <p className="font-semibold">{title}</p>
+        <p className="font-semibold">{title ?? t('state.errorTitle')}</p>
       </div>
       <p className="text-sm text-error-ink">{message}</p>
       {onRetry ? (
@@ -78,7 +80,7 @@ export function GroupErrorState({
           className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-error/30 px-3 text-sm font-semibold text-error-ink transition-colors hover:bg-error/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error motion-reduce:transition-none"
         >
           <Link2 className="h-4 w-4 rotate-90" aria-hidden="true" />
-          {retryLabel}
+          {retryLabel ?? t('state.retry')}
         </button>
       ) : null}
       {action}
@@ -91,10 +93,12 @@ export function GroupSkeleton({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded-lg bg-surface-hover/80', className)} aria-hidden="true" />
 }
 
-export function GroupListSkeleton({ rows = 3, label = 'Cargando…' }: { rows?: number; label?: string }) {
+export function GroupListSkeleton({ rows = 3, label }: { rows?: number; label?: string }) {
+  const { t } = useT()
+  const text = label ?? t('state.loading')
   return (
-    <div className="space-y-3" role="status" aria-live="polite" aria-label={label}>
-      <span className="sr-only">{label}</span>
+    <div className="space-y-3" role="status" aria-live="polite" aria-label={text}>
+      <span className="sr-only">{text}</span>
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex items-center gap-3 rounded-2xl border border-border-subtle px-4 py-3">
           <GroupSkeleton className="h-11 w-11 rounded-xl" />
@@ -108,13 +112,15 @@ export function GroupListSkeleton({ rows = 3, label = 'Cargando…' }: { rows?: 
   )
 }
 
-export function GroupPageSkeleton({ label = 'Cargando…' }: { label?: string }) {
+export function GroupPageSkeleton({ label }: { label?: string }) {
+  const { t } = useT()
+  const text = label ?? t('state.loading')
   return (
-    <div className="space-y-4" role="status" aria-live="polite" aria-label={label}>
-      <span className="sr-only">{label}</span>
+    <div className="space-y-4" role="status" aria-live="polite" aria-label={text}>
+      <span className="sr-only">{text}</span>
       <GroupSkeleton className="h-8 w-48" />
       <GroupSkeleton className="h-4 w-72 max-w-full" />
-      <GroupListSkeleton rows={3} label={label} />
+      <GroupListSkeleton rows={3} label={text} />
     </div>
   )
 }

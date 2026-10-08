@@ -104,7 +104,13 @@ export async function chooseGroupOption(page: Page, label: string, optionName: s
  */
 async function openCreateDialogAndFill(
   page: Page,
-  opts: { trigger: string; heading: string; label: string; value: string },
+  opts: {
+    trigger: string
+    heading: string
+    label: string
+    value: string
+    option?: { label: string; name: string }
+  },
 ) {
   await expect(async () => {
     const heading = page.getByRole('heading', { name: opts.heading })
@@ -115,18 +121,33 @@ async function openCreateDialogAndFill(
     const field = page.getByLabel(opts.label)
     await field.fill(opts.value, { timeout: 3000 })
     await expect(field).toHaveValue(opts.value, { timeout: 2000 })
+    if (opts.option) {
+      // The custom GroupSelect can be detached by a route-transition re-render
+      // too, so selecting the option is part of the retried unit.
+      await page.getByRole('combobox', { name: opts.option.label }).click({ timeout: 3000 })
+      await page.getByRole('option', { name: opts.option.name, exact: true }).click({ timeout: 3000 })
+    }
   }).toPass({ timeout: 30000 })
 }
 
 export async function createSong(page: Page, title: string) {
-  await openCreateDialogAndFill(page, {
-    trigger: 'Agregar canción',
-    heading: 'Crear canción',
-    label: 'Título',
-    value: title,
-  })
-  await chooseGroupOption(page, 'Origen', 'Propia')
-  await page.getByRole('button', { name: 'Crear canción' }).click()
+  // The create-song flow is now a wizard: Details → Audio (skipped) → Review →
+  // success. The whole run is retried as one unit so a mid-flight re-render
+  // cannot leave the dialog half-filled.
+  await expect(async () => {
+    const dialog = page.getByRole('dialog')
+    if (!(await dialog.isVisible().catch(() => false))) {
+      await page.getByRole('button', { name: 'Agregar canción' }).first().click()
+    }
+    await expect(dialog).toBeVisible({ timeout: 2000 })
+    await dialog.getByLabel('Título').fill(title, { timeout: 3000 })
+    await dialog.getByRole('combobox', { name: 'Origen' }).click({ timeout: 3000 })
+    await page.getByRole('option', { name: 'Propia', exact: true }).click({ timeout: 3000 })
+    await dialog.getByRole('button', { name: 'Continuar' }).click({ timeout: 3000 })
+    await dialog.getByRole('button', { name: 'Omitir audio' }).click({ timeout: 3000 })
+    await dialog.getByRole('button', { name: 'Crear canción' }).click({ timeout: 3000 })
+    await dialog.getByRole('button', { name: 'Ver en mi biblioteca' }).click({ timeout: 5000 })
+  }).toPass({ timeout: 30000 })
   await expect(page.getByRole('link', { name: title })).toBeVisible()
 }
 
@@ -208,7 +229,7 @@ export async function deleteSong(page: Page, title: string) {
 }
 
 export async function openSetlists(page: Page) {
-  await page.getByRole('link', { name: 'Listas' }).first().click()
+  await page.getByTestId('group-rail').getByRole('link', { name: 'Listas', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Listas' })).toBeVisible()
 }
 
@@ -269,8 +290,8 @@ export async function createEvent(
     heading: 'Crear evento',
     label: 'Título',
     value: input.title,
+    option: { label: 'Tipo', name: typeOption },
   })
-  await chooseGroupOption(page, 'Tipo', typeOption)
   await page.getByLabel('Fecha y hora').fill(input.startsAt)
   await page.getByRole('button', { name: 'Crear evento' }).click()
   await expect(page.getByRole('heading', { name: input.title })).toBeVisible()
@@ -288,18 +309,23 @@ export function eventPlanItem(page: Page, songTitle: string, arrangementLabel: s
     .filter({ hasText: arrangementLabel })
 }
 
-export async function inviteMemberAndReadLink(page: Page): Promise<string> {
-  // The group home now renders "Invitar miembro" twice: a quick action
-  // (region "Acciones rápidas") and the actual submit inside the owner
-  // "Administrar" section — scope to the latter.
-  await page
-    .getByRole('region', { name: 'Administrar' })
-    .getByRole('button', { name: 'Invitar miembro' })
-    .click()
-  const inviteLink = page.getByLabel('Enlace de invitación')
+export async function inviteMemberAndReadLink(page: Page, email?: string): Promise<string> {
+  // Inviting is owner-only and lives on the Members tab inside a dialog.
+  await openPeople(page)
+  await page.getByRole('button', { name: 'Invitar miembro' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  if (email) {
+    await dialog.getByLabel('Correo del invitado (opcional)').fill(email)
+  }
+  await dialog.getByRole('button', { name: 'Invitar miembro' }).click()
+  const inviteLink = dialog.getByLabel('Enlace de invitación')
   await expect(inviteLink).toBeVisible()
   const url = await inviteLink.inputValue()
   expect(url).toContain('/join/')
+  // Close the dialog so the caller can keep driving the page.
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
   // Path-only so Playwright stays on baseURL host (localhost vs 127.0.0.1 cookie jar).
   return new URL(url, page.url()).pathname
 }
@@ -312,7 +338,7 @@ export async function acceptInvite(page: Page) {
 }
 
 export async function openPeople(page: Page) {
-  await page.getByRole('link', { name: 'Miembros' }).click()
+  await page.getByTestId('group-rail').getByRole('link', { name: 'Miembros', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Miembros' })).toBeVisible()
 }
 

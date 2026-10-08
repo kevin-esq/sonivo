@@ -68,7 +68,7 @@ export function SettingsProfilePage() {
         if (!cancelled) setStatus(result)
       })
       .catch(() => {
-        // best effort: the row falls back to "Desactivada"
+        // best effort: the row falls back to "Disabled"
       })
     return () => {
       cancelled = true
@@ -76,18 +76,18 @@ export function SettingsProfilePage() {
   }, [user.id])
 
   const roleLabel = (groups ?? []).some((group) => isOwner(group.role))
-    ? t('perfil.roleOwner')
-    : t('perfil.roleMember')
+    ? t('profile.roleOwner')
+    : t('profile.roleMember')
   const timeZone = useMemo(() => deviceTimeZone(), [])
-  const languageLabel = lang === 'es' ? t('cuenta.spanish') : t('cuenta.english')
-  const themeLabel = theme === 'dark' ? t('cuenta.themeDark') : t('cuenta.themeLight')
+  const languageLabel = lang === 'es' ? t('account.spanish') : t('account.english')
+  const themeLabel = theme === 'dark' ? t('account.themeDark') : t('account.themeLight')
   const name = user.displayName?.trim() || user.email || ''
 
   return (
     <div className="space-y-6">
       <header className="space-y-1.5">
-        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('perfil.title')}</h1>
-        <p className="text-muted">{t('perfil.subtitle')}</p>
+        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('profile.title')}</h1>
+        <p className="text-muted">{t('profile.subtitle')}</p>
       </header>
 
       {user.managedByGroupId ? (
@@ -96,7 +96,7 @@ export function SettingsProfilePage() {
           data-testid="managed-account-notice"
           className="rounded-xl bg-surface-hover px-3 py-2 text-sm text-ink"
         >
-          {t('perfil.managedNotice')}
+          {t('profile.managedNotice')}
         </p>
       ) : null}
 
@@ -104,86 +104,86 @@ export function SettingsProfilePage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-4">
-          <AccountCard title={t('perfil.sectionPersonal')}>
+          <AccountCard title={t('profile.sectionPersonal')}>
             <AccountRow
               icon={UserRound}
-              title={t('perfil.name')}
+              title={t('profile.name')}
               subtitle={name}
               onClick={() => setEditing(true)}
             />
             <AccountRow
               icon={Mail}
-              title={t('perfil.email')}
+              title={t('profile.email')}
               subtitle={user.email ?? '—'}
               onClick={() => setEditing(true)}
             />
             <AccountRow
               icon={Languages}
-              title={t('cuenta.language')}
+              title={t('account.language')}
               subtitle={languageLabel}
               to="/cuenta/preferencias"
             />
-            <AccountRow icon={Clock} title={t('perfil.timezone')} subtitle={timeZone} disabled />
+            <AccountRow icon={Clock} title={t('profile.timezone')} subtitle={timeZone} disabled />
           </AccountCard>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <AccountCard
-              title={t('perfil.sectionPlan')}
+              title={t('profile.sectionPlan')}
               action={
                 <span className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink">
-                  {t('perfil.planPro')}
+                  {t('profile.planPro')}
                 </span>
               }
             >
               <p className="px-2 py-1 text-sm text-muted">{t('placeholder.body')}</p>
               <div className="px-2 pt-2">
                 <Button variant="secondary" disabled className="w-full">
-                  {t('perfil.managePlan')}
+                  {t('profile.managePlan')}
                 </Button>
               </div>
             </AccountCard>
 
-            <AccountCard title={t('perfil.sectionUsage')}>
-              <AccountRow icon={BarChart3} title={t('perfil.groups')} subtitle={t('app.comingSoon')} disabled />
-              <AccountRow icon={UserRound} title={t('perfil.members')} subtitle={t('app.comingSoon')} disabled />
-              <AccountRow icon={MonitorSmartphone} title={t('perfil.storage')} subtitle={t('app.comingSoon')} disabled />
+            <AccountCard title={t('profile.sectionUsage')}>
+              <AccountRow icon={BarChart3} title={t('profile.groups')} subtitle={t('app.comingSoon')} disabled />
+              <AccountRow icon={UserRound} title={t('profile.members')} subtitle={t('app.comingSoon')} disabled />
+              <AccountRow icon={MonitorSmartphone} title={t('profile.storage')} subtitle={t('app.comingSoon')} disabled />
             </AccountCard>
           </div>
         </div>
 
         <div className="space-y-4">
-          <AccountCard title={t('seguridad.title')}>
+          <AccountCard title={t('security.title')}>
             <AccountRow
               icon={KeyRound}
-              title={t('seguridad.passwordLabel')}
-              subtitle={t('perfil.passwordHint')}
+              title={t('security.passwordLabel')}
+              subtitle={t('profile.passwordHint')}
               to="/cuenta/seguridad"
             />
             <AccountRow
               icon={ShieldCheck}
-              title={t('perfil.twoFactor')}
-              subtitle={status?.enabled ? t('perfil.twoFactorOn') : t('perfil.twoFactorOff')}
+              title={t('profile.twoFactor')}
+              subtitle={status?.enabled ? t('profile.twoFactorOn') : t('profile.twoFactorOff')}
               to="/cuenta/seguridad"
             />
-            <AccountRow icon={MonitorSmartphone} title={t('perfil.sessions')} subtitle={t('app.comingSoon')} disabled />
+            <AccountRow icon={MonitorSmartphone} title={t('profile.sessions')} subtitle={t('app.comingSoon')} disabled />
           </AccountCard>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <AccountCard title={t('perfil.sectionNotifications')}>
-              <AccountRow icon={Mail} title={t('perfil.emailNotifications')} subtitle={t('app.comingSoon')} disabled />
-              <AccountRow icon={Bell} title={t('perfil.inAppNotifications')} subtitle={t('app.comingSoon')} disabled />
+            <AccountCard title={t('profile.sectionNotifications')}>
+              <AccountRow icon={Mail} title={t('profile.emailNotifications')} subtitle={t('app.comingSoon')} disabled />
+              <AccountRow icon={Bell} title={t('profile.inAppNotifications')} subtitle={t('app.comingSoon')} disabled />
             </AccountCard>
 
-            <AccountCard title={t('cuenta.preferences')}>
+            <AccountCard title={t('account.preferences')}>
               <AccountRow
                 icon={Palette}
-                title={t('perfil.appearance')}
+                title={t('profile.appearance')}
                 subtitle={themeLabel}
                 to="/cuenta/preferencias"
               />
               <AccountRow
                 icon={Languages}
-                title={t('cuenta.language')}
+                title={t('account.language')}
                 subtitle={languageLabel}
                 to="/cuenta/preferencias"
               />
@@ -239,7 +239,7 @@ function EditProfileDialog({
     if (pending) return
     const value = name.trim()
     if (!value) {
-      setError(t('perfil.nameRequired'))
+      setError(t('profile.nameRequired'))
       inputRef.current?.focus()
       return
     }
@@ -265,10 +265,10 @@ function EditProfileDialog({
     >
       <form className="space-y-4 p-5" onSubmit={submit} noValidate>
         <h2 id={`${id}-title`} className="text-lg font-semibold">
-          {t('perfil.editTitle')}
+          {t('profile.editTitle')}
         </h2>
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-ink">{t('perfil.fullName')}</span>
+          <span className="text-sm font-medium text-ink">{t('profile.fullName')}</span>
           <input
             ref={inputRef}
             className={fieldClass}
@@ -292,10 +292,10 @@ function EditProfileDialog({
         </div>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
-            {t('perfil.cancel')}
+            {t('profile.cancel')}
           </Button>
           <Button type="submit" disabled={pending || !name.trim()}>
-            {pending ? t('perfil.saving') : t('perfil.save')}
+            {pending ? t('profile.saving') : t('profile.save')}
           </Button>
         </div>
       </form>
@@ -325,8 +325,8 @@ export function SettingsTeamPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t('equipo.title')}</h2>
-        <p className="text-sm text-slate-500">{t('equipo.subtitle')}</p>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t('team.title')}</h2>
+        <p className="text-sm text-slate-500">{t('team.subtitle')}</p>
       </div>
 
       {error ? (
@@ -337,7 +337,7 @@ export function SettingsTeamPage() {
 
       {groups === null && !error ? (
         <p aria-live="polite" className="text-sm text-slate-500">
-          {t('equipo.loading')}
+          {t('team.loading')}
         </p>
       ) : groups && groups.length > 0 ? (
         <ul className="space-y-2">
@@ -351,14 +351,14 @@ export function SettingsTeamPage() {
                 className="text-sm font-semibold text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 to={`/groups/${group.id}/people`}
               >
-                {t('equipo.viewMembers')}
+                {t('team.viewMembers')}
               </Link>
             </li>
           ))}
         </ul>
       ) : (
         <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-sm">
-          {t('equipo.empty')}
+          {t('team.empty')}
         </div>
       )}
     </div>
@@ -368,7 +368,7 @@ export function SettingsTeamPage() {
 /**
  * `/cuenta/membresia` — account-level membership. Billing/subscription is not a
  * group-owned concern (ADR-0055) and the group centre no longer hosts a
- * "Membresía" tab; this page owns the plan summary and the user's group
+ * "Membership" tab; this page owns the plan summary and the user's group
  * memberships. No real billing UI yet (ADR firewall: no billing).
  */
 export function SettingsMembershipPage() {
@@ -393,22 +393,22 @@ export function SettingsMembershipPage() {
   return (
     <div className="space-y-6">
       <header className="space-y-1.5">
-        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('membresia.title')}</h1>
-        <p className="text-muted">{t('membresia.subtitle')}</p>
+        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('membership.title')}</h1>
+        <p className="text-muted">{t('membership.subtitle')}</p>
       </header>
 
       <AccountCard
-        title={t('membresia.planTitle')}
+        title={t('membership.planTitle')}
         action={
           <span className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink">
-            {t('perfil.planPro')}
+            {t('profile.planPro')}
           </span>
         }
       >
-        <p className="px-2 py-1 text-sm text-muted">{t('membresia.planNote')}</p>
+        <p className="px-2 py-1 text-sm text-muted">{t('membership.planNote')}</p>
         <div className="px-2 pt-2">
           <Button variant="secondary" disabled className="w-full">
-            {t('perfil.managePlan')}
+            {t('profile.managePlan')}
           </Button>
         </div>
       </AccountCard>
@@ -417,9 +417,9 @@ export function SettingsMembershipPage() {
         <div className="space-y-1">
           <h2 id="membresia-groups-heading" className="flex items-center gap-2 text-xl font-semibold text-ink">
             <Users className="h-5 w-5 text-primary-ink" aria-hidden="true" />
-            {t('membresia.groupsTitle')}
+            {t('membership.groupsTitle')}
           </h2>
-          <p className="text-sm text-muted">{t('membresia.groupsSubtitle')}</p>
+          <p className="text-sm text-muted">{t('membership.groupsSubtitle')}</p>
         </div>
 
         {error ? (
@@ -430,7 +430,7 @@ export function SettingsMembershipPage() {
 
         {groups === null && !error ? (
           <p aria-live="polite" className="text-sm text-muted">
-            {t('membresia.loading')}
+            {t('membership.loading')}
           </p>
         ) : groups && groups.length > 0 ? (
           <ul className="space-y-2">
@@ -442,9 +442,9 @@ export function SettingsMembershipPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium text-ink">{group.name}</p>
                   <p className="text-xs text-muted">
-                    {t('membresia.roleLabel')}: {formatMembershipRole(group.role)}
+                    {t('membership.roleLabel')}: {formatMembershipRole(group.role, t)}
                     {typeof group.memberCount === 'number'
-                      ? ` · ${group.memberCount} ${t('membresia.membersLabel').toLowerCase()}`
+                      ? ` · ${group.memberCount} ${t('membership.membersLabel').toLowerCase()}`
                       : ''}
                   </p>
                 </div>
@@ -454,14 +454,14 @@ export function SettingsMembershipPage() {
                       to={`/groups/${group.id}/people`}
                       className="text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
-                      {t('membresia.manageMembers')}
+                      {t('membership.manageMembers')}
                     </Link>
                   ) : null}
                   <Link
                     to={`/groups/${group.id}`}
                     className="text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                   >
-                    {t('membresia.openGroup')}
+                    {t('membership.openGroup')}
                   </Link>
                 </div>
               </li>
@@ -469,7 +469,7 @@ export function SettingsMembershipPage() {
           </ul>
         ) : (
           <div className="rounded-xl border border-border-subtle bg-surface p-4 text-sm text-muted">
-            {t('membresia.empty')}
+            {t('membership.empty')}
           </div>
         )}
       </section>

@@ -2,13 +2,13 @@ import { CalendarDays } from "lucide-react";
 import { useT, type I18nKey } from "../i18n";
 import { colorFor, shortDate, timeLabel, type CalendarEvent } from "./calendarUtils";
 
-/** "Próximos eventos" rail list. */
+/** "Upcoming events" rail list. */
 export function UpcomingList({
   events,
   loading,
   onSelectDay,
   onViewAll,
-  viewAllKey = "calendario.viewAll",
+  viewAllKey = "calendar.viewAll",
   showGroup = true,
 }: {
   events: CalendarEvent[];
@@ -29,15 +29,15 @@ export function UpcomingList({
         id="calendar-upcoming-heading"
         className="text-sm font-semibold text-ink"
       >
-        {t("calendario.upcoming")}
+        {t("calendar.upcoming")}
       </h2>
 
       {loading ? (
         <p aria-live="polite" className="py-3 text-sm text-muted">
-          {t("calendario.loading")}
+          {t("calendar.loading")}
         </p>
       ) : events.length === 0 ? (
-        <p className="py-3 text-sm text-muted">{t("calendario.noEvents")}</p>
+        <p className="py-3 text-sm text-muted">{t("calendar.noEvents")}</p>
       ) : (
         <ul className="mt-2 space-y-1">
           {events.slice(0, 6).map((event) => {

@@ -29,6 +29,37 @@ export type ServerBranding = {
   showSonivoCredit: boolean
 }
 
+const BRANDING_CACHE_PREFIX = 'sonivo:group-brand:'
+
+/**
+ * Echoes the last resolved branding for a group from localStorage so the shell
+ * can paint the group's colour on the very first frame (avoids the
+ * default-violet → brand flash). The server value stays authoritative; this is
+ * only a first-paint hint and is refreshed on every successful load.
+ */
+export function readCachedBranding(groupId: string | undefined): ServerBranding | null {
+  if (!groupId) return null
+  try {
+    const raw = window.localStorage.getItem(BRANDING_CACHE_PREFIX + groupId)
+    return raw ? (JSON.parse(raw) as ServerBranding) : null
+  } catch {
+    return null
+  }
+}
+
+/** Stores (or clears, when null) the resolved branding so the next entry paints correctly. */
+export function writeCachedBranding(groupId: string, branding: ServerBranding | null): void {
+  try {
+    if (branding) {
+      window.localStorage.setItem(BRANDING_CACHE_PREFIX + groupId, JSON.stringify(branding))
+    } else {
+      window.localStorage.removeItem(BRANDING_CACHE_PREFIX + groupId)
+    }
+  } catch {
+    // best-effort only
+  }
+}
+
 /** Loads server-side branding best-effort; returns null when unavailable/flag off. */
 export async function loadServerBranding(groupId: string): Promise<ServerBranding | null> {
   try {

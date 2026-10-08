@@ -1,0 +1,20 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Queue PR 107 auto-merge",
+			"type": "shell",
+			"command": "gh",
+			"args": [
+				"pr",
+				"merge",
+				"107",
+				"--auto",
+				"--merge",
+				"--delete-branch=false"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

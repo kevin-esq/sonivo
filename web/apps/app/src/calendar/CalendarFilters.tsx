@@ -31,7 +31,7 @@ function Chip({
   );
 }
 
-/** Desktop filter chips: Todos · groups · Otras actividades. */
+/** Desktop filter chips: All · groups · Other activities. */
 export function CalendarChips({
   groups,
   selectedGroupIds,
@@ -51,7 +51,7 @@ export function CalendarChips({
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1">
       <Chip active={!otherOnly && selectedGroupIds.length === 0} onClick={onClear}>
-        {t("calendario.all")}
+        {t("calendar.all")}
       </Chip>
       {groups.map((group) => (
         <Chip
@@ -63,7 +63,7 @@ export function CalendarChips({
         </Chip>
       ))}
       <Chip active={otherOnly} onClick={onToggleOther}>
-        {t("calendario.otherActivities")}
+        {t("calendar.otherActivities")}
       </Chip>
     </div>
   );
@@ -139,9 +139,9 @@ export function CalendarFilterPanel({
   if (!open) return null;
 
   const views: Array<{ id: CalendarView; label: string }> = [
-    { id: "month", label: t("calendario.month") },
-    { id: "week", label: t("calendario.week") },
-    { id: "day", label: t("calendario.day") },
+    { id: "month", label: t("calendar.month") },
+    { id: "week", label: t("calendar.week") },
+    { id: "day", label: t("calendar.day") },
   ];
 
   return (
@@ -149,31 +149,31 @@ export function CalendarFilterPanel({
       className="fixed inset-0 z-50 flex flex-col bg-canvas text-ink lg:hidden"
       role="dialog"
       aria-modal="true"
-      aria-label={t("calendario.filters")}
+      aria-label={t("calendar.filters")}
     >
       <header className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-3">
         <button
           type="button"
           onClick={onClose}
-          aria-label={t("calendario.cancel")}
+          aria-label={t("calendar.cancel")}
           className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <ArrowLeft className="h-5 w-5" aria-hidden="true" />
         </button>
-        <h2 className="text-base font-semibold">{t("calendario.filters")}</h2>
+        <h2 className="text-base font-semibold">{t("calendar.filters")}</h2>
         <button
           type="button"
           onClick={onClose}
           className="rounded-lg px-3 py-2 text-sm font-semibold text-primary-ink hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          {t("calendario.apply")}
+          {t("calendar.apply")}
         </button>
       </header>
 
       <div className="flex-1 space-y-6 overflow-y-auto p-4">
         <section className="space-y-2">
           <h3 className="text-sm font-semibold text-muted">
-            {t("calendario.groups")}
+            {t("calendar.groups")}
           </h3>
           <ul className="space-y-1">
             {groups.map((group) => {
@@ -223,7 +223,7 @@ export function CalendarFilterPanel({
                   +
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm text-ink">
-                  {t("calendario.otherActivities")}
+                  {t("calendar.otherActivities")}
                 </span>
                 <span
                   className={cn(
@@ -243,7 +243,7 @@ export function CalendarFilterPanel({
 
         <section className="space-y-2">
           <h3 className="text-sm font-semibold text-muted">
-            {t("calendario.calendarView")}
+            {t("calendar.calendarView")}
           </h3>
           <div className="flex rounded-xl bg-surface p-1">
             {views.map((option) => (
@@ -267,18 +267,18 @@ export function CalendarFilterPanel({
 
         <section className="space-y-2">
           <h3 className="text-sm font-semibold text-muted">
-            {t("calendario.show")}
+            {t("calendar.show")}
           </h3>
           <div className="space-y-2">
             <Toggle
               checked={onlyMine}
               onChange={onSetOnlyMine}
-              label={t("calendario.onlyMine")}
+              label={t("calendar.onlyMine")}
             />
             <Toggle
               checked={allGroups}
               onChange={onSetAllGroups}
-              label={t("calendario.allGroupsEvents")}
+              label={t("calendar.allGroupsEvents")}
             />
           </div>
         </section>

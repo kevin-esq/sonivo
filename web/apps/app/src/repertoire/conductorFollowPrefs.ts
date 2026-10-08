@@ -1,4 +1,4 @@
-/** Q9 conductor “Seguir al director” preference (ADR-0036 / Q9-Q4). Per event. */
+/** Q9 conductor "Follow the conductor" preference (ADR-0036 / Q9-Q4). Per event. */
 
 const PREFIX = 'sonivo.conductor.follow'
 

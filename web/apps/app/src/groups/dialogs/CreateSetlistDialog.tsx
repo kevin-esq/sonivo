@@ -37,17 +37,17 @@ export function CreateSetlistDialog({ groupId, onClose, onCreated }: CreateSetli
     <GroupDialog
       open
       onClose={onClose}
-      title={t('agenda.createSetlistTitle')}
+      title={t('schedule.createSetlistTitle')}
       pending={pending}
       testId="create-setlist-dialog"
       onSubmit={() => void submit()}
       footer={
         <>
           <GroupButton variant="secondary" onClick={onClose} disabled={pending}>
-            {t('canciones.cancel')}
+            {t('songs.cancel')}
           </GroupButton>
           <GroupButton type="submit" disabled={pending || !name.trim()}>
-            {pending ? t('agenda.creating') : t('agenda.createSetlist')}
+            {pending ? t('schedule.creating') : t('schedule.createSetlist')}
           </GroupButton>
         </>
       }
@@ -58,7 +58,7 @@ export function CreateSetlistDialog({ groupId, onClose, onCreated }: CreateSetli
         </p>
       ) : null}
       <GroupInput
-        label={t('agenda.nameLabel')}
+        label={t('schedule.nameLabel')}
         value={name}
         maxLength={200}
         disabled={pending}

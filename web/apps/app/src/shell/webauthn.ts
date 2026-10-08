@@ -30,7 +30,7 @@ export async function performWebAuthnRegistration(
   user: { id: string; name: string; displayName: string },
 ): Promise<{ credentialId: string; publicKey?: string; attestationObject?: string; clientDataJSON?: string }> {
   if (typeof window === 'undefined' || !window.navigator?.credentials?.create) {
-    throw new Error('WebAuthn no está soportado en este navegador')
+    throw new Error('WebAuthn is not supported in this browser')
   }
 
   const challengeBuffer = base64UrlToBuffer(challenge)
@@ -62,7 +62,7 @@ export async function performWebAuthnRegistration(
   })) as PublicKeyCredential
 
   if (!credential) {
-    throw new Error('No se recibió la credencial del navegador')
+    throw new Error('No credential was received from the browser')
   }
 
   const response = credential.response as AuthenticatorAttestationResponse
@@ -82,7 +82,7 @@ export async function performWebAuthnLogin(
   rpId: string,
 ): Promise<{ credentialId: string; authenticatorData?: string; clientDataJSON?: string; signature?: string }> {
   if (typeof window === 'undefined' || !window.navigator?.credentials?.get) {
-    throw new Error('WebAuthn no está soportado en este navegador')
+    throw new Error('WebAuthn is not supported in this browser')
   }
 
   const challengeBuffer = base64UrlToBuffer(challenge)
@@ -97,7 +97,7 @@ export async function performWebAuthnLogin(
   })) as PublicKeyCredential
 
   if (!credential) {
-    throw new Error('No se recibió la afirmación del navegador')
+    throw new Error('No assertion was received from the browser')
   }
 
   const response = credential.response as AuthenticatorAssertionResponse

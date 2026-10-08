@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '../../ui/cn'
+import { useT } from '../../i18n'
 
 const SIZE_CLASS = {
   sm: 'max-w-md',
@@ -37,8 +38,9 @@ export function GroupDialog({
   size = 'md',
   pending,
   testId,
-  closeLabel = 'Cerrar',
+  closeLabel,
 }: GroupDialogProps) {
+  const { t } = useT()
   const panelRef = useRef<HTMLDivElement>(null)
   const previouslyFocused = useRef<HTMLElement | null>(null)
   const titleId = useId()
@@ -105,7 +107,7 @@ export function GroupDialog({
           type="button"
           onClick={() => requestClose()}
           disabled={pending}
-          aria-label={closeLabel}
+          aria-label={closeLabel ?? t('common.close')}
           className="-mr-1 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 motion-reduce:transition-none"
         >
           <X className="h-5 w-5" aria-hidden="true" />

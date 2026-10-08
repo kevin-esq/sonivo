@@ -115,11 +115,11 @@ export function weekdayLabels(lang: string): string[] {
 export function eventTypeKey(type: string): I18nKey {
   switch (type) {
     case "rehearsal":
-      return "calendario.typeRehearsal";
+      return "calendar.typeRehearsal";
     case "performance":
-      return "calendario.typePerformance";
+      return "calendar.typePerformance";
     default:
-      return "calendario.typeOther";
+      return "calendar.typeOther";
   }
 }
 

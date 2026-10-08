@@ -39,11 +39,11 @@ type ResourceCategory = 'music' | 'docs' | 'images' | 'videos' | 'other'
 const CATEGORY_ORDER: ResourceCategory[] = ['music', 'docs', 'images', 'videos', 'other']
 
 const CATEGORY_LABEL: Record<ResourceCategory, I18nKey> = {
-  music: 'recursos.catMusic',
-  docs: 'recursos.catDocs',
-  images: 'recursos.catImages',
-  videos: 'recursos.catVideos',
-  other: 'recursos.catOther',
+  music: 'resources.catMusic',
+  docs: 'resources.catDocs',
+  images: 'resources.catImages',
+  videos: 'resources.catVideos',
+  other: 'resources.catOther',
 }
 
 const RESOURCE_CARD_CLASS =
@@ -147,7 +147,7 @@ export function GroupResourcesPage() {
   }, [items])
 
   if (group === undefined) {
-    return <GroupListSkeleton rows={4} label={t('recursos.loading')} />
+    return <GroupListSkeleton rows={4} label={t('resources.loading')} />
   }
 
   if (group === null) {
@@ -168,13 +168,13 @@ export function GroupResourcesPage() {
       <GroupPageHeader
         headingId="resources-heading"
         icon={Package}
-        title={t('recursos.title')}
-        subtitle={t('recursos.subtitle')}
+        title={t('resources.title')}
+        subtitle={t('resources.subtitle')}
         actions={
           canUpload ? (
             <GroupButton onClick={() => setShowUpload(true)}>
               <Plus className="h-4 w-4" aria-hidden="true" />
-              {t('recursos.upload')}
+              {t('resources.upload')}
             </GroupButton>
           ) : null
         }
@@ -183,18 +183,18 @@ export function GroupResourcesPage() {
           <div className="relative min-w-56 flex-1">
             <GroupInput
               type="search"
-              placeholder={t('recursos.searchPlaceholder')}
-              aria-label={t('recursos.searchLabel')}
+              placeholder={t('resources.searchPlaceholder')}
+              aria-label={t('resources.searchLabel')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('recursos.title')}>
+        <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('resources.title')}>
           <CategoryTab
             active={category === 'all'}
-            labelKey="recursos.catAll"
+            labelKey="resources.catAll"
             count={items.length}
             onClick={() => setCategory('all')}
           />
@@ -211,12 +211,12 @@ export function GroupResourcesPage() {
       </GroupPageHeader>
 
       {surface.loading && items.length === 0 ? (
-        <GroupListSkeleton rows={4} label={t('recursos.loading')} />
+        <GroupListSkeleton rows={4} label={t('resources.loading')} />
       ) : filtered.length === 0 ? (
         <GroupEmptyState
           icon={Package}
-          title={t('recursos.emptyTitle')}
-          description={t('recursos.emptyBody')}
+          title={t('resources.emptyTitle')}
+          description={t('resources.emptyBody')}
         />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -311,7 +311,7 @@ function ResourceCard({
           {item.kind === 'link' ? (
             <span className="inline-flex items-center gap-1">
               <Link2 className="h-3 w-3" aria-hidden="true" />
-              {t('recursos.linkKind')}
+              {t('resources.linkKind')}
             </span>
           ) : (
             <span>{formatSize(item.byteSize)}</span>

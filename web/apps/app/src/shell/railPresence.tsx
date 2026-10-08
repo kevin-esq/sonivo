@@ -8,10 +8,10 @@ import {
 } from 'react'
 
 /**
- * El reproductor global (barra inferior) y el rail viven en ramas distintas del
- * árbol de React, así que el rail registra su presencia aquí. Con un rail
- * visible en >=768px, el reproductor fijo se oculta para no duplicar el
- * transporte; en móvil y en rutas sin rail la barra sigue igual.
+ * The global player (bottom bar) and the rail live in different branches of the
+ * React tree, so the rail registers its presence here. With a rail visible at
+ * >=768px, the fixed player is hidden to avoid duplicating transport; on mobile
+ * and on routes without a rail the bar stays the same.
  */
 type RailPresenceValue = {
   railPresent: boolean
@@ -39,6 +39,6 @@ export function RailPresenceProvider({ children }: { children: ReactNode }) {
 
 export function useRailPresence(): RailPresenceValue {
   const context = useContext(RailPresenceContext)
-  if (!context) throw new Error('useRailPresence debe usarse dentro de RailPresenceProvider')
+  if (!context) throw new Error('useRailPresence must be used within RailPresenceProvider')
   return context
 }

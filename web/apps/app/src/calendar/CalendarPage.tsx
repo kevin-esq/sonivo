@@ -180,9 +180,9 @@ export function CalendarPage() {
   }
 
   const views: Array<{ id: CalendarView; label: string }> = [
-    { id: "month", label: t("calendario.month") },
-    { id: "week", label: t("calendario.week") },
-    { id: "day", label: t("calendario.day") },
+    { id: "month", label: t("calendar.month") },
+    { id: "week", label: t("calendar.week") },
+    { id: "day", label: t("calendar.day") },
   ];
 
   return (
@@ -194,21 +194,21 @@ export function CalendarPage() {
               id="calendar-heading"
               className="text-3xl font-bold tracking-tight text-ink"
             >
-              {t("calendario.title")}
+              {t("calendar.title")}
             </h1>
-            <p className="text-muted">{t("calendario.subtitle")}</p>
+            <p className="text-muted">{t("calendar.subtitle")}</p>
           </div>
 
           {/* Desktop controls */}
           <div className="hidden items-center gap-2 lg:flex">
             <Button variant="secondary" onClick={goToday}>
-              {t("calendario.today")}
+              {t("calendar.today")}
             </Button>
             <div className="flex items-center gap-1 rounded-xl border border-border-subtle bg-surface px-1">
               <button
                 type="button"
                 onClick={() => shift(-1)}
-                aria-label={t("calendario.prev")}
+                aria-label={t("calendar.prev")}
                 className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -222,7 +222,7 @@ export function CalendarPage() {
               <button
                 type="button"
                 onClick={() => shift(1)}
-                aria-label={t("calendario.next")}
+                aria-label={t("calendar.next")}
                 className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -252,7 +252,7 @@ export function CalendarPage() {
           <button
             type="button"
             onClick={() => setShowFilters(true)}
-            aria-label={t("calendario.filters")}
+            aria-label={t("calendar.filters")}
             data-testid="calendar-filters-button"
             className="grid h-11 w-11 place-items-center rounded-xl border border-border-subtle bg-surface text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
           >
@@ -266,7 +266,7 @@ export function CalendarPage() {
             <button
               type="button"
               onClick={() => shift(-1)}
-              aria-label={t("calendario.prev")}
+              aria-label={t("calendar.prev")}
               className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -280,14 +280,14 @@ export function CalendarPage() {
             <button
               type="button"
               onClick={() => shift(1)}
-              aria-label={t("calendario.next")}
+              aria-label={t("calendar.next")}
               className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
           <Button variant="secondary" onClick={goToday}>
-            {t("calendario.today")}
+            {t("calendar.today")}
           </Button>
         </div>
 
@@ -307,7 +307,7 @@ export function CalendarPage() {
               onClick={() => setShowCreate(true)}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
-              {t("calendario.newEvent")}
+              {t("calendar.newEvent")}
             </Button>
           ) : null}
         </div>
@@ -396,7 +396,7 @@ export function CalendarPage() {
         <button
           type="button"
           onClick={() => setShowCreate(true)}
-          aria-label={t("calendario.newEvent")}
+          aria-label={t("calendar.newEvent")}
           data-testid="calendar-fab"
           className="fixed bottom-20 right-4 z-30 grid h-14 w-14 place-items-center rounded-full bg-primary-strong text-primary-foreground shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
         >

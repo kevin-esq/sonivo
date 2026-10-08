@@ -34,7 +34,7 @@ export function ChordTimingEditor({
   if (!chords.trim()) {
     return (
       <p className="text-xs text-muted" data-testid="chord-timing-empty">
-        {t('tiempos.emptyHint')}
+        {t('times.emptyHint')}
       </p>
     )
   }
@@ -47,9 +47,9 @@ export function ChordTimingEditor({
       className="space-y-3 rounded-xl border border-border-subtle bg-surface-hover p-3"
       data-testid="chord-timing-editor"
     >
-      <p className="text-sm font-semibold text-ink">{t('tiempos.title')}</p>
+      <p className="text-sm font-semibold text-ink">{t('times.title')}</p>
       <p className="text-xs text-muted">
-        {t('tiempos.hint')}
+        {t('times.hint')}
       </p>
       <ul className="max-h-64 space-y-2 overflow-y-auto">
         {lines.map((line, lineIndex) => {
@@ -61,10 +61,10 @@ export function ChordTimingEditor({
             >
               <p className="min-w-0 flex-1 font-mono text-xs text-ink">
                 <span className="mr-2 font-sans font-semibold text-muted">{lineIndex + 1}.</span>
-                {linePreview(line, t('tiempos.emptyLine'))}
+                {linePreview(line, t('times.emptyLine'))}
               </p>
               <label className="block">
-                <span className="sr-only">{t('tiempos.msPrefix')}{lineIndex + 1}</span>
+                <span className="sr-only">{t('times.msPrefix')}{lineIndex + 1}</span>
                 <input
                   className={`${fieldClass} w-28`}
                   type="number"
@@ -95,7 +95,7 @@ export function ChordTimingEditor({
                   onClick={() => onChange(clearChordTimingMark(marks, lineIndex))}
                   data-testid={`timing-line-${lineIndex}-clear`}
                 >
-                  {t('tiempos.clear')}
+                  {t('times.clear')}
                 </Button>
               ) : null}
             </li>
@@ -110,7 +110,7 @@ export function ChordTimingEditor({
           onClick={() => onChange([])}
           data-testid="timing-clear-all"
         >
-          {t('tiempos.clearAll')}
+          {t('times.clearAll')}
         </Button>
       ) : null}
     </div>

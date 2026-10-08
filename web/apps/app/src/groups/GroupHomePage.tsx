@@ -1,9 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { CalendarDays, CheckSquare, Library, ListMusic, Music2, UserPlus } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
+import {
+  CalendarDays,
+  CheckSquare,
+  ChevronRight,
+  Library,
+  ListMusic,
+  Music2,
+  Play,
+  UserPlus,
+  Users,
+  Zap,
+} from 'lucide-react'
 import {
   ApiError,
-  createInvitation,
   getGroup,
   listEventRsvps,
   listEvents,
@@ -17,13 +27,8 @@ import {
   type SetlistListItem,
   type SongListItem,
 } from '../api/client'
-import {
-  formatMembershipRole,
-  isOwnerRole,
-  mutationErrorMessage,
-} from '../repertoire/ui'
-import { useT } from '../i18n'
-
+import { formatMembershipRole, isOwnerRole, mutationErrorMessage } from '../repertoire/ui'
+import { useT, type I18nKey } from '../i18n'
 import { formatEventType, formatStartsAt } from '../scheduling/datetime'
 import {
   CreateEventDialog,
@@ -34,85 +39,76 @@ import {
 } from './dialogs'
 import {
   GroupButton,
-  GroupCard,
   GroupEmptyState,
   GroupErrorState,
   GroupIconWell,
-  GroupInput,
   GroupLink,
   GroupListSkeleton,
-  GroupPageHeader,
   GroupPageSkeleton,
   GroupSection,
   GroupStat,
   useGroupDataSignal,
 } from './ui'
+import { useGroupUsage } from './useGroupUsage'
 
 type HomeDialog = 'song' | 'setlist' | 'event' | 'task' | 'resource'
 
-function pickUpcomingEvent(events: EventListItem[]): EventListItem | null {
+function pickUpcoming(events: EventListItem[]): EventListItem[] {
   const now = Date.now()
-  const upcoming = events
-    .filter((event) => event.status === 'scheduled')
-    .filter((event) => {
-      const t = new Date(event.startsAt).getTime()
-      return !Number.isNaN(t) && t >= now
-    })
-    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
-  if (upcoming[0]) return upcoming[0]
-
-  const scheduled = events
+  return events
     .filter((event) => event.status === 'scheduled')
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
-  return scheduled[0] ?? null
+    .filter((event) => new Date(event.startsAt).getTime() >= now - 12 * 3600_000)
+    .slice(0, 4)
 }
 
 function formatRelativeUpdated(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
   try {
-    return new Intl.DateTimeFormat('es', {
-      day: 'numeric',
-      month: 'short',
-    }).format(date)
+    return new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short' }).format(date)
   } catch {
     return date.toLocaleDateString()
   }
 }
 
-function formatRsvpLabel(response: EventRsvpResponse | string | null): string {
+function formatRsvpLabel(
+  response: EventRsvpResponse | string | null,
+  t: (key: I18nKey) => string,
+): string {
   switch (response) {
     case 'yes':
-      return 'Sí'
+      return t('event.rsvpYes')
     case 'no':
-      return 'No'
+      return t('event.rsvpNo')
     case 'maybe':
-      return 'Quizás'
+      return t('event.rsvpMaybe')
     default:
-      return 'Aún no confirmaste tu asistencia'
+      return t('event.rsvpPending')
   }
+}
+
+function eventDateParts(iso: string): { weekday: string; day: string; month: string } {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return { weekday: '', day: '', month: '' }
+  const weekday = new Intl.DateTimeFormat('es', { weekday: 'short' }).format(date).slice(0, 3)
+  const month = new Intl.DateTimeFormat('es', { month: 'short' }).format(date).slice(0, 3)
+  return { weekday, day: String(date.getDate()), month }
 }
 
 export function GroupHomePage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
-  const navigate = useNavigate()
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [events, setEvents] = useState<EventListItem[] | null>(null)
   const [setlists, setSetlists] = useState<SetlistListItem[] | null>(null)
-  const [songCount, setSongCount] = useState<number | null>(null)
   const [recentSongs, setRecentSongs] = useState<SongListItem[] | null>(null)
   const [composeError, setComposeError] = useState<string | null>(null)
   const [myRsvp, setMyRsvp] = useState<EventRsvpResponse | string | null | undefined>(undefined)
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null)
-  const [inviteError, setInviteError] = useState<string | null>(null)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteEmailWarning, setInviteEmailWarning] = useState(false)
-  const [inviting, setInviting] = useState(false)
-  const [copied, setCopied] = useState(false)
   const [dialog, setDialog] = useState<HomeDialog | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const { t } = useT()
+  const { usage, reload: reloadUsage } = useGroupUsage(groupId)
 
   useEffect(() => {
     let cancelled = false
@@ -120,14 +116,8 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       if (!groupId) return
       setGroup(undefined)
       setError(null)
-      setInviteUrl(null)
-      setInviteError(null)
-      setInviteEmail('')
-      setInviteEmailWarning(false)
-      setCopied(false)
       setEvents(null)
       setSetlists(null)
-      setSongCount(null)
       setRecentSongs(null)
       setComposeError(null)
       try {
@@ -136,11 +126,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       } catch (err) {
         if (cancelled) return
         setGroup(null)
-        if (err instanceof ApiError && err.status === 404) {
-          setError(t('inicio.notFound'))
-        } else {
-          setError(problemDetail(err))
-        }
+        setError(err instanceof ApiError && err.status === 404 ? t('dashboard.notFound') : problemDetail(err))
       }
     }
     void load()
@@ -163,13 +149,12 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
         if (cancelled) return
         setEvents(eventItems)
         setSetlists(setlistItems)
-        setSongCount(songs.length)
         setRecentSongs(songs)
       } catch (err) {
         if (cancelled) return
         setEvents([])
         setSetlists([])
-        setSongCount(0)
+        setRecentSongs([])
         setComposeError(mutationErrorMessage(err))
       }
     }
@@ -179,20 +164,18 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
     }
   }, [groupId, group, reloadKey])
 
-  // Refresh the dashboard when songs/setlists/events change here or in another tab.
   useGroupDataSignal(['songs', 'setlists', 'events'], groupId, () => {
     setReloadKey((key) => key + 1)
+    void reloadUsage()
   })
 
   const isOwner = isOwnerRole(group?.role)
-
-  const nextEvent = useMemo(() => (events ? pickUpcomingEvent(events) : null), [events])
+  const upcoming = useMemo(() => (events ? pickUpcoming(events) : null), [events])
+  const nextEvent = upcoming?.[0] ?? null
   const latestSongs = useMemo(
     () =>
       recentSongs
-        ? [...recentSongs]
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .slice(0, 4)
+        ? [...recentSongs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 4)
         : null,
     [recentSongs],
   )
@@ -208,8 +191,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       try {
         const list = await listEventRsvps(groupId!, nextEvent!.id)
         if (cancelled) return
-        const mine = list.items.find((item) => item.userId === user.id)
-        setMyRsvp(mine?.response ?? null)
+        setMyRsvp(list.items.find((item) => item.userId === user.id)?.response ?? null)
       } catch {
         if (!cancelled) setMyRsvp(null)
       }
@@ -224,46 +206,8 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
     setReloadKey((key) => key + 1)
   }
 
-  function resetInvite() {
-    setInviteEmail('')
-    setInviteUrl(null)
-    setInviteError(null)
-    setInviteEmailWarning(false)
-    setCopied(false)
-    setInviting(false)
-  }
-
-  async function onInviteMember() {
-    if (!group) return
-    setInviting(true)
-    setInviteError(null)
-    setInviteEmailWarning(false)
-    setCopied(false)
-    try {
-      const created = await createInvitation(group.id, inviteEmail)
-      setInviteUrl(`${window.location.origin}/join/${created.token}`)
-      if (inviteEmail.trim() && !created.emailed) {
-        setInviteEmailWarning(true)
-      }
-    } catch (err) {
-      setInviteError(mutationErrorMessage(err))
-    } finally {
-      setInviting(false)
-    }
-  }
-
-  async function onCopyInviteLink() {
-    if (!inviteUrl) return
-    try {
-      await navigator.clipboard.writeText(inviteUrl)
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
-  }
-
   if (group === undefined) {
-    return <GroupPageSkeleton label={t('inicio.loading')} />
+    return <GroupPageSkeleton label={t('dashboard.loading')} />
   }
 
   if (group === null) {
@@ -271,316 +215,243 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
       <div className="space-y-3">
         <GroupErrorState message={error} />
         <GroupLink variant="soft" to="/">
-          {t('inicio.myGroups')}
+          {t('dashboard.myGroups')}
         </GroupLink>
       </div>
     )
   }
 
+  const quickActions: { id: HomeDialog; icon: typeof Music2; title: string; subtitle: string }[] = [
+    { id: 'song', icon: Music2, title: t('home.quickAddSong'), subtitle: t('home.quickAddSongHint') },
+    { id: 'setlist', icon: ListMusic, title: t('home.quickCreateList'), subtitle: t('home.quickCreateListHint') },
+    { id: 'event', icon: CalendarDays, title: t('home.quickCreateEvent'), subtitle: t('home.quickCreateEventHint') },
+    { id: 'task', icon: CheckSquare, title: t('home.quickCreateTask'), subtitle: t('home.quickCreateTaskHint') },
+    { id: 'resource', icon: Library, title: t('home.quickAddResource'), subtitle: t('home.quickAddResourceHint') },
+  ]
+
   return (
     <section className="space-y-8" aria-label={group.name}>
-      <GroupPageHeader
-        headingId="home-heading"
-        icon={Music2}
-        title={group.name}
-        subtitle={t('inicio.summary')}
+      {/* Welcome hero (owner reference 2026-10-07) */}
+      <div
+        className="relative overflow-hidden rounded-2xl px-6 py-7 text-white shadow-sm"
+        data-testid="home-hero"
+        style={{ backgroundImage: 'linear-gradient(120deg, var(--color-primary) 0%, #1b1035 100%)' }}
       >
-        <p className="text-sm text-muted">
-          {t('inicio.rolePrefix')}
-          <strong>{formatMembershipRole(group.role)}</strong>.
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">{t('home.welcomeTitle')}</p>
+        <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">
+          {group.name}
+        </h1>
+        <p className="mt-1 max-w-xl text-sm text-white/85">
+          {t('home.welcomeSubtitle')}
         </p>
-      </GroupPageHeader>
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <GroupLink
+            to={`/groups/${group.id}/library`}
+            variant="secondary"
+            className="border-0 bg-white/15 text-white hover:bg-white/25"
+          >
+            <Play className="h-4 w-4" aria-hidden="true" />
+            {t('home.exploreMusic')}
+          </GroupLink>
+          <span className="hidden text-xs text-white/70 sm:inline">
+            {formatMembershipRole(group.role, t)}
+          </span>
+        </div>
+        <div className="pointer-events-none absolute right-6 top-1/2 hidden -translate-y-1/2 flex-col items-end gap-2 md:flex">
+          <span className="flex items-end gap-1" aria-hidden="true">
+            {[10, 20, 32, 18, 26].map((height, index) => (
+              <span key={index} className="w-1 rounded-full bg-white/40" style={{ height }} />
+            ))}
+          </span>
+        </div>
+      </div>
 
       <GroupErrorState message={composeError} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Metrics (home only): live counts from the group usage endpoint. */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="home-metrics">
         <GroupStat
           icon={Music2}
-          label={t('inicio.tileSongs')}
-          description={t('inicio.tileSongsDesc')}
+          label={t('songs.pageTitle')}
+          value={usage?.songs.used ?? '—'}
           to={`/groups/${group.id}/library`}
-          testId="home-stat-songs"
+          testId="home-metric-songs"
+        />
+        <GroupStat
+          icon={ListMusic}
+          label={t('nav.setlists')}
+          value={usage?.setlists.used ?? '—'}
+          to={`/groups/${group.id}/setlists`}
+          testId="home-metric-setlists"
         />
         <GroupStat
           icon={CalendarDays}
-          label={t('inicio.tileCalendar')}
-          description={t('inicio.tileCalendarDesc')}
+          label={t('nav.events')}
+          value={usage?.eventsThisMonth.used ?? '—'}
           to={`/groups/${group.id}/events`}
-          testId="home-stat-events"
+          testId="home-metric-events"
         />
         <GroupStat
-          icon={Library}
-          label={t('inicio.tileResources')}
-          description={t('inicio.tileResourcesDesc')}
-          to={`/groups/${group.id}/recursos`}
-        />
-        <GroupStat
-          icon={CheckSquare}
-          label={t('inicio.tileTasks')}
-          description={t('inicio.tileTasksDesc')}
-          to={`/groups/${group.id}/tasks`}
+          icon={Users}
+          label={t('nav.people')}
+          value={usage?.members.used ?? '—'}
+          to={`/groups/${group.id}/people`}
+          testId="home-metric-members"
         />
       </div>
 
       {/* Quick actions */}
-      <GroupSection title={t('inicio.quickActions')} headingId="quick-actions-heading">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <GroupButton
-            variant="secondary"
-            className="justify-start"
-            onClick={() => setDialog('song')}
-          >
-            <Music2 className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
-            {t('inicio.quickAddSong')}
-          </GroupButton>
-          <GroupButton
-            variant="secondary"
-            className="justify-start"
-            onClick={() => setDialog('setlist')}
-          >
-            <ListMusic className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
-            {t('inicio.quickCreateList')}
-          </GroupButton>
-          <GroupButton
-            variant="secondary"
-            className="justify-start"
-            onClick={() => setDialog('event')}
-          >
-            <CalendarDays className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
-            {t('inicio.quickCreateEvent')}
-          </GroupButton>
-          <GroupButton
-            variant="secondary"
-            className="justify-start"
-            onClick={() => setDialog('task')}
-          >
-            <CheckSquare className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
-            {t('inicio.quickCreateTask')}
-          </GroupButton>
-          <GroupButton
-            variant="secondary"
-            className="justify-start"
-            onClick={() => setDialog('resource')}
-          >
-            <Library className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
-            {t('inicio.quickAddResource')}
-          </GroupButton>
-          {isOwner ? (
-            <GroupButton
-              variant="secondary"
-              className="justify-start"
-              onClick={resetInvite}
+      <GroupSection
+        title={t('dashboard.quickActions')}
+        headingId="quick-actions-heading"
+        action={<Zap className="h-4 w-4 text-primary-ink" aria-hidden="true" />}
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {quickActions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => setDialog(action.id)}
+              className="flex min-h-[4.5rem] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 text-left transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
             >
-              <UserPlus className="h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
-              {t('inicio.quickInviteMember')}
-            </GroupButton>
+              <GroupIconWell icon={action.icon} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-ink">{action.title}</span>
+                <span className="block truncate text-xs text-muted">{action.subtitle}</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+            </button>
+          ))}
+          {isOwner ? (
+            <Link
+              to={`/groups/${group.id}/people`}
+              className="flex min-h-[4.5rem] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+            >
+              <GroupIconWell icon={UserPlus} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-ink">{t('home.quickAddMember')}</span>
+                <span className="block truncate text-xs text-muted">{t('home.quickAddMemberHint')}</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+            </Link>
           ) : null}
         </div>
       </GroupSection>
 
-      {isOwner && setlists?.length === 0 && events?.length === 0 && songCount === 0 ? (
-        <GroupCard
-          tone="accent"
-          data-testid="home-get-started"
-          aria-labelledby="home-start-heading"
-          className="space-y-2"
-        >
-          <h3 id="home-start-heading" className="font-display text-lg font-semibold text-ink">
-            {t('inicio.getStartedTitle')}
-          </h3>
-          <p className="text-sm text-muted">{t('inicio.getStartedIntro')}</p>
-          <ol className="space-y-1.5">
-            <li>
-              <GroupLink
-                variant="ghost"
-                className="justify-start"
-                to={`/groups/${group.id}/library`}
-              >
-                <Music2 className="h-4 w-4" aria-hidden="true" />
-                {t('inicio.getStartedSongs')}
+      {/* Upcoming events */}
+      <GroupSection
+        title={t('dashboard.nextEvent')}
+        headingId="upcoming-events-heading"
+        action={
+          <GroupLink variant="ghost" size="sm" to={`/groups/${group.id}/events`}>
+            {t('dashboard.viewAll')}
+          </GroupLink>
+        }
+      >
+        {upcoming === null ? (
+          <GroupListSkeleton rows={3} label={t('dashboard.loadingEvents')} />
+        ) : upcoming.length === 0 ? (
+          <GroupEmptyState
+            icon={CalendarDays}
+            title={t('dashboard.noEventsTitle')}
+            description={isOwner ? t('dashboard.noEventsOwner') : t('dashboard.noEventsMember')}
+            action={
+              <GroupLink variant="soft" to={`/groups/${group.id}/events`} data-testid="home-empty-events">
+                {t('dashboard.goEvents')}
               </GroupLink>
-            </li>
-            <li>
-              <GroupLink
-                variant="ghost"
-                className="justify-start"
-                to={`/groups/${group.id}/setlists`}
-              >
-                <ListMusic className="h-4 w-4" aria-hidden="true" />
-                {t('inicio.getStartedSetlists')}
-              </GroupLink>
-            </li>
-            <li>
-              <GroupLink
-                variant="ghost"
-                className="justify-start"
-                to={`/groups/${group.id}/events`}
-              >
-                <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                {t('inicio.getStartedEvents')}
-              </GroupLink>
-            </li>
-          </ol>
-        </GroupCard>
-      ) : null}
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <GroupSection title={t('inicio.nextEvent')} headingId="next-event-heading">
-          {events === null ? (
-            <GroupListSkeleton rows={2} label={t('inicio.loadingEvents')} />
-          ) : nextEvent ? (
-            <GroupCard
-              padding="sm"
-              className="space-y-3"
-              data-testid="home-next-event"
-            >
-              <div className="flex flex-wrap items-center gap-3">
-                <GroupIconWell icon={CalendarDays} size="lg" />
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="truncate font-semibold text-ink">{nextEvent.title}</p>
-                  <p className="text-sm text-muted">{formatStartsAt(nextEvent.startsAt)}</p>
-                  <p className="text-xs text-muted">{formatEventType(nextEvent.type)}</p>
-                </div>
-              </div>
-              <p className="text-sm text-muted" data-testid="home-next-event-rsvp">
-                {t('inicio.myRsvp')}{' '}
-                <strong>{myRsvp === undefined ? '…' : formatRsvpLabel(myRsvp)}</strong>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <GroupLink
-                  variant="primary"
-                  to={`/groups/${group.id}/events/${nextEvent.id}`}
-                  data-testid="home-next-event-plan"
-                >
-                  {t('inicio.viewPlan')}
-                </GroupLink>
-                <GroupLink
-                  variant="secondary"
-                  to={`/groups/${group.id}/events/${nextEvent.id}`}
-                >
-                  {t('inicio.confirmRsvp')}
-                </GroupLink>
-              </div>
-            </GroupCard>
-          ) : (
-            <GroupEmptyState
-              icon={CalendarDays}
-              title={t('inicio.noEventsTitle')}
-              description={isOwner ? t('inicio.noEventsOwner') : t('inicio.noEventsMember')}
-              action={
-                <GroupLink
-                  variant="soft"
-                  to={`/groups/${group.id}/events`}
-                  data-testid="home-empty-events"
-                >
-                  {t('inicio.goEvents')}
-                </GroupLink>
-              }
-            />
-          )}
-        </GroupSection>
-
-        <GroupSection
-          title={t('inicio.recentSongs')}
-          headingId="recent-songs-heading"
-          action={
-            <GroupLink variant="ghost" size="sm" to={`/groups/${group.id}/library`}>
-              {t('inicio.viewAll')}
-            </GroupLink>
-          }
-        >
-          {latestSongs === null ? (
-            <GroupListSkeleton rows={2} label={t('inicio.loadingSongs')} />
-          ) : latestSongs.length === 0 ? (
-            <GroupEmptyState
-              icon={Music2}
-              title={t('inicio.noSongsTitle')}
-              description={isOwner ? t('inicio.noSongsOwner') : t('inicio.noSongsMember')}
-              action={
-                <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
-                  {t('inicio.goSongs')}
-                </GroupLink>
-              }
-            />
-          ) : (
-            <ul className="space-y-1.5">
-              {latestSongs.map((song, index) => (
-                <li key={song.id}>
-                  <GroupLink
-                    variant="secondary"
-                    block
-                    className="h-auto min-h-11 justify-start gap-3 px-3 py-2.5"
-                    to={`/groups/${group.id}/songs/${song.id}`}
-                    style={{ animationDelay: `${Math.min(index, 4) * 40}ms` }}
+            }
+          />
+        ) : (
+          <ul className="space-y-2">
+            {upcoming.map((event, index) => {
+              const parts = eventDateParts(event.startsAt)
+              return (
+                <li key={event.id}>
+                  <Link
+                    to={`/groups/${group.id}/events/${event.id}`}
+                    className="flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+                    data-testid={index === 0 ? 'home-next-event' : undefined}
+                    style={{ animationDelay: `${index * 40}ms` }}
                   >
-                    <GroupIconWell icon={Music2} tone="success" />
-                    <span className="min-w-0 flex-1 text-left">
-                      <span className="block truncate font-semibold text-ink">{song.title}</span>
-                      <span className="mt-0.5 block truncate text-sm text-muted">
-                        {song.attribution ? `${song.attribution} · ` : ''}
-                        {formatRelativeUpdated(song.updatedAt)}
+                    <span
+                      className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink"
+                      aria-hidden="true"
+                    >
+                      <span className="text-center leading-none">
+                        <span className="block text-[10px] font-semibold uppercase">{parts.weekday}</span>
+                        <span className="block text-lg font-bold">{parts.day}</span>
+                        <span className="block text-[10px] uppercase">{parts.month}</span>
                       </span>
                     </span>
-                  </GroupLink>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-ink">{event.title}</span>
+                      <span className="block truncate text-sm text-muted">
+                        {formatEventType(event.type, t)} · {formatStartsAt(event.startsAt)}
+                      </span>
+                    </span>
+                    {index === 0 ? (
+                      <span className="hidden text-sm text-muted sm:block" data-testid="home-next-event-rsvp">
+                        {t('dashboard.myRsvp')} {myRsvp === undefined ? '…' : formatRsvpLabel(myRsvp, t)}
+                      </span>
+                    ) : null}
+                    <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
+                  </Link>
                 </li>
-              ))}
-            </ul>
-          )}
-        </GroupSection>
-      </div>
+              )
+            })}
+          </ul>
+        )}
+      </GroupSection>
 
-      <GroupCard
-        padding="none"
-        className="overflow-hidden border-0 px-5 py-6 text-white"
-        style={{ backgroundImage: 'linear-gradient(135deg, var(--brand-primary, #8366f1), #2b1a5e)' }}
+      {/* Recent songs */}
+      <GroupSection
+        title={t('dashboard.recentSongs')}
+        headingId="recent-songs-heading"
+        action={
+          <GroupLink variant="ghost" size="sm" to={`/groups/${group.id}/library`}>
+            {t('dashboard.viewAll')}
+          </GroupLink>
+        }
       >
-        <p className="max-w-xl text-lg font-semibold leading-snug">{t('inicio.promoTitle')}</p>
-        <p className="mt-1 text-sm text-white/80">— {group.name}</p>
-      </GroupCard>
+        {latestSongs === null ? (
+          <GroupListSkeleton rows={2} label={t('dashboard.loadingSongs')} />
+        ) : latestSongs.length === 0 ? (
+          <GroupEmptyState
+            icon={Music2}
+            title={t('dashboard.noSongsTitle')}
+            description={isOwner ? t('dashboard.noSongsOwner') : t('dashboard.noSongsMember')}
+            action={
+              <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
+                {t('dashboard.goSongs')}
+              </GroupLink>
+            }
+          />
+        ) : (
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {latestSongs.map((song) => (
+              <li key={song.id}>
+                <Link
+                  to={`/groups/${group.id}/songs/${song.id}`}
+                  className="flex min-h-16 items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+                >
+                  <GroupIconWell icon={Music2} tone="success" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold text-ink">{song.title}</span>
+                    <span className="mt-0.5 block truncate text-sm text-muted">
+                      {song.attribution ? `${song.attribution} · ` : ''}
+                      {formatRelativeUpdated(song.updatedAt)}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </GroupSection>
 
-      {isOwner ? (
-        <GroupSection
-          title={t('inicio.admin')}
-          headingId="admin-heading"
-          className="border-t border-border-subtle pt-6"
-        >
-          <GroupCard className="max-w-xl space-y-3">
-            <h3 className="font-medium">{t('inicio.inviteTitle')}</h3>
-            <GroupInput
-              label={t('inicio.inviteEmail')}
-              type="email"
-              autoComplete="off"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-            />
-            <GroupButton disabled={inviting} onClick={() => void onInviteMember()}>
-              {inviting ? t('inicio.working') : t('inicio.invite')}
-            </GroupButton>
-            <GroupErrorState message={inviteError} />
-            {inviteEmailWarning ? (
-              <GroupCard tone="muted" padding="sm" role="status" className="text-sm text-ink">
-                {t('inicio.inviteMailWarning')}
-              </GroupCard>
-            ) : null}
-            {inviteUrl ? (
-              <div className="space-y-2">
-                <GroupInput
-                  label={t('inicio.inviteLinkLabel')}
-                  readOnly
-                  value={inviteUrl}
-                />
-                <GroupButton variant="secondary" onClick={() => void onCopyInviteLink()}>
-                  {t('inicio.copyLink')}
-                </GroupButton>
-                {copied ? (
-                  <p aria-live="polite" className="text-sm text-muted">
-                    {t('inicio.copied')}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </GroupCard>
-        </GroupSection>
+      {/* Gathering state for existing members */}
+      {setlists?.length === 0 && events?.length === 0 && (recentSongs?.length ?? 0) === 0 && isOwner ? (
+        <p className="sr-only">{t('dashboard.getStartedTitle')}</p>
       ) : null}
 
       {dialog === 'song' ? (
@@ -593,31 +464,26 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           }}
         />
       ) : null}
-
       {dialog === 'setlist' ? (
         <CreateSetlistDialog
           groupId={group.id}
           onClose={() => setDialog(null)}
-          onCreated={(setlist) => {
+          onCreated={() => {
             setDialog(null)
             refresh()
-            navigate(`/groups/${group.id}/setlists/${setlist.id}`)
           }}
         />
       ) : null}
-
       {dialog === 'event' ? (
         <CreateEventDialog
           groupId={group.id}
           onClose={() => setDialog(null)}
-          onCreated={(event) => {
+          onCreated={() => {
             setDialog(null)
             refresh()
-            navigate(`/groups/${group.id}/events/${event.id}`)
           }}
         />
       ) : null}
-
       {dialog === 'task' ? (
         <CreateTaskDialog
           groupId={group.id}
@@ -628,7 +494,6 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           }}
         />
       ) : null}
-
       {dialog === 'resource' ? (
         <CreateResourceDialog
           groupId={group.id}

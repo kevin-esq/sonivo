@@ -1,4 +1,5 @@
 import { Button } from '../ui/button'
+import { useT, type I18nKey } from '../i18n'
 import type {
   ConductorConnectionState,
   ConductorPresenceEntry,
@@ -6,16 +7,16 @@ import type {
 
 /** ADR-0036 Q9 conductor panel: presence + follow toggle + live/reconnect states. */
 
-function connectionLabel(state: ConductorConnectionState): string | null {
+function connectionLabelKey(state: ConductorConnectionState): I18nKey | null {
   switch (state) {
     case 'connecting':
-      return 'Conectando…'
+      return 'practice.live.connecting'
     case 'reconnecting':
-      return 'Reconectando…'
+      return 'practice.live.reconnecting'
     case 'disconnected':
-      return 'Desconectado'
+      return 'practice.live.disconnected'
     case 'failed':
-      return 'Sin conexión en vivo'
+      return 'practice.live.offline'
     case 'connected':
       return null
   }
@@ -38,7 +39,8 @@ export function ConductorPanel({
   isLive: boolean
   error: string | null
 }) {
-  const stateLabel = connectionLabel(connectionState)
+  const { t } = useT()
+  const stateLabel = connectionLabelKey(connectionState)
 
   return (
     <section
@@ -51,14 +53,14 @@ export function ConductorPanel({
           id="conductor-heading"
           className="text-lg font-semibold tracking-tight text-ink"
         >
-          Ensayo en vivo
+          {t('practice.live.title')}
         </h2>
         {isLive ? (
           <span
             className="rounded-full bg-success/20 px-2.5 py-1 text-xs font-semibold text-ink"
             data-testid="conductor-live-badge"
           >
-            En vivo
+            {t('practice.live.badge')}
           </span>
         ) : null}
       </div>
@@ -68,7 +70,11 @@ export function ConductorPanel({
         aria-live="polite"
         data-testid="conductor-connection-state"
       >
-        {stateLabel ?? (isOwner ? 'Transmitiendo como director.' : 'Conectado a la sala.')}
+        {stateLabel
+          ? t(stateLabel)
+          : isOwner
+            ? t('practice.live.broadcasting')
+            : t('practice.live.connected')}
       </p>
 
       {error ? (
@@ -87,17 +93,17 @@ export function ConductorPanel({
             aria-pressed={followEnabled}
             onClick={onToggleFollow}
           >
-            Seguir al director
+            {t('practice.live.follow')}
           </Button>
         </div>
       ) : null}
 
       <div className="space-y-1.5">
         <h3 className="text-sm font-semibold text-ink">
-          En la sala ({presence.length})
+          {t('practice.live.inRoom', { count: presence.length })}
         </h3>
         {presence.length === 0 ? (
-          <p className="text-sm text-muted">Aún no hay nadie en la sala.</p>
+          <p className="text-sm text-muted">{t('practice.live.empty')}</p>
         ) : (
           <ul className="space-y-1" data-testid="conductor-presence">
             {presence.map((entry) => (
@@ -107,7 +113,7 @@ export function ConductorPanel({
                 data-testid={`conductor-presence-${entry.userId}`}
               >
                 {entry.displayName}
-                {entry.role === 'owner' ? ' · Director' : null}
+                {entry.role === 'owner' ? ` · ${t('practice.live.director')}` : null}
               </li>
             ))}
           </ul>

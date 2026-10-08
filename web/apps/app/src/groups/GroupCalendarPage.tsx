@@ -171,7 +171,7 @@ export function GroupCalendarPage() {
   }
 
   if (group === undefined) {
-    return <GroupPageSkeleton label={t("calendario.loading")} />;
+    return <GroupPageSkeleton label={t("calendar.loading")} />;
   }
 
   if (group === null) {
@@ -187,10 +187,10 @@ export function GroupCalendarPage() {
 
   const canCreate = canManageContentRole(group.role);
   const views: Array<{ id: CalendarView; label: string }> = [
-    { id: "month", label: t("calendario.month") },
-    { id: "week", label: t("calendario.week") },
-    { id: "day", label: t("calendario.day") },
-    { id: "agenda", label: t("calendario.agenda") },
+    { id: "month", label: t("calendar.month") },
+    { id: "week", label: t("calendar.week") },
+    { id: "day", label: t("calendar.day") },
+    { id: "agenda", label: t("calendar.agenda") },
   ];
 
   return (
@@ -198,8 +198,8 @@ export function GroupCalendarPage() {
       <GroupPageHeader
         headingId="group-calendar-heading"
         icon={CalendarDays}
-        title={t("calendario.title")}
-        subtitle={t("calendario.groupSubtitle")}
+        title={t("calendar.title")}
+        subtitle={t("calendar.groupSubtitle")}
         actions={
           canCreate ? (
             <GroupButton
@@ -207,20 +207,20 @@ export function GroupCalendarPage() {
               onClick={() => setShowCreate(true)}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
-              {t("calendario.newEvent")}
+              {t("calendar.newEvent")}
             </GroupButton>
           ) : null
         }
       >
         <div className="hidden items-center gap-2 lg:flex">
           <GroupButton variant="secondary" onClick={() => setCursor(new Date())}>
-            {t("calendario.today")}
+            {t("calendar.today")}
           </GroupButton>
           <div className="flex items-center gap-1 rounded-xl border border-border-subtle bg-surface px-1">
             <button
               type="button"
               onClick={() => shift(-1)}
-              aria-label={t("calendario.prev")}
+              aria-label={t("calendar.prev")}
               className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -234,7 +234,7 @@ export function GroupCalendarPage() {
             <button
               type="button"
               onClick={() => shift(1)}
-              aria-label={t("calendario.next")}
+              aria-label={t("calendar.next")}
               className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -265,7 +265,7 @@ export function GroupCalendarPage() {
             <button
               type="button"
               onClick={() => shift(-1)}
-              aria-label={t("calendario.prev")}
+              aria-label={t("calendar.prev")}
               className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -279,14 +279,14 @@ export function GroupCalendarPage() {
             <button
               type="button"
               onClick={() => shift(1)}
-              aria-label={t("calendario.next")}
+              aria-label={t("calendar.next")}
               className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
           <GroupButton variant="secondary" onClick={() => setCursor(new Date())}>
-            {t("calendario.today")}
+            {t("calendar.today")}
           </GroupButton>
         </div>
       </GroupPageHeader>
@@ -296,7 +296,7 @@ export function GroupCalendarPage() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-4">
           {events === null ? (
-            <GroupListSkeleton rows={4} label={t("calendario.loading")} />
+            <GroupListSkeleton rows={4} label={t("calendar.loading")} />
           ) : view === "month" ? (
             <>
               <div className="hidden lg:block">
@@ -321,7 +321,7 @@ export function GroupCalendarPage() {
                   loading={false}
                   onSelectDay={selectDay}
                   onViewAll={() => setView("week")}
-                  viewAllKey="calendario.viewFull"
+                  viewAllKey="calendar.viewFull"
                   showGroup={false}
                 />
               </div>
@@ -354,7 +354,7 @@ export function GroupCalendarPage() {
             loading={events === null}
             onSelectDay={selectDay}
             onViewAll={() => setView("week")}
-            viewAllKey="calendario.viewFull"
+            viewAllKey="calendar.viewFull"
             showGroup={false}
           />
         </div>
@@ -364,7 +364,7 @@ export function GroupCalendarPage() {
         <button
           type="button"
           onClick={() => setShowCreate(true)}
-          aria-label={t("calendario.newEvent")}
+          aria-label={t("calendar.newEvent")}
           data-testid="calendar-fab"
           className="fixed bottom-20 right-4 z-30 grid h-14 w-14 place-items-center rounded-full bg-primary-strong text-primary-foreground shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
         >

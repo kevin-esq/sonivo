@@ -115,16 +115,16 @@ export function TwoFactorSection({
       {status === null || !status.enabled ? (
         enroll ? (
           <form className="space-y-4 max-w-lg" onSubmit={onConfirmEnroll} noValidate>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('seguridad.totpTitle')}</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('security.totpTitle')}</h2>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              {t('seguridad.totpEnrollHint')}
+              {t('security.totpEnrollHint')}
             </p>
             <div className="flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
               <QRCodeSVG value={enroll.uri} size={180} level="M" className="rounded-lg border bg-white p-2 shadow-sm" />
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('seguridad.totpQrCaption')}</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('security.totpQrCaption')}</p>
             </div>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('seguridad.manualKey')}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('security.manualKey')}</span>
               <input className={fieldClass} readOnly value={enroll.manualKey} />
             </label>
             <div className="flex flex-wrap gap-2">
@@ -135,7 +135,7 @@ export function TwoFactorSection({
                   void copyText(enroll.manualKey).then((ok) => setCopiedKey(ok))
                 }}
               >
-                {copiedKey ? t('seguridad.keyCopied') : t('seguridad.copyKey')}
+                {copiedKey ? t('security.keyCopied') : t('security.copyKey')}
               </Button>
               <Button
                 type="button"
@@ -144,11 +144,11 @@ export function TwoFactorSection({
                   void copyText(enroll.uri).then((ok) => setCopiedUri(ok))
                 }}
               >
-                {copiedUri ? t('seguridad.linkCopied') : t('seguridad.copyLink')}
+                {copiedUri ? t('security.linkCopied') : t('security.copyLink')}
               </Button>
             </div>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('seguridad.sixDigitCode')}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('security.sixDigitCode')}</span>
               <input
                 className={fieldClass}
                 required
@@ -159,33 +159,33 @@ export function TwoFactorSection({
               />
             </label>
             <Button type="submit" disabled={pending}>
-              {pending ? t('seguridad.verifying') : t('seguridad.confirmActivate')}
+              {pending ? t('security.verifying') : t('security.confirmActivate')}
             </Button>
           </form>
         ) : (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('seguridad.totpTitle')}</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('security.totpTitle')}</h2>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              {t('seguridad.totpOffHint')}
+              {t('security.totpOffHint')}
             </p>
             <Button type="button" onClick={() => void onStartEnroll()} disabled={pending}>
-              {pending ? t('seguridad.working') : t('seguridad.activateTotp')}
+              {pending ? t('security.working') : t('security.activateTotp')}
             </Button>
           </div>
         )
       ) : (
         <div className="space-y-6">
           <div className="space-y-1">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('seguridad.totpTitle')}</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('security.totpTitle')}</h2>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              {t('seguridad.totpOnHint')}
+              {t('security.totpOnHint')}
             </p>
           </div>
           <form className="space-y-3 max-w-md" onSubmit={onRegenerate} noValidate>
-            <h3 className="font-semibold text-slate-900 dark:text-white">{t('seguridad.recoveryCodes')}</h3>
+            <h3 className="font-semibold text-slate-900 dark:text-white">{t('security.recoveryCodes')}</h3>
             {status.hasPassword ? (
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('seguridad.regenPasswordLabel')}</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('security.regenPasswordLabel')}</span>
                 <input
                   type="password"
                   className={fieldClass}
@@ -196,15 +196,15 @@ export function TwoFactorSection({
               </label>
             ) : null}
             <Button type="submit" variant="outline" disabled={pending}>
-              {pending ? t('seguridad.generating') : t('seguridad.regenCodes')}
+              {pending ? t('security.generating') : t('security.regenCodes')}
             </Button>
           </form>
 
           <form className="space-y-3 max-w-md pt-4 border-t border-slate-200 dark:border-slate-800" onSubmit={onDisable} noValidate>
-            <h3 className="font-semibold text-red-600 dark:text-red-400">{t('seguridad.disableTotp')}</h3>
+            <h3 className="font-semibold text-red-600 dark:text-red-400">{t('security.disableTotp')}</h3>
             {status.hasPassword ? (
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('seguridad.passwordLabel')}</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('security.passwordLabel')}</span>
                 <input
                   type="password"
                   className={fieldClass}
@@ -215,7 +215,7 @@ export function TwoFactorSection({
               </label>
             ) : null}
             <Button type="submit" variant="outline" disabled={pending}>
-              {pending ? t('seguridad.disabling') : t('seguridad.disableTotpLong')}
+              {pending ? t('security.disabling') : t('security.disableTotpLong')}
             </Button>
           </form>
         </div>
@@ -223,13 +223,13 @@ export function TwoFactorSection({
 
       {codes ? (
         <section
-          aria-label={t('seguridad.recoveryCodes')}
+          aria-label={t('security.recoveryCodes')}
           role="region"
           className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4 mt-6"
         >
-          <h3 className="font-semibold text-shell-link">{t('seguridad.saveCodesTitle')}</h3>
+          <h3 className="font-semibold text-shell-link">{t('security.saveCodesTitle')}</h3>
           <p className="text-xs text-slate-600 dark:text-slate-300">
-            {t('seguridad.saveCodesHint')}
+            {t('security.saveCodesHint')}
           </p>
           <ul className="grid grid-cols-2 gap-2 text-center font-mono text-sm">
             {codes.map((code) => (
@@ -239,7 +239,7 @@ export function TwoFactorSection({
             ))}
           </ul>
           <Button type="button" onClick={() => setCodes(null)}>
-            {t('seguridad.codesSaved')}
+            {t('security.codesSaved')}
           </Button>
         </section>
       ) : null}
