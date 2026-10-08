@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var t=localStorage.getItem('sonivo:theme');if(t==='light'||t==='dark'){document.documentElement.dataset.theme=t}}catch(e){}",
+              "try{var d=document.documentElement;var t=localStorage.getItem('sonivo:theme');if(t==='light'||t==='dark'){d.dataset.theme=t}var m=location.pathname.match(/^\\/groups\\/([^/]+)/);if(m){var raw=localStorage.getItem('sonivo:group-tokens:'+decodeURIComponent(m[1]));if(raw){var tk=JSON.parse(raw);for(var k in tk){if(Object.prototype.hasOwnProperty.call(tk,k)){d.style.setProperty(k,tk[k])}}}}}catch(e){}",
           }}
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

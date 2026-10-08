@@ -60,6 +60,31 @@ export function writeCachedBranding(groupId: string, branding: ServerBranding | 
   }
 }
 
+const TOKENS_CACHE_PREFIX = 'sonivo:group-tokens:'
+
+/**
+ * Last computed brand tokens for a group. Read by the pre-paint script in the
+ * root layout so a group route never paints the default theme first and then
+ * swap (Gmail-style: your chosen colour is there from the first frame).
+ */
+export function readCachedTokens(groupId: string | undefined): Record<string, string> | null {
+  if (!groupId) return null
+  try {
+    const raw = window.localStorage.getItem(TOKENS_CACHE_PREFIX + groupId)
+    return raw ? (JSON.parse(raw) as Record<string, string>) : null
+  } catch {
+    return null
+  }
+}
+
+export function writeCachedTokens(groupId: string, tokens: Record<string, string>): void {
+  try {
+    window.localStorage.setItem(TOKENS_CACHE_PREFIX + groupId, JSON.stringify(tokens))
+  } catch {
+    // best-effort only
+  }
+}
+
 /** Loads server-side branding best-effort; returns null when unavailable/flag off. */
 export async function loadServerBranding(groupId: string): Promise<ServerBranding | null> {
   try {
