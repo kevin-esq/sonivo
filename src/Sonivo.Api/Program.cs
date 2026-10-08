@@ -3375,6 +3375,35 @@ app.MapGet("/api/groups/{groupId:guid}/audit", async (
 .WithName("ListGroupAudit")
 .RequireAuthorization();
 
+// ADR-0047/0077: the signed-in user's own account audit (security events).
+app.MapGet("/api/account/audit", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    IAccountAuditStore audit,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var items = await audit.ListByTargetAsync(userId.Value, 200, cancellationToken);
+    return Results.Ok(new
+    {
+        items = items.Select(a => new
+        {
+            id = a.Id,
+            action = a.Action,
+            groupId = a.GroupId,
+            actorUserId = a.ActorUserId,
+            createdAt = a.CreatedAt
+        })
+    });
+})
+.WithName("ListAccountAudit")
+.RequireAuthorization();
+
 // ---- In-app notifications (ADR-0077). Account and group inboxes are distinct:
 // "account" (security/credentials, one user) vs "group" (membership/repertoire,
 // one group, membership required). ----

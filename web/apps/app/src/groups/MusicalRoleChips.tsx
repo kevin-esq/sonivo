@@ -1,51 +1,47 @@
+import { useState } from 'react'
+import { X } from 'lucide-react'
 import { useT, type I18nKey } from '../i18n'
 import { cn } from '../ui/cn'
+import { GroupButton, GroupSelect } from './ui'
 
 /**
- * Canonical musical-role tags (voice/instrument). Values are stable English keys
- * stored in `Membership.MusicalRole` (comma-separated); the UI localizes them, so
- * the data never carries a language ("no Spanglish" in stored identifiers).
+ * Musical roles as canonical English keys stored in `Membership.MusicalRole`
+ * (comma-separated). The UI localizes them, so stored identifiers carry no
+ * language. Roles are grouped by category and picked with selects (friendly),
+ * with the chosen ones shown as removable chips.
  */
-export const MUSICAL_ROLE_PRESETS = [
-  // Voces
-  'vocals',
-  'choir',
-  'soprano',
-  'mezzo',
-  'alto',
-  'tenor',
-  'baritone',
-  'bassVoice',
-  // Cuerdas
-  'acousticGuitar',
-  'electricGuitar',
-  'bass',
-  'violin',
-  'viola',
-  'cello',
-  'doubleBass',
-  // Teclados
-  'piano',
-  'keys',
-  'organ',
-  'synth',
-  // Percusión
-  'drums',
-  'percussion',
-  // Vientos
-  'trumpet',
-  'saxophone',
-  'trombone',
-  'flute',
-  'clarinet',
-  'tuba',
-  'horn',
-  'oboe',
-  // Técnica / dirección
-  'sound',
-  'director',
-  'composer',
-] as const
+export const MUSICAL_ROLE_CATEGORIES: { id: string; labelKey: I18nKey; presets: readonly string[] }[] = [
+  {
+    id: 'voice',
+    labelKey: 'musicalRole.category.voice',
+    presets: ['vocals', 'choir', 'soprano', 'mezzo', 'alto', 'tenor', 'baritone', 'bassVoice'],
+  },
+  {
+    id: 'strings',
+    labelKey: 'musicalRole.category.strings',
+    presets: ['acousticGuitar', 'electricGuitar', 'bass', 'violin', 'viola', 'cello', 'doubleBass'],
+  },
+  {
+    id: 'keys',
+    labelKey: 'musicalRole.category.keys',
+    presets: ['piano', 'keys', 'organ', 'synth'],
+  },
+  {
+    id: 'percussion',
+    labelKey: 'musicalRole.category.percussion',
+    presets: ['drums', 'percussion'],
+  },
+  {
+    id: 'winds',
+    labelKey: 'musicalRole.category.winds',
+    presets: ['trumpet', 'saxophone', 'trombone', 'flute', 'clarinet', 'tuba', 'horn', 'oboe'],
+  },
+  {
+    id: 'tech',
+    labelKey: 'musicalRole.category.tech',
+    presets: ['sound', 'director', 'composer'],
+  },
+]
 
 const PRESET_KEYS: Record<string, I18nKey> = {
   vocals: 'musicalRole.vocals',
@@ -98,8 +94,8 @@ export function musicalRolesText(value: string | null | undefined, t: (key: I18n
   return parseMusicalRoles(value).map((tag) => musicalRoleLabel(tag, t)).join(' · ')
 }
 
-/** Multi-select tags for a member's voice/instrument roles. */
-export function MusicalRoleChips({
+/** Category → role selects, with the chosen roles shown as removable chips. */
+export function MusicalRolePicker({
   value,
   disabled,
   onChange,
@@ -110,38 +106,79 @@ export function MusicalRoleChips({
 }) {
   const { t } = useT()
   const selected = parseMusicalRoles(value)
+  const [categoryId, setCategoryId] = useState(MUSICAL_ROLE_CATEGORIES[0]!.id)
+  const category = MUSICAL_ROLE_CATEGORIES.find((item) => item.id === categoryId) ?? MUSICAL_ROLE_CATEGORIES[0]!
+  const [role, setRole] = useState<string>(MUSICAL_ROLE_CATEGORIES[0]!.presets[0]!)
 
-  function toggle(tag: string) {
-    const next = selected.includes(tag)
-      ? selected.filter((item) => item !== tag)
-      : [...selected, tag]
-    onChange(next.join(','))
+  function onCategoryChange(next: string) {
+    setCategoryId(next)
+    const found = MUSICAL_ROLE_CATEGORIES.find((item) => item.id === next)
+    setRole(found?.presets[0] ?? '')
+  }
+
+  function add() {
+    if (!role || selected.includes(role)) return
+    onChange([...selected, role].join(','))
+  }
+
+  function remove(tag: string) {
+    onChange(selected.filter((item) => item !== tag).join(','))
   }
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <span className="text-sm font-medium text-ink">{t('musicalRole.title')}</span>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('musicalRole.title')}>
-        {MUSICAL_ROLE_PRESETS.map((tag) => {
-          const active = selected.includes(tag)
-          return (
-            <button
+
+      {selected.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {selected.map((tag) => (
+            <span
               key={tag}
-              type="button"
-              aria-pressed={active}
-              disabled={disabled}
-              onClick={() => toggle(tag)}
-              className={cn(
-                'min-h-9 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60',
-                active
-                  ? 'border-primary bg-primary/12 text-primary-ink'
-                  : 'border-border-subtle text-muted hover:border-primary/30 hover:text-ink',
-              )}
+              className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/12 px-2.5 py-1 text-xs font-medium text-primary-ink"
             >
-              {t(PRESET_KEYS[tag]!)}
-            </button>
-          )
-        })}
+              {musicalRoleLabel(tag, t)}
+              {!disabled ? (
+                <button
+                  type="button"
+                  onClick={() => remove(tag)}
+                  aria-label={t('musicalRole.remove')}
+                  className={cn('grid h-4 w-4 place-items-center rounded-full hover:bg-primary/20')}
+                >
+                  <X className="h-3 w-3" aria-hidden="true" />
+                </button>
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-40 flex-1">
+          <GroupSelect
+            label={t('musicalRole.categoryLabel')}
+            value={categoryId}
+            disabled={disabled}
+            options={MUSICAL_ROLE_CATEGORIES.map((item) => ({ value: item.id, label: t(item.labelKey) }))}
+            onChange={onCategoryChange}
+          />
+        </div>
+        <div className="min-w-40 flex-1">
+          <GroupSelect
+            label={t('musicalRole.roleLabel')}
+            value={role}
+            disabled={disabled}
+            options={category.presets.map((preset) => ({ value: preset, label: t(PRESET_KEYS[preset]!) }))}
+            onChange={setRole}
+          />
+        </div>
+        <GroupButton
+          type="button"
+          variant="secondary"
+          disabled={disabled || !role || selected.includes(role)}
+          onClick={add}
+        >
+          {t('musicalRole.add')}
+        </GroupButton>
       </div>
     </div>
   )

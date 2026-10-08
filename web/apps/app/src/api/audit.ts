@@ -52,3 +52,17 @@ export async function listGroupAudit(
   const qs = params.toString()
   return apiRequest<GroupAuditPage>(`/api/groups/${groupId}/audit${qs ? `?${qs}` : ''}`)
 }
+
+/** The signed-in user's own account audit (security events). */
+export type AccountAuditEntry = {
+  id: string
+  action: string
+  groupId: string | null
+  actorUserId: string | null
+  createdAt: string
+}
+
+export async function listAccountAudit(): Promise<AccountAuditEntry[]> {
+  const payload = await apiRequest<{ items: AccountAuditEntry[] }>('/api/account/audit')
+  return payload.items
+}

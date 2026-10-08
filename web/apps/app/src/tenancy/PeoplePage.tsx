@@ -27,7 +27,7 @@ import {
 } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { GroupRosterDialog } from '../groups/GroupRosterDialog'
-import { MusicalRoleChips, musicalRolesText } from '../groups/MusicalRoleChips'
+import { MusicalRolePicker, musicalRolesText } from '../groups/MusicalRoleChips'
 import {
   GroupButton,
   GroupCard,
@@ -472,7 +472,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                         </div>
                       ) : null}
                       <div className="min-w-48 flex-1">
-                        <MusicalRoleChips
+                        <MusicalRolePicker
                           value={member.musicalRole}
                           disabled={busy}
                           onChange={(next) => void onSetMusicalRole(member.userId, next)}
