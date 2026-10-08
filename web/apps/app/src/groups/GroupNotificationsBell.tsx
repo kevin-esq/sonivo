@@ -3,6 +3,7 @@ import { Bell } from 'lucide-react'
 import { listNotifications } from '../api/client'
 import { useT } from '../i18n'
 import { NotificationInbox } from '../notifications/NotificationInbox'
+import { useNotificationsLive } from '../notifications/useNotificationsLive'
 
 /**
  * Group-scoped notification bell for the group top bar. Shows the group inbox
@@ -12,7 +13,11 @@ export function GroupNotificationsBell({ groupId }: { groupId: string }) {
   const { t } = useT()
   const [open, setOpen] = useState(false)
   const [unread, setUnread] = useState(0)
+  const [reloadKey, setReloadKey] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
+
+  // Live refresh of the unread badge when the server pushes a notification.
+  useNotificationsLive(() => setReloadKey((key) => key + 1))
 
   useEffect(() => {
     let cancelled = false
@@ -26,7 +31,7 @@ export function GroupNotificationsBell({ groupId }: { groupId: string }) {
     return () => {
       cancelled = true
     }
-  }, [groupId])
+  }, [groupId, reloadKey])
 
   useEffect(() => {
     if (!open) return

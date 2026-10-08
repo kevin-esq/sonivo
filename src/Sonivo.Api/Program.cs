@@ -272,6 +272,7 @@ builder.Services.AddHttpContextAccessor();
 // The global antiforgery middleware above requires X-CSRF-TOKEN on the
 // /negotiate POST (Q9-Q3); GET/WebSocket hub traffic needs only the cookie.
 builder.Services.AddSignalR();
+builder.Services.AddScoped<INotificationPublisher, SignalRNotificationPublisher>();
 // SECURITY-AUDIT-2026-10 (B7): bounded digitize queue (replaces Task.Run).
 builder.Services.AddSingleton<DigitizeJobQueue>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<DigitizeJobQueue>());
@@ -839,6 +840,7 @@ app.MapPost("/api/auth/change-password", async (
     SignInManager<ApplicationUser> signInManager,
     IAccountAuditStore audit,
     INotificationStore notifications,
+    INotificationPublisher publisher,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -882,6 +884,7 @@ app.MapPost("/api/auth/change-password", async (
             actorUserId: appUser.Id),
         cancellationToken);
     await notifications.SaveChangesAsync(cancellationToken);
+    await publisher.PublishAsync(appUser.Id, Notification.KindPasswordChanged, null, cancellationToken);
 
     // Rotate the session cookie so the new security stamp is honoured.
     await signInManager.RefreshSignInAsync(appUser);
@@ -1730,6 +1733,7 @@ app.MapGoogleAuthEndpoints();
 // ADR-0036: Q9 conductor room. Cookie-authorized; per-method Membership
 // recheck inside the Hub (404 non-member/unknown, 403 non-Owner conduct).
 app.MapHub<PracticeRoomHub>("/hubs/practiceroom").RequireAuthorization();
+app.MapHub<NotificationHub>("/hubs/notifications").RequireAuthorization();
 
 app.MapGet("/api/groups", async (
     ClaimsPrincipal principal,
@@ -2595,6 +2599,7 @@ app.MapPost("/api/groups/{groupId:guid}/tasks", async (
     UserManager<ApplicationUser> users,
     CreateTaskHandler handler,
     INotificationStore notifications,
+    INotificationPublisher publisher,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -2621,6 +2626,7 @@ app.MapPost("/api/groups/{groupId:guid}/tasks", async (
                 actorUserId: userId.Value),
             cancellationToken);
         await notifications.SaveChangesAsync(cancellationToken);
+        await publisher.PublishAsync(assignee, Notification.KindTaskAssigned, groupId, cancellationToken);
     }
 
     return Results.Created($"/api/groups/{groupId}/tasks/{created.Id}", ToTaskResponse(created));
@@ -3264,6 +3270,7 @@ app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async
     UserManager<ApplicationUser> users,
     ChangeMemberRoleHandler handler,
     INotificationStore notifications,
+    INotificationPublisher publisher,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -3291,6 +3298,7 @@ app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async
                 metadata: request.Role),
             cancellationToken);
         await notifications.SaveChangesAsync(cancellationToken);
+        await publisher.PublishAsync(targetUserId, Notification.KindRoleChanged, groupId, cancellationToken);
     }
 
     return Results.NoContent();
@@ -3495,6 +3503,7 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
     CreateInvitationHandler handler,
     IGroupAuditStore audit,
     INotificationStore notifications,
+    INotificationPublisher publisher,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -3531,6 +3540,7 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
                     actorUserId: userId.Value),
                 cancellationToken);
             await notifications.SaveChangesAsync(cancellationToken);
+            await publisher.PublishAsync(invitee.Id, Notification.KindInvitationCreated, groupId, cancellationToken);
         }
     }
 

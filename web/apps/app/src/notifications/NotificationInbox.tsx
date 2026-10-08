@@ -13,6 +13,7 @@ import {
 import { useT, type I18nKey } from '../i18n'
 import { mutationErrorMessage } from '../repertoire/ui'
 import { cn } from '../ui/cn'
+import { useNotificationsLive } from './useNotificationsLive'
 
 type KindMeta = { icon: LucideIcon; labelKey: I18nKey; tone: string }
 
@@ -72,6 +73,10 @@ export function NotificationInbox({
   const { t } = useT()
   const [inbox, setInbox] = useState<Inbox | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  // Live refresh: the server pushes when a new notification lands for this user.
+  useNotificationsLive(() => setReloadKey((key) => key + 1))
 
   useEffect(() => {
     let cancelled = false
@@ -91,7 +96,7 @@ export function NotificationInbox({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, groupId])
+  }, [scope, groupId, reloadKey])
 
   async function onRead(notification: AppNotification) {
     if (notification.readAt) return
