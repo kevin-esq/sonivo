@@ -2594,6 +2594,8 @@ app.MapPost("/api/groups/{groupId:guid}/tasks", async (
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     CreateTaskHandler handler,
+    INotificationStore notifications,
+    IClock clock,
     CancellationToken cancellationToken) =>
 {
     var userId = await RequireUserIdAsync(principal, users);
@@ -2605,6 +2607,22 @@ app.MapPost("/api/groups/{groupId:guid}/tasks", async (
     var created = await handler.HandleAsync(
         new CreateTaskCommand(userId.Value, groupId, request.Title ?? string.Empty, request.Notes, request.DueAt, request.AssigneeUserId),
         cancellationToken);
+
+    // ADR-0077: notify the assignee (group scope) when it is not the creator.
+    if (request.AssigneeUserId is { } assignee && assignee != userId.Value)
+    {
+        await notifications.AddAsync(
+            Notification.Create(
+                assignee,
+                NotificationScope.Group,
+                Notification.KindTaskAssigned,
+                clock.UtcNow,
+                groupId: groupId,
+                actorUserId: userId.Value),
+            cancellationToken);
+        await notifications.SaveChangesAsync(cancellationToken);
+    }
+
     return Results.Created($"/api/groups/{groupId}/tasks/{created.Id}", ToTaskResponse(created));
 })
 .WithName("CreateGroupTask")
