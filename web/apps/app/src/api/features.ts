@@ -6,6 +6,7 @@ export type FeatureFlags = {
   stageMode: boolean
   groupBranding: boolean
   notifications: boolean
+  managedAccounts: boolean
 }
 
 export async function fetchFeatures(): Promise<FeatureFlags> {

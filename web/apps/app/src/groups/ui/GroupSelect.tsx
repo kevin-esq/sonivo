@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '../../ui/cn'
 import { groupFieldClass, groupFieldErrorClass } from './GroupField'
@@ -62,8 +63,37 @@ export function GroupSelect({
 
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [rect, setRect] = useState<{ top: number; left: number; width: number; maxHeight: number; openUp: boolean } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
+
+  // Render the listbox in a portal (fixed) so a scrollable/overflow-hidden
+  // ancestor cannot clip it, and flip it up when there is no room below.
+  useEffect(() => {
+    if (!open) return
+    function measure() {
+      const el = rootRef.current
+      if (!el) return
+      const box = el.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - box.bottom
+      const spaceAbove = box.top
+      const openUp = spaceBelow < 220 && spaceAbove > spaceBelow
+      setRect({
+        top: openUp ? box.top - 4 : box.bottom + 4,
+        left: box.left,
+        width: box.width,
+        maxHeight: Math.max(140, Math.min(288, (openUp ? spaceAbove : spaceBelow) - 8)),
+        openUp,
+      })
+    }
+    measure()
+    window.addEventListener('scroll', measure, true)
+    window.addEventListener('resize', measure)
+    return () => {
+      window.removeEventListener('scroll', measure, true)
+      window.removeEventListener('resize', measure)
+    }
+  }, [open])
 
   const selectedIndex = useMemo(
     () => options.findIndex((option) => option.value === value),
@@ -74,7 +104,9 @@ export function GroupSelect({
   useEffect(() => {
     if (!open) return
     function onPointerDown(event: PointerEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+      const target = event.target as Node
+      if (rootRef.current?.contains(target) || listRef.current?.contains(target)) return
+      setOpen(false)
     }
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
@@ -212,14 +244,22 @@ export function GroupSelect({
           />
         </button>
 
-        {open ? (
+        {open && rect ? createPortal(
           <ul
             id={listboxId}
             ref={listRef}
             role="listbox"
             aria-labelledby={label ? fieldId : undefined}
             aria-label={label ? undefined : ariaLabel}
-            className="absolute z-50 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-border-subtle bg-surface p-1 text-ink shadow-xl"
+            style={{
+              position: 'fixed',
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              maxHeight: rect.maxHeight,
+              transform: rect.openUp ? 'translateY(-100%)' : undefined,
+            }}
+            className="z-[100] overflow-y-auto rounded-xl border border-border-subtle bg-surface p-1 text-ink shadow-xl"
           >
             {options.length === 0 ? (
               <li className="px-3 py-2 text-sm text-muted" aria-disabled="true">
@@ -262,7 +302,8 @@ export function GroupSelect({
                 )
               })
             )}
-          </ul>
+          </ul>,
+          document.body,
         ) : null}
 
         {name ? <input type="hidden" name={name} value={value} /> : null}
