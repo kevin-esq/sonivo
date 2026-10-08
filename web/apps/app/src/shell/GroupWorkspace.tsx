@@ -25,6 +25,7 @@ import {
   loadServerBranding,
   readCachedBranding,
   writeCachedBranding,
+  writeCachedTokens,
   type ServerBranding,
 } from './serverBranding'
 import { useTheme } from '../brand/theme'
@@ -112,7 +113,8 @@ export function GroupWorkspace({
         if (!cancelled) setBrandingEnabled(flags.groupBranding)
       })
       .catch(() => {
-        if (!cancelled) setBrandingEnabled(false)
+        // Unknown (not "off"): keep null so branding is still fetched best-effort.
+        if (!cancelled) setBrandingEnabled(null)
       })
     return () => {
       cancelled = true
@@ -173,12 +175,15 @@ export function GroupWorkspace({
       writeCachedBranding(group.id, null)
       return
     }
-    if (brandingEnabled !== true) return
+    // brandingEnabled === null means the feature flags could not be read; still
+    // try (best effort) so a transient flags failure does not drop the colours.
     let cancelled = false
     void loadServerBranding(group.id).then((branding) => {
       if (cancelled) return
       setFetchedBrand({ groupId: group.id, brand: branding })
-      writeCachedBranding(group.id, branding)
+      // Refresh the cache only on success: a transient request failure must never
+      // wipe the saved branding (that caused the default→brand flash on reloads).
+      if (branding) writeCachedBranding(group.id, branding)
     })
     return () => {
       cancelled = true
@@ -234,6 +239,31 @@ export function GroupWorkspace({
   const accent = appearance.accent
 
   const brandTokens = brandTokenStyle(serverBrand, { primary: accent, theme })
+  // Persist the computed tokens so the pre-paint script can apply them before
+  // React mounts on the next visit (no default→brand flash, Gmail-style).
+  const tokensJson = useMemo(() => JSON.stringify(brandTokens), [brandTokens])
+  useEffect(() => {
+    if (groupId) writeCachedTokens(groupId, JSON.parse(tokensJson) as Record<string, string>)
+  }, [groupId, tokensJson])
+
+  // The root layout's pre-paint script writes the group tokens onto :root; clear
+  // them when the shell unmounts so the group theme never leaks to other routes.
+  useEffect(
+    () => () => {
+      try {
+        const root = document.documentElement
+        const names: string[] = []
+        for (let i = 0; i < root.style.length; i += 1) {
+          const name = root.style.item(i)
+          if (name.startsWith('--')) names.push(name)
+        }
+        for (const name of names) root.style.removeProperty(name)
+      } catch {
+        // best-effort only
+      }
+    },
+    [],
+  )
   const shellStyle = {
     ...brandTokens,
     ...(previewTokens ?? {}),
