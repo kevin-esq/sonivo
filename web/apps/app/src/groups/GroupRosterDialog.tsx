@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Copy, KeyRound, UserPlus } from 'lucide-react'
+import { Check, Copy, KeyRound, Mail, UserPlus } from 'lucide-react'
 import type { FormEvent } from 'react'
 import {
   createRosterMember,
@@ -115,6 +115,17 @@ export function GroupRosterDialog({ groupId, groupSlug, onClose, onChanged, rese
       ) : null}
 
       {credentials ? (
+        credentials.credential === 'activation_link' ? (
+          <div className="space-y-2">
+            <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <Mail className="h-4 w-4 text-primary-ink" aria-hidden="true" />
+              {credentials.mailed ? t('roster.activationSent') : t('roster.activationFailed')}
+            </p>
+            {!credentials.mailed ? (
+              <p className="text-sm text-muted">{t('roster.activationFailedHint')}</p>
+            ) : null}
+          </div>
+        ) : (
         <div className="space-y-3">
           <p className="flex items-center gap-2 text-sm font-semibold text-ink">
             <KeyRound className="h-4 w-4 text-primary-ink" aria-hidden="true" />
@@ -140,6 +151,7 @@ export function GroupRosterDialog({ groupId, groupSlug, onClose, onChanged, rese
             {copied ? t('roster.copied') : t('roster.copy')}
           </GroupButton>
         </div>
+        )
       ) : resetMode ? (
         <p className="text-sm text-muted">{t('roster.resetHint')}</p>
       ) : (
