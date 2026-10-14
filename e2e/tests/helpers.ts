@@ -310,9 +310,11 @@ export function eventPlanItem(page: Page, songTitle: string, arrangementLabel: s
 }
 
 export async function inviteMemberAndReadLink(page: Page, email?: string): Promise<string> {
-  // Inviting is owner-only and lives on the Members tab inside a dialog.
+  // Members page has one "Agregar miembro" entry point that asks with/without
+  // account; the invitation (with account) lives in its dialog.
   await openPeople(page)
-  await page.getByRole('button', { name: 'Invitar miembro' }).click()
+  await page.getByRole('button', { name: 'Agregar miembro' }).first().click()
+  await page.getByRole('button', { name: /Con cuenta/ }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
   if (email) {
