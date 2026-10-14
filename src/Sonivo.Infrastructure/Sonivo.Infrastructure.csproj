@@ -1,6 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- SCA gate: pin patched transitive crypto packages (GHSA-* on 10.0.x). -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.13" />
+
     <ProjectReference Include="..\Sonivo.Application\Sonivo.Application.csproj" />
     <ProjectReference Include="..\Sonivo.Domain\Sonivo.Domain.csproj" />
   </ItemGroup>
