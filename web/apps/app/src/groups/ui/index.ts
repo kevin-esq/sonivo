@@ -52,6 +52,10 @@ export {
   type GroupTextAreaProps,
 } from './GroupField'
 export { GroupSelect, type GroupSelectProps, type GroupSelectOption } from './GroupSelect'
+export {
+  GroupActionMenu,
+  type GroupActionMenuItem,
+} from './GroupActionMenu'
 export { GroupDialog, type GroupDialogProps } from './GroupDialog'
 export {
   GroupLimitNotice,

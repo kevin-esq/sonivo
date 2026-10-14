@@ -2550,7 +2550,8 @@ app.MapGet("/api/groups/{groupId:guid}/members", async (
             musicalRole = i.MusicalRole,
             createdAt = i.CreatedAt,
             lastSeenAt = i.LastSeenAt,
-            email = i.Email
+            email = i.Email,
+            groupRoleId = i.GroupRoleId
         })
     });
 })
@@ -3402,6 +3403,292 @@ app.MapGet("/api/account/audit", async (
     });
 })
 .WithName("ListAccountAudit")
+.RequireAuthorization();
+
+// ---- ADR-0078: group-defined roles (custom permissions, additive to the base role) ----
+
+static IReadOnlySet<string> BaseRolePermissions(string role) => role switch
+{
+    MembershipRoles.Owner => new HashSet<string>(GroupPermissions.All, StringComparer.Ordinal),
+    MembershipRoles.Manager => new HashSet<string>(
+        [GroupPermissions.ManageBranding, GroupPermissions.ManageMembers, GroupPermissions.ManageSongs, GroupPermissions.ManageSetlists, GroupPermissions.ManageEvents, GroupPermissions.ManageTasks, GroupPermissions.RespondRsvp, GroupPermissions.Practice],
+        StringComparer.Ordinal),
+    MembershipRoles.Member => new HashSet<string>(
+        [GroupPermissions.ManageSongs, GroupPermissions.ManageSetlists, GroupPermissions.ManageEvents, GroupPermissions.RespondRsvp, GroupPermissions.Practice],
+        StringComparer.Ordinal),
+    MembershipRoles.Viewer => new HashSet<string>([GroupPermissions.Practice], StringComparer.Ordinal),
+    _ => new HashSet<string>(StringComparer.Ordinal),
+};
+
+app.MapGet("/api/groups/{groupId:guid}/roles", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupRoleStore roles,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireMemberAsync(groupId, userId.Value, cancellationToken);
+    var list = await roles.ListByGroupAsync(groupId, cancellationToken);
+    return Results.Ok(new
+    {
+        items = list.Select(r => new
+        {
+            id = r.Id,
+            name = r.Name,
+            description = r.Description,
+            permissions = r.Permissions,
+            isSystem = r.IsSystem,
+            createdAt = r.CreatedAt
+        })
+    });
+})
+.WithName("ListGroupRoles")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/roles", async (
+    Guid groupId,
+    CreateGroupRoleRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupRoleStore roles,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, userId.Value, cancellationToken);
+
+    var name = request.Name?.Trim() ?? string.Empty;
+    if (name.Length < 2 || name.Length > 60)
+    {
+        return Results.Problem(detail: "Role name must be between 2 and 60 characters.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    if (await roles.FindByNameAsync(groupId, name, cancellationToken) is not null)
+    {
+        return Results.Problem(detail: "A role with that name already exists.", statusCode: StatusCodes.Status409Conflict, title: "Conflict");
+    }
+
+    GroupRole created;
+    try
+    {
+        created = GroupRole.Create(
+            groupId,
+            name,
+            clock.UtcNow,
+            request.Permissions ?? Array.Empty<string>(),
+            request.Description);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    await roles.AddAsync(created, cancellationToken);
+    await roles.SaveChangesAsync(cancellationToken);
+    return Results.Created($"/api/groups/{groupId}/roles/{created.Id}", new
+    {
+        id = created.Id,
+        name = created.Name,
+        description = created.Description,
+        permissions = created.Permissions,
+        isSystem = created.IsSystem,
+        createdAt = created.CreatedAt
+    });
+})
+.WithName("CreateGroupRole")
+.RequireAuthorization();
+
+app.MapPatch("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
+    Guid groupId,
+    Guid roleId,
+    UpdateGroupRoleRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupRoleStore roles,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, userId.Value, cancellationToken);
+
+    var role = await roles.GetAsync(groupId, roleId, cancellationToken);
+    if (role is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (role.IsSystem)
+    {
+        return Results.Problem(detail: "Built-in roles cannot be edited.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    try
+    {
+        if (request.Name is not null)
+        {
+            role.Rename(request.Name);
+        }
+
+        if (request.Description is not null)
+        {
+            role.SetDescription(request.Description);
+        }
+
+        if (request.Permissions is not null)
+        {
+            role.SetPermissions(request.Permissions);
+        }
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status409Conflict, title: "Conflict");
+    }
+
+    role.Touch(clock.UtcNow);
+    await roles.SaveChangesAsync(cancellationToken);
+    return Results.Ok(new
+    {
+        id = role.Id,
+        name = role.Name,
+        description = role.Description,
+        permissions = role.Permissions,
+        isSystem = role.IsSystem,
+        createdAt = role.CreatedAt
+    });
+})
+.WithName("UpdateGroupRole")
+.RequireAuthorization();
+
+app.MapDelete("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
+    Guid groupId,
+    Guid roleId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupRoleStore roles,
+    SonivoDbContext db,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, userId.Value, cancellationToken);
+
+    var role = await roles.GetAsync(groupId, roleId, cancellationToken);
+    if (role is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (role.IsSystem)
+    {
+        return Results.Problem(detail: "Built-in roles cannot be deleted.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+
+    // Removing the role clears it on every member that carries it (FK SetNull).
+    roles.Remove(role);
+    await roles.SaveChangesAsync(cancellationToken);
+    return Results.NoContent();
+})
+.WithName("DeleteGroupRole")
+.RequireAuthorization();
+
+app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/group-role", async (
+    Guid groupId,
+    Guid targetUserId,
+    SetMemberGroupRoleRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IGroupRoleStore roles,
+    SonivoDbContext db,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireMemberAsync(groupId, userId.Value, cancellationToken);
+
+    // Effective permission: base role UNION the custom role granted to the actor.
+    var actor = await db.Memberships.FirstOrDefaultAsync(
+        m => m.GroupId == groupId && m.UserId == userId.Value,
+        cancellationToken);
+    var effective = new HashSet<string>(
+        BaseRolePermissions(actor?.Role ?? string.Empty),
+        StringComparer.Ordinal);
+    if (actor?.GroupRoleId is { } actorRoleId)
+    {
+        var granted = await roles.GetAsync(groupId, actorRoleId, cancellationToken);
+        if (granted is not null)
+        {
+            effective.UnionWith(granted.PermissionList);
+        }
+    }
+
+    if (!effective.Contains(GroupPermissions.ManageMembers) && !effective.Contains(GroupPermissions.ManageRoles))
+    {
+        return Results.Problem(
+            detail: "You do not have permission to assign roles.",
+            statusCode: StatusCodes.Status403Forbidden,
+            title: "Forbidden");
+    }
+
+    var target = await db.Memberships.FirstOrDefaultAsync(
+        m => m.GroupId == groupId && m.UserId == targetUserId,
+        cancellationToken);
+    if (target is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (request.GroupRoleId is { } roleId)
+    {
+        var role = await roles.GetAsync(groupId, roleId, cancellationToken);
+        if (role is null)
+        {
+            return Results.Problem(detail: "Role not found.", statusCode: StatusCodes.Status404NotFound, title: "Not Found");
+        }
+
+        target.AssignGroupRole(role.Id);
+    }
+    else
+    {
+        target.AssignGroupRole(null);
+    }
+
+    await db.SaveChangesAsync(cancellationToken);
+    return Results.NoContent();
+})
+.WithName("SetMemberGroupRole")
 .RequireAuthorization();
 
 // ---- In-app notifications (ADR-0077). Account and group inboxes are distinct:
@@ -5517,3 +5804,6 @@ internal sealed record CreateTaskRequest(string? Title, string? Notes, DateTimeO
 internal sealed record UpdateTaskRequest(string? Title, string? Notes, DateTimeOffset? DueAt, Guid? AssigneeUserId, int ExpectedVersion);
 internal sealed record SetTaskStatusRequest(string? Status, int ExpectedVersion);
 internal sealed record DeleteTaskRequest(int ExpectedVersion);
+internal sealed record CreateGroupRoleRequest(string? Name, string? Description, string[]? Permissions);
+internal sealed record UpdateGroupRoleRequest(string? Name, string? Description, string[]? Permissions);
+internal sealed record SetMemberGroupRoleRequest(Guid? GroupRoleId);

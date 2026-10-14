@@ -1,48 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Activity,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  Music2,
-  ShieldCheck,
-  UserMinus,
-  UserPlus,
-  XCircle,
-  type LucideIcon,
-} from 'lucide-react'
+import { Activity, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   listGroupAudit,
   listMembers,
-  type GroupAuditAction,
   type GroupAuditEntry,
   type MemberListItem,
 } from '../api/client'
-import { useT, type I18nKey } from '../i18n'
+import { useT } from '../i18n'
 import { mutationErrorMessage } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { GroupCard, GroupEmptyState, GroupErrorState, GroupListSkeleton, GroupSelect } from './ui'
+import { AUDIT_ACTION_KEYS, auditActionMeta } from './auditActions'
 
 const PAGE_SIZE = 20
-
-const ACTION_META: Record<string, { icon: LucideIcon; labelKey: I18nKey; tone: string }> = {
-  role_changed: { icon: ShieldCheck, labelKey: 'audit.action.roleChanged', tone: 'bg-primary/15 text-primary-ink' },
-  musical_role_changed: { icon: Music2, labelKey: 'audit.action.musicalRoleChanged', tone: 'bg-primary/15 text-primary-ink' },
-  member_removed: { icon: UserMinus, labelKey: 'audit.action.memberRemoved', tone: 'bg-error/15 text-error-ink' },
-  member_left: { icon: LogOut, labelKey: 'audit.action.memberLeft', tone: 'bg-surface-hover text-muted' },
-  invitation_created: { icon: UserPlus, labelKey: 'audit.action.invitationCreated', tone: 'bg-success/15 text-success-ink' },
-  invitation_revoked: { icon: XCircle, labelKey: 'audit.action.invitationRevoked', tone: 'bg-error/15 text-error-ink' },
-}
-
-function actionMeta(action: GroupAuditAction) {
-  return (
-    ACTION_META[action] ?? {
-      icon: Activity,
-      labelKey: 'audit.action.unknown' as I18nKey,
-      tone: 'bg-surface-hover text-muted',
-    }
-  )
-}
 
 function relativeLabel(iso: string): string {
   const date = new Date(iso)
@@ -110,9 +80,9 @@ export function GroupAuditPanel({ groupId }: { groupId: string }) {
 
   const actionOptions = [
     { value: 'all', label: t('audit.filterAll') },
-    ...[...new Set(Object.keys(ACTION_META))].map((action) => ({
+    ...AUDIT_ACTION_KEYS.map((action) => ({
       value: action,
-      label: t(actionMeta(action).labelKey),
+      label: t(auditActionMeta(action).labelKey),
     })),
   ]
 
@@ -190,7 +160,7 @@ export function GroupAuditPanel({ groupId }: { groupId: string }) {
         <>
           <ul className="space-y-2" data-testid="audit-list">
             {entries.map((entry) => {
-              const meta = actionMeta(entry.action)
+              const meta = auditActionMeta(entry.action)
               const Icon = meta.icon
               return (
                 <li key={entry.id}>

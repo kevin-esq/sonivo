@@ -8,6 +8,8 @@ export type MemberListItem = {
   createdAt: string
   lastSeenAt?: string | null
   email?: string | null
+  /** Custom group role assigned on top of the base role (ADR-0078). */
+  groupRoleId?: string | null
 }
 
 export async function listMembers(groupId: string): Promise<MemberListItem[]> {

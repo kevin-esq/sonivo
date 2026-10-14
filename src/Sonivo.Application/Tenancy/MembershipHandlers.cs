@@ -11,7 +11,8 @@ public sealed record MemberListItemDto(
     string? MusicalRole,
     DateTimeOffset CreatedAt,
     DateTimeOffset? LastSeenAt,
-    string? Email);
+    string? Email,
+    Guid? GroupRoleId);
 
 public sealed record MemberListDto(IReadOnlyList<MemberListItemDto> Items);
 
@@ -57,7 +58,8 @@ public sealed class ListMembersHandler
                 // list — same rule as /api/auth/me.
                 directory.TryGetValue(m.UserId!.Value, out var entry3) && entry3.Email is { } email && !email.EndsWith("@managed.invalid", StringComparison.Ordinal)
                     ? email
-                    : null))
+                    : null,
+                m.GroupRoleId))
             .OrderBy(i => RoleRank(i.Role))
             .ThenBy(i => i.DisplayName, StringComparer.Ordinal)
             .ThenBy(i => i.UserId)
