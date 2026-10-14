@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link2, Package, TriangleAlert, type LucideIcon } from 'lucide-react'
+import { Skeleton } from 'boneyard-js/react'
 import { cn } from '../../ui/cn'
 import { useT } from '../../i18n'
 
@@ -90,7 +91,18 @@ export function GroupErrorState({
 
 /** Group-scoped content skeleton (surface-aware, follows light/dark). */
 export function GroupSkeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-lg bg-surface-hover/80', className)} aria-hidden="true" />
+  return (
+    <Skeleton
+      name="group-content"
+      loading
+      color="var(--color-surface-hover)"
+      darkColor="var(--color-shell-hover)"
+      animate="shimmer"
+      className={cn('rounded-lg', className)}
+    >
+      <span className="sr-only" />
+    </Skeleton>
+  )
 }
 
 export function GroupListSkeleton({ rows = 3, label }: { rows?: number; label?: string }) {
@@ -100,13 +112,24 @@ export function GroupListSkeleton({ rows = 3, label }: { rows?: number; label?: 
     <div className="space-y-3" role="status" aria-live="polite" aria-label={text}>
       <span className="sr-only">{text}</span>
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="flex items-center gap-3 rounded-2xl border border-border-subtle px-4 py-3">
+        <Skeleton
+          name="group-list-row"
+          key={i}
+          loading
+          color="var(--color-surface-hover)"
+          darkColor="var(--color-shell-hover)"
+          animate="shimmer"
+          stagger={i * 60}
+          className={cn(
+            'flex items-center gap-3 rounded-2xl border border-border-subtle px-4 py-3',
+          )}
+        >
           <GroupSkeleton className="h-11 w-11 rounded-xl" />
           <div className="flex-1 space-y-2">
             <GroupSkeleton className="h-4 w-40" />
             <GroupSkeleton className="h-3 w-56 max-w-full" />
           </div>
-        </div>
+        </Skeleton>
       ))}
     </div>
   )

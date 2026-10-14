@@ -1,0 +1,4 @@
+{
+  "breakpoints": [390, 768, 1280],
+  "out": "./src/bones"
+}
