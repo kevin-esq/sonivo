@@ -625,6 +625,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label={t('people.title')}>
             <PeopleTab
+              id="people-tab-roster"
               active={tab === 'roster'}
               label={t('people.tabAll')}
               count={members === null ? undefined : totalMembers}
@@ -632,6 +633,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
             />
             {isOwner ? (
               <PeopleTab
+                id="people-tab-invitations"
                 active={tab === 'invitations'}
                 label={t('people.tabInvites')}
                 count={invites === null ? undefined : invites.length}
@@ -701,53 +703,55 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       <GroupErrorState message={inviteError} />
 
       {tab === 'invitations' ? (
-        <GroupSection
-          title={t('people.invitesTitle')}
-          headingId="invites-heading"
-          description={t('people.invitesHint')}
-        >
-          {invites === null ? (
-            <GroupListSkeleton rows={2} label={t('people.loadingInvites')} />
-          ) : invites.length === 0 ? (
-            <GroupEmptyState icon={Mail} title={t('people.noInvites')} />
-          ) : (
-            <GroupCard padding="none">
-              <ul className="divide-y divide-border-subtle">
-                {invites.map((invite) => (
-                  <li
-                    key={invite.id}
-                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span
-                        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-hover text-muted"
-                        aria-hidden="true"
-                      >
-                        <Mail className="h-5 w-5" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-ink">{t('people.inviteItem')}</p>
-                        <p className="text-xs text-muted">
-                          {t('people.inviteCreatedPrefix')}
-                          {formatDateTime(invite.createdAt, lang)} · {t('people.expiresPrefix')}
-                          {formatDateTime(invite.expiresAt, lang)}
-                        </p>
-                      </div>
-                    </div>
-                    <GroupButton
-                      variant="danger"
-                      size="sm"
-                      disabled={revokingId === invite.id}
-                      onClick={() => setRevokeTarget(invite)}
+        <div role="tabpanel" aria-labelledby="people-tab-invitations">
+          <GroupSection
+            title={t('people.invitesTitle')}
+            headingId="invites-heading"
+            description={t('people.invitesHint')}
+          >
+            {invites === null ? (
+              <GroupListSkeleton rows={2} label={t('people.loadingInvites')} />
+            ) : invites.length === 0 ? (
+              <GroupEmptyState icon={Mail} title={t('people.noInvites')} />
+            ) : (
+              <GroupCard padding="none">
+                <ul className="divide-y divide-border-subtle">
+                  {invites.map((invite) => (
+                    <li
+                      key={invite.id}
+                      className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
                     >
-                      {t('people.cancelInvite')}
-                    </GroupButton>
-                  </li>
-                ))}
-              </ul>
-            </GroupCard>
-          )}
-        </GroupSection>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-hover text-muted"
+                          aria-hidden="true"
+                        >
+                          <Mail className="h-5 w-5" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-ink">{t('people.inviteItem')}</p>
+                          <p className="text-xs text-muted">
+                            {t('people.inviteCreatedPrefix')}
+                            {formatDateTime(invite.createdAt, lang)} · {t('people.expiresPrefix')}
+                            {formatDateTime(invite.expiresAt, lang)}
+                          </p>
+                        </div>
+                      </div>
+                      <GroupButton
+                        variant="danger"
+                        size="sm"
+                        disabled={revokingId === invite.id}
+                        onClick={() => setRevokeTarget(invite)}
+                      >
+                        {t('people.cancelInvite')}
+                      </GroupButton>
+                    </li>
+                  ))}
+                </ul>
+              </GroupCard>
+            )}
+          </GroupSection>
+        </div>
       ) : members === null ? (
         <GroupListSkeleton rows={3} label={t('people.loading')} />
       ) : visibleMembers.length === 0 ? (
@@ -764,7 +768,11 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
           }
         />
       ) : (
-        <div className="space-y-2" role="tabpanel" aria-label={t('people.tabAll')}>
+        <div
+          className="space-y-2"
+          role="tabpanel"
+          aria-labelledby="people-tab-roster"
+        >
           <GroupCard padding="none" className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[680px] text-sm">
@@ -1204,14 +1212,17 @@ function PeopleTab({
   label,
   count,
   onClick,
+  id,
 }: {
   active: boolean
   label: string
   count?: number
   onClick: () => void
+  id?: string
 }) {
   return (
     <button
+      id={id}
       type="button"
       role="tab"
       aria-selected={active}
