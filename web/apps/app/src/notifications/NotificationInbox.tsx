@@ -36,15 +36,15 @@ function kindLink(notification: AppNotification): string | null {
   switch (notification.kind) {
     case 'role_changed':
     case 'invitation_created':
-      return notification.groupId ? `/groups/${notification.groupId}/people` : '/grupos'
+      return notification.groupId ? `/groups/${notification.groupId}/people` : '/groups'
     case 'event_created':
-      return notification.groupId ? `/groups/${notification.groupId}/events` : '/calendario'
+      return notification.groupId ? `/groups/${notification.groupId}/events` : '/calendar'
     case 'task_assigned':
       return notification.groupId ? `/groups/${notification.groupId}/tasks` : '/'
     case 'password_changed':
     case 'passkey_added':
     case 'passkey_removed':
-      return '/cuenta/seguridad'
+      return '/account/security'
     default:
       return null
   }
@@ -211,7 +211,7 @@ export function NotificationInbox({
       )}
 
       {!compact && inbox && inbox.items.length > 0 ? (
-        <Link to="/cuenta/notificaciones" className="inline-block text-xs font-semibold text-primary-ink hover:underline">
+        <Link to="/account/notifications" className="inline-block text-xs font-semibold text-primary-ink hover:underline">
           {t('notifications.openAccount')}
         </Link>
       ) : null}

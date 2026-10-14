@@ -335,7 +335,7 @@ export function GroupWorkspace({
               </span>
             </Link>
           ) : (
-            <BrandLockup to="/" shell />
+            <BrandLockup to="/home" shell />
           )}
           <button
             type="button"
@@ -412,7 +412,7 @@ export function GroupWorkspace({
         >
           {group ? (
             <NavLink
-              to={`/groups/${group.id}/ajustes`}
+              to={`/groups/${group.id}/settings`}
               data-testid="rail-settings"
               aria-label={collapsed ? t('group.settings') : undefined}
               title={collapsed ? t('group.settings') : undefined}
@@ -450,7 +450,7 @@ export function GroupWorkspace({
           <GroupTopBar groupId={group.id} user={user} role={group.role} onLogout={onLogout} />
         ) : null}
         <header className="flex items-center justify-between gap-2 px-4 py-3 md:hidden">
-          <Link to="/" className="flex min-h-11 items-center gap-2 no-underline">
+          <Link to="/home" className="flex min-h-11 items-center gap-2 no-underline">
             <SonivoMark className="h-7 w-7 text-shell-link" />
             <span className="font-semibold text-shell-foreground">Sonivo</span>
           </Link>
@@ -469,11 +469,11 @@ export function GroupWorkspace({
                 aria-label={t('workspace.account')}
                 className="absolute right-0 top-full z-50 mt-1 w-56 space-y-0.5 rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg"
               >
-                <Link to="/grupos" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                <Link to="/groups" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
                   <Users className="h-4 w-4 text-primary-ink" aria-hidden="true" />
                   {t('workspace.myGroups')}
                 </Link>
-                <Link to="/cuenta" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                <Link to="/account" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
                   <UserRound className="h-4 w-4 text-primary-ink" aria-hidden="true" />
                   {t('workspace.account')}
                 </Link>
@@ -507,7 +507,7 @@ export function GroupWorkspace({
                     <p role="alert" className="text-error-ink">
                       {error}
                     </p>
-                    <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
+                    <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/home">
                       {t('workspace.myGroups')}
                     </Link>
                   </div>
@@ -583,7 +583,7 @@ export function GroupWorkspace({
                     )
                   })}
                   <NavLink
-                    to={`/groups/${group.id}/ajustes`}
+                    to={`/groups/${group.id}/settings`}
                     className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
                   >
                     <Settings2 className="h-4 w-4 text-primary-ink" aria-hidden="true" />

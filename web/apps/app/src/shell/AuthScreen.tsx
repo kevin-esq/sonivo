@@ -670,7 +670,7 @@ function AuthScreen({
                 <p className="text-sm text-slate-600">
                   <Link
                     className="font-semibold text-shell-link no-underline hover:underline"
-                    to="/bienvenido"
+                    to="/"
                   >
                     {t("marketing.discover")}
                   </Link>

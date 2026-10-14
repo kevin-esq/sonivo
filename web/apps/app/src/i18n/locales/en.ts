@@ -1366,6 +1366,7 @@ export const en: Record<I18nKey, string> = {
   "marketing.navHow": "How it works",
   "marketing.navPlans": "Plans",
   "marketing.login": "Log in",
+  "marketing.goToApp": "Go to app",
   "marketing.register": "Create account",
   "marketing.themeToggle": "Toggle theme",
   "marketing.heroBadge": "Built for bands and worship teams",

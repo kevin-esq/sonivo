@@ -7,7 +7,7 @@ import { createGroup, register, uniqueEmail } from './helpers'
  * the rest (Miembros, Roles, Recursos, Listas, Calendario, Ajustes).
  */
 test.describe('W12 mobile navigation completeness', () => {
-  test('Miembros is reachable from the mobile "Más" sheet', async ({ page }) => {
+  test('the members page is reachable from the mobile "Más" sheet', async ({ page }) => {
     // Register/create at desktop width (the rail carries the role line the
     // helper asserts), then shrink to the phone width under test.
     const email = uniqueEmail('w12nav')

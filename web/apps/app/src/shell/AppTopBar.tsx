@@ -50,7 +50,7 @@ export function AppTopBar({
             <Bell className="h-5 w-5" aria-hidden="true" />
           </button>
           <Link
-            to="/cuenta"
+            to="/account"
             aria-label={t("app.userMenu")}
             data-testid="app-user-avatar"
             className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full bg-primary-strong text-xs font-bold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"

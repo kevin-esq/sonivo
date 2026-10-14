@@ -13,6 +13,7 @@ import { BrandLockup } from '../brand/SonivoMark'
 import { useT } from '../i18n'
 import { useTheme } from '../brand/theme'
 import { cn } from '../ui/cn'
+import type { CurrentUser } from '../api/client'
 
 const FEATURES = [
   { icon: Music2, title: 'marketing.featureLibraryTitle', body: 'marketing.featureLibraryBody' },
@@ -36,11 +37,15 @@ const PLANS = [
 ] as const
 
 /**
- * Public marketing landing (`/bienvenido`). Reachable without a session so it can
- * be shared/SEO-crawled; every CTA routes into the real product. Copy is fully
+ * Public marketing landing (`/`). Reachable without a session so it can be
+ * shared/SEO-crawled; every CTA routes into the real product. Copy is fully
  * localized through `t()` (es default, en, pt).
+ *
+ * When a session already exists the header swaps the sign-in/register pair for
+ * a single "go to app" entry, so a signed-in visitor reaches `/home` instead of
+ * being offered to sign in again.
  */
-export function MarketingPage() {
+export function MarketingPage({ user }: { user?: CurrentUser | null }) {
   const { t } = useT()
   const { theme, setTheme } = useTheme()
 
@@ -48,7 +53,7 @@ export function MarketingPage() {
     <div className="min-h-screen bg-canvas text-ink">
       <header className="sticky top-0 z-30 border-b border-border-subtle bg-canvas/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <BrandLockup to="/bienvenido" />
+          <BrandLockup to="/" />
           <nav className="hidden items-center gap-6 text-sm font-medium text-muted md:flex" aria-label={t('marketing.navLabel')}>
             <a href="#features" className="hover:text-ink">{t('marketing.navFeatures')}</a>
             <a href="#how" className="hover:text-ink">{t('marketing.navHow')}</a>
@@ -63,19 +68,31 @@ export function MarketingPage() {
             >
               <Sparkles className="h-4 w-4" aria-hidden="true" />
             </button>
-            <Link
-              to="/login"
-              className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-ink no-underline hover:bg-surface-hover sm:inline-flex"
-            >
-              {t('marketing.login')}
-            </Link>
-            <Link
-              to="/register"
-              className="inline-flex items-center gap-2 rounded-xl bg-primary-strong px-4 py-2 text-sm font-semibold text-primary-foreground no-underline shadow-sm hover:bg-primary-strong/90"
-            >
-              {t('marketing.register')}
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
+            {user ? (
+              <Link
+                to="/home"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary-strong px-4 py-2 text-sm font-semibold text-primary-foreground no-underline shadow-sm hover:bg-primary-strong/90"
+              >
+                {t('marketing.goToApp')}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-ink no-underline hover:bg-surface-hover sm:inline-flex"
+                >
+                  {t('marketing.login')}
+                </Link>
+                <Link
+                  to="/register"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary-strong px-4 py-2 text-sm font-semibold text-primary-foreground no-underline shadow-sm hover:bg-primary-strong/90"
+                >
+                  {t('marketing.register')}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>

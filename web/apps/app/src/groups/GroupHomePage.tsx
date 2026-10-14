@@ -214,7 +214,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <GroupErrorState message={error} />
-        <GroupLink variant="soft" to="/">
+        <GroupLink variant="soft" to="/home">
           {t('dashboard.myGroups')}
         </GroupLink>
       </div>

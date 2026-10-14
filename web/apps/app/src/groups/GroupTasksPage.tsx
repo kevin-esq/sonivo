@@ -241,7 +241,7 @@ export function GroupTasksPage() {
     return (
       <div className="space-y-3">
         <GroupErrorState message={error} />
-        <GroupLink variant="secondary" to="/">
+        <GroupLink variant="secondary" to="/home">
           {t('workspace.myGroups')}
         </GroupLink>
       </div>

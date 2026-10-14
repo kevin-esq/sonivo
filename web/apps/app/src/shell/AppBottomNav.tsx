@@ -19,7 +19,7 @@ export function AppBottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
       <ul className="grid grid-cols-4">
         <li className="flex">
           <NavLink
-            to="/"
+            to="/home"
             end
             className={({ isActive }) =>
               cn(itemClass, isActive ? "text-shell-foreground" : "text-shell-foreground/70")
@@ -31,7 +31,7 @@ export function AppBottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
         </li>
         <li className="flex">
           <NavLink
-            to="/calendario"
+            to="/calendar"
             className={({ isActive }) =>
               cn(itemClass, isActive ? "text-shell-foreground" : "text-shell-foreground/70")
             }

@@ -14,7 +14,7 @@ const themeOptions: Array<{ value: Theme; labelKey: I18nKey }> = [
   { value: 'dark', labelKey: 'account.themeDark' },
 ]
 
-/** `/cuenta/preferencias` — language + theme (ADR-0053; sidenav comes from AppShell). */
+/** `/account/preferences` — language + theme (ADR-0053; sidenav comes from AppShell). */
 export function CuentaPreferencesPage() {
   const { lang, setLang, t } = useLanguage()
   const { theme, setTheme } = useTheme()

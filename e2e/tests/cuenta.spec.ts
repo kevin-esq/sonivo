@@ -3,8 +3,8 @@ import { register, uniqueEmail } from './helpers'
 
 test.describe('Account page (ADR-0053 addendum)', () => {
   test('shows the profile sections and disabled placeholders', async ({ page }) => {
-    await register(page, uniqueEmail('cuenta'))
-    await page.goto('/cuenta')
+    await register(page, uniqueEmail('account'))
+    await page.goto('/account')
 
     await expect(page.getByRole('heading', { name: 'Mi cuenta' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Información personal' })).toBeVisible()
@@ -19,8 +19,8 @@ test.describe('Account page (ADR-0053 addendum)', () => {
   })
 
   test('edit profile persists the display name', async ({ page }) => {
-    await register(page, uniqueEmail('cuenta-edit'))
-    await page.goto('/cuenta')
+    await register(page, uniqueEmail('account-edit'))
+    await page.goto('/account')
 
     await page.getByTestId('profile-edit').click()
     const dialog = page.getByRole('dialog', { name: 'Editar perfil' })

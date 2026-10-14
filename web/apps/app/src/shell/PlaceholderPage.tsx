@@ -24,7 +24,7 @@ export function PlaceholderPage() {
       </h1>
       <p className="text-sm text-muted">{t("placeholder.body")}</p>
       <Link
-        to="/"
+        to="/home"
         className="inline-flex min-h-11 items-center rounded-xl bg-primary-strong px-4 text-sm font-semibold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         {t("placeholder.back")}

@@ -112,7 +112,7 @@ export function GroupsGrid({ groups }: { groups: GroupSummary[] | null }) {
           <p className="max-w-md text-sm text-muted">{t("groups.empty")}</p>
         </div>
         <Link
-          to="/grupos"
+          to="/groups"
           state={{ create: true }}
           className="inline-flex min-h-11 items-center rounded-xl bg-primary-strong px-4 text-sm font-semibold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >

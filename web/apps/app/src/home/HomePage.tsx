@@ -88,7 +88,7 @@ export function HomePage({ user }: { user: CurrentUser }) {
               {t("home.yourGroups")}
             </h2>
             <Link
-              to="/grupos"
+              to="/groups"
               data-testid="home-view-all"
               className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >

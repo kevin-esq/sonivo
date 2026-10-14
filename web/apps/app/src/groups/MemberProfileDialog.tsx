@@ -6,6 +6,7 @@ import {
   CheckSquare,
   KeyRound,
   Music2,
+  Pencil,
   ShieldCheck,
   Sparkles,
   UserRound,
@@ -15,9 +16,10 @@ import {
 import { listGroupAudit, type GroupAuditEntry, type MemberListItem } from '../api/client'
 import { useT, type I18nKey, type TParams } from '../i18n'
 import { cn } from '../ui/cn'
-import { auditActionMeta } from '../groups/auditActions'
-import { musicalRolesText, parseMusicalRoles } from '../groups/MusicalRoleChips'
+import { auditActionMeta } from './auditActions'
+import { musicalRolesText, parseMusicalRoles } from './MusicalRoleChips'
 import {
+  GroupActionMenu,
   GroupButton,
   GroupCard,
   GroupChip,
@@ -25,7 +27,8 @@ import {
   GroupEmptyState,
   GroupErrorState,
   GroupListSkeleton,
-} from '../groups/ui'
+  type GroupActionMenuItem,
+} from './ui'
 
 /* ------------------------------------------------------------------ */
 /* Model                                                               */
@@ -154,9 +157,14 @@ export type MemberProfileDialogProps = {
   groupId: string
   /** Owner may read the group audit log; that endpoint is Owner-only (ADR-0051). */
   canReadAudit: boolean
+  /** Owner or Manager may change the descriptive musical role. */
+  canEditInstrument: boolean
+  /** Actions available on this person (role, access, removal), built by the page. */
+  menuItems: GroupActionMenuItem[]
   /** Managed account behind this member, when the group provisions access. */
   managedAccount: { memberId: string; handle: string | null } | null
   onClose: () => void
+  onEditInstrument: () => void
   onResetAccess: () => void
 }
 
@@ -173,8 +181,11 @@ export function MemberProfileDialog({
   member,
   groupId,
   canReadAudit,
+  canEditInstrument,
+  menuItems,
   managedAccount,
   onClose,
+  onEditInstrument,
   onResetAccess,
 }: MemberProfileDialogProps) {
   const { t, lang } = useT()
@@ -222,6 +233,22 @@ export function MemberProfileDialog({
             ) : null}
           </div>
         </div>
+        {canEditInstrument || menuItems.length > 0 ? (
+          <div className="flex shrink-0 items-center gap-2">
+            {canEditInstrument ? (
+              <GroupButton variant="secondary" size="sm" onClick={onEditInstrument}>
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+                {t('people.editInstrument')}
+              </GroupButton>
+            ) : null}
+            {menuItems.length > 0 ? (
+              <GroupActionMenu
+                label={t('people.actionsFor', { name: member.displayName })}
+                items={menuItems}
+              />
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('people.profileTabsLabel')}>
@@ -405,7 +432,7 @@ function ActivityTab({
 
       <p className="text-xs text-muted">{t('people.profileActivitySoon')}</p>
       <Link
-        to={`/groups/${groupId}/ajustes?tab=audit`}
+        to={`/groups/${groupId}/settings?tab=audit`}
         className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <Activity className="h-4 w-4" aria-hidden="true" />

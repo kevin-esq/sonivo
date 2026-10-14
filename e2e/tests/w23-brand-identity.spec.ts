@@ -63,13 +63,13 @@ test.describe('W23 group brand identity', () => {
     await createGroup(page, name)
     const groupId = new URL(page.url()).pathname.split('/').filter(Boolean).pop()
 
-    await page.goto(`/groups/${groupId}/ajustes`)
+    await page.goto(`/groups/${groupId}/settings`)
     await expect(page.getByRole('heading', { name: 'Ajustes del grupo' })).toBeVisible()
     // The group settings centre no longer exposes a "Membresía" tab.
     await expect(page.getByRole('tab', { name: 'Membresía' })).toHaveCount(0)
 
     // Account settings own membership.
-    await page.goto('/cuenta/membresia')
+    await page.goto('/account/membership')
     await expect(page.getByRole('heading', { name: 'Membresía', level: 1 })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Membresías de grupo' })).toBeVisible()
     await expect(page.getByText(name, { exact: true })).toBeVisible()

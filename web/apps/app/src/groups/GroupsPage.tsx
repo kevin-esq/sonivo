@@ -1045,7 +1045,7 @@ export function GroupsPage({
           key: "settings",
           label: t("group.settings"),
           icon: Settings,
-          to: `${base}/ajustes`,
+          to: `${base}/settings`,
         },
         {
           key: "delete",

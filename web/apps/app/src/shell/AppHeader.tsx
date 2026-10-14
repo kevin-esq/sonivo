@@ -36,7 +36,7 @@ export function AppHeader({
       </a>
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <BrandLockup to="/" shell />
+          <BrandLockup to="/home" shell />
           {groupSlot}
           <p className="hidden text-sm text-shell-foreground/60 lg:block">
             {t('chrome.tagline')}
@@ -52,11 +52,11 @@ export function AppHeader({
               <span className="hidden max-w-[14rem] truncate text-shell-foreground/70 md:block">
                 {user.email}
               </span>
-              <Link to="/cuenta" className={cn(linkClass, 'hidden sm:inline')}>
+              <Link to="/account" className={cn(linkClass, 'hidden sm:inline')}>
                 {t('chrome.account')}
               </Link>
               <Link
-                to="/cuenta/seguridad"
+                to="/account/security"
                 className={cn(linkClass, 'hidden sm:inline')}
               >
                 {t('chrome.security')}

@@ -1303,6 +1303,7 @@ export const pt: Record<I18nKey, string> = {
   "marketing.navHow": "Como funciona",
   "marketing.navPlans": "Planos",
   "marketing.login": "Entrar",
+  "marketing.goToApp": "Ir para o app",
   "marketing.register": "Criar conta",
   "marketing.themeToggle": "Alternar tema",
   "marketing.heroBadge": "Feito para bandas e equipes de louvor",

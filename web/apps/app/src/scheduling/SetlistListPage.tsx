@@ -112,7 +112,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <GroupErrorState message={groupError} onRetry={() => void reloadGroup()} />
-        <GroupLink variant="soft" to="/">
+        <GroupLink variant="soft" to="/home">
           Mis grupos
         </GroupLink>
       </div>
@@ -187,7 +187,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       <GroupLimitNotice
         label={t('plan.labelSetlists')}
         metric={usage?.setlists}
-        upgradeHref={`/groups/${group.id}/ajustes?tab=plan`}
+        upgradeHref={`/groups/${group.id}/settings?tab=plan`}
       />
 
       {setlists === null ? (

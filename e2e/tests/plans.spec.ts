@@ -6,7 +6,7 @@ test.describe('Plans page (/plan)', () => {
     await register(page, uniqueEmail('plans'))
     await createGroup(page, `Plans Band ${Date.now()}`)
 
-    await page.goto('/plan')
+    await page.goto('/plans')
 
     await expect(page.getByRole('heading', { level: 1, name: 'Planes' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Planes disponibles' })).toBeVisible()

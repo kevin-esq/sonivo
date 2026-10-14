@@ -24,7 +24,7 @@ export function QuickActions() {
       titleKey: "home.quickCreate",
       hintKey: "home.quickCreateHint",
       tint: "bg-emerald-500/15 text-emerald-600",
-      onClick: () => navigate("/grupos", { state: { create: true } }),
+      onClick: () => navigate("/groups", { state: { create: true } }),
     },
     {
       id: "join",
@@ -32,7 +32,7 @@ export function QuickActions() {
       titleKey: "home.quickJoin",
       hintKey: "home.quickJoinHint",
       tint: "bg-primary/15 text-primary-ink",
-      onClick: () => navigate("/unirse"),
+      onClick: () => navigate("/join"),
     },
   ];
 

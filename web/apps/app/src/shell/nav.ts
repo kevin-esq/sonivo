@@ -28,7 +28,7 @@ export type GroupNavSection = {
 
 /**
  * Sectioned group workspace IA (ADR-0055 + owner addendum 2026-10-03).
- * Music = structured songs + setlists; Library/Archivos are not top-level
+ * Music = structured songs + setlists; Library/files are not top-level
  * sections — files live on their song/event/resource. Resources is a
  * cross-cutting top-level section.
  */
@@ -51,7 +51,7 @@ export const groupNavSections: GroupNavSection[] = [
     id: 'organization',
     labelKey: 'nav.sectionOrganization',
     items: [
-      { id: 'calendar', labelKey: 'nav.calendar', icon: CalendarDays, href: (id) => `/groups/${id}/calendario` },
+      { id: 'calendar', labelKey: 'nav.calendar', icon: CalendarDays, href: (id) => `/groups/${id}/calendar` },
       { id: 'events', labelKey: 'nav.events', icon: CalendarDays, href: (id) => `/groups/${id}/events` },
       { id: 'tasks', labelKey: 'nav.tasks', icon: CheckSquare, href: (id) => `/groups/${id}/tasks` },
     ],
@@ -67,7 +67,7 @@ export const groupNavSections: GroupNavSection[] = [
   {
     id: 'resources',
     items: [
-      { id: 'resources', labelKey: 'nav.resources', icon: Library, href: (id) => `/groups/${id}/recursos` },
+      { id: 'resources', labelKey: 'nav.resources', icon: Library, href: (id) => `/groups/${id}/resources` },
     ],
   },
 ]

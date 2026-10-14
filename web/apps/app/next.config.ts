@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
         { source: '/api/:path*', destination: `${apiOrigin}/api/:path*` },
         { source: '/hubs/:path*', destination: `${apiOrigin}/hubs/:path*` },
       ],
-      // Deep links (e.g. /grupos) resolve to the SPA shell in dev/CI.
+      // Deep links (e.g. /groups) resolve to the SPA shell in dev/CI.
       afterFiles: [{ source: '/:path*', destination: '/' }],
       fallback: [],
     }

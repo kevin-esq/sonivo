@@ -55,7 +55,7 @@ function toCalendarEvent(
 }
 
 /**
- * W-C — group calendar (`/groups/:id/calendario`). Reuses the calendar views
+ * W-C — group calendar (`/groups/:id/calendar`). Reuses the calendar views
  * but only ever loads the current group's events, so no cross-group leak is
  * possible. Non-members get a 404 from the API.
  */
@@ -178,7 +178,7 @@ export function GroupCalendarPage() {
     return (
       <div className="space-y-3">
         <GroupErrorState message={error} />
-        <GroupLink variant="soft" to="/grupos">
+        <GroupLink variant="soft" to="/groups">
           {t("workspace.myGroups")}
         </GroupLink>
       </div>

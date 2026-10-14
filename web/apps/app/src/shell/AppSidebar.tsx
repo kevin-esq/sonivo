@@ -99,14 +99,14 @@ function SidebarBody({
       >
         {collapsed ? (
           <NavLink
-            to="/"
+            to="/home"
             aria-label="Sonivo"
             className="grid min-h-11 min-w-11 place-items-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
           >
             <SonivoMark className="h-7 w-7 text-shell-link" />
           </NavLink>
         ) : (
-          <BrandLockup to="/" shell />
+          <BrandLockup to="/home" shell />
         )}
         {showClose ? (
           <button
@@ -181,7 +181,7 @@ function SidebarBody({
         )}
       >
         <NavLink
-          to="/cuenta"
+          to="/account"
           onClick={onNavigate}
           data-testid="nav-user-card"
           aria-label={collapsed ? name : undefined}

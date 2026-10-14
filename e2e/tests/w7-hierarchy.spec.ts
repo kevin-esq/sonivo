@@ -14,7 +14,7 @@ import {
 } from './helpers'
 
 test.describe('W7 hierarchy: one header per screen', () => {
-  test('no shell banner, deduped counts, plural, rename from Ajustes', async ({
+  test('no shell banner, deduped counts, plural, rename from Settings', async ({
     page,
   }) => {
     const email = uniqueEmail('w7-hierarchy')
@@ -77,7 +77,7 @@ test.describe('W7 hierarchy: one header per screen', () => {
     await expect(page.getByTestId('setlist-status-chip')).toContainText('1 arreglo')
     await expect(page.getByText('1 arreglos')).toHaveCount(0)
 
-    // 5. Rename from Ajustes del grupo flows into the persistent rail brand.
+    // 5. Renaming from Group settings flows into the persistent rail brand.
     await page.getByRole('link', { name: 'Ajustes del grupo' }).first().click()
     await expect(page.getByRole('heading', { name: 'Ajustes del grupo' })).toBeVisible()
     await page.getByTestId('group-name-input').fill(renamedGroup)

@@ -69,7 +69,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
       <GroupCard className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-display text-base font-semibold text-ink">{t('calendar.week')}</h2>
-          <GroupLink variant="ghost" size="sm" to={`/groups/${groupId}/calendario`}>
+          <GroupLink variant="ghost" size="sm" to={`/groups/${groupId}/calendar`}>
             {t('calendar.viewFull')}
           </GroupLink>
         </div>
@@ -80,7 +80,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
             return (
               <li key={dayKey(day)}>
                 <Link
-                  to={`/groups/${groupId}/calendario`}
+                  to={`/groups/${groupId}/calendar`}
                   aria-current={active ? 'date' : undefined}
                   className={cn(
                     'flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl border text-xs transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',

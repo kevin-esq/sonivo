@@ -10,7 +10,7 @@ import {
   uniqueEmail,
 } from './helpers'
 
-test.describe('W2 Listas immersive redesign', () => {
+test.describe('W2 setlists immersive redesign', () => {
   test('search filters the song list with an aria-live count', async ({ page }) => {
     const email = uniqueEmail('w2-search')
     const groupName = `W2 Search Band ${Date.now()}`

@@ -103,7 +103,7 @@ export function GroupRolesPage() {
           message={groupError}
           onRetry={() => void reload()}
         />
-        <GroupLink variant="soft" to="/grupos">
+        <GroupLink variant="soft" to="/groups">
           {t('workspace.myGroups')}
         </GroupLink>
       </div>

@@ -83,7 +83,7 @@ function formatDate(iso: string, lang: string): string {
 }
 
 /**
- * W-D — group material library (`/groups/:id/recursos`). Aggregates every Resource
+ * W-D — group material library (`/groups/:id/resources`). Aggregates every Resource
  * across the group's arrangements (ADR-0055). Upload requires an arrangement because
  * Resources stay on arrangements (ADR-0007/0014); Owner/Manager may upload.
  */
@@ -154,7 +154,7 @@ export function GroupResourcesPage() {
     return (
       <div className="space-y-3">
         <GroupErrorState message={error} />
-        <GroupLink variant="soft" to="/grupos">
+        <GroupLink variant="soft" to="/groups">
           {t('workspace.myGroups')}
         </GroupLink>
       </div>

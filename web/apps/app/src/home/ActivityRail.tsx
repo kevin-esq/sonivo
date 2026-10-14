@@ -37,7 +37,7 @@ export function ActivityRail({ items }: { items: UpcomingActivity[] | null }) {
           {t("home.activity")}
         </h2>
         <Link
-          to="/calendario"
+          to="/calendar"
           data-testid="home-view-calendar"
           className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >

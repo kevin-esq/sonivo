@@ -7,7 +7,7 @@ import { Button } from "../ui/button";
 import { fieldClass } from "../ui/field";
 import { parseInviteToken } from "./inviteToken";
 
-/** `/unirse` — join a group from an invitation link or code (ADR-0053). */
+/** `/join` — join a group from an invitation link or code (ADR-0053). */
 export function JoinGroupPage() {
   const { t } = useT();
   const navigate = useNavigate();

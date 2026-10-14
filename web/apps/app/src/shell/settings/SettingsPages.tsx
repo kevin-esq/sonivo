@@ -121,7 +121,7 @@ export function SettingsProfilePage() {
               icon={Languages}
               title={t('account.language')}
               subtitle={languageLabel}
-              to="/cuenta/preferencias"
+              to="/account/preferences"
             />
             <AccountRow icon={Clock} title={t('profile.timezone')} subtitle={timeZone} disabled />
           </AccountCard>
@@ -157,13 +157,13 @@ export function SettingsProfilePage() {
               icon={KeyRound}
               title={t('security.passwordLabel')}
               subtitle={t('profile.passwordHint')}
-              to="/cuenta/seguridad"
+              to="/account/security"
             />
             <AccountRow
               icon={ShieldCheck}
               title={t('profile.twoFactor')}
               subtitle={status?.enabled ? t('profile.twoFactorOn') : t('profile.twoFactorOff')}
-              to="/cuenta/seguridad"
+              to="/account/security"
             />
             <AccountRow icon={MonitorSmartphone} title={t('profile.sessions')} subtitle={t('app.comingSoon')} disabled />
           </AccountCard>
@@ -179,13 +179,13 @@ export function SettingsProfilePage() {
                 icon={Palette}
                 title={t('profile.appearance')}
                 subtitle={themeLabel}
-                to="/cuenta/preferencias"
+                to="/account/preferences"
               />
               <AccountRow
                 icon={Languages}
                 title={t('account.language')}
                 subtitle={languageLabel}
-                to="/cuenta/preferencias"
+                to="/account/preferences"
               />
             </AccountCard>
           </div>
@@ -366,7 +366,7 @@ export function SettingsTeamPage() {
 }
 
 /**
- * `/cuenta/membresia` — account-level membership. Billing/subscription is not a
+ * `/account/membership` — account-level membership. Billing/subscription is not a
  * group-owned concern (ADR-0055) and the group centre no longer hosts a
  * "Membership" tab; this page owns the plan summary and the user's group
  * memberships. No real billing UI yet (ADR firewall: no billing).

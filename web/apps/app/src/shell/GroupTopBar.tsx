@@ -187,17 +187,17 @@ export function GroupTopBar({
           className="absolute right-0 top-full z-50 mt-1 w-56 space-y-0.5 rounded-xl border border-border-subtle bg-surface p-1 text-ink shadow-lg"
         >
           <p className="px-3 py-2 text-xs text-muted">{formatMembershipRole(role, t)}</p>
-          <Link to="/grupos" className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+          <Link to="/groups" className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
             {t('workspace.myGroups')}
           </Link>
           <Link
-            to="/cuenta/notificaciones"
+            to="/account/notifications"
             className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
           >
             <Bell className="h-4 w-4" aria-hidden="true" />
             {t('notifications.accountTitle')}
           </Link>
-          <Link to="/cuenta" className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+          <Link to="/account" className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
             {t('workspace.account')}
           </Link>
           <button

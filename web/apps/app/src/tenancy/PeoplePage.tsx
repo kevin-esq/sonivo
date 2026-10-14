@@ -525,22 +525,37 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     setSearchQuery('')
   }
 
-  function menuItemsFor(member: MemberListItem): GroupActionMenuItem[] {
-    const items: GroupActionMenuItem[] = [
+  /**
+   * Row menu: "Ver perfil" plus everything the caller may do to this person.
+   * `closeProfile` keeps the profile dialog from stacking on top of the action
+   * dialog it opens.
+   */
+  function menuItemsFor(member: MemberListItem, closeProfile = false): GroupActionMenuItem[] {
+    return [
       {
         key: 'profile',
         label: t('people.viewProfile'),
         icon: UserRound,
         onSelect: () => setProfileMember(member),
       },
+      ...memberActionItems(member, closeProfile),
     ]
+  }
+
+  function memberActionItems(member: MemberListItem, closeProfile: boolean): GroupActionMenuItem[] {
+    const close = () => {
+      if (closeProfile) setProfileMember(null)
+    }
+    const items: GroupActionMenuItem[] = []
     if (isOwner && !isSelfMember(member, user.id)) {
       items.push({
         key: 'role',
         label: t('people.changeRole'),
         icon: ShieldCheck,
-        separatorBefore: true,
-        onSelect: () => setRoleMember(member),
+        onSelect: () => {
+          close()
+          setRoleMember(member)
+        },
       })
     }
     if (canManage) {
@@ -548,8 +563,10 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         key: 'instrument',
         label: t('people.editInstrument'),
         icon: Pencil,
-        separatorBefore: items.length > 1,
-        onSelect: () => setInstrumentMember(member),
+        onSelect: () => {
+          close()
+          setInstrumentMember(member)
+        },
       })
     }
     if (isOwner && !isSelfMember(member, user.id) && (groupRoles?.length ?? 0) > 0) {
@@ -557,8 +574,10 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         key: 'groupRole',
         label: t('groupRole.assign'),
         icon: ShieldCheck,
-        separatorBefore: items.length > 1,
-        onSelect: () => setGroupRoleMember(member),
+        onSelect: () => {
+          close()
+          setGroupRoleMember(member)
+        },
       })
     }
     if (isOwner && !isSelfMember(member, user.id) && rosterByUser[member.userId]) {
@@ -566,10 +585,10 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         key: 'access',
         label: t('roster.reset'),
         icon: KeyRound,
-        separatorBefore: true,
         onSelect: () => {
           const account = rosterByUser[member.userId]
           if (!account) return
+          close()
           setResetMember({ memberId: account.memberId, displayName: member.displayName })
           setRosterOpen(true)
         },
@@ -581,11 +600,13 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         label: t('people.removeMember'),
         icon: Trash2,
         danger: true,
-        separatorBefore: true,
-        onSelect: () => setRemoveTarget(member),
+        onSelect: () => {
+          close()
+          setRemoveTarget(member)
+        },
       })
     }
-    return items
+    return items.map((item, index) => ({ ...item, separatorBefore: index > 0 }))
   }
 
   if (group === undefined) {
@@ -596,7 +617,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <GroupErrorState message={groupError} />
-        <GroupLink variant="secondary" to="/">
+        <GroupLink variant="secondary" to="/home">
           {t('people.myGroups')}
         </GroupLink>
       </div>
@@ -954,6 +975,8 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
           member={profileMember}
           groupId={group.id}
           canReadAudit={isOwner}
+          canEditInstrument={canManage}
+          menuItems={memberActionItems(profileMember, true)}
           managedAccount={
             rosterByUser[profileMember.userId]
               ? {
@@ -963,6 +986,10 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
               : null
           }
           onClose={() => setProfileMember(null)}
+          onEditInstrument={() => {
+            setProfileMember(null)
+            setInstrumentMember(profileMember)
+          }}
           onResetAccess={() => {
             const account = rosterByUser[profileMember.userId]
             if (!account) return

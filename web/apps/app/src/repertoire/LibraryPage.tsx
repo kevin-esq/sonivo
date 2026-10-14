@@ -147,7 +147,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <GroupErrorState message={groupError} onRetry={() => void reloadGroup()} />
-        <GroupLink variant="soft" to="/">
+        <GroupLink variant="soft" to="/home">
           {t('songs.myGroups')}
         </GroupLink>
       </div>
@@ -248,7 +248,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
       <GroupLimitNotice
         label={t('plan.labelSongs')}
         metric={usage?.songs}
-        upgradeHref={`/groups/${group.id}/ajustes?tab=plan`}
+        upgradeHref={`/groups/${group.id}/settings?tab=plan`}
       />
 
       {songs === null || filtered === null ? (

@@ -15,6 +15,7 @@ import {
   Route,
   Routes,
   useLocation,
+  useParams,
 } from "react-router-dom";
 import { Compass, TriangleAlert, WifiOff, type LucideIcon } from "lucide-react";
 import {
@@ -344,6 +345,26 @@ function NotFoundPage() {
   );
 }
 
+/**
+ * Redirects a pre-rename group sub-path (Spanish `settings`/`calendario`/
+ * `resources`/`archivos`) to its English replacement, keeping the group id, any
+ * deeper sub-path and the query string intact so old links land in the right
+ * place instead of on the 404 page.
+ */
+function LegacyGroupPath({ to }: { to: string }) {
+  const { groupId } = useParams();
+  const { pathname, search, hash } = useLocation();
+  const groupPrefix = `/groups/${groupId}`;
+  const rest = pathname.startsWith(`${groupPrefix}/`)
+    ? pathname.slice(groupPrefix.length + 1)
+    : "";
+  const segments = rest.split("/").filter(Boolean);
+  // Drop the legacy segment itself; keep anything after it.
+  const kept = segments.slice(1).join("/");
+  const target = [groupPrefix, to, kept].filter(Boolean).join("/");
+  return <Navigate to={`${target}${search}${hash}`} replace />;
+}
+
 // ---------- Route layouts ----------
 function RequireAuth({
   session,
@@ -577,29 +598,29 @@ export default function App() {
                 }
               >
                 <Route element={<AppLayout />}>
-                  <Route path="/" element={<HomePageR />} />
-                  <Route path="/grupos" element={<GroupsPageWithActions />} />
-                  <Route path="/unirse" element={<JoinGroupPage />} />
-                  <Route path="/calendario" element={<CalendarPage />} />
-                  <Route path="/plan" element={<PlansPage />} />
-                  <Route path="/ayuda" element={<PlaceholderPage />} />
-                  <Route path="/cuenta" element={<SettingsProfilePage />} />
+                  <Route path="/home" element={<HomePageR />} />
+                  <Route path="/groups" element={<GroupsPageWithActions />} />
+                  <Route path="/join" element={<JoinGroupPage />} />
+                  <Route path="/calendar" element={<CalendarPage />} />
+                  <Route path="/plans" element={<PlansPage />} />
+                  <Route path="/help" element={<PlaceholderPage />} />
+                  <Route path="/account" element={<SettingsProfilePage />} />
                   <Route
-                    path="/cuenta/preferencias"
+                    path="/account/preferences"
                     element={<CuentaPreferencesPage />}
                   />
-                  <Route path="/cuenta/seguridad" element={<SecurityPage />} />
+                  <Route path="/account/security" element={<SecurityPage />} />
                   <Route
-                    path="/cuenta/membresia"
+                    path="/account/membership"
                     element={<SettingsMembershipPage />}
                   />
                   <Route
-                    path="/cuenta/notificaciones"
+                    path="/account/notifications"
                     element={<AccountNotificationsPage />}
                   />
                   <Route
-                    path="/cuenta/grupos"
-                    element={<Navigate to="/grupos" replace />}
+                    path="/account/groups"
+                    element={<Navigate to="/groups" replace />}
                   />
                 </Route>
 
@@ -617,11 +638,10 @@ export default function App() {
                     element={<EventDetailPageR />}
                   />
                   <Route path="people" element={<PeoplePageR />} />
-                  <Route path="calendario" element={<GroupCalendarPage />} />
+                  <Route path="calendar" element={<GroupCalendarPage />} />
                   <Route path="tasks" element={<GroupTasksPage />} />
                   <Route path="roles" element={<GroupRolesPage />} />
-                  <Route path="recursos" element={<GroupResourcesPage />} />
-                  <Route path="archivos" element={<Navigate to="recursos" replace />} />
+                  <Route path="resources" element={<GroupResourcesPage />} />
                   <Route path="songs/:songId" element={<SongDetailPageR />} />
                   <Route
                     path="arrangements/:arrangementId"
@@ -631,7 +651,7 @@ export default function App() {
                     path="arrangements/:arrangementId/practice"
                     element={<PracticePageR />}
                   />
-                  <Route path="ajustes" element={<GroupSettingsPageR />} />
+                  <Route path="settings" element={<GroupSettingsPageR />} />
                 </Route>
 
                 {/* Path tenancy (ADR-0045 D1): /g/{slug} resolves and forwards to the
@@ -641,7 +661,7 @@ export default function App() {
               </Route>
 
               {/* Public routes */}
-              <Route path="/bienvenido" element={<MarketingPage />} />
+              <Route path="/" element={<MarketingPage user={user} />} />
               <Route
                 path="/join/:token"
                 element={
@@ -683,27 +703,35 @@ export default function App() {
                   code for a host-only cookie on `{slug}.sonivo.lat`. */}
               <Route path="/session/handoff" element={<HandoffPage />} />
 
-              {/* Legacy redirects */}
-              <Route
-                path="/security"
-                element={<Navigate to="/cuenta/seguridad" replace />}
-              />
-              <Route
-                path="/settings"
-                element={<Navigate to="/cuenta" replace />}
-              />
-              <Route
-                path="/settings/profile"
-                element={<Navigate to="/cuenta" replace />}
-              />
-              <Route
-                path="/settings/security"
-                element={<Navigate to="/cuenta/seguridad" replace />}
-              />
-              <Route
-                path="/settings/team"
-                element={<Navigate to="/cuenta/grupos" replace />}
-              />
+              {/* Legacy redirects: earlier English paths and the pre-rename
+                  Spanish paths. Both keep old links, bookmarks and shared
+                  invitations working instead of falling through to the 404.
+                  NOTE: the `path` must stay the OLD segment — rewriting it to
+                  the new path turns the entry into a self-redirect no-op. */}
+              <Route path="/security" element={<Navigate to="/account/security" replace />} />
+              <Route path="/settings" element={<Navigate to="/account" replace />} />
+              <Route path="/settings/profile" element={<Navigate to="/account" replace />} />
+              <Route path="/settings/security" element={<Navigate to="/account/security" replace />} />
+              <Route path="/settings/team" element={<Navigate to="/account/groups" replace />} />
+              <Route path="/bienvenido" element={<Navigate to="/" replace />} />
+              <Route path="/grupos" element={<Navigate to="/groups" replace />} />
+              <Route path="/unirse" element={<Navigate to="/join" replace />} />
+              <Route path="/calendario" element={<Navigate to="/calendar" replace />} />
+              <Route path="/plan" element={<Navigate to="/plans" replace />} />
+              <Route path="/ayuda" element={<Navigate to="/help" replace />} />
+              <Route path="/cuenta" element={<Navigate to="/account" replace />} />
+              <Route path="/cuenta/preferencias" element={<Navigate to="/account/preferences" replace />} />
+              <Route path="/cuenta/seguridad" element={<Navigate to="/account/security" replace />} />
+              <Route path="/cuenta/membresia" element={<Navigate to="/account/membership" replace />} />
+              <Route path="/cuenta/notificaciones" element={<Navigate to="/account/notifications" replace />} />
+              <Route path="/cuenta/grupos" element={<Navigate to="/account/groups" replace />} />
+
+              {/* Group-scoped legacy paths, resolved relative to a group so the
+                  group id and any sub-path are preserved. */}
+              <Route path="/groups/:groupId/ajustes" element={<LegacyGroupPath to="settings" />} />
+              <Route path="/groups/:groupId/calendario" element={<LegacyGroupPath to="calendar" />} />
+              <Route path="/groups/:groupId/recursos" element={<LegacyGroupPath to="resources" />} />
+              <Route path="/groups/:groupId/archivos" element={<LegacyGroupPath to="resources" />} />
 
               <Route path="*" element={<NotFoundPage />} />
             </Routes>

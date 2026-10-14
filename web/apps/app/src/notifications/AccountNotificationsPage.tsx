@@ -2,7 +2,7 @@ import { useT } from '../i18n'
 import { NotificationInbox } from './NotificationInbox'
 
 /**
- * `/cuenta/notificaciones` — the account inbox (security/credentials). Distinct
+ * `/account/notifications` — the account inbox (security/credentials). Distinct
  * from the group inbox shown in the group bell.
  */
 export function AccountNotificationsPage() {

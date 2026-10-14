@@ -190,7 +190,7 @@ function draftFromBranding(branding: GroupBranding): BrandDraft {
 
 type SettingsTab = 'general' | 'branding' | 'plan' | 'permissions' | 'notifications' | 'integrations' | 'audit' | 'danger'
 
-// Membership/billing is account-level (see /cuenta/membresia), not group-owned;
+// Membership/billing is account-level (see /account/membership), not group-owned;
 // the group centre only exposes group-scoped settings.
 const SETTINGS_TABS: { id: SettingsTab; labelKey: I18nKey }[] = [
   { id: 'general', labelKey: 'settings.tabGeneral' },
@@ -575,7 +575,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         <p role="alert" className="text-error-ink">
           {error}
         </p>
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/home">
           {t('workspace.myGroups')}
         </Link>
       </div>
@@ -754,7 +754,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <p className="text-sm font-semibold text-ink">{t('settings.planLockedTitle')}</p>
               <p className="text-sm text-muted">{t('settings.planLockedBody')}</p>
               <Link
-                to="/cuenta/membresia"
+                to="/account/membership"
                 className="inline-block text-sm font-semibold text-primary-ink no-underline hover:underline"
               >
                 {t('settings.planUpgrade')}
@@ -1529,7 +1529,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 ))}
               </div>
               <Link
-                to="/cuenta/membresia"
+                to="/account/membership"
                 className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
               >
                 {t('settings.changePlan')}

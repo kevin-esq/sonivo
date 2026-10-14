@@ -1374,6 +1374,7 @@ export const es = {
   "marketing.navHow": "Cómo funciona",
   "marketing.navPlans": "Planes",
   "marketing.login": "Iniciar sesión",
+  "marketing.goToApp": "Ir a la app",
   "marketing.register": "Crear cuenta",
   "marketing.themeToggle": "Cambiar tema",
   "marketing.heroBadge": "Hecho para bandas y equipos de alabanza",
