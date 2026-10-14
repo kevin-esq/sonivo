@@ -30,6 +30,12 @@ public sealed class Membership
     /// <summary>Optional musical role (e.g. "voz", "bajo"): descriptive, never authorizes.</summary>
     public string? MusicalRole { get; private set; }
 
+    /// <summary>
+    /// Optional group-defined role (ADR-0078). Adds its permission set on top of
+    /// the base <see cref="Role"/>; null when the member only carries the base role.
+    /// </summary>
+    public Guid? GroupRoleId { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public Group? Group { get; private set; }
@@ -142,6 +148,12 @@ public sealed class Membership
         }
 
         MusicalRole = trimmed;
+    }
+
+    /// <summary>Assigns (or clears, with null) the group-defined role (ADR-0078).</summary>
+    public void AssignGroupRole(Guid? groupRoleId)
+    {
+        GroupRoleId = groupRoleId is { } id && id == Guid.Empty ? null : groupRoleId;
     }
 
     private static Membership Create(

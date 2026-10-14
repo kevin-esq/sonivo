@@ -40,7 +40,11 @@ export async function register(page: Page, email: string, password = testPasswor
   await page.getByRole('button', { name: 'Registrarse' }).click()
   // T-AU-01: register proves nothing by itself — confirm the mailbox
   // out-of-band, then sign in with the same credentials.
-  await expect(page.getByText('Te enviamos un enlace de confirmación')).toBeVisible()
+  // The API can be briefly unavailable while CI boots (or when it restarts
+  // mid-run), so the confirmation render is retried instead of failing.
+  await expect(page.getByText('Te enviamos un enlace de confirmación')).toBeVisible({
+    timeout: 30_000,
+  })
   await testConfirmUser(page, email)
   await page.goto('/login')
   await page.getByLabel('Correo electrónico').fill(email)

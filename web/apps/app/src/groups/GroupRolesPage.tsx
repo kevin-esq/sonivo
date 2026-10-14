@@ -4,6 +4,7 @@ import { ShieldCheck } from 'lucide-react'
 import { listMembers, type MemberListItem } from '../api/client'
 import { useT } from '../i18n'
 import { useGroupContext, mutationErrorMessage } from '../repertoire/ui'
+import { GroupRolesManager } from './GroupRolesManager'
 import { cn } from '../ui/cn'
 import {
   GroupButton,
@@ -130,6 +131,10 @@ export function GroupRolesPage() {
       />
 
       <GroupErrorState message={error} />
+
+      {group.role === 'Owner' ? (
+        <GroupRolesManager groupId={group.id} />
+      ) : null}
 
       <div className="space-y-4">
         {ROLES.map((role) => (

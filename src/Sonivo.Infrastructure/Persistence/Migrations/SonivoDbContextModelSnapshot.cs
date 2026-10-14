@@ -921,6 +921,48 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.ToTable("GroupBranding", (string)null);
                 });
 
+            modelBuilder.Entity("Sonivo.Domain.Tenancy.GroupRole", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsSystem")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("Permissions")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("GroupId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("GroupRoles", (string)null);
+                });
+
             modelBuilder.Entity("Sonivo.Domain.Tenancy.GroupSlugHistory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1007,6 +1049,9 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("GroupId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("GroupRoleId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Handle")
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
@@ -1025,6 +1070,8 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("GroupId");
+
+                    b.HasIndex("GroupRoleId");
 
                     b.HasIndex("UserId");
 
@@ -1324,6 +1371,15 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Sonivo.Domain.Tenancy.GroupRole", b =>
+                {
+                    b.HasOne("Sonivo.Domain.Tenancy.Group", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Sonivo.Domain.Tenancy.GroupSlugHistory", b =>
                 {
                     b.HasOne("Sonivo.Domain.Tenancy.Group", null)
@@ -1360,6 +1416,11 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .HasForeignKey("GroupId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Sonivo.Domain.Tenancy.GroupRole", null)
+                        .WithMany()
+                        .HasForeignKey("GroupRoleId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Sonivo.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()

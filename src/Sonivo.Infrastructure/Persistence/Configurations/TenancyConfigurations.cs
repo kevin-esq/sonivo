@@ -54,6 +54,11 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
         builder.Property(x => x.MusicalRole).HasMaxLength(Membership.MusicalRoleMaxLength);
         builder.HasIndex(x => new { x.UserId, x.GroupId }).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
         builder.HasIndex(x => new { x.GroupId, x.Handle }).IsUnique().HasFilter("\"Handle\" IS NOT NULL");
+        builder.Property(x => x.GroupRoleId);
+        builder.HasOne<GroupRole>()
+            .WithMany()
+            .HasForeignKey(x => x.GroupRoleId)
+            .OnDelete(DeleteBehavior.SetNull);
         builder.HasIndex(x => x.GroupId);
         builder.HasIndex(x => x.UserId);
         builder.HasOne<ApplicationUser>()
@@ -82,6 +87,24 @@ public sealed class GroupAuditEntryConfiguration : IEntityTypeConfiguration<Grou
             .WithMany()
             .HasForeignKey(x => x.GroupId)
             .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class GroupRoleConfiguration : IEntityTypeConfiguration<GroupRole>
+{
+    public void Configure(EntityTypeBuilder<GroupRole> builder)
+    {
+        builder.ToTable("GroupRoles");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Name).IsRequired().HasMaxLength(60);
+        builder.Property(x => x.Description).HasMaxLength(200);
+        builder.Property(x => x.Permissions).IsRequired().HasMaxLength(500);
+        builder.HasIndex(x => new { x.GroupId, x.Name }).IsUnique();
+        builder.HasIndex(x => x.GroupId);
+        builder.HasOne<Group>()
+            .WithMany()
+            .HasForeignKey(x => x.GroupId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
 
