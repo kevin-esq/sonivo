@@ -96,9 +96,15 @@ test.describe('Invite journeys', () => {
     const inviteUrl = await inviteMemberAndReadLink(page)
 
     await openPeople(page)
+    // Invitations now live in their own tab on the Members page.
+    await page.getByRole('tab', { name: 'Invitaciones' }).click()
     await expect(page.getByRole('heading', { name: 'Invitaciones pendientes' })).toBeVisible()
     await expect(page.getByText('No hay invitaciones pendientes.')).toHaveCount(0)
-    await page.getByRole('button', { name: /Revocar/ }).click()
+    // Revoking asks for confirmation in a dialog first.
+    await page.getByRole('button', { name: 'Cancelar invitación' }).click()
+    const confirm = page.getByRole('dialog', { name: 'Cancelar invitación' })
+    await expect(confirm).toBeVisible()
+    await confirm.getByRole('button', { name: 'Cancelar invitación' }).click()
     await expect(page.getByText('No hay invitaciones pendientes.')).toBeVisible()
 
     await logout(page)
