@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { UserPlus, UserRound, Users } from 'lucide-react'
+import { KeyRound, UserPlus, UserRound, Users } from 'lucide-react'
 import {
   changeMemberRole,
   createInvitation,
+  fetchFeatures,
   leaveGroup,
+  listRoster,
   listInvitations,
   listMembers,
   removeMember,
@@ -24,6 +26,8 @@ import {
   useGroupContext,
 } from '../repertoire/ui'
 import { cn } from '../ui/cn'
+import { GroupRosterDialog } from '../groups/GroupRosterDialog'
+import { MusicalRolePicker, musicalRolesText } from '../groups/MusicalRoleChips'
 import {
   GroupButton,
   GroupCard,
@@ -88,12 +92,31 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [revokingId, setRevokingId] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
   const [inviteFlowError, setInviteFlowError] = useState<string | null>(null)
   const [inviteWarning, setInviteWarning] = useState(false)
   const [inviting, setInviting] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [rosterOpen, setRosterOpen] = useState(false)
+  const [resetMember, setResetMember] = useState<{ memberId: string; displayName: string } | null>(null)
+  const [rosterByUser, setRosterByUser] = useState<Record<string, string>>({})
+  const [managedEnabled, setManagedEnabled] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchFeatures()
+      .then((flags) => {
+        if (!cancelled) setManagedEnabled(flags.managedAccounts)
+      })
+      .catch(() => {
+        if (!cancelled) setManagedEnabled(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
   const { t } = useT()
 
   const isOwner = isOwnerRole(group?.role)
@@ -112,6 +135,28 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
 
   // Live refresh when members change elsewhere (invite, role change, leave).
   useGroupDataSignal('members', groupId, reloadMembers)
+
+  // Managed-account map (Owners only): userId -> roster memberId, so a managed
+  // member row can regenerate access. 404 when the feature is off -> empty map.
+  useEffect(() => {
+    if (!groupId || !managedEnabled || !isOwnerRole(group?.role)) return
+    let cancelled = false
+    void listRoster(groupId)
+      .then((items) => {
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        for (const item of items) {
+          if (item.userId && item.hasAccess) map[item.userId] = item.memberId
+        }
+        setRosterByUser(map)
+      })
+      .catch(() => {
+        if (!cancelled) setRosterByUser({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [groupId, group?.role, managedEnabled])
 
   useEffect(() => {
     if (!groupId || !group) return
@@ -302,9 +347,9 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
       >
         <div className="flex flex-wrap items-center gap-2">
           {isOwner ? (
-            <GroupButton onClick={openInviteDialog} className="whitespace-nowrap">
+            <GroupButton onClick={() => setAddOpen(true)} className="whitespace-nowrap">
               <UserPlus className="h-4 w-4" aria-hidden="true" />
-              {t('dashboard.invite')}
+              {t('addMember.button')}
             </GroupButton>
           ) : null}
           <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('people.title')}>
@@ -388,7 +433,7 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                       </p>
                       <p className="text-sm text-muted">
                         {formatRole(member.role, t)}
-                        {member.musicalRole ? ` · ${member.musicalRole}` : ''}
+                        {member.musicalRole ? ` · ${musicalRolesText(member.musicalRole, t)}` : ''}
                       </p>
                       {member.email ? (
                         <p className="truncate text-sm text-muted">{member.email}</p>
@@ -426,23 +471,28 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
                           />
                         </div>
                       ) : null}
-                      <div className="min-w-48 flex-1">
-                        <GroupInput
-                          label={t('people.musicalRoleLabel')}
-                          type="text"
-                          maxLength={64}
-                          defaultValue={member.musicalRole ?? ''}
-                          placeholder={t('people.musicalRolePlaceholder')}
-                          aria-label={`${t('people.musicalRoleOfPrefix')}${member.displayName}`}
+                      <div className="w-full basis-full">
+                        <MusicalRolePicker
+                          value={member.musicalRole}
                           disabled={busy}
-                          onBlur={(event) => {
-                            const next = event.target.value
-                            if ((member.musicalRole ?? '') !== next) {
-                              void onSetMusicalRole(member.userId, next)
-                            }
-                          }}
+                          onChange={(next) => void onSetMusicalRole(member.userId, next)}
                         />
                       </div>
+                      {isOwner && !isSelf && rosterByUser[member.userId] ? (
+                        <GroupButton
+                          variant="secondary"
+                          disabled={busy}
+                          onClick={() => {
+                            setResetMember({
+                              memberId: rosterByUser[member.userId]!,
+                              displayName: member.displayName,
+                            })
+                            setRosterOpen(true)
+                          }}
+                        >
+                          {t('roster.reset')}
+                        </GroupButton>
+                      ) : null}
                       {isOwner && !isSelf ? (
                         <GroupButton
                           variant="danger"
@@ -498,6 +548,54 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
           {leaving ? t('people.leaving') : t('people.leave')}
         </GroupButton>
       )}
+
+      {isOwner && addOpen ? (
+        <GroupDialog
+          open
+          onClose={() => setAddOpen(false)}
+          title={t('addMember.title')}
+          description={t('addMember.hint')}
+          testId="add-member-dialog"
+        >
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => {
+                setAddOpen(false)
+                openInviteDialog()
+              }}
+              className="flex w-full items-start gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 text-left transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+            >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink" aria-hidden="true">
+                <UserPlus className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-ink">{t('addMember.withAccount')}</span>
+                <span className="block text-xs text-muted">{t('addMember.withAccountHint')}</span>
+              </span>
+            </button>
+            {managedEnabled ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setAddOpen(false)
+                  setResetMember(null)
+                  setRosterOpen(true)
+                }}
+                className="flex w-full items-start gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 text-left transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink" aria-hidden="true">
+                  <KeyRound className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-ink">{t('addMember.withoutAccount')}</span>
+                  <span className="block text-xs text-muted">{t('addMember.withoutAccountHint')}</span>
+                </span>
+              </button>
+            ) : null}
+          </div>
+        </GroupDialog>
+      ) : null}
 
       {isOwner ? (
         <GroupDialog
@@ -556,6 +654,19 @@ export function PeoplePage({ user, roleFilter }: { user: CurrentUser; roleFilter
             </div>
           ) : null}
         </GroupDialog>
+      ) : null}
+
+      {rosterOpen ? (
+        <GroupRosterDialog
+          groupId={group.id}
+          groupSlug={group.slug ?? null}
+          resetMember={resetMember}
+          onClose={() => {
+            setRosterOpen(false)
+            setResetMember(null)
+          }}
+          onChanged={() => void reloadMembers()}
+        />
       ) : null}
     </section>
   )

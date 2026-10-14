@@ -70,7 +70,7 @@ public static class ManagedAccountProvisioner
             if (await users.FindByEmailAsync(emailAddress) is not null)
             {
                 // Anti-pre-hijacking: never take over an existing account.
-                throw new ConflictException("Ese correo ya tiene una cuenta.");
+                throw new ConflictException("That email already has an account.");
             }
 
             var account = new ApplicationUser
@@ -138,12 +138,12 @@ public static class ManagedAccountProvisioner
             if (!MembershipHandles.IsValid(requested))
             {
                 throw new ValidationException(
-                    $"El identificador debe coincidir con [a-z0-9._-]{{{MembershipHandles.MinLength},{MembershipHandles.MaxLength}}}.");
+                    $"The handle must match [a-z0-9._-]{{{MembershipHandles.MinLength},{MembershipHandles.MaxLength}}}.");
             }
 
             if (await memberships.HandleExistsAsync(groupId, requested, cancellationToken))
             {
-                throw new ConflictException("Ese identificador ya está en uso en este grupo.");
+                throw new ConflictException("That handle is already used in this group.");
             }
 
             return requested;
@@ -156,7 +156,7 @@ public static class ManagedAccountProvisioner
         {
             if (suffix > 500)
             {
-                throw new ConflictException("No se pudo asignar un identificador único.");
+                throw new ConflictException("Could not assign a unique handle.");
             }
 
             candidate = MembershipHandles.WithSuffix(derived, suffix++);

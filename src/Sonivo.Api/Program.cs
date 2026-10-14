@@ -3337,6 +3337,12 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/musical-role"
 // ADR-0051: per-group audit log (ids + short action metadata). Owner only.
 app.MapGet("/api/groups/{groupId:guid}/audit", async (
     Guid groupId,
+    string? action,
+    Guid? actorUserId,
+    DateTimeOffset? from,
+    DateTimeOffset? to,
+    int? skip,
+    int? take,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     GroupAccessService access,
@@ -3350,9 +3356,11 @@ app.MapGet("/api/groups/{groupId:guid}/audit", async (
     }
 
     await access.RequireOwnerAsync(groupId, userId.Value, cancellationToken);
-    var entries = await audit.ListByGroupAsync(groupId, 200, cancellationToken);
+    var (entries, total) = await audit.QueryByGroupAsync(
+        groupId, action, actorUserId, from, to, skip ?? 0, take ?? 50, cancellationToken);
     return Results.Ok(new
     {
+        total,
         items = entries.Select(e => new
         {
             id = e.Id,
@@ -3365,6 +3373,35 @@ app.MapGet("/api/groups/{groupId:guid}/audit", async (
     });
 })
 .WithName("ListGroupAudit")
+.RequireAuthorization();
+
+// ADR-0047/0077: the signed-in user's own account audit (security events).
+app.MapGet("/api/account/audit", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    IAccountAuditStore audit,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var items = await audit.ListByTargetAsync(userId.Value, 200, cancellationToken);
+    return Results.Ok(new
+    {
+        items = items.Select(a => new
+        {
+            id = a.Id,
+            action = a.Action,
+            groupId = a.GroupId,
+            actorUserId = a.ActorUserId,
+            createdAt = a.CreatedAt
+        })
+    });
+})
+.WithName("ListAccountAudit")
 .RequireAuthorization();
 
 // ---- In-app notifications (ADR-0077). Account and group inboxes are distinct:

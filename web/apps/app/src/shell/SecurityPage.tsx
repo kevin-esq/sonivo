@@ -4,6 +4,7 @@ import { useT } from '../i18n'
 import { PasswordSection } from './security/PasswordSection'
 import { TwoFactorSection } from './security/TwoFactorSection'
 import { PasskeysSection } from './security/PasskeysSection'
+import { AccountActivitySection } from './security/AccountActivitySection'
 
 export function SecurityPage() {
   const [status, setStatus] = useState<TwoFactorStatus | null>(null)
@@ -41,6 +42,7 @@ export function SecurityPage() {
       <PasswordSection hasPassword={status?.hasPassword} />
       <TwoFactorSection status={status} onStatusChanged={refresh} />
       <PasskeysSection />
+      <AccountActivitySection />
     </div>
   )
 }
