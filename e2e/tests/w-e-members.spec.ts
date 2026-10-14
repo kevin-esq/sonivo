@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { createGroup, logout, openPeople, register, uniqueEmail } from './helpers'
 
 test.describe('W-E members', () => {
-  test('TC-WS-11 members list shows role tabs, email and presence', async ({ page }) => {
+  test('TC-WS-11 members list shows tabs, filters, email and presence', async ({ page }) => {
     const email = uniqueEmail('wemembers')
     await register(page, email)
     const stamp = Date.now()
@@ -11,9 +11,14 @@ test.describe('W-E members', () => {
     await openPeople(page)
     await expect(page.getByRole('heading', { name: 'Miembros' })).toBeVisible()
 
-    for (const tab of ['Todos', 'Administradores', 'Líderes', 'Miembros']) {
-      await expect(page.getByRole('tab', { name: tab })).toBeVisible()
-    }
+    // Roster + invitations are the tabs; roles are a filter, not a tab.
+    await expect(page.getByRole('tab', { name: /^Todos/ })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /^Invitaciones/ })).toBeVisible()
+
+    // Search and the role/instrument filters.
+    await expect(page.getByTestId('people-search')).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Filtrar por rol' })).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Filtrar por instrumento' })).toBeVisible()
 
     // The current user is the Owner: their email and a presence label are shown.
     await expect(page.getByText(email)).toBeVisible()
