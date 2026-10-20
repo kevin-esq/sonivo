@@ -25,16 +25,20 @@ test.describe('W1 shell: group vs account', () => {
     for (const tab of ['Perfil', 'Preferencias']) {
       await expect(cuentaNav.getByRole('link', { name: tab })).toBeVisible()
     }
-    // Notifications stays a disabled placeholder (ADR-0053 H4); membership is a
-    // real account route now (moved out of the group workspace).
-    await expect(page.getByTestId('nav-disabled-notifications')).toBeVisible()
+    // Both App-shell entry points open the existing account notification inbox.
+    await expect(cuentaNav.getByTestId('nav-notifications')).toHaveAttribute('href', '/app/account/notifications')
+    await expect(page.getByTestId('app-notifications')).toHaveAttribute('href', '/app/account/notifications')
     await expect(page.getByTestId('nav-membership')).toBeVisible()
+
+    await page.getByTestId('app-notifications').click()
+    await expect(page).toHaveURL(/\/app\/account\/notifications$/)
+    await expect(page.getByRole('heading', { name: 'Notificaciones de la cuenta' })).toBeVisible()
   })
 
   test('/settings/security redirects to /account/security with passkey section', async ({ page }) => {
     await register(page, uniqueEmail('w1redir'))
     await page.goto('/settings/security')
-    await expect(page).toHaveURL(/\\/account\\/security/)
+    await expect(page).toHaveURL(/\/account\/security/)
     await expect(page.getByRole('heading', { name: 'Seguridad' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Llaves de acceso (Passkeys)' })).toBeVisible()
   })

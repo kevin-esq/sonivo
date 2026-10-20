@@ -84,7 +84,7 @@ test.describe('W10 rail: scroll, collapse, now playing', () => {
     await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
   })
 
-  test('now playing shows in the rail and the bottom bar is hidden on desktop', async ({ page }) => {
+  test('now playing stays in the global player on desktop', async ({ page }) => {
     const stamp = Date.now()
     const trackLabel = `W10 Pista ${stamp}`
     const songTitle = `W10 Playing Song ${stamp}`
@@ -108,11 +108,10 @@ test.describe('W10 rail: scroll, collapse, now playing', () => {
     await expect(playPause).toHaveAttribute('aria-label', 'Pausar')
 
     await page.getByTestId('group-rail').getByRole('link', { name: 'Inicio' }).click()
-    await expect(page.getByTestId('rail-now-playing-title')).toHaveText(trackLabel)
-    await expect(page.getByTestId('rail-seek')).toBeVisible()
-    // The fixed player still exists, but the rail takes over on desktop.
-    await expect(page.getByTestId('global-player')).toHaveCount(1)
-    await expect(page.getByTestId('global-player')).not.toBeVisible()
+    const player = page.getByTestId('global-player')
+    await expect(player).toBeVisible()
+    await expect(player).toContainText(trackLabel)
+    await expect(player.getByRole('slider', { name: 'Progreso de reproducción de audio' })).toBeVisible()
   })
 
   test('mobile keeps the bottom tab bar and hides the rail', async ({ page }) => {

@@ -16,17 +16,21 @@ test.describe('W-G tasks', () => {
     await page.getByRole('button', { name: 'Nueva tarea' }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByRole('heading', { name: 'Nueva tarea' })).toBeVisible()
-    await dialog.getByLabel('Titulo').fill(`W-G Tarea ${stamp}`)
+    await dialog.getByLabel('Título').fill(`W-G Tarea ${stamp}`)
     await dialog.getByRole('button', { name: 'Crear tarea' }).click()
 
     await expect(page.getByText(`W-G Tarea ${stamp}`)).toBeVisible()
 
     // Switch to list view to complete the task
     await page.getByRole('button', { name: 'Lista' }).click()
-    await expect(page.getByRole('button', { name: 'Marcar completada' })).toBeVisible()
-
-    await page.getByRole('button', { name: 'Marcar completada' }).click()
-    await expect(page.getByRole('button', { name: 'Reabrir' })).toBeVisible()
+    const taskTitle = `W-G Tarea ${stamp}`
+    await page.getByRole('button', { name: `${taskTitle} Pendiente` }).click()
+    const taskDialog = page.getByRole('dialog')
+    await expect(taskDialog).toBeVisible()
+    await taskDialog.getByRole('button', { name: 'Completada', exact: true }).click()
+    await expect(
+      taskDialog.getByRole('button', { name: 'Completada', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true')
   })
 
   test('TC-WS-15 non-member cannot read tasks', async ({ page }) => {
@@ -59,7 +63,7 @@ test.describe('W-G tasks', () => {
     for (const title of [`Board A ${stamp}`, `Board B ${stamp}`]) {
       await page.getByRole('button', { name: 'Nueva tarea' }).click()
       const dialog = page.getByRole('dialog')
-      await dialog.getByLabel('Titulo').fill(title)
+      await dialog.getByLabel('Título').fill(title)
       await dialog.getByRole('button', { name: 'Crear tarea' }).click()
     }
 

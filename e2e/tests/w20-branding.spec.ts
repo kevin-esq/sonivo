@@ -67,9 +67,9 @@ test.describe('W20 group branding', () => {
     try {
       const anonPage = await anon.newPage()
       await anonPage.goto(`/g/${slug}/login`)
-      const banner = anonPage.getByTestId('branded-login-banner')
-      await expect(banner).toBeVisible()
-      await expect(banner).toContainText('Marca E2E')
+      const brandedLogin = anonPage.getByTestId('branded-login-branded')
+      await expect(brandedLogin).toBeVisible()
+      await expect(brandedLogin.getByText('Marca E2E').first()).toBeVisible()
     } finally {
       await anon.close()
     }
@@ -90,7 +90,8 @@ test.describe('W20 group branding', () => {
       const anonPage = await anon.newPage()
       await anonPage.goto(`/g/${slug}/login`)
       await expect(anonPage.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
-      await expect(anonPage.getByTestId('branded-login-banner')).toHaveCount(0)
+      await expect(anonPage.getByTestId('branded-login-plain')).toBeVisible()
+      await expect(anonPage.getByText(name, { exact: true })).toHaveCount(0)
     } finally {
       await anon.close()
     }
@@ -120,10 +121,48 @@ test.describe('W20 group branding', () => {
     await expect(page.getByText(/Identidad guardada|Identity saved/)).toBeVisible()
 
     // Banner upload through the same editor (multipart).
-    await editor
-      .locator('input[type="file"]')
-      .nth(1)
-      .setInputFiles({ name: 'banner.png', mimeType: 'image/png', buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]) })
+    const bannerInput = editor.locator('input[type="file"]').nth(1)
+    let bannerUploadCount = 0
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.url().endsWith('/branding/banner')) bannerUploadCount += 1
+    })
+    const oversizedPngBase64 = await page.evaluate(async () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 1280
+      canvas.height = 1024
+      const context = canvas.getContext('2d')!
+      const image = context.createImageData(canvas.width, canvas.height)
+      for (let offset = 0; offset < image.data.length; offset += 4) {
+        const value = Math.random() * 256
+        image.data[offset] = value
+        image.data[offset + 1] = Math.random() * 256
+        image.data[offset + 2] = Math.random() * 256
+        image.data[offset + 3] = 255
+      }
+      context.putImageData(image, 0, 0)
+      const blob = await new Promise<Blob>((resolve) => canvas.toBlob((value) => resolve(value!), 'image/png'))
+      return await new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result).split(',')[1]!)
+        reader.readAsDataURL(blob)
+      })
+    })
+    await bannerInput.setInputFiles({
+      name: 'too-large.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(oversizedPngBase64, 'base64'),
+    })
+    await expect(editor.getByText('too-large.webp')).toBeVisible({ timeout: 15_000 })
+    expect(bannerUploadCount).toBe(0)
+
+    await bannerInput.setInputFiles({
+      name: 'banner.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pV8AAAAASUVORK5CYII=', 'base64'),
+    })
+    await expect(editor.getByText('banner.png')).toBeVisible()
+    await page.getByRole('button', { name: /Guardar identidad|Save identity/ }).click()
+    await expect(page.getByText(/Identidad guardada|Identity saved/)).toBeVisible()
 
     await expect
       .poll(async () => {

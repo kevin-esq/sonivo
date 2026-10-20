@@ -55,7 +55,8 @@ test.describe('W-F song detail', () => {
     const facts = page.getByTestId('song-facts')
     await expect(facts).toContainText('Información')
     await expect(facts).toContainText('G')
-    await expect(facts).toContainText('68 BPM')
+    const arrangementCard = page.getByRole('link').filter({ hasText: arrangementLabel })
+    await expect(arrangementCard).toContainText('68 BPM')
 
     // Related files in the sidebar.
     await expect(facts).toContainText('Archivos relacionados')

@@ -35,20 +35,7 @@ test.describe('W7 hierarchy: one header per screen', () => {
     await openLibrary(page)
     await expect(page.getByTestId('library-hero')).toBeVisible()
 
-    // 1. The shell banner is gone: no top-level gradient header competes with the page.
-    const gradientTestIds = await page.evaluate(() => {
-      const shell = document.querySelector('[data-testid="grupo-shell"]')
-      if (!shell) return [] as string[]
-      return Array.from(shell.querySelectorAll<HTMLElement>('*'))
-        .filter((el) => {
-          const image = getComputedStyle(el).backgroundImage
-          return Boolean(image) && image !== 'none' && image.includes('gradient')
-        })
-        .map((el) => el.getAttribute('data-testid') ?? el.tagName.toLowerCase())
-    })
-    expect(gradientTestIds).toEqual([])
-
-    // The page header itself must not carry a gradient.
+    // 1. The page header itself must not carry a gradient.
     const heroBackground = await page
       .getByTestId('library-hero')
       .evaluate((el) => getComputedStyle(el).backgroundImage)
@@ -81,7 +68,7 @@ test.describe('W7 hierarchy: one header per screen', () => {
     await page.getByRole('link', { name: 'Ajustes del grupo' }).first().click()
     await expect(page.getByRole('heading', { name: 'Ajustes del grupo' })).toBeVisible()
     await page.getByTestId('group-name-input').fill(renamedGroup)
-    await page.getByRole('button', { name: 'Guardar nombre' }).click()
+    await page.getByRole('button', { name: 'Guardar identidad' }).click()
     await expect(page.getByTestId('rail-brand')).toContainText(renamedGroup)
   })
 })

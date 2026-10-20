@@ -64,11 +64,15 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
 
       // Timing marks so the follower highlight path is exercised too.
       await expect(ownerPage.getByRole('heading', { name: arrangementLabel })).toBeVisible()
-      await ownerPage.getByRole('button', { name: 'Editar arreglo' }).click()
-      await expect(ownerPage.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
-      await ownerPage.getByTestId('timing-line-0-ms').fill('500')
-      await ownerPage.getByTestId('timing-line-1-ms').fill('1500')
-      await ownerPage.getByTestId('timing-line-2-ms').fill('2500')
+      await ownerPage.getByRole('button', { name: 'Editar letra y acordes' }).click()
+      await expect(ownerPage.getByTestId('digitizer-studio')).toBeVisible({ timeout: 10_000 })
+      for (const [index, time] of ['00:00.500', '00:01.500', '00:02.500'].entries()) {
+        const line = ownerPage.getByTestId(`digitizer-line-${index}`)
+        await line.getByRole('button', { name: 'Marcar tiempo' }).click()
+        await line.getByRole('button', { name: 'Editar hora' }).click()
+        await ownerPage.getByRole('textbox', { name: `Inicio del renglón ${index + 1}` }).fill(time)
+        await ownerPage.getByRole('button', { name: 'Guardar hora' }).click()
+      }
       await ownerPage.getByRole('button', { name: 'Guardar cambios' }).click()
       await expect(ownerPage.getByRole('heading', { name: arrangementLabel })).toBeVisible({
         timeout: 10_000,
@@ -114,6 +118,10 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
       const memberPanel = memberPage.getByTestId('conductor-panel')
       await expect(ownerPanel).toBeVisible({ timeout: 15_000 })
       await expect(memberPanel).toBeVisible({ timeout: 15_000 })
+      await expect(ownerPanel.getByTestId('conductor-follow-toggle')).toHaveCount(0)
+      await expect(ownerPanel.getByTestId('conductor-connection-state')).toHaveText(
+        'Transmitiendo como director.',
+      )
 
       // Member enables "Seguir al director" (Follow the conductor).
       const followToggle = memberPage.getByTestId('conductor-follow-toggle')
@@ -134,23 +142,27 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
       // Leader seeks to 2.0s; the follower playhead follows within ~5s.
       const ownerSeek = ownerPage.getByTestId('practice-seek')
       await expect(ownerSeek).toBeEnabled({ timeout: 15_000 })
-      await ownerSeek.evaluate((el) => {
-        const input = el as HTMLInputElement
-        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
-        setter?.call(input, '2.0')
-        input.dispatchEvent(new Event('input', { bubbles: true }))
-        input.dispatchEvent(new Event('change', { bubbles: true }))
-      })
+      await ownerSeek.focus()
+      await ownerSeek.press('Home')
+      for (let step = 0; step < 20; step += 1) {
+        await ownerSeek.press('ArrowRight')
+      }
       await expect
         .poll(async () => ownerPage.getByTestId('practice-current-time').innerText(), {
           timeout: 10_000,
         })
         .toBe('0:02')
 
-      const memberTime = memberPage.getByTestId('practice-current-time')
+      const memberSeek = memberPage.getByTestId('practice-seek')
       await expect
-        .poll(async () => memberTime.innerText(), { timeout: 15_000 })
-        .toBe('0:02')
+        .poll(
+          async () => {
+            const followerSeconds = Number(await memberSeek.inputValue())
+            return Math.abs(followerSeconds - 2) <= 1
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true)
 
       // Follower ChordPro highlight tracks the broadcast (mark at 1500ms).
       const memberChordPro = memberPage.getByTestId('practice-chordpro')

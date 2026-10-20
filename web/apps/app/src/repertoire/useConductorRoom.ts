@@ -131,9 +131,13 @@ export function useConductorRoom(eventId: string | null) {
           positionMs,
           playing,
         })
-        .catch(() => undefined)
+        .catch(() => {
+          if (connectionRef.current === connection) {
+            setError(t('practice.live.broadcastFailed'))
+          }
+        })
     },
-    [],
+    [t],
   )
 
   return { connectionState, presence, lastPosition, error, sendPosition }

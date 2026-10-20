@@ -8,8 +8,9 @@ import {
 } from './helpers'
 
 /**
- * ADR-0053: `/` is the Inicio dashboard (greeting, quick actions, my groups,
- * next activity) and the group list lives at `/groups`. Addendum: only
+ * ADR-0053: `/home` is the Inicio dashboard (greeting, quick actions, my groups,
+ * next activity) and the group list lives at `/groups`. The root `/` is the
+ * public marketing landing (see DEPLOYMENT.md host layout). Addendum: only
  * "Crear grupo"/"Unirse a grupo" remain, the top search is groups-only and
  * "Ver calendario" opens the general calendar.
  */
@@ -28,7 +29,7 @@ test.describe('Home dashboard (ADR-0053)', () => {
       startsAt: '2031-05-15T19:00',
     })
 
-    await page.goto('/')
+    await page.goto('/home')
     await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
 
     await expect(page.getByTestId('home-action-create')).toBeVisible()
@@ -57,15 +58,19 @@ test.describe('Home dashboard (ADR-0053)', () => {
     await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
   })
 
-  test('sidebar exposes disabled placeholders and the join route', async ({ page }) => {
+  test('sidebar exposes notifications and the join route', async ({ page }) => {
     await register(page, uniqueEmail('home-nav'))
-    await page.goto('/')
+    await page.goto('/home')
 
-    // Notifications stays a deliberate disabled placeholder (ADR-0053 H4).
+    // Membership remains an account route; notification access uses the existing account inbox.
     // Membership is no longer group-owned: it lives in account settings, so the
     // old billing placeholder is now the real /account/membership route.
-    await expect(page.getByTestId('nav-disabled-notifications')).toBeVisible()
+    await expect(page.getByTestId('nav-notifications')).toHaveAttribute('href', '/app/account/notifications')
     await expect(page.getByTestId('nav-membership')).toBeVisible()
+
+    await page.getByTestId('nav-notifications').click()
+    await expect(page).toHaveURL(/\/app\/account\/notifications$/)
+    await expect(page.getByRole('heading', { name: 'Notificaciones de la cuenta' })).toBeVisible()
 
     await page.getByTestId('nav-join').click()
     await expect(page).toHaveURL(/\/join$/)
@@ -97,7 +102,7 @@ test.describe('Home dashboard (ADR-0053)', () => {
       }
     })
 
-    await page.goto('/')
+    await page.goto('/home')
     await expect(page.getByTestId('home-activity-item')).toHaveCount(5)
   })
 })

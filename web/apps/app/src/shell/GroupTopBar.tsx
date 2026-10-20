@@ -100,7 +100,7 @@ export function GroupTopBar({
   const Icon = { song: Music2, event: CalendarDays, task: CheckSquare }
 
   return (
-    <header className="hidden items-center gap-3 px-4 py-3 md:flex" data-testid="group-topbar">
+    <div className="hidden items-center gap-3 px-4 py-3 md:flex" data-testid="group-topbar">
       <div ref={wrapRef} className="relative min-w-0 flex-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
         <input
@@ -212,6 +212,6 @@ export function GroupTopBar({
           </button>
         </nav>
       </details>
-    </header>
+    </div>
   )
 }

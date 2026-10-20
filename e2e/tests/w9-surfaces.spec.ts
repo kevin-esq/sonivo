@@ -140,9 +140,10 @@ test.describe('W9 outside surfaces', () => {
       await expect(editor.getByRole('button', { name, exact: true }).first()).toBeVisible()
     }
 
-    // Cover options: every emoji and gradient has an accessible name.
-    await expect(editor.getByRole('button', { name: 'Portada con emoji 🎵' })).toBeVisible()
-    await expect(editor.getByRole('button', { name: 'Portada con emoji 🎤' })).toBeVisible()
+    // Cover options expose the current presets and gradients with accessible names.
+    for (const name of ['Onda sonora', 'Escenario', 'Vinilo', 'Coro']) {
+      await expect(editor.getByRole('button', { name, exact: true })).toBeVisible()
+    }
     // Spanish gradient labels replace the English storage ids.
     for (const name of ['violeta', 'océano', 'bosque', 'atardecer']) {
       await expect(editor.getByRole('button', { name, exact: true })).toBeVisible()
@@ -158,7 +159,10 @@ test.describe('W9 outside surfaces', () => {
     await editor.getByRole('button', { name: 'Esmeralda', exact: true }).first().click()
     await noCover.click()
     await expect(noCover).toHaveAttribute('aria-pressed', 'true')
-    await editor.getByRole('button', { name: /Guardar identidad|Save identity/ }).click()
+    await page
+      .getByTestId('brand-unsaved-bar')
+      .getByRole('button', { name: /Guardar identidad|Save identity/ })
+      .click()
     await expect(page.getByText(/Identidad guardada|Identity saved/)).toBeVisible()
 
     await page.reload()

@@ -10,10 +10,26 @@ test('group calendar feed is offered when notifications are on', async ({ page, 
   test.skip(!features.notifications, 'Features:Notifications is off')
 
   await register(page, uniqueEmail('calendar-owner'))
-  await createGroup(page, 'Calendario')
+  await createGroup(page, `Calendario ${Date.now()}`)
   await openEvents(page)
 
   const feed = page.getByTestId('events-calendar-feed')
   await expect(feed).toBeVisible()
   await expect(feed).toHaveAttribute('href', /\/api\/groups\/[0-9a-f-]+\/calendar\.ics$/)
+})
+
+test('group settings downloads an authenticated iCalendar file', async ({ page, request }) => {
+  const features = (await (await request.get('/api/features')).json()) as { notifications?: boolean }
+  test.skip(!features.notifications, 'Features:Notifications is off')
+
+  await register(page, uniqueEmail('calendar-settings-owner'))
+  await createGroup(page, `Calendario ${Date.now()}`)
+  const groupId = page.url().match(/\/groups\/([0-9a-f-]+)/i)?.[1]
+  expect(groupId).toBeTruthy()
+
+  await page.goto(`/groups/${groupId}/settings`)
+  await page.getByRole('tab', { name: 'Integraciones' }).click()
+  const download = page.waitForEvent('download')
+  await page.getByRole('link', { name: 'Descargar calendario' }).click()
+  expect((await download).suggestedFilename()).toBe('sonivo-calendar.ics')
 })

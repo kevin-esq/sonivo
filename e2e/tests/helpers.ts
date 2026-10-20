@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test'
+import path from 'node:path'
 
 export function uniqueEmail(prefix = 'e2e'): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
@@ -35,7 +36,7 @@ export async function testConfirmUser(page: Page, email: string) {
 export async function register(page: Page, email: string, password = testPassword) {
   await page.goto('/register')
   await page.getByLabel('Nombre').fill(email.split('@')[0] ?? 'e2e')
-  await page.getByLabel('Correo electrónico').fill(email)
+  await page.getByLabel(/Correo/).fill(email)
   await page.getByLabel('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Registrarse' }).click()
   // T-AU-01: register proves nothing by itself — confirm the mailbox
@@ -47,7 +48,7 @@ export async function register(page: Page, email: string, password = testPasswor
   })
   await testConfirmUser(page, email)
   await page.goto('/login')
-  await page.getByLabel('Correo electrónico').fill(email)
+  await page.getByLabel(/Correo/).fill(email)
   await page.getByLabel('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
@@ -59,7 +60,7 @@ export async function register(page: Page, email: string, password = testPasswor
 
 export async function login(page: Page, email: string, password = testPassword) {
   await page.goto('/login')
-  await page.getByLabel('Correo electrónico').fill(email)
+  await page.getByLabel(/Correo/).fill(email)
   await page.getByLabel('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
@@ -136,9 +137,9 @@ async function openCreateDialogAndFill(
 }
 
 export async function createSong(page: Page, title: string) {
-  // The create-song flow is now a wizard: Details → Audio (skipped) → Review →
-  // success. The whole run is retried as one unit so a mid-flight re-render
-  // cannot leave the dialog half-filled.
+  // The create-song flow is a wizard: Details → Audio → Arrangement → Review.
+  // The whole run is retried as one unit so a mid-flight re-render cannot leave
+  // the dialog half-filled.
   await expect(async () => {
     const dialog = page.getByRole('dialog')
     if (!(await dialog.isVisible().catch(() => false))) {
@@ -150,9 +151,12 @@ export async function createSong(page: Page, title: string) {
     await page.getByRole('option', { name: 'Propia', exact: true }).click({ timeout: 3000 })
     await dialog.getByRole('button', { name: 'Continuar' }).click({ timeout: 3000 })
     await dialog.getByRole('button', { name: 'Omitir audio' }).click({ timeout: 3000 })
+    await dialog.getByRole('button', { name: 'Continuar' }).click({ timeout: 3000 })
     await dialog.getByRole('button', { name: 'Crear canción' }).click({ timeout: 3000 })
-    await dialog.getByRole('button', { name: 'Ver en mi biblioteca' }).click({ timeout: 5000 })
+    await dialog.getByRole('link', { name: 'Abrir canción' }).click({ timeout: 5000 })
   }).toPass({ timeout: 30000 })
+  await page.getByTestId('group-rail').getByRole('link', { name: 'Canciones', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
   await expect(page.getByRole('link', { name: title })).toBeVisible()
 }
 
@@ -175,15 +179,24 @@ export async function createArrangement(
   if (options?.defaultBpm) {
     await page.getByLabel('Tempo / BPM (opcional, 1–400)').fill(options.defaultBpm)
   }
-  if (options?.lyrics) {
-    await page.getByLabel('Letra (opcional)').fill(options.lyrics)
-  }
-  if (options?.chords) {
-    await page.getByTestId('arrangement-chords').fill(options.chords)
-  }
   await page.getByRole('button', { name: 'Crear arreglo' }).click()
   // Create navigates to the new arrangement detail.
   await expect(page.getByRole('heading', { name: label })).toBeVisible()
+
+  if (options?.lyrics || options?.chords) {
+    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
+    await expect(page.getByTestId('arrangement-editor')).toBeVisible()
+    if (options?.lyrics) {
+      await page.getByTestId('digitizer-lyrics').fill(options.lyrics)
+    }
+    if (options?.chords) {
+      const chordsField = page.getByTestId('arrangement-chords')
+      await page.locator('details').filter({ has: chordsField }).locator('summary').click()
+      await chordsField.fill(options.chords)
+    }
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expect(page.getByRole('button', { name: 'Editar letra y acordes' })).toBeVisible()
+  }
 }
 
 export async function openPractice(page: Page) {
@@ -217,7 +230,8 @@ export async function createFileResource(
   await expect(page.getByRole('heading', { name: 'Subir archivo' })).toBeVisible()
   await page.getByLabel('Propósito').selectOption(input.purpose ?? 'practice')
   await page.getByLabel('Etiqueta', { exact: true }).fill(input.label)
-  await page.getByLabel('Archivo').setInputFiles(input.filePath)
+  await page.getByTestId('arrangement-file-dropzone').locator('input[type="file"]').setInputFiles(input.filePath)
+  await expect(page.getByTestId('arrangement-file-dropzone')).toContainText(path.basename(input.filePath))
   await page.getByRole('button', { name: 'Subir archivo' }).click()
   const row = page.getByRole('listitem').filter({ hasText: input.label })
   await expect(row.getByText(input.label, { exact: true })).toBeVisible()
@@ -266,8 +280,8 @@ export async function addArrangementToSetlist(page: Page, optionLabel: string) {
 }
 
 export async function saveSetlistOrder(page: Page) {
-  await page.getByRole('button', { name: 'Guardar orden' }).click()
-  await expect(page.getByRole('button', { name: 'Guardar orden' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Guardar cambios' }).click()
+  await expect(page.getByText('Cambios sin guardar')).toHaveCount(0)
 }
 
 /** Setlist composition rows show song title and arrangement label on separate lines. */
@@ -330,8 +344,9 @@ export async function inviteMemberAndReadLink(page: Page, email?: string): Promi
   await expect(inviteLink).toBeVisible()
   const url = await inviteLink.inputValue()
   expect(url).toContain('/join/')
+  await expect(dialog.getByRole('button', { name: 'Invitar miembro' })).toBeEnabled()
   // Close the dialog so the caller can keep driving the page.
-  await page.keyboard.press('Escape')
+  await dialog.getByRole('button', { name: 'Cerrar' }).first().click()
   await expect(dialog).toBeHidden()
   // Path-only so Playwright stays on baseURL host (localhost vs 127.0.0.1 cookie jar).
   return new URL(url, page.url()).pathname
@@ -342,6 +357,10 @@ export async function acceptInvite(page: Page) {
   await expect(page.getByText('Comprobando sesión…')).toHaveCount(0, { timeout: 15_000 })
   await expect(page.getByRole('heading', { name: 'Unirte a este grupo' })).toBeVisible()
   await page.getByRole('button', { name: 'Aceptar invitación' }).click()
+  // Acceptance is asynchronous: wait for the API response, route transition,
+  // and group membership data before callers navigate elsewhere.
+  await expect(page).toHaveURL(/\/groups\/[0-9a-f-]+$/i)
+  await expect(page.getByTestId('group-rail')).toBeVisible()
 }
 
 export async function openPeople(page: Page) {

@@ -50,7 +50,7 @@ test.describe('Two-factor authentication', () => {
     await register(page, email)
 
     await page.goto('/security')
-    await expect(page).toHaveURL(/\\/account\\/security/)
+    await expect(page).toHaveURL(/\/account\/security/)
     await expect(page.getByRole('heading', { name: 'Seguridad' })).toBeVisible()
     await page.getByRole('button', { name: 'Activar verificación en dos pasos' }).click()
     await expect(page.getByText('Ingresa esta clave en tu app')).toBeVisible()
@@ -71,7 +71,7 @@ test.describe('Two-factor authentication', () => {
     await logout(page)
 
     await page.goto('/login')
-    await page.getByLabel('Correo electrónico').fill(email)
+    await page.getByLabel('Correo o usuario').fill(email)
     await page.getByLabel('Contraseña').fill(testPassword)
     await page.getByRole('button', { name: 'Iniciar sesión' }).click()
     await expect(
@@ -82,7 +82,9 @@ test.describe('Two-factor authentication', () => {
     // Wrong code is denied with no session created.
     await page.getByLabel('Código de 6 dígitos').fill('000000')
     await page.getByRole('button', { name: 'Verificar' }).click()
-    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText('incorrecto')
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText(
+      'No se pudo confirmar el acceso. Revisa tus datos o inicia sesión de nuevo.',
+    )
     await expect(page.getByRole('heading', { name: 'Mis grupos' })).toHaveCount(0)
 
     // Computed code completes the session.
@@ -101,7 +103,7 @@ test.describe('Two-factor authentication', () => {
     const email = uniqueEmail('2fa-pre')
     await register(page, email)
     await page.goto('/security')
-    await expect(page).toHaveURL(/\\/account\\/security/)
+    await expect(page).toHaveURL(/\/account\/security/)
     await page.getByRole('button', { name: 'Activar verificación en dos pasos' }).click()
     const manualKey = await page.getByLabel('Clave manual').inputValue()
     await page.getByLabel('Código de 6 dígitos').fill(totpCode(manualKey))
@@ -110,7 +112,7 @@ test.describe('Two-factor authentication', () => {
     await logout(page)
 
     await page.goto('/login')
-    await page.getByLabel('Correo electrónico').fill(email)
+    await page.getByLabel('Correo o usuario').fill(email)
     await page.getByLabel('Contraseña').fill(testPassword)
     await page.getByRole('button', { name: 'Iniciar sesión' }).click()
     await expect(
@@ -118,7 +120,7 @@ test.describe('Two-factor authentication', () => {
     ).toBeVisible()
 
     // Direct navigation to the app without the challenge bounces to login.
-    await page.goto('/')
+    await page.goto('/account')
     await expect(page).toHaveURL(/\/login/)
   })
 })

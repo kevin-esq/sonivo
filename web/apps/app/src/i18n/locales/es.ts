@@ -2327,6 +2327,7 @@ export const es = {
   "practice.live.empty": "Aún no hay nadie en la sala.",
   "practice.live.director": "Director",
   "practice.live.joinFailed": "No se pudo unir a la sala en vivo.",
+  "practice.live.broadcastFailed": "No se pudo transmitir la posición del director.",
   "practice.tuner.inTune": "afinada",
   "practice.tuner.sharp": "+{cents} cents (alta)",
   "practice.tuner.flat": "{cents} cents (baja)",

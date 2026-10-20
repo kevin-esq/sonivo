@@ -30,13 +30,17 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     await createArrangement(page, 'Acoustic')
 
     // The panel only renders when the server flag is on.
-    await expect(page.getByRole('heading', { name: 'Importar .lrc' })).toBeVisible()
+    await page.getByText('Importar .lrc', { exact: true }).click()
+    await expect(page.getByTestId('lrc-file-dropzone')).toBeVisible()
 
     // A realistic file: metadata tags, chords inside a line and a repeated mark.
-    const textarea = page.getByLabel('Contenido .lrc')
-    await textarea.fill(
-      '[ti:Prueba]\n[ar:Banda]\n[00:12.00]Hola\n[00:15.50][Am]Dos\n[00:15.50]Dos otra vez',
-    )
+    const lrcDropzone = page.getByTestId('lrc-file-dropzone')
+    await lrcDropzone.locator('input[type="file"]').setInputFiles({
+      name: 'practice.lrc',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('[ti:Prueba]\n[ar:Banda]\n[00:12.00]Hola\n[00:15.50][Am]Dos\n[00:15.50]Dos otra vez'),
+    })
+    await expect(lrcDropzone).toContainText('practice.lrc')
 
     // Preview: assert the conversion the server returned.
     const [previewResponse] = await Promise.all([

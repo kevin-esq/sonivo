@@ -2257,6 +2257,7 @@ export const pt: Record<I18nKey, string> = {
   "practice.live.empty": "Ainda não há ninguém na sala.",
   "practice.live.director": "Maestro",
   "practice.live.joinFailed": "Não foi possível entrar na sala ao vivo.",
+  "practice.live.broadcastFailed": "Não foi possível transmitir a posição do regente.",
   "practice.tuner.inTune": "afinada",
   "practice.tuner.sharp": "+{cents} cents (alta)",
   "practice.tuner.flat": "{cents} cents (baixa)",

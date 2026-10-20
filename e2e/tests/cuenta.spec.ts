@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { register, uniqueEmail } from './helpers'
 
 test.describe('Account page (ADR-0053 addendum)', () => {
-  test('shows the profile sections and disabled placeholders', async ({ page }) => {
+  test('shows the account sections and a revocable current session', async ({ page }) => {
     await register(page, uniqueEmail('account'))
     await page.goto('/account')
 
@@ -14,8 +14,18 @@ test.describe('Account page (ADR-0053 addendum)', () => {
     await expect(page.getByRole('heading', { name: 'Plan y facturación' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Uso y límites' })).toBeVisible()
     await expect(page.getByTestId('profile-edit')).toBeVisible()
-    // Placeholder rows are not interactive.
-    await expect(page.getByTestId('account-row-disabled').first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sesiones activas' })).toBeVisible()
+    await expect(page.getByText('Esta sesión')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cerrar la sesión actual' })).toBeVisible()
+  })
+
+  test('revoking the current session ends the signed-in session', async ({ page }) => {
+    await register(page, uniqueEmail('account-session'))
+    await page.goto('/account')
+
+    await page.getByRole('button', { name: 'Cerrar la sesión actual' }).click()
+    await expect(page).toHaveURL(/\/auth\/login$/)
+    await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
   })
 
   test('edit profile persists the display name', async ({ page }) => {

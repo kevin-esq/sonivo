@@ -2320,6 +2320,7 @@ export const en: Record<I18nKey, string> = {
   "practice.live.empty": "There is no one in the room yet.",
   "practice.live.director": "Conductor",
   "practice.live.joinFailed": "Could not join the live room.",
+  "practice.live.broadcastFailed": "Could not broadcast the conductor's position.",
   "practice.tuner.inTune": "in tune",
   "practice.tuner.sharp": "+{cents} cents (sharp)",
   "practice.tuner.flat": "{cents} cents (flat)",

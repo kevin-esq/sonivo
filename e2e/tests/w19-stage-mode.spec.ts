@@ -40,7 +40,7 @@ test.describe('W19 stage mode', () => {
     await expect(open).toBeVisible()
     await open.click()
 
-    const dialog = page.getByRole('dialog', { name: 'Modo escenario' })
+    const dialog = page.getByTestId('stage-mode')
     await expect(dialog).toBeVisible()
     await expect(dialog).toContainText('Línea de escenario 1')
 
