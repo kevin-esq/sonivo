@@ -48,6 +48,7 @@ tests/**/.scratch/rls-validation/
 web/apps/app/.next-e2e/
 web/output/playwright/
 output/playwright/
+web/apps/app/web/output/playwright/
 .turbo/
 mobile/android/.gradle/
 mobile/android/**/build/
@@ -58,6 +59,8 @@ mobile/android/**/build/
 **/blob-report/
 **/playwright/.cache/
 .playwright-mcp/
+.playwright-cli/
+/Xcode_27.2_Release_Candidate.xip
 
 # OS / editor noise
 .DS_Store
@@ -74,7 +77,3 @@ e2e/visual-audit/audit-output/
 
 # Throwaway Playwright profile from .scratch spikes (may hold cookies)
 .scratch/spikes/.pwprofile/
-
-# Local Playwright CLI profile and user-supplied SDK archive
-.playwright-cli/
-/Xcode_27.2_Release_Candidate.xip

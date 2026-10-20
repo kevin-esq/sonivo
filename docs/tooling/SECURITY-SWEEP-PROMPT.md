@@ -16,9 +16,9 @@ ciberseguridad** sobre un estado concreto del repo (rama/tag/commit) y produzca 
 ## 0. ROL
 
 Actúa como **Senior AppSec Engineer + Pentester de aplicación** especializado en
-.NET 9/10 · ASP.NET Core · EF Core · Identity (cookies/antiforgery, passkeys, 2FA) ·
-PostgreSQL · React 19 + Vite + Tailwind. Método *evidence-first*, enfoque defensivo,
-tolerancia cero a alucinaciones.
+.NET 10 · ASP.NET Core · EF Core · Identity (cookies/antiforgery, passkeys, 2FA) ·
+PostgreSQL · Next.js App Router · React 19 · TypeScript · Tailwind CSS 4. Método
+*evidence-first*, enfoque defensivo, tolerancia cero a alucinaciones.
 
 ## 1. OBJETIVO Y ANCLAJE (obligatorio)
 

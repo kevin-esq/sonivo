@@ -9,7 +9,7 @@ import {
 
 /**
  * ADR-0053: `/` is the Inicio dashboard (greeting, quick actions, my groups,
- * next activity) and the group list lives at `/grupos`. Addendum: only
+ * next activity) and the group list lives at `/groups`. Addendum: only
  * "Crear grupo"/"Unirse a grupo" remain, the top search is groups-only and
  * "Ver calendario" opens the general calendar.
  */
@@ -53,7 +53,7 @@ test.describe('Home dashboard (ADR-0053)', () => {
 
     // "Ver todos" moves to the dedicated group list route.
     await page.getByTestId('home-view-all').click()
-    await expect(page).toHaveURL(/\/grupos$/)
+    await expect(page).toHaveURL(/\/groups$/)
     await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
   })
 
@@ -63,12 +63,12 @@ test.describe('Home dashboard (ADR-0053)', () => {
 
     // Notifications stays a deliberate disabled placeholder (ADR-0053 H4).
     // Membership is no longer group-owned: it lives in account settings, so the
-    // old billing placeholder is now the real /cuenta/membresia route.
+    // old billing placeholder is now the real /account/membership route.
     await expect(page.getByTestId('nav-disabled-notifications')).toBeVisible()
     await expect(page.getByTestId('nav-membership')).toBeVisible()
 
     await page.getByTestId('nav-join').click()
-    await expect(page).toHaveURL(/\/unirse$/)
+    await expect(page).toHaveURL(/\/join$/)
     await expect(page.getByRole('heading', { name: 'Unirse a grupo' })).toBeVisible()
   })
 

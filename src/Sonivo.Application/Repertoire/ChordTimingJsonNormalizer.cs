@@ -1,14 +1,13 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Sonivo.Application.Abstractions;
 
 namespace Sonivo.Application.Repertoire;
 
 /// <summary>
-/// Validates and normalizes Arrangement.ChordTimingJson (ADR-0031 / T-SYNC-01).
-/// Shape: array of { "lineIndex": number (&gt;=0 integer), "atMs": number (&gt;=0 integer) }.
+/// Validates legacy line marks and additive word/instrumental intervals in Arrangement.ChordTimingJson.
 /// Empty / whitespace / [] → null (clears marks). Cap: <see cref="MaxMarks"/>.
-/// Duplicate lineIndex allowed; consumers SHOULD treat last-in-array as winning for a line.
-/// Output order is ascending by atMs.
+/// Output order is ascending by audio start time.
 /// </summary>
 public static class ChordTimingJsonNormalizer
 {
@@ -48,7 +47,7 @@ public static class ChordTimingJsonNormalizer
                 throw new ValidationException("chordTimingJson must be a JSON array of timing marks.");
             }
 
-            var marks = new List<Mark>(doc.RootElement.GetArrayLength());
+            var marks = new List<Entry>(doc.RootElement.GetArrayLength());
             foreach (var element in doc.RootElement.EnumerateArray())
             {
                 marks.Add(ParseMark(element));
@@ -65,15 +64,48 @@ public static class ChordTimingJsonNormalizer
                     $"chordTimingJson must contain at most {MaxMarks} marks.");
             }
 
-            marks.Sort(static (a, b) => a.AtMs.CompareTo(b.AtMs));
+            marks.Sort(static (a, b) => a.StartMs.CompareTo(b.StartMs));
+            var lastIntervalEndMs = -1;
+            foreach (var interval in marks.Where(static mark => mark.EndMs.HasValue))
+            {
+                if (interval.StartMs < lastIntervalEndMs)
+                {
+                    throw new ValidationException("chordTimingJson word and instrumental intervals cannot overlap.");
+                }
 
-            return JsonSerializer.Serialize(
-                marks.Select(m => new { lineIndex = m.LineIndex, atMs = m.AtMs }),
-                WriteOptions);
+                lastIntervalEndMs = interval.EndMs!.Value;
+            }
+            return JsonSerializer.Serialize(marks.Select(m => m.Value), WriteOptions);
         }
     }
 
-    private static Mark ParseMark(JsonElement element)
+    public static void ValidateWordReferences(string? normalizedJson, string? lyricSource)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedJson) || string.IsNullOrWhiteSpace(lyricSource)) return;
+        using var document = JsonDocument.Parse(normalizedJson);
+        var lines = lyricSource.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n')
+            .Split('\n');
+        foreach (var element in document.RootElement.EnumerateArray())
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty("wordIndex", out var wordIndexEl)) continue;
+            var lineIndex = element.GetProperty("lineIndex").GetInt32();
+            var wordIndex = wordIndexEl.GetInt32();
+            if (lineIndex >= lines.Length)
+            {
+                throw new ValidationException("chordTimingJson lineIndex must reference an existing lyric line.");
+            }
+
+            var plainLine = Regex.Replace(lines[lineIndex], @"\[[^\]]*\]|\{[^}]*\}", string.Empty);
+            var wordCount = Regex.Matches(plainLine, @"\S+").Count;
+            if (wordIndex >= wordCount)
+            {
+                throw new ValidationException("chordTimingJson wordIndex must reference an existing word.");
+            }
+        }
+    }
+
+    private static Entry ParseMark(JsonElement element)
     {
         if (element.ValueKind != JsonValueKind.Object)
         {
@@ -81,19 +113,46 @@ public static class ChordTimingJsonNormalizer
                 "Each chordTimingJson mark must be an object with lineIndex and atMs.");
         }
 
-        if (!element.TryGetProperty("lineIndex", out var lineIndexEl))
+        if (element.TryGetProperty("type", out var typeEl) &&
+            typeEl.ValueKind == JsonValueKind.String &&
+            typeEl.GetString() == "instrumental")
         {
-            throw new ValidationException("Each chordTimingJson mark requires lineIndex.");
+            var startMs = ReadRequiredInt(element, "startMs");
+            var endMs = ReadRequiredInt(element, "endMs");
+            if (endMs <= startMs)
+            {
+                throw new ValidationException("chordTimingJson endMs must be greater than startMs.");
+            }
+
+            return new Entry(startMs, endMs, new { type = "instrumental", startMs, endMs });
         }
 
-        if (!element.TryGetProperty("atMs", out var atMsEl))
+        var lineIndex = ReadRequiredInt(element, "lineIndex");
+        if (element.TryGetProperty("wordIndex", out var wordIndexEl))
         {
-            throw new ValidationException("Each chordTimingJson mark requires atMs.");
+            var wordIndex = ReadNonNegativeInt(wordIndexEl, "wordIndex");
+            var startMs = ReadRequiredInt(element, "startMs");
+            var endMs = ReadRequiredInt(element, "endMs");
+            if (endMs <= startMs)
+            {
+                throw new ValidationException("chordTimingJson endMs must be greater than startMs.");
+            }
+
+            return new Entry(startMs, endMs, new { lineIndex, wordIndex, startMs, endMs });
         }
 
-        return new Mark(
-            ReadNonNegativeInt(lineIndexEl, "lineIndex"),
-            ReadNonNegativeInt(atMsEl, "atMs"));
+        var atMs = ReadRequiredInt(element, "atMs");
+        return new Entry(atMs, null, new { lineIndex, atMs });
+    }
+
+    private static int ReadRequiredInt(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value))
+        {
+            throw new ValidationException($"Each chordTimingJson entry requires {name}.");
+        }
+
+        return ReadNonNegativeInt(value, name);
     }
 
     private static int ReadNonNegativeInt(JsonElement el, string name)
@@ -107,5 +166,5 @@ public static class ChordTimingJsonNormalizer
         return value;
     }
 
-    private readonly record struct Mark(int LineIndex, int AtMs);
+    private sealed record Entry(int StartMs, int? EndMs, object Value);
 }

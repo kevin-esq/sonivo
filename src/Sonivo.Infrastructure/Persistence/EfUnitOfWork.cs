@@ -29,21 +29,41 @@ public sealed class EfUnitOfWork : IUnitOfWork
             return;
         }
 
+        // Authenticated HTTP requests may already own the outer transaction
+        // that carries transaction-local RLS context. Save within it so the
+        // middleware can commit or roll back the entire request atomically.
+        if (_db.Database.CurrentTransaction is not null)
+        {
+            await SaveChangesWithinCurrentTransactionAsync(cancellationToken);
+            return;
+        }
+
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            await _db.SaveChangesAsync(cancellationToken);
+            await SaveChangesWithinCurrentTransactionAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    private async Task SaveChangesWithinCurrentTransactionAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateConcurrencyException)
         {
-            await transaction.RollbackAsync(cancellationToken);
             _db.ChangeTracker.Clear();
             throw new ConflictException("The resource was modified by another request.");
         }
         catch
         {
-            await transaction.RollbackAsync(cancellationToken);
             _db.ChangeTracker.Clear();
             throw;
         }

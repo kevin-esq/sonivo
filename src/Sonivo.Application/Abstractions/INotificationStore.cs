@@ -3,7 +3,7 @@ using Sonivo.Domain.Notifications;
 namespace Sonivo.Application.Abstractions;
 
 /// <summary>
-/// In-app notification inbox (ADR-0077). Always scoped to the recipient user and,
+/// In-app notification inbox. Always scoped to the recipient user and,
 /// for group notifications, to a single group.
 /// </summary>
 public interface INotificationStore

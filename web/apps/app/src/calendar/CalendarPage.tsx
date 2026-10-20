@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -89,7 +90,7 @@ export function CalendarPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(problemDetail(err));
+          setError(problemDetail(err, t));
           setEvents([]);
         }
       });
@@ -153,7 +154,7 @@ export function CalendarPage() {
   }
 
   function openEvent(event: CalendarEvent) {
-    navigate(`/groups/${event.groupId}/events/${event.eventId}`);
+    navigate(routes.groupEvent(event.groupId, event.eventId));
   }
 
   function selectDay(date: Date) {

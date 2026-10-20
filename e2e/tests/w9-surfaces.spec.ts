@@ -88,7 +88,7 @@ test.describe('W9 outside surfaces', () => {
     await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
     await expect(page.getByText('Aún no tienes grupos', { exact: true })).toBeVisible()
 
-    // La creación vive ahora en un modal ("Nuevo grupo"); el flujo completo se cubre en el spec de grupos.
+    // Creation now lives in a modal ("Nuevo grupo"); the full flow is covered in the groups spec.
     await expect(page.getByRole('button', { name: 'Nuevo grupo' })).toBeVisible()
     await page.getByRole('button', { name: 'Nuevo grupo' }).click()
     const nameInput = page.getByLabel('Nombre')
@@ -118,20 +118,20 @@ test.describe('W9 outside surfaces', () => {
     await expectReadableText(page.getByText('La dirección que buscas no existe o fue movida.'))
   })
 
-  test('Ajustes exposes labelled brand swatches/covers and a server-persisted no-cover choice', async ({
+  test('group settings exposes labelled brand swatches/covers and a server-persisted no-cover choice', async ({
     page,
   }) => {
-    const email = uniqueEmail('w9-ajustes')
+    const email = uniqueEmail('w9-settings')
     await register(page, email)
     await createGroup(page, `W9 Ajustes ${Date.now()}`)
     const groupId = new URL(page.url()).pathname.split('/').filter(Boolean).pop()
     expect(groupId).toBeTruthy()
 
-    await page.goto(`/groups/${groupId}/ajustes`)
+    await page.goto(`/groups/${groupId}/settings`)
     await expect(page.getByRole('heading', { name: 'Ajustes del grupo' })).toBeVisible()
 
     // ADR-0054: the server brand editor renders (flag defaults ON) behind the
-    // "Identidad visual" tab (redesigned Ajustes); the primary and secondary
+    // "Identidad visual" tab (redesigned settings); the primary and secondary
     // swatch groups each carry accessible colour names.
     await page.getByRole('tab', { name: 'Identidad visual' }).click()
     const editor = page.getByTestId('branding-editor')

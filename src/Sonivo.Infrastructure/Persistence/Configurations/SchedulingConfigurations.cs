@@ -15,13 +15,15 @@ public sealed class SetlistConfiguration : IEntityTypeConfiguration<Setlist>
         builder.Property(x => x.Name).IsRequired();
         builder.Property(x => x.Version).IsConcurrencyToken();
         builder.HasIndex(x => x.GroupId);
+        builder.HasAlternateKey(x => new { x.GroupId, x.Id });
         builder.HasOne<Domain.Tenancy.Group>()
             .WithMany()
             .HasForeignKey(x => x.GroupId)
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasMany(x => x.Items)
             .WithOne()
-            .HasForeignKey(x => x.SetlistId)
+            .HasForeignKey(x => new { x.GroupId, x.SetlistId })
+            .HasPrincipalKey(x => new { x.GroupId, x.Id })
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
@@ -33,7 +35,7 @@ public sealed class SetlistItemConfiguration : IEntityTypeConfiguration<SetlistI
         builder.ToTable("SetlistItems");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.OverrideBpm).HasPrecision(6, 2);
-        builder.HasIndex(x => new { x.SetlistId, x.SortOrder });
+        builder.HasIndex(x => new { x.GroupId, x.SetlistId, x.SortOrder });
 
         // No Arrangement navigation — FK only (ADR-0023).
         builder.HasOne<Arrangement>()

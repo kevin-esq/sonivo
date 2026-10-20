@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { routes } from '../routing/routes'
+import { useEffect, useRef, useState } from 'react'
 import {
   Activity,
   CalendarDays,
-  CheckSquare,
+  CalendarPlus,
+  Copy,
+  Crown,
   KeyRound,
-  Music2,
+  ListChecks,
+  Music4,
+  Pencil,
   ShieldCheck,
   Sparkles,
   UserRound,
@@ -14,25 +18,30 @@ import {
 } from 'lucide-react'
 import { listGroupAudit, type GroupAuditEntry, type MemberListItem } from '../api/client'
 import { useT, type I18nKey, type TParams } from '../i18n'
+import { mutationErrorMessage } from '../repertoire/ui'
 import { cn } from '../ui/cn'
-import { auditActionMeta } from '../groups/auditActions'
-import { musicalRolesText, parseMusicalRoles } from '../groups/MusicalRoleChips'
+import { auditActionMeta } from './auditActions'
+import { musicalRoleLabel, musicalRolesText, parseMusicalRoles, MusicalRolePicker } from './MusicalRoleChips'
 import {
+  GroupActionMenu,
   GroupButton,
   GroupCard,
   GroupChip,
   GroupDialog,
+  GroupLink,
   GroupEmptyState,
   GroupErrorState,
   GroupListSkeleton,
-} from '../groups/ui'
+  GroupTextArea,
+  type GroupActionMenuItem,
+} from './ui'
 
 /* ------------------------------------------------------------------ */
 /* Model                                                               */
 /* ------------------------------------------------------------------ */
 
 type MembershipRole = 'Owner' | 'Manager' | 'Member' | 'Viewer'
-type ProfileTab = 'info' | 'activity' | 'access' | 'reports'
+type ProfileTab = 'info' | 'activity' | 'access'
 
 const ROLE_LABEL_KEY: Record<MembershipRole, I18nKey> = {
   Owner: 'roles.roleOwner',
@@ -42,10 +51,21 @@ const ROLE_LABEL_KEY: Record<MembershipRole, I18nKey> = {
 }
 
 const ROLE_ICON: Record<MembershipRole, LucideIcon> = {
-  Owner: ShieldCheck,
-  Manager: Users,
-  Member: UserRound,
+  Owner: Crown,
+  Manager: ShieldCheck,
+  Member: Users,
   Viewer: UserRound,
+}
+
+/** Icon tone for each audit action, reused in the activity timeline. */
+const ACTIVITY_ICON_TONE: Record<string, string> = {
+  role_changed: 'bg-primary/15 text-primary-ink',
+  musical_role_changed: 'bg-primary/15 text-primary-ink',
+  member_removed: 'bg-error/15 text-error-ink',
+  member_left: 'bg-surface-hover text-muted',
+  invitation_created: 'bg-success/20 text-success-ink',
+  invitation_revoked: 'bg-error/15 text-error-ink',
+  member_description_changed: 'bg-primary/15 text-primary-ink',
 }
 
 const AVATAR_TONES = [
@@ -55,47 +75,10 @@ const AVATAR_TONES = [
   'bg-error/15 text-error-ink',
 ] as const
 
-/**
- * Reports the product should show per member. The API has no per-member
- * metrics yet, so each one renders as a named placeholder — never a number.
- */
-const REPORT_PLANS: readonly {
-  key: string
-  icon: LucideIcon
-  titleKey: I18nKey
-  hintKey: I18nKey
-}[] = [
-  {
-    key: 'attendance',
-    icon: CalendarDays,
-    titleKey: 'people.reportsAttendance',
-    hintKey: 'people.reportsAttendanceHint',
-  },
-  {
-    key: 'tasks',
-    icon: CheckSquare,
-    titleKey: 'people.reportsTasks',
-    hintKey: 'people.reportsTasksHint',
-  },
-  {
-    key: 'repertoire',
-    icon: Music2,
-    titleKey: 'people.reportsRepertoire',
-    hintKey: 'people.reportsRepertoireHint',
-  },
-  {
-    key: 'roles',
-    icon: ShieldCheck,
-    titleKey: 'people.reportsRoles',
-    hintKey: 'people.reportsRolesHint',
-  },
-]
-
-const PROFILE_TABS: readonly { id: ProfileTab; labelKey: I18nKey }[] = [
-  { id: 'info', labelKey: 'people.profileTabInfo' },
-  { id: 'activity', labelKey: 'people.profileTabActivity' },
-  { id: 'access', labelKey: 'people.profileTabAccess' },
-  { id: 'reports', labelKey: 'people.profileTabReports' },
+const PROFILE_TABS: readonly { id: ProfileTab; labelKey: I18nKey; icon: LucideIcon }[] = [
+  { id: 'info', labelKey: 'people.profileTabInfo', icon: UserRound },
+  { id: 'activity', labelKey: 'people.profileTabActivity', icon: Activity },
+  { id: 'access', labelKey: 'people.profileTabAccess', icon: ShieldCheck },
 ]
 
 type TFunction = (key: I18nKey, params?: TParams) => string
@@ -142,7 +125,17 @@ function presenceOf(
 function formatDateTime(value: string, lang: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
-  return new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+  return new Intl.DateTimeFormat(lang, { dateStyle: 'long', timeStyle: 'short' }).format(date)
+}
+
+/** "hace 6 días": relative age of a timestamp, in the app locale. */
+function relativeLabel(value: string, lang: string, now: number): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' })
+  const days = Math.round((date.getTime() - now) / 86_400_000)
+  if (Math.abs(days) < 1) return rtf.format(Math.round((date.getTime() - now) / 3_600_000), 'hour')
+  return rtf.format(days, 'day')
 }
 
 /* ------------------------------------------------------------------ */
@@ -151,45 +144,66 @@ function formatDateTime(value: string, lang: string): string {
 
 export type MemberProfileDialogProps = {
   member: MemberListItem
+  viewerUserId: string
   groupId: string
   /** Owner may read the group audit log; that endpoint is Owner-only (ADR-0051). */
   canReadAudit: boolean
+  /** Owner or Manager may change the descriptive fields. */
+  canEditProfile: boolean
+  /** Only the Group owner may disable or restore membership access. */
+  canManageAccess: boolean
+  /** Actions available on this person (role, access, removal), built by the page. */
+  menuItems: GroupActionMenuItem[]
   /** Managed account behind this member, when the group provisions access. */
   managedAccount: { memberId: string; handle: string | null } | null
   onClose: () => void
+  onSaveDescription: (description: string) => Promise<void>
+  onSaveSkills: (skills: string) => Promise<void>
+  onEditProfile: () => void
   onResetAccess: () => void
+  onSetAccessEnabled: (enabled: boolean) => Promise<void>
 }
 
-/**
- * One person, four facets: who they are, what they did, how they get in, and
- * what the group will be able to measure about them.
- *
- * Every facet shows real data when the API has it. Where it does not (active
- * sessions, attendance, per-member reports) the UI shows a named, disabled
- * placeholder instead of invented numbers — the shape is ready, the data is
- * not there yet.
- */
+/** Selected member facts, group activity and access, without duplicating tab content. */
 export function MemberProfileDialog({
   member,
+  viewerUserId,
   groupId,
   canReadAudit,
+  canEditProfile,
+  canManageAccess,
+  menuItems,
   managedAccount,
   onClose,
+  onSaveDescription,
+  onSaveSkills,
+  onEditProfile,
   onResetAccess,
+  onSetAccessEnabled,
 }: MemberProfileDialogProps) {
   const { t, lang } = useT()
   const [tab, setTab] = useState<ProfileTab>('info')
+  const tabRefs = useRef<Record<ProfileTab, HTMLButtonElement | null>>({
+    info: null,
+    activity: null,
+    access: null,
+  })
+  const [editing, setEditing] = useState<'none' | 'description' | 'skills'>('none')
   const role = roleOf(member)
   const RoleIcon = ROLE_ICON[role]
+  const skills = parseMusicalRoles(member.musicalRole)
   const presence = presenceOf(member.lastSeenAt, t, Date.now())
+  const now = Date.now()
+  const isSelf = member.userId === viewerUserId
+  const overflowItems = menuItems.filter((item) => item.key !== 'edit' && item.key !== 'instrument')
 
   return (
     <GroupDialog
       open
       onClose={onClose}
-      size="lg"
-      title={t('people.profileTitle')}
-      description={t('people.profileHint', { name: member.displayName })}
+      size="xl"
+      mobileFullscreen
+      title={t(isSelf ? 'people.ownProfileTitle' : 'people.profileTitle')}
       testId="member-profile-dialog"
       footer={
         <GroupButton variant="secondary" onClick={onClose}>
@@ -197,83 +211,188 @@ export function MemberProfileDialog({
         </GroupButton>
       }
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <span
-          aria-hidden="true"
-          className={cn(
-            'grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-base font-bold',
-            toneFor(member.userId),
-          )}
-        >
-          {initialsOf(member.displayName)}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-ink">{member.displayName}</p>
-          <p className="truncate text-sm text-muted">{member.email ?? t('people.emailNone')}</p>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            <GroupChip tone={role === 'Owner' ? 'accent' : 'neutral'} icon={RoleIcon}>
-              {t(ROLE_LABEL_KEY[role])}
-            </GroupChip>
-            <GroupChip tone={presence.online ? 'success' : 'neutral'}>{presence.label}</GroupChip>
-            {managedAccount ? (
-              <GroupChip tone="outline" icon={KeyRound}>
-                {t('people.accessManaged')}
-              </GroupChip>
-            ) : null}
+      <div className="space-y-5">
+        {/* Header: back, identity, chips and the page-level actions. */}
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-start gap-4">
+            <span
+              aria-hidden="true"
+              className={cn(
+                'grid h-16 w-16 shrink-0 place-items-center rounded-full text-lg font-bold',
+                toneFor(member.userId),
+              )}
+            >
+              {initialsOf(member.displayName)}
+            </span>
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="space-y-0.5">
+                <h2 className="font-display text-xl font-bold tracking-tight text-ink">
+                  {member.displayName}
+                </h2>
+                <p className="truncate text-sm text-muted">
+                  {member.email ?? t('people.emailNone')}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {isSelf ? <GroupChip tone="accent">{t('people.selfProfile')}</GroupChip> : null}
+                <GroupChip tone="outline">{t('people.accountLinked')}</GroupChip>
+                <GroupChip tone={role === 'Owner' ? 'accent' : 'neutral'} icon={RoleIcon}>
+                  {t(ROLE_LABEL_KEY[role])}
+                </GroupChip>
+                <GroupChip tone={presence.online ? 'success' : 'neutral'}>{presence.label}</GroupChip>
+                {skills.length > 0 ? (
+                  <GroupChip tone="outline" icon={Music4}>
+                    {musicalRoleLabel(skills[0]!, t)}
+                  </GroupChip>
+                ) : null}
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+                  <CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t('people.joinedRelative', {
+                    when: relativeLabel(member.createdAt, lang, now),
+                  })}
+                </span>
+              </div>
+            </div>
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              {isSelf ? <GroupLink variant="ghost" to={routes.account}>{t('people.accountSettings')}</GroupLink> : null}
+              {canEditProfile ? (
+                <GroupButton
+                  variant="secondary"
+                  size="sm"
+                  className="min-h-11"
+                  onClick={onEditProfile}
+                >
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                  {t('people.editProfile')}
+                </GroupButton>
+              ) : null}
+              {overflowItems.length > 0 ? (
+                <GroupActionMenu
+                  label={t('people.actionsFor', { name: member.displayName })}
+                  items={overflowItems}
+                />
+              ) : null}
+            </div>
+          </div>
+
+          <div
+            className="flex flex-wrap gap-1 border-b border-border-subtle"
+            role="tablist"
+            aria-label={t('people.profileTabsLabel')}
+            onKeyDown={(event) => {
+              const currentIndex = PROFILE_TABS.findIndex((definition) => definition.id === tab)
+              let nextIndex = currentIndex
+              if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % PROFILE_TABS.length
+              else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + PROFILE_TABS.length) % PROFILE_TABS.length
+              else if (event.key === 'Home') nextIndex = 0
+              else if (event.key === 'End') nextIndex = PROFILE_TABS.length - 1
+              else return
+
+              event.preventDefault()
+              const nextTab = PROFILE_TABS[nextIndex]!.id
+              setTab(nextTab)
+              tabRefs.current[nextTab]?.focus()
+            }}
+          >
+            {PROFILE_TABS.map((definition) => {
+              const Icon = definition.icon
+              const active = tab === definition.id
+              return (
+                <button
+                  key={definition.id}
+                  type="button"
+                  role="tab"
+                  id={`member-profile-tab-${definition.id}`}
+                  aria-controls="member-profile-panel"
+                  aria-selected={active}
+                  tabIndex={active ? 0 : -1}
+                  ref={(element) => {
+                    tabRefs.current[definition.id] = element
+                  }}
+                  onClick={() => setTab(definition.id)}
+                  className={cn(
+                    '-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                    active
+                      ? 'border-primary text-primary-ink'
+                      : 'border-transparent text-muted hover:text-ink',
+                  )}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  {t(definition.labelKey)}
+                </button>
+              )
+            })}
           </div>
         </div>
+
+        <div
+          id="member-profile-panel"
+          role="tabpanel"
+          aria-labelledby={`member-profile-tab-${tab}`}
+          tabIndex={0}
+        >
+          {tab === 'info' ? (
+            <InfoTab
+              member={member}
+              lang={lang}
+              presence={presence}
+              skills={skills}
+              canEditProfile={canEditProfile}
+              editing={editing}
+              onEditingChange={setEditing}
+              onSaveDescription={onSaveDescription}
+              onSaveSkills={onSaveSkills}
+            />
+          ) : null}
+
+          {tab === 'activity' ? (
+            <ActivityTab groupId={groupId} member={member} canReadAudit={canReadAudit} />
+          ) : null}
+
+          {tab === 'access' ? (
+            <AccessTab
+              member={member}
+              presence={presence}
+              managedAccount={managedAccount}
+              onResetAccess={onResetAccess}
+              canManageAccess={canManageAccess}
+              onSetAccessEnabled={onSetAccessEnabled}
+            />
+          ) : null}
+        </div>
+
       </div>
-
-      <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('people.profileTabsLabel')}>
-        {PROFILE_TABS.map((definition) => (
-          <button
-            key={definition.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === definition.id}
-            onClick={() => setTab(definition.id)}
-            className={cn(
-              'min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-              tab === definition.id
-                ? 'bg-primary-strong text-primary-foreground'
-                : 'text-muted hover:text-ink',
-            )}
-          >
-            {t(definition.labelKey)}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'info' ? (
-        <InfoTab member={member} lang={lang} presenceLabel={presence.label} />
-      ) : null}
-
-      {tab === 'activity' ? (
-        <ActivityTab groupId={groupId} member={member} canReadAudit={canReadAudit} />
-      ) : null}
-
-      {tab === 'access' ? (
-        <AccessTab
-          presenceLabel={presence.label}
-          managedAccount={managedAccount}
-          onResetAccess={onResetAccess}
-        />
-      ) : null}
-
-      {tab === 'reports' ? <ReportsTab member={member} /> : null}
     </GroupDialog>
   )
 }
 
 /* ------------------------------------------------------------------ */
-/* Information                                                         */
+/* Tab: information                                                    */
 /* ------------------------------------------------------------------ */
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function ProfileRow({
+  icon: Icon,
+  label,
+  value,
+  action,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string
+  action?: { label: string; onClick: () => void }
+}) {
   return (
-    <div className="rounded-xl border border-border-subtle bg-surface-hover/60 px-3 py-2">
-      <dt className="text-xs font-medium text-muted">{label}</dt>
-      <dd className="text-sm font-semibold text-ink">{value}</dd>
+    <div className="flex flex-col gap-1 border-b border-border-subtle px-4 py-3 last:border-0 sm:flex-row sm:items-center sm:gap-3">
+      <span className="flex min-w-0 items-center gap-2 text-sm text-muted sm:min-w-40">
+        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {label}
+      </span>
+      <span className="min-w-0 flex-1 break-words text-sm font-semibold text-ink">{value}</span>
+      {action ? (
+        <GroupButton variant="ghost" size="sm" onClick={action.onClick}>
+          {action.label}
+        </GroupButton>
+      ) : null}
     </div>
   )
 }
@@ -281,39 +400,271 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 function InfoTab({
   member,
   lang,
-  presenceLabel,
+  presence,
+  skills,
+  canEditProfile,
+  editing,
+  onEditingChange,
+  onSaveDescription,
+  onSaveSkills,
 }: {
   member: MemberListItem
   lang: string
-  presenceLabel: string
+  presence: { label: string; online: boolean }
+  skills: string[]
+  canEditProfile: boolean
+  editing: 'none' | 'description' | 'skills'
+  onEditingChange: (value: 'none' | 'description' | 'skills') => void
+  onSaveDescription: (description: string) => Promise<void>
+  onSaveSkills: (skills: string) => Promise<void>
 }) {
   const { t } = useT()
   const role = roleOf(member)
-  const instruments = parseMusicalRoles(member.musicalRole)
+  const editingDescription = editing === 'description'
+  const editingSkills = editing === 'skills'
 
   return (
-    <dl className="grid gap-3 sm:grid-cols-2">
-      <InfoRow label={t('people.colRole')} value={t(ROLE_LABEL_KEY[role])} />
-      <InfoRow
-        label={t('people.colInstrument')}
-        value={
-          instruments.length === 0
-            ? t('people.instrumentNone')
-            : musicalRolesText(member.musicalRole, t)
-        }
-      />
-      <InfoRow label={t('people.emailLabel')} value={member.email ?? t('people.emailNone')} />
-      <InfoRow label={t('people.joinedLabel')} value={formatDateTime(member.createdAt, lang)} />
-      <InfoRow label={t('people.colActivity')} value={presenceLabel} />
-    </dl>
+    <div className="space-y-4">
+      <GroupCard padding="none">
+        <div className="flex items-center gap-2 border-b border-border-subtle px-4 py-3">
+          <UserRound className="h-4 w-4 text-muted" aria-hidden="true" />
+          <h3 className="text-sm font-semibold text-ink">{t('people.personalInfo')}</h3>
+        </div>
+        <ProfileRow icon={UserRound} label={t('people.fullName')} value={member.displayName} />
+        <ProfileRow
+          icon={Copy}
+          label={t('people.emailLabel')}
+          value={member.email ?? t('people.emailNone')}
+        />
+        <ProfileRow
+          icon={Music4}
+          label={t('people.colInstrument')}
+          value={skills.length === 0 ? t('people.instrumentNone') : musicalRolesText(member.musicalRole, t)}
+        />
+        <ProfileRow icon={ROLE_ICON[role]} label={t('people.roleInGroup')} value={t(ROLE_LABEL_KEY[role])} />
+        <ProfileRow icon={CalendarDays} label={t('people.joinedLabel')} value={formatDateTime(member.createdAt, lang)} />
+        <ProfileRow icon={Activity} label={t('people.colActivity')} value={presence.label} />
+      </GroupCard>
+
+      <GroupCard padding="none">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <ListChecks className="h-4 w-4 text-muted" aria-hidden="true" />
+            <h3 className="text-sm font-semibold text-ink">{t('people.descriptionOptional')}</h3>
+          </div>
+          {canEditProfile && !editingDescription ? (
+            <GroupButton
+              variant="secondary"
+              size="sm"
+              aria-label={t('people.editDescription')}
+              onClick={() => onEditingChange('description')}
+            >
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              {t('common.edit')}
+            </GroupButton>
+          ) : null}
+        </div>
+        {editingDescription ? (
+          <DescriptionEditor
+            member={member}
+            onCancel={() => onEditingChange('none')}
+            onSave={onSaveDescription}
+          />
+        ) : (
+          <p className="px-4 pb-4 text-sm text-muted">
+            {member.description?.trim()
+              ? member.description
+              : t('people.descriptionEmpty', { name: member.displayName })}
+          </p>
+        )}
+      </GroupCard>
+
+      <GroupCard padding="none">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-muted" aria-hidden="true" />
+            <h3 className="text-sm font-semibold text-ink">{t('people.skillsInterests')}</h3>
+          </div>
+          {canEditProfile && !editingSkills ? (
+            <GroupButton
+              variant="secondary"
+              size="sm"
+              aria-label={t('people.editSkills')}
+              onClick={() => onEditingChange('skills')}
+            >
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              {t('common.edit')}
+            </GroupButton>
+          ) : null}
+        </div>
+        {editingSkills ? (
+          <SkillsEditor
+            member={member}
+            onCancel={() => onEditingChange('none')}
+            onSave={onSaveSkills}
+          />
+        ) : (
+          <div className="px-4 pb-4">
+            {skills.length === 0 ? (
+              <p className="text-sm text-muted">{t('people.skillsEmpty')}</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {skills.map((tag) => (
+                  <GroupChip key={tag} tone="accent">
+                    {musicalRoleLabel(tag, t)}
+                  </GroupChip>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </GroupCard>
+    </div>
   )
 }
 
+/**
+ * Inline editor with the personalization rule: the save action only exists once
+ * something actually changed, and "Restablecer" puts the saved value back.
+ */
+function DescriptionEditor({
+  member,
+  onCancel,
+  onSave,
+}: {
+  member: MemberListItem
+  onCancel: () => void
+  onSave: (description: string) => Promise<void>
+}) {
+  const { t } = useT()
+  const saved = member.description ?? ''
+  const [value, setValue] = useState(saved)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const dirty = value.trim() !== saved.trim()
+
+  async function save() {
+    setPending(true)
+    setError(null)
+    try {
+      await onSave(value)
+      // Saved: back to read mode, like the personalization editor.
+      onCancel()
+    } catch (err) {
+      setError(mutationErrorMessage(err, t))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3 px-4 pb-4">
+      <GroupTextArea
+        label={t('people.descriptionLabel')}
+        value={value}
+        maxLength={500}
+        disabled={pending}
+        onChange={(event) => setValue(event.target.value)}
+        hint={t('people.descriptionHint')}
+      />
+      {error ? <p className="text-sm text-error-ink">{error}</p> : null}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-3">
+        <p className="text-xs text-muted">{dirty ? t('people.unsavedChanges') : t('people.noChanges')}</p>
+        {dirty ? (
+          <div className="flex items-center gap-2">
+            <GroupButton
+              variant="secondary"
+              size="sm"
+              disabled={pending}
+              onClick={() => setValue(saved)}
+            >
+              {t('people.reset')}
+            </GroupButton>
+            <GroupButton size="sm" disabled={pending} onClick={() => void save()}>
+              {pending ? t('people.saving') : t('common.save')}
+            </GroupButton>
+          </div>
+        ) : (
+          <GroupButton variant="secondary" size="sm" onClick={onCancel}>
+            {t('common.cancel')}
+          </GroupButton>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SkillsEditor({
+  member,
+  onCancel,
+  onSave,
+}: {
+  member: MemberListItem
+  onCancel: () => void
+  onSave: (skills: string) => Promise<void>
+}) {
+  const { t } = useT()
+  const saved = member.musicalRole ?? ''
+  const [value, setValue] = useState(saved)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const dirty = normalizeSkills(value) !== normalizeSkills(saved)
+
+  async function save() {
+    setPending(true)
+    setError(null)
+    try {
+      await onSave(value)
+      // Saved: back to read mode, like the personalization editor.
+      onCancel()
+    } catch (err) {
+      setError(mutationErrorMessage(err, t))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3 px-4 pb-4">
+      <MusicalRolePicker value={value} disabled={pending} onChange={setValue} />
+      {error ? <p className="text-sm text-error-ink">{error}</p> : null}
+      <p className="text-xs text-muted">{t('people.instrumentHint')}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-3">
+        <p className="text-xs text-muted">{dirty ? t('people.unsavedChanges') : t('people.noChanges')}</p>
+        {dirty ? (
+          <div className="flex items-center gap-2">
+            <GroupButton
+              variant="secondary"
+              size="sm"
+              disabled={pending}
+              onClick={() => setValue(saved)}
+            >
+              {t('people.reset')}
+            </GroupButton>
+            <GroupButton size="sm" disabled={pending} onClick={() => void save()}>
+              {pending ? t('people.saving') : t('common.save')}
+            </GroupButton>
+          </div>
+        ) : (
+          <GroupButton variant="secondary" size="sm" onClick={onCancel}>
+            {t('common.cancel')}
+          </GroupButton>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Skills are a comma-separated list, so order must not count as a change. */
+function normalizeSkills(value: string | null | undefined): string {
+  return parseMusicalRoles(value).slice().sort().join(',')
+}
+
 /* ------------------------------------------------------------------ */
-/* Activity                                                            */
+/* Tab: activity                                                       */
 /* ------------------------------------------------------------------ */
 
-const ACTIVITY_LIMIT = 8
+const ACTIVITY_LIMIT = 10
 
 function ActivityTab({
   groupId,
@@ -361,15 +712,7 @@ function ActivityTab({
 
   return (
     <div className="space-y-3">
-      <div className="space-y-0.5">
-        <h3 className="text-sm font-semibold text-ink">
-          {t('people.profileActivityTitle', { name: member.displayName })}
-        </h3>
-        <p className="text-xs text-muted">{t('people.profileActivityHint')}</p>
-      </div>
-
       <GroupErrorState message={error} />
-
       {entries === null ? (
         <GroupListSkeleton rows={3} label={t('audit.loading')} />
       ) : entries.length === 0 ? (
@@ -379,7 +722,7 @@ function ActivityTab({
           description={t('people.profileActivityEmptyBody')}
         />
       ) : (
-        <ul className="space-y-2">
+        <ol className="space-y-2">
           {entries.map((entry) => {
             const meta = auditActionMeta(entry.action)
             const Icon = meta.icon
@@ -387,145 +730,108 @@ function ActivityTab({
               <li key={entry.id}>
                 <GroupCard className="flex items-start gap-3" padding="sm">
                   <span
-                    className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', meta.tone)}
+                    className={cn(
+                      'grid h-9 w-9 shrink-0 place-items-center rounded-full',
+                      ACTIVITY_ICON_TONE[entry.action] ?? meta.tone,
+                    )}
                     aria-hidden="true"
                   >
                     <Icon className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-ink">{t(meta.labelKey)}</p>
-                    <p className="text-xs text-muted">{formatDateTime(entry.createdAt, lang)}</p>
+                    <p className="text-xs text-muted">
+                      {relativeLabel(entry.createdAt, lang, Date.now())} ·{' '}
+                      {formatDateTime(entry.createdAt, lang)}
+                    </p>
                   </div>
                 </GroupCard>
               </li>
             )
           })}
-        </ul>
+        </ol>
       )}
-
-      <p className="text-xs text-muted">{t('people.profileActivitySoon')}</p>
-      <Link
-        to={`/groups/${groupId}/ajustes?tab=audit`}
-        className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      >
-        <Activity className="h-4 w-4" aria-hidden="true" />
-        {t('people.profileActivityFullLog')}
-      </Link>
     </div>
   )
 }
 
 /* ------------------------------------------------------------------ */
-/* Access                                                              */
+/* Tab: access                                                         */
 /* ------------------------------------------------------------------ */
 
 function AccessTab({
-  presenceLabel,
+  member,
+  presence,
   managedAccount,
   onResetAccess,
+  canManageAccess,
+  onSetAccessEnabled,
 }: {
-  presenceLabel: string
+  member: MemberListItem
+  presence: { label: string; online: boolean }
   managedAccount: { memberId: string; handle: string | null } | null
   onResetAccess: () => void
+  canManageAccess: boolean
+  onSetAccessEnabled: (enabled: boolean) => Promise<void>
 }) {
-  const { t } = useT()
+  const { t, lang } = useT()
+  const [savingAccess, setSavingAccess] = useState(false)
+  const [accessError, setAccessError] = useState<string | null>(null)
+  const accessEnabled = member.accessEnabled !== false
+
+  const changeAccess = async () => {
+    setSavingAccess(true)
+    setAccessError(null)
+    try {
+      await onSetAccessEnabled(!accessEnabled)
+    } catch {
+      setAccessError(t('people.accessChangeError'))
+    } finally {
+      setSavingAccess(false)
+    }
+  }
 
   return (
     <div className="space-y-4">
-      <dl className="grid gap-3 sm:grid-cols-2">
-        <InfoRow label={t('people.accessState')} value={presenceLabel} />
-        <InfoRow label={t('people.accessLastSeen')} value={presenceLabel} />
+      <GroupCard padding="none">
+        <div className="flex items-center gap-2 border-b border-border-subtle px-4 py-3">
+          <ShieldCheck className="h-4 w-4 text-muted" aria-hidden="true" />
+          <h3 className="text-sm font-semibold text-ink">{t('people.accessTitle')}</h3>
+        </div>
+        <ProfileRow icon={ShieldCheck} label={t('people.accessState')} value={t(accessEnabled ? 'people.accessEnabled' : 'people.accessDisabled')} />
+        <ProfileRow
+          icon={Activity}
+          label={t('people.accessLastSeen')}
+          value={member.lastSeenAt ? formatDateTime(member.lastSeenAt, lang) : t('people.neverSeen')}
+        />
         {managedAccount ? (
-          <InfoRow
+          <ProfileRow
+            icon={KeyRound}
             label={t('people.accessHandle')}
-            value={managedAccount.handle ?? t('people.accessManaged')}
+            value={managedAccount.handle ?? '—'}
           />
         ) : null}
-      </dl>
+      </GroupCard>
 
-      {managedAccount ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <GroupButton variant="secondary" onClick={onResetAccess}>
-            <KeyRound className="h-4 w-4" aria-hidden="true" />
-            {t('roster.reset')}
+      {canManageAccess && roleOf(member) !== 'Owner' ? (
+        <GroupCard className="space-y-3" padding="sm">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-ink">{t(accessEnabled ? 'people.accessDeactivate' : 'people.accessReactivate')}</p>
+              <p className="text-xs text-muted">{t('people.accessScopeHint')}</p>
+            </div>
+          </div>
+          {accessError ? <p role="alert" className="text-sm text-error-ink">{accessError}</p> : null}
+          <GroupButton variant={accessEnabled ? 'danger' : 'primary'} disabled={savingAccess} onClick={() => void changeAccess()}>
+            {savingAccess ? t('profile.saving') : t(accessEnabled ? 'people.accessDeactivateAction' : 'people.accessReactivateAction')}
           </GroupButton>
-          <p className="text-xs text-muted">{t('people.accessResetHint')}</p>
-        </div>
-      ) : null}
-
-      <div className="space-y-2">
-        <SoonBadge label={t('people.comingSoon')} />
-        <GroupCard className="flex items-start gap-3" padding="sm">
-          <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-ink">{t('people.accessSessions')}</p>
-            <p className="text-xs text-muted">{t('people.accessSessionsHint')}</p>
-          </div>
         </GroupCard>
-        <GroupCard className="flex items-start gap-3" padding="sm">
-          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-ink">{t('people.accessDeactivate')}</p>
-            <p className="text-xs text-muted">{t('people.accessDeactivateHint')}</p>
-          </div>
-        </GroupCard>
-      </div>
+      ) : roleOf(member) === 'Owner' ? (
+        <p className="text-xs text-muted">{t('people.accessOwnerProtected')}</p>
+      ) : (
+        <p className="text-xs text-muted">{t('people.accessScopeHint')}</p>
+      )}
     </div>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Reports                                                             */
-/* ------------------------------------------------------------------ */
-
-function ReportsTab({ member }: { member: MemberListItem }) {
-  const { t } = useT()
-
-  return (
-    <div className="space-y-3">
-      <div className="space-y-0.5">
-        <h3 className="text-sm font-semibold text-ink">
-          {t('people.reportsTitle', { name: member.displayName })}
-        </h3>
-        <p className="text-xs text-muted">{t('people.reportsHint')}</p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        {REPORT_PLANS.map((plan) => {
-          const Icon = plan.icon
-          return (
-            <GroupCard key={plan.key} className="space-y-2" padding="sm">
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-2">
-                  <span
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-surface-hover text-muted"
-                    aria-hidden="true"
-                  >
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="truncate text-sm font-semibold text-ink">{t(plan.titleKey)}</span>
-                </span>
-                <SoonBadge label={t('people.comingSoon')} />
-              </div>
-              <p className="text-xs text-muted">{t(plan.hintKey)}</p>
-              <p className="font-display text-2xl font-bold text-muted" aria-hidden="true">
-                —
-              </p>
-            </GroupCard>
-          )
-        })}
-      </div>
-
-      <p className="text-xs text-muted">{t('people.reportsUnavailable')}</p>
-    </div>
-  )
-}
-
-function SoonBadge({ label }: { label: string }) {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/20 px-2.5 py-0.5 text-xs font-semibold text-ink">
-      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-      {label}
-    </span>
   )
 }

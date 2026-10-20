@@ -119,17 +119,20 @@ public sealed class AcceptInvitationHandler
     private readonly IInvitationStore _invitations;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
+    private readonly IGroupDatabaseScope? _databaseScope;
 
     public AcceptInvitationHandler(
         IGroupStore groups,
         IInvitationStore invitations,
         IUnitOfWork unitOfWork,
-        IClock clock)
+        IClock clock,
+        IGroupDatabaseScope? databaseScope = null)
     {
         _groups = groups;
         _invitations = invitations;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _databaseScope = databaseScope;
     }
 
     public async Task<InvitationAcceptedDto> HandleAsync(
@@ -146,9 +149,13 @@ public sealed class AcceptInvitationHandler
             throw new ValidationException(InvalidInvitationMessage);
         }
 
-        var invitation = await _invitations.GetByTokenHashAsync(
-            CreateInvitationHandler.HashToken(command.Token.Trim()),
-            cancellationToken);
+        var tokenHash = CreateInvitationHandler.HashToken(command.Token.Trim());
+        if (_databaseScope is not null)
+        {
+            await _databaseScope.SetInvitationTokenLookupAsync(tokenHash, cancellationToken);
+        }
+
+        var invitation = await _invitations.GetByTokenHashAsync(tokenHash, cancellationToken);
         var now = _clock.UtcNow;
         if (invitation is null || invitation.IsAccepted || invitation.IsExpired(now))
         {

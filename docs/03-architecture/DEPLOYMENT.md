@@ -30,10 +30,11 @@ the owner-contracted Hetzner VPS.
 
 | Host | Role | Served by |
 | --- | --- | --- |
-| `sonivo.lat` | Marketing / landing + entry to auth | Vercel |
+| `sonivo.lat` | Public marketing / landing | Vercel (separate deployment target under ADR-0089) |
 | `www.sonivo.lat` | 308 redirect to apex | Vercel |
-| `app.sonivo.lat` | Authenticated product entry (dashboard) | Vercel (BFF) |
-| `account.sonivo.lat` | Account / security / consent (optional; `/cuenta` also works) | Vercel |
+| `auth.sonivo.lat` | Identity entry: sign-in, registration, recovery, MFA, passkeys | Separate Next deployment (ADR-0089; not provisioned yet) |
+| `app.sonivo.lat` | Authenticated product entry | Separate Next deployment / BFF (ADR-0089; not provisioned yet) |
+| `account.sonivo.lat` | Compatibility alias to `auth.sonivo.lat` after cutover | Redirect only; do not serve a separate identity app |
 | `<slug>.sonivo.lat` | **Per-group workspace** (host-based tenancy) | Vercel (BFF) |
 | `api.sonivo.lat` | .NET API + SignalR `/hubs` (BFF-to-API only) | Hetzner (Caddy) |
 | `staging.sonivo.lat` | Staging | Render |
@@ -42,6 +43,14 @@ the owner-contracted Hetzner VPS.
 The tenant slug in `<slug>.sonivo.lat` is a **selector, never authorization**.
 Membership is verified server-side for the authenticated principal on every
 tenant-scoped request (see ADR-0067 §3 and `GroupAccessService`).
+
+**Migration state (ADR-0089):** the table above is the target host map, not proof
+that the separate deployments or DNS records exist. The repo currently has one
+Next bridge and apex-host auth. Keep apex auth and existing redirects active
+until WBR-02–06 are deployed and the cross-host auth, OAuth, passkey, cookie,
+CSRF, CSP/CORS, indexing, and staging gates pass. The root `sonivo.lat` must
+remain the public canonical host; private app/auth/tenant responses must emit
+`noindex, nofollow`. See [web surface migration](PHASE-WEB-BOUNDARIES-SPEC.md).
 
 ---
 
@@ -74,22 +83,25 @@ the `__Host-sonivo.session` prefix (requires `Secure`, `Path=/`, no `Domain`).
 
 Flow:
 
-1. The user authenticates at the apex / `app.sonivo.lat`; the session cookie is
-   host-only on that host.
+1. **Current bridge:** the user authenticates at the apex; the session cookie is
+   host-only on that host. **Target (ADR-0089):** authenticate at
+   `auth.sonivo.lat`; keep its cookie host-only there.
 2. Opening a group calls `POST /api/session/handoff/start { slug }` (authenticated
    + membership-checked). The API returns a redirect to
-   `https://{slug}.sonivo.lat/session/handoff?code=…`.
-3. The tenant host's `/session/handoff` page redeems the code with
+   `https://{slug}.sonivo.lat/auth/session/handoff?code=…`.
+3. The tenant host's `/auth/session/handoff` page redeems the code with
    `POST /api/session/handoff/redeem { code }`, which sets a **host-only** cookie
    on that host, then reloads.
-4. The host bridge forwards `{slug}.sonivo.lat/…` to the existing `/g/{slug}`
+4. The host bridge forwards `{slug}.sonivo.lat/…` to the canonical
+   `/app/g/{slug}`
    resolver, which re-verifies membership server-side.
 
 **App scope (`app.sonivo.lat`).** `start` with **no slug** (or a blank one) issues
 a user-scoped handoff for the product host: any authenticated user may start it,
 and redeem skips the membership check because there is no group to authorize
-(the code is still single-use, 256-bit, 90 s, UA-bound). This lets the apex or
-`account` hand a session to `app.sonivo.lat`. The redirect is enabled by setting
+(the code is still single-use, 256-bit, 90 s, UA-bound). This lets the current
+apex and the future identity host, after exact-origin configuration, hand a
+session to `app.sonivo.lat`. The redirect is enabled by setting
 `NEXT_PUBLIC_APP_HOST=app.sonivo.lat` on the frontend; when unset, the apex keeps
 serving the product directly.
 
@@ -112,6 +124,7 @@ Namecheap (BasicDNS) for `sonivo.lat`:
 | `@` (apex) | A / ALIAS | Vercel (per Vercel's domain instructions) |
 | `www` | CNAME | Vercel |
 | `app` | CNAME | Vercel |
+| `auth` | CNAME | Vercel (separate identity project after WBR-04) |
 | `account` | CNAME | Vercel |
 | `*` (wildcard) | CNAME | Vercel |
 | `api` | A | Hetzner VPS public IPv4 |
@@ -224,9 +237,116 @@ parity migration; do not weaken the guard with a wildcard.
 
 ## 8. Phase E — data
 
-- **Neon:** create a `prod` branch (or a dedicated prod project). Use the pooled
-  connection string; `SONIVO_MIGRATE_ON_START=true` applies EF migrations on
-  container start.
+- **Neon:** create a `prod` branch (or a dedicated prod project). Keep two
+  independent credentials: the constrained `sonivo_app` runtime role and a
+  privileged migration/ownership role. Provision `sonivo_app` with a unique
+  production secret, `LOGIN`, and
+  `NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION`; it must not
+  own tables/schema or inherit membership in the migration role. Create it
+  through the provider's approved database administration path. If using
+  `psql`, create the role without embedding a password in a script or command,
+  then set its unique secret interactively with `\password sonivo_app`
+  ([psql documentation](https://www.postgresql.org/docs/16/app-psql.html)) and
+  store it in the production secret store. Do not reuse the local/CI password:
+
+  ```text
+  CREATE ROLE sonivo_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+      NOREPLICATION NOBYPASSRLS;
+  \password sonivo_app
+  ```
+
+  Run the role-creation statement only when `sonivo_app` is absent. If it
+  already exists, inspect and correct its attributes instead of recreating it.
+- **Production schema and principal rollout order:**
+  1. From the approved release source, a controlled one-shot deployment job
+     applies `dotnet ef database update` with `SONIVO_MIGRATION_CONNECTION`.
+     The job uses the migration/ownership credential; it is never added to the
+     API container or its `.env`.
+  2. On Sonivo's production database, remove the default `PUBLIC` temporary
+     table capability and grant the runtime role access to this database while
+     connected as its owner:
+
+     ```sql
+     DO $$
+     BEGIN
+         EXECUTE format('GRANT CONNECT ON DATABASE %I TO sonivo_app', current_database());
+         EXECUTE format('REVOKE CREATE, TEMPORARY ON DATABASE %I FROM sonivo_app', current_database());
+         EXECUTE format('REVOKE TEMPORARY ON DATABASE %I FROM PUBLIC', current_database());
+     END
+     $$;
+     ```
+
+     The runtime role must not receive `TEMPORARY`; the verifier rejects it
+     even when inherited from `PUBLIC`. PostgreSQL also grants `CONNECT` to
+     `PUBLIC` by default. The verifier requires the runtime principal to have
+     no effective `CONNECT` to any other connectable database. On a cluster
+     dedicated to Sonivo, revoke `CONNECT` from `PUBLIC` and `sonivo_app` on
+     each other connectable database:
+
+     ```sql
+     DO $$
+     DECLARE
+         database_record record;
+     BEGIN
+         FOR database_record IN
+             SELECT datname
+             FROM pg_database
+             WHERE datallowconn
+               AND datname <> current_database()
+         LOOP
+             EXECUTE format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', database_record.datname);
+             EXECUTE format('REVOKE CONNECT ON DATABASE %I FROM sonivo_app', database_record.datname);
+         END LOOP;
+     END
+     $$;
+     ```
+
+     The operator must have authority to change CONNECT ACLs on every affected
+     database and inspect/terminate the runtime role's sessions. This
+     cluster-wide `PUBLIC` change can affect other roles: first confirm the
+     cluster is dedicated or coordinate the impact with its operator. If
+     shared workloads depend on that access, isolate Sonivo on a dedicated
+     cluster/database or keep T-4.2.02 open; do not weaken the verifier. Check
+     `pg_stat_activity` after revocation and terminate any remaining
+     `sonivo_app` sessions to other databases because PostgreSQL checks
+     `CONNECT` at session startup and revocation does not close existing
+     connections ([privilege docs](https://www.postgresql.org/docs/16/ddl-priv.html)).
+
+     Use the operator connection to inspect and, if rows are returned, end only
+     `sonivo_app` sessions connected to another database:
+
+     ```sql
+     SELECT pid, datname
+     FROM pg_stat_activity
+     WHERE usename = 'sonivo_app'
+       AND datname <> current_database()
+       AND pid <> pg_backend_pid();
+
+     SELECT pg_terminate_backend(pid)
+     FROM pg_stat_activity
+     WHERE usename = 'sonivo_app'
+       AND datname <> current_database()
+       AND pid <> pg_backend_pid();
+     ```
+  3. After migrations create the complete schema, run
+     `scripts/db/grant-runtime-privileges.sql` as a principal allowed to grant
+     the reviewed DML privileges to `sonivo_app`.
+  4. Load the exact runtime connection string intended for the API from its
+     secret store and run `scripts/db/verify-runtime-principal.sql` through that
+     connection. Its PostgreSQL `session_user` and `current_user` must both be
+     `sonivo_app`; role-attribute, database-privilege, schema/ownership,
+     inheritance, and migration-history checks must pass
+     before API rollout.
+  5. Configure the API with that same constrained runtime credential. The
+     connection string uses `SSL Mode=VerifyFull`, so Npgsql verifies both the
+     server certificate and host name ([Npgsql SSL guidance](https://www.npgsql.org/doc/security.html));
+     never set `Trust Server Certificate=true`. Leave
+     `SONIVO_MIGRATE_ON_START` unset in Production.
+- **Automation status:** this repository currently has CI migration jobs for
+  ephemeral PostgreSQL only; it does not contain a production migration
+  workflow. Production schema rollout therefore remains an operator-run,
+  one-shot deployment step. Do not treat the CI job or the API startup as that
+  production migration job.
 - **R2:** create `sonivo-prod` and wire `R2__*` on the VPS; staging keeps its own
   bucket. Buckets are never shared across environments.
 - **Backups:** Neon point-in-time restore; R2 versioning/lifecycle as needed.

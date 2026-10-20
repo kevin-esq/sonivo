@@ -9,9 +9,9 @@ using Sonivo.Infrastructure.Identity;
 namespace Sonivo.Api.Realtime;
 
 /// <summary>
-/// Cross-user real time for a group's data (ADR-0074 §3/§6): a member joins the
-/// SignalR group for their group and receives <c>GroupChanged</c> messages when
-/// songs/setlists/events/tasks/resources/members change anywhere else.
+/// Cross-user real time for a group's data (ADR-0074 §3/§6): authorized members
+/// receive <c>GroupChanged</c> messages when songs/setlists/events/tasks/
+/// resources/members change anywhere else.
 ///
 /// Self-hosted in-process SignalR (no vendor/backplane — same single-instance
 /// limitation as ADR-0036). AuthZ: cookie session + per-call Membership recheck
@@ -23,22 +23,24 @@ public sealed class GroupHub : Hub
 {
     private readonly GroupAccessService _access;
     private readonly UserManager<ApplicationUser> _users;
+    private readonly GroupRealtimeConnectionRegistry _connections;
 
-    public GroupHub(GroupAccessService access, UserManager<ApplicationUser> users)
+    public GroupHub(
+        GroupAccessService access,
+        UserManager<ApplicationUser> users,
+        GroupRealtimeConnectionRegistry connections)
     {
         _access = access;
         _users = users;
+        _connections = connections;
     }
-
-    /// <summary>SignalR group name for a tenant group (namespaced to avoid clashes).</summary>
-    public static string GroupName(Guid groupId) => $"group:{groupId}";
 
     public async Task JoinGroup(Guid groupId)
     {
         var user = await RequireUserAsync();
         try
         {
-            // Server-side authorization: only members may join the group's channel.
+            // Server-side authorization: only members may join the Group realtime feed.
             await _access.RequireMemberAsync(groupId, user.Id, Context.ConnectionAborted);
         }
         catch (NotFoundException ex)
@@ -50,13 +52,39 @@ public sealed class GroupHub : Hub
             throw new HubException(ex.Message);
         }
 
-        await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(groupId));
+        _connections.AddPending(groupId, user.Id, Context.ConnectionId);
+        try
+        {
+            // Recheck after registration so a concurrent committed removal
+            // either fails this join or sees the connection to evict.
+            await _access.RequireMemberAsync(groupId, user.Id, Context.ConnectionAborted);
+            if (!_connections.TryActivate(groupId, user.Id, Context.ConnectionId))
+            {
+                throw new HubException("No autorizado.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _connections.Remove(groupId, user.Id, Context.ConnectionId);
+            if (ex is NotFoundException or ForbiddenException)
+            {
+                throw new HubException(ex.Message);
+            }
+
+            throw;
+        }
     }
 
     public async Task LeaveGroup(Guid groupId)
     {
-        await RequireUserAsync();
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName(groupId));
+        var user = await RequireUserAsync();
+        _connections.Remove(groupId, user.Id, Context.ConnectionId);
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        _connections.RemoveConnection(Context.ConnectionId);
+        await base.OnDisconnectedAsync(exception);
     }
 
     private async Task<ApplicationUser> RequireUserAsync()

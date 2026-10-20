@@ -8,8 +8,12 @@ export type MemberListItem = {
   createdAt: string
   lastSeenAt?: string | null
   email?: string | null
-  /** Custom group role assigned on top of the base role (ADR-0078). */
+  /** Custom permission profile assigned instead of the base preset (ADR-0082). */
   groupRoleId?: string | null
+  /** Optional free-text note about the person, shown on the member profile. */
+  description?: string | null
+  /** Whether this member can access this Group; other Groups are unaffected. */
+  accessEnabled?: boolean
 }
 
 export async function listMembers(groupId: string): Promise<MemberListItem[]> {
@@ -19,6 +23,17 @@ export async function listMembers(groupId: string): Promise<MemberListItem[]> {
 
 export async function removeMember(groupId: string, userId: string): Promise<void> {
   await apiRequest<void>(`/api/groups/${groupId}/members/${userId}`, { method: 'DELETE' })
+}
+
+export async function setMemberAccessEnabled(
+  groupId: string,
+  userId: string,
+  enabled: boolean,
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/members/${userId}/access`, {
+    method: 'PUT',
+    body: { enabled },
+  })
 }
 
 export async function changeMemberRole(
@@ -41,6 +56,18 @@ export async function setMemberMusicalRole(
   await apiRequest<void>(`/api/groups/${groupId}/members/${userId}/musical-role`, {
     method: 'PUT',
     body: { musicalRole },
+  })
+}
+
+/** Owner or Manager sets the member's free-text profile description (null clears it). */
+export async function setMemberDescription(
+  groupId: string,
+  userId: string,
+  description: string | null,
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/members/${userId}/description`, {
+    method: 'PUT',
+    body: { description },
   })
 }
 

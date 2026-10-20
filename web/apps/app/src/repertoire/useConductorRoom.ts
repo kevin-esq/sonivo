@@ -33,11 +33,6 @@ export type ConductorLastPosition = {
   receivedAt: number
 }
 
-function hubErrorMessage(error: unknown): string | null {
-  if (error instanceof Error && error.message) return error.message
-  return null
-}
-
 export function useConductorRoom(eventId: string | null) {
   const { t } = useT()
   const [connectionState, setConnectionState] =
@@ -98,9 +93,9 @@ export function useConductorRoom(eventId: string | null) {
         if (cancelled) return
         if (Array.isArray(initial)) setPresence(initial)
         setConnectionState('connected')
-      } catch (err) {
+      } catch {
         if (cancelled) return
-        setError(hubErrorMessage(err) ?? t('practice.live.joinFailed'))
+        setError(t('practice.live.joinFailed'))
         setConnectionState('failed')
       }
     }

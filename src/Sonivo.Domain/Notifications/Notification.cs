@@ -11,7 +11,7 @@ public enum NotificationScope
 }
 
 /// <summary>
-/// In-app notification (ADR-0077). Stores a short machine <see cref="Kind"/> and
+/// In-app notification. Stores a short machine <see cref="Kind"/> and
 /// non-personal metadata only — the client maps the kind to localized copy, so no
 /// user-facing string is persisted (language policy).
 ///

@@ -106,7 +106,7 @@ test.describe('W20 group branding', () => {
     await createGroup(page, name)
     const { id: groupId } = await findGroup(page, name)
 
-    await page.goto(`/groups/${groupId}/ajustes`)
+    await page.goto(`/groups/${groupId}/settings`)
     // Branding lives behind the "Identidad visual" tab (redesigned Ajustes).
     await page.getByRole('tab', { name: 'Identidad visual' }).click()
     const editor = page.getByTestId('branding-editor')

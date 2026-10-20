@@ -22,17 +22,23 @@ public sealed class ProcessPaymentWebhookHandler
     private readonly IPaymentProvider _provider;
     private readonly IWebhookEventStore _events;
     private readonly IGroupStore _groups;
+    private readonly IGroupDataOperation _dataOperation;
+    private readonly IGroupDatabaseScope _databaseScope;
     private readonly IClock _clock;
 
     public ProcessPaymentWebhookHandler(
         IPaymentProvider provider,
         IWebhookEventStore events,
         IGroupStore groups,
+        IGroupDataOperation dataOperation,
+        IGroupDatabaseScope databaseScope,
         IClock clock)
     {
         _provider = provider;
         _events = events;
         _groups = groups;
+        _dataOperation = dataOperation;
+        _databaseScope = databaseScope;
         _clock = clock;
     }
 
@@ -47,24 +53,34 @@ public sealed class ProcessPaymentWebhookHandler
             return new PaymentWebhookResult(Accepted: false, Duplicate: false, Reason: "invalid-signature");
         }
 
-        if (await _events.ExistsAsync(webhook.EventId, cancellationToken))
-        {
-            return new PaymentWebhookResult(Accepted: true, Duplicate: true, Reason: null);
-        }
-
         var now = _clock.UtcNow;
-        if (webhook.GroupId is Guid groupId)
+        return await _dataOperation.ExecuteInTransactionAsync(async operationToken =>
         {
-            var group = await _groups.GetByIdAsync(groupId, cancellationToken);
-            if (group is not null)
+            // The provider has verified the signature, so the normalized GroupId
+            // is a bounded selector for this one billing operation.
+            if (webhook.GroupId is Guid groupId)
             {
-                Apply(group, webhook, now);
-                await _groups.UpdateAsync(group, cancellationToken);
+                await _databaseScope.SetSignedPaymentWebhookGroupAsync(groupId, operationToken);
             }
-        }
 
-        await _events.RecordAsync(webhook.EventId, webhook.EventType, now, cancellationToken);
-        return new PaymentWebhookResult(Accepted: true, Duplicate: false, Reason: null);
+            if (await _events.ExistsAsync(webhook.EventId, operationToken))
+            {
+                return new PaymentWebhookResult(Accepted: true, Duplicate: true, Reason: null);
+            }
+
+            if (webhook.GroupId is Guid verifiedGroupId)
+            {
+                var group = await _groups.GetByIdAsync(verifiedGroupId, operationToken);
+                if (group is not null)
+                {
+                    Apply(group, webhook, now);
+                    await _groups.UpdateAsync(group, operationToken);
+                }
+            }
+
+            await _events.RecordAsync(webhook.EventId, webhook.EventType, now, operationToken);
+            return new PaymentWebhookResult(Accepted: true, Duplicate: false, Reason: null);
+        }, cancellationToken);
     }
 
     private static void Apply(Group group, VerifiedWebhook webhook, DateTimeOffset now)

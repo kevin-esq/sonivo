@@ -8,6 +8,1075 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0098 — Full authenticated product parity in native mobile clients
+
+- **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-10-20.
+- **Supersedes:** ADR-0093's first-member-journey-only scope boundary, its no-new-backend-endpoint firewall only as needed for thin bearer adapters of existing web operations, and corresponding exclusions in the mobile phase specification. ADR-0093's Kotlin/Compose, Swift/SwiftUI, project-location, and server-authorization decisions remain binding. ADR-0094 remains binding for authentication.
+- **Spec:** [`PHASE-MOBILE-NATIVE-SPEC.md`](PHASE-MOBILE-NATIVE-SPEC.md).
+
+### Context
+
+The first native release was limited to a member rehearsal journey. The owner has now requested every authenticated web-app tab and its existing functionality in both native clients, including account and Group administration surfaces. Keeping the first-release boundary would leave the requested mobile clients materially incomplete.
+
+### Decision
+
+1. Android and iOS MUST cover every authenticated product destination and user action currently exposed by the web app's signed-in account and Group navigation, adapting layout and interaction to native platform conventions.
+2. Coverage includes global Home, Groups, Join, Profile, Notifications, Preferences, Membership, Help, and Security surfaces; and Group Home, Songs/Arrangements/Practice, Setlists, Calendar, Events, Tasks, People, Roles, Reports, Resources, Audit, and Group Settings surfaces. The mobile phase specification maps these areas to delivery tickets and source routes.
+3. Existing product behavior and API contracts are the compatibility reference. An action available only through a cookie-only web contract may receive an API adapter for bearer clients only when it executes the same application operation and server-side authorization. No parallel domain rules or client-side authorization are allowed.
+4. Group IDs remain selectors, never authorization. Current membership, Group role, item grants, owner protection, plan gates, input validation, and audit behavior continue to be enforced by the server on every request.
+5. Native UI may adapt browser-specific interactions (for example, multi-window output) to a native equivalent, but may not silently remove the underlying authenticated task. Marketing pages, web deployment/SEO behavior, cookie/antiforgery browser flows, and desktop-only shell layout are not native app destinations.
+6. Existing explicit prohibitions on offline media downloads, recording, audio transport, stems/mixer, karaoke scoring, cloud AI, and new musical domain behavior remain in force.
+
+### Alternatives considered
+
+- Keep only the member rehearsal journey: rejected because it does not satisfy the owner's explicit full-tab parity request.
+- Embed the web app in a WebView: rejected because the owner requested native Android and iOS applications and ADR-0093 selected native stacks.
+- Reimplement rules in the clients: rejected because it would bypass the API's authorization and validation source of truth.
+
+### Consequences
+
+- The native phase expands to include account-level and Owner/admin workflows already present in the authenticated web product.
+- The native endpoint catalogs and client DTOs may grow; endpoint changes must remain centralized and backed by existing server operations and authorization.
+- Delivery is complete only when each authenticated web navigation destination has a native counterpart on both platforms, applicable actions are wired to real server data, and functional/error/accessibility states are documented. Store signing/publication and production rollout gates remain unchanged.
+
+---
+
+## ADR-0097 — Plan-aware media uploads and image optimization
+
+- **Status:** **ACCEPTED** — owner-authorized 2026-10-19 ("autorizo que cambies lo que necesites").
+- **Supersedes:** ADR-0035's 5 MiB cap firewall for Resource uploads; amends ADR-0054's image re-encoding deferral only for uploaded images.
+- **Related:** ADR-0019/0020 (Group authorization and antiforgery), ADR-0035 (R2 and private proxy), ADR-0054 (branding images), ADR-0071 (plan catalog and limits).
+- **Spec/ticket:** [`PHASE-MEDIA-UPLOADS-SPEC.md`](PHASE-MEDIA-UPLOADS-SPEC.md), T-MEDIA-01.
+
+### Context
+
+The shared file picker allowed 100 MiB audio while the Resource model and API rejected files over 5 MiB. Branding images had a separate 2 MiB cap and were saved without image optimization. The storage plans also have different capacities, but upload size was not plan-aware.
+
+### Decision
+
+1. Keep uploads authenticated and server-proxied through the existing Group-scoped endpoints and `IBlobStore`. Do not add public buckets or browser-direct R2 writes. R2's provider-managed AES-256 at-rest encryption and TLS in transit remain the storage protection; Group membership, resource-path permissions, and antiforgery remain the access controls.
+2. Set maximum audio Resource size by current Group plan: Starter **25 MiB**, Pro **100 MiB**, Studio **250 MiB**. All non-audio Resource files remain capped at **5 MiB**. The server derives the effective cap from the authenticated request's Group and the accepted plan catalog; client checks mirror these values only for faster feedback.
+3. Optimize oversized static PNG, JPEG, and WebP selections in the shared web file picker before upload. Convert to WebP while retaining transparency, reduce encoding quality as needed to fit the receiving surface's existing server cap (2 MiB for branding images; 5 MiB for Resource images), and do not resize image dimensions. Try quality levels from 0.90 down to 0.44; if the target cannot be met at 0.44, reject the selection with localized feedback. Animated GIFs keep their existing cap because browser conversion would discard animation. The server continues to enforce the final-byte cap and image signature.
+4. Stream R2 downloads from the provider response to the authorized API response instead of buffering the full object in application memory. Preserve Group and Resource authorization on every content request. Range reads are advertised only when the underlying stream supports them.
+5. This slice changes per-file upload caps and image bytes stored. It does not alter the existing plan storage allowances, calculate Organization-wide Studio usage, or enforce an aggregate storage quota; those require an Organization storage accounting contract and are tracked separately.
+
+### Consequences and scope firewall
+
+- The Create Song flow's 100 MiB audio selection becomes a real upload for Pro groups; Starter and Studio receive their plan-specific caps. Resource audio uploads follow the same server rule.
+- Static PNG, JPEG, and WebP branding/Resource images selected through the web UI are converted only when the original exceeds that surface's cap. Small images retain their original bytes and format. Animated GIFs are not transformed.
+- Image normalization is browser-side for this slice; arbitrary API clients remain bounded by server byte/signature validation. A server-side image decoder/encoder is not added.
+- No audio re-encoding or quality reduction is performed. The uploaded audio remains the source file, and the existing authorized content endpoint serves it.
+- No browser-direct uploads, public object access, signed public playback URLs, media CDN, audio transcoding service, or end-to-end encryption are added.
+
+---
+
+## ADR-0096 — Manual word-timed Practice Stage and instrumental sections
+
+- **Status:** **ACCEPTED** — explicitly authorized by the owner on 2026-10-19.
+- **Amends:** ADR-0031 and the T-SYNC-04/05 scope in `PHASE-PLAY-SYNC-SPEC.md` to add manual word timing and explicit instrumental intervals to the existing Practice Stage. ADR-0050 remains unchanged: Enhanced LRC word timing stays lossy in v1.
+- **Related:** ADR-0027/0028/0029 (Practice, ChordPro, player), ADR-0031 (line timing), ADR-0036 (conductor), ADR-0037 (Practice firewalls), ADR-0050 (LRC).
+- **Spec/ticket:** [`PHASE-PLAY-SYNC-SPEC.md`](PHASE-PLAY-SYNC-SPEC.md), T-SYNC-06.
+
+### Decision
+
+1. Extend the existing `Arrangement.ChordTimingJson` array additively. Preserve legacy `{ lineIndex, atMs }` marks. Add owner-authored word intervals `{ lineIndex, wordIndex, startMs, endMs }` and explicit instrumental intervals `{ type: "instrumental", startMs, endMs }`. Word indexes refer to whitespace-delimited visible words in the rendered line after ChordPro chord markup is removed. Intervals use integer milliseconds on the existing Arrangement audio. No new table, endpoint, or external timing service.
+2. Owners can manually align words and instrumental intervals against an authorized audio Resource in the Arrangement editor. The workflow uses the existing MP3/audio player and editable lyric/ChordPro body; an `.lrc` or separate lyric file is not required. Users can type or paste lyrics into the existing editor. A recorded next-word start closes the prior word; explicit close and edit/nudge controls let the Owner refine intervals and mark instrumentals.
+3. Practice Stage follows the active word by audio time. Completed words use the Group accent, the current word fills progressively, and upcoming words stay subdued. During an explicit instrumental interval, Stage displays a restrained instrumental cue and interval progress. Existing line-only arrangements retain line-level behavior and never receive fabricated word timing.
+4. The same-browser Stage output receives only validated presentation state (line/word index, word fill progress, or instrumental progress), not lyrics, audio, or raw playhead time. Audio remains local. Existing member authorization and Group-scoped Arrangement access remain unchanged.
+5. Reimplement general interaction patterns independently. Do not copy source code, Apple assets, third-party lyrics/audio, or add AGPL/GPL libraries. No karaoke scoring, pitch detection, microphone capture, automated alignment, external lyric lookup, or Enhanced LRC word-time import is included.
+6. Respect reduced motion and keep the display focused: no added dashboard, score, or always-visible editor panel in Stage.
+
+### Consequences and scope firewall
+
+- T-SYNC-06 updates client parsing/serialization, server-side JSON validation, the Owner timing editor, and web Stage/output rendering. Old line-mark arrays remain readable and writable.
+- Existing mobile Sing clients continue to consume line marks; they do not claim word-level timing. The LRC import/export contract remains line-only.
+- No Group routine, Resource ownership, audio upload policy, playback transport, conductor clock, or other Practice scope changes.
+
+---
+
+## ADR-0095 — Group-shared Practice warm-up routines
+
+- **Status:** **PROPOSED** — product scope selected by the owner on 2026-10-19; architecture proposal awaits review and acceptance.
+- **Amends:** ADR-0027 only as needed to authorize persisted Group routines, their editor, and a warm-up stage display. ADR-0008/0024's Arrangement-only Resource ownership and all unrelated Song, Arrangement, Resource, Practice, and Stage behavior remain binding.
+- **Related:** ADR-0008/0024 (Resource boundary), ADR-0012, 0019/0079/0082/0086 (Group access and permissions), ADR-0020 (CSRF), ADR-0031 (Practice display), ADR-0035 (blob storage and 5 MiB limit), ADR-0067/0069 (web boundaries).
+- **Proposal:** [`PHASE-PRACTICE-ROUTINES-SPEC.md`](PHASE-PRACTICE-ROUTINES-SPEC.md).
+
+### Context
+
+Practice now has a local warm-up player, but a director cannot create a reusable Group routine, share it with the Group, or guide the warm-up on a second display. A new group-owned routine with ordered steps and attached practice material crosses ADR-0027's no-new-aggregate rule and the current Arrangement-only Resource ownership model. Routine editing also needs a distinct permission; the existing `practice` capability only grants participation.
+
+Instruction prompts need to feel natural without requiring a voice service during rehearsal or uploading a person's voice. Pre-recorded localized clips can be bundled for offline playback, but the commercial-use terms and creator/source must be documented for every shipped clip.
+
+### Proposed decision
+
+1. Add reusable, Group-shared warm-up routines for voice and instruments. All active Group members can discover and run them. The Group Owner can always create, edit, reorder, duplicate, and delete them; other members may do so only when assigned a dedicated `practice.routine.manage` permission through an Owner-managed custom role. This permission is separate from the existing `practice` permission.
+2. A routine contains a title, intended practice type, concise instruction, and an ordered set of steps. Steps can select the existing built-in exercise patterns, piano-note/chord cues, metronome settings, and authorized practice materials. The editor should provide a small set of clear blocks with preview, reorder, and save actions; it should not become a general-purpose music sequencer.
+3. Keep routines and their uploaded attachments Group-scoped and separately modeled from Song, Arrangement, and Arrangement Resource. Reuse existing authenticated upload/download and blob-storage controls where they fit; retain the 5 MiB cap, MIME allowlist, server-generated blob keys, and Group authorization. The phase spec must settle attachment ownership, deletion, and access checks before implementation. No cross-Group references or publicly readable blobs.
+4. Extend Practice's existing same-browser stage display to show a selected warm-up and current step. The display is read-only. It loads Group-authorized routine data through the normal API; the existing validated channel carries only routine/session identity, step index, and presentation state. It does not transport audio, lyrics, or playhead time, and does not synchronize other members' playback.
+5. Ship brief, pre-recorded feminine-sounding instruction clips in es/en/pt, played locally from bundled files. Each clip must have documented commercial rights, provenance, language, and source/license record. Do not use runtime TTS, user voice recording/cloning, or a vendor runtime dependency. Provider and any paid generation plan remain undecided and require owner selection before purchase or asset generation.
+6. Keep the warm-up optional and concise. Preserve the current local piano guide, comfortable range choices, metronome, stop controls, and no-microphone behavior. Users may create a routine from a built-in template and adjust the steps; the editor must support text-only instruction when no voice clip is available.
+
+### Alternatives considered
+
+- **Keep warm-ups local and fixed:** rejected because directors cannot save or share their own sequences.
+- **Store routines as Arrangement fields or Arrangement Resources:** rejected because routines are Group-level reusable practice plans and are not a Song or Arrangement; this would overload existing domain ownership.
+- **Runtime device or cloud text-to-speech:** rejected for the first cut because device voices vary and cloud playback adds a provider, live network dependency, and account/cost surface.
+- **Upload the director's own voice:** rejected for this cut because it adds personal-data, consent, retention, and voice-rights handling beyond what the feature needs.
+- **Realtime shared playback or synced audio:** rejected; this proposal adds a second-screen presentation only and does not reopen the closed multi-device audio-sync scope.
+
+### Consequences and scope firewall
+
+- Requires a new Group-owned persisted routine model, API contracts, a dedicated assignable permission, upload/access rules, localized editor/player UI, and focused authorization and UI-flow coverage. None may be implemented until this proposal is accepted and its phase ticket is active under the repository gates.
+- Existing arrangement rehearsal, stage mode, resource grants, Resource semantics, media caps, storage providers, and mobile scope remain unchanged except for the explicitly scoped Group routine attachments and web warm-up display.
+- Karaoke scoring, pitch detection, microphone access, recording, cloud LLM, runtime TTS, AI voice cloning, multi-device transport, audio synchronization, public links, and uploads over 5 MiB remain out of scope.
+- No vendor subscription, voice purchase, or paid plan is authorized by this proposal.
+
+---
+
+## ADR-0093 — Native mobile clients and project location
+
+- **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-10-19.
+- **Related:** ADR-0009, ADR-0011, ADR-0020, ADR-0067, ADR-0069, ADR-0079.
+- **Spec:** [`PHASE-MOBILE-NATIVE-SPEC.md`](PHASE-MOBILE-NATIVE-SPEC.md).
+
+### Decision
+
+1. Build separate native clients: Android with Kotlin and Jetpack Compose; iOS with Swift and SwiftUI.
+2. Use AndroidX Media3/ExoPlayer on Android and AVFoundation/AVPlayer on iOS.
+3. Locate projects at repository root under `mobile/android` and `mobile/ios`, outside the TypeScript workspace.
+4. Keep the ASP.NET Core API as the only data source. Group authorization remains server-side and a client Group ID is only a selector.
+5. This ADR authorizes native client foundations and existing approved member journeys only. Scope is governed by the mobile phase specification and its tickets.
+
+### Firewalls
+
+- Native authentication and authenticated API/media requests are authorized by accepted ADR-0094; production rollout remains blocked by ADR-0094's explicit configuration and security gates.
+- No web cookie reuse, direct database access, new backend endpoint, offline/downloads, recording, audio transport, stems, tempo/loop controls, karaoke scoring, or AI feature is authorized here.
+- The existing web placeholder is a pointer only; no Expo/React Native mobile app is added to the TypeScript workspace.
+
+---
+
+## ADR-0094 — Native mobile authentication
+
+- **Status:** **ACCEPTED** — user-approved OIDC Authorization Code + PKCE recommendation on 2026-10-19.
+- **Related:** ADR-0009, ADR-0011, ADR-0020, ADR-0067, ADR-0069, ADR-0079.
+- **Proposal:** [`PHASE-MOBILE-NATIVE-SPEC.md`](PHASE-MOBILE-NATIVE-SPEC.md#authentication-gate).
+
+### Context
+
+The API currently uses ASP.NET Core Identity application cookies and antiforgery for unsafe requests. The accepted web posture does not define native bearer credential issuance, refresh, revocation, or storage. A native app must not treat browser cookies or the web session handoff as a mobile credential.
+
+### Options
+
+1. OAuth 2.1 / OpenID Connect Authorization Code with PKCE via the system browser, with an approved Identity/OIDC component.
+2. A dedicated Identity-backed mobile token exchange with short-lived access credentials, rotating/revocable refresh credentials, replay detection, and secure server-side lifecycle handling.
+3. Reuse the web cookie or web handoff. Rejected for this proposal because neither defines a native credential lifecycle or direct native API contract.
+
+### Decision
+
+1. Native apps authenticate using OpenID Connect Authorization Code with PKCE (S256) through the system browser. The API is the Identity-backed authorization server; use OpenIddict with EF Core persistence rather than a custom token implementation.
+2. Register Android and iOS as separate public clients with exact redirect URIs. Require PKCE, `state`, and `nonce`; do not issue client secrets to apps.
+3. Issue short-lived access tokens and rotating, persisted refresh tokens with reuse detection. Store tokens only in Android Keystore-backed storage and iOS device-only Keychain; never persist passwords or log credentials.
+4. Accept validated bearer access tokens for API and SignalR requests while preserving the existing Identity cookie and antiforgery behavior for the web application.
+5. Keep Group membership, roles, resource grants, and current access checks server-side. Token claims and client-supplied Group IDs never grant Group access.
+6. Enforce an operator-configured minimum three-part app version per native platform on bearer API and SignalR requests. Older versions receive HTTP 426 with stable error code `mobile_update_required`, the required version, and the configured HTTPS store URL. Cookie-based web requests are unaffected. Token exchange and revocation remain available so old installs can obtain the update response and revoke their refresh token.
+7. Do not enable production token issuance until signing/encryption key management, OIDC client registrations, redirect URI ownership, retention/revocation policy, schema migration, minimum-version policy, rate limits, and deployment ownership are configured for each environment. Development keys may not be used in production.
+
+### Required controls and consequences
+
+- Android Keystore-backed secure storage and iOS Keychain device-only storage; never persist passwords or log credentials.
+- Exact redirect URI and issuer/audience validation, PKCE S256, state/nonce validation, TLS, short access-token lifetime, refresh rotation/reuse detection, logout and account-security revocation.
+- Every Group operation continues to authorize current membership and permissions on the server; token claims and client Group IDs never grant Group access.
+- Implementation requires rate limits on authorization/token endpoints, non-enumerating Identity responses, existing MFA and confirmed-email enforcement, session/account revocation behavior, and an audit event for mobile session issue/revoke.
+- Existing web cookies, antiforgery, web BFF and browser sessions remain unchanged.
+- Operators can block old native versions without a client release by setting each platform's minimum version and HTTPS store URL. The clients display a blocking update screen after a protected API request returns 426.
+
+### Consequences and delivery gate
+
+This ADR authorizes implementation of the OIDC server/client flow, bearer validation, and backend minimum-version enforcement, but does not authorize production rollout by itself. Production rollout remains blocked until signing/encryption keys, issuer/audience, exact redirect URIs, migrations, rate limits, audit/revocation behavior, minimum versions/store URLs, and deployment ownership are configured and reviewed. No password grant, embedded web view, web cookie reuse, custom one-time handoff, or token in URL is allowed.
+
+---
+
+## ADR-0092 — Canonical application and identity route namespaces
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-19.
+- **Supersedes:** ADR-0081's route assignments (`/home`, `/groups`, and
+  root-level identity paths) only. Its public marketing root and unrelated
+  dashboard behavior remain binding.
+- **Amends:** ADR-0089's route catalog with explicit path namespaces; host and
+  deployment separation remain unchanged.
+- **Related:** ADR-0081 (public marketing root), ADR-0089 (route catalog and
+  isolated web surfaces), ADR-0049 (Group host tenancy).
+
+### Context
+
+The route catalog centralizes destinations, but public, identity, and product
+paths still share a flat root namespace. That makes ownership unclear and makes
+product routes such as Groups difficult to distinguish from public and identity
+surfaces.
+
+### Decision
+
+1. Keep `/` as the public marketing entry point.
+2. Put every product page under `/app`: `/app/home`, `/app/groups`,
+   `/app/groups/:groupId/...`, `/app/account/...`, and other product pages.
+   Group slug entry paths also live under `/app`.
+3. Put identity pages under `/auth`: `/auth/login`, `/auth/register`,
+   `/auth/confirm`, `/auth/forgot-password`, `/auth/reset-password`, and the
+   existing handoff flow. Branded Group login is `/auth/groups/:slug/login`.
+4. Invitation acceptance is a product destination at `/app/join/:token`.
+5. Keep the route catalog as the source of canonical patterns and builders.
+   Preserve existing root-level and legacy paths as redirects to their
+   canonical destinations, including query strings, hashes, Group IDs, and
+   nested paths.
+6. Route prefixes do not grant access. Authentication, Group membership, and
+   role authorization remain server-enforced; host-only cookies, one-time
+   handoff, and exact-origin policy remain unchanged.
+
+### Consequences and scope
+
+- App navigation and route declarations use the `/app` namespace; identity
+  entry and recovery use `/auth`.
+- Existing bookmarks and external invitations continue through redirects.
+- This changes browser paths only. It does not change API paths, hostnames,
+  authorization, deployment configuration, DNS, or production settings.
+
+### Non-goals
+
+Changing web host separation · changing API routes · changing Group
+authorization · DNS or deployment work
+
+---
+
+## ADR-0091 — Group settings refresh and persistent brand drafts
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-19.
+- **Amends:** ADR-0054/0059 (brand editor interaction and cover choices) and
+  ADR-0071 (intensity presentation); all other scope and validation rules stand.
+- **Spec:** [`PHASE-GROUP-SETTINGS-REFRESH-SPEC.md`](PHASE-GROUP-SETTINGS-REFRESH-SPEC.md).
+
+### Context
+
+Group settings expose unrelated destinations as one flat row, and the branding
+editor places save/discard controls at the end of a long form. Owners need to
+compare a draft across the group's songs, events, tasks, and calendar before
+committing it. Cover choices also need a visual library that does not rely on
+emoji or a neutral placeholder.
+
+### Decision
+
+1. Reorganize settings navigation into named groups while preserving the
+   existing destinations, authorization, and deep links.
+2. Group name and the full branding draft remain in memory while navigating
+   within the same Group workspace. The shell previews the group name, brand
+   display name, tagline, verse, cover, logo, banner, typography, theme, and
+   color tokens wherever those values appear, and exposes one persistent
+   save/discard bar. Image uploads are staged until save. Discard restores the
+   last server-saved state. Switching Groups clears the draft and preview.
+3. Add a curated set of local, authored cover illustrations alongside uploaded
+   banner images. Store the selected illustration as `CoverKind = preset` and a
+   stable allowlisted `CoverValue`; the server validates the preset identifier.
+   Existing emoji and gradient values remain readable.
+4. Intensity choices must produce a clearly visible change in the group canvas
+   wash. Color controls use filled circular swatches, including semantic
+   success/warning/error colors.
+5. Keep group authorization, plan gating, WCAG contrast validation, token
+   boundaries, and server ownership unchanged. The editor adds no arbitrary
+   CSS, external image provider, or new font provider.
+
+### Consequences
+
+- The group shell owns the lifetime of the pending branding draft so route
+  changes do not discard it.
+- Preset artwork is shipped with the app and selected through a finite ID list;
+  user-uploaded banners remain a separate option.
+- A future change to preset artwork requires preserving the stored IDs or
+  providing a migration/fallback.
+
+---
+
+## ADR-0090 — Activate account notification entry points
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-19 as part of the
+  request to complete user-visible “Coming soon” areas.
+- **Supersedes:** ADR-0053’s disabled App-shell notification navigation and
+  bell placeholder only.
+- **Related:** ADR-0051 (Group roles), ADR-0052 (bounded event/RSVP mail),
+  ADR-0062 (Group notifications), ADR-0083 (separate reports, audit, and
+  security history), ADR-0086 (tenant row isolation).
+
+### Context
+
+The signed-in App shell still disables its notification navigation and bell,
+although `/account/notifications` and its recipient-owned security-notice inbox
+are implemented. Group notifications have a separate inbox and a Group-scoped
+bell. Combining the two inboxes would change their authorization and retention
+semantics.
+
+### Decision
+
+1. Enable the App-shell sidebar item and top-bar bell as links to the existing
+   account notification route. They expose only the signed-in user's account
+   notices (for example, password and passkey changes).
+2. Keep Group notifications and their unread state in the selected Group's
+   existing bell and inbox. Do not aggregate Group notifications across Groups
+   in this change.
+3. Keep the account security-history page and APIs distinct from product
+   reports, Group audit, and Group notification data.
+4. Do not add notification delivery categories, email preferences, email
+   sends, or new notification producers through this shell change. Existing
+   email policy and feature flags remain binding.
+5. Use the canonical route catalog, localized accessible labels, and ordinary
+   authenticated navigation. The API remains responsible for ownership and
+   authorization.
+
+### Consequences and scope
+
+- App users can reach the existing account inbox from both persistent shell
+  entry points; no database or API contract changes are required.
+- The group notification bell remains the entry point for Group-scoped notices.
+- ADR-0053's “disabled placeholder” language is superseded only for these two
+  App-shell entry points; its other shell, billing, and notification-scope
+  decisions are not changed here.
+
+### Non-goals
+
+Cross-Group notification aggregation · notification preference storage · new
+email delivery · billing · Group settings behavior
+
+---
+
+## ADR-0089 — Route catalog and isolated public, identity, and product surfaces
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-18 (centralize route changes,
+  separate marketing, authentication, and product surfaces, and harden SEO/security).
+- **Supersedes:** ADR-0067 and ADR-0069 only where they require the apex to be
+  the central authentication origin or treat one Next deployment as the target
+  for all public and product hosts. Their host-only cookies, one-time handoff,
+  .NET-only backend, exact-origin controls, and infrastructure constraints remain
+  binding unless expressly changed below.
+- **Related:** ADR-0020 (antiforgery), ADR-0049 (host tenancy), ADR-0067/0069
+  (BFF and deployment), ADR-0081 (public root), ADR-0079/0086 (Group isolation).
+- **Research:** [Next.js Metadata API](https://nextjs.org/docs/app/api-reference/functions/generate-metadata),
+  [Next.js authentication guidance](https://nextjs.org/docs/app/guides/authentication),
+  [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html),
+  and [OWASP Subdomain Takeover Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Subdomain_Takeover_Prevention_Cheat_Sheet.html).
+
+### Context
+
+The Next.js app currently mounts the React Router SPA client-only for every
+request. Route declarations and legacy redirects sit in `src/App.tsx`, while
+navigation URLs are repeated throughout features. Marketing therefore shares
+the product's client bundle and does not provide server-rendered landing content
+or page-specific metadata. Hostnames are documented, but they do not yet
+represent independently deployed application surfaces. Host separation alone
+does not provide authorization; it must be paired with host-only sessions,
+server-side checks, explicit origin policy, and controlled handoff.
+
+### Decision
+
+1. `web/packages/routes/src/index.ts` is the frontend source of truth for
+   canonical browser route patterns, typed path builders, and legacy aliases.
+   `web/apps/app/src/routing/routes.ts` remains a compatibility adapter.
+   Navigation, redirects, and route registration must consume this catalog as
+   those surfaces are migrated. The .NET API remains the source of truth for
+   its HTTP endpoints; API paths do not move into the browser route catalog.
+2. Maintain three distinct web surfaces and deployment/security profiles:
+   - `sonivo.lat`: public marketing, server-rendered or statically generated,
+     indexable, with localized metadata, canonical URLs, and a sitemap containing
+     public pages only.
+   - `auth.sonivo.lat`: identity entry, registration, recovery, MFA, and
+     passkeys; noindex and no public marketing bundle.
+   - `app.sonivo.lat`: authenticated product UI; noindex and no auth secrets or
+     authorization decisions in the client.
+   Group hosts remain private tenant entry points. `api.sonivo.lat` remains the
+   single .NET API and is accessed by browser surfaces only through their own
+   same-origin BFF proxy.
+3. Marketing, identity, and product must be separate deployable applications
+   or independently isolated deployments, with separate environment variables,
+   build artifacts, CSP, and route ownership. Shared packages may contain
+   design tokens, copy, and route types only; a surface must not import another
+   surface's runtime bundle.
+4. Keep the Identity session cookie host-only, `Secure`, `HttpOnly`, and
+   `SameSite=Lax`; never set `Domain=.sonivo.lat`. Cross-host sign-in uses the
+   existing opaque, single-use, short-lived handoff code. Every redemption and
+   API operation continues to verify authentication and Group membership on
+   the server. CORS, CSP, OAuth callback URLs, and passkey origins use explicit
+   exact-origin allowlists; wildcard subdomain trust is prohibited.
+5. The identity-origin migration must preserve existing credentials where
+   possible and provide a password/MFA recovery path. Passkey RP ID, Google
+   OAuth redirect URI, cookie issuance through each BFF, CSRF bootstrap, rate
+   limits, return-path validation, and replay/host-mismatch behavior are release
+   gates. Do not redirect live users to the identity host until those gates and
+   its DNS/TLS/deployment configuration pass.
+6. The existing .NET API and PostgreSQL remain unchanged by this web-surface
+   decision. MySQL, a second API, web JWTs, shared parent-domain cookies, and
+   client-side authorization are not introduced.
+7. Staging must move from the static-export SPA bridge to a request-aware Next
+   deployment before host-based routing, per-host noindex/security headers, or
+   middleware are relied on. Until then, preserve its same-origin fallback and
+   do not claim the production host separation is active.
+
+### Consequences and scope
+
+- The route catalog and redirect map are established in the parity bridge;
+  remaining navigation call sites migrate as their pages move into App Router.
+- The marketing page becomes a server-rendered public surface with page-level
+  metadata. Private routes must emit `noindex, nofollow`; sitemap generation
+  must exclude them and all Group/tenant URLs.
+- Host/deployment separation is a staged migration, not a DNS-only change.
+  Existing apex auth remains active until the identity host is deployed and its
+  cross-host handoff and credential compatibility are verified.
+- This decision does not authorize DNS edits, Vercel/Render account changes,
+  OAuth-console edits, production deployment, or Git actions.
+
+### Non-goals
+
+Replacing the .NET API · changing Group tenancy or authorization · migrating
+PostgreSQL · changing product features · indexing private app, identity, or
+Group content
+
+---
+
+## ADR-0088 — Same-Group Setlist item ownership at persistence
+## ADR-0088 — Same-Group Setlist item ownership at persistence
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-17 as part of the
+  security and RLS hardening work.
+- **Supersedes:** ADR-0022's exact composite-FK list and its statement that
+  `(GroupId, Id)` exists only on Songs and Arrangements. The three existing
+  composite relationships and all remaining ADR-0022 rules stay binding.
+- **Related:** ADR-0019 (Group isolation), ADR-0022 (cross-Group referential
+  integrity), ADR-0086 (PostgreSQL RLS).
+- **Research:** [PostgreSQL 16 row security](https://www.postgresql.org/docs/16/ddl-rowsecurity.html)
+  (referential-integrity checks bypass RLS) and [foreign-key delete actions](https://www.postgresql.org/docs/16/ddl-constraints.html)
+  (CASCADE applies to referencing rows).
+
+### Context
+
+`SetlistItems` stores both `GroupId` and `SetlistId`, but the existing FK used
+only `SetlistId` and cascaded on parent deletion. A malformed cross-Group link
+could therefore let a valid Group-scoped Setlist delete remove an item owned by
+another Group. PostgreSQL referential-integrity actions bypass row-security
+policies, so a parent predicate in the future RLS policy cannot protect that
+child row from the cascade. The application already creates and replaces items
+with the Setlist's Group id; the database did not enforce it.
+
+### Decision
+
+1. Add the alternate key `Setlists(GroupId, Id)` and replace the
+   `SetlistItems.SetlistId` FK with
+   `(SetlistItems.GroupId, SetlistItems.SetlistId) → (Setlists.GroupId,
+   Setlists.Id)`.
+2. Preserve `ON DELETE CASCADE`: SetlistItems remain owned by their Setlist,
+   and the composite key proves every cascaded row belongs to the same Group.
+3. Index child rows by `(GroupId, SetlistId, SortOrder)` for the Group-scoped
+   item-load path.
+4. Before changing the existing constraint, migration SQL must detect any
+   SetlistItem whose Group differs from its referenced Setlist and fail the
+   migration without modifying schema or data.
+5. Keep application Group authorization and explicit predicates authoritative.
+   The composite FK is defense in depth and does not introduce an ambient
+   tenant filter or an RLS policy.
+
+### Consequences and scope
+
+- `Setlists` now has the alternate key needed for the same-Group child FK.
+- `SetlistItems.GroupId` participates in both its Setlist and Arrangement
+  composite FKs.
+- The closed Phase 3.3 feature scope is unchanged; no Setlist deletion route is
+  added by this persistence decision.
+- RLS policy rollout remains gated by the Phase 4.2 tickets.
+
+### Non-goals
+
+Changing Setlist deletion UX · changing item replacement behavior · adding RLS
+policies · relaxing server-side Group authorization
+
+---
+
+## ADR-0087 — Revoke active SignalR group access after membership removal
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-17 as part of the
+  security and RLS hardening work.
+- **Date:** 2026-10-17
+- **Related:** ADR-0019 (Group authorization), ADR-0036 (PracticeRoom
+  conductor), ADR-0074 (Group-scoped realtime), ADR-0086 (PostgreSQL RLS).
+- **Research:** [Microsoft ASP.NET Core SignalR groups documentation](https://learn.microsoft.com/aspnet/core/signalr/groups?view=aspnetcore-10.0)
+
+### Context
+
+Sonivo authorizes each Group realtime join and checks permissions for conductor
+broadcasts. Removing a User's Membership must also stop Group and PracticeRoom
+messages reaching their existing hub connections. PracticeRoom presence and
+conductor positions are Group data, so stale recipients could expose them after
+access is revoked. Microsoft documents that SignalR groups are not a security
+boundary and the application must explicitly remove a connection when access
+is revoked.
+
+### Decision
+
+1. After a Membership removal or voluntary leave commits, revoke every active
+   connection for that `(GroupId, UserId)` from Group realtime fanout and remove
+   its PracticeRoom presence from all rooms belonging to that Group.
+2. Track connection membership in memory, consistent with Sonivo's accepted
+   single-instance SignalR deployment. A disconnect removes registry entries;
+   a reconnect must rejoin through the normal server-side membership check.
+3. Register a connection before a second membership check completes. This
+   closes the race where access is removed between the first authorization
+   check and activation for realtime fanout: the post-registration check either
+   rejects the join or the committed revoker sees the pending connection.
+4. Run evictions only after the database transaction that removes Membership
+   commits. A failed or rolled-back removal must not revoke valid access.
+5. Keep per-method authorization for every hub operation. Revocation does not
+   replace `GroupAccessService`, role checks, or resource grants.
+
+### Consequences and scope
+
+- Request middleware owns post-commit effects for membership-removal HTTP
+  operations. GroupChanged and PracticeRoom broadcasts target only connections
+  still present in the authorized in-memory registries; the hubs do not rely on
+  SignalR group membership for outgoing authorization.
+- The active SignalR registry and room presence remain process memory only.
+- No realtime vendor, backplane, persistent connection table, JWT, or change to
+  Group tenancy is introduced.
+- The commit ordering and reconnect behavior require focused integration
+  coverage before RLS policies are enabled.
+
+### Non-goals
+
+Realtime message history · cross-instance presence · durable connection state ·
+new authorization roles or permission levels
+
+---
+
+## ADR-0086 — PostgreSQL row-level security as tenant defense in depth
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-17 after review of
+  PostgreSQL, Npgsql, EF Core, Microsoft multitenancy guidance, and OWASP.
+- **Supersedes:** ADR-0019 §8 and ADR-0079's RLS prohibition/firewall; ADR-0082
+  decision 7 only as to introducing database row-level tenant isolation; and
+  the PostgreSQL RLS exclusions in the Phase 4.0/4.1 specs only for this
+  separate tenant-isolation layer. Explicit Group-scoped application queries,
+  per-request membership checks, RBAC, feature scope, and all other ADR-0079/
+  0082 requirements remain binding. It also supersedes ADR-0069 decision 3
+  only as to running production migrations inside the API container; production
+  migrations use a separate privileged deployment job.
+- **Related:** ADR-0019/0079 (Group tenant isolation), ADR-0020 (CSRF),
+  ADR-0067/0069 (host/session boundaries), ADR-0082 (RBAC), ADR-0085
+  (hierarchical resource access).
+- **Research:** [`POSTGRESQL-RLS-RESEARCH.md`](POSTGRESQL-RLS-RESEARCH.md),
+  including official PostgreSQL 16, Npgsql, EF Core, Microsoft, and OWASP
+  sources.
+
+### Context
+
+Sonivo correctly enforces Group membership and role permissions in the
+application, but an accidentally unscoped database query could still read or
+mutate another Group's rows. PostgreSQL row-level security (RLS) can add a
+database-enforced boundary when every tenant table has complete policies and
+the application connects through a constrained runtime role. It does not
+replace application authorization, and it is ineffective when the connection
+role owns the tables, is a superuser, or has `BYPASSRLS`.
+
+Before T-4.2.02, local and CI used the privileged `sonivo` role for application
+and migration work; local inspection confirmed that role is a superuser with
+`BYPASSRLS`. T-4.2.02 has separated the local runtime role, while CI and
+production execution still need validation. Public branded entry, invitations,
+group creation, multi-Group views, and SignalR also need explicit
+transaction-scoping designs before policies can safely be enabled.
+
+### Decision
+
+1. Add PostgreSQL RLS as a **second, fail-closed tenant-isolation layer** for
+   Group-owned rows. `Group` remains the only authorization tenant. Application
+   membership, capability/RBAC, and hierarchical resource checks remain
+   authoritative and are required on every request.
+2. Keep explicit `GroupId` predicates and `(GroupId, EntityId)` store contracts.
+   A route, host, query, or client-provided Group ID is only a selector; the
+   server verifies membership before establishing the database scope.
+3. Establish authenticated user and, where the operation is Group-specific,
+   verified Group context only inside a real database transaction. Set context
+   transaction-locally so it cannot leak across pooled connections. Missing or
+   invalid context must deny access. A selected Group context is not itself
+   authorization; policies must also enforce the database membership boundary.
+4. Use a runtime database role that is not a superuser, table owner, or
+   `BYPASSRLS` role. Use a separate privileged migration/ownership role. Enable
+   and force policies on the approved tenant tables; migrations and deployment
+   configuration must prove which role each connection uses. Never disable
+   Npgsql pooled-connection reset to carry scope between operations.
+5. Inventory all Group-owned tables before enabling policies. Directly scoped
+   rows use their `GroupId`; `Resources` inherits scope through its
+   Arrangement. Global Identity/platform records remain outside Group policies.
+   Public branding, login, invitations, membership bootstrap/group creation,
+   cross-Group user summaries, background work, and SignalR require narrow,
+   documented policies or transaction-bound application flows before rollout.
+6. Preserve deny-by-default policy behavior. Review foreign-key and uniqueness
+   side channels, table-owner bypass, and every policy's `USING` and
+   `WITH CHECK` expressions. Policies do not grant SQL privileges and must not
+   turn public endpoints into a path to private Group data.
+7. Treat this as defense against missing tenant predicates and similar query
+   mistakes. A compromised application/runtime credential or arbitrary SQL
+   execution under that same credential can forge custom session settings; RLS
+   does not contain that threat. Continue parameterized queries, least
+   privilege, input validation, and code-level authorization.
+
+### Consequences and scope
+
+- Delivery is ticketed in [`PHASE-4.2-POSTGRESQL-RLS-SPEC.md`](PHASE-4.2-POSTGRESQL-RLS-SPEC.md).
+  Policies stay disabled until the role split, complete table inventory,
+  transaction propagation, public/bootstrap paths, and PostgreSQL-backed
+  negative tests pass.
+- Local development and CI must exercise requests using the constrained runtime
+  role while migrations use separate privileges. Existing tests that run as
+  table owner/superuser do not prove RLS.
+- RLS limits row visibility by Group membership; it does not implement custom
+  role capabilities, item-level grants, or write permissions.
+- The phase does not introduce an ambient EF Core Group query filter,
+  `ITenantContext`, tenant claims, JWT auth, or a replacement for
+  `GroupAccessService`.
+
+---
+
+## ADR-0085 — Hierarchical access overrides for repertoire items
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-17 (complete granular
+  access controls for songs, arrangements, and arrangement resources).
+- **Amends:** ADR-0082, only its item-override resource-kind scope and UI
+  completion gate. All other ADR-0082 rules remain in force.
+- **Related:** ADR-0007/0008/0014 (Song, Arrangement, Resource boundaries),
+  ADR-0079 (Group tenant isolation), ADR-0082 (custom roles and item access).
+- **Research:** [OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)
+  (deny by default and check every request); [Microsoft resource-based
+  authorization](https://learn.microsoft.com/en-us/aspnet/core/mvc/security/authorization/resource-based?view=aspnetcore-10.0)
+  (load then authorize the actual resource); and the [NIST RBAC standard
+  overview](https://csrc.nist.gov/projects/role-based-access-control) (roles
+  bind permissions to operations and objects).
+
+### Context
+
+ADR-0082 shipped per-song read overrides, but the product request requires
+Owners to narrow access to an individual arrangement or file/link as well.
+Adding resource kinds without closing every access path would expose the same
+item through a list, nested DTO, download, or mutation despite a visible UI
+restriction.
+
+### Decision
+
+1. The bounded override kinds are `song`, `arrangement`, and `resource`. This
+   extends the existing `ResourceGrant` model; it is not a general ACL or policy
+   engine. Grants remain keyed by `(GroupId, UserId, ResourceType, ResourceId)`.
+2. A request authorizes the complete ancestor path before the target:
+   Song → Arrangement → Arrangement Resource. A denial at any ancestor blocks
+   that item and all descendants. A child allow never bypasses a denied or
+   otherwise unreadable parent. A child deny can narrow inherited access.
+3. An item allow can add read access only at its node and descendants. It never
+   grants create, edit, delete, upload, group administration, or other writes.
+   Writes require the existing role capability and no deny on any path node.
+4. Every list, detail, nested response, create/edit/delete, file-content or
+   download, digitization, and realtime path that exposes or changes these
+   items must enforce the same ancestry before the kind is enabled in UI. Lists
+   omit denied children; detail/mutation endpoints use the existing safe
+   not-found/forbidden behavior. Group-wide queries stay explicitly scoped by
+   Group and filter the complete path.
+5. The grant API validates the target and its ancestry through stores scoped to
+   the selected Group before persisting a grant. The Owner remains the fixed
+   authority and cannot be a target. Grant changes retain actor, target,
+   resource kind/id, and allow/deny/inherit in the group audit.
+6. Owner UI offers understandable inherited/visible/restricted states for each
+   supported kind, with advanced details progressively disclosed. It explains
+   that a parent restriction overrides child access. Only read overrides are
+   presented. UI state never authorizes server operations.
+7. No PostgreSQL RLS, ambient tenant filter, client-supplied authorization,
+   cross-Group resource lookup, or write-permission override is introduced.
+
+### Consequences and scope
+
+- ADR-0082's item override is complete only after path enforcement and tests
+  cover each list, detail, mutation, and download surface for all three kinds.
+- Resource grants to an inaccessible parent are inert; the server does not
+  widen parent visibility to honor them.
+- This is the resource hierarchy already present in the domain, not a
+  permission system for future Events, Setlists, or arbitrary object types.
+
+---
+
+## ADR-0084 — First-run guidance and persistent self-help
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-17 (complete the product
+  with clear first-run guidance, tutorials, and FAQs).
+- **Related:** ADR-0043 (UI/UX), ADR-0053 (dashboard shell), ADR-0081 (public
+  entry and signed-in dashboard), ADR-0082 (simple defaults for advanced roles).
+- **Research:** [WCAG 2.2](https://www.w3.org/TR/WCAG22/), especially 3.2.6
+  Consistent Help, 3.3 Input Assistance, 2.5.8 Target Size, and 3.3.8
+  Accessible Authentication.
+
+### Context
+
+The `/help` route still renders a generic placeholder, even though the product
+has several multi-step workflows and user-visible capabilities. First-time
+users need a calm path through the first useful tasks, while experienced users
+need help they can reopen without replaying a blocking tour.
+
+### Decision
+
+1. The product provides one persistent, plainly named Help entry in a consistent
+   location, with short task guides and FAQs grounded in shipped behavior.
+2. Onboarding is optional and user-directed. It uses a short, skippable,
+   resumable checklist that points to real actions. It never blocks navigation,
+   fabricates data, or marks a task complete without observing its outcome.
+3. Guidance is progressive: ordinary users see clear presets and next steps;
+   advanced controls are disclosed when requested. This applies to roles,
+   reports, and settings as well as first-run guidance.
+4. Help copy and onboarding must use the existing es/en/pt localization system,
+   plain language, keyboard-accessible controls, and responsive layouts. Keep
+   recurring help mechanisms in a consistent order per WCAG 2.2.
+5. Help content describes only behavior verified in source and tests. Planned
+   billing, metrics, report, and role capabilities must be marked unavailable
+   until their implementation ships.
+6. The first delivery may derive checklist steps from current product state and
+   store dismissal/completion in a user-scoped preference. If persistence is
+   introduced, it is UX state only: never an authorization input or a source
+   of group membership. The exact storage contract belongs in the phase spec.
+
+### Consequences and scope
+
+- `/help` becomes a real self-help destination; route aliases remain compatible.
+- The initial journey should guide a user to join/create a Group and complete
+  useful repertoire, scheduling, or member setup, with an obvious way to skip
+  and return later.
+- This does not authorize external support integrations, mandatory tours,
+  behavioral tracking, or unsupported claims about plan availability.
+
+---
+
+## ADR-0083 — Product metrics, reports, audit trails, and plan entitlements
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-17 (metrics, advanced
+  reports, audit, and future plan differentiation).
+- **Related:** ADR-0051 (group audit), ADR-0071 (plans and entitlements),
+  ADR-0072 (Organization), ADR-0073/0075 (billing boundary), ADR-0079 (tenant
+  isolation), ADR-0082 (authorization).
+- **Research:** [OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html),
+  [NIST log management](https://csrc.nist.gov/Projects/log-management) and its
+  [SP 800-92 Rev. 1 planning draft](https://csrc.nist.gov/pubs/sp/800/92/r1/ipd),
+  [Microsoft SaaS multitenant architecture](https://learn.microsoft.com/en-us/azure/architecture/guide/saas-multitenant-solution-architecture/),
+  and [Microsoft plan/pricing model guidance](https://learn.microsoft.com/en-us/partner-center/marketplace-offers/plans-pricing).
+
+### Context
+
+Sonivo currently has plan-limit usage counters and a few home-page counts, a
+group audit log for a subset of administrative actions, and separate account
+security history. The `Stats` and `History` plan flags do not define report
+contracts. The plans spec and code catalog explicitly mark prices, limits, and
+trial values as placeholders. Combining these data for one “analytics” feature
+would risk false trends, over-collecting personal data, or making security
+controls depend on payment.
+
+### Decision
+
+1. Keep three concepts distinct:
+   - **Usage** answers “how much of a plan limit is in use” and remains an
+     authoritative server calculation, not a historical analytics source.
+   - **Product metrics and reports** answer defined group-work questions using
+     domain data. Every metric names its scope, period, inclusion rules, and
+     owner of the authorization check.
+   - **Audit/security records** document attributable actions and security
+     events. They are append-only, server-authored, access-controlled, and
+     retained under an explicit policy. Client analytics must never be treated
+     as an audit record.
+2. Do not label current-state counts as historical trends. Trends require a
+   trustworthy timestamped source or explicit snapshots with documented
+   semantics. RSVP responses measure stated availability, not actual
+   attendance.
+3. Group reports are scoped to the selected Group and authorized server-side
+   on every request. Cross-Group summaries require a separately authorized
+   Organization capability and must not reveal another Group by guessed id.
+4. Any export of member-level or audit data requires an explicit server-side
+   capability, is limited to the caller’s authorized scope, and creates an
+   audit record. Reports default to aggregate data and avoid unnecessary
+   personal or sensitive data.
+5. Subscription entitlements use stable feature identifiers and typed
+   capabilities in the single plan catalog; they do not derive from UI labels
+   or prices. Security logging, authorization enforcement, account security
+   history, and access to existing content are not removed or weakened by plan
+   downgrade. Commercial prices, trials, retention periods, and provider
+   configuration remain governed by the existing plans/billing decisions and
+   are not finalized here.
+6. The first report contract must define measures that existing data can
+   support (for example repertoire inventory and event RSVP summaries). A
+   report cannot imply actual attendance, rehearsal quality, or member
+   performance without a product-approved data source and definition.
+7. Keep explicit Group authorization and `GroupAccessService` per ADR-0079.
+   This ADR does not add PostgreSQL RLS, ambient tenant context, a third-party
+   analytics service, or event sourcing.
+
+### Consequences and scope
+
+- Usage meters, group audit, account security history, and report screens need
+  separate UI labels and API contracts.
+- The plan catalog can later differentiate basic/advanced reports, history,
+  exports, and organization summaries without scattering price checks through
+  the application. The plan matrix remains indicative until commercial values
+  are confirmed.
+- Audit event coverage, report definitions, export formats, retention, and
+  entitlements need a ticketed phase spec before implementation. No claim of
+  “advanced reporting” is valid until those contracts and authorization tests
+  ship.
+
+---
+
+## ADR-0081 — Public marketing route and signed-in dashboard
+
+- **Status:** **SUPERSEDED** by ADR-0092 on 2026-10-19. The root marketing
+  assignment remains current; only the product and identity path assignments
+  below were replaced.
+- **Supersedes:** The route assignment in ADR-0053 only. All other ADR-0053
+  dashboard, navigation, calendar, and account decisions remain in force.
+- **Related:** ADR-0043 (visual direction), ADR-0053 (dashboard shell).
+
+### Context
+
+The current branch puts the public marketing page at `/` and the signed-in
+dashboard at `/home`. ADR-0053 and its phase specification still assign `/` to
+the signed-in dashboard, so the implementation and canonical product decision
+disagree.
+
+### Decision
+
+1. `/` is the public marketing entry point. It may reflect an authenticated
+   visitor's session in its calls to action, but it remains the marketing page.
+2. `/home` is the authenticated Inicio dashboard. The existing dashboard shell
+   and its group-aware activity behavior remain unchanged.
+3. `/grupos` remains the signed-in group list; `/unirse`, `/calendario`, and
+   `/cuenta/*` retain their existing meanings.
+4. Guest routes such as `/login`, `/register`, and account recovery remain
+   directly reachable. The API 404 and SPA document fallbacks must allow the
+   React router to load so it can apply the route's own authentication guard.
+5. Marketing and authenticated application routes use the established English
+   route naming policy where a route is new; existing localized paths remain
+   compatible until migrated deliberately.
+
+### Consequences and scope
+
+- The public landing page is the default web entry point, including for a user
+  who already has a session; the dashboard is reached at `/home`.
+- Update the phase spec, context summary, links, and route tests to match this
+  assignment.
+- This decision does not change cookie, antiforgery, Group authorization,
+  billing, or marketing product scope.
+
+---
+
+## ADR-0082 — Custom permission profiles and scoped content access
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-17 (customizable,
+  fine-grained roles with simple defaults and safe item-level controls).
+- **Supersedes:** ADR-0080's additive-only custom-role rule and its song-only
+  exception scope, as implementation is completed in guarded slices. ADR-0079
+  remains binding, including its prohibition on ambient tenant filters and
+  Postgres RLS.
+- **Related:** ADR-0012, ADR-0019, ADR-0020, ADR-0051, ADR-0079, ADR-0080.
+
+### Context
+
+Per-action role capabilities are a useful foundation, but additive-only custom
+roles cannot remove inherited base access, and the current per-song control does
+not yet provide equivalent controls for arrangements or files. The UI should
+offer built-in presets for ordinary use and explicit capability controls for
+owners who need a narrower profile.
+
+### Decision
+
+1. **RBAC remains the group-wide baseline.** The Owner is a fixed security
+   principal. Owner-only capabilities cannot be placed on a custom role, and
+   no custom role can change ownership, billing, membership, or role
+   administration. The server owns canonical action keys and enforces every
+   request.
+2. **New custom roles are explicit permission profiles.** When assigned to a
+   non-owner member, selected assignable capabilities replace that member's
+   built-in content/participation capability set. To avoid silently changing
+   access for roles created under ADR-0080, the migration preserves their legacy
+   additive mode. An Owner can convert each such role to an exact profile in
+   the UI, which warns that conversion can remove inherited access. New roles
+   default to exact profiles. Without a custom role, the built-in role keeps its
+   existing preset. Dependencies (such as edit requiring view) are expanded
+   server-side and previewed in the UI. The Owner remains unaffected by custom
+   assignment.
+3. **The UI starts simple.** Built-in presets and clear action categories are
+   the default; an Owner can open a detailed editor, duplicate a preset, and
+   see dependency effects before saving. Unknown keys are rejected, and
+   administrative keys are never assignable.
+4. **Item access is a separate layer.** Explicit item grants are scoped by
+   Group, member, resource kind, and resource id. They may grant read access to
+   a specific item even when the member's role does not grant group-wide read;
+   item denies always win. Item grants never add write capabilities.
+5. **Parent restrictions cannot be bypassed.** A denied Song blocks its nested
+   Arrangements and Arrangement Resources. An Arrangement or Resource override
+   may further narrow access beneath an allowed parent. Child access cannot
+   reveal a parent that the member cannot access.
+6. **No generic ACL until enforcement is complete.** Each resource kind is
+   enabled only after list, detail, mutation, download, realtime, and nested
+   response paths enforce its policy. The current song-only implementation is
+   an initial slice; arrangement and file controls require their own complete
+   enforcement and UI before being advertised.
+7. **No PostgreSQL RLS.** Group isolation stays explicit in application queries
+   and `GroupAccessService` per ADR-0079. The shared application database
+   principal does not represent the authenticated member; adding RLS would
+   require another trusted per-request context and would conflict with the
+   accepted no-ambient-tenant rule.
+
+### Consequences and firewalls
+
+- Custom-role resolution and tests allow new exact profiles to restrict
+  inherited content access without weakening the Owner boundary; migrated
+  additive roles retain access until an Owner explicitly converts them.
+- Item grants remain unavailable for resource kinds whose complete path-level
+  enforcement has not shipped.
+- Do not infer a tenant from a client id, role claim, host, or ambient database
+  setting; every Group-scoped operation still verifies membership server-side.
+- The initial implementation does not claim RLS defense-in-depth or complete
+  file/arrangement ACL support.
+
+---
+
+## ADR-0079 — Tenancy: Group is the only tenant; no ambient tenant filter
+
+- **Status:** **ACCEPTED** — user-accepted 2026-10-14 (owner: "Acepto todo").
+- **Restates / hardens:** ADR-0005 (User→Group tenancy), ADR-0019 (Group tenancy
+  enforcement), ADR-0045 (Group as tenant with branding).
+- **Related:** ADR-0012 (roles), ADR-0046/0047 (roster, handles), ADR-0020
+  (CSRF/cookies), ADR-0067/0069 (hosts, handoff), ADR-0072 (Organization, not a tenant).
+- **See:** [`PHASE-NEXTJS-MULTITENANT-BFF-SPEC.md`](./PHASE-NEXTJS-MULTITENANT-BFF-SPEC.md);
+  skill [`.agents/skills/group-tenancy-isolation/`](../../.agents/skills/group-tenancy-isolation/SKILL.md).
+
+### Context
+
+Generic multi-tenant guidance proposes a shared-database model with a **mandatory
+ambient global query filter** (`HasQueryFilter(e => e.TenantId == currentTenant)`)
+plus a JWT carrying the tenant in its claims. Sonivo already answered these
+questions: `Group` is the tenant (ADR-0005), a User belongs to **many** Groups
+through `Membership`, and authorization is a **per-request server-side membership
+check** (ADR-0019). This ADR records the answers so the ambient-filter and
+JWT-tenant-claim models are not re-proposed or re-implemented.
+
+### Decision
+
+1. **`Group` is the only tenant boundary.** No Workspace/Organization acts as an
+   authorization tenant; `Organization` (ADR-0072) groups Groups for billing/UX,
+   not isolation.
+2. **Many-to-many membership.** `Membership` is the authorization record linking a
+   User to many Groups. `Membership.Handle` (`handle@slug`, ADR-0047) is an
+   optional login handle, never a tenant identifier.
+3. **No ambient tenant context.** There is no server-side "current group". Every
+   Group-scoped use-case receives `groupId` as an argument and verifies membership
+   server-side via `GroupAccessService.Require{Member,Owner,Manager,Participant}Async`.
+4. **No `HasQueryFilter` on `GroupId`.** Query filters are reserved for soft-delete
+   (`DeletedAt == null`). An ambient tenant filter is **PROHIBITED**: group identity
+   is not ambient, it fails open when the tenant is unset, and it duplicates the
+   explicit check ADR-0019 already requires.
+5. **Tenant repositories require `(GroupId, EntityId)`.** No tenant store may expose
+   an unscoped `GetByIdAsync(entityId)` for a Group-owned aggregate (ADR-0019 §4).
+   The only permitted single-key form is `IGroupStore.GetByIdAsync(groupId)`, where
+   the GroupId *is* the aggregate identity; `Resource` resolves by `(arrangementId,
+   resourceId)`, and the arrangement is Group-scoped.
+6. **A client-supplied tenant is a selector, never authorization.** Route/body/query
+   `groupId`, `by-slug` lookups, and the `Host` slug must be re-checked against
+   membership; non-member → **404** (no existence leak).
+7. **No web JWT, no tenant claims.** Web auth is the Identity cookie + antiforgery
+   (ADR-0009/0011/0020). The tenant is per-request and re-verified; it is never
+   stored as a token claim.
+8. **No parent-domain cookie.** Host-only cookie + single-use handoff code
+   (ADR-0067/0069). The slug from `Host` remains a selector only.
+9. **Enforcement is two-layered.** The `group-tenancy-isolation` skill states the
+   rule for agents; `GroupIsolationArchitectureTests` (Sonivo.Integration.Tests)
+   fails the build if any tenant store exposes an unscoped lookup or an ambient
+   tenant accessor.
+
+### Firewalls (explicit)
+
+- No `HasQueryFilter(e => e.GroupId == …)` and no ambient `ITenantContext`.
+- No `ITenantEntity` marker interface with a global filter (ADR-0019 §4 forbids
+  unscoped lookups instead).
+- No web JWT/BFF token storage and no tenant claims in a token.
+- No parent-domain session cookie.
+- No treating slug/host/`x-group-id` as authorization.
+- No Postgres RLS (ADR-0019 §8); no renaming Group to Organization/Workspace.
+
+### Consequences
+
+Agents cite this ADR instead of re-deriving tenancy from external tutorials. The
+"mandatory" property is enforced at **build time** by the architecture test and at
+**generation time** by the skill. A future need for ambient tenant context must
+supersede this ADR with a fail-closed design.
+
+---
+
+## ADR-0080 — Fine-grained group capabilities and song access overrides
+
+- **Status:** **ACCEPTED** — user-authorized 2026-10-17 (advanced, granular role
+  permissions, provided the model is beneficial and safe).
+- **Supersedes:** ADR-0051's prohibition on permission tables and generic ACLs,
+  only for the bounded capability and song-visibility model below. Owner/Manager/
+  Member/Viewer remain the built-in membership roles.
+- **Related:** ADR-0019/0079 (server-side group isolation), ADR-0020 (CSRF),
+  ADR-0051 (built-in role baseline), PR #265 (group-defined roles).
+
+### Context
+
+The four built-in roles do not express useful differences such as creating a
+song without deleting one, or granting a member the ability to conduct without
+granting every content action. Role checks were replaced by a canonical set of
+server-side capabilities. A separate, group-scoped override is useful for
+withholding access to one song without changing the member's role.
+
+### Decision
+
+1. **Capabilities are per action.** The server owns the canonical permission
+   keys and checks them on each request. The React catalogue mirrors them for
+   role editing and never authorizes an operation.
+2. **Built-in access stays compatible with ADR-0051.** Owner has all capabilities;
+   Manager can manage content and conduct but cannot administer group settings,
+   branding, membership, or roles; Member can view and participate; Viewer has
+   read access and practice. Descriptive member-profile edits have the separate
+   `manage_member_profiles` capability; Manager has it, while role and account
+   administration remain Owner-only.
+3. **Custom roles only add capabilities.** Effective access is the union of the
+   base membership role and the assigned custom role. Custom roles cannot remove
+   base access and cannot grant Owner-only capabilities. Unknown and
+   administrative keys are rejected by the domain and filtered again during
+   authorization.
+4. **Dependencies are explicit and transitive.** A capability may imply the
+   read capability it depends on. The server expands dependencies at request
+   time; the frontend mirrors this only to preview effects.
+5. **Song overrides are scoped by `(GroupId, UserId, ResourceType, ResourceId)`.**
+   The initial supported resource type is `song`. An explicit allow can add only
+   read access; a deny may remove access. Denying a song blocks its direct view,
+   arrangements, and arrangement resources, including content and mutations.
+   Write capabilities are never added by a resource override. All affected
+   endpoints first verify the actor's Group membership and scope the target data
+   to that Group.
+6. **Administration is Owner-only.** Only the Owner can create or edit custom
+   roles, assign them, change member song overrides, or change group membership.
+  Manager's content capabilities do not imply these permissions. The Owner
+  cannot be an override target; the Owner retains full access and always has a
+  management path to remove member restrictions.
+7. **UI is a convenience.** Role switches and song-visibility controls are
+   rendered only for the appropriate workflows, but the API remains the security
+   boundary and validates every operation.
+
+### Consequences and firewalls
+
+- Permission checks are explicit at action handlers; do not keep generic
+  `RequireManagerAsync` checks on operations with distinct capabilities.
+- Do not let a resource override grant a write, group-administration, billing,
+  or ownership capability.
+- Do not add item-override types before every corresponding list, detail,
+  mutation, and download path enforces the same override.
+- Do not introduce ambient tenant state, client-side authorization, or a general
+  policy engine beyond this bounded model.
+
+---
+
 ## ADR-0069 - Production topology: Hetzner (API) + Vercel (BFF) + Neon + R2
 
 - **Status:** **ACCEPTED** - user-authorized 2026-10-05.
@@ -737,7 +1806,10 @@ applied dynamically without breaking AA contrast.
 
 ## ADR-0053 — Inicio dashboard + app-shell sidebar (home redesign)
 
-- **Status:** **ACCEPTED** — user-authorized 2026-10-02 ("luz verde total … implementación completa respetando las fases, Playwright MCP y Git con `gh` a `develop`").
+- **Status:** **ACCEPTED**, with its root-route assignment **SUPERSEDED by
+  ADR-0081** — other dashboard, sidebar, account, and calendar decisions remain
+  accepted.
+- **Original authorization:** user-authorized 2026-10-02 ("luz verde total … implementación completa respetando las fases, Playwright MCP y Git con `gh` a `develop`").
 - **Date:** 2026-10-02
 - **Amends:** ADR-0043 (visual direction stands; the information architecture of the signed-in, non-group routes changes).
 - **Reconciles / supersedes:** `PHASE-APP-HEADER-SPEC.md` decision **D4** ("AppHeader in the content column; no left rail on `/`") for `/` and the account routes. The state touched by the shipped W1 is reused; W2–W8 are absorbed into this phase where they still apply.
@@ -745,7 +1817,7 @@ applied dynamically without breaking AA contrast.
 
 ### Decision
 
-- **`/` becomes the Inicio dashboard** (greeting, quick actions, "Tus grupos", "Tu próxima actividad", learning banner). The group list moves to **`/grupos`**. `Unirse a grupo` is a first-class nav route (`/unirse`).
+- **Original route assignment (superseded by ADR-0081):** `/` was the Inicio dashboard (greeting, quick actions, "Tus grupos", "Tu próxima actividad", learning banner); the group list moved to **`/grupos`**. `Unirse a grupo` is a first-class nav route (`/unirse`).
 - **Persistent left sidebar** for authenticated, non-group routes, replacing the top-only chrome on `/` and `/cuenta`: Principal (`Inicio`, `Mis grupos`, `Unirse a grupo`), Cuenta (`Perfil`, `Notificaciones`, `Preferencias`), plus `Plan y facturación` and `Ayuda`, and a user card footer. The group workspace rail (`/groups/:id`) is unchanged. Mobile gets a drawer/bottom navigation; the layout is responsive.
 - **Top bar** carries the global search field, a notification bell and the user avatar → menu (Cuenta sections, Seguridad, Cerrar sesión).
 - **Search** filters the already-loaded groups and navigation actions on the client (no cross-entity backend search in this phase).
@@ -771,7 +1843,7 @@ applied dynamically without breaking AA contrast.
 ### Deltas vs current docs (flagged, not silent)
 
 - `PHASE-APP-HEADER-SPEC.md` D4 is superseded for `/` and account routes; its W2–W8 items are re-homed here where still wanted (bandeja de usuario, conmutador de grupo, búsqueda, footer/versión).
-- `CONTEXT.md` and `DESIGN.md` route/IA wording updated to match (`/` = Inicio, `/grupos` = Mis grupos).
+- `CONTEXT.md` and `DESIGN.md` originally recorded `/` = Inicio, `/grupos` = Mis grupos; the current route assignment is recorded in ADR-0081.
 
 ---
 
@@ -1883,7 +2955,9 @@ Soft-delete filter on Event/EventSetlistItem · required Arrangement navigation 
 
 ## ADR-0022 — Cross-Group referential integrity at persistence
 
-- **Status:** **ACCEPTED**
+- **Status:** **SUPERSEDED** by ADR-0088, only its exact composite-FK set and
+  principal alternate-key statement. The other three composite FKs and all
+  unaffected rules remain accepted through ADR-0088.
 - **Accepted:** 2026-09-15 (Phase 2.2 closure — **HUMAN-APPROVED**)
 - **Date:** 2026-09-15 (Phase 2.2); **revised** Phase 2.2.1
 - **Depends on:** ADR-0019
@@ -2852,6 +3926,8 @@ Sonivo is not church-first; worship is a supported segment. Core language stays 
 
 | ADR  | Title                                           | Status       |
 | ---- | ----------------------------------------------- | ------------ |
+| 0093 | Native mobile clients and project location      | **ACCEPTED** |
+| 0094 | Native mobile authentication                    | **ACCEPTED** |
 | 0001 | Positioning                                     | ACCEPTED     |
 | 0002 | Process tooling                                 | **ACCEPTED** |
 | 0003 | Modular monolith                                | ACCEPTED     |

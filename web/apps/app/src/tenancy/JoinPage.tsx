@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { acceptInvitation, ApiError, type CurrentUser } from '../api/client'
@@ -21,11 +22,11 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
   }
 
   if (!user) {
-    const next = token ? `/join/${token}` : '/join'
+    const next = token ? `${routes.joinInvitation(token)}` : routes.join
     const loginSearch = safeJoinNextPath(next)
       ? `?next=${encodeURIComponent(next)}`
       : ''
-    return <Navigate to={`/login${loginSearch}`} replace />
+    return <Navigate to={`${routes.login}${loginSearch}`} replace />
   }
 
   async function onAccept() {
@@ -35,14 +36,14 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
     setAlreadyMember(false)
     try {
       const accepted = await acceptInvitation(token)
-      navigate(`/groups/${accepted.groupId}`)
+      navigate(routes.group(accepted.groupId))
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
         setError(t('joinGroup.invalid'))
       } else if (err instanceof ApiError && err.status === 409) {
         setAlreadyMember(true)
       } else {
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
       }
     } finally {
       setPending(false)

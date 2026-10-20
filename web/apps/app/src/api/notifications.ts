@@ -1,6 +1,6 @@
 import { apiRequest } from './http'
 
-/** Two independent inboxes: the user's account vs one group (ADR-0077). */
+/** Two independent inboxes: the user's account and one selected group. */
 export type NotificationScope = 'account' | 'group'
 
 export type NotificationKind =

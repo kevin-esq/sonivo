@@ -10,18 +10,35 @@ namespace Sonivo.Api.Realtime;
 public sealed class SignalRNotificationPublisher : INotificationPublisher
 {
     private readonly IHubContext<NotificationHub> _hub;
+    private readonly ILogger<SignalRNotificationPublisher> _logger;
 
-    public SignalRNotificationPublisher(IHubContext<NotificationHub> hub)
+    public SignalRNotificationPublisher(
+        IHubContext<NotificationHub> hub,
+        ILogger<SignalRNotificationPublisher> logger)
     {
         _hub = hub;
+        _logger = logger;
     }
 
-    public Task PublishAsync(
+    public async Task PublishAsync(
         Guid userId,
         string kind,
         Guid? groupId,
         CancellationToken cancellationToken = default)
-        => _hub.Clients
-            .Group(NotificationHub.UserGroup(userId))
-            .SendAsync("NotificationCreated", new { kind, groupId }, cancellationToken);
+    {
+        try
+        {
+            await _hub.Clients
+                .Group(NotificationHub.UserGroup(userId))
+                .SendAsync("NotificationCreated", new { kind, groupId }, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Notification push failed for {UserId} ({Kind})", userId, kind);
+        }
+    }
 }

@@ -52,6 +52,7 @@ public sealed class PracticeRoomHub : Hub
         var participant = new RoomParticipant(
             Context.ConnectionId,
             user.Id,
+            access.GroupId,
             user.DisplayName ?? user.Email ?? "Miembro",
             access.IsOwner ? "owner" : access.CanManageContent ? "manager" : "member");
 
@@ -61,9 +62,25 @@ public sealed class PracticeRoomHub : Hub
             throw new HubException(error ?? PracticeRoomState.RoomCapacityError);
         }
 
-        await Groups.AddToGroupAsync(Context.ConnectionId, room);
+        try
+        {
+            // Close the race where membership is revoked between the first
+            // authorization check and this connection joining the room.
+            await ToHubExceptionAsync(
+                () => _authorizer.RequireParticipantAsync(eventId, user.Id, Context.ConnectionAborted));
+            if (!_rooms.TryActivate(room, Context.ConnectionId))
+            {
+                throw new HubException("No autorizado.");
+            }
+        }
+        catch
+        {
+            _rooms.RemoveFromRoom(room, Context.ConnectionId);
+            throw;
+        }
+
         var presence = _rooms.GetPresence(room);
-        await Clients.Group(room).SendAsync("PresenceUpdate", presence);
+        await SendPresenceUpdateAsync(presence);
         return presence;
     }
 
@@ -73,9 +90,11 @@ public sealed class PracticeRoomHub : Hub
         // presence. JoinRoom/BroadcastPosition additionally re-check membership.
         await RequireUserAsync();
         var room = PracticeRoomState.RoomKey(eventId);
-        _rooms.RemoveFromRoom(room, Context.ConnectionId);
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, room);
-        await Clients.Group(room).SendAsync("PresenceUpdate", _rooms.GetPresence(room));
+        var wasParticipant = _rooms.RemoveFromRoom(room, Context.ConnectionId);
+        if (wasParticipant)
+        {
+            await SendPresenceUpdateAsync(_rooms.GetPresence(room));
+        }
     }
 
     /// <summary>
@@ -92,7 +111,13 @@ public sealed class PracticeRoomHub : Hub
 
         var user = await RequireUserAsync();
         await ToHubExceptionAsync(
-            () => _authorizer.RequireManagerAsync(request.EventId, user.Id, Context.ConnectionAborted));
+            () => _authorizer.RequireConductorAsync(request.EventId, user.Id, Context.ConnectionAborted));
+
+        var room = PracticeRoomState.RoomKey(request.EventId);
+        if (!_rooms.IsActiveParticipant(room, Context.ConnectionId))
+        {
+            throw new HubException("Únete a la sala antes de transmitir.");
+        }
 
         var now = _clock.UtcNow;
         if (!_rooms.TryRecordBroadcast(Context.ConnectionId, now))
@@ -105,7 +130,6 @@ public sealed class PracticeRoomHub : Hub
             return;
         }
 
-        var room = PracticeRoomState.RoomKey(request.EventId);
         var position = new ConductorPosition(
             request.ArrangementId,
             request.PositionMs,
@@ -114,7 +138,11 @@ public sealed class PracticeRoomHub : Hub
             user.DisplayName ?? user.Email ?? "Director",
             now);
         _rooms.StorePosition(room, position);
-        await Clients.OthersInGroup(room).SendAsync("PositionUpdate", position);
+        foreach (var participant in _rooms.GetPresence(room)
+            .Where(participant => participant.ConnectionId != Context.ConnectionId))
+        {
+            await Clients.Client(participant.ConnectionId).SendAsync("PositionUpdate", position);
+        }
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
@@ -123,7 +151,7 @@ public sealed class PracticeRoomHub : Hub
         {
             foreach (var room in affectedRooms)
             {
-                await Clients.Group(room).SendAsync("PresenceUpdate", _rooms.GetPresence(room));
+                await SendPresenceUpdateAsync(_rooms.GetPresence(room));
             }
         }
 
@@ -145,6 +173,14 @@ public sealed class PracticeRoomHub : Hub
         }
 
         return user;
+    }
+
+    private async Task SendPresenceUpdateAsync(IReadOnlyList<RoomParticipant> presence)
+    {
+        foreach (var participant in presence)
+        {
+            await Clients.Client(participant.ConnectionId).SendAsync("PresenceUpdate", presence);
+        }
     }
 
     private static async Task<T> ToHubExceptionAsync<T>(Func<Task<T>> call)

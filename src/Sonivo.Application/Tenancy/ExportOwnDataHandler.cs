@@ -37,18 +37,34 @@ public sealed class ExportOwnDataHandler
     private readonly IGroupStore _groups;
     private readonly IAccountAuditStore _audit;
     private readonly IClock _clock;
+    private readonly IGroupDatabaseScope? _databaseScope;
 
-    public ExportOwnDataHandler(IGroupStore groups, IAccountAuditStore audit, IClock clock)
+    public ExportOwnDataHandler(
+        IGroupStore groups,
+        IAccountAuditStore audit,
+        IClock clock,
+        IGroupDatabaseScope? databaseScope = null)
     {
         _groups = groups;
         _audit = audit;
         _clock = clock;
+        _databaseScope = databaseScope;
     }
 
     public async Task<OwnDataExport> HandleAsync(
         ExportOwnDataQuery query,
         CancellationToken cancellationToken)
     {
+        if (query.UserId == Guid.Empty)
+        {
+            throw new ValidationException("Authenticated user is required.");
+        }
+
+        if (_databaseScope is not null)
+        {
+            await _databaseScope.SetMultiGroupReadAsync(query.UserId, cancellationToken);
+        }
+
         var groups = await _groups.ListForUserAsync(query.UserId, cancellationToken);
         var memberships = new List<OwnExportMembership>();
         foreach (var group in groups)

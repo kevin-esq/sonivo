@@ -89,6 +89,57 @@ public class TaskUseCaseTests
     }
 
     [Fact]
+    public async Task Manager_can_assign_task_to_a_group_member()
+    {
+        var ctx = await SeedOwnerMemberAsync();
+
+        var created = await new CreateTaskHandler(
+                new GroupAccessService(ctx.Groups), ctx.Tasks, new FixedClock(Now))
+            .HandleAsync(
+                new CreateTaskCommand(ctx.Owner, ctx.GroupId, "Preparar repertorio", null, null, ctx.Member),
+                CancellationToken.None);
+
+        Assert.Equal(ctx.Member, created.AssigneeUserId);
+    }
+
+    [Fact]
+    public async Task Manager_cannot_assign_task_to_a_nonmember()
+    {
+        var ctx = await SeedOwnerMemberAsync();
+        var nonmember = Guid.NewGuid();
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => new CreateTaskHandler(new GroupAccessService(ctx.Groups), ctx.Tasks, new FixedClock(Now))
+                .HandleAsync(
+                    new CreateTaskCommand(ctx.Owner, ctx.GroupId, "Preparar repertorio", null, null, nonmember),
+                    CancellationToken.None));
+
+        Assert.Empty(ctx.Tasks.Items);
+    }
+
+    [Fact]
+    public async Task Manager_cannot_reassign_task_to_a_nonmember()
+    {
+        var ctx = await SeedOwnerMemberAsync();
+        var created = await new CreateTaskHandler(
+                new GroupAccessService(ctx.Groups), ctx.Tasks, new FixedClock(Now))
+            .HandleAsync(
+                new CreateTaskCommand(ctx.Owner, ctx.GroupId, "Preparar repertorio", null, null, ctx.Member),
+                CancellationToken.None);
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => new UpdateTaskHandler(new GroupAccessService(ctx.Groups), ctx.Tasks, new FixedClock(Now))
+                .HandleAsync(
+                    new UpdateTaskCommand(
+                        ctx.Owner, ctx.GroupId, created.Id, created.Title, created.Notes, created.DueAt,
+                        Guid.NewGuid(), created.Version),
+                    CancellationToken.None));
+
+        var persisted = await ctx.Tasks.GetByIdAsync(ctx.GroupId, created.Id, CancellationToken.None);
+        Assert.Equal(ctx.Member, persisted?.AssigneeUserId);
+    }
+
+    [Fact]
     public async Task Non_member_is_rejected()
     {
         var ctx = await SeedOwnerMemberAsync();

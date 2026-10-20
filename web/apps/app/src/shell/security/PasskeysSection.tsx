@@ -8,10 +8,9 @@ import {
   type PasskeyItem,
 } from '../../api/client'
 import { Button } from '../../ui/button'
+import { fieldClass } from '../../ui/field'
 import { useT } from '../../i18n'
 import { performWebAuthnRegistration } from '../webauthn'
-
-const fieldClass = 'w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25'
 
 export function PasskeysSection() {
   const [passkeys, setPasskeys] = useState<PasskeyItem[]>([])
@@ -56,7 +55,7 @@ export function PasskeysSection() {
       setPasskeyName('')
       setPasskeys(await fetchPasskeys())
     } catch (err) {
-      setError(problemDetail(err))
+      setError(problemDetail(err, t))
     } finally {
       setPasskeyPending(false)
     }
@@ -69,34 +68,34 @@ export function PasskeysSection() {
       await deletePasskey(id)
       setPasskeys(await fetchPasskeys())
     } catch (err) {
-      setError(problemDetail(err))
+      setError(problemDetail(err, t))
     } finally {
       setPasskeyPending(false)
     }
   }
 
   return (
-    <section className="space-y-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+    <section className="security-section space-y-4 rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm sm:p-6">
       <div className="space-y-1">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('security.passkeysTitle')}</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <h2 className="text-lg font-bold text-ink">{t('security.passkeysTitle')}</h2>
+        <p className="text-sm text-muted">
           {t('security.passkeysHint')}
         </p>
       </div>
 
       {error ? (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error-ink">
           {error}
         </p>
       ) : null}
 
       {passkeys.length > 0 ? (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 overflow-hidden">
+        <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface-hover">
           {passkeys.map((pk) => (
             <li key={pk.id} className="flex items-center justify-between p-3.5">
               <div>
-                <p className="font-semibold text-slate-800 dark:text-slate-200">{pk.name || t('security.passkeyFallbackName')}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{t('security.addedOnPrefix')}{new Date(pk.createdAt).toLocaleDateString()}</p>
+                <p className="font-semibold text-ink">{pk.name || t('security.passkeyFallbackName')}</p>
+                <p className="text-xs text-muted">{t('security.addedOnPrefix')}{new Date(pk.createdAt).toLocaleDateString()}</p>
               </div>
               <Button
                 type="button"
@@ -111,12 +110,12 @@ export function PasskeysSection() {
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-slate-500 italic">{t('security.noPasskeys')}</p>
+        <p className="text-sm italic text-muted">{t('security.noPasskeys')}</p>
       )}
 
       <form onSubmit={onRegisterPasskey} className="flex flex-wrap items-end gap-3 max-w-xl">
         <label className="block flex-1 min-w-[200px] space-y-1.5">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('security.deviceName')}</span>
+          <span className="text-sm font-medium text-ink">{t('security.deviceName')}</span>
           <input
             className={fieldClass}
             placeholder={t('security.devicePlaceholder')}

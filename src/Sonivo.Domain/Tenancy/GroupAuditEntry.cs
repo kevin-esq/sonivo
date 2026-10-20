@@ -10,9 +10,28 @@ public sealed class GroupAuditEntry
     public const string ActionRoleChanged = "role_changed";
     public const string ActionMusicalRoleChanged = "musical_role_changed";
     public const string ActionMemberRemoved = "member_removed";
+    public const string ActionMemberAccessDisabled = "member_access_disabled";
+    public const string ActionMemberAccessEnabled = "member_access_enabled";
     public const string ActionMemberLeft = "member_left";
     public const string ActionInvitationCreated = "invitation_created";
     public const string ActionInvitationRevoked = "invitation_revoked";
+    public const string ActionMemberDescriptionChanged = "member_description_changed";
+    public const string ActionGroupRoleCreated = "group_role_created";
+    public const string ActionGroupRoleUpdated = "group_role_updated";
+    public const string ActionGroupRoleDeleted = "group_role_deleted";
+    public const string ActionGroupRoleAssigned = "group_role_assigned";
+    public const string ActionResourceGrantChanged = "resource_grant_changed";
+    public const string ActionGroupReportExported = "group_report_exported";
+    public const string ActionTaskCreated = "task_created";
+    public const string ActionTaskUpdated = "task_updated";
+    public const string ActionTaskStatusChanged = "task_status_changed";
+    public const string ActionTaskDeleted = "task_deleted";
+    public const string ActionSongCreated = "song_created";
+    public const string ActionSongUpdated = "song_updated";
+    public const string ActionSongDeleted = "song_deleted";
+    public const string ActionArrangementCreated = "arrangement_created";
+    public const string ActionArrangementUpdated = "arrangement_updated";
+    public const string ActionArrangementDeleted = "arrangement_deleted";
 
     public Guid Id { get; private set; }
     public Guid GroupId { get; private set; }

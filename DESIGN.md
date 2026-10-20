@@ -1,6 +1,6 @@
 # DESIGN.md — Sonivo redesign visual world
 
-Replacement visual direction per ADR-0043 (PROPOSED). Current evidence: dark-only shell (`web/sonivo-web/src/index.css`), sidebar + bottom-tab `GroupWorkspace.tsx`, currentColor `SonivoMark`.
+As-built visual system from ADR-0043 (ACCEPTED; waves W0–W5 shipped 2026-09-30). Current evidence: light/dark shell (`web/apps/app/src/index.css`), sidebar + bottom-tab `GroupWorkspace.tsx`, currentColor `SonivoMark`.
 
 ---
 
@@ -58,7 +58,7 @@ Replacement visual direction per ADR-0043 (PROPOSED). Current evidence: dark-onl
 - **Immersive header:** cover/accent wash → group name (display) → role + next-event strip → section tabs. Replaces flat sidebar title block.
 - **Operate tables/forms:** sticky header row, row hover, inline status chips (ready/missing/tombstone), explicit empty states with one primary action.
 - **PersistentGlobalPlayer:** fixed bottom bar (above mobile tabs), accent glow on play, aria-live track/position announcements; never unmounts on route change.
-- **Nav:** app sidebar for signed-in non-group routes (Inicio · Mis grupos · Unirse · Cuenta) · group workspace rail (Grupo sections + Cuenta footer) · mobile bottom tabs/drawer. `/` is the Inicio dashboard (ADR-0053); the group list lives at `/grupos`; a read-only general month calendar lives at `/calendario` (reached from "Ver calendario").
+- **Nav:** app sidebar for signed-in non-group routes (Inicio · Mis grupos · Unirse · Cuenta) · group workspace rail (Grupo sections + Cuenta footer) · mobile bottom tabs/drawer. `/` is public marketing and `/home` is the Inicio dashboard (ADR-0081); the group list lives at `/grupos`; a read-only general month calendar lives at `/calendario` (reached from "Ver calendario").
 
 ---
 
@@ -73,4 +73,4 @@ Replacement visual direction per ADR-0043 (PROPOSED). Current evidence: dark-onl
 
 ## Out of scope
 
-No brand-mark change · no new font or typography picker · no per-song themes · no per-group subdomains/custom domains (ADR-0049 blocked) · no motion beyond the 220ms standard without its own ADR.
+No brand-mark change · no new font or typography picker · no per-song themes · custom domains remain out of scope under ADR-0049; tenant subdomains follow ADR-0067 and are pending wave W-C · no motion beyond the 220ms standard without its own ADR.

@@ -66,3 +66,19 @@ Branch: `feature/t-c30-compose-assist`
 - [x] Spanish copy  
 - [x] Named Playwright TC + full suite green  
 - [x] No Cursor trailers  
+
+---
+
+## Owner-authorized follow-on — score imports and visual placement
+
+The product owner authorized `.chord` / `.crd` text import and completion of the visual
+chord-placement workflow. This remains within the existing Arrangement and ChordPro model.
+
+| ID | Work | Status |
+| -- | ---- | ------ |
+| **T-C30-13** | Import `.chord` and `.crd` as plain text into the existing ChordPro body. Deterministically convert recognizable chord-above-lyric rows to inline ChordPro; preserve unrecognized input as text, preview before applying, and keep Owner/version checks on save. | IMPLEMENTED LOCALLY |
+| **T-C30-14** | Complete the visual studio's click-to-place interaction: select a chord, click its lyric word target, and retain keyboard nudge controls. | IMPLEMENTED LOCALLY |
+
+No new Arrangement fields, endpoints, resource purposes, aggregates, migrations, or external
+parsers are introduced. `.lrc` remains the separate ADR-0050 import/export that maps to the
+existing `Lyrics`, `Chords`, and `ChordTimingJson` fields.

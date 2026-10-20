@@ -5,6 +5,33 @@ export type ChordTimingMark = {
   atMs: number
 }
 
+export type ChordWordTimingMark = {
+  lineIndex: number
+  wordIndex: number
+  startMs: number
+  endMs: number
+}
+
+export type InstrumentalTimingInterval = {
+  type: 'instrumental'
+  startMs: number
+  endMs: number
+}
+
+export type ChordTimingTimeline = {
+  lineMarks: ChordTimingMark[]
+  wordMarks: ChordWordTimingMark[]
+  instrumentals: InstrumentalTimingInterval[]
+}
+
+type ChordTimingEntry = ChordTimingMark | ChordWordTimingMark | InstrumentalTimingInterval
+
+export const EMPTY_CHORD_TIMELINE: ChordTimingTimeline = {
+  lineMarks: [],
+  wordMarks: [],
+  instrumentals: [],
+}
+
 /** Split ChordPro body the same way the mark editor and parser do. */
 export function splitChordProLines(text: string): string[] {
   return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
@@ -41,10 +68,88 @@ export function parseChordTimingJson(raw: string | null | undefined): ChordTimin
   }
 }
 
+/** Parse legacy line marks and the additive word/instrumental timing entries. */
+export function parseChordTimingTimeline(raw: string | null | undefined): ChordTimingTimeline {
+  if (raw == null || !raw.trim() || raw.trim() === '[]') return EMPTY_CHORD_TIMELINE
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return EMPTY_CHORD_TIMELINE
+    const lineByIndex = new Map<number, number>()
+    const wordMarks: ChordWordTimingMark[] = []
+    const instrumentals: InstrumentalTimingInterval[] = []
+    for (const item of parsed) {
+      if (item == null || typeof item !== 'object') continue
+      const entry = item as Record<string, unknown>
+      if (entry.type === 'instrumental') {
+        if (isNonNegativeInteger(entry.startMs) && isNonNegativeInteger(entry.endMs) && entry.endMs > entry.startMs) {
+          instrumentals.push({ type: 'instrumental', startMs: entry.startMs, endMs: entry.endMs })
+        }
+        continue
+      }
+      if (!isNonNegativeInteger(entry.lineIndex)) continue
+      if (isNonNegativeInteger(entry.wordIndex) && isNonNegativeInteger(entry.startMs) && isNonNegativeInteger(entry.endMs) && entry.endMs > entry.startMs) {
+        wordMarks.push({ lineIndex: entry.lineIndex, wordIndex: entry.wordIndex, startMs: entry.startMs, endMs: entry.endMs })
+        continue
+      }
+      if (isNonNegativeInteger(entry.atMs)) lineByIndex.set(entry.lineIndex, entry.atMs)
+    }
+    return {
+      lineMarks: sortChordTimingMarks([...lineByIndex.entries()].map(([lineIndex, atMs]) => ({ lineIndex, atMs }))),
+      wordMarks: wordMarks.sort((a, b) => a.startMs - b.startMs || a.lineIndex - b.lineIndex || a.wordIndex - b.wordIndex),
+      instrumentals: instrumentals.sort((a, b) => a.startMs - b.startMs),
+    }
+  } catch {
+    return EMPTY_CHORD_TIMELINE
+  }
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
 /** Serialize marks for PATCH. Empty → "[]" (API clears to null). */
 export function serializeChordTimingJson(marks: ChordTimingMark[]): string {
   if (marks.length === 0) return '[]'
   return JSON.stringify(sortChordTimingMarks(marks))
+}
+
+export function serializeChordTimingTimeline(timeline: ChordTimingTimeline): string {
+  const entries: ChordTimingEntry[] = [
+    ...timeline.lineMarks,
+    ...timeline.wordMarks,
+    ...timeline.instrumentals,
+  ]
+  if (entries.length === 0) return '[]'
+  entries.sort((a, b) => timingEntryStart(a) - timingEntryStart(b))
+  return JSON.stringify(entries)
+}
+
+function timingEntryStart(entry: ChordTimingEntry): number {
+  return 'atMs' in entry ? entry.atMs : entry.startMs
+}
+
+export function activeChordWord(
+  marks: ChordWordTimingMark[],
+  currentMs: number,
+): { lineIndex: number; wordIndex: number; progress: number } | null {
+  if (!Number.isFinite(currentMs) || currentMs < 0) return null
+  const active = marks.find((mark) => mark.startMs <= currentMs && currentMs < mark.endMs)
+  if (!active) return null
+  return {
+    lineIndex: active.lineIndex,
+    wordIndex: active.wordIndex,
+    progress: Math.max(0, Math.min(1, (currentMs - active.startMs) / (active.endMs - active.startMs))),
+  }
+}
+
+export function activeInstrumental(
+  intervals: InstrumentalTimingInterval[],
+  currentMs: number,
+): { progress: number } | null {
+  if (!Number.isFinite(currentMs) || currentMs < 0) return null
+  const active = intervals.find((interval) => interval.startMs <= currentMs && currentMs < interval.endMs)
+  if (!active) return null
+  return { progress: Math.max(0, Math.min(1, (currentMs - active.startMs) / (active.endMs - active.startMs))) }
 }
 
 /**

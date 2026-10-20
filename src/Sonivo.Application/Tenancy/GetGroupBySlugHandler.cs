@@ -13,11 +13,16 @@ public sealed class GetGroupBySlugHandler
 {
     private readonly ITenantResolver _resolver;
     private readonly IGroupStore _store;
+    private readonly IGroupDatabaseScope? _databaseScope;
 
-    public GetGroupBySlugHandler(ITenantResolver resolver, IGroupStore store)
+    public GetGroupBySlugHandler(
+        ITenantResolver resolver,
+        IGroupStore store,
+        IGroupDatabaseScope? databaseScope = null)
     {
         _resolver = resolver;
         _store = store;
+        _databaseScope = databaseScope;
     }
 
     public async Task<GroupBySlugResult> HandleAsync(Guid userId, string slug, CancellationToken cancellationToken)
@@ -28,6 +33,11 @@ public sealed class GetGroupBySlugHandler
         }
 
         var normalized = (slug ?? string.Empty).Trim().ToLowerInvariant();
+        if (_databaseScope is not null && GroupSlug.IsValid(normalized))
+        {
+            await _databaseScope.SetAuthenticatedGroupSlugLookupAsync(normalized, cancellationToken);
+        }
+
         var group = await _resolver.ResolveAsync(normalized, cancellationToken);
         if (group is null)
         {

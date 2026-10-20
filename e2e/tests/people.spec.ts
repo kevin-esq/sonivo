@@ -27,7 +27,7 @@ async function registerAndLogin(
   await page.getByLabel('Contraseña').fill(testPassword)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
-  await page.goto('/grupos')
+  await page.goto('/groups')
   await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
 }
 
@@ -40,7 +40,7 @@ async function loginAs(
   await page.getByLabel('Contraseña').fill(input.password ?? testPassword)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
-  await page.goto('/grupos')
+  await page.goto('/groups')
   await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
 }
 
@@ -130,7 +130,13 @@ test.describe('People journeys', () => {
       profile.getByText('Todavía no hay datos suficientes para estos reportes.'),
     ).toBeVisible()
 
+    // Your own profile has no destructive actions, but it can act on the person.
+    await expect(profile.getByRole('button', { name: `Acciones de ${ownerName}` })).toHaveCount(0)
+    await profile.getByRole('button', { name: 'Editar instrumento' }).click()
+    await expect(page.getByTestId('edit-instrument-dialog')).toBeVisible()
+
     await page.keyboard.press('Escape')
     await expect(profile).toBeHidden()
+    await expect(page.getByTestId('edit-instrument-dialog')).toBeHidden()
   })
 })

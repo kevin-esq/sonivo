@@ -1,4 +1,4 @@
-import type { I18nKey } from '../i18n'
+import type { I18nKey, Language } from '../i18n'
 
 /** Convert a datetime-local value to UTC ISO for `startsAt`. */
 export function fromDatetimeLocalValue(value: string): string {
@@ -13,11 +13,11 @@ export function toDatetimeLocalValue(iso: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-export function formatStartsAt(iso: string): string {
+export function formatStartsAt(iso: string, language: Language = 'es'): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
   try {
-    return new Intl.DateTimeFormat('es', {
+    return new Intl.DateTimeFormat(language, {
       dateStyle: 'medium',
       timeStyle: 'short',
     }).format(date)

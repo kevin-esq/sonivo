@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Bell, CalendarDays, CheckSquare, Music2, Search } from 'lucide-react'
@@ -25,11 +26,13 @@ type SearchHit = { id: string; label: string; hint: I18nKey; to: string; kind: '
  */
 export function GroupTopBar({
   groupId,
+  groupName,
   user,
   role,
   onLogout,
 }: {
   groupId: string
+  groupName: string
   user: CurrentUser
   role: string
   onLogout: () => void
@@ -74,15 +77,15 @@ export function GroupTopBar({
     const songHits: SearchHit[] = songs
       .filter((song) => song.title.toLowerCase().includes(q))
       .slice(0, 5)
-      .map((song) => ({ id: `s-${song.id}`, label: song.title, hint: 'topbar.kindSong' as const, to: `/groups/${groupId}/songs/${song.id}`, kind: 'song' as const }))
+      .map((song) => ({ id: `s-${song.id}`, label: song.title, hint: 'topbar.kindSong' as const, to: routes.groupSong(groupId, song.id), kind: 'song' as const }))
     const eventHits: SearchHit[] = events
       .filter((event) => event.title.toLowerCase().includes(q))
       .slice(0, 5)
-      .map((event) => ({ id: `e-${event.id}`, label: event.title, hint: 'topbar.kindEvent' as const, to: `/groups/${groupId}/events/${event.id}`, kind: 'event' as const }))
+      .map((event) => ({ id: `e-${event.id}`, label: event.title, hint: 'topbar.kindEvent' as const, to: routes.groupEvent(groupId, event.id), kind: 'event' as const }))
     const taskHits: SearchHit[] = tasks
       .filter((task) => task.title.toLowerCase().includes(q))
       .slice(0, 5)
-      .map((task) => ({ id: `t-${task.id}`, label: task.title, hint: 'topbar.kindTask' as const, to: `/groups/${groupId}/tasks`, kind: 'task' as const }))
+      .map((task) => ({ id: `t-${task.id}`, label: task.title, hint: 'topbar.kindTask' as const, to: routes.groupTasks(groupId), kind: 'task' as const }))
     return [...songHits, ...eventHits, ...taskHits].slice(0, 8)
   }, [query, songs, events, tasks, groupId])
 
@@ -98,7 +101,7 @@ export function GroupTopBar({
 
   return (
     <header className="hidden items-center gap-3 px-4 py-3 md:flex" data-testid="group-topbar">
-      <div ref={wrapRef} className="relative mx-auto w-full max-w-2xl">
+      <div ref={wrapRef} className="relative min-w-0 flex-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
         <input
           type="search"
@@ -169,8 +172,8 @@ export function GroupTopBar({
         ) : null}
       </div>
 
-      <div className="hidden lg:block">
-        <GroupSwitcher currentGroupId={groupId} />
+      <div className="shrink-0">
+        <GroupSwitcher currentGroupId={groupId} currentGroupName={groupName} />
       </div>
 
       <GroupNotificationsBell groupId={groupId} />
@@ -187,17 +190,17 @@ export function GroupTopBar({
           className="absolute right-0 top-full z-50 mt-1 w-56 space-y-0.5 rounded-xl border border-border-subtle bg-surface p-1 text-ink shadow-lg"
         >
           <p className="px-3 py-2 text-xs text-muted">{formatMembershipRole(role, t)}</p>
-          <Link to="/grupos" className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+          <Link to={routes.groups} className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
             {t('workspace.myGroups')}
           </Link>
           <Link
-            to="/cuenta/notificaciones"
+            to={routes.accountNotifications}
             className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
           >
             <Bell className="h-4 w-4" aria-hidden="true" />
             {t('notifications.accountTitle')}
           </Link>
-          <Link to="/cuenta" className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+          <Link to={routes.account} className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
             {t('workspace.account')}
           </Link>
           <button

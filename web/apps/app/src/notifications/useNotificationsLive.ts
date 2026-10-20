@@ -3,7 +3,7 @@ import * as signalR from '@microsoft/signalr'
 import { ensureCsrfToken } from '../api/http'
 
 /**
- * Subscribes to the per-user notification hub (ADR-0077) and invokes `onSignal`
+ * Subscribes to the per-user notification hub and invokes `onSignal`
  * whenever the server pushes a new notification, so an inbox can refresh live
  * without a reload. Best effort: a failed connection never breaks the page.
  */

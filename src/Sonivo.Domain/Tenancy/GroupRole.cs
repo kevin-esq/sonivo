@@ -1,56 +1,11 @@
 namespace Sonivo.Domain.Tenancy;
 
 /// <summary>
-/// Canonical permission keys (ADR-0078). A group role holds a subset; the
-/// effective permission set is the base membership role's set UNION the custom
-/// role's set, so defining roles can only ever widen access, never bypass the
-/// Owner/Manager/Member/Viewer invariant.
-/// </summary>
-public static class GroupPermissions
-{
-    public const string ManageGroup = "manage_group";
-    public const string ManageBranding = "manage_branding";
-    public const string ManageMembers = "manage_members";
-    public const string ManageRoles = "manage_roles";
-    public const string ManageSongs = "manage_songs";
-    public const string ManageSetlists = "manage_setlists";
-    public const string ManageEvents = "manage_events";
-    public const string ManageTasks = "manage_tasks";
-    public const string RespondRsvp = "respond_rsvp";
-    public const string Practice = "practice";
-
-    /// <summary>Permissions every membership role may hold (safe, non-destructive).</summary>
-    public static readonly string[] Assignable =
-    {
-        ManageSongs,
-        ManageSetlists,
-        ManageEvents,
-        ManageTasks,
-        RespondRsvp,
-        Practice,
-    };
-
-    public static readonly string[] All =
-    {
-        ManageGroup,
-        ManageBranding,
-        ManageMembers,
-        ManageRoles,
-        ManageSongs,
-        ManageSetlists,
-        ManageEvents,
-        ManageTasks,
-        RespondRsvp,
-        Practice,
-    };
-
-    public static bool IsKnown(string? value) => All.Contains(value);
-}
-
-/// <summary>
-/// Group-defined role (ADR-0078). Built-in roles are seeded from the base
-/// membership roles and cannot be deleted; custom roles only carry a permission
-/// set and a human name, and are always applied on top of the base role.
+/// Group-defined role (ADR-0082). Built-in roles are seeded from the base
+/// membership roles and cannot be deleted; custom roles carry an explicit
+/// permission profile and a human name. New roles replace the base capability
+/// preset; migrated roles may retain legacy additive behavior. Owner-only
+/// access stays fixed.
 /// </summary>
 public sealed class GroupRole
 {
@@ -65,6 +20,8 @@ public sealed class GroupRole
     public string? Description { get; private set; }
     /// <summary>Comma-separated canonical permission keys (see <see cref="GroupPermissions"/>).</summary>
     public string Permissions { get; private set; } = string.Empty;
+    /// <summary>Legacy compatibility: true extends the built-in preset instead of replacing it.</summary>
+    public bool ExtendsBaseRole { get; private set; }
     public bool IsSystem { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? UpdatedAt { get; private set; }
@@ -88,7 +45,8 @@ public sealed class GroupRole
         IEnumerable<string> permissions,
         string? description = null,
         bool isSystem = false,
-        Guid? id = null)
+        Guid? id = null,
+        bool extendsBaseRole = false)
     {
         if (groupId == Guid.Empty)
         {
@@ -113,6 +71,17 @@ public sealed class GroupRole
             throw new ArgumentException($"Unknown permission: {unknown}", nameof(permissions));
         }
 
+        // Administrative and ownership capabilities would let a custom profile
+        // escalate, so they are refused here. The domain is the single place
+        // that enforces this invariant — the API surfaces failures as 400.
+        var notAssignable = normalized.FirstOrDefault(p => !GroupPermissions.IsAssignable(p));
+        if (notAssignable is not null)
+        {
+            throw new ArgumentException(
+                $"Permission cannot be granted to a custom role: {notAssignable}",
+                nameof(permissions));
+        }
+
         var trimmedDescription = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         if (trimmedDescription is { Length: > 200 })
         {
@@ -126,6 +95,7 @@ public sealed class GroupRole
             Name = trimmedName,
             Description = trimmedDescription,
             Permissions = string.Join(',', normalized),
+            ExtendsBaseRole = extendsBaseRole,
             IsSystem = isSystem,
             CreatedAt = now,
         };
@@ -138,6 +108,16 @@ public sealed class GroupRole
 
     public bool HasPermission(string permission) =>
         PermissionList.Contains(permission, StringComparer.Ordinal);
+
+    public void SetExtendsBaseRole(bool extendsBaseRole)
+    {
+        if (IsSystem)
+        {
+            throw new InvalidOperationException("Built-in roles cannot change their permission mode.");
+        }
+
+        ExtendsBaseRole = extendsBaseRole;
+    }
 
     public void Rename(string name)
     {
@@ -172,6 +152,14 @@ public sealed class GroupRole
         if (unknown is not null)
         {
             throw new ArgumentException($"Unknown permission: {unknown}", nameof(permissions));
+        }
+
+        var notAssignable = normalized.FirstOrDefault(p => !GroupPermissions.IsAssignable(p));
+        if (notAssignable is not null)
+        {
+            throw new ArgumentException(
+                $"Permission cannot be granted to a custom role: {notAssignable}",
+                nameof(permissions));
         }
 
         Permissions = string.Join(',', normalized);

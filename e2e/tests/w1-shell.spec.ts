@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { createGroup, register, uniqueEmail } from './helpers'
 
-test.describe('W1 shell: Grupo vs Cuenta', () => {
-  test('grupo tabs visible in group; cuenta renders 4 sections', async ({ page }) => {
+test.describe('W1 shell: group vs account', () => {
+  test('group tabs visible in group; account renders 4 sections', async ({ page }) => {
     const email = uniqueEmail('w1shell')
     await register(page, email)
-    const name = `W1 Grupo ${Date.now()}`
+    const name = `W1 Group ${Date.now()}`
     await createGroup(page, name)
 
     const shell = page.getByTestId('grupo-shell')
@@ -17,7 +17,7 @@ test.describe('W1 shell: Grupo vs Cuenta', () => {
     // ADR-0055: group settings is pinned in the rail footer, outside the nav.
     await expect(page.getByTestId('rail-settings')).toBeVisible()
 
-    await page.goto('/cuenta')
+    await page.goto('/account')
     await expect(page.getByRole('heading', { name: 'Mi cuenta' })).toBeVisible()
     const cuentaNav = page
       .getByTestId('app-sidebar')
@@ -31,17 +31,17 @@ test.describe('W1 shell: Grupo vs Cuenta', () => {
     await expect(page.getByTestId('nav-membership')).toBeVisible()
   })
 
-  test('/settings/security redirects to /cuenta/seguridad with passkey section', async ({ page }) => {
+  test('/settings/security redirects to /account/security with passkey section', async ({ page }) => {
     await register(page, uniqueEmail('w1redir'))
     await page.goto('/settings/security')
-    await expect(page).toHaveURL(/\/cuenta\/seguridad/)
+    await expect(page).toHaveURL(/\\/account\\/security/)
     await expect(page.getByRole('heading', { name: 'Seguridad' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Llaves de acceso (Passkeys)' })).toBeVisible()
   })
 
   test('theme toggle flips data-theme and persists', async ({ page }) => {
     await register(page, uniqueEmail('w1theme'))
-    await page.goto('/cuenta/preferencias')
+    await page.goto('/account/preferences')
     const before = await page.evaluate(() => document.documentElement.dataset.theme)
     const target = before === 'light' ? 'Oscuro' : 'Claro'
     await page.getByRole('button', { name: target, exact: true }).click()
@@ -55,7 +55,7 @@ test.describe('W1 shell: Grupo vs Cuenta', () => {
 
   test('language switcher flips chrome strings es<->en', async ({ page }) => {
     await register(page, uniqueEmail('w1lang'))
-    await page.goto('/cuenta/preferencias')
+    await page.goto('/account/preferences')
     await page.getByRole('button', { name: 'Inglés' }).click()
     const enNav = page.getByRole('navigation', { name: 'Sections' })
     await expect(enNav.getByRole('link', { name: 'My groups' })).toBeVisible()

@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging;
+using Sonivo.Domain.Tenancy;
+using Sonivo.Domain.Billing;
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Repertoire;
@@ -28,6 +30,27 @@ public sealed record CreateFileResourceCommand(
     string ContentType,
     long ByteSize,
     Stream Content);
+
+public static class ResourceUploadLimits
+{
+    private const long MiB = 1024L * 1024L;
+
+    public static long MaxByteSize(string? planId, string purpose)
+    {
+        if (!string.Equals(purpose?.Trim(), ResourcePurposes.Audio, StringComparison.Ordinal))
+        {
+            return ResourceFileConstraints.MaxNonAudioByteSize;
+        }
+
+        return PlanCatalog.Get(planId).Id switch
+        {
+            PlanCatalog.Starter => 25 * MiB,
+            PlanCatalog.Pro => 100 * MiB,
+            PlanCatalog.Studio => 250 * MiB,
+            _ => 25 * MiB
+        };
+    }
+}
 
 public sealed record UpdateLinkResourceCommand(
     Guid UserId,
@@ -82,8 +105,9 @@ public sealed class CreateLinkResourceHandler
         CreateLinkResourceCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
-        await RequireLiveArrangementAsync(command.GroupId, command.ArrangementId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.ResourceUpload, cancellationToken);
+        await RequireLiveArrangementAsync(
+            command.GroupId, command.UserId, command.ArrangementId, cancellationToken);
 
         try
         {
@@ -109,6 +133,7 @@ public sealed class CreateLinkResourceHandler
 
     private async Task RequireLiveArrangementAsync(
         Guid groupId,
+        Guid userId,
         Guid arrangementId,
         CancellationToken cancellationToken)
     {
@@ -117,6 +142,17 @@ public sealed class CreateLinkResourceHandler
         {
             throw new NotFoundException("Arrangement not found.");
         }
+
+        await _access.RequireResourcePathPermissionAsync(
+            groupId,
+            userId,
+            GroupPermissions.ResourceUpload,
+            new[]
+            {
+                (ResourceGrant.ResourceTypes.Song, arrangement.SongId),
+                (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id),
+            },
+            cancellationToken);
     }
 
     internal static ResourceDetailDto ToDetail(Resource resource) => new(
@@ -174,11 +210,32 @@ public sealed class CreateFileResourceHandler
         CreateFileResourceCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        var (group, _) = await _access.RequirePermissionAsync(
+            command.GroupId,
+            command.UserId,
+            GroupPermissions.ResourceUpload,
+            cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(command.GroupId, command.ArrangementId, cancellationToken);
         if (arrangement is null)
         {
             throw new NotFoundException("Arrangement not found.");
+        }
+
+        await _access.RequireResourcePathPermissionAsync(
+            command.GroupId,
+            command.UserId,
+            GroupPermissions.ResourceUpload,
+            new[]
+            {
+                (ResourceGrant.ResourceTypes.Song, arrangement.SongId),
+                (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id),
+            },
+            cancellationToken);
+
+        var maxByteSize = ResourceUploadLimits.MaxByteSize(group.PlanId, command.Purpose);
+        if (command.ByteSize > maxByteSize)
+        {
+            throw new UploadLimitException(maxByteSize);
         }
 
         var resourceId = Guid.NewGuid();
@@ -205,15 +262,15 @@ public sealed class CreateFileResourceHandler
             throw new ValidationException(ex.Message);
         }
 
-        await _blobs.PutAsync(
-            objectKey,
-            command.Content,
-            resource.ContentType!,
-            resource.ByteSize!.Value,
-            cancellationToken);
-
         try
         {
+            await _blobs.PutAsync(
+                objectKey,
+                command.Content,
+                resource.ContentType!,
+                resource.ByteSize!.Value,
+                cancellationToken);
+
             await _resources.AddAsync(resource, cancellationToken);
             await _resources.SaveChangesAsync(cancellationToken);
         }
@@ -221,7 +278,9 @@ public sealed class CreateFileResourceHandler
         {
             try
             {
-                await _blobs.DeleteAsync(objectKey, cancellationToken);
+                // The request token may already be canceled. Cleanup must still
+                // remove a partially written object after upload or DB failure.
+                await _blobs.DeleteAsync(objectKey, CancellationToken.None);
             }
             catch
             {
@@ -257,15 +316,56 @@ public sealed class ListResourcesHandler
         Guid arrangementId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
         {
             throw new NotFoundException("Arrangement not found.");
         }
 
+        await _access.RequireResourceReadPathPermissionAsync(
+            groupId,
+            userId,
+            new[]
+            {
+                (ResourceGrant.ResourceTypes.Song, arrangement.SongId, GroupPermissions.SongView),
+                (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id, GroupPermissions.ArrangementView),
+            },
+            cancellationToken);
+
         var resources = await _resources.ListByArrangementAsync(arrangementId, cancellationToken);
-        return resources.Select(CreateLinkResourceHandler.ToSummary).ToList();
+        var hasGroupResourceRead = await _access.HasPermissionAsync(
+            groupId, userId, GroupPermissions.ResourceView, cancellationToken);
+        var hasParentResourceRead = await _access.HasResourceReadPermissionAsync(
+                groupId, userId, GroupPermissions.ResourceView,
+                ResourceGrant.ResourceTypes.Song, arrangement.SongId, cancellationToken)
+            || await _access.HasResourceReadPermissionAsync(
+                groupId, userId, GroupPermissions.ResourceView,
+                ResourceGrant.ResourceTypes.Arrangement, arrangement.Id, cancellationToken);
+        var visible = new List<ResourceSummaryDto>(resources.Count);
+        foreach (var resource in resources)
+        {
+            if (await _access.HasResourceReadPathPermissionAsync(
+                    groupId,
+                    userId,
+                    new[]
+                    {
+                        (ResourceGrant.ResourceTypes.Song, arrangement.SongId, GroupPermissions.SongView),
+                        (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id, GroupPermissions.ArrangementView),
+                        (ResourceGrant.ResourceTypes.Resource, resource.Id, GroupPermissions.ResourceView),
+                    },
+                    cancellationToken))
+            {
+                visible.Add(CreateLinkResourceHandler.ToSummary(resource));
+            }
+        }
+
+        if (!hasGroupResourceRead && !hasParentResourceRead && visible.Count == 0)
+        {
+            await _access.RequirePermissionAsync(
+                groupId, userId, GroupPermissions.ResourceView, cancellationToken);
+        }
+
+        return visible;
     }
 }
 
@@ -313,7 +413,6 @@ public sealed class ListGroupResourcesHandler
         CancellationToken cancellationToken)
     {
         await _access.RequireMemberAsync(query.GroupId, query.UserId, cancellationToken);
-
         var resources = await _resources.ListByGroupAsync(query.GroupId, cancellationToken);
         if (resources.Count == 0)
         {
@@ -325,7 +424,7 @@ public sealed class ListGroupResourcesHandler
         var songs = (await _songs.ListByGroupAsync(query.GroupId, cancellationToken))
             .ToDictionary(s => s.Id);
 
-        return resources
+        var candidates = resources
             .Select(resource =>
             {
                 arrangements.TryGetValue(resource.ArrangementId, out var arrangement);
@@ -348,6 +447,31 @@ public sealed class ListGroupResourcesHandler
                     resource.CreatedAt);
             })
             .ToList();
+
+        var visible = new List<GroupResourceListItemDto>(candidates.Count);
+        foreach (var item in candidates)
+        {
+            if (item.SongId == Guid.Empty || item.ArrangementId == Guid.Empty)
+            {
+                continue;
+            }
+
+            if (await _access.HasResourceReadPathPermissionAsync(
+                    query.GroupId,
+                    query.UserId,
+                    new[]
+                    {
+                        (ResourceGrant.ResourceTypes.Song, item.SongId, GroupPermissions.SongView),
+                        (ResourceGrant.ResourceTypes.Arrangement, item.ArrangementId, GroupPermissions.ArrangementView),
+                        (ResourceGrant.ResourceTypes.Resource, item.Id, GroupPermissions.ResourceView),
+                    },
+                    cancellationToken))
+            {
+                visible.Add(item);
+            }
+        }
+
+        return visible;
     }
 }
 
@@ -374,7 +498,6 @@ public sealed class GetResourceHandler
         Guid resourceId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
         {
@@ -386,6 +509,17 @@ public sealed class GetResourceHandler
         {
             throw new NotFoundException("Resource not found.");
         }
+
+        await _access.RequireResourceReadPathPermissionAsync(
+            groupId,
+            userId,
+            new[]
+            {
+                (ResourceGrant.ResourceTypes.Song, arrangement.SongId, GroupPermissions.SongView),
+                (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id, GroupPermissions.ArrangementView),
+                (ResourceGrant.ResourceTypes.Resource, resource.Id, GroupPermissions.ResourceView),
+            },
+            cancellationToken);
 
         return CreateLinkResourceHandler.ToDetail(resource);
     }
@@ -417,7 +551,6 @@ public sealed class GetResourceContentHandler
         Guid resourceId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
         {
@@ -429,6 +562,17 @@ public sealed class GetResourceContentHandler
         {
             throw new NotFoundException("Resource not found.");
         }
+
+        await _access.RequireResourceReadPathPermissionAsync(
+            groupId,
+            userId,
+            new[]
+            {
+                (ResourceGrant.ResourceTypes.Song, arrangement.SongId, GroupPermissions.SongView),
+                (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id, GroupPermissions.ArrangementView),
+                (ResourceGrant.ResourceTypes.Resource, resource.Id, GroupPermissions.ResourceView),
+            },
+            cancellationToken);
 
         if (resource.Kind != ResourceKinds.File
             || string.IsNullOrWhiteSpace(resource.ObjectKey)
@@ -499,7 +643,7 @@ public sealed class UpdateLinkResourceHandler
         UpdateLinkResourceCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.ResourceEdit, cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(command.GroupId, command.ArrangementId, cancellationToken);
         if (arrangement is null)
         {
@@ -511,6 +655,18 @@ public sealed class UpdateLinkResourceHandler
         {
             throw new NotFoundException("Resource not found.");
         }
+
+        await _access.RequireResourcePathPermissionAsync(
+            command.GroupId,
+            command.UserId,
+            GroupPermissions.ResourceEdit,
+            new[]
+            {
+                (ResourceGrant.ResourceTypes.Song, arrangement.SongId),
+                (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id),
+                (ResourceGrant.ResourceTypes.Resource, resource.Id),
+            },
+            cancellationToken);
 
         var purpose = command.Purpose ?? resource.Purpose;
         var label = command.Label ?? resource.Label;
@@ -561,7 +717,7 @@ public sealed class DeleteResourceHandler
         Guid resourceId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(groupId, userId, cancellationToken);
+        await _access.RequirePermissionAsync(groupId, userId, GroupPermissions.ResourceDelete, cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
         {
@@ -573,6 +729,18 @@ public sealed class DeleteResourceHandler
         {
             throw new NotFoundException("Resource not found.");
         }
+
+        await _access.RequireResourcePathPermissionAsync(
+            groupId,
+            userId,
+            GroupPermissions.ResourceDelete,
+            new[]
+            {
+                (ResourceGrant.ResourceTypes.Song, arrangement.SongId),
+                (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id),
+                (ResourceGrant.ResourceTypes.Resource, resource.Id),
+            },
+            cancellationToken);
 
         var objectKey = resource.ObjectKey;
         await _resources.RemoveAsync(resource, cancellationToken);

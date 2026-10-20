@@ -1,0 +1,52 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+		A00000000000000000000001 /* SonivoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000011; };
+		A00000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000012; };
+		A00000000000000000000003 /* PracticePlaybackEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000013; };
+		A00000000000000000000007 /* APIConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000018; };
+		A00000000000000000000008 /* PracticeChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000019; };
+		A00000000000000000000009 /* MobileAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000020; };
+		A0000000000000000000000A /* PracticeKaraokeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000023; };
+		A0000000000000000000000B /* PracticeRoomClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000024; };
+		A0000000000000000000000C /* SignalRClient in Frameworks */ = {isa = PBXBuildFile; productRef = A00000000000000000000081; };
+		A00000000000000000000004 /* English strings */ = {isa = PBXBuildFile; fileRef = A00000000000000000000015; };
+		A00000000000000000000005 /* Spanish strings */ = {isa = PBXBuildFile; fileRef = A00000000000000000000016; };
+		A00000000000000000000006 /* Portuguese strings */ = {isa = PBXBuildFile; fileRef = A00000000000000000000017; };
+		A00000000000000000000011 /* SonivoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonivoApp.swift; sourceTree = "<group>"; };
+		A00000000000000000000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A00000000000000000000013 /* PracticePlaybackEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Playback/PracticePlaybackEngine.swift; sourceTree = "<group>"; };
+		A00000000000000000000014 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A00000000000000000000015 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		A00000000000000000000016 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
+		A00000000000000000000017 /* pt */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pt; path = pt.lproj/Localizable.strings; sourceTree = "<group>"; };
+		A00000000000000000000018 /* APIConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/API/APIConfiguration.swift; sourceTree = "<group>"; };
+		A00000000000000000000019 /* PracticeChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Practice/PracticeChartView.swift; sourceTree = "<group>"; };
+		A00000000000000000000020 /* MobileAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/API/MobileAPI.swift; sourceTree = "<group>"; };
+		A00000000000000000000023 /* PracticeKaraokeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Practice/PracticeKaraokeView.swift; sourceTree = "<group>"; };
+		A00000000000000000000024 /* PracticeRoomClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/API/PracticeRoomClient.swift; sourceTree = "<group>"; };
+		A00000000000000000000086 /* Production.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ../Production.xcconfig; sourceTree = "<group>"; };
+		A00000000000000000000021 /* Sonivo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sonivo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000000000000000000030 = {isa = PBXGroup; children = (A00000000000000000000031, A00000000000000000000032, A00000000000000000000022, A00000000000000000000086); sourceTree = "<group>"; };
+		A00000000000000000000031 /* Sonivo */ = {isa = PBXGroup; path = Sonivo; sourceTree = "<group>"; children = (A00000000000000000000011, A00000000000000000000012, A00000000000000000000013, A00000000000000000000014, A00000000000000000000018, A00000000000000000000019, A00000000000000000000020, A00000000000000000000023, A00000000000000000000024, A00000000000000000000032); };
+		A00000000000000000000032 /* Resources */ = {isa = PBXGroup; path = Resources; sourceTree = "<group>"; children = (A00000000000000000000015, A00000000000000000000016, A00000000000000000000017); };
+		A00000000000000000000022 /* Products */ = {isa = PBXGroup; name = Products; sourceTree = "<group>"; children = (A00000000000000000000021); };
+		A00000000000000000000040 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000001, A00000000000000000000002, A00000000000000000000003, A00000000000000000000007, A00000000000000000000008, A00000000000000000000009, A0000000000000000000000A, A0000000000000000000000B); runOnlyForDeploymentPostprocessing = 0; };
+		A00000000000000000000041 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000004, A00000000000000000000005, A00000000000000000000006); runOnlyForDeploymentPostprocessing = 0; };
+		A00000000000000000000042 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A0000000000000000000000C); runOnlyForDeploymentPostprocessing = 0; };
+		A00000000000000000000050 /* Sonivo */ = {isa = PBXNativeTarget; buildConfigurationList = A00000000000000000000070; buildPhases = (A00000000000000000000040, A00000000000000000000041, A00000000000000000000042); buildRules = (); dependencies = (); name = Sonivo; packageProductDependencies = (A00000000000000000000081); productName = Sonivo; productReference = A00000000000000000000021; productType = "com.apple.product-type.application"; };
+		A00000000000000000000060 /* Project */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastUpgradeCheck = 1600; TargetAttributes = {A00000000000000000000050 = {CreatedOnToolsVersion = 16.0; }; }; }; buildConfigurationList = A00000000000000000000071; compatibilityVersion = "Xcode 15.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, es, pt, Base); mainGroup = A00000000000000000000030; packageReferences = (A00000000000000000000080); productRefGroup = A00000000000000000000022; projectDirPath = ""; projectRoot = ""; targets = (A00000000000000000000050); };
+		A00000000000000000000080 /* XCRemoteSwiftPackageReference "signalr-client-swift" */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/dotnet/signalr-client-swift"; requirement = {kind = upToNextMinorVersion; minimumVersion = 1.0.0; }; };
+		A00000000000000000000081 /* SignalRClient */ = {isa = XCSwiftPackageProductDependency; package = A00000000000000000000080; productName = SignalRClient; };
+		A00000000000000000000070 /* Target configs */ = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000072, A00000000000000000000073); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A00000000000000000000071 /* Project configs */ = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000074, A00000000000000000000075); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A00000000000000000000072 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {API_BASE_URL = ""; OIDC_ISSUER = ""; WEB_BASE_URL = ""; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; CODE_SIGN_ENTITLEMENTS = Sonivo/Sonivo.entitlements; INFOPLIST_FILE = Sonivo/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = lat.sonivo.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		A00000000000000000000073 /* Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = A00000000000000000000086; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; CODE_SIGN_ENTITLEMENTS = Sonivo/Sonivo.entitlements; INFOPLIST_FILE = Sonivo/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = lat.sonivo.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
+		A00000000000000000000074 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; }; name = Debug; };
+		A00000000000000000000075 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; }; name = Release; };
+	};
+	rootObject = A00000000000000000000060;
+}

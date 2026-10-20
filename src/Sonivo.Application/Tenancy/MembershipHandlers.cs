@@ -12,7 +12,9 @@ public sealed record MemberListItemDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset? LastSeenAt,
     string? Email,
-    Guid? GroupRoleId);
+    Guid? GroupRoleId,
+    string? Description,
+    bool AccessEnabled);
 
 public sealed record MemberListDto(IReadOnlyList<MemberListItemDto> Items);
 
@@ -59,7 +61,9 @@ public sealed class ListMembersHandler
                 directory.TryGetValue(m.UserId!.Value, out var entry3) && entry3.Email is { } email && !email.EndsWith("@managed.invalid", StringComparison.Ordinal)
                     ? email
                     : null,
-                m.GroupRoleId))
+                m.GroupRoleId,
+                m.Description,
+                m.AccessEnabled))
             .OrderBy(i => RoleRank(i.Role))
             .ThenBy(i => i.DisplayName, StringComparer.Ordinal)
             .ThenBy(i => i.UserId)
@@ -342,7 +346,11 @@ public sealed class SetMusicalRoleHandler
 
     public async Task HandleAsync(SetMusicalRoleCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.ActorUserId, cancellationToken);
+        await _access.RequirePermissionAsync(
+            command.GroupId,
+            command.ActorUserId,
+            GroupPermissions.ManageMemberProfiles,
+            cancellationToken);
 
         var target = await _memberships.GetForUpdateAsync(
             command.GroupId, command.TargetUserId, cancellationToken);
@@ -372,6 +380,79 @@ public sealed class SetMusicalRoleHandler
                     actorUserId: command.ActorUserId,
                     targetUserId: command.TargetUserId,
                     metadata: target.MusicalRole),
+                cancellationToken);
+            await _audit.SaveChangesAsync(cancellationToken);
+        }
+    }
+}
+
+public sealed record SetMemberDescriptionCommand(
+    Guid ActorUserId,
+    Guid GroupId,
+    Guid TargetUserId,
+    string? Description);
+
+/// <summary>
+/// Owner or Manager sets the free-text description shown on the member profile.
+/// Purely descriptive: it never takes part in authorization.
+/// </summary>
+public sealed class SetMemberDescriptionHandler
+{
+    private readonly GroupAccessService _access;
+    private readonly IMembershipStore _memberships;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IGroupAuditStore? _audit;
+    private readonly IClock? _clock;
+
+    public SetMemberDescriptionHandler(
+        GroupAccessService access,
+        IMembershipStore memberships,
+        IUnitOfWork unitOfWork,
+        IGroupAuditStore? audit = null,
+        IClock? clock = null)
+    {
+        _access = access;
+        _memberships = memberships;
+        _unitOfWork = unitOfWork;
+        _audit = audit;
+        _clock = clock;
+    }
+
+    public async Task HandleAsync(SetMemberDescriptionCommand command, CancellationToken cancellationToken)
+    {
+        await _access.RequirePermissionAsync(
+            command.GroupId,
+            command.ActorUserId,
+            GroupPermissions.ManageMemberProfiles,
+            cancellationToken);
+
+        var target = await _memberships.GetForUpdateAsync(
+            command.GroupId, command.TargetUserId, cancellationToken);
+        if (target is null)
+        {
+            throw new NotFoundException("Member not found.");
+        }
+
+        try
+        {
+            target.SetDescription(command.Description);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new ValidationException(ex.Message);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (_audit is not null)
+        {
+            await _audit.AddAsync(
+                GroupAuditEntry.Create(
+                    command.GroupId,
+                    GroupAuditEntry.ActionMemberDescriptionChanged,
+                    _clock?.UtcNow ?? DateTimeOffset.UtcNow,
+                    actorUserId: command.ActorUserId,
+                    targetUserId: command.TargetUserId),
                 cancellationToken);
             await _audit.SaveChangesAsync(cancellationToken);
         }
@@ -423,9 +504,6 @@ public sealed class LeaveGroupHandler
             }
         }
 
-        await _memberships.RemoveAsync(tracked, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
         if (_audit is not null)
         {
             await _audit.AddAsync(
@@ -438,6 +516,9 @@ public sealed class LeaveGroupHandler
                 cancellationToken);
             await _audit.SaveChangesAsync(cancellationToken);
         }
+
+        await _memberships.RemoveAsync(tracked, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger?.LogWarning(
             "Security event: member left group. ActorUserId: {ActorUserId}, GroupId: {GroupId}",

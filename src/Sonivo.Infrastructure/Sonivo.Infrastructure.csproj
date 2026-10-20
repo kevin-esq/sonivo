@@ -21,6 +21,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.12" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.7.2" />
     <!-- ADR-0035 ACCEPTED: S3-compatible R2 backend (pinned v3 per the documented R2 dotnet example). -->
     <PackageReference Include="AWSSDK.S3" Version="4.0.103.4" />
     <!-- ADR-0068: provider-agnostic email over SMTP (the one protocol every provider speaks). -->

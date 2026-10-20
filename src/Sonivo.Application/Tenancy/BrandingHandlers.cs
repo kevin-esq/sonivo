@@ -491,46 +491,54 @@ public sealed class GetPublicBrandingHandler
 {
     private readonly IGroupStore _groups;
     private readonly IGroupBrandingStore _branding;
+    private readonly IGroupDatabaseScope _databaseScope;
+    private readonly IGroupDataOperation _groupDataOperation;
 
-    public GetPublicBrandingHandler(IGroupStore groups, IGroupBrandingStore branding)
+    public GetPublicBrandingHandler(
+        IGroupStore groups,
+        IGroupBrandingStore branding,
+        IGroupDatabaseScope databaseScope,
+        IGroupDataOperation groupDataOperation)
     {
         _groups = groups;
         _branding = branding;
+        _databaseScope = databaseScope;
+        _groupDataOperation = groupDataOperation;
     }
 
     public async Task<PublicBrandingDto> HandleAsync(string slug, CancellationToken cancellationToken)
     {
-        var normalized = (slug ?? string.Empty).Trim().ToLowerInvariant();
-        if (!GroupSlug.IsValid(normalized))
+        var normalized = PublicGroupSlug.Normalize(slug);
+        if (normalized is null)
         {
             return new PublicBrandingDto(null, null, null, null);
         }
 
-        var group = await _groups.GetByAnySlugAsync(normalized, cancellationToken);
-        if (group is null)
+        return await _groupDataOperation.ExecuteInTransactionAsync(async operationToken =>
         {
-            return new PublicBrandingDto(null, null, null, null);
-        }
+            await _databaseScope.SetPublicGroupSlugAsync(normalized, operationToken);
+            var group = await _groups.GetByAnySlugAsync(normalized, operationToken);
+            if (group is null)
+            {
+                return new PublicBrandingDto(null, null, null, null);
+            }
 
-        var branding = await _branding.GetAsync(group.Id, cancellationToken);
-        // Only an explicit display name makes a group distinguishable here; a group
-        // without branding returns the same empty payload as an unknown slug (no
-        // enumeration).
-        var name = branding?.DisplayName;
-        var logoUrl = branding?.LogoBlobKey is null
-            ? null
-            : $"/api/groups/by-slug/{group.Slug}/branding/logo";
-        var bannerUrl = branding?.BannerBlobKey is null
-            ? null
-            : $"/api/groups/by-slug/{group.Slug}/branding/banner";
+            var branding = await _branding.GetAsync(group.Id, operationToken);
+            var logoUrl = branding?.LogoBlobKey is null
+                ? null
+                : $"/api/groups/by-slug/{group.Slug}/branding/logo";
+            var bannerUrl = branding?.BannerBlobKey is null
+                ? null
+                : $"/api/groups/by-slug/{group.Slug}/branding/banner";
 
-        return new PublicBrandingDto(
-            name,
-            logoUrl,
-            branding?.AccentHex,
-            branding?.LoginHeadline,
-            branding?.SecondaryHex,
-            bannerUrl);
+            return new PublicBrandingDto(
+                branding?.DisplayName,
+                logoUrl,
+                branding?.AccentHex,
+                branding?.LoginHeadline,
+                branding?.SecondaryHex,
+                bannerUrl);
+        }, cancellationToken);
     }
 }
 
@@ -539,32 +547,44 @@ public sealed class GetPublicBrandingLogoHandler
     private readonly IGroupStore _groups;
     private readonly IGroupBrandingStore _branding;
     private readonly IBlobStore _blobs;
+    private readonly IGroupDatabaseScope _databaseScope;
+    private readonly IGroupDataOperation _groupDataOperation;
 
-    public GetPublicBrandingLogoHandler(IGroupStore groups, IGroupBrandingStore branding, IBlobStore blobs)
+    public GetPublicBrandingLogoHandler(
+        IGroupStore groups,
+        IGroupBrandingStore branding,
+        IBlobStore blobs,
+        IGroupDatabaseScope databaseScope,
+        IGroupDataOperation groupDataOperation)
     {
         _groups = groups;
         _branding = branding;
         _blobs = blobs;
+        _databaseScope = databaseScope;
+        _groupDataOperation = groupDataOperation;
     }
 
     public async Task<BlobContent?> HandleAsync(string slug, CancellationToken cancellationToken)
     {
-        var normalized = (slug ?? string.Empty).Trim().ToLowerInvariant();
-        if (!GroupSlug.IsValid(normalized))
+        var normalized = PublicGroupSlug.Normalize(slug);
+        if (normalized is null)
         {
             return null;
         }
 
-        var group = await _groups.GetByAnySlugAsync(normalized, cancellationToken);
-        if (group is null)
+        var key = await _groupDataOperation.ExecuteInTransactionAsync(async operationToken =>
         {
-            return null;
-        }
+            await _databaseScope.SetPublicGroupSlugAsync(normalized, operationToken);
+            var group = await _groups.GetByAnySlugAsync(normalized, operationToken);
+            if (group is null)
+            {
+                return null;
+            }
 
-        var branding = await _branding.GetAsync(group.Id, cancellationToken);
-        return branding?.LogoBlobKey is { } key
-            ? await _blobs.GetAsync(key, cancellationToken)
-            : null;
+            var branding = await _branding.GetAsync(group.Id, operationToken);
+            return branding?.LogoBlobKey;
+        }, cancellationToken);
+        return key is null ? null : await _blobs.GetAsync(key, cancellationToken);
     }
 }
 
@@ -573,31 +593,52 @@ public sealed class GetPublicBrandingBannerHandler
     private readonly IGroupStore _groups;
     private readonly IGroupBrandingStore _branding;
     private readonly IBlobStore _blobs;
+    private readonly IGroupDatabaseScope _databaseScope;
+    private readonly IGroupDataOperation _groupDataOperation;
 
-    public GetPublicBrandingBannerHandler(IGroupStore groups, IGroupBrandingStore branding, IBlobStore blobs)
+    public GetPublicBrandingBannerHandler(
+        IGroupStore groups,
+        IGroupBrandingStore branding,
+        IBlobStore blobs,
+        IGroupDatabaseScope databaseScope,
+        IGroupDataOperation groupDataOperation)
     {
         _groups = groups;
         _branding = branding;
         _blobs = blobs;
+        _databaseScope = databaseScope;
+        _groupDataOperation = groupDataOperation;
     }
 
     public async Task<BlobContent?> HandleAsync(string slug, CancellationToken cancellationToken)
     {
+        var normalized = PublicGroupSlug.Normalize(slug);
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        var key = await _groupDataOperation.ExecuteInTransactionAsync(async operationToken =>
+        {
+            await _databaseScope.SetPublicGroupSlugAsync(normalized, operationToken);
+            var group = await _groups.GetByAnySlugAsync(normalized, operationToken);
+            if (group is null)
+            {
+                return null;
+            }
+
+            var branding = await _branding.GetAsync(group.Id, operationToken);
+            return branding?.BannerBlobKey;
+        }, cancellationToken);
+        return key is null ? null : await _blobs.GetAsync(key, cancellationToken);
+    }
+}
+
+internal static class PublicGroupSlug
+{
+    public static string? Normalize(string? slug)
+    {
         var normalized = (slug ?? string.Empty).Trim().ToLowerInvariant();
-        if (!GroupSlug.IsValid(normalized))
-        {
-            return null;
-        }
-
-        var group = await _groups.GetByAnySlugAsync(normalized, cancellationToken);
-        if (group is null)
-        {
-            return null;
-        }
-
-        var branding = await _branding.GetAsync(group.Id, cancellationToken);
-        return branding?.BannerBlobKey is { } key
-            ? await _blobs.GetAsync(key, cancellationToken)
-            : null;
+        return GroupSlug.IsValid(normalized) ? normalized : null;
     }
 }

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useId, useRef } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '../../ui/cn'
 import { useT } from '../../i18n'
@@ -8,10 +9,46 @@ const SIZE_CLASS = {
   sm: 'max-w-md',
   md: 'max-w-lg',
   lg: 'max-w-2xl',
+  /** Wide, two-column surfaces (the member profile). */
+  xl: 'max-w-4xl',
+} as const
+
+const RESPONSIVE_SIZE_CLASS = {
+  sm: 'sm:max-w-md',
+  md: 'sm:max-w-lg',
+  lg: 'sm:max-w-2xl',
+  xl: 'sm:max-w-4xl',
 } as const
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/**
+ * Open dialogs, innermost last. Escape, the backdrop and the Tab trap belong to
+ * the top-most layer only, so a dialog opened from another one (a confirmation
+ * over the member profile) never closes the dialog behind it.
+ */
+const openLayers: symbol[] = []
+let documentOverflowBeforeFirstLayer: string | null = null
+
+function enterLayer(): symbol {
+  const layer = Symbol('group-dialog')
+  openLayers.push(layer)
+  if (openLayers.length === 1) {
+    documentOverflowBeforeFirstLayer = document.documentElement.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+  }
+  return layer
+}
+
+function leaveLayer(layer: symbol): void {
+  const index = openLayers.indexOf(layer)
+  if (index >= 0) openLayers.splice(index, 1)
+  if (openLayers.length === 0 && documentOverflowBeforeFirstLayer !== null) {
+    document.documentElement.style.overflow = documentOverflowBeforeFirstLayer
+    documentOverflowBeforeFirstLayer = null
+  }
+}
 
 export type GroupDialogProps = {
   open: boolean
@@ -25,6 +62,12 @@ export type GroupDialogProps = {
   pending?: boolean
   testId?: string
   closeLabel?: string
+  /**
+   * Takes the whole viewport on phones (a full-screen sheet) and behaves like a
+   * centered dialog from `sm` up. Meant for wide, content-heavy panels such as
+   * the member profile, which would otherwise be a ~360px column.
+   */
+  mobileFullscreen?: boolean
 }
 
 export function GroupDialog({
@@ -39,11 +82,30 @@ export function GroupDialog({
   pending,
   testId,
   closeLabel,
+  mobileFullscreen = false,
 }: GroupDialogProps) {
   const { t } = useT()
   const panelRef = useRef<HTMLDivElement>(null)
   const previouslyFocused = useRef<HTMLElement | null>(null)
+  const layerRef = useRef<symbol | null>(null)
   const titleId = useId()
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null)
+  const attachAnchor = useCallback((anchor: HTMLSpanElement | null) => {
+    if (!anchor) return
+    // Escape animated/clipped page containers while retaining group theme tokens.
+    setPortalRoot(anchor.closest<HTMLElement>('.group-workspace') ?? document.body)
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    layerRef.current = enterLayer()
+    return () => {
+      if (layerRef.current) leaveLayer(layerRef.current)
+      layerRef.current = null
+    }
+  }, [open])
+
+  const isTopMost = () => layerRef.current !== null && openLayers[openLayers.length - 1] === layerRef.current
 
   const requestClose = useCallback(() => {
     if (!pending) onClose()
@@ -66,10 +128,12 @@ export function GroupDialog({
     }
   }, [open])
 
-  // Escape closes; Tab is trapped inside the panel while open.
+  // Escape closes; Tab is trapped inside the panel while open. Both only apply
+  // to the top-most layer, so a stacked dialog does not close its parent.
   useEffect(() => {
     if (!open) return
     function onKeyDown(event: KeyboardEvent) {
+      if (!isTopMost()) return
       if (event.key === 'Escape') {
         event.preventDefault()
         requestClose()
@@ -122,11 +186,19 @@ export function GroupDialog({
     </>
   )
 
-  return (
+  const overlay = (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-neutral-dark/60 p-4 py-10 sm:items-center"
+      className={cn(
+        'fixed inset-0 z-[100] flex justify-center overflow-y-auto overscroll-contain bg-neutral-dark/60',
+        // A "sheet" owns the whole viewport on phones (where a 6xl panel would
+        // still be ~360px wide and cramp its content) and becomes a centered
+        // dialog from `sm` upwards.
+        mobileFullscreen
+          ? 'items-stretch p-0 sm:items-center sm:p-4 sm:py-10'
+          : 'items-start p-4 py-10 sm:items-center',
+      )}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) requestClose()
+        if (event.target === event.currentTarget && isTopMost()) requestClose()
       }}
     >
       <div
@@ -137,11 +209,14 @@ export function GroupDialog({
         tabIndex={-1}
         data-testid={testId}
         className={cn(
-          'relative w-full rounded-2xl border border-border-subtle bg-surface text-ink shadow-2xl outline-none',
-          SIZE_CLASS[size],
+          'relative w-full border-border-subtle bg-surface text-ink shadow-2xl outline-none',
+          mobileFullscreen
+            ? 'h-[100dvh] rounded-none border-0 sm:h-auto sm:max-h-[85dvh] sm:rounded-2xl sm:border ' +
+                RESPONSIVE_SIZE_CLASS[size]
+            : 'rounded-2xl border ' + SIZE_CLASS[size],
         )}
       >
-        <div className="flex max-h-[85dvh] flex-col">
+        <div className={cn('flex flex-col', mobileFullscreen ? 'h-[100dvh] sm:max-h-[85dvh]' : 'max-h-[85dvh]')}>
           {onSubmit ? (
             <form
               onSubmit={(event) => {
@@ -159,5 +234,12 @@ export function GroupDialog({
         </div>
       </div>
     </div>
+  )
+
+  return (
+    <>
+      <span ref={attachAnchor} hidden />
+      {portalRoot ? createPortal(overlay, portalRoot) : null}
+    </>
   )
 }

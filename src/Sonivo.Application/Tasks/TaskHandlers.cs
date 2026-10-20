@@ -1,4 +1,5 @@
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Tenancy;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Common;
 using Sonivo.Domain.Tasks;
@@ -70,17 +71,25 @@ public sealed class CreateTaskHandler
     private readonly GroupAccessService _access;
     private readonly ITaskStore _tasks;
     private readonly IClock _clock;
+    private readonly IGroupAuditStore? _audit;
 
-    public CreateTaskHandler(GroupAccessService access, ITaskStore tasks, IClock clock)
+    public CreateTaskHandler(GroupAccessService access, ITaskStore tasks, IClock clock, IGroupAuditStore? audit = null)
     {
         _access = access;
         _tasks = tasks;
         _clock = clock;
+        _audit = audit;
     }
 
     public async Task<TaskItemDto> HandleAsync(CreateTaskCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.TaskCreate, cancellationToken);
+        if (command.AssigneeUserId is { } assigneeUserId)
+        {
+            await _access.RequirePermissionAsync(
+                command.GroupId, command.UserId, GroupPermissions.TaskAssign, cancellationToken);
+            await _access.RequireMemberAsync(command.GroupId, assigneeUserId, cancellationToken);
+        }
 
         try
         {
@@ -93,6 +102,11 @@ public sealed class CreateTaskHandler
                 command.UserId,
                 _clock.UtcNow);
             await _tasks.AddAsync(task, cancellationToken);
+            if (_audit is not null)
+            {
+                await _audit.AddAsync(GroupAuditEntry.Create(
+                    command.GroupId, GroupAuditEntry.ActionTaskCreated, task.CreatedAt, actorUserId: command.UserId), cancellationToken);
+            }
             await _tasks.SaveChangesAsync(cancellationToken);
             return TaskMapper.ToDto(task);
         }
@@ -108,12 +122,14 @@ public sealed class UpdateTaskHandler
     private readonly GroupAccessService _access;
     private readonly ITaskStore _tasks;
     private readonly IClock _clock;
+    private readonly IGroupAuditStore? _audit;
 
-    public UpdateTaskHandler(GroupAccessService access, ITaskStore tasks, IClock clock)
+    public UpdateTaskHandler(GroupAccessService access, ITaskStore tasks, IClock clock, IGroupAuditStore? audit = null)
     {
         _access = access;
         _tasks = tasks;
         _clock = clock;
+        _audit = audit;
     }
 
     public async Task<TaskItemDto> HandleAsync(UpdateTaskCommand command, CancellationToken cancellationToken)
@@ -123,12 +139,22 @@ public sealed class UpdateTaskHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.TaskEdit, cancellationToken);
 
         var task = await _tasks.GetByIdAsync(command.GroupId, command.TaskId, cancellationToken);
         if (task is null)
         {
             throw new NotFoundException("Task not found.");
+        }
+
+        if (task.AssigneeUserId != command.AssigneeUserId)
+        {
+            await _access.RequirePermissionAsync(
+                command.GroupId, command.UserId, GroupPermissions.TaskAssign, cancellationToken);
+            if (command.AssigneeUserId is { } assigneeUserId)
+            {
+                await _access.RequireMemberAsync(command.GroupId, assigneeUserId, cancellationToken);
+            }
         }
 
         try
@@ -155,6 +181,11 @@ public sealed class UpdateTaskHandler
         }
 
         await _tasks.UpdateAsync(task, cancellationToken);
+        if (_audit is not null)
+        {
+            await _audit.AddAsync(GroupAuditEntry.Create(
+                command.GroupId, GroupAuditEntry.ActionTaskUpdated, task.UpdatedAt, actorUserId: command.UserId), cancellationToken);
+        }
         await _tasks.SaveChangesAsync(cancellationToken);
         return TaskMapper.ToDto(task);
     }
@@ -165,12 +196,14 @@ public sealed class SetTaskStatusHandler
     private readonly GroupAccessService _access;
     private readonly ITaskStore _tasks;
     private readonly IClock _clock;
+    private readonly IGroupAuditStore? _audit;
 
-    public SetTaskStatusHandler(GroupAccessService access, ITaskStore tasks, IClock clock)
+    public SetTaskStatusHandler(GroupAccessService access, ITaskStore tasks, IClock clock, IGroupAuditStore? audit = null)
     {
         _access = access;
         _tasks = tasks;
         _clock = clock;
+        _audit = audit;
     }
 
     public async Task<TaskItemDto> HandleAsync(SetTaskStatusCommand command, CancellationToken cancellationToken)
@@ -180,7 +213,7 @@ public sealed class SetTaskStatusHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.TaskComplete, cancellationToken);
 
         var task = await _tasks.GetByIdAsync(command.GroupId, command.TaskId, cancellationToken);
         if (task is null)
@@ -206,6 +239,11 @@ public sealed class SetTaskStatusHandler
         }
 
         await _tasks.UpdateAsync(task, cancellationToken);
+        if (_audit is not null)
+        {
+            await _audit.AddAsync(GroupAuditEntry.Create(
+                command.GroupId, GroupAuditEntry.ActionTaskStatusChanged, task.UpdatedAt, actorUserId: command.UserId), cancellationToken);
+        }
         await _tasks.SaveChangesAsync(cancellationToken);
         return TaskMapper.ToDto(task);
     }
@@ -216,12 +254,14 @@ public sealed class DeleteTaskHandler
     private readonly GroupAccessService _access;
     private readonly ITaskStore _tasks;
     private readonly IClock _clock;
+    private readonly IGroupAuditStore? _audit;
 
-    public DeleteTaskHandler(GroupAccessService access, ITaskStore tasks, IClock clock)
+    public DeleteTaskHandler(GroupAccessService access, ITaskStore tasks, IClock clock, IGroupAuditStore? audit = null)
     {
         _access = access;
         _tasks = tasks;
         _clock = clock;
+        _audit = audit;
     }
 
     public async Task HandleAsync(DeleteTaskCommand command, CancellationToken cancellationToken)
@@ -231,7 +271,7 @@ public sealed class DeleteTaskHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.TaskDelete, cancellationToken);
 
         var task = await _tasks.GetByIdAsync(command.GroupId, command.TaskId, cancellationToken);
         if (task is null)
@@ -253,6 +293,11 @@ public sealed class DeleteTaskHandler
         }
 
         await _tasks.UpdateAsync(task, cancellationToken);
+        if (_audit is not null)
+        {
+            await _audit.AddAsync(GroupAuditEntry.Create(
+                command.GroupId, GroupAuditEntry.ActionTaskDeleted, task.UpdatedAt, actorUserId: command.UserId), cancellationToken);
+        }
         await _tasks.SaveChangesAsync(cancellationToken);
     }
 }
@@ -272,7 +317,8 @@ public sealed class ListTasksHandler
         ListTasksQuery query,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(query.GroupId, query.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(
+            query.GroupId, query.UserId, GroupPermissions.TaskView, cancellationToken);
         var tasks = await _tasks.ListByGroupAsync(query.GroupId, cancellationToken);
         return tasks.Select(TaskMapper.ToDto).ToList();
     }

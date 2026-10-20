@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   CalendarDays,
+  ChartNoAxesCombined,
   CheckSquare,
   Home,
   Library,
@@ -10,6 +11,7 @@ import {
   Users,
 } from 'lucide-react'
 import type { I18nKey } from '../i18n'
+import { routes } from '../routing/routes'
 
 export type GroupNavItem = {
   id: string
@@ -28,7 +30,7 @@ export type GroupNavSection = {
 
 /**
  * Sectioned group workspace IA (ADR-0055 + owner addendum 2026-10-03).
- * Music = structured songs + setlists; Library/Archivos are not top-level
+ * Music = structured songs + setlists; Library/files are not top-level
  * sections — files live on their song/event/resource. Resources is a
  * cross-cutting top-level section.
  */
@@ -36,38 +38,44 @@ export const groupNavSections: GroupNavSection[] = [
   {
     id: 'main',
     items: [
-      { id: 'home', labelKey: 'nav.home', icon: Home, end: true, href: (id) => `/groups/${id}` },
+      { id: 'home', labelKey: 'nav.home', icon: Home, end: true, href: routes.group },
     ],
   },
   {
     id: 'music',
     labelKey: 'nav.sectionMusic',
     items: [
-      { id: 'songs', labelKey: 'nav.songs', icon: Music2, href: (id) => `/groups/${id}/library` },
-      { id: 'setlists', labelKey: 'nav.setlists', icon: ListMusic, href: (id) => `/groups/${id}/setlists` },
+      { id: 'songs', labelKey: 'nav.songs', icon: Music2, href: routes.groupLibrary },
+      { id: 'setlists', labelKey: 'nav.setlists', icon: ListMusic, href: routes.groupSetlists },
     ],
   },
   {
     id: 'organization',
     labelKey: 'nav.sectionOrganization',
     items: [
-      { id: 'calendar', labelKey: 'nav.calendar', icon: CalendarDays, href: (id) => `/groups/${id}/calendario` },
-      { id: 'events', labelKey: 'nav.events', icon: CalendarDays, href: (id) => `/groups/${id}/events` },
-      { id: 'tasks', labelKey: 'nav.tasks', icon: CheckSquare, href: (id) => `/groups/${id}/tasks` },
+      { id: 'calendar', labelKey: 'nav.calendar', icon: CalendarDays, href: routes.groupCalendar },
+      { id: 'events', labelKey: 'nav.events', icon: CalendarDays, href: routes.groupEvents },
+      { id: 'tasks', labelKey: 'nav.tasks', icon: CheckSquare, href: routes.groupTasks },
     ],
   },
   {
     id: 'team',
     labelKey: 'nav.sectionTeam',
     items: [
-      { id: 'people', labelKey: 'nav.people', icon: Users, desktopOnly: true, href: (id) => `/groups/${id}/people` },
-      { id: 'roles', labelKey: 'nav.roles', icon: ShieldCheck, href: (id) => `/groups/${id}/roles` },
+      { id: 'people', labelKey: 'nav.people', icon: Users, desktopOnly: true, href: routes.groupPeople },
+      { id: 'roles', labelKey: 'nav.roles', icon: ShieldCheck, href: routes.groupRoles },
+    ],
+  },
+  {
+    id: 'insights',
+    items: [
+      { id: 'reports', labelKey: 'nav.reports', icon: ChartNoAxesCombined, desktopOnly: true, href: routes.groupReports },
     ],
   },
   {
     id: 'resources',
     items: [
-      { id: 'resources', labelKey: 'nav.resources', icon: Library, href: (id) => `/groups/${id}/recursos` },
+      { id: 'resources', labelKey: 'nav.resources', icon: Library, href: routes.groupResources },
     ],
   },
 ]

@@ -1,3 +1,4 @@
+import { routes } from '../../routing/routes'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
@@ -5,10 +6,10 @@ import {
   BarChart3,
   Bell,
   Clock,
+  CreditCard,
   KeyRound,
   Languages,
   Mail,
-  MonitorSmartphone,
   Palette,
   ShieldCheck,
   UserRound,
@@ -31,6 +32,7 @@ import { formatMembershipRole, isOwnerRole } from '../../repertoire/ui'
 import { AccountCard } from '../account/AccountCard'
 import { AccountRow } from '../account/AccountRow'
 import { ProfileHeader } from '../account/ProfileHeader'
+import { IdentitySessionsCard } from '../account/IdentitySessionsCard'
 
 const isOwner = (role: string) => String(role).toLowerCase() === 'owner'
 
@@ -51,40 +53,58 @@ export function SettingsProfilePage() {
   const { t, lang } = useT()
   const { theme } = useTheme()
   const [groups, setGroups] = useState<GroupSummary[] | null>(null)
+  const [groupsFailed, setGroupsFailed] = useState(false)
   const [status, setStatus] = useState<TwoFactorStatus | null>(null)
+  const [statusLoaded, setStatusLoaded] = useState(false)
   const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+    setGroups(null)
+    setGroupsFailed(false)
+    setStatus(null)
+    setStatusLoaded(false)
     void listMyGroups()
       .then((result) => {
         if (!cancelled) setGroups(result)
       })
       .catch(() => {
-        if (!cancelled) setGroups([])
+        if (!cancelled) {
+          setGroups([])
+          setGroupsFailed(true)
+        }
       })
     void fetchTwoFactorStatus()
       .then((result) => {
-        if (!cancelled) setStatus(result)
+        if (!cancelled) {
+          setStatus(result)
+          setStatusLoaded(true)
+        }
       })
       .catch(() => {
-        // best effort: the row falls back to "Disabled"
+        if (!cancelled) setStatusLoaded(true)
       })
     return () => {
       cancelled = true
     }
   }, [user.id])
 
-  const roleLabel = (groups ?? []).some((group) => isOwner(group.role))
-    ? t('profile.roleOwner')
-    : t('profile.roleMember')
+  const roleLabel = groupsFailed
+    ? t('profile.roleUnknown')
+    : (groups ?? []).some((group) => isOwner(group.role))
+      ? t('profile.roleOwner')
+      : t('profile.roleMember')
   const timeZone = useMemo(() => deviceTimeZone(), [])
-  const languageLabel = lang === 'es' ? t('account.spanish') : t('account.english')
+  const languageLabel = lang === 'es'
+    ? t('account.spanish')
+    : lang === 'pt'
+      ? t('account.portuguese')
+      : t('account.english')
   const themeLabel = theme === 'dark' ? t('account.themeDark') : t('account.themeLight')
   const name = user.displayName?.trim() || user.email || ''
 
   return (
-    <div className="space-y-6">
+    <div className="account-profile-page space-y-6">
       <header className="space-y-1.5">
         <h1 className="text-3xl font-bold tracking-tight text-ink">{t('profile.title')}</h1>
         <p className="text-muted">{t('profile.subtitle')}</p>
@@ -121,21 +141,14 @@ export function SettingsProfilePage() {
               icon={Languages}
               title={t('account.language')}
               subtitle={languageLabel}
-              to="/cuenta/preferencias"
+              to={routes.accountPreferences}
             />
             <AccountRow icon={Clock} title={t('profile.timezone')} subtitle={timeZone} disabled />
           </AccountCard>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <AccountCard
-              title={t('profile.sectionPlan')}
-              action={
-                <span className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink">
-                  {t('profile.planPro')}
-                </span>
-              }
-            >
-              <p className="px-2 py-1 text-sm text-muted">{t('placeholder.body')}</p>
+            <AccountCard title={t('profile.sectionPlan')}>
+              <p className="px-2 py-1 text-sm text-muted">{t('membership.planNote')}</p>
               <div className="px-2 pt-2">
                 <Button variant="secondary" disabled className="w-full">
                   {t('profile.managePlan')}
@@ -144,9 +157,7 @@ export function SettingsProfilePage() {
             </AccountCard>
 
             <AccountCard title={t('profile.sectionUsage')}>
-              <AccountRow icon={BarChart3} title={t('profile.groups')} subtitle={t('app.comingSoon')} disabled />
-              <AccountRow icon={UserRound} title={t('profile.members')} subtitle={t('app.comingSoon')} disabled />
-              <AccountRow icon={MonitorSmartphone} title={t('profile.storage')} subtitle={t('app.comingSoon')} disabled />
+              <AccountRow icon={BarChart3} title={t('profile.usageByGroup')} subtitle={t('profile.usageByGroupHint')} to={routes.plans} />
             </AccountCard>
           </div>
         </div>
@@ -157,21 +168,25 @@ export function SettingsProfilePage() {
               icon={KeyRound}
               title={t('security.passwordLabel')}
               subtitle={t('profile.passwordHint')}
-              to="/cuenta/seguridad"
+              to={routes.accountSecurity}
             />
             <AccountRow
               icon={ShieldCheck}
               title={t('profile.twoFactor')}
-              subtitle={status?.enabled ? t('profile.twoFactorOn') : t('profile.twoFactorOff')}
-              to="/cuenta/seguridad"
+              subtitle={statusLoaded
+                ? status
+                  ? status.enabled ? t('profile.twoFactorOn') : t('profile.twoFactorOff')
+                  : t('profile.twoFactorUnknown')
+                : t('profile.twoFactorLoading')}
+              to={routes.accountSecurity}
             />
-            <AccountRow icon={MonitorSmartphone} title={t('profile.sessions')} subtitle={t('app.comingSoon')} disabled />
           </AccountCard>
+          <IdentitySessionsCard />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <AccountCard title={t('profile.sectionNotifications')}>
-              <AccountRow icon={Mail} title={t('profile.emailNotifications')} subtitle={t('app.comingSoon')} disabled />
-              <AccountRow icon={Bell} title={t('profile.inAppNotifications')} subtitle={t('app.comingSoon')} disabled />
+              <AccountRow icon={Mail} title={t('profile.emailNotifications')} subtitle={t('profile.emailNotificationsHint')} />
+              <AccountRow icon={Bell} title={t('profile.inAppNotifications')} subtitle={t('profile.inAppNotificationsHint')} to={routes.accountNotifications} />
             </AccountCard>
 
             <AccountCard title={t('account.preferences')}>
@@ -179,13 +194,13 @@ export function SettingsProfilePage() {
                 icon={Palette}
                 title={t('profile.appearance')}
                 subtitle={themeLabel}
-                to="/cuenta/preferencias"
+                to={routes.accountPreferences}
               />
               <AccountRow
                 icon={Languages}
                 title={t('account.language')}
                 subtitle={languageLabel}
-                to="/cuenta/preferencias"
+                to={routes.accountPreferences}
               />
             </AccountCard>
           </div>
@@ -248,7 +263,7 @@ function EditProfileDialog({
     try {
       await onSaved(value)
     } catch (err) {
-      setError(problemDetail(err))
+      setError(problemDetail(err, t))
       setPending(false)
     }
   }
@@ -315,7 +330,7 @@ export function SettingsTeamPage() {
         if (!cancelled) setGroups(result)
       })
       .catch((err) => {
-        if (!cancelled) setError(problemDetail(err))
+        if (!cancelled) setError(problemDetail(err, t))
       })
     return () => {
       cancelled = true
@@ -349,7 +364,7 @@ export function SettingsTeamPage() {
               <span className="font-medium text-slate-900 dark:text-white">{group.name}</span>
               <Link
                 className="text-sm font-semibold text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                to={`/groups/${group.id}/people`}
+                to={routes.groupPeople(group.id)}
               >
                 {t('team.viewMembers')}
               </Link>
@@ -366,7 +381,7 @@ export function SettingsTeamPage() {
 }
 
 /**
- * `/cuenta/membresia` — account-level membership. Billing/subscription is not a
+ * routes.accountMembership — account-level membership. Billing/subscription is not a
  * group-owned concern (ADR-0055) and the group centre no longer hosts a
  * "Membership" tab; this page owns the plan summary and the user's group
  * memberships. No real billing UI yet (ADR firewall: no billing).
@@ -383,7 +398,7 @@ export function SettingsMembershipPage() {
         if (!cancelled) setGroups(result)
       })
       .catch((err) => {
-        if (!cancelled) setError(problemDetail(err))
+        if (!cancelled) setError(problemDetail(err, t))
       })
     return () => {
       cancelled = true
@@ -397,20 +412,9 @@ export function SettingsMembershipPage() {
         <p className="text-muted">{t('membership.subtitle')}</p>
       </header>
 
-      <AccountCard
-        title={t('membership.planTitle')}
-        action={
-          <span className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink">
-            {t('profile.planPro')}
-          </span>
-        }
-      >
+      <AccountCard title={t('membership.planTitle')}>
         <p className="px-2 py-1 text-sm text-muted">{t('membership.planNote')}</p>
-        <div className="px-2 pt-2">
-          <Button variant="secondary" disabled className="w-full">
-            {t('profile.managePlan')}
-          </Button>
-        </div>
+        <AccountRow icon={CreditCard} title={t('profile.managePlan')} subtitle={t('profile.planOverview')} to={routes.plans} />
       </AccountCard>
 
       <section aria-labelledby="membresia-groups-heading" className="space-y-3">
@@ -444,21 +448,23 @@ export function SettingsMembershipPage() {
                   <p className="text-xs text-muted">
                     {t('membership.roleLabel')}: {formatMembershipRole(group.role, t)}
                     {typeof group.memberCount === 'number'
-                      ? ` · ${group.memberCount} ${t('membership.membersLabel').toLowerCase()}`
+                      ? ` · ${group.memberCount === 1
+                          ? t('groups.membersOne')
+                          : t('groups.members', { count: group.memberCount })}`
                       : ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
                   {isOwnerRole(group.role) ? (
                     <Link
-                      to={`/groups/${group.id}/people`}
+                      to={routes.groupPeople(group.id)}
                       className="text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       {t('membership.manageMembers')}
                     </Link>
                   ) : null}
                   <Link
-                    to={`/groups/${group.id}`}
+                    to={routes.group(group.id)}
                     className="text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                   >
                     {t('membership.openGroup')}

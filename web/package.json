@@ -3,11 +3,15 @@
   "private": true,
   "packageManager": "npm@11.14.0",
   "workspaces": ["apps/*", "packages/*"],
+  "overrides": {
+    "postcss": "8.5.28"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "app": "npm run dev --workspace=@sonivo/app",
+    "marketing": "npm run dev --workspace=@sonivo/marketing",
     "docs": "npm run dev --workspace=@sonivo/docs"
   },
   "devDependencies": {

@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -32,7 +33,6 @@ import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
 import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '../repertoire/chrome'
 import {
-  CONFLICT_MESSAGE,
   ConflictAlert,
   canManageContentRole,
   mutationErrorMessage,
@@ -72,7 +72,7 @@ function toDraft(
 
 function SetlistNumber({ n }: { n: number }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-hover font-mono text-sm font-semibold text-muted">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-score-hover)] font-mono text-sm font-semibold text-[var(--color-score-ink-soft)]">
       {String(n).padStart(2, '0')}
     </span>
   )
@@ -111,18 +111,18 @@ function SortableSetlistItem({
     <li
       ref={setNodeRef}
       style={style}
-      className="library-enter flex min-h-[44px] flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-3 shadow-sm transition duration-150 hover:border-primary/25 hover:bg-surface-hover motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
+      className="library-enter flex min-h-20 flex-wrap items-center gap-3 rounded-2xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] px-4 py-3 text-[var(--color-score-ink)] transition duration-150 hover:border-primary/30 hover:bg-[var(--color-score-paper-soft)] motion-reduce:transition-none"
     >
       <SetlistNumber n={item.sortOrder} />
       <span
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-score-hover)] text-[var(--color-score-accent)]"
         aria-hidden="true"
       >
         <Music2 className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block font-semibold text-ink">{item.songTitle}</span>
-        <span className="text-sm text-muted">{item.arrangementLabel}</span>
+        <span className="block font-semibold text-[var(--color-score-ink)]">{item.songTitle}</span>
+        <span className="text-sm text-[var(--color-score-muted)]">{item.arrangementLabel}</span>
       </span>
       {isOwner ? (
         <div className="flex flex-wrap items-center gap-1">
@@ -228,7 +228,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
         if (cancelled) return
         setSetlist(null)
         setOptions([])
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
       }
     }
     void load()
@@ -301,14 +301,14 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
       setDraft(toDraft(updated.items, t))
     } catch (err) {
       if (isConflictError(err)) {
-        setConflict(CONFLICT_MESSAGE)
+        setConflict(t('common.errorConflict'))
         try {
           await reload()
         } catch (reloadErr) {
-          setError(mutationErrorMessage(reloadErr))
+          setError(mutationErrorMessage(reloadErr, t))
         }
       } else {
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
       }
     } finally {
       setSaving(false)
@@ -323,7 +323,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           Mis grupos
         </Link>
       </div>
@@ -340,7 +340,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
         <ProblemAlert message={error ?? t('setlist.notFound')} />
         <Link
           className="font-semibold text-primary-ink no-underline hover:underline"
-          to={`/groups/${group.id}/setlists`}
+          to={routes.groupSetlists(group.id)}
         >
           {t('setlist.setlists')}
         </Link>
@@ -349,36 +349,48 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
   }
 
   const addPanelOpen = isOwner && (showAdd || draft.length === 0)
+  const savedKeys = setlist ? toDraft(setlist.items, t).map((item) => item.key) : []
+  const hasUnsavedChanges =
+    setlist != null && draft.map((item) => item.key).join('\u0000') !== savedKeys.join('\u0000')
 
   return (
-    <section className="space-y-6" aria-labelledby="setlist-heading">
-      <header data-testid="setlist-hero" className="space-y-3">
+    <section className="space-y-8" aria-labelledby="setlist-heading">
+      <header data-testid="setlist-hero" className="space-y-4 rounded-3xl border border-[var(--color-score-border)] bg-[var(--color-score-soft)] p-5 text-[var(--color-score-ink)] sm:p-8">
         <PageBreadcrumb
           items={[
-            { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/setlists`, label: t('schedule.setlistsTitle') },
+            { to: routes.group(group.id), label: group.name },
+            { to: routes.groupSetlists(group.id), label: t('schedule.setlistsTitle') },
             { label: setlist.name },
           ]}
         />
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
-            <span
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-ink"
+          <span
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-score-paper-soft)] text-[var(--color-score-accent)]"
               aria-hidden="true"
             >
               <ListMusic className="h-5 w-5" />
             </span>
             <div className="min-w-0 space-y-1">
-              <h1 id="setlist-heading" className="text-3xl font-bold tracking-tight text-ink">
+              <h1 id="setlist-heading" className="text-3xl font-bold tracking-tight text-[var(--color-score-ink)] sm:text-4xl">
                 {setlist.name}
               </h1>
-              <p className="text-sm text-muted">
-                {plural(draft.length, t('common.songOne'), t('common.songMany'))}
+              <p className="text-sm text-[var(--color-score-muted)]">
+                {plural(
+                  draft.length,
+                  t('schedule.setlistArrangementsOne'),
+                  t('schedule.setlistArrangementsMany'),
+                )}
                 {!isOwner ? <span> · {t('setlist.readonly')}</span> : null}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {hasUnsavedChanges ? (
+              <ReadinessChip tone="warn" testId="setlist-unsaved-changes">
+                {t('setlist.unsavedChanges')}
+              </ReadinessChip>
+            ) : null}
             <ReadinessChip
               tone={draft.length === 0 ? 'neutral' : 'ok'}
               testId="setlist-status-chip"
@@ -394,10 +406,10 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
             {isOwner ? (
               <Button
                 variant="secondary"
-                disabled={saving}
+                disabled={saving || !hasUnsavedChanges}
                 onClick={() => void saveItems()}
               >
-                {saving ? t('setlist.saving') : t('setlist.saveOrder')}
+                {saving ? t('setlist.saving') : t('setlist.saveChanges')}
               </Button>
             ) : null}
           </div>
@@ -408,7 +420,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
       <ConflictAlert message={conflict} />
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <section className="space-y-4" aria-labelledby="composition-heading">
+        <section className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-4 sm:p-6" aria-labelledby="composition-heading">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="composition-heading" className="text-lg font-semibold">
               {t('setlist.composition')}
@@ -451,7 +463,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                   items={draft.map((item) => item.key)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <ol className="space-y-2 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
+                  <ol className="space-y-3">
                     {draft.map((item, index) => (
                       <SortableSetlistItem
                         key={item.key}
@@ -507,7 +519,7 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
           ) : null}
         </section>
 
-        <aside className="space-y-4 rounded-2xl bg-surface-hover p-5">
+        <aside className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-4 sm:p-5">
           <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">
             {t('setlist.detailsTitle')}
           </h2>
@@ -522,12 +534,12 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
                 setConflict(null)
               }}
               onConflict={async () => {
-                setConflict(CONFLICT_MESSAGE)
+                setConflict(t('common.errorConflict'))
                 setRenaming(false)
                 try {
                   await reload()
                 } catch (err) {
-                  setError(mutationErrorMessage(err))
+                  setError(mutationErrorMessage(err, t))
                 }
               }}
             />
@@ -586,7 +598,7 @@ function RenameSetlistForm({
       if (isConflictError(err)) {
         await onConflict()
       } else {
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
       }
     } finally {
       setPending(false)

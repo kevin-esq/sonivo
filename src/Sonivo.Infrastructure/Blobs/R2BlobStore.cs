@@ -75,26 +75,70 @@ public sealed class R2BlobStore : IBlobStore
 
     public async Task<BlobContent?> GetAsync(string objectKey, CancellationToken cancellationToken)
     {
+        GetObjectResponse? response = null;
         try
         {
-            using var response = await _client.GetObjectAsync(BucketName, objectKey, cancellationToken);
-            await using var buffer = new MemoryStream();
-            await response.ResponseStream.CopyToAsync(buffer, cancellationToken);
-            var bytes = buffer.ToArray();
+            response = await _client.GetObjectAsync(BucketName, objectKey, cancellationToken);
             return new BlobContent(
-                new MemoryStream(bytes, writable: false),
+                new ResponseOwnedStream(response),
                 response.Headers.ContentType ?? "application/octet-stream",
-                bytes.Length);
+                response.Headers.ContentLength);
         }
         catch (AmazonS3Exception ex)
             when (ex.StatusCode == HttpStatusCode.NotFound || ex.ErrorCode == "NoSuchKey")
         {
+            response?.Dispose();
             return null;
+        }
+        catch
+        {
+            response?.Dispose();
+            throw;
         }
     }
 
     public async Task DeleteAsync(string objectKey, CancellationToken cancellationToken)
     {
         await _client.DeleteObjectAsync(BucketName, objectKey, cancellationToken);
+    }
+
+    private sealed class ResponseOwnedStream : Stream
+    {
+        private readonly GetObjectResponse _response;
+        private readonly Stream _inner;
+
+        public ResponseOwnedStream(GetObjectResponse response)
+        {
+            _response = response;
+            _inner = response.ResponseStream;
+        }
+
+        public override bool CanRead => _inner.CanRead;
+        public override bool CanSeek => _inner.CanSeek;
+        public override bool CanWrite => _inner.CanWrite;
+        public override long Length => _inner.Length;
+        public override long Position { get => _inner.Position; set => _inner.Position = value; }
+        public override void Flush() => _inner.Flush();
+        public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => _inner.ReadAsync(buffer, cancellationToken);
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => _inner.ReadAsync(buffer, offset, count, cancellationToken);
+        public override long Seek(long offset, SeekOrigin origin) => _inner.Seek(offset, origin);
+        public override void SetLength(long value) => _inner.SetLength(value);
+        public override void Write(byte[] buffer, int offset, int count) => _inner.Write(buffer, offset, count);
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _response.Dispose();
+            base.Dispose(disposing);
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            await _inner.DisposeAsync();
+            _response.Dispose();
+            GC.SuppressFinalize(this);
+        }
     }
 }

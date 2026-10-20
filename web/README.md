@@ -9,7 +9,7 @@ backend; no app here accesses PostgreSQL directly.
 |---|---|---|---|
 | `@sonivo/app` | `apps/app` | `sonivo.lat`, `app.sonivo.lat`, `slug.sonivo.lat` | The product: marketing, auth, group workspace, session handoff |
 | `@sonivo/docs` | `apps/docs` | `docs.sonivo.lat` / `/docs` | Documentation (Fumadocs) |
-| `@sonivo/mobile` | `apps/mobile` | App stores | Future mobile app (Expo/React Native); placeholder |
+| `@sonivo/mobile` | `apps/mobile` | Android and iOS app stores | Compatibility pointer to the native clients in `mobile/android` and `mobile/ios` |
 
 `@sonivo/app` currently runs the ported product SPA inside Next via a client-only
 mount (`app/page.tsx` + `src/Mount.tsx`), so every existing route works while the

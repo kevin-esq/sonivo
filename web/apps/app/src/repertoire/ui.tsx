@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ApiError, getGroup, problemDetail, type GroupDetail } from '../api/client'
-import type { I18nKey } from '../i18n'
+import { useT, type I18nKey } from '../i18n'
 
 export { ConflictAlert, ProblemAlert } from '../ui/alert'
 export { ConfirmDialog } from '../ui/dialog'
@@ -10,12 +10,6 @@ export {
   primaryButtonClass,
   secondaryButtonClass,
 } from '../ui/button'
-
-export const CONFLICT_MESSAGE =
-  'Otra persona cambió este elemento. Recarga para ver la versión más reciente.'
-
-export const ACCESS_DENIED_MESSAGE =
-  'No encontramos este grupo o no tienes acceso.'
 
 export function isOwnerRole(role: string | undefined): boolean {
   return role === 'Owner'
@@ -90,22 +84,23 @@ export function formatPurpose(
   }
 }
 
-export function authzErrorMessage(error: unknown): string | null {
+export function authzErrorMessage(error: unknown, t: (key: I18nKey) => string): string | null {
   if (!(error instanceof ApiError)) return null
   if (error.status === 403) {
-    return 'No tienes permiso para cambiar este elemento.'
+    return t('common.errorForbidden')
   }
   if (error.status === 401) {
-    return 'Tu sesión expiró. Inicia sesión de nuevo.'
+    return t('common.errorAuthentication')
   }
   return null
 }
 
-export function mutationErrorMessage(error: unknown): string {
-  return authzErrorMessage(error) ?? problemDetail(error)
+export function mutationErrorMessage(error: unknown, t: (key: I18nKey) => string): string {
+  return authzErrorMessage(error, t) ?? problemDetail(error, t)
 }
 
 export function useGroupContext(groupId: string | undefined, userId: string) {
+  const { t } = useT()
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
 
@@ -117,9 +112,9 @@ export function useGroupContext(groupId: string | undefined, userId: string) {
     } catch (err) {
       setGroup(null)
       if (err instanceof ApiError && err.status === 404) {
-        setError(ACCESS_DENIED_MESSAGE)
+        setError(t('common.groupNotFoundOrNoAccess'))
       } else {
-        setError(problemDetail(err))
+        setError(problemDetail(err, t))
       }
     }
   }
@@ -137,9 +132,9 @@ export function useGroupContext(groupId: string | undefined, userId: string) {
         if (cancelled) return
         setGroup(null)
         if (err instanceof ApiError && err.status === 404) {
-          setError(ACCESS_DENIED_MESSAGE)
+          setError(t('common.groupNotFoundOrNoAccess'))
         } else {
-          setError(problemDetail(err))
+          setError(problemDetail(err, t))
         }
       }
     }

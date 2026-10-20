@@ -25,7 +25,9 @@ public static class ResourceKinds
 
 public static class ResourceFileConstraints
 {
-    public const long MaxByteSize = 5L * 1024 * 1024; // 5 MiB
+    public const long MaxByteSize = 250L * 1024 * 1024; // Maximum supported Studio audio upload.
+    public const long MaxNonAudioByteSize = 5L * 1024 * 1024;
+    public const long MaxDigitizationByteSize = 5L * 1024 * 1024;
     public const int MaxOriginalFileNameLength = 255;
     public const int MaxContentTypeLength = 100;
     public const int MaxObjectKeyLength = 200;
@@ -37,6 +39,12 @@ public static class ResourceFileConstraints
         "image/jpeg",
         "image/webp",
         "audio/mpeg",
+        "audio/flac",
+        "audio/x-flac",
+        "audio/aac",
+        "audio/ogg",
+        "audio/x-m4a",
+        "audio/x-wav",
         "audio/wav",
         "audio/mp4",
         "text/plain"
@@ -87,12 +95,14 @@ public sealed class Resource
             throw new ArgumentException("Arrangement id is required.", nameof(arrangementId));
         }
 
+        var normalizedPurpose = NormalizePurpose(purpose);
+
         return new Resource
         {
             Id = id ?? Guid.NewGuid(),
             ArrangementId = arrangementId,
             Kind = ResourceKinds.Link,
-            Purpose = NormalizePurpose(purpose),
+            Purpose = normalizedPurpose,
             Label = NormalizeLabel(label),
             Part = NormalizeOptional(part, MaxPartLength, nameof(part)),
             Note = NormalizeOptional(note, MaxNoteLength, nameof(note)),
@@ -123,19 +133,21 @@ public sealed class Resource
             throw new ArgumentException("Arrangement id is required.", nameof(arrangementId));
         }
 
+        var normalizedPurpose = NormalizePurpose(purpose);
+
         return new Resource
         {
             Id = id ?? Guid.NewGuid(),
             ArrangementId = arrangementId,
             Kind = ResourceKinds.File,
-            Purpose = NormalizePurpose(purpose),
+            Purpose = normalizedPurpose,
             Label = NormalizeLabel(label),
             Part = NormalizeOptional(part, MaxPartLength, nameof(part)),
             Note = NormalizeOptional(note, MaxNoteLength, nameof(note)),
             Url = null,
             OriginalFileName = NormalizeOriginalFileName(originalFileName),
             ContentType = NormalizeContentType(contentType),
-            ByteSize = NormalizeByteSize(byteSize),
+            ByteSize = NormalizeByteSize(byteSize, normalizedPurpose),
             ObjectKey = NormalizeObjectKey(objectKey),
             CreatedAt = now
         };
@@ -225,6 +237,24 @@ public sealed class Resource
                 nameof(url));
         }
 
+        var schemeSeparator = trimmed.IndexOf("://", StringComparison.Ordinal);
+        var authorityStart = schemeSeparator + 3;
+        var authorityEnd = trimmed.IndexOfAny(['/', '?', '#'], authorityStart);
+        var authorityLength = (authorityEnd < 0 ? trimmed.Length : authorityEnd) - authorityStart;
+
+        if (schemeSeparator < 0
+            || trimmed.Any(character => char.IsWhiteSpace(character) || char.IsControl(character) || character == '\\')
+            || authorityLength <= 0
+            || !Uri.TryCreate(trimmed, UriKind.Absolute, out var parsed)
+            || (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps)
+            || string.IsNullOrWhiteSpace(parsed.Host)
+            || !string.IsNullOrEmpty(parsed.UserInfo))
+        {
+            throw new ArgumentException(
+                "Resource url must be a well-formed absolute HTTP or HTTPS URL without credentials.",
+                nameof(url));
+        }
+
         return trimmed;
     }
 
@@ -278,17 +308,20 @@ public sealed class Resource
         return mediaType;
     }
 
-    private static long NormalizeByteSize(long byteSize)
+    private static long NormalizeByteSize(long byteSize, string purpose)
     {
         if (byteSize <= 0)
         {
             throw new ArgumentException("File must not be empty.", nameof(byteSize));
         }
 
-        if (byteSize > ResourceFileConstraints.MaxByteSize)
+        var maximum = string.Equals(purpose.Trim(), ResourcePurposes.Audio, StringComparison.Ordinal)
+            ? ResourceFileConstraints.MaxByteSize
+            : ResourceFileConstraints.MaxNonAudioByteSize;
+        if (byteSize > maximum)
         {
             throw new ArgumentException(
-                $"File must be {ResourceFileConstraints.MaxByteSize} bytes or fewer.",
+                $"File must be {maximum} bytes or fewer.",
                 nameof(byteSize));
         }
 

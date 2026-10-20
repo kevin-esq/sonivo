@@ -17,24 +17,36 @@ public static class DigitizeEligibility
     /// <summary>Null when eligible; otherwise a user-facing (Spanish) rejection reason.</summary>
     public static string? RejectReason(Resource resource)
     {
+        return RejectCode(resource) switch
+        {
+            DigitizeJobErrorCodes.UnsupportedResource => "Solo se pueden digitalizar archivos de audio. Los enlaces no se pueden digitalizar.",
+            DigitizeJobErrorCodes.UnsupportedPurpose => "Solo se pueden digitalizar recursos con propósito audio, practice o click.",
+            DigitizeJobErrorCodes.UnsupportedAudioType => "El archivo no es un audio reproducible.",
+            DigitizeJobErrorCodes.UnsupportedAudioFormat => "Por ahora solo se admiten archivos WAV.",
+            _ => null
+        };
+    }
+
+    public static string? RejectCode(Resource resource)
+    {
         if (!string.Equals(resource.Kind, ResourceKinds.File, StringComparison.OrdinalIgnoreCase))
         {
-            return "Solo se pueden digitalizar archivos de audio. Los enlaces no se pueden digitalizar.";
+            return DigitizeJobErrorCodes.UnsupportedResource;
         }
 
         if (!IsDigitizablePurpose(resource.Purpose))
         {
-            return "Solo se pueden digitalizar recursos con propósito audio, practice o click.";
+            return DigitizeJobErrorCodes.UnsupportedPurpose;
         }
 
         if (!IsPlayableAudio(resource.ContentType, resource.OriginalFileName))
         {
-            return "El archivo no es un audio reproducible.";
+            return DigitizeJobErrorCodes.UnsupportedAudioType;
         }
 
         if (!IsWavAudio(resource.ContentType, resource.OriginalFileName))
         {
-            return "Por ahora solo se admiten archivos WAV.";
+            return DigitizeJobErrorCodes.UnsupportedAudioFormat;
         }
 
         return null;

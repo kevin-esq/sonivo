@@ -10,15 +10,14 @@ import {
   Users,
 } from "lucide-react";
 import type { I18nKey } from "../i18n";
+import { routes } from "../routing/routes";
 
 export type SidebarItem = {
   id: string;
   labelKey: I18nKey;
   icon: LucideIcon;
-  /** Present only when the item navigates; disabled items have no `to`. */
-  to?: string;
+  to: string;
   end?: boolean;
-  disabled?: boolean;
 };
 
 export type SidebarSection = {
@@ -28,27 +27,23 @@ export type SidebarSection = {
   items: SidebarItem[];
 };
 
-/**
- * Sidebar navigation for the signed-in, non-group routes (ADR-0053).
- * `disabled` items are deliberate placeholders (billing / help / notifications)
- * per the ADR firewall: no billing, no notification center.
- */
+/** Sidebar navigation for the signed-in, non-group routes (ADR-0053). */
 export const sidebarSections: SidebarSection[] = [
   {
     id: "principal",
     items: [
-      { id: "home", labelKey: "sidebar.home", icon: Home, to: "/", end: true },
+      { id: "home", labelKey: "sidebar.home", icon: Home, to: routes.home, end: true },
       {
         id: "groups",
         labelKey: "sidebar.myGroups",
         icon: Users,
-        to: "/grupos",
+        to: routes.groups,
       },
       {
         id: "join",
         labelKey: "sidebar.joinGroup",
         icon: UserPlus,
-        to: "/unirse",
+        to: routes.join,
       },
     ],
   },
@@ -60,20 +55,20 @@ export const sidebarSections: SidebarSection[] = [
         id: "profile",
         labelKey: "sidebar.profile",
         icon: UserRound,
-        to: "/cuenta",
+        to: routes.account,
         end: true,
       },
       {
         id: "notifications",
         labelKey: "sidebar.notifications",
         icon: Bell,
-        disabled: true,
+        to: routes.accountNotifications,
       },
       {
         id: "preferences",
         labelKey: "sidebar.preferences",
         icon: Settings,
-        to: "/cuenta/preferencias",
+        to: routes.accountPreferences,
       },
     ],
   },
@@ -84,9 +79,9 @@ export const sidebarSections: SidebarSection[] = [
         id: "membership",
         labelKey: "sidebar.membership",
         icon: CreditCard,
-        to: "/cuenta/membresia",
+        to: routes.accountMembership,
       },
-      { id: "help", labelKey: "sidebar.help", icon: CircleHelp, disabled: true },
+      { id: "help", labelKey: "sidebar.help", icon: CircleHelp, to: routes.help },
     ],
   },
 ];

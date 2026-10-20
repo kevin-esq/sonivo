@@ -12,7 +12,7 @@ Companion: [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`PERSISTENCE.md`](PERSISTENC
 **Authoritative column/FK/cascade detail:** [`PERSISTENCE.md`](PERSISTENCE.md) (Phase 2.2 **CLOSED**).  
 **PK strategy:** `uuid` / `Guid`; **application-generated** (default v4).  
 **Tenant column:** `GroupId` per PERSISTENCE §3 (not on Resource/RSVP).  
-**Cross-Group DB protection:** three composite FKs **ON DELETE RESTRICT** (ADR-0022 **ACCEPTED**).  
+**Cross-Group DB protection:** four composite FKs (Arrangement references **RESTRICT**; SetlistItem-to-Setlist **CASCADE**) under ADR-0088 **ACCEPTED**.
 **Concurrency:** `integer Version` (init 1; increment on protected mutations) → `expectedVersion` / **409**; response returns new `version`.  
 **Soft-delete filters:** Group/Song/Arrangement; Event history filter-independent (ADR-0023 **ACCEPTED**). Arrangement soft-delete does **not** delete Resources/blobs.
 

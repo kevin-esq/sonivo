@@ -4,6 +4,7 @@ using Sonivo.Application.Billing;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Common;
 using Sonivo.Domain.Scheduling;
+using Sonivo.Domain.Tenancy;
 
 namespace Sonivo.Application.Scheduling;
 
@@ -93,7 +94,7 @@ public sealed class CreateEventHandler
 
     public async Task<EventDetailDto> HandleAsync(CreateEventCommand command, CancellationToken cancellationToken)
     {
-        var (group, _) = await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        var (group, _) = await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.EventCreate, cancellationToken);
         var now = _clock.UtcNow;
         var eventsThisMonth = (await _events.ListActiveByGroupAsync(command.GroupId, cancellationToken))
             .Count(e => e.StartsAt.Year == now.Year && e.StartsAt.Month == now.Month);
@@ -157,7 +158,8 @@ public sealed class ListEventsHandler
         Guid groupId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
+        await _access.RequirePermissionAsync(
+            groupId, userId, GroupPermissions.EventView, cancellationToken);
         var events = await _events.ListActiveByGroupAsync(groupId, cancellationToken);
         return events.Select(CreateEventHandler.ToListItem).ToList();
     }
@@ -180,7 +182,8 @@ public sealed class GetEventHandler
         Guid eventId,
         CancellationToken cancellationToken)
     {
-        var (_, membership) = await _access.RequireMemberAsync(groupId, userId, cancellationToken);
+        var (_, membership) = await _access.RequirePermissionAsync(
+            groupId, userId, GroupPermissions.EventView, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(groupId, eventId, cancellationToken);
         if (musicalEvent is null)
@@ -189,7 +192,8 @@ public sealed class GetEventHandler
         }
 
         if ((musicalEvent.Status == EventStatuses.Cancelled || musicalEvent.IsHidden)
-            && !membership.CanManageContent)
+            && !await _access.HasPermissionAsync(
+                groupId, userId, GroupPermissions.EventCancel, cancellationToken))
         {
             throw new NotFoundException("Event not found.");
         }
@@ -233,7 +237,7 @@ public sealed class UpdateEventHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.EventEdit, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(
             command.GroupId,
@@ -311,7 +315,7 @@ public sealed class CancelEventHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.EventCancel, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(
             command.GroupId,
@@ -379,7 +383,7 @@ public sealed class DuplicateEventHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.EventCreate, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(
             command.GroupId,
@@ -406,74 +410,6 @@ public sealed class DuplicateEventHandler
         }
 
         return EventMapper.ToDetail(duplicate);
-    }
-}
-
-public sealed record DeleteEventCommand(Guid UserId, Guid GroupId, Guid EventId, int ExpectedVersion);
-
-public sealed class DeleteEventHandler
-{
-    private readonly GroupAccessService _access;
-    private readonly IEventStore _events;
-    private readonly IClock _clock;
-    private readonly IEventNotifier? _notifier;
-
-    public DeleteEventHandler(
-        GroupAccessService access,
-        IEventStore events,
-        IClock clock,
-        IEventNotifier? notifier = null)
-    {
-        _access = access;
-        _events = events;
-        _clock = clock;
-        _notifier = notifier;
-    }
-
-    public async Task HandleAsync(DeleteEventCommand command, CancellationToken cancellationToken)
-    {
-        if (command.ExpectedVersion < 1)
-        {
-            throw new ValidationException("expectedVersion is required.");
-        }
-
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
-
-        var musicalEvent = await _events.GetByIdWithItemsAsync(
-            command.GroupId,
-            command.EventId,
-            cancellationToken);
-        if (musicalEvent is null)
-        {
-            throw new NotFoundException("Event not found.");
-        }
-
-        try
-        {
-            musicalEvent.SoftDelete(command.ExpectedVersion, _clock.UtcNow);
-        }
-        catch (ConcurrencyConflictException ex)
-        {
-            throw new ConflictException(ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new ValidationException(ex.Message);
-        }
-
-        await _events.UpdateAsync(musicalEvent, cancellationToken);
-        await _events.SaveChangesAsync(cancellationToken);
-
-        if (_notifier is not null)
-        {
-            await _notifier.EventChangedAsync(
-                musicalEvent.GroupId,
-                musicalEvent.Id,
-                musicalEvent.Title,
-                musicalEvent.StartsAt,
-                EventNotificationChanges.Deleted,
-                cancellationToken);
-        }
     }
 }
 
@@ -533,7 +469,7 @@ public sealed class ReplaceEventPlanFromSetlistHandler
             throw new ValidationException("Setlist id is required.");
         }
 
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.SetlistApply, cancellationToken);
 
         var musicalEvent = await _events.GetByIdWithItemsAsync(
             command.GroupId,

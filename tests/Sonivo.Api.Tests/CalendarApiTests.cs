@@ -63,6 +63,33 @@ public class CalendarApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
     }
 
+    [Fact]
+    public async Task Group_ics_download_requires_current_membership_and_excludes_cancelled_events()
+    {
+        var owner = await CreateAuthenticatedClientAsync($"calendar-ics-owner-{Guid.NewGuid():N}@example.com");
+        var group = await CreateGroupAsync(owner, "ICS Band");
+        await CreateEventAsync(owner, group.Id, "Visible rehearsal", DateTimeOffset.Parse("2031-05-15T19:00:00Z"));
+        var cancelled = await CreateEventAsync(owner, group.Id, "Cancelled rehearsal", DateTimeOffset.Parse("2031-05-20T19:00:00Z"));
+        var cancellation = await owner.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/events/{cancelled.Id}/cancel", new { expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.NoContent, cancellation.StatusCode);
+
+        var anonymous = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync($"/api/groups/{group.Id}/calendar.ics")).StatusCode);
+
+        var download = await owner.GetAsync($"/api/groups/{group.Id}/calendar.ics");
+        Assert.Equal(HttpStatusCode.OK, download.StatusCode);
+        Assert.Equal("text/calendar", download.Content.Headers.ContentType?.MediaType);
+        var calendar = await download.Content.ReadAsStringAsync();
+        Assert.Contains("BEGIN:VCALENDAR", calendar);
+        Assert.Contains("Visible rehearsal", calendar);
+        Assert.DoesNotContain("Cancelled rehearsal", calendar);
+
+        var nonMember = await CreateAuthenticatedClientAsync($"calendar-ics-stranger-{Guid.NewGuid():N}@example.com");
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await nonMember.GetAsync($"/api/groups/{group.Id}/calendar.ics")).StatusCode);
+    }
+
     private static async Task<EventCreated> CreateEventAsync(
         HttpClient client,
         Guid groupId,

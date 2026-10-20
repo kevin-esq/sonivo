@@ -87,4 +87,34 @@ public sealed class PaymentWebhookApiTests : IClassFixture<SonivoApiFactory>
         var replayBody = await replay.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(replayBody.GetProperty("duplicate").GetBoolean());
     }
+
+    [Fact]
+    public async Task Sandbox_rejects_webhook_bodies_over_the_configured_limit()
+    {
+        var client = SandboxClient();
+        var oversized = new string('a', 64 * 1024 + 1);
+
+        var response = await client.PostAsync(
+            "/api/payments/webhook",
+            new StringContent(oversized, Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Sandbox_rate_limits_public_webhook_requests()
+    {
+        var client = SandboxClient();
+        HttpStatusCode lastStatus = HttpStatusCode.OK;
+
+        for (var attempt = 0; attempt < 31; attempt++)
+        {
+            using var response = await client.PostAsync(
+                "/api/payments/webhook",
+                new StringContent("{}", Encoding.UTF8, "application/json"));
+            lastStatus = response.StatusCode;
+        }
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, lastStatus);
+    }
 }

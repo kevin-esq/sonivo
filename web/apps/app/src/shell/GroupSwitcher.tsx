@@ -4,12 +4,13 @@ import { ChevronDown } from 'lucide-react'
 import { listMyGroups, type GroupSummary } from '../api/client'
 import { useT } from '../i18n'
 import { readLastGroup } from '../tenancy/groupSlug'
+import { routes } from '../routing/routes'
 
 /**
  * Header group switcher (ADR-0048): the current group first, then the last one
  * opened, then the rest by name. Hidden when the user has a single group.
  */
-export function GroupSwitcher({ currentGroupId }: { currentGroupId: string }) {
+export function GroupSwitcher({ currentGroupId, currentGroupName }: { currentGroupId: string; currentGroupName: string }) {
   const { t } = useT()
   const navigate = useNavigate()
   const [groups, setGroups] = useState<GroupSummary[] | null>(null)
@@ -28,10 +29,8 @@ export function GroupSwitcher({ currentGroupId }: { currentGroupId: string }) {
     }
   }, [currentGroupId])
 
-  if (!groups || groups.length <= 1) return null
-
   const last = readLastGroup()
-  const ordered = [...groups].sort((a, b) => {
+  const ordered = [...(groups ?? [])].sort((a, b) => {
     if (a.id === currentGroupId) return -1
     if (b.id === currentGroupId) return 1
     if (a.id === last) return -1
@@ -40,26 +39,37 @@ export function GroupSwitcher({ currentGroupId }: { currentGroupId: string }) {
   })
 
   return (
-    <details className="relative" data-testid="group-switcher">
+    <details className="relative min-w-0 max-w-[min(16rem,60vw)]" data-testid="group-switcher"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.currentTarget.open = false
+          event.currentTarget.querySelector('summary')?.focus()
+        }
+      }} onBlur={(event) => {
+        if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false
+      }}>
       <summary
-        aria-label={t('workspace.switchGroup')}
+        aria-label={`${currentGroupName}: ${t('workspace.switchGroup')}`}
         className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-xl px-3 text-sm font-medium text-ink hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary [&::-webkit-details-marker]:hidden"
       >
-        <span className="hidden sm:inline">{t('workspace.switchGroup')}</span>
-        <ChevronDown className="h-4 w-4" aria-hidden="true" />
+        <span className="truncate">{currentGroupName}</span>
+        <ChevronDown className="h-4 w-4 shrink-0" aria-hidden="true" />
       </summary>
-      <ul className="absolute right-0 z-50 mt-1 max-h-72 min-w-48 overflow-y-auto rounded-xl border border-border-subtle bg-surface p-1 text-ink shadow-lg">
+      <ul className="absolute left-0 z-50 md:left-auto md:right-0 mt-1 max-h-72 w-[min(18rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-border-subtle bg-surface p-1 text-ink shadow-lg">
         {ordered.map((group) => (
           <li key={group.id}>
             <button
               type="button"
-              onClick={() => navigate(`/groups/${group.id}`)}
+              aria-current={group.id === currentGroupId ? 'page' : undefined}
+              onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); navigate(routes.group(group.id)) }}
               className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-ink hover:bg-neutral-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             >
               <span className="truncate">{group.name}</span>
             </button>
           </li>
         ))}
+        <li className="border-t border-border-subtle"><button type="button" onClick={() => navigate(routes.groups)}
+          className="min-h-11 w-full rounded-lg px-3 text-left text-sm font-medium text-primary-ink hover:bg-surface-hover">{t('workspace.myGroups')}</button></li>
       </ul>
     </details>
   )

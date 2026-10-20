@@ -19,17 +19,20 @@ public sealed class ChangeGroupSlugHandler
     private readonly IGroupStore _store;
     private readonly IClock _clock;
     private readonly ILogger<ChangeGroupSlugHandler>? _logger;
+    private readonly IGroupDatabaseScope? _databaseScope;
 
     public ChangeGroupSlugHandler(
         GroupAccessService access,
         IGroupStore store,
         IClock clock,
-        ILogger<ChangeGroupSlugHandler>? logger = null)
+        ILogger<ChangeGroupSlugHandler>? logger = null,
+        IGroupDatabaseScope? databaseScope = null)
     {
         _access = access;
         _store = store;
         _clock = clock;
         _logger = logger;
+        _databaseScope = databaseScope;
     }
 
     public async Task<GroupDto> HandleAsync(ChangeGroupSlugCommand command, CancellationToken cancellationToken)
@@ -54,6 +57,13 @@ public sealed class ChangeGroupSlugHandler
 
         // Covers current slugs, soft-deleted groups and every historical slug, so
         // one group can never claim another group's previous slug.
+        // The exact candidate selector allows this check to see reserved slugs
+        // in other Groups while the verified Group selector remains active.
+        if (_databaseScope is not null)
+        {
+            await _databaseScope.SetGroupSlugUniquenessLookupAsync(newSlug, cancellationToken);
+        }
+
         if (await _store.SlugExistsAsync(newSlug, cancellationToken))
         {
             throw new ConflictException("Slug is already taken.");

@@ -11,10 +11,10 @@ test.describe('Group journeys', () => {
     await expect(page.getByTestId('group-rail').getByText('Organizador', { exact: true })).toBeVisible()
     await expect(page.getByRole('main').getByRole('heading', { name: groupName })).toBeVisible()
 
-    await page.goto('/grupos')
+    await page.goto('/groups')
     await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
     await expect(page.getByRole('link', { name: groupName })).toBeVisible()
-    // El rol se muestra como chip junto al nombre (ya sin paréntesis y fuera del enlace estirado).
+    // The role shows as a chip next to the name (no parentheses, outside the stretched link).
     await expect(
       page.getByRole('listitem').filter({ hasText: groupName }).getByText('Organizador', { exact: true }),
     ).toBeVisible()

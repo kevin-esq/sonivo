@@ -18,7 +18,7 @@ function inDays(days: number, hour = 19): string {
 test.describe('General calendar (ADR-0053 addendum)', () => {
   test('shows the month grid even with no events and navigates months', async ({ page }) => {
     await register(page, uniqueEmail('cal-empty'))
-    await page.goto('/calendario')
+    await page.goto('/calendar')
 
     await expect(page.getByRole('heading', { name: 'Calendario' })).toBeVisible()
     await expect(page.getByTestId('calendar-day').first()).toBeVisible()
@@ -41,7 +41,7 @@ test.describe('General calendar (ADR-0053 addendum)', () => {
 
     await page.goto('/')
     await page.getByTestId('home-view-calendar').click()
-    await expect(page).toHaveURL(/\/calendario$/)
+    await expect(page).toHaveURL(/\/calendar$/)
     await expect(page.getByRole('heading', { name: 'Calendario' })).toBeVisible()
 
     const chip = page
@@ -55,7 +55,7 @@ test.describe('General calendar (ADR-0053 addendum)', () => {
 
   test('switches between month, week and day views', async ({ page }) => {
     await register(page, uniqueEmail('cal-views'))
-    await page.goto('/calendario')
+    await page.goto('/calendar')
 
     await page.getByRole('button', { name: 'Semana' }).click()
     await expect(page.getByRole('button', { name: 'Semana' })).toHaveAttribute('aria-pressed', 'true')
@@ -69,7 +69,7 @@ test.describe('General calendar (ADR-0053 addendum)', () => {
     const groupName = `Cal Create ${Date.now()}`
     await register(page, uniqueEmail('cal-create'))
     await createGroup(page, groupName)
-    await page.goto('/calendario')
+    await page.goto('/calendar')
 
     await page.getByRole('button', { name: 'Nuevo evento' }).click()
     const dialog = page.getByRole('dialog', { name: 'Nuevo evento' })
@@ -86,7 +86,7 @@ test.describe('General calendar (ADR-0053 addendum)', () => {
   test('mobile filters panel changes the view', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await register(page, uniqueEmail('cal-filters'))
-    await page.goto('/calendario')
+    await page.goto('/calendar')
 
     await page.getByTestId('calendar-filters-button').click()
     const panel = page.getByRole('dialog', { name: 'Filtros y vista' })

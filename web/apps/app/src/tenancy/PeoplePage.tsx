@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -28,6 +29,8 @@ import {
   removeMember,
   revokeInvitation,
   setMemberGroupRole,
+  setMemberDescription,
+  setMemberAccessEnabled,
   setMemberMusicalRole,
   type CurrentUser,
   type GroupRole,
@@ -47,8 +50,10 @@ import {
 import { cn } from '../ui/cn'
 import { useToast } from '../ui/toast'
 import { GroupRosterDialog } from '../groups/GroupRosterDialog'
-import { GroupRoleSelect } from '../groups/GroupRolesManager'
+import { GroupRoleSelect } from '../groups/roles/GroupRoleSelect'
 import { MemberProfileDialog } from '../groups/MemberProfileDialog'
+import { MemberProfileEditDialog } from '../groups/MemberProfileEditDialog'
+import { RosterPersonProfileDialog } from '../groups/RosterPersonProfileDialog'
 import {
   MusicalRolePicker,
   musicalRoleLabel,
@@ -232,10 +237,14 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     null,
   )
   const [rosterByUser, setRosterByUser] = useState<Record<string, RosterListItem>>({})
+  const [rosterPeople, setRosterPeople] = useState<RosterListItem[]>([])
+  const [rosterProfile, setRosterProfile] = useState<RosterListItem | null>(null)
+  const [rosterReloadKey, setRosterReloadKey] = useState(0)
   const [managedEnabled, setManagedEnabled] = useState(false)
   const [groupRoles, setGroupRoles] = useState<GroupRole[] | null>(null)
   const [groupRoleMember, setGroupRoleMember] = useState<MemberListItem | null>(null)
   const [profileMember, setProfileMember] = useState<MemberListItem | null>(null)
+  const [editProfileMember, setEditProfileMember] = useState<MemberListItem | null>(null)
   const [roleMember, setRoleMember] = useState<MemberListItem | null>(null)
   const [instrumentMember, setInstrumentMember] = useState<MemberListItem | null>(null)
   const [removeTarget, setRemoveTarget] = useState<MemberListItem | null>(null)
@@ -260,19 +269,20 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
 
   async function reloadMembers() {
     if (!groupId) return
+    setRosterReloadKey((key) => key + 1)
     setListError(null)
     try {
       setMembers(await listMembers(groupId))
     } catch (err) {
       setMembers([])
-      setListError(mutationErrorMessage(err))
+      setListError(mutationErrorMessage(err, t))
     }
   }
 
   // Live refresh when members change elsewhere (invite, role change, leave).
   useGroupDataSignal('members', groupId, reloadMembers)
 
-  // Group-defined roles (ADR-0078) so a member can be assigned one.
+  // Group-defined roles (ADR-0080) so a member can be assigned one.
   useEffect(() => {
     if (!groupId || !isOwner) return
     let cancelled = false
@@ -288,17 +298,19 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     }
   }, [groupId, isOwner])
 
-  // Managed-account map (Owners only): userId -> roster memberId, so a managed
-  // member row can regenerate access. 404 when the feature is off -> empty map.
+  // Roster identity is separate from account identity; missing UserId means no access.
   useEffect(() => {
-    if (!groupId || !managedEnabled || !isOwnerRole(group?.role)) return
+    setRosterPeople([])
+    setRosterByUser({})
+    if (!groupId || !managedEnabled || !group) return
     let cancelled = false
     void listRoster(groupId)
       .then((items) => {
         if (cancelled) return
+        setRosterPeople(items.filter((item) => !item.userId && !item.hasAccess))
         const map: Record<string, RosterListItem> = {}
         for (const item of items) {
-          if (item.userId && item.hasAccess) map[item.userId] = item
+          if (item.userId && item.hasAccess && item.handle) map[item.userId] = item
         }
         setRosterByUser(map)
       })
@@ -308,7 +320,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     return () => {
       cancelled = true
     }
-  }, [groupId, group?.role, managedEnabled])
+  }, [groupId, group?.role, managedEnabled, rosterReloadKey])
 
   useEffect(() => {
     if (!groupId || !group) return
@@ -325,7 +337,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       } catch (err) {
         if (cancelled) return
         setMembers([])
-        setListError(mutationErrorMessage(err))
+        setListError(mutationErrorMessage(err, t))
       }
     }
 
@@ -342,7 +354,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       } catch (err) {
         if (cancelled) return
         setInvites([])
-        setInviteError(mutationErrorMessage(err))
+        setInviteError(mutationErrorMessage(err, t))
       }
     }
 
@@ -368,7 +380,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         }),
       })
     } catch (err) {
-      setActionError(mutationErrorMessage(err))
+      setActionError(mutationErrorMessage(err, t))
     } finally {
       setPendingUserId(null)
     }
@@ -387,7 +399,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       await reloadMembers()
       showToast({ kind: 'ok', text: t('people.toastInstrumentChanged', { name: displayName }) })
     } catch (err) {
-      setActionError(mutationErrorMessage(err))
+      setActionError(mutationErrorMessage(err, t))
     } finally {
       setPendingUserId(null)
     }
@@ -401,10 +413,40 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       await setMemberGroupRole(groupId, targetUserId, roleId)
       await reloadMembers()
     } catch (err) {
-      setActionError(mutationErrorMessage(err))
+      setActionError(mutationErrorMessage(err, t))
     } finally {
       setPendingUserId(null)
     }
+  }
+
+  /**
+   * Saves the member description from the profile's inline editor. The editor
+   * owns its own pending state, so this only throws on failure and lets the
+   * error surface in place.
+   */
+  async function onSaveDescription(target: MemberListItem, description: string) {
+    if (!groupId) return
+    await setMemberDescription(
+      groupId,
+      target.userId,
+      description.trim() === '' ? null : description.trim(),
+    )
+    // The profile renders the member it was opened with, so re-read the roster
+    // and keep the dialog pointed at the fresh row.
+    const refreshed = await listMembers(groupId)
+    setMembers(refreshed)
+    const updated = refreshed.find((item) => item.userId === target.userId) ?? null
+    if (updated) setProfileMember((current) => current?.userId === target.userId ? updated : current)
+    showToast({ kind: 'ok', text: t('people.toastDescriptionSaved', { name: target.displayName }) })
+  }
+
+  async function saveProfileSkills(target: MemberListItem, skills: string) {
+    if (!groupId) return
+    await setMemberMusicalRole(groupId, target.userId, skills.trim() || null)
+    const refreshed = await listMembers(groupId)
+    setMembers(refreshed)
+    const updated = refreshed.find((item) => item.userId === target.userId)
+    if (updated) setProfileMember((current) => current?.userId === target.userId ? updated : current)
   }
 
   async function onRemove(targetUserId: string, displayName: string) {
@@ -417,7 +459,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       await reloadMembers()
       showToast({ kind: 'ok', text: t('people.toastMemberRemoved', { name: displayName }) })
     } catch (err) {
-      setActionError(mutationErrorMessage(err))
+      setActionError(mutationErrorMessage(err, t))
     } finally {
       setPendingUserId(null)
     }
@@ -433,7 +475,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
       setInvites(await listInvitations(groupId))
       showToast({ kind: 'ok', text: t('people.toastInviteCancelled') })
     } catch (err) {
-      setInviteError(mutationErrorMessage(err))
+      setInviteError(mutationErrorMessage(err, t))
     } finally {
       setRevokingId(null)
     }
@@ -457,11 +499,11 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     setCopied(false)
     try {
       const created = await createInvitation(groupId, inviteEmail)
-      setInviteUrl(`${window.location.origin}/join/${created.token}`)
+      setInviteUrl(`${window.location.origin}${routes.joinInvitation(created.token)}`)
       if (inviteEmail.trim() && !created.emailed) setInviteWarning(true)
       setInvites(await listInvitations(groupId))
     } catch (err) {
-      setInviteFlowError(mutationErrorMessage(err))
+      setInviteFlowError(mutationErrorMessage(err, t))
     } finally {
       setInviting(false)
     }
@@ -483,9 +525,9 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     setActionError(null)
     try {
       await leaveGroup(groupId)
-      navigate('/')
+      navigate(routes.home)
     } catch (err) {
-      setActionError(mutationErrorMessage(err))
+      setActionError(mutationErrorMessage(err, t))
     } finally {
       setLeaving(false)
     }
@@ -525,30 +567,46 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     setSearchQuery('')
   }
 
+  /**
+   * Row menu: "Ver perfil" plus everything the caller may do to this person.
+   *
+   * Actions opened from here stack on top of whatever is already open (the row
+   * menu has nothing behind it); the ones opened from the member profile reuse
+   * this same list, and there the profile must stay behind the action dialog.
+   */
   function menuItemsFor(member: MemberListItem): GroupActionMenuItem[] {
-    const items: GroupActionMenuItem[] = [
+    return [
       {
         key: 'profile',
         label: t('people.viewProfile'),
         icon: UserRound,
         onSelect: () => setProfileMember(member),
       },
+      ...memberActionItems(member),
     ]
+  }
+
+  function memberActionItems(member: MemberListItem): GroupActionMenuItem[] {
+    const items: GroupActionMenuItem[] = []
     if (isOwner && !isSelfMember(member, user.id)) {
       items.push({
         key: 'role',
         label: t('people.changeRole'),
         icon: ShieldCheck,
-        separatorBefore: true,
         onSelect: () => setRoleMember(member),
       })
     }
     if (canManage) {
       items.push({
+        key: 'edit',
+        label: t('people.editProfile'),
+        icon: Pencil,
+        onSelect: () => setEditProfileMember(member),
+      })
+      items.push({
         key: 'instrument',
         label: t('people.editInstrument'),
         icon: Pencil,
-        separatorBefore: items.length > 1,
         onSelect: () => setInstrumentMember(member),
       })
     }
@@ -557,7 +615,6 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         key: 'groupRole',
         label: t('groupRole.assign'),
         icon: ShieldCheck,
-        separatorBefore: items.length > 1,
         onSelect: () => setGroupRoleMember(member),
       })
     }
@@ -566,7 +623,6 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         key: 'access',
         label: t('roster.reset'),
         icon: KeyRound,
-        separatorBefore: true,
         onSelect: () => {
           const account = rosterByUser[member.userId]
           if (!account) return
@@ -581,12 +637,15 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         label: t('people.removeMember'),
         icon: Trash2,
         danger: true,
-        separatorBefore: true,
         onSelect: () => setRemoveTarget(member),
       })
     }
-    return items
+    return items.map((item, index) => ({ ...item, separatorBefore: index > 0 }))
   }
+
+  const visibleRosterPeople = rosterPeople.filter((person) =>
+    (roleFilter === 'all' || person.role === roleFilter) && !instrumentFilter &&
+    (!searchQuery.trim() || person.displayName.toLocaleLowerCase(lang).includes(searchQuery.trim().toLocaleLowerCase(lang))))
 
   if (group === undefined) {
     return <GroupPageSkeleton label={t('people.loading')} />
@@ -596,7 +655,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <GroupErrorState message={groupError} />
-        <GroupLink variant="secondary" to="/">
+        <GroupLink variant="secondary" to={routes.home}>
           {t('people.myGroups')}
         </GroupLink>
       </div>
@@ -612,7 +671,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         icon={Users}
         title={t('people.title')}
         subtitle={t('people.subtitle')}
-        breadcrumb={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('people.title') }]}
+        breadcrumb={[{ to: routes.group(group.id), label: group.name }, { label: t('people.title') }]}
         actions={
           isOwner ? (
             <GroupButton onClick={() => setAddOpen(true)} className="whitespace-nowrap">
@@ -641,8 +700,8 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
           </div>
 
           {tab === 'roster' ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="min-w-56 flex-1">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="min-w-0 sm:min-w-56 sm:flex-1">
                 <label className="sr-only" htmlFor="people-search">
                   {t('people.searchLabel')}
                 </label>
@@ -658,35 +717,38 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                   maxLength={200}
                 />
               </div>
-              <GroupSelect
-                aria-label={t('people.filterRole')}
-                className="w-44"
-                value={roleFilter}
-                onChange={(next) => setRoleFilter(next === 'all' ? 'all' : (next as MembershipRole))}
-                options={[
-                  { value: 'all', label: t('people.filterAll') },
-                  ...ROLE_OPTIONS.map((option) => ({
-                    value: option.value,
-                    label: t(option.labelKey),
-                  })),
-                ]}
-              />
-              <GroupSelect
-                aria-label={t('people.filterInstrument')}
-                className="w-48"
-                value={instrumentFilter}
-                onChange={setInstrumentFilter}
-                placeholder={t('people.filterInstrument')}
-                options={[
-                  { value: '', label: t('people.filterAll') },
-                  ...instrumentOptions.map((tag) => ({
-                    value: tag,
-                    label: musicalRoleLabel(tag, t),
-                  })),
-                ]}
-              />
+              {/* The two filters share one row on phones instead of wrapping. */}
+              <div className="flex items-center gap-2">
+                <GroupSelect
+                  aria-label={t('people.filterRole')}
+                  className="min-w-0 flex-1 sm:w-44 sm:flex-none"
+                  value={roleFilter}
+                  onChange={(next) => setRoleFilter(next === 'all' ? 'all' : (next as MembershipRole))}
+                  options={[
+                    { value: 'all', label: t('people.filterAll') },
+                    ...ROLE_OPTIONS.map((option) => ({
+                      value: option.value,
+                      label: t(option.labelKey),
+                    })),
+                  ]}
+                />
+                <GroupSelect
+                  aria-label={t('people.filterInstrument')}
+                  className="min-w-0 flex-1 sm:w-48 sm:flex-none"
+                  value={instrumentFilter}
+                  onChange={setInstrumentFilter}
+                  placeholder={t('people.filterInstrument')}
+                  options={[
+                    { value: '', label: t('people.filterAll') },
+                    ...instrumentOptions.map((tag) => ({
+                      value: tag,
+                      label: musicalRoleLabel(tag, t),
+                    })),
+                  ]}
+                />
+              </div>
               {filtersActive ? (
-                <GroupButton variant="ghost" onClick={clearFilters}>
+                <GroupButton variant="ghost" onClick={clearFilters} className="self-start sm:self-auto">
                   <X className="h-4 w-4" aria-hidden="true" />
                   {t('people.clearFilters')}
                 </GroupButton>
@@ -750,7 +812,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         </GroupSection>
       ) : members === null ? (
         <GroupListSkeleton rows={3} label={t('people.loading')} />
-      ) : visibleMembers.length === 0 ? (
+      ) : visibleMembers.length === 0 && visibleRosterPeople.length > 0 ? null : visibleMembers.length === 0 ? (
         <GroupEmptyState
           icon={members.length === 0 ? Users : Search}
           title={members.length === 0 ? t('people.emptyTitle') : t('people.noFilterTitle')}
@@ -765,7 +827,23 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
         />
       ) : (
         <div className="space-y-2" role="tabpanel" aria-label={t('people.tabAll')}>
-          <GroupCard padding="none" className="overflow-hidden">
+          {/* Phones and tablets: one card per person. A five-column table would
+              force horizontal scrolling on anything under ~1024px. */}
+          <ul className="space-y-2 lg:hidden">
+            {visibleMembers.map((member, index) => (
+              <MemberCard
+                key={member.userId}
+                member={member}
+                groupRoles={groupRoles ?? []}
+                isSelf={isSelfMember(member, user.id)}
+                busy={pendingUserId === member.userId}
+                menuItems={menuItemsFor(member)}
+              />
+            ))}
+          </ul>
+
+          {/* Desktop: the dense table. */}
+          <GroupCard padding="none" className="hidden overflow-hidden lg:block">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[680px] text-sm">
                 <caption className="sr-only">{t('people.title')}</caption>
@@ -793,6 +871,7 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                     <MemberRow
                       key={member.userId}
                       member={member}
+                      groupRoles={groupRoles ?? []}
                       isSelf={isSelfMember(member, user.id)}
                       busy={pendingUserId === member.userId}
                       menuItems={menuItemsFor(member)}
@@ -803,10 +882,31 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
             </div>
           </GroupCard>
           <p className="px-1 text-xs text-muted">
-            {t('people.showingCount', { shown: visibleMembers.length, total: totalMembers })}
+            {t(totalMembers === 1 ? 'people.showingCountOne' : 'people.showingCount', {
+              shown: visibleMembers.length,
+              total: totalMembers,
+            })}
           </p>
         </div>
       )}
+
+      {tab === 'roster' && visibleRosterPeople.length > 0 ? (
+        <section className="space-y-2" aria-label={t('people.rosterOnly')}>
+          <h2 className="text-sm font-semibold text-muted">{t('people.rosterOnly')}</h2>
+          <ul className="space-y-2">
+            {visibleRosterPeople.map((person) => (
+              <li key={person.memberId}>
+                <button type="button" onClick={() => setRosterProfile(person)}
+                  className="flex min-h-14 w-full flex-wrap items-center justify-between gap-2 rounded-xl border border-border-subtle bg-surface p-3 text-left text-sm hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-primary">
+                  <span className="min-w-0 break-words font-medium text-ink">{person.displayName}</span>
+                  <span className="text-xs text-muted">{t('people.viewProfile')}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {rosterProfile ? <RosterPersonProfileDialog person={rosterProfile} onClose={() => setRosterProfile(null)} /> : null}
 
       {isOwner ? null : (
         <GroupButton variant="secondary" disabled={leaving} onClick={() => void onLeave()}>
@@ -829,19 +929,23 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                 setAddOpen(false)
                 openInviteDialog()
               }}
-              className="flex w-full items-start gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 text-left transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+              className="flex w-full items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 text-left transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
             >
               <span
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink"
                 aria-hidden="true"
               >
-                <UserPlus className="h-5 w-5" />
+                <UserPlus className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold text-ink">
                   {t('addMember.withAccount')}
                 </span>
-                <span className="block text-xs text-muted">{t('addMember.withAccountHint')}</span>
+                {/* The hint is the part that needs the room, so it only shows
+                    where there is room for it. */}
+                <span className="hidden text-xs text-muted sm:block">
+                  {t('addMember.withAccountHint')}
+                </span>
               </span>
             </button>
             {managedEnabled ? (
@@ -852,19 +956,19 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
                   setResetMember(null)
                   setRosterOpen(true)
                 }}
-                className="flex w-full items-start gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 text-left transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+                className="flex w-full items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 text-left transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
               >
                 <span
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink"
                   aria-hidden="true"
                 >
-                  <KeyRound className="h-5 w-5" />
+                  <KeyRound className="h-4 w-4" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold text-ink">
                     {t('addMember.withoutAccount')}
                   </span>
-                  <span className="block text-xs text-muted">
+                  <span className="hidden text-xs text-muted sm:block">
                     {t('addMember.withoutAccountHint')}
                   </span>
                 </span>
@@ -951,9 +1055,14 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
 
       {profileMember ? (
         <MemberProfileDialog
+          key={profileMember.userId}
+          viewerUserId={user.id}
           member={profileMember}
           groupId={group.id}
           canReadAudit={isOwner}
+          canEditProfile={canManage}
+          canManageAccess={isOwner}
+          menuItems={memberActionItems(profileMember)}
           managedAccount={
             rosterByUser[profileMember.userId]
               ? {
@@ -963,6 +1072,13 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
               : null
           }
           onClose={() => setProfileMember(null)}
+          onEditProfile={() => setEditProfileMember(profileMember)}
+          onSaveDescription={async (description) => {
+            await onSaveDescription(profileMember, description)
+          }}
+          onSaveSkills={async (skills) => {
+            await saveProfileSkills(profileMember, skills)
+          }}
           onResetAccess={() => {
             const account = rosterByUser[profileMember.userId]
             if (!account) return
@@ -973,6 +1089,23 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
             })
             setRosterOpen(true)
           }}
+          onSetAccessEnabled={async (enabled) => {
+            await setMemberAccessEnabled(group.id, profileMember.userId, enabled)
+            setProfileMember((current) => current?.userId === profileMember.userId
+              ? { ...current, accessEnabled: enabled }
+              : current)
+            await reloadMembers()
+          }}
+        />
+      ) : null}
+
+      {editProfileMember && canManage ? (
+        <MemberProfileEditDialog
+          key={editProfileMember.userId}
+          member={editProfileMember}
+          onClose={() => setEditProfileMember(null)}
+          onSaveDescription={(description) => onSaveDescription(editProfileMember, description)}
+          onSaveSkills={(skills) => saveProfileSkills(editProfileMember, skills)}
         />
       ) : null}
 
@@ -999,7 +1132,6 @@ export function PeoplePage({ user }: { user: CurrentUser }) {
           }
         >
           <GroupRoleSelect
-            groupId={groupId ?? ''}
             roles={groupRoles}
             value={groupRoleMember.groupRoleId ?? null}
             disabled={pendingUserId === groupRoleMember.userId}
@@ -1114,23 +1246,155 @@ function isSelfMember(member: MemberListItem, userId: string): boolean {
   return member.userId === userId
 }
 
-function MemberRow({
+/* Shared pieces: the phone layout and the desktop table must show exactly the
+   same facts, so both are composed from these instead of duplicating markup. */
+
+function MemberAvatar({ member }: { member: MemberListItem }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'grid h-10 w-10 shrink-0 place-items-center rounded-xl text-xs font-bold',
+        toneFor(member.userId),
+      )}
+    >
+      {initialsOf(member.displayName)}
+    </span>
+  )
+}
+
+function MemberIdentity({
   member,
+  isSelf,
+}: {
+  member: MemberListItem
+  isSelf: boolean
+}) {
+  const { t } = useT()
+  return (
+    <div className="min-w-0">
+      <p className="truncate font-semibold text-ink">
+        {member.displayName}
+        {isSelf ? (
+          <span className="ml-2 text-xs font-normal text-muted">{t('people.you')}</span>
+        ) : null}
+      </p>
+      <p className="truncate text-xs text-muted">{member.email ?? t('people.emailNone')}</p>
+    </div>
+  )
+}
+
+function MemberRoleChip({
+  member,
+  groupRoles,
+}: {
+  member: MemberListItem
+  groupRoles: GroupRole[]
+}) {
+  const { t } = useT()
+  const customRole = member.groupRoleId
+    ? groupRoles.find((role) => role.id === member.groupRoleId)
+    : null
+  if (customRole) {
+    return (
+      <GroupChip tone="accent" icon={ShieldCheck}>
+        {customRole.name}
+      </GroupChip>
+    )
+  }
+  const role = roleOf(member)
+  const RoleIcon = ROLE_ICON[role]
+  return (
+    <GroupChip tone={ROLE_TONE[role]} icon={RoleIcon}>
+      {t(ROLE_LABEL_KEY[role])}
+    </GroupChip>
+  )
+}
+
+function MemberInstruments({ member }: { member: MemberListItem }) {
+  const { t } = useT()
+  const instruments = parseMusicalRoles(member.musicalRole)
+  if (instruments.length === 0) {
+    return <span className="text-sm text-muted">{t('people.instrumentNone')}</span>
+  }
+  return (
+    <span className="flex flex-wrap gap-1">
+      {instruments.map((tag) => (
+        <GroupChip key={tag} tone="outline">
+          {musicalRoleLabel(tag, t)}
+        </GroupChip>
+      ))}
+    </span>
+  )
+}
+
+function MemberPresence({ member }: { member: MemberListItem }) {
+  const { t } = useT()
+  const presence = presenceOf(member.lastSeenAt, t, Date.now())
+  return (
+    <span className="flex items-center gap-2 text-sm text-muted">
+      <span
+        aria-hidden="true"
+        className={cn('h-2 w-2 shrink-0 rounded-full', presence.online ? 'bg-success' : 'bg-muted')}
+      />
+      {presence.label}
+    </span>
+  )
+}
+
+/** Phone layout: one card per person, nothing clipped, no horizontal scroll. */
+function MemberCard({
+  member,
+  groupRoles,
   isSelf,
   busy,
   menuItems,
 }: {
   member: MemberListItem
+  groupRoles: GroupRole[]
   isSelf: boolean
   busy: boolean
   menuItems: GroupActionMenuItem[]
 }) {
   const { t } = useT()
-  const role = roleOf(member)
-  const RoleIcon = ROLE_ICON[role]
-  const instruments = parseMusicalRoles(member.musicalRole)
-  const presence = presenceOf(member.lastSeenAt, t, Date.now())
+  return (
+    <li className={cn('library-enter', busy && 'opacity-60')}>
+      <GroupCard padding="sm" className="space-y-3">
+        <div className="flex items-center gap-3">
+          <MemberAvatar member={member} />
+          <MemberIdentity member={member} isSelf={isSelf} />
+          {menuItems.length > 0 ? (
+            <GroupActionMenu
+              label={t('people.actionsFor', { name: member.displayName })}
+              items={menuItems}
+            />
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <MemberRoleChip member={member} groupRoles={groupRoles} />
+          <MemberInstruments member={member} />
+        </div>
+        <MemberPresence member={member} />
+      </GroupCard>
+    </li>
+  )
+}
 
+/** Desktop layout: the dense table, only rendered from `lg` upwards. */
+function MemberRow({
+  member,
+  groupRoles,
+  isSelf,
+  busy,
+  menuItems,
+}: {
+  member: MemberListItem
+  groupRoles: GroupRole[]
+  isSelf: boolean
+  busy: boolean
+  menuItems: GroupActionMenuItem[]
+}) {
+  const { t } = useT()
   return (
     <tr
       className={cn(
@@ -1140,52 +1404,18 @@ function MemberRow({
     >
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className={cn(
-              'grid h-10 w-10 shrink-0 place-items-center rounded-xl text-xs font-bold',
-              toneFor(member.userId),
-            )}
-          >
-            {initialsOf(member.displayName)}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate font-semibold text-ink">
-              {member.displayName}
-              {isSelf ? (
-                <span className="ml-2 text-xs font-normal text-muted">{t('people.you')}</span>
-              ) : null}
-            </p>
-            <p className="truncate text-xs text-muted">{member.email ?? t('people.emailNone')}</p>
-          </div>
+          <MemberAvatar member={member} />
+          <MemberIdentity member={member} isSelf={isSelf} />
         </div>
       </td>
       <td className="px-4 py-3">
-        <GroupChip tone={ROLE_TONE[role]} icon={RoleIcon}>
-          {t(ROLE_LABEL_KEY[role])}
-        </GroupChip>
+        <MemberRoleChip member={member} groupRoles={groupRoles} />
       </td>
       <td className="px-4 py-3">
-        {instruments.length === 0 ? (
-          <span className="text-muted">{t('people.instrumentNone')}</span>
-        ) : (
-          <span className="flex flex-wrap gap-1">
-            {instruments.map((tag) => (
-              <GroupChip key={tag} tone="outline">
-                {musicalRoleLabel(tag, t)}
-              </GroupChip>
-            ))}
-          </span>
-        )}
+        <MemberInstruments member={member} />
       </td>
       <td className="px-4 py-3">
-        <span className="flex items-center gap-2 text-muted">
-          <span
-            aria-hidden="true"
-            className={cn('h-2 w-2 shrink-0 rounded-full', presence.online ? 'bg-success' : 'bg-muted')}
-          />
-          {presence.label}
-        </span>
+        <MemberPresence member={member} />
       </td>
       <td className="px-2 py-3 text-right">
         {menuItems.length > 0 ? (

@@ -88,11 +88,11 @@ test.describe('W6 light theme: shell contrast', () => {
     // We are on the group workspace: the rail/header shell is mounted.
     await expect(page.getByTestId('grupo-shell')).toBeVisible()
 
-    await page.goto('/cuenta/preferencias')
+    await page.goto('/account/preferences')
     await page.getByRole('button', { name: 'Claro', exact: true }).click()
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
 
-    await page.goto('/cuenta')
+    await page.goto('/account')
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
     await expect(page.getByRole('heading', { name: 'Mi cuenta', exact: true, level: 1 })).toBeVisible()
     const cuentaNav = page
@@ -109,11 +109,11 @@ test.describe('W6 light theme: shell contrast', () => {
     await expectReadableText(title)
     await expectReadableText(activeTab)
 
-    await page.goto('/cuenta/preferencias')
+    await page.goto('/account/preferences')
     await page.getByRole('button', { name: 'Oscuro', exact: true }).click()
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark')
 
-    await page.goto('/cuenta')
+    await page.goto('/account')
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark')
 
     await expectReadableText(brand)
@@ -129,20 +129,20 @@ test.describe('W6 light theme: shell contrast', () => {
     const email = uniqueEmail('w6content')
     await register(page, email)
 
-    await page.goto('/cuenta/preferencias')
+    await page.goto('/account/preferences')
     await page.getByRole('button', { name: 'Claro', exact: true }).click()
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
 
-    await page.goto('/grupos')
+    await page.goto('/groups')
     await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
     await expectReadableText(page.getByRole('button', { name: 'Nuevo grupo' }))
     await expectReadableText(page.getByRole('button', { name: 'Unirme con enlace' }).first())
 
-    await page.goto('/cuenta/preferencias')
+    await page.goto('/account/preferences')
     await page.getByRole('button', { name: 'Oscuro', exact: true }).click()
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark')
 
-    await page.goto('/grupos')
+    await page.goto('/groups')
     await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
     await expectReadableText(page.getByRole('button', { name: 'Nuevo grupo' }))
     await expectReadableText(page.getByRole('button', { name: 'Unirme con enlace' }).first())

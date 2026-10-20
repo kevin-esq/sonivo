@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 namespace Sonivo.Api.Realtime;
 
 /// <summary>
-/// Per-user notification hub (ADR-0077). Each connection joins a private
+/// Per-user notification hub. Each connection joins a private
 /// <c>user:{id}</c> group and the server pushes <c>NotificationCreated</c> there
 /// whenever an inbox row is created. There is no client-invoked method, so the
 /// hub exposes no server-side mutation surface.

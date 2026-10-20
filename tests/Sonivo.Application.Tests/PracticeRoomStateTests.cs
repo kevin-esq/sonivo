@@ -104,6 +104,64 @@ public class PracticeRoomStateTests
         Assert.Empty(state.GetPresence(roomB));
     }
 
+    [Fact]
+    public void RemoveGroupMember_reports_rooms_and_connections_for_only_that_member()
+    {
+        var state = new PracticeRoomState();
+        var groupId = Guid.NewGuid();
+        var otherGroupId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var roomA = PracticeRoomState.RoomKey(Guid.NewGuid());
+        var roomB = PracticeRoomState.RoomKey(Guid.NewGuid());
+        var otherRoom = PracticeRoomState.RoomKey(Guid.NewGuid());
+
+        state.TryAdd(roomA, Participant("c-a", userId, groupId), out _);
+        state.TryAdd(roomB, Participant("c-b", userId, groupId), out _);
+        state.TryAdd(otherRoom, Participant("c-other", userId, otherGroupId), out _);
+
+        var removed = state.RemoveGroupMember(groupId, userId);
+
+        Assert.Equal(2, removed.Count);
+        Assert.Contains((roomA, "c-a"), removed);
+        Assert.Contains((roomB, "c-b"), removed);
+        Assert.Empty(state.GetPresence(roomA));
+        Assert.Empty(state.GetPresence(roomB));
+        Assert.Single(state.GetPresence(otherRoom));
+    }
+
+    [Fact]
+    public void Removing_the_last_participant_clears_ephemeral_room_position()
+    {
+        var state = new PracticeRoomState();
+        var room = PracticeRoomState.RoomKey(Guid.NewGuid());
+        var participant = Participant("c-a");
+        state.TryAdd(room, participant, out _);
+        state.StorePosition(room, new ConductorPosition(
+            Guid.NewGuid(), 1_000, true, participant.UserId, participant.DisplayName, DateTimeOffset.UtcNow));
+
+        Assert.True(state.RemoveFromRoom(room, participant.ConnectionId));
+        Assert.Null(state.LastPosition(room));
+        Assert.Empty(state.GetPresence(room));
+    }
+
+    [Fact]
+    public void Pending_and_revoked_participants_are_not_active()
+    {
+        var state = new PracticeRoomState();
+        var room = PracticeRoomState.RoomKey(Guid.NewGuid());
+        var participant = Participant("c-a", Guid.NewGuid(), Guid.NewGuid()) with { IsActive = false };
+        state.TryAdd(room, participant, out _);
+
+        Assert.False(state.IsActiveParticipant(room, participant.ConnectionId));
+        Assert.True(state.TryActivate(room, participant.ConnectionId));
+        Assert.True(state.IsActiveParticipant(room, participant.ConnectionId));
+        state.RemoveGroupMember(participant.GroupId, participant.UserId);
+        Assert.False(state.IsActiveParticipant(room, participant.ConnectionId));
+    }
+
     private static RoomParticipant Participant(string connectionId)
-        => new(connectionId, Guid.NewGuid(), "Miembro", "member");
+        => Participant(connectionId, Guid.NewGuid(), Guid.NewGuid());
+
+    private static RoomParticipant Participant(string connectionId, Guid userId, Guid groupId)
+        => new(connectionId, userId, groupId, "Miembro", "member", IsActive: true);
 }

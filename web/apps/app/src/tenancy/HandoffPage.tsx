@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { redeemHandoff } from '../api/client'
@@ -28,7 +29,9 @@ export function HandoffPage() {
 
     redeemHandoff(code)
       .then((result) => {
-        window.location.replace(result.redirect || '/')
+        // The API returns the product URL; the fallback must be the dashboard,
+        // not the public marketing landing at the root.
+        window.location.replace(result.redirect || routes.home)
       })
       .catch(() => setFailed(true))
   }, [params])

@@ -1,12 +1,25 @@
+import { routes } from '../routing/routes'
 import { useEffect, useId, useRef, useState } from "react";
 import type { FormEvent, RefObject } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
+import {
+  ArrowRight,
+  AtSign,
+  Eye,
+  EyeOff,
+  Fingerprint,
+  KeyRound,
+  Lock,
+  Mail,
+  ShieldCheck,
+} from "lucide-react";
 import {
   challengeTwoFactor,
   fetchAuthProviders,
   finishPasskeyLogin,
   googleChallengeHref,
   isSecondStepRequired,
+  isUnverifiedEmailError,
   loginUser,
   loginWithHandle,
   problemDetail,
@@ -15,14 +28,16 @@ import {
   resendConfirmation,
   startPasskeyLogin,
   type CurrentUser,
+  type PublicBranding,
 } from "../api/client";
 import { performWebAuthnLogin } from "./webauthn";
 import { BrandLockup, WaveformHero } from "../brand/SonivoMark";
-import { Button } from "../ui/button";
+import { Button, primaryButtonClass } from "../ui/button";
 import { TextField } from "../ui/text-field";
 import { SessionScreen } from "./GroupsChrome";
 import { safeNextPath } from "../tenancy/safeNextPath";
 import { useT } from "../i18n";
+import { cn } from "../ui/cn";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** ADR-0047: `handle@slug`; the slug never contains a dot, so this cannot be an email. */
@@ -35,15 +50,21 @@ const RESEND_COOLDOWN_S = 30;
  * updates the user, this route redirects to `next` (already validated).
  * AuthScreen does NOT call `navigate()`, avoiding the double navigation that
  * existed before.
+ *
+ * `brand` carries a group's public branding on the tenant login
+ * (/auth/groups/{slug}/login, ADR-0048 D1); the brand is presentation only and never
+ * changes what the form does.
  */
 export function GuestAuthRoute({
   user,
   mode,
   onSuccess,
+  brand = null,
 }: {
   user: CurrentUser | null | undefined;
   mode: "login" | "register";
   onSuccess: (user: CurrentUser) => void;
+  brand?: PublicBranding | null;
 }) {
   const [searchParams] = useSearchParams();
   const { t } = useT();
@@ -52,9 +73,13 @@ export function GuestAuthRoute({
     return <SessionScreen message={t("auth.checkingSession")} />;
   }
   if (user) {
-    return <Navigate to={next ?? "/"} replace />;
+    // The dashboard lives at /app/home; the root is the public marketing
+    // landing, so an authenticated visitor must not be sent there.
+    return <Navigate to={next ?? routes.home} replace />;
   }
-  return <AuthScreen mode={mode} next={next} onSuccess={onSuccess} />;
+  return (
+    <AuthScreen mode={mode} next={next} onSuccess={onSuccess} brand={brand} />
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -87,14 +112,23 @@ function PasswordField({
       autoComplete={autoComplete}
       disabled={disabled}
       error={error}
+      leading={<Lock className="h-4 w-4" aria-hidden="true" />}
       trailing={
         <button
           type="button"
-          className="absolute right-1 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-lg px-2 text-sm font-semibold text-shell-link hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          className="absolute right-1 top-1/2 flex min-h-[44px] min-w-[44px] -translate-y-1/2 items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-muted transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
           aria-pressed={visible}
+          aria-label={visible ? t("auth.hidePassword") : t("auth.showPassword")}
           onClick={() => setVisible((current) => !current)}
         >
-          {visible ? t("auth.hidePassword") : t("auth.showPassword")}
+          {visible ? (
+            <EyeOff className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Eye className="h-4 w-4" aria-hidden="true" />
+          )}
+          <span className="sr-only sm:not-sr-only">
+            {visible ? t("auth.hidePassword") : t("auth.showPassword")}
+          </span>
         </button>
       }
     />
@@ -106,7 +140,7 @@ function ErrorBanner({ message }: { message: string | null }) {
   return (
     <div role="alert" aria-live="assertive">
       {message ? (
-        <p className="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-shell-error">
+        <p className="rounded-xl border border-error/25 bg-error/10 px-3 py-2 text-sm text-error-ink">
           {message}
         </p>
       ) : null}
@@ -151,7 +185,7 @@ function TwoFactorStep({
         : await challengeTwoFactor(value);
       onSuccess(user);
     } catch (err) {
-      setError(problemDetail(err));
+      setError(problemDetail(err, t));
       setCode("");
     } finally {
       setPending(false);
@@ -230,6 +264,20 @@ function TwoFactorStep({
 /* ------------------------------------------------------------------ */
 /* Resend confirmation (with cooldown and generic message)              */
 /* ------------------------------------------------------------------ */
+/**
+ * Verification / resend affordance.
+ *
+ * ADR-0038 (Q-AU-1, owner-authorized refinement): this is rendered only after a
+ * login attempt that the API marked `email_unverified`. Identity's
+ * `IsNotAllowed` means the password was already CORRECT, so the marker is
+ * unreachable without a valid credential and cannot be used to discover whether
+ * an address is registered. Every other failure — unknown email, wrong
+ * password, lockout — keeps the byte-identical 401 with no marker, so the
+ * response still reveals nothing about account existence.
+ *
+ * Rendered as one quiet line of muted copy with a single text link so it does
+ * not compete with the primary action.
+ */
 function ResendBlock({ initialEmail }: { initialEmail: string }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
@@ -265,12 +313,12 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
   }
 
   return (
-    <div className="space-y-2 rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600">
-      <p>{t("auth.unverifiedHint")}</p>
-      {!open ? (
+    <div className="text-sm text-muted">
+      <p>
+        {t("auth.unverifiedHint")}{" "}
         <button
           type="button"
-          className="font-semibold text-shell-link hover:underline"
+          className="rounded font-semibold text-primary-ink underline-offset-2 transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
           onClick={() => {
             setOpen(true);
             setEmail((current) => current || initialEmail);
@@ -278,19 +326,23 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
         >
           {t("auth.resendButton")}
         </button>
-      ) : (
-        <div className="space-y-2">
+      </p>
+
+      {open ? (
+        <div className="mt-2 space-y-2">
           <TextField
             label={t("auth.emailLabel")}
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
+            disabled={pending}
             error={fieldError}
+            leading={<Mail className="h-4 w-4" aria-hidden="true" />}
           />
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             disabled={pending || cooldown > 0}
             onClick={() => void onResend()}
           >
@@ -304,15 +356,7 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
             {sent ? t("auth.resendGeneric") : null}
           </p>
         </div>
-      )}
-      <p>
-        <Link
-          className="font-semibold text-shell-link no-underline hover:underline"
-          to="/forgot-password"
-        >
-          {t("auth.forgotLink")}
-        </Link>
-      </p>
+      ) : null}
     </div>
   );
 }
@@ -324,14 +368,24 @@ function AuthScreen({
   mode,
   next,
   onSuccess,
+  brand = null,
 }: {
   mode: "login" | "register";
   next: string | null;
   onSuccess: (user: CurrentUser) => void;
+  brand?: PublicBranding | null;
 }) {
   const { t } = useT();
   const headingId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
+
+  const hasBrand = Boolean(brand?.name);
+  // The group brand owns the editorial half on the tenant login; on the apex
+  // the panel keeps the generic product voice.
+  const heroTitle = hasBrand
+    ? (brand?.loginHeadline ?? brand?.name ?? t("auth.heroTitle"))
+    : t("auth.heroTitle");
+  const heroSubtitle = hasBrand ? t("slug.brandedLoginHint") : t("auth.heroSubtitle");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -344,12 +398,15 @@ function AuthScreen({
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [secondStep, setSecondStep] = useState(false);
+  // ADR-0038: set only when the API marks the failure as an unverified mailbox
+  // (which itself requires a correct password), never for a plain auth failure.
+  const [needsVerification, setNeedsVerification] = useState(false);
 
   const passkeySupported =
     typeof window !== "undefined" && "PublicKeyCredential" in window;
 
   const nextQuery = next ? `?next=${encodeURIComponent(next)}` : "";
-  const otherModeTo = `${mode === "login" ? "/register" : "/login"}${nextQuery}`;
+  const otherModeTo = `${mode === "login" ? routes.register : routes.login}${nextQuery}`;
 
   const step =
     mode === "login" && secondStep
@@ -399,6 +456,7 @@ function AuthScreen({
     event.preventDefault();
     if (pending) return;
     setError(null);
+    setNeedsVerification(false);
     if (!validate()) return;
     setPending(true);
     try {
@@ -429,7 +487,10 @@ function AuthScreen({
         }
       }
     } catch (err) {
-      setError(problemDetail(err));
+      setError(problemDetail(err, t));
+      // A correct password on an unverified mailbox is the only failure that
+      // carries the marker, so the affordance appears exactly when it applies.
+      setNeedsVerification(isUnverifiedEmailError(err));
     } finally {
       setPending(false);
     }
@@ -465,55 +526,86 @@ function AuthScreen({
     } catch (err) {
       // Cancelling the browser dialog is not an error worth showing.
       if (err instanceof DOMException && err.name === "NotAllowedError") return;
-      setError(problemDetail(err));
+      setError(problemDetail(err, t));
     } finally {
       setPending(false);
     }
   }
 
   return (
-    <div className="grid min-h-screen bg-canvas lg:grid-cols-[minmax(0,1.05fr)_minmax(24rem,30rem)]">
+    <div className="auth-screen grid min-h-screen bg-canvas lg:grid-cols-[minmax(0,1fr)_minmax(26rem,32rem)]">
       {/*
-       * The brand panel is intentionally dark/gradient in BOTH themes: it is the
-       * fixed editorial half of the split. Only the form side is theme-aware.
-       */}
+        * Brand panel: the fixed editorial half of the split. It uses the group
+        * accent tokens so a branded login keeps its identity on both hosts
+        * (apex and {slug}.sonivo.lat). Form side is the theme-aware one.
+        */}
       <section
-        className="relative hidden overflow-hidden px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between"
-        style={{
-          background:
-            "linear-gradient(to bottom right, #1a1440, #0F172A, #24183a)",
-        }}
+        className="auth-screen__brand relative hidden overflow-hidden border-r border-border-subtle bg-canvas px-10 py-12 text-ink lg:flex lg:flex-col lg:justify-between xl:px-16"
         aria-hidden="false"
       >
-        <BrandLockup to="/login" light />
+        {/* Ambient wash from the group accent (or the global primary). */}
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.18]"
+          aria-hidden="true"
+          style={{
+            background:
+              "radial-gradient(120% 90% at 15% 0%, var(--brand-primary, var(--color-primary)) 0%, transparent 60%)",
+          }}
+        />
+        {hasBrand ? (
+          <div className="flex items-center gap-3">
+            {brand?.logoUrl ? (
+              <img
+                src={brand.logoUrl}
+                alt=""
+                className="h-11 w-11 rounded-xl object-contain"
+              />
+            ) : null}
+            <span className="text-lg font-semibold tracking-tight text-ink">
+              {brand?.name}
+            </span>
+          </div>
+        ) : (
+          <BrandLockup to="/" />
+        )}
         <div className="max-w-md space-y-5">
-          <h2 className="text-5xl font-extrabold leading-tight tracking-tight text-balance">
-            {t("auth.heroTitle")}
+          {hasBrand ? (
+            <span
+              className="block h-12 w-12 rounded-2xl bg-cover bg-center"
+              style={{
+                backgroundImage: brand?.logoUrl
+                  ? `url(${brand.logoUrl})`
+                  : undefined,
+              }}
+              role="img"
+              aria-label={brand?.name ?? ""}
+            />
+          ) : null}
+          <h2 className="max-w-[15ch] text-balance text-5xl font-bold leading-[1.05] tracking-[-0.03em] text-ink xl:text-6xl">
+            {heroTitle}
           </h2>
-          <p className="text-base text-slate-300">{t("auth.heroSubtitle")}</p>
-          <ul className="space-y-2 text-sm text-slate-300">
-            {(["auth.heroPoint1", "auth.heroPoint2", "auth.heroPoint3"] as const).map(
-              (key) => (
-                <li key={key} className="flex items-start gap-2.5">
-                  <span
-                    className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary"
-                    aria-hidden="true"
-                  />
-                  {t(key)}
-                </li>
-              ),
-            )}
-          </ul>
+          <p className="max-w-[42ch] text-balance text-lg text-muted">
+            {heroSubtitle}
+          </p>
         </div>
-        <WaveformHero className="max-w-xl opacity-90" />
+        <WaveformHero className="max-w-xl opacity-70" />
       </section>
 
-      <main className="flex flex-col justify-center bg-canvas px-4 py-10 sm:px-8">
-        <div className="mx-auto w-full max-w-md">
-          <div className="mb-6 lg:hidden">
-            <BrandLockup to="/login" shell />
+      <main className="auth-screen__main flex flex-col justify-center bg-canvas px-5 py-10 sm:px-10">
+        <div className="mx-auto w-full max-w-[26rem]">
+          {/* On mobile the form leads; the brand is a compact lockup above it.
+              A group door shows the group's own name, never Sonivo's. */}
+          <div className="mb-8 flex items-center justify-between gap-3 lg:hidden">
+            {hasBrand ? (
+              <span className="text-lg font-semibold tracking-tight text-ink">
+                {brand?.name}
+              </span>
+            ) : (
+              <BrandLockup to="/" />
+            )}
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-surface p-6 text-ink shadow-sm sm:p-8">
+
+          <div className="auth-screen__card rounded-2xl border border-border-subtle bg-surface p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-12px_rgba(15,23,42,0.12)] sm:p-8">
             {step === "twoFactor" ? (
               <TwoFactorStep
                 headingId={headingId}
@@ -536,31 +628,31 @@ function AuthScreen({
                   <p className="text-sm text-slate-500">{t("auth.confirmHint")}</p>
                 </div>
                 <Link
-                  className="inline-block font-semibold text-shell-link no-underline hover:underline"
-                  to={`/login${nextQuery}`}
+                  className={cn(primaryButtonClass, "no-underline")}
+                  to={`${routes.login}${nextQuery}`}
                 >
                   {t("auth.goLogin")}
                 </Link>
               </div>
             ) : (
               <form
-                className="space-y-4"
+                className="space-y-5"
                 onSubmit={onSubmit}
                 noValidate
                 aria-labelledby={headingId}
               >
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <h1
                     id={headingId}
                     ref={headingRef}
                     tabIndex={-1}
-                    className="text-2xl font-bold tracking-tight outline-none"
+                    className="text-2xl font-bold tracking-tight outline-none sm:text-[1.75rem]"
                   >
                     {mode === "login"
                       ? t("auth.loginTitle")
                       : t("auth.registerTitle")}
                   </h1>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-muted">
                     {mode === "login"
                       ? t("auth.loginSubtitle")
                       : t("auth.registerSubtitle")}
@@ -579,15 +671,39 @@ function AuthScreen({
                     disabled={pending}
                   />
                 ) : null}
+
+                {/*
+                  ADR-0047: a member without an email signs in as `handle@slug`.
+                  The field accepts either identifier, so the label says so and
+                  the inline input mode stays `email` for the common case.
+                */}
                 <TextField
-                  label={t("auth.emailLabel")}
-                  type="email"
+                  label={
+                    mode === "login"
+                      ? t("auth.identifierLabel")
+                      : t("auth.emailLabel")
+                  }
+                  type="text"
+                  inputMode="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  autoComplete="email"
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    if (needsVerification) setNeedsVerification(false);
+                  }}
+                  autoComplete={
+                    mode === "login" ? "username" : "email"
+                  }
                   error={errors.email}
+                  hint={mode === "login" ? t("auth.identifierHint") : undefined}
                   autoFocus
                   disabled={pending}
+                  leading={
+                    mode === "login" ? (
+                      <AtSign className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <Mail className="h-4 w-4" aria-hidden="true" />
+                    )
+                  }
                 />
                 <PasswordField
                   label={t("auth.passwordLabel")}
@@ -599,27 +715,47 @@ function AuthScreen({
                   error={errors.password}
                   disabled={pending}
                 />
-                {mode === "register" ? (
-                  <p className="-mt-2 text-xs text-slate-500">
-                    {t("auth.passwordHint")}
-                  </p>
-                ) : null}
 
-                <Button type="submit" className="w-full" disabled={pending}>
-                  {pending
-                    ? t("auth.working")
-                    : mode === "login"
-                      ? t("auth.loginTitle")
-                      : t("auth.registerTitle")}
+                {mode === "register" ? (
+                  <p className="-mt-3 text-xs text-muted">{t("auth.passwordHint")}</p>
+                ) : (
+                  /* Forgotten password is a login affordance, so it lives here
+                     rather than only inside the verification block. */
+                  <div className="-mt-2 flex justify-end">
+                    <Link
+                      className="rounded text-sm font-semibold text-primary-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                      to={routes.forgotPassword}
+                    >
+                      {t("auth.forgotLink")}
+                    </Link>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full"
+                  disabled={pending}
+                >
+                  {pending ? (
+                    t("auth.working")
+                  ) : (
+                    <>
+                      {mode === "login"
+                        ? t("auth.loginTitle")
+                        : t("auth.registerTitle")}
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </>
+                  )}
                 </Button>
 
                 {(mode === "login" && passkeySupported) || googleEnabled ? (
-                  <div className="relative py-1 text-center text-xs font-medium uppercase tracking-wide text-slate-400">
-                    <span className="relative z-10 bg-surface px-2">
-                      {t("auth.orWord")}
+                  <div className="relative py-1 text-center">
+                    <span className="relative z-10 bg-surface px-3 text-xs font-medium uppercase tracking-[0.14em] text-muted">
+                      {t("auth.dividerWith")}
                     </span>
                     <span
-                      className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-slate-200"
+                      className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border-subtle"
                       aria-hidden
                     />
                   </div>
@@ -628,11 +764,13 @@ function AuthScreen({
                 {mode === "login" && passkeySupported ? (
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
+                    size="lg"
                     className="w-full"
                     disabled={pending}
                     onClick={() => void onPasskeyLogin()}
                   >
+                    <Fingerprint className="h-4 w-4" aria-hidden="true" />
                     {t("auth.passkeyButton")}
                   </Button>
                 ) : null}
@@ -640,40 +778,54 @@ function AuthScreen({
                 {googleEnabled ? (
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
+                    size="lg"
                     className="w-full"
                     disabled={pending}
                     onClick={() =>
                       window.location.assign(googleChallengeHref(next))
                     }
                   >
+                    <KeyRound className="h-4 w-4" aria-hidden="true" />
                     {t("auth.googleButton")}
                   </Button>
                 ) : null}
 
-                {mode === "login" ? <ResendBlock initialEmail={email} /> : null}
+                {/*
+                  ADR-0038: the unverified affordance appears only when the API
+                  marks the failure as such, which already requires a correct
+                  password — so it is never a signal that a mailbox exists.
+                */}
+                {mode === "login" && needsVerification ? (
+                  <ResendBlock initialEmail={email} />
+                ) : null}
 
-                <p className="text-sm text-slate-600">
-                  {mode === "login"
-                    ? t("auth.noAccountPrefix")
-                    : t("auth.hasAccountPrefix")}
-                  <Link
-                    className="font-semibold text-shell-link no-underline hover:underline"
-                    to={otherModeTo}
-                  >
+                {/*
+                  Joining a group is by invitation, never self-registration, so a
+                  group door does not offer "create an account".
+                */}
+                {mode === "register" || !hasBrand ? (
+                  <p className="text-sm text-muted">
                     {mode === "login"
-                      ? t("auth.registerLink")
-                      : t("auth.loginLink")}
-                  </Link>
-                </p>
+                      ? t("auth.noAccountPrefix")
+                      : t("auth.hasAccountPrefix")}
+                    <Link
+                      className="rounded font-semibold text-primary-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                      to={otherModeTo}
+                    >
+                      {mode === "login"
+                        ? t("auth.registerLink")
+                        : t("auth.loginLink")}
+                    </Link>
+                  </p>
+                ) : null}
 
-                <p className="text-sm text-slate-600">
-                  <Link
-                    className="font-semibold text-shell-link no-underline hover:underline"
-                    to="/bienvenido"
-                  >
-                    {t("marketing.discover")}
-                  </Link>
+                <p className="flex items-start gap-2 border-t border-border-subtle pt-5 text-xs text-muted">
+                  <ShieldCheck
+                    className="mt-0.5 h-4 w-4 shrink-0 text-muted"
+                    aria-hidden="true"
+                  />
+                  {t("auth.securityNote")}
                 </p>
               </form>
             )}

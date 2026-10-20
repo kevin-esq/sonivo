@@ -1,4 +1,5 @@
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Tenancy;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Common;
 
@@ -21,19 +22,22 @@ public sealed class SoftDeleteSongHandler
     private readonly IArrangementStore _arrangements;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
+    private readonly IGroupAuditStore? _audit;
 
     public SoftDeleteSongHandler(
         GroupAccessService access,
         ISongStore songs,
         IArrangementStore arrangements,
         IUnitOfWork unitOfWork,
-        IClock clock)
+        IClock clock,
+        IGroupAuditStore? audit = null)
     {
         _access = access;
         _songs = songs;
         _arrangements = arrangements;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _audit = audit;
     }
 
     public async Task HandleAsync(SoftDeleteSongCommand command, CancellationToken cancellationToken)
@@ -43,13 +47,21 @@ public sealed class SoftDeleteSongHandler
             throw new ValidationException("expectedVersion is required.");
         }
 
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.SongDelete, cancellationToken);
 
         var song = await _songs.GetByIdAsync(command.GroupId, command.SongId, cancellationToken);
         if (song is null)
         {
             throw new NotFoundException("Song not found.");
         }
+
+        await _access.RequireResourcePermissionAsync(
+            command.GroupId,
+            command.UserId,
+            GroupPermissions.SongDelete,
+            ResourceGrant.ResourceTypes.Song,
+            song.Id,
+            cancellationToken);
 
         var now = _clock.UtcNow;
 
@@ -81,6 +93,11 @@ public sealed class SoftDeleteSongHandler
         }
 
         await _songs.UpdateAsync(song, cancellationToken);
+        if (_audit is not null)
+        {
+            await _audit.AddAsync(GroupAuditEntry.Create(
+                command.GroupId, GroupAuditEntry.ActionSongDeleted, now, actorUserId: command.UserId), cancellationToken);
+        }
         foreach (var arrangement in liveArrangements)
         {
             await _arrangements.UpdateAsync(arrangement, cancellationToken);

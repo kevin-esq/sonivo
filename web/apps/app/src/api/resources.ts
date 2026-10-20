@@ -189,7 +189,7 @@ export type DigitizeJob = {
   jobId: string
   status: DigitizeJobStatus
   segments: DigitizeSegment[] | null
-  error: string | null
+  errorCode: string | null
 }
 
 export async function startDigitizeJob(

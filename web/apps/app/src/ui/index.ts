@@ -3,6 +3,8 @@ export { Button, buttonVariants, dangerButtonClass, primaryButtonClass, secondar
 export { fieldClass } from './field'
 export { ConflictAlert, ProblemAlert } from './alert'
 export { ConfirmDialog } from './dialog'
+export { ErrorBoundary, SectionErrorFallback } from './ErrorBoundary'
+export { FileDropzone, type FileDropzoneProps } from './FileDropzone'
 export { Skeleton, ListSkeleton, PageSkeleton } from './skeleton'
 export { TextField, TextArea, Select } from './text-field'
 export { ToastProvider, useToast } from './toast'

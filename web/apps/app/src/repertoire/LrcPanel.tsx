@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Download, FileText, Upload } from 'lucide-react'
 import {
   exportArrangementLrc,
@@ -11,6 +11,7 @@ import {
 } from '../api/client'
 import { useT } from '../i18n'
 import { Button } from '../ui/button'
+import { FileDropzone } from '../ui/FileDropzone'
 import { cn } from '../ui/cn'
 
 /**
@@ -34,7 +35,7 @@ export function LrcPanel({
   const [preview, setPreview] = useState<LrcPreview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null)
 
   // Hidden entirely while the server flag is off (the API would 404 anyway).
   useEffect(() => {
@@ -51,11 +52,16 @@ export function LrcPanel({
     }
   }, [])
 
-  async function onFile(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
+  async function onFile(next: File | null) {
+    setFile(next)
+    if (!next) {
+      setText('')
+      setPreview(null)
+      setError(null)
+      return
+    }
     // Read as base64 so the server can detect BOM / encoding (Windows-1252 fallback).
-    const buffer = await file.arrayBuffer()
+    const buffer = await next.arrayBuffer()
     const bytes = new Uint8Array(buffer)
     let binary = ''
     for (const byte of bytes) binary += String.fromCharCode(byte)
@@ -77,7 +83,7 @@ export function LrcPanel({
       })
       setPreview(result)
     } catch (err) {
-      setError(problemDetail(err))
+      setError(problemDetail(err, t))
       setPreview(null)
     } finally {
       setBusy(false)
@@ -97,9 +103,9 @@ export function LrcPanel({
       onApplied(updated)
       setPreview(null)
       setText('')
-      if (fileRef.current) fileRef.current.value = ''
+      setFile(null)
     } catch (err) {
-      setError(problemDetail(err))
+      setError(problemDetail(err, t))
     } finally {
       setBusy(false)
     }
@@ -118,7 +124,7 @@ export function LrcPanel({
       anchor.click()
       URL.revokeObjectURL(url)
     } catch (err) {
-      setError(problemDetail(err))
+      setError(problemDetail(err, t))
     } finally {
       setBusy(false)
     }
@@ -127,14 +133,15 @@ export function LrcPanel({
   if (!enabled) return null
 
   return (
-    <section className="space-y-3" aria-labelledby="lrc-heading">
-      <div className="flex items-center gap-2">
-        <FileText className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-        <h2 id="lrc-heading" className="font-semibold">
-          {t('lrc.title')}
-        </h2>
-      </div>
-      <p className="text-sm text-muted">{t('lrc.hint')}</p>
+    <details className="overflow-hidden rounded-2xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] text-[var(--color-score-ink)]" aria-labelledby="lrc-heading">
+      <summary className="flex cursor-pointer list-none items-start gap-3 px-5 py-4 marker:hidden hover:bg-[var(--color-score-hover)] sm:px-6">
+        <FileText className="mt-0.5 h-5 w-5 shrink-0 text-primary-ink" aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          <span id="lrc-heading" className="block font-semibold">{t('lrc.title')}</span>
+          <span className="mt-1 block text-sm leading-6 text-[var(--color-score-muted)]">{t('lrc.hint')}</span>
+        </span>
+      </summary>
+      <div className="space-y-3 border-t border-[var(--color-score-line)] p-5 sm:p-6">
 
       <label className="block space-y-1.5">
         <span className="text-sm font-medium text-ink">{t('lrc.paste')}</span>
@@ -153,13 +160,16 @@ export function LrcPanel({
       </label>
 
       <div className="flex flex-wrap items-center gap-3">
-        <input
-          ref={fileRef}
-          type="file"
+        <FileDropzone
+          title={t('lrc.chooseFile')}
+          description={t('lrc.hint')}
           accept=".lrc,text/plain"
-          onChange={onFile}
-          aria-label={t('lrc.chooseFile')}
-          className="text-sm"
+          file={file}
+          onFileChange={(selected) => void onFile(selected)}
+          disabled={busy}
+          icon={FileText}
+          compact
+          testId="lrc-file-dropzone"
         />
         <label className="flex items-center gap-2 text-sm">
           <span className="text-ink">{t('lrc.offset')}</span>
@@ -217,6 +227,7 @@ export function LrcPanel({
           </Button>
         </div>
       ) : null}
-    </section>
+      </div>
+    </details>
   )
 }

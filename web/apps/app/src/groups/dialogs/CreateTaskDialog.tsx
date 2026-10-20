@@ -90,7 +90,7 @@ export function CreateTaskDialog({
       notifyGroupDataChanged('tasks', groupId)
       onSaved()
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
       setPending(false)
     }
   }

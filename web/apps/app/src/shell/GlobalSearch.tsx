@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Users } from "lucide-react";
@@ -60,7 +61,7 @@ export function GlobalSearch() {
       .map((group) => ({
         id: group.id,
         label: group.name,
-        to: `/groups/${group.id}`,
+        to: routes.group(group.id),
       }));
   }, [query, groups]);
 

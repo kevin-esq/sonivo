@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Plus, UserPlus, type LucideIcon } from "lucide-react";
 import { useT, type I18nKey } from "../i18n";
@@ -24,7 +25,7 @@ export function QuickActions() {
       titleKey: "home.quickCreate",
       hintKey: "home.quickCreateHint",
       tint: "bg-emerald-500/15 text-emerald-600",
-      onClick: () => navigate("/grupos", { state: { create: true } }),
+      onClick: () => navigate(routes.groups, { state: { create: true } }),
     },
     {
       id: "join",
@@ -32,12 +33,12 @@ export function QuickActions() {
       titleKey: "home.quickJoin",
       hintKey: "home.quickJoinHint",
       tint: "bg-primary/15 text-primary-ink",
-      onClick: () => navigate("/unirse"),
+      onClick: () => navigate(routes.join),
     },
   ];
 
   return (
-    <ul className="grid gap-3 sm:grid-cols-2">
+    <ul className="home-quick-actions grid gap-3 sm:grid-cols-2">
       {actions.map((action) => {
         const Icon = action.icon;
         return (

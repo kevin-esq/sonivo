@@ -24,12 +24,12 @@ test.describe('W-C group calendar', () => {
     await createEvent(page, { title: `W-C Evento A ${stamp}`, startsAt: '2026-10-15T19:00' })
 
     // A second group with its own event must never leak into group A's calendar.
-    await page.goto('/grupos')
+    await page.goto('/groups')
     await createGroup(page, groupB)
     await openEvents(page)
     await createEvent(page, { title: `W-C Evento B ${stamp}`, startsAt: '2026-10-16T19:00' })
 
-    await page.goto(`/groups/${idA}/calendario`)
+    await page.goto(`/groups/${idA}/calendar`)
     await expect(page.getByRole('heading', { name: 'Calendario' })).toBeVisible()
 
     const ownEvent = page.getByTestId('calendar-event').filter({ hasText: `W-C Evento A ${stamp}` })
@@ -52,7 +52,7 @@ test.describe('W-C group calendar', () => {
 
     await logout(page)
     await register(page, uniqueEmail('wccal-stranger'))
-    await page.goto(`/groups/${id}/calendario`)
+    await page.goto(`/groups/${id}/calendar`)
     await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText(
       'No encontramos este grupo o no tienes acceso.',
     )

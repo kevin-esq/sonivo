@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { NavLink } from "react-router-dom";
 import { CalendarDays, Home, Menu, Search } from "lucide-react";
 import { useT } from "../i18n";
@@ -19,7 +20,7 @@ export function AppBottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
       <ul className="grid grid-cols-4">
         <li className="flex">
           <NavLink
-            to="/"
+            to={routes.home}
             end
             className={({ isActive }) =>
               cn(itemClass, isActive ? "text-shell-foreground" : "text-shell-foreground/70")
@@ -31,7 +32,7 @@ export function AppBottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
         </li>
         <li className="flex">
           <NavLink
-            to="/calendario"
+            to={routes.calendar}
             className={({ isActive }) =>
               cn(itemClass, isActive ? "text-shell-foreground" : "text-shell-foreground/70")
             }

@@ -1,10 +1,14 @@
+using System.Text.Json.Serialization;
+
 namespace Sonivo.Application.Realtime;
 
 public sealed record RoomParticipant(
     string ConnectionId,
     Guid UserId,
+    [property: JsonIgnore] Guid GroupId,
     string DisplayName,
-    string Role);
+    string Role,
+    [property: JsonIgnore] bool IsActive = false);
 
 public sealed record ConductorPosition(
     Guid ArrangementId,
@@ -73,7 +77,36 @@ public sealed class PracticeRoomState
                 return [];
             }
 
-            return members.Values.Take(MaxConnectionsPerRoom).ToList();
+            return members.Values
+                .Where(participant => participant.IsActive)
+                .Take(MaxConnectionsPerRoom)
+                .ToList();
+        }
+    }
+
+    /// <summary>Publishes a joined connection only after its second membership check.</summary>
+    public bool TryActivate(string room, string connectionId)
+    {
+        lock (_lock)
+        {
+            if (!_rooms.TryGetValue(room, out var members)
+                || !members.TryGetValue(connectionId, out var participant))
+            {
+                return false;
+            }
+
+            members[connectionId] = participant with { IsActive = true };
+            return true;
+        }
+    }
+
+    public bool IsActiveParticipant(string room, string connectionId)
+    {
+        lock (_lock)
+        {
+            return _rooms.TryGetValue(room, out var members)
+                && members.TryGetValue(connectionId, out var participant)
+                && participant.IsActive;
         }
     }
 
@@ -86,11 +119,12 @@ public sealed class PracticeRoomState
         lock (_lock)
         {
             affectedRooms = [];
-            foreach (var (room, members) in _rooms)
+            foreach (var (room, members) in _rooms.ToArray())
             {
                 if (members.Remove(connectionId))
                 {
                     affectedRooms.Add(room);
+                    RemoveRoomIfEmpty(room, members);
                 }
             }
 
@@ -103,8 +137,39 @@ public sealed class PracticeRoomState
     {
         lock (_lock)
         {
-            return _rooms.TryGetValue(room, out var members)
-                && members.Remove(connectionId);
+            if (!_rooms.TryGetValue(room, out var members) || !members.Remove(connectionId))
+            {
+                return false;
+            }
+
+            RemoveRoomIfEmpty(room, members);
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Removes a member's active Practice connections after their Group access
+    /// is revoked. Returns the rooms and connections to evict from SignalR.
+    /// </summary>
+    public IReadOnlyList<(string Room, string ConnectionId)> RemoveGroupMember(Guid groupId, Guid userId)
+    {
+        lock (_lock)
+        {
+            var removed = new List<(string Room, string ConnectionId)>();
+            foreach (var (room, members) in _rooms.ToArray())
+            {
+                foreach (var participant in members.Values
+                    .Where(participant => participant.GroupId == groupId && participant.UserId == userId)
+                    .ToArray())
+                {
+                    members.Remove(participant.ConnectionId);
+                    removed.Add((room, participant.ConnectionId));
+                }
+
+                RemoveRoomIfEmpty(room, members);
+            }
+
+            return removed;
         }
     }
 
@@ -146,5 +211,16 @@ public sealed class PracticeRoomState
                 ? position
                 : null;
         }
+    }
+
+    private void RemoveRoomIfEmpty(string room, Dictionary<string, RoomParticipant> members)
+    {
+        if (members.Count != 0)
+        {
+            return;
+        }
+
+        _rooms.Remove(room);
+        _lastPositionByRoom.Remove(room);
     }
 }

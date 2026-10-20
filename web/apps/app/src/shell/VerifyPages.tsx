@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -23,7 +24,7 @@ function VerifyShell({
   return (
     <div className="flex min-h-screen flex-col bg-canvas px-6 py-10 text-neutral-dark">
       <div className="mb-10">
-        <BrandLockup to="/login" />
+        <BrandLockup to={routes.login} />
       </div>
       <main id="main" className="mx-auto w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
@@ -69,7 +70,7 @@ export function ConfirmPage() {
           <p className="text-sm text-slate-600">{t('verify.confirmed')}</p>
           <Link
             className="inline-block font-semibold text-shell-link no-underline hover:underline"
-            to="/login"
+            to={routes.login}
           >
             {t('verify.goLogin')}
           </Link>
@@ -115,7 +116,7 @@ export function ForgotPasswordPage() {
       await forgotPassword(email)
       setSent(true)
     } catch (err) {
-      setError(problemDetail(err))
+      setError(problemDetail(err, t))
     } finally {
       setPending(false)
     }
@@ -172,7 +173,7 @@ export function ResetPasswordPage() {
       await resetPassword({ email, token, newPassword: password })
       setDone(true)
     } catch (err) {
-      setError(problemDetail(err))
+      setError(problemDetail(err, t))
     } finally {
       setPending(false)
     }
@@ -189,7 +190,7 @@ export function ResetPasswordPage() {
           <p className="text-sm text-slate-600">{t('verify.resetDone')}</p>
           <Link
             className="inline-block font-semibold text-shell-link no-underline hover:underline"
-            to="/login"
+            to={routes.login}
           >
             {t('verify.goLogin')}
           </Link>

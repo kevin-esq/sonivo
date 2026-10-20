@@ -1290,17 +1290,6 @@ export async function duplicateEvent(
   )
 }
 
-export async function deleteEvent(
-  groupId: string,
-  eventId: string,
-  expectedVersion: number,
-): Promise<void> {
-  await apiRequest<void>(
-    `/api/groups/${groupId}/events/${eventId}?expectedVersion=${expectedVersion}`,
-    { method: 'DELETE' },
-  )
-}
-
 export async function applySetlistToEvent(
   groupId: string,
   eventId: string,

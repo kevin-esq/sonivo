@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarDays, CheckSquare, ListMusic, Music2 } from 'lucide-react'
@@ -64,12 +65,12 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
   const topSetlists = setlists.slice(0, 4)
 
   return (
-    <aside className="hidden w-[22rem] shrink-0 space-y-4 xl:block" aria-label={t('nav.sectionOrganization')}>
+    <aside className="group-context-rail hidden w-[22rem] shrink-0 space-y-4 xl:block" aria-label={t('nav.sectionOrganization')}>
       {/* Tu semana */}
       <GroupCard className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-display text-base font-semibold text-ink">{t('calendar.week')}</h2>
-          <GroupLink variant="ghost" size="sm" to={`/groups/${groupId}/calendario`}>
+          <GroupLink variant="ghost" size="sm" to={routes.groupCalendar(groupId)}>
             {t('calendar.viewFull')}
           </GroupLink>
         </div>
@@ -80,7 +81,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
             return (
               <li key={dayKey(day)}>
                 <Link
-                  to={`/groups/${groupId}/calendario`}
+                  to={routes.groupCalendar(groupId)}
                   aria-current={active ? 'date' : undefined}
                   className={cn(
                     'flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl border text-xs transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
@@ -117,7 +118,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
             {todayEvents.map((event) => (
               <li key={event.id}>
                 <Link
-                  to={`/groups/${groupId}/events/${event.id}`}
+                  to={routes.groupEvent(groupId, event.id)}
                   className="flex items-center gap-3 rounded-xl px-1 py-1.5 no-underline transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   <GroupIconWell icon={CalendarDays} size="sm" />
@@ -136,7 +137,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
       <GroupCard className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-display text-base font-semibold text-ink">{t('nav.setlists')}</h2>
-          <GroupLink variant="ghost" size="sm" to={`/groups/${groupId}/setlists`}>
+          <GroupLink variant="ghost" size="sm" to={routes.groupSetlists(groupId)}>
             {t('dashboard.viewAll')}
           </GroupLink>
         </div>
@@ -147,7 +148,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
             {topSetlists.map((setlist) => (
               <li key={setlist.id}>
                 <Link
-                  to={`/groups/${groupId}/setlists/${setlist.id}`}
+                  to={routes.groupSetlist(groupId, setlist.id)}
                   className="flex items-center gap-3 rounded-xl px-1 py-1.5 no-underline transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   <GroupIconWell icon={ListMusic} size="sm" tone="neutral" />

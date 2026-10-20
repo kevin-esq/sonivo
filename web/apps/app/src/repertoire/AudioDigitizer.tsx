@@ -79,7 +79,7 @@ export function AudioDigitizer({
     try {
       current = await getDigitizeJob(groupId, arrangement.id, jobId)
     } catch (err) {
-      setJob({ phase: 'failed', resourceId, message: mutationErrorMessage(err) })
+      setJob({ phase: 'failed', resourceId, message: mutationErrorMessage(err, t) })
       return
     }
 
@@ -93,13 +93,40 @@ export function AudioDigitizer({
       setJob({
         phase: 'failed',
         resourceId,
-        message: current.error ?? t('practice.digitize.failed'),
+        message: digitizeErrorMessage(current.errorCode),
       })
       return
     }
 
     setJob({ phase: 'working', resourceId, jobId, status: current.status, error: null })
     pollTimer.current = window.setTimeout(() => void pollStatus(resourceId, jobId), POLL_MS)
+  }
+
+  function digitizeErrorMessage(errorCode: string | null): string {
+    switch (errorCode) {
+      case 'queue_full':
+        return t('practice.digitize.errors.queueFull')
+      case 'resource_unavailable':
+        return t('practice.digitize.errors.resourceUnavailable')
+      case 'unsupported_resource':
+      case 'unsupported_purpose':
+      case 'unsupported_audio_type':
+        return t('practice.digitize.errors.unsupportedResource')
+      case 'unsupported_audio_format':
+        return t('practice.digitize.errors.unsupportedAudioFormat')
+      case 'file_too_large':
+        return t('practice.digitize.errors.fileTooLarge')
+      case 'audio_content_missing':
+        return t('practice.digitize.errors.audioContentMissing')
+      case 'transcription_failed':
+        return t('practice.digitize.errors.transcriptionFailed')
+      case 'too_many_segments':
+        return t('practice.digitize.errors.tooManySegments')
+      case 'audio_too_long':
+        return t('practice.digitize.errors.audioTooLong')
+      default:
+        return t('practice.digitize.failed')
+    }
   }
 
   async function handleStart(resourceId: string) {
@@ -114,7 +141,7 @@ export function AudioDigitizer({
       setJob({
         phase: 'failed',
         resourceId,
-        message: mutationErrorMessage(err),
+        message: mutationErrorMessage(err, t),
       })
     }
   }
@@ -145,7 +172,7 @@ export function AudioDigitizer({
       setSuccess(t('practice.digitize.marksApplied'))
       await onChanged()
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
     } finally {
       setPending(false)
     }
@@ -167,7 +194,7 @@ export function AudioDigitizer({
       setSuccess(t('practice.digitize.lyricsAdded'))
       await onChanged()
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
     } finally {
       setPending(false)
     }
@@ -296,7 +323,7 @@ export function AudioDigitizer({
           <ProblemAlert message={error} />
           {success ? (
             <p
-              className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+              className="rounded-xl bg-success/10 px-3 py-2 text-sm text-success-ink"
               role="status"
               data-testid="digitize-success"
             >

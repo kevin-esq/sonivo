@@ -1,4 +1,5 @@
 import { parseYouTubeVideoId, youTubeNocookieEmbedUrl } from './youtubeRef'
+import { safeExternalResourceUrl } from './resourceUrl'
 import { useT } from '../i18n'
 import type { ResourceSummary } from '../api/client'
 
@@ -10,24 +11,28 @@ import type { ResourceSummary } from '../api/client'
  * API, no keys, no IFrame API / enablejsapi, no autoplay.
  */
 
-
 export function ReferenceEmbed({ resource }: { resource: ResourceSummary }) {
   const { t } = useT()
-  const videoId = parseYouTubeVideoId(resource.url)
+  const externalUrl = safeExternalResourceUrl(resource.url)
+  const videoId = externalUrl ? parseYouTubeVideoId(externalUrl) : null
 
   if (videoId == null) {
     return (
       <div className="space-y-1" data-testid="reference-link">
         <p className="text-sm font-semibold text-ink">{resource.label}</p>
         {resource.url ? (
-          <a
-            className="break-all font-medium text-primary-ink no-underline hover:underline"
-            href={resource.url}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            {resource.url}
-          </a>
+          externalUrl ? (
+            <a
+              className="break-all font-medium text-primary-ink no-underline hover:underline"
+              href={externalUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {resource.url}
+            </a>
+          ) : (
+            <span className="break-all text-muted">{resource.url}</span>
+          )
         ) : null}
       </div>
     )

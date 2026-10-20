@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { Link } from "react-router-dom";
 import type { UpcomingActivity } from "../api/client";
 import { useT } from "../i18n";
@@ -37,7 +38,7 @@ export function ActivityRail({ items }: { items: UpcomingActivity[] | null }) {
           {t("home.activity")}
         </h2>
         <Link
-          to="/calendario"
+          to={routes.calendar}
           data-testid="home-view-calendar"
           className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
@@ -68,7 +69,7 @@ export function ActivityRail({ items }: { items: UpcomingActivity[] | null }) {
           {items.slice(0, MAX_ACTIVITY).map((item) => (
             <li key={`${item.groupId}-${item.eventId}`}>
               <Link
-                to={`/groups/${item.groupId}/events/${item.eventId}`}
+                to={routes.groupEvent(item.groupId, item.eventId)}
                 data-testid="home-activity-item"
                 className="flex items-center gap-3 rounded-xl px-2 py-2 no-underline text-ink hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >

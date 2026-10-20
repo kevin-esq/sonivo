@@ -9,6 +9,7 @@ import {
   readGroupAppearance,
 } from "../shell/groupAccent";
 import { cn } from "../ui/cn";
+import { routes } from "../routing/routes";
 
 function initialsOf(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -28,7 +29,7 @@ function HomeGroupCard({ group }: { group: GroupSummary }) {
   return (
     <li className="h-full">
       <Link
-        to={`/groups/${group.id}`}
+        to={routes.group(group.id)}
         data-testid="home-group-card"
         className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface text-ink no-underline shadow-sm transition duration-150 hover:border-primary/40 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
       >
@@ -112,7 +113,7 @@ export function GroupsGrid({ groups }: { groups: GroupSummary[] | null }) {
           <p className="max-w-md text-sm text-muted">{t("groups.empty")}</p>
         </div>
         <Link
-          to="/grupos"
+          to={routes.groups}
           state={{ create: true }}
           className="inline-flex min-h-11 items-center rounded-xl bg-primary-strong px-4 text-sm font-semibold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >

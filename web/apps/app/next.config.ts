@@ -1,18 +1,21 @@
 import type { NextConfig } from 'next'
 
-// The .NET API is the only backend. In dev/CI, Next proxies /api and /hubs to it
-// and falls back to the SPA shell for deep links; the production build is a
-// static export served by the .NET host at the same origin (no proxy needed).
+// The .NET API is the only backend. Dev/CI and the Vercel production server
+// proxy API, hubs, and the public group manifest to it. NEXT_EXPORT=1 is the
+// staging parity bridge: the .NET host serves that export at the same origin.
 const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:5171'
 const isExport = process.env.NEXT_EXPORT === '1'
 
 const nextConfig: NextConfig = {
+  // Allow isolated browser checks to keep their build output separate from the
+  // developer's active Next.js server (`NEXT_DIST_DIR=.next-e2e`).
+  distDir: process.env.NEXT_DIST_DIR ?? '.next',
   // StrictMode's dev-only double-mount races with the group create modals in
   // dev (the route remounts mid-interaction and the dialog state is lost), which
   // made Playwright E2E flaky. StrictMode never double-invokes effects in
   // production, so disabling it only affects the dev aid, not shipped behavior.
   reactStrictMode: false,
-  transpilePackages: ['@sonivo/i18n', '@sonivo/api-client', '@sonivo/ui'],
+  transpilePackages: ['@sonivo/i18n', '@sonivo/api-client', '@sonivo/ui', '@sonivo/routes'],
   // Bridge (parity migration): the ported SPA is checked by its own tsconfig;
   // Next type/lint gating is re-enabled once the SPA is decomposed.
   typescript: { ignoreBuildErrors: true },
@@ -26,9 +29,12 @@ const nextConfig: NextConfig = {
     return {
       beforeFiles: [
         { source: '/api/:path*', destination: `${apiOrigin}/api/:path*` },
+        { source: '/connect/:path*', destination: `${apiOrigin}/connect/:path*` },
+        { source: '/.well-known/openid-configuration', destination: `${apiOrigin}/.well-known/openid-configuration` },
         { source: '/hubs/:path*', destination: `${apiOrigin}/hubs/:path*` },
+        { source: '/g/:slug/manifest.webmanifest', destination: `${apiOrigin}/g/:slug/manifest.webmanifest` },
       ],
-      // Deep links (e.g. /grupos) resolve to the SPA shell in dev/CI.
+      // Deep links (e.g. /groups) resolve to the SPA shell in dev/CI.
       afterFiles: [{ source: '/:path*', destination: '/' }],
       fallback: [],
     }

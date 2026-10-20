@@ -57,6 +57,32 @@ public class ResourceDomainTests
             Resource.CreateLink(ArrangementId, ResourcePurposes.Other, "Label", "  ", Now));
     }
 
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("data:text/html,content")]
+    [InlineData("file:///tmp/resource.pdf")]
+    [InlineData("mailto:person@example.test")]
+    [InlineData("/relative/resource")]
+    [InlineData("https://")]
+    [InlineData("https:///missing-host")]
+    [InlineData("https://person@example.test/resource")]
+    public void CreateLink_rejects_non_http_or_https_urls(string url)
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Resource.CreateLink(ArrangementId, ResourcePurposes.Reference, "Reference", url, Now));
+    }
+
+    [Theory]
+    [InlineData("http://example.test/resource")]
+    [InlineData("https://example.test/resource")]
+    public void CreateLink_accepts_absolute_http_and_https_urls(string url)
+    {
+        var resource = Resource.CreateLink(
+            ArrangementId, ResourcePurposes.Reference, "Reference", url, Now);
+
+        Assert.Equal(url, resource.Url);
+    }
+
     [Fact]
     public void CreateLink_rejects_invalid_purpose()
     {

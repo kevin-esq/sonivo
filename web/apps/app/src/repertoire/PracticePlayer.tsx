@@ -133,7 +133,7 @@ export function PracticePlayer({
 
   return (
     <section
-      className="space-y-4 rounded-xl border border-border-subtle bg-surface p-4 sm:p-5 shadow-sm"
+      className="space-y-4 rounded-xl border border-border-subtle bg-surface p-4 sm:p-5"
       aria-labelledby="practice-audio-heading"
       data-testid="practice-player"
     >

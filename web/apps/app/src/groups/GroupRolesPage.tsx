@@ -1,15 +1,13 @@
-import { useEffect, useState } from 'react'
+import { routes } from '../routing/routes'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { ShieldCheck } from 'lucide-react'
+import { Plus, ShieldCheck } from 'lucide-react'
 import { listMembers, type MemberListItem } from '../api/client'
 import { useT } from '../i18n'
 import { useGroupContext, mutationErrorMessage } from '../repertoire/ui'
-import { GroupRolesManager } from './GroupRolesManager'
-import { cn } from '../ui/cn'
+import { GroupRolesCenter } from './roles/GroupRolesCenter'
 import {
   GroupButton,
-  GroupCard,
-  GroupChip,
   GroupErrorState,
   GroupLink,
   GroupPageHeader,
@@ -17,80 +15,36 @@ import {
   useGroupDataSignal,
 } from './ui'
 
-type RoleInfo = {
-  id: string
-  labelKey: string
-  descriptionKey: string
-}
-
-const ROLES: RoleInfo[] = [
-  { id: 'Owner', labelKey: 'roles.roleOwner', descriptionKey: 'roles.roleOwnerDesc' },
-  { id: 'Manager', labelKey: 'roles.roleManager', descriptionKey: 'roles.roleManagerDesc' },
-  { id: 'Member', labelKey: 'roles.roleMember', descriptionKey: 'roles.roleMemberDesc' },
-  { id: 'Viewer', labelKey: 'roles.roleViewer', descriptionKey: 'roles.roleViewerDesc' },
-]
-
-type Permission = {
-  key: string
-  labelKey: string
-  roles: string[]
-}
-
-const PERMISSIONS: Permission[] = [
-  { key: 'manage_group', labelKey: 'roles.permManageGroup', roles: ['Owner'] },
-  { key: 'manage_branding', labelKey: 'roles.permManageBranding', roles: ['Owner'] },
-  { key: 'manage_members', labelKey: 'roles.permManageMembers', roles: ['Owner'] },
-  { key: 'manage_content', labelKey: 'roles.permManageContent', roles: ['Owner', 'Manager'] },
-  { key: 'manage_setlists', labelKey: 'roles.permManageSetlists', roles: ['Owner', 'Manager'] },
-  { key: 'manage_events', labelKey: 'roles.permManageEvents', roles: ['Owner', 'Manager'] },
-  { key: 'manage_tasks', labelKey: 'roles.permManageTasks', roles: ['Owner', 'Manager'] },
-  { key: 'rsvp_events', labelKey: 'roles.permRsvpEvents', roles: ['Owner', 'Manager', 'Member'] },
-  { key: 'practice', labelKey: 'roles.permPractice', roles: ['Owner', 'Manager', 'Member'] },
-  { key: 'view_content', labelKey: 'roles.permViewContent', roles: ['Owner', 'Manager', 'Member', 'Viewer'] },
-]
-
-function PermissionCell({ granted }: { granted: boolean }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold',
-        granted ? 'bg-success/20 text-success-ink' : 'bg-surface-hover text-muted',
-      )}
-    >
-      {granted ? '✓' : '—'}
-    </span>
-  )
-}
-
+/**
+ * "Roles & permissions" tab (ADR-0080): a two-column administration center.
+ *
+ * Everyone in the group can read the roles and their permission sets; only the
+ * Owner sees the create/edit/duplicate/delete/assign actions, matching the
+ * server-side authorization (role CRUD requires Owner).
+ */
 export function GroupRolesPage() {
   const { groupId } = useParams()
   const { t } = useT()
   const { group, error: groupError, reload } = useGroupContext(groupId, '')
-  const [members, setMembers] = useState<MemberListItem[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [members, setMembers] = useState<MemberListItem[]>([])
+  const [membersError, setMembersError] = useState<string | null>(null)
+  const openCreate = useRef<(() => void) | null>(null)
 
-  function loadMembers() {
+  const loadMembers = useCallback(() => {
     if (!groupId) return
-    let cancelled = false
-    listMembers(groupId)
+    void listMembers(groupId)
       .then((list) => {
-        if (!cancelled) setMembers(list)
+        setMembers(list)
+        setMembersError(null)
       })
-      .catch((err) => {
-        if (!cancelled) setError(mutationErrorMessage(err))
-      })
-    return () => {
-      cancelled = true
-    }
-  }
+      .catch((err) => setMembersError(mutationErrorMessage(err, t)))
+  }, [groupId])
 
-  useEffect(loadMembers, [groupId])
+  useEffect(() => {
+    loadMembers()
+  }, [loadMembers])
 
-  // Live refresh when members change elsewhere (invite, role change, leave).
-  useGroupDataSignal('members', groupId, () => {
-    setError(null)
-    void loadMembers()
-  })
+  useGroupDataSignal('members', groupId, loadMembers)
 
   if (group === undefined) {
     return <GroupPageSkeleton label={t('roles.loading')} />
@@ -99,21 +53,15 @@ export function GroupRolesPage() {
   if (group === null) {
     return (
       <div className="space-y-3">
-        <GroupErrorState
-          message={groupError}
-          onRetry={() => void reload()}
-        />
-        <GroupLink variant="soft" to="/grupos">
+        <GroupErrorState message={groupError} onRetry={() => void reload()} />
+        <GroupLink variant="soft" to={routes.groups}>
           {t('workspace.myGroups')}
         </GroupLink>
       </div>
     )
   }
 
-  const memberCounts = new Map<string, number>()
-  for (const member of members ?? []) {
-    memberCounts.set(member.role, (memberCounts.get(member.role) ?? 0) + 1)
-  }
+  const isOwner = group.role === 'Owner'
 
   return (
     <section className="space-y-6" aria-labelledby="roles-heading">
@@ -122,60 +70,33 @@ export function GroupRolesPage() {
         icon={ShieldCheck}
         title={t('roles.title')}
         subtitle={t('roles.subtitle')}
-        breadcrumb={[{ to: `/groups/${group.id}`, label: group.name }, { label: t('roles.title') }]}
+        breadcrumb={[{ to: routes.group(group.id), label: group.name }, { label: t('roles.title') }]}
         actions={
-          <GroupLink to={`/groups/${group.id}/people`} variant="secondary">
-            {t('roles.manageMembers')}
-          </GroupLink>
+          <>
+            <GroupLink to={routes.groupPeople(group.id)} variant="secondary">
+              {t('roles.manageMembers')}
+            </GroupLink>
+            {isOwner ? (
+              <GroupButton type="button" onClick={() => openCreate.current?.()}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                {t('roles.create')}
+              </GroupButton>
+            ) : null}
+          </>
         }
       />
 
-      <GroupErrorState message={error} />
+      <GroupErrorState message={membersError} onRetry={loadMembers} />
 
-      {group.role === 'Owner' ? (
-        <GroupRolesManager groupId={group.id} />
-      ) : null}
-
-      <div className="space-y-4">
-        {ROLES.map((role) => (
-          <GroupCard key={role.id} className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="font-display text-lg font-semibold text-ink">{t(role.labelKey as never)}</h2>
-              <p className="text-sm text-muted">{t(role.descriptionKey as never)}</p>
-            </div>
-            <GroupChip tone="neutral" className="shrink-0 px-3 py-1">
-              {memberCounts.get(role.id) ?? 0} {t('roles.memberCount')}
-            </GroupChip>
-          </GroupCard>
-        ))}
-      </div>
-
-      <GroupCard padding="none" className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="border-b border-border-subtle">
-              <th className="px-4 py-3 text-left font-semibold text-ink">{t('roles.permission')}</th>
-              {ROLES.map((role) => (
-                <th key={role.id} className="px-4 py-3 text-center font-semibold text-ink">
-                  {t(role.labelKey as never)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {PERMISSIONS.map((perm) => (
-              <tr key={perm.key} className="border-b border-border-subtle last:border-0">
-                <td className="px-4 py-3 text-ink">{t(perm.labelKey as never)}</td>
-                {ROLES.map((role) => (
-                  <td key={role.id} className="px-4 py-3 text-center">
-                    <PermissionCell granted={perm.roles.includes(role.id)} />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </GroupCard>
+      <GroupRolesCenter
+        groupId={group.id}
+        isOwner={isOwner}
+        members={members}
+        onMembersChanged={loadMembers}
+        registerCreate={(open) => {
+          openCreate.current = open
+        }}
+      />
     </section>
   )
 }

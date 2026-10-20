@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Sonivo.Domain.Repertoire;
+using Sonivo.Domain.Scheduling;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure;
@@ -7,6 +9,7 @@ using Xunit.Abstractions;
 
 namespace Sonivo.Integration.Tests;
 
+[Collection(PostgresMigrationCollection.Name)]
 public class GroupPersistenceTests
 {
     private readonly ITestOutputHelper _output;
@@ -52,6 +55,34 @@ public class GroupPersistenceTests
     }
 
     [Fact]
+    public async Task InMemory_membership_store_checks_only_other_group_memberships()
+    {
+        await using var db = CreateInMemoryDb();
+        var store = new EfMembershipStore(db);
+        var currentGroupId = Guid.NewGuid();
+        var otherGroupId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        db.Memberships.AddRange(
+            Membership.CreateMember(currentGroupId, targetUserId, now),
+            Membership.CreateMember(otherGroupId, targetUserId, now));
+        await db.SaveChangesAsync();
+
+        Assert.True(await store.HasMembershipInOtherGroupAsync(
+            targetUserId,
+            currentGroupId,
+            CancellationToken.None));
+        Assert.True(await store.HasMembershipInOtherGroupAsync(
+            targetUserId,
+            otherGroupId,
+            CancellationToken.None));
+        Assert.False(await store.HasMembershipInOtherGroupAsync(
+            Guid.NewGuid(),
+            currentGroupId,
+            CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Postgres_create_and_soft_delete_when_available()
     {
         if (!TryCreatePostgresOptions(out var options, out var skip))
@@ -83,6 +114,94 @@ public class GroupPersistenceTests
         Assert.Null(await db.Groups.FirstOrDefaultAsync(g => g.Id == created.Id));
         Assert.NotNull(await db.Groups.IgnoreQueryFilters().FirstOrDefaultAsync(g => g.Id == created.Id));
         _output.WriteLine("PostgreSQL integration executed successfully.");
+    }
+
+    [Fact]
+    public async Task Postgres_rejects_membership_assignment_to_a_role_from_another_group()
+    {
+        if (!TryCreatePostgresOptions(out var options, out var skip))
+        {
+            _output.WriteLine($"SKIPPED: {skip}");
+            return;
+        }
+
+        await using var db = new SonivoDbContext(options);
+        await db.Database.MigrateAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
+        var ownerId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        await EnsureBareIdentityUserAsync(db, ownerId);
+        await EnsureBareIdentityUserAsync(db, memberId);
+
+        var now = DateTimeOffset.UtcNow;
+        var memberGroupId = Guid.NewGuid();
+        var roleGroupId = Guid.NewGuid();
+        var memberGroup = Group.Create(
+            $"Member group {memberGroupId:N}", now, memberGroupId, $"member-{memberGroupId:N}");
+        var roleGroup = Group.Create(
+            $"Role group {roleGroupId:N}", now, roleGroupId, $"role-{roleGroupId:N}");
+        db.Groups.AddRange(memberGroup, roleGroup);
+        db.Memberships.AddRange(
+            Membership.CreateOwner(memberGroupId, ownerId, now),
+            Membership.CreateOwner(roleGroupId, ownerId, now));
+        await db.SaveChangesAsync();
+
+        var foreignRole = GroupRole.Create(roleGroupId, "Foreign role", now, Array.Empty<string>());
+        db.GroupRoles.Add(foreignRole);
+        await db.SaveChangesAsync();
+
+        var membership = Membership.CreateMember(memberGroupId, memberId, now);
+        db.Memberships.Add(membership);
+        await db.SaveChangesAsync();
+
+        membership.AssignGroupRole(foreignRole.Id);
+        var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        Assert.Contains(
+            "FK_Memberships_GroupRoles_GroupId_GroupRoleId",
+            exception.InnerException?.Message ?? exception.Message,
+            StringComparison.Ordinal);
+
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task Postgres_rejects_setlist_item_owned_by_another_group()
+    {
+        if (!TryCreatePostgresOptions(out var options, out var skip))
+        {
+            _output.WriteLine($"SKIPPED: {skip}");
+            return;
+        }
+
+        await using var db = new SonivoDbContext(options);
+        await db.Database.MigrateAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
+        var now = DateTimeOffset.UtcNow;
+        var setlistGroupId = Guid.NewGuid();
+        var itemGroupId = Guid.NewGuid();
+        var setlistGroup = Group.Create(
+            $"Setlist group {setlistGroupId:N}", now, setlistGroupId, $"setlist-{setlistGroupId:N}");
+        var itemGroup = Group.Create(
+            $"Item group {itemGroupId:N}", now, itemGroupId, $"item-{itemGroupId:N}");
+        var song = Song.Create(itemGroupId, "Foreign song", SongOriginKinds.Original, now);
+        var arrangement = Arrangement.Create(itemGroupId, song.Id, "Original", now);
+        var setlist = Setlist.Create(setlistGroupId, "Target setlist", now);
+        db.Groups.AddRange(setlistGroup, itemGroup);
+        db.Songs.Add(song);
+        db.Arrangements.Add(arrangement);
+        db.Setlists.Add(setlist);
+        await db.SaveChangesAsync();
+
+        db.SetlistItems.Add(SetlistItem.Create(setlist.Id, itemGroupId, arrangement.Id, 0));
+        var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        Assert.Contains(
+            "FK_SetlistItems_Setlists_GroupId_SetlistId",
+            exception.InnerException?.Message ?? exception.Message,
+            StringComparison.Ordinal);
+
+        await transaction.RollbackAsync();
     }
 
     private static SonivoDbContext CreateInMemoryDb()

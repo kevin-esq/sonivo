@@ -251,3 +251,24 @@ export function nudgeChord(
   toSlot.chord = moving
   return next
 }
+
+/** Move the selected chord to a lyric slot, swapping an existing chord if needed. */
+export function moveChordToSlot(
+  doc: DigitizerDocument,
+  chordIndex: number,
+  lineIndex: number,
+  slotIndex: number,
+): DigitizerDocument {
+  const source = listChordCursors(doc).find((cursor) => cursor.chordIndex === chordIndex)
+  const sourceSlot = source && doc.lines[source.lineIndex]?.slots[source.slotIndex]
+  const targetSlot = doc.lines[lineIndex]?.slots[slotIndex]
+  if (!source || !sourceSlot || !targetSlot || sourceSlot === targetSlot) return doc
+
+  const next = cloneDocument(doc)
+  const from = next.lines[source.lineIndex]!.slots[source.slotIndex]!
+  const to = next.lines[lineIndex]!.slots[slotIndex]!
+  const moving = from.chord
+  from.chord = to.chord
+  to.chord = moving
+  return next
+}

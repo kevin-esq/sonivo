@@ -51,8 +51,9 @@ export async function register(page: Page, email: string, password = testPasswor
   await page.getByLabel('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
-  // ADR-0053: `/` is the Inicio dashboard; the group list lives at /grupos.
-  await page.goto('/grupos')
+  // ADR-0053: `/` is the public marketing landing; the dashboard lives at /home
+// and the group list at /groups.
+  await page.goto('/groups')
   await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
 }
 
@@ -62,26 +63,26 @@ export async function login(page: Page, email: string, password = testPassword) 
   await page.getByLabel('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
-  await page.goto('/grupos')
+  await page.goto('/groups')
   await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
 }
 
 export async function logout(page: Page) {
   // The group workspace rail no longer carries sign-out (ADR-0055); the account
   // shell does, so navigate there before signing out.
-  await page.goto('/cuenta')
+  await page.goto('/account')
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
   await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
 }
 
 export async function createGroup(page: Page, name: string) {
-  // La creación vive en un modal desde el refactor de la página de grupos.
+  // Creation lives in a modal since the groups page refactor.
   await page.getByRole('button', { name: 'Nuevo grupo' }).click()
   await page.getByLabel('Nombre').fill(name)
   await page.getByRole('button', { name: 'Crear grupo' }).click()
   await expect(page.getByRole('heading', { name })).toBeVisible()
-  // El rol aparece en el rail (marca + tarjeta de usuario); asertamos sobre la marca
-  // para evitar la duplicación intencional del texto dentro del landmark complementary.
+  // The role shows in the rail (brand + user card); assert on the brand to avoid
+  // the intentional duplication of the text inside the complementary landmark.
   await expect(page.getByTestId('rail-brand').getByText('Organizador', { exact: true })).toBeVisible()
 }
 
@@ -314,8 +315,8 @@ export function eventPlanItem(page: Page, songTitle: string, arrangementLabel: s
 }
 
 export async function inviteMemberAndReadLink(page: Page, email?: string): Promise<string> {
-  // Members page has one "Agregar miembro" entry point that asks with/without
-  // account; the invitation (with account) lives in its dialog.
+  // The members page has a single "Add member" entry point that asks with/without
+  // an account; the invitation (with account) lives in its own dialog.
   await openPeople(page)
   await page.getByRole('button', { name: 'Agregar miembro' }).first().click()
   await page.getByRole('button', { name: /Con cuenta/ }).click()

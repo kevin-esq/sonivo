@@ -2,7 +2,7 @@ using Sonivo.Domain.Tenancy;
 
 namespace Sonivo.Application.Abstractions;
 
-/// <summary>Group-defined roles (ADR-0078), always scoped to one group.</summary>
+/// <summary>Group-defined roles (ADR-0080), always scoped to one group.</summary>
 public interface IGroupRoleStore
 {
     Task AddAsync(GroupRole role, CancellationToken cancellationToken);

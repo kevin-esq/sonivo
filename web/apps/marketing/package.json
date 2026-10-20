@@ -1,0 +1,23 @@
+{
+  "name": "@sonivo/marketing",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "node ./node_modules/next/dist/bin/next dev -p 3000",
+    "build": "node ./node_modules/next/dist/bin/next build",
+    "start": "node ./node_modules/next/dist/bin/next start -p 3000"
+  },
+  "dependencies": {
+    "@sonivo/i18n": "*",
+    "@sonivo/routes": "*",
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "typescript": "^5.7.3"
+  }
+}

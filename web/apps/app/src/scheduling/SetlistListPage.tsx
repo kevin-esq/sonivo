@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronRight, ListMusic, Music2, Search, Star } from 'lucide-react'
@@ -7,7 +8,6 @@ import {
   GroupButton,
   GroupEmptyState,
   GroupErrorState,
-  GroupIconWell,
   GroupLimitNotice,
   GroupLink,
   GroupListSkeleton,
@@ -33,9 +33,9 @@ function setlistIcon(index: number) {
   return SETLIST_ICONS[index % SETLIST_ICONS.length]!
 }
 
-function formatUpdatedAt(iso: string): string {
+function formatUpdatedAt(iso: string, lang: string): string {
   try {
-    return new Intl.DateTimeFormat('es', {
+    return new Intl.DateTimeFormat(lang, {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -48,7 +48,7 @@ function formatUpdatedAt(iso: string): string {
 export function SetlistListPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
   const { group, error: groupError, reload: reloadGroup } = useGroupContext(groupId, user.id)
-  const { t } = useT()
+  const { t, lang } = useT()
   const navigate = useNavigate()
   const [setlists, setSetlists] = useState<SetlistListItem[] | null>(null)
   const [listError, setListError] = useState<string | null>(null)
@@ -73,7 +73,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       setSetlists(await listSetlists(groupId))
     } catch (err) {
       setSetlists([])
-      setListError(mutationErrorMessage(err))
+      setListError(mutationErrorMessage(err, t))
     }
   }
 
@@ -89,7 +89,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       } catch (err) {
         if (cancelled) return
         setSetlists([])
-        setListError(mutationErrorMessage(err))
+        setListError(mutationErrorMessage(err, t))
       }
     }
     void load()
@@ -112,8 +112,8 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <GroupErrorState message={groupError} onRetry={() => void reloadGroup()} />
-        <GroupLink variant="soft" to="/">
-          Mis grupos
+        <GroupLink variant="soft" to={routes.home}>
+          {t('workspace.myGroups')}
         </GroupLink>
       </div>
     )
@@ -123,7 +123,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
   const searching = query.trim().length > 0
 
   return (
-    <section className="space-y-6" aria-labelledby="setlists-heading">
+    <section className="space-y-8" aria-labelledby="setlists-heading">
       <div data-testid="setlists-hero">
         <GroupPageHeader
           headingId="setlists-heading"
@@ -131,7 +131,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
           title={t('schedule.setlistsTitle')}
           subtitle={t('schedule.setlistsSubtitle')}
           breadcrumb={[
-            { to: `/groups/${group.id}`, label: group.name },
+            { to: routes.group(group.id), label: group.name },
             { label: t('schedule.setlistsTitle') },
           ]}
           actions={
@@ -154,7 +154,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       </div>
 
       {setlists !== null && setlists.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-surface p-3 sm:p-4">
           <div className="relative min-w-52 flex-1">
             <Search
               className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted"
@@ -187,7 +187,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       <GroupLimitNotice
         label={t('plan.labelSetlists')}
         metric={usage?.setlists}
-        upgradeHref={`/groups/${group.id}/ajustes?tab=plan`}
+        upgradeHref={`${routes.groupSettings(group.id)}?tab=plan`}
       />
 
       {setlists === null ? (
@@ -211,7 +211,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                 {t('schedule.newSetlist')}
               </GroupButton>
             ) : (
-              <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
+              <GroupLink variant="soft" to={routes.groupLibrary(group.id)}>
                 {t('schedule.goLibrary')}
               </GroupLink>
             )
@@ -220,17 +220,8 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       ) : filtered && filtered.length === 0 ? (
         <GroupEmptyState title={`${t('schedule.noSetlistsPrefix')}${query.trim()}${t('schedule.noMatchSuffix')}`} />
       ) : (
-        <div className="space-y-1">
-          <div
-            aria-hidden="true"
-            className="hidden px-2 text-xs font-semibold uppercase tracking-wide text-muted sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto_1.5rem] sm:items-center sm:gap-3"
-          >
-            <span>{t('schedule.setlistsColList')}</span>
-            <span>{t('schedule.setlistsColSongs')}</span>
-            <span>{t('schedule.setlistsColUpdated')}</span>
-            <span />
-          </div>
-          <ul className="space-y-1 sm:space-y-0 sm:divide-y sm:divide-border-subtle sm:rounded-2xl sm:border sm:border-border-subtle sm:bg-surface">
+        <div>
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {filtered!.map((setlist, index) => {
               const Icon = setlistIcon(index)
               const empty = setlist.itemCount === 0
@@ -241,37 +232,45 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
                   <Link
-                    className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline shadow-sm transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
-                    to={`/groups/${group.id}/setlists/${setlist.id}`}
+                  className="group flex min-h-40 items-start gap-4 rounded-2xl border border-border-subtle bg-surface p-4 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:p-5"
+                    to={routes.groupSetlist(group.id, setlist.id)}
                   >
-                    <GroupIconWell icon={Icon} />
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-score-hover)] text-[var(--color-score-ink-soft)]" aria-hidden="true">
+                      <Icon className="h-5 w-5" />
+                    </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold text-ink">
+                      <span className="block truncate text-base font-semibold text-ink transition-colors group-hover:text-primary-ink">
                         {setlist.name}
                       </span>
                       <span className="mt-0.5 block text-sm text-muted">
-                        {plural(setlist.itemCount, t('common.songOne'), t('common.songMany'))}
+                        {plural(
+                          setlist.itemCount,
+                          t('schedule.setlistArrangementsOne'),
+                          t('schedule.setlistArrangementsMany'),
+                        )}
                       </span>
                       <span className="mt-0.5 block text-xs text-muted sm:hidden">
-                        Actualizado: {formatUpdatedAt(setlist.updatedAt)}
+                        {t('schedule.updatedPrefix')}{formatUpdatedAt(setlist.updatedAt, lang)}
                       </span>
                     </span>
-                    <ReadinessChip
-                      tone={empty ? 'neutral' : 'accent'}
-                      testId={`setlist-status-${setlist.id}`}
-                    >
-                      {empty
-                        ? t('schedule.setlistVacant')
-                        : plural(
-                            setlist.itemCount,
-                            t('schedule.setlistArrangementsOne'),
-                            t('schedule.setlistArrangementsMany'),
-                          )}
-                    </ReadinessChip>
-                    <span className="hidden text-xs text-muted sm:block">
-                      {formatUpdatedAt(setlist.updatedAt)}
+                    <span className="flex shrink-0 flex-col items-end gap-2">
+                      <ReadinessChip
+                        tone={empty ? 'neutral' : 'accent'}
+                        testId={`setlist-status-${setlist.id}`}
+                      >
+                        {empty
+                          ? t('schedule.setlistVacant')
+                          : plural(
+                              setlist.itemCount,
+                              t('schedule.setlistArrangementsOne'),
+                              t('schedule.setlistArrangementsMany'),
+                            )}
+                      </ReadinessChip>
+                      <span className="hidden text-xs text-muted sm:block">
+                        {formatUpdatedAt(setlist.updatedAt, lang)}
+                      </span>
+                      <ChevronRight className="h-5 w-5 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                     </span>
-                    <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
                   </Link>
                 </li>
               )
@@ -288,7 +287,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
             setShowCreate(false)
             void reload()
             void reloadUsage()
-            navigate(`/groups/${group.id}/setlists/${setlist.id}`)
+            navigate(routes.groupSetlist(group.id, setlist.id))
           }}
         />
       ) : null}

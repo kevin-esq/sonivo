@@ -1,8 +1,9 @@
 import { apiRequest } from './http'
 
 /**
- * Group-defined roles (ADR-0078). Permissions are the canonical keys; a member's
- * effective set is the base role's UNION the custom role's.
+ * Group-defined roles (ADR-0082). Permissions are canonical keys; an assigned
+ * custom profile replaces the base preset; legacy roles may extend it until
+ * an Owner converts them.
  */
 export type GroupRole = {
   id: string
@@ -10,6 +11,7 @@ export type GroupRole = {
   description: string | null
   /** Comma-separated canonical permission keys. */
   permissions: string
+  extendsBaseRole: boolean
   isSystem: boolean
   createdAt: string
 }
@@ -21,7 +23,7 @@ export async function listGroupRoles(groupId: string): Promise<GroupRole[]> {
 
 export async function createGroupRole(
   groupId: string,
-  input: { name: string; description?: string | null; permissions: string[] },
+  input: { name: string; description?: string | null; permissions: string[]; extendsBaseRole?: boolean },
 ): Promise<GroupRole> {
   return apiRequest<GroupRole>(`/api/groups/${groupId}/roles`, {
     method: 'POST',
@@ -29,6 +31,7 @@ export async function createGroupRole(
       name: input.name,
       description: input.description ?? null,
       permissions: input.permissions,
+      extendsBaseRole: input.extendsBaseRole ?? false,
     },
   })
 }
@@ -36,7 +39,12 @@ export async function createGroupRole(
 export async function updateGroupRole(
   groupId: string,
   roleId: string,
-  input: { name?: string; description?: string | null; permissions?: string[] },
+  input: {
+    name?: string
+    description?: string | null
+    permissions?: string[]
+    extendsBaseRole?: boolean
+  },
 ): Promise<GroupRole> {
   return apiRequest<GroupRole>(`/api/groups/${groupId}/roles/${roleId}`, {
     method: 'PATCH',

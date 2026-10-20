@@ -228,15 +228,15 @@ export const BRAND_THEMES: BrandTheme[] = [
 export type IntensityOption = {
   id: 'subtle' | 'medium' | 'intense';
   labelKey: string;
-  /** Alpha suffix appended to the wash colours (~12% / 24% / 38%). */
+  /** Alpha suffix appended to the wash colours (~5% / 15% / 25%). */
   washAlpha: string;
 };
 
 /** Prevalidated wash strengths (PHASE-PLANS-SPEC §5.3). */
 export const INTENSITY_OPTIONS: IntensityOption[] = [
-  { id: 'subtle', labelKey: 'settings.intensitySubtle', washAlpha: '1f' },
-  { id: 'medium', labelKey: 'settings.intensityMedium', washAlpha: '3d' },
-  { id: 'intense', labelKey: 'settings.intensityIntense', washAlpha: '61' },
+  { id: 'subtle', labelKey: 'settings.intensitySubtle', washAlpha: '0d' },
+  { id: 'medium', labelKey: 'settings.intensityMedium', washAlpha: '26' },
+  { id: 'intense', labelKey: 'settings.intensityIntense', washAlpha: '40' },
 ];
 
 export type GradientStyleOption = {
@@ -313,10 +313,10 @@ export function deriveGroupThemeTokens(input: GroupThemeInput): Record<string, s
 
   // ---- Accent-derived neutrals (theme v2) ----
   // Stable structure, accent-driven identity: the canvas/surfaces/borders take a
-  // small tint of the group accent (scaled by intensity), while the accent itself
-  // stays strong in the header/active/borders. Scoped to the group shell, so the
+  // small fixed tint of the group accent, while intensity only changes the
+  // background wash. Scoped to the group shell, so the
   // account/panel keep Sonivo's fixed identity.
-  const tint = intensity.id === 'subtle' ? 0.05 : intensity.id === 'intense' ? 0.13 : 0.09;
+  const tint = 0.09;
   const neutral = (base: string) => mix(base, primary, tint);
   const canvas = neutral(theme === 'dark' ? '#0b1220' : '#f1f5f9');
   const surface = neutral(theme === 'dark' ? '#111a2e' : '#ffffff');

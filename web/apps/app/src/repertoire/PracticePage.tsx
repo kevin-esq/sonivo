@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -16,7 +17,7 @@ import { looksLikeChordPro, transposeChordPro, tryTransposeDefaultKey } from './
 import { RehearsalBodyView } from './ChordProView'
 import {
   activeChordLineBlock,
-  parseChordTimingJson,
+  parseChordTimingTimeline,
 } from './chordTiming'
 import { ConductorPanel } from './ConductorPanel'
 import { ReferenceEmbed } from './ReferenceEmbed'
@@ -30,7 +31,11 @@ import {
 import { useConductorRoom } from './useConductorRoom'
 import { PracticeEventQueue } from './PracticeEventQueue'
 import { PracticePlayer } from './PracticePlayer'
+import { PracticeWarmup } from './PracticeWarmup'
+import { useAudioPlayer } from './AudioPlayerContext'
 import { StageModePanel } from './StageModePanel'
+import { StageOutputPage } from './StageOutputPage'
+import { isStageDisplaySessionId } from './stageDisplaySync'
 import {
   readPracticeFollowAlong,
   writePracticeFollowAlong,
@@ -54,10 +59,10 @@ import { Skeleton } from '../ui/skeleton'
 import { cn } from '../ui/cn'
 import { useT } from '../i18n'
 
-type PracticeTab = 'estudiar' | 'avanzado' | 'afinar'
+type PracticeTab = 'estudiar' | 'calentar' | 'avanzado' | 'afinar'
 
 function parsePracticeTab(value: string | null): PracticeTab {
-  if (value === 'avanzado' || value === 'afinar') return value
+  if (value === 'calentar' || value === 'avanzado' || value === 'afinar') return value
   return 'estudiar'
 }
 
@@ -125,7 +130,10 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const eventId = searchParams.get('eventId')
   const planItemId = searchParams.get('item')
   const tab = parsePracticeTab(searchParams.get('tab'))
+  const stageOutputRequested = searchParams.get('stageOutput') === '1'
+  const stageSessionId = searchParams.get('stageSession')
   const { t } = useT()
+  const audioPlayer = useAudioPlayer()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const isOwner = canManageContentRole(group?.role)
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
@@ -143,7 +151,6 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const [followAlong, setFollowAlong] = useState(false)
   const [metronomeBpm, setMetronomeBpm] = useState(72)
   const [metronomeOn, setMetronomeOn] = useState(false)
-  const [liveOpen, setLiveOpen] = useState(false)
   const [metronomePulse, setMetronomePulse] = useState(false)
   const [audioSeconds, setAudioSeconds] = useState(0)
   const [reloadNonce, setReloadNonce] = useState(0)
@@ -195,7 +202,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       } catch (err) {
         if (cancelled) return
         setArrangement(null)
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
       }
     }
     void load()
@@ -221,7 +228,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       } catch (err) {
         if (cancelled) return
         setEventDetail(null)
-        setQueueError(mutationErrorMessage(err))
+        setQueueError(mutationErrorMessage(err, t))
       }
     }
     void loadEvent()
@@ -263,8 +270,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     const interval = 60_000 / metronomeBpm
     const beat = () => {
       if (cancelled) return
-      setMetronomePulse(true)
-      setTimeout(() => setMetronomePulse(false), 120)
+      setMetronomePulse((pulse) => !pulse)
       try {
         audio ??= new AudioContext()
         const osc = audio.createOscillator()
@@ -297,7 +303,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           {t('practice.myGroups')}
         </Link>
       </div>
@@ -314,7 +320,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         <ProblemAlert message={error ?? t('practice.notFound')} />
         <Link
           className="font-semibold text-primary-ink no-underline hover:underline"
-          to={`/groups/${group.id}/library`}
+          to={routes.groupLibrary(group.id)}
         >
           {t('practice.library')}
         </Link>
@@ -326,8 +332,8 @@ export function PracticePage({ user }: { user: CurrentUser }) {
   const liveGroup = group
   const liveArrangement = arrangement
 
-  const arrangementHref = `/groups/${liveGroup.id}/arrangements/${liveArrangement.id}`
-  const songHref = `/groups/${liveGroup.id}/songs/${liveArrangement.songId}`
+  const arrangementHref = routes.groupArrangement(liveGroup.id, liveArrangement.id)
+  const songHref = routes.groupSong(liveGroup.id, liveArrangement.songId)
   const queueItems = eventDetail?.items ?? []
   const queueItem =
     eventDetail && arrangementId
@@ -348,7 +354,8 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       ? tryTransposeDefaultKey(liveArrangement.defaultKey, semitoneOffset)
       : null
   const hideChords = viewMode === 'singer'
-  const timingMarks = parseChordTimingJson(liveArrangement.chordTimingJson)
+  const timingTimeline = parseChordTimingTimeline(liveArrangement.chordTimingJson)
+  const timingMarks = timingTimeline.lineMarks
   // ADR-0037 T-FX-02: reference links; YouTube ones embed via nocookie iframe.
   const referenceResources = liveArrangement.resources.filter(
     (r) => r.purpose === 'reference' && r.kind === 'link',
@@ -436,7 +443,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       setSemitoneOffset(0)
       setConfirmSaveTone(false)
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
       setConfirmSaveTone(false)
     } finally {
       setSavingTone(false)
@@ -445,50 +452,93 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
   const breadcrumbItems = eventId
     ? [
-        { to: `/groups/${liveGroup.id}`, label: liveGroup.name },
-        { to: `/groups/${liveGroup.id}/events`, label: t('schedule.eventsTitle') },
+        { to: routes.group(liveGroup.id), label: liveGroup.name },
+        { to: routes.groupEvents(liveGroup.id), label: t('schedule.eventsTitle') },
         {
-          to: `/groups/${liveGroup.id}/events/${eventId}`,
+          to: routes.groupEvent(liveGroup.id, eventId),
           label: eventDetail?.title ?? t('practice.eventFallback'),
         },
         { label: t('practice.rehearsePlan') },
       ]
     : [
-        { to: `/groups/${liveGroup.id}`, label: liveGroup.name },
-        { to: `/groups/${liveGroup.id}/library`, label: t('practice.library') },
+        { to: routes.group(liveGroup.id), label: liveGroup.name },
+        { to: routes.groupLibrary(liveGroup.id), label: t('practice.library') },
         { to: songHref, label: songTitle ?? t('practice.songFallback') },
         { to: arrangementHref, label: liveArrangement.label },
         { label: t('practice.kicker') },
       ]
 
+  const visibleBreadcrumbItems = tab === 'calentar'
+    ? eventId
+      ? [breadcrumbItems[2], breadcrumbItems[3]]
+      : [breadcrumbItems[3], breadcrumbItems[4]]
+    : breadcrumbItems
+
   const tabLabels: Record<PracticeTab, string> = {
     estudiar: t('practice.tabs.estudiar'),
+    calentar: t('practice.tabs.calentar'),
     avanzado: t('practice.tabs.avanzado'),
     afinar: t('practice.tabs.afinar'),
   }
-  const tabOrder: PracticeTab[] = ['estudiar', 'avanzado', 'afinar']
+  const tabOrder: PracticeTab[] = ['estudiar', 'calentar', 'avanzado', 'afinar']
+
+  if (stageOutputRequested && isStageDisplaySessionId(stageSessionId)) {
+    return <StageOutputPage text={displayBody} sessionId={stageSessionId} timingMarks={timingMarks} timingTimeline={timingTimeline} />
+  }
 
   return (
-    <section className="space-y-7" aria-labelledby="practice-heading">
-      <div className="space-y-3">
-        <PageBreadcrumb items={breadcrumbItems} />
-        <div className="space-y-2">
-          <p className="text-sm font-medium uppercase tracking-wide text-muted">
-            {eventId ? t('practice.rehearsePlan') : t('practice.kicker')}
-          </p>
-          <h1 id="practice-heading" className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
-            {displayTitle}
-          </h1>
-          <p className="text-base text-ink">{displayLabel}</p>
-          <p className="text-sm text-muted">
-            {liveArrangement.defaultKey
-              ? `${t('practice.keyPrefix')}${liveArrangement.defaultKey}`
-              : t('practice.keyEmpty')}
-            {' · '}
-            {liveArrangement.defaultBpm != null
-              ? `${t('practice.tempoPrefix')}${liveArrangement.defaultBpm}${t('practice.bpmSuffix')}`
-              : t('practice.tempoEmpty')}
-          </p>
+    <section className={cn(tab === 'calentar' ? 'space-y-5 sm:space-y-8' : 'space-y-8')} aria-labelledby="practice-heading">
+      <div className={cn(
+        'rounded-3xl border border-[var(--color-score-border)] bg-[var(--color-score-soft)] text-[var(--color-score-ink)]',
+        tab === 'calentar' ? 'space-y-3 p-4 sm:space-y-4 sm:p-8' : 'space-y-4 p-5 sm:p-8',
+      )}>
+        <PageBreadcrumb items={visibleBreadcrumbItems} />
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0 space-y-2">
+            <p className={cn('text-sm font-medium uppercase tracking-wide text-muted', tab === 'calentar' && 'hidden')}>
+              {eventId ? t('practice.rehearsePlan') : t('practice.kicker')}
+            </p>
+            <h1 id="practice-heading" className="text-3xl font-bold tracking-tight text-[var(--color-score-ink)] sm:text-4xl">
+              {displayTitle}
+            </h1>
+            <p className="text-base font-medium text-[var(--color-score-ink-soft)]">{displayLabel}</p>
+            <p className="text-sm text-[var(--color-score-muted)]">
+              {liveArrangement.defaultKey
+                ? `${t('practice.keyPrefix')}${liveArrangement.defaultKey}`
+                : t('practice.keyEmpty')}
+              {' · '}
+              {liveArrangement.defaultBpm != null
+                ? `${t('practice.tempoPrefix')}${liveArrangement.defaultBpm}${t('practice.bpmSuffix')}`
+                : t('practice.tempoEmpty')}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {sourceBody && tab !== 'calentar' ? (
+              <StageModePanel
+                text={displayBody}
+                timingMarks={timingMarks}
+                timingTimeline={timingTimeline}
+                currentMs={highlightMs}
+                title={displayTitle}
+                subtitle={displayLabel}
+                hasAudio={tracks.length > 0}
+                isPlaying={audioPlayer.isPlaying}
+                progress={audioPlayer.progress}
+                duration={audioPlayer.duration}
+                onTogglePlayback={() => void audioPlayer.togglePlay()}
+                onSeek={audioPlayer.seek}
+                groupId={liveGroup.id}
+                arrangementId={liveArrangement.id}
+                volume={audioPlayer.volume}
+                onVolumeChange={audioPlayer.setVolume}
+              />
+            ) : null}
+            {isOwner && tab !== 'calentar' ? (
+              <Link className="inline-flex min-h-11 items-center rounded-lg border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-ink no-underline transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" to={arrangementHref}>
+                {t('practice.editLyrics')}
+              </Link>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -514,7 +564,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           action={
             <Link
               className="font-semibold text-primary-ink no-underline hover:underline"
-              to={`/groups/${liveGroup.id}/events/${eventId}`}
+              to={routes.groupEvent(liveGroup.id, eventId)}
             >
               {t('practice.backToEvent')}
             </Link>
@@ -523,7 +573,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
       ) : null}
 
       <div
-        className="flex gap-1 rounded-xl bg-surface-hover p-1"
+        className="grid grid-cols-2 gap-1 rounded-2xl border border-[var(--color-score-border)] bg-[var(--color-score-soft)] p-1.5 sm:grid-cols-4"
         role="tablist"
         aria-label={t('practice.tabs.label')}
       >
@@ -537,10 +587,10 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             aria-controls={`practice-panel-${id}`}
             data-testid={`practice-tab-${id}`}
             className={cn(
-              'min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+              'min-h-12 rounded-xl px-3 py-2 text-sm font-semibold transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
               tab === id
-                ? 'bg-surface text-ink shadow-sm'
-                : 'text-muted hover:text-ink',
+                ? 'bg-[var(--color-score-paper)] text-[var(--color-score-ink)] shadow-sm'
+                : 'text-[var(--color-score-muted)] hover:bg-[var(--color-score-paper-soft)] hover:text-[var(--color-score-ink)]',
             )}
             onClick={() => setTabPersist(id)}
           >
@@ -579,13 +629,6 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           followSeekMs={!isOwner && followDirector ? followSeekMs : null}
         />
       ) : null}
-
-      <section className="space-y-3 rounded-xl border border-border-subtle bg-surface p-4" aria-labelledby="practice-tuner-heading">
-        <h2 id="practice-tuner-heading" className="text-base font-semibold tracking-tight text-ink">
-          {t('practice.tunerTitle')}
-        </h2>
-        <TunerPanel />
-      </section>
 
       {referenceResources.length > 0 ? (
         <section className="space-y-4" aria-labelledby="practice-reference-heading">
@@ -709,15 +752,6 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         </section>
       ) : null}
 
-      {sourceBody ? (
-        <StageModePanel
-          text={displayBody}
-          hideChords={hideChords}
-          timingMarks={timingMarks}
-          currentMs={highlightMs}
-        />
-      ) : null}
-
       <section className="space-y-3" aria-labelledby="practice-lyrics-heading">
         <h2 id="practice-lyrics-heading" className="text-lg font-semibold tracking-tight text-ink">
           {t('practice.lyricsTitle')}
@@ -754,6 +788,34 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         </div>
       ) : null}
 
+      {tab === 'calentar' ? (
+        <div
+          role="tabpanel"
+          id="practice-panel-calentar"
+          aria-labelledby="practice-tab-calentar"
+          data-testid="practice-panel-calentar"
+        >
+          <PracticeWarmup
+            groupId={liveGroup.id}
+            arrangementId={liveArrangement.id}
+            songTitle={displayTitle}
+            hasAudio={tracks.length > 0}
+            isPlaying={audioPlayer.isPlaying}
+            progress={audioPlayer.progress}
+            duration={audioPlayer.duration}
+            volume={audioPlayer.volume}
+            metronomeBpm={metronomeBpm}
+            metronomeOn={metronomeOn}
+            metronomePulse={metronomePulse}
+            onTogglePlayback={() => void audioPlayer.togglePlay()}
+            onSeek={audioPlayer.seek}
+            onVolumeChange={audioPlayer.setVolume}
+            onMetronomeBpmChange={setMetronomeBpm}
+            onMetronomeToggle={() => setMetronomeOn((on) => !on)}
+          />
+        </div>
+      ) : null}
+
       {tab === 'avanzado' ? (
         <div
           className="space-y-7"
@@ -786,14 +848,6 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               {metronomeOn
                 ? t('practice.metronomeStop')
                 : t('practice.metronomeStart')}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              data-testid="practice-live-open"
-              onClick={() => setLiveOpen(true)}
-            >
-              {t('practice.liveTitle')}
             </Button>
           </div>
 
@@ -903,7 +957,7 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         {eventId ? (
           <Link
             className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            to={`/groups/${group.id}/events/${eventId}`}
+            to={routes.groupEvent(group.id, eventId)}
           >
             {t('practice.backToEvent')}
           </Link>
@@ -933,47 +987,6 @@ export function PracticePage({ user }: { user: CurrentUser }) {
         </p>
       </ConfirmDialog>
 
-      {liveOpen ? (
-        <dialog
-          open
-          onClose={() => setLiveOpen(false)}
-          className="fixed inset-0 z-50 m-auto flex h-full w-full flex-col bg-canvas p-0"
-          data-testid="practice-live"
-        >
-          <div className="flex items-center justify-between px-5 py-3">
-            <p className="text-sm font-semibold text-ink">{displayTitle}</p>
-            <button
-              type="button"
-              onClick={() => setLiveOpen(false)}
-              aria-label={t('practice.liveClose')}
-              className="grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="flex flex-1 items-center justify-center overflow-hidden px-5">
-            <pre className="max-h-full max-w-full overflow-auto whitespace-pre-wrap text-center font-sans text-2xl leading-relaxed text-ink">
-              {displayBody}
-            </pre>
-          </div>
-          <div className="flex items-center justify-center gap-3 px-5 pb-6">
-            <span
-              className={cn(
-                'h-4 w-4 rounded-full',
-                metronomeOn
-                  ? metronomePulse
-                    ? 'bg-primary'
-                    : 'bg-muted'
-                  : 'bg-transparent',
-              )}
-              aria-hidden="true"
-            />
-            <span className="text-sm text-muted">
-              {metronomeOn ? `${metronomeBpm} BPM` : t('practice.liveHint')}
-            </span>
-          </div>
-        </dialog>
-      ) : null}
     </section>
   )
 }

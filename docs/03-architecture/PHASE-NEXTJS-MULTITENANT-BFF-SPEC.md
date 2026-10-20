@@ -63,17 +63,18 @@ web/                          # Turborepo workspace (root package.json + turbo.j
     app/                      # @sonivo/app — the product (Next.js)
       app/page.tsx            # client mount of the ported SPA (src/Mount.tsx)
       src/**                  # ported product source (components, pages, providers)
-      next.config.ts          # API proxy (dev) + static export (prod)
+      next.config.ts          # API proxy (dev); server build (production), static export (staging)
     docs/                     # @sonivo/docs — Fumadocs (docs.sonivo.lat / /docs)
       app/docs/[[...slug]]/page.tsx  app/api/search/route.ts
       content/docs/*.mdx  lib/source.ts
   packages/                   # shared code: @sonivo/api-client, @sonivo/i18n, @sonivo/ui
 ```
 
-Each app owns its own `package.json`, `next.config` and `tsconfig`. The product
-app is served as a static export by the .NET host; subdomain tenancy
-(`middleware.ts` + `[tenant]/[locale]` routes) is restored when the bridge is
-decomposed (see `PHASE-NEXTJS-PARITY-MIGRATION.md`).
+Each app owns its own `package.json`, `next.config` and `tsconfig`. Production
+runs the Next server/BFF on Vercel as decided by ADR-0069. The static export
+served by the .NET host is the staging/parity-bridge shape only. Host-based
+subdomain tenancy (`middleware.ts` + `[tenant]/[locale]` routes) remains a
+separate decomposition step tracked by `PHASE-NEXTJS-PARITY-MIGRATION.md`.
 
 ### Backend additions (.NET, additive)
 

@@ -62,6 +62,11 @@ public class ManagedAccountsApiTests : IClassFixture<SonivoApiFactory>
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
         Assert.True(await db.AccountAudits.AnyAsync(a => a.Action == AccountAudit.ActionPasswordChanged));
+
+        var ownAudit = await client.GetAsync("/api/account/audit");
+        Assert.Equal(HttpStatusCode.OK, ownAudit.StatusCode);
+        var ownAuditBody = await ownAudit.Content.ReadAsStringAsync();
+        Assert.Contains(AccountAudit.ActionPasswordChanged, ownAuditBody);
     }
 
     [Fact]

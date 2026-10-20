@@ -47,7 +47,7 @@ public class SessionHandoffApiTests : IClassFixture<SonivoApiFactory>
         Assert.NotNull(payload);
         var redirect = new Uri(payload.Redirect);
         Assert.Equal("app.localhost", redirect.Host);
-        Assert.Equal("/session/handoff", redirect.AbsolutePath);
+        Assert.Equal("/auth/session/handoff", redirect.AbsolutePath);
         Assert.False(string.IsNullOrWhiteSpace(CodeFrom(redirect)));
     }
 
@@ -105,7 +105,7 @@ public class SessionHandoffApiTests : IClassFixture<SonivoApiFactory>
         var redirect = new Uri(payload.Redirect);
         // No PublicOrigin in tests, so the request host (localhost) is the apex.
         Assert.Equal($"{group.Slug}.localhost", redirect.Host);
-        Assert.Equal("/session/handoff", redirect.AbsolutePath);
+        Assert.Equal("/auth/session/handoff", redirect.AbsolutePath);
         Assert.False(string.IsNullOrWhiteSpace(CodeFrom(redirect)));
     }
 

@@ -86,6 +86,12 @@ public class PresenceUseCaseTests
         public Task RemoveAsync(Membership membership, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<int> CountOwnersAsync(Guid groupId, CancellationToken cancellationToken)
             => Task.FromResult(Rows.Count(m => m.GroupId == groupId && m.IsOwner));
+
+        public Task<bool> HasMembershipInOtherGroupAsync(
+            Guid userId,
+            Guid excludedGroupId,
+            CancellationToken cancellationToken)
+            => Task.FromResult(Rows.Any(m => m.UserId == userId && m.GroupId != excludedGroupId));
     }
 
     private sealed class FakeUserDirectory : IUserDirectory

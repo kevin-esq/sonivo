@@ -3,6 +3,7 @@ using Sonivo.Application.Abstractions;
 using Sonivo.Application.Billing;
 using Sonivo.Application.Billing.Payments;
 using Sonivo.Application.Realtime;
+using Sonivo.Application.Reports;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tasks;
@@ -36,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<GetPublicBrandingBannerHandler>();
         services.AddScoped<GetPlanCatalogHandler>();
         services.AddScoped<GetGroupUsageHandler>();
+        services.AddScoped<GroupReportsHandler>();
         services.AddScoped<UpdateGroupPlanHandler>();
         services.AddScoped<ProcessPaymentWebhookHandler>();
         services.AddScoped<StartCheckoutHandler>();
@@ -49,6 +51,7 @@ public static class DependencyInjection
         services.AddScoped<RemoveMemberHandler>();
         services.AddScoped<ChangeMemberRoleHandler>();
         services.AddScoped<SetMusicalRoleHandler>();
+        services.AddScoped<SetMemberDescriptionHandler>();
         services.AddScoped<LeaveGroupHandler>();
         services.AddScoped<CreateInvitationHandler>();
         services.AddScoped<AcceptInvitationHandler>();
@@ -87,7 +90,6 @@ public static class DependencyInjection
         services.AddScoped<UpdateEventHandler>();
         services.AddScoped<CancelEventHandler>();
         services.AddScoped<DuplicateEventHandler>();
-        services.AddScoped<DeleteEventHandler>();
         services.AddScoped<CreateTaskHandler>();
         services.AddScoped<UpdateTaskHandler>();
         services.AddScoped<SetTaskStatusHandler>();

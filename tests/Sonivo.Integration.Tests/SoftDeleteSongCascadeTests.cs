@@ -9,6 +9,7 @@ using Xunit.Abstractions;
 
 namespace Sonivo.Integration.Tests;
 
+[Collection(PostgresMigrationCollection.Name)]
 public class SoftDeleteSongCascadeTests
 {
     private readonly ITestOutputHelper _output;

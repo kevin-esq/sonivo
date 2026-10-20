@@ -16,7 +16,7 @@ export function SecurityPage() {
       const s = await fetchTwoFactorStatus()
       setStatus(s)
     } catch (err) {
-      setError(problemDetail(err))
+      setError(problemDetail(err, t))
     }
   }
 
@@ -25,16 +25,16 @@ export function SecurityPage() {
   }, [])
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{t('security.title')}</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+    <div className="security-page mx-auto max-w-4xl space-y-6">
+      <header className="space-y-1.5 border-b border-border-subtle pb-5">
+        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('security.title')}</h1>
+        <p className="text-muted">
           {t('security.subtitle')}
         </p>
-      </div>
+      </header>
 
       {error ? (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="rounded-2xl border border-error/20 bg-error/10 px-4 py-3 text-sm text-error-ink">
           {error}
         </p>
       ) : null}

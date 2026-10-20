@@ -115,7 +115,7 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
       await expect(ownerPanel).toBeVisible({ timeout: 15_000 })
       await expect(memberPanel).toBeVisible({ timeout: 15_000 })
 
-      // Member enables "Seguir al director".
+      // Member enables "Seguir al director" (Follow the conductor).
       const followToggle = memberPage.getByTestId('conductor-follow-toggle')
       await expect(followToggle).toBeVisible()
       await followToggle.click()

@@ -68,6 +68,38 @@ public class FileResourceApiTests : IClassFixture<SonivoApiFactory>
         var downloaded = await download.Content.ReadAsByteArrayAsync();
         Assert.Equal(payload, downloaded);
 
+        // A child allow never bypasses an arrangement restriction.
+        var denyArrangement = await ownerClient.PutAsJsonAsync(
+            $"/api/groups/{groupId}/members/{memberId}/resource-grants",
+            new { resourceType = "arrangement", resourceId = arr.Id, granted = false });
+        Assert.Equal(HttpStatusCode.NoContent, denyArrangement.StatusCode);
+        var childAllow = await ownerClient.PutAsJsonAsync(
+            $"/api/groups/{groupId}/members/{memberId}/resource-grants",
+            new { resourceType = "resource", resourceId = created.Id, granted = true });
+        Assert.Equal(HttpStatusCode.NoContent, childAllow.StatusCode);
+        Assert.NotEqual(HttpStatusCode.OK,
+            (await memberClient.GetAsync($"/api/groups/{groupId}/arrangements/{arr.Id}")).StatusCode);
+        Assert.NotEqual(HttpStatusCode.OK,
+            (await memberClient.GetAsync($"{basePath}/{created.Id}/content")).StatusCode);
+
+        var clearArrangement = await ownerClient.PutAsJsonAsync(
+            $"/api/groups/{groupId}/members/{memberId}/resource-grants",
+            new { resourceType = "arrangement", resourceId = arr.Id, granted = (bool?)null });
+        Assert.Equal(HttpStatusCode.NoContent, clearArrangement.StatusCode);
+
+        // A resource deny removes it from list, detail, and file content.
+        var denyResource = await ownerClient.PutAsJsonAsync(
+            $"/api/groups/{groupId}/members/{memberId}/resource-grants",
+            new { resourceType = "resource", resourceId = created.Id, granted = false });
+        Assert.Equal(HttpStatusCode.NoContent, denyResource.StatusCode);
+        var listedResources = await memberClient.GetAsync(basePath);
+        Assert.Equal(HttpStatusCode.OK, listedResources.StatusCode);
+        Assert.DoesNotContain(created.Id.ToString(), await listedResources.Content.ReadAsStringAsync());
+        Assert.NotEqual(HttpStatusCode.OK,
+            (await memberClient.GetAsync($"{basePath}/{created.Id}")).StatusCode);
+        Assert.NotEqual(HttpStatusCode.OK,
+            (await memberClient.GetAsync($"{basePath}/{created.Id}/content")).StatusCode);
+
         var linkContent = await ownerClient.PostAsJsonAsync(basePath, new
         {
             kind = "link",
@@ -136,6 +168,29 @@ public class FileResourceApiTests : IClassFixture<SonivoApiFactory>
         exe.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         badMime.Add(exe, "file", "a.exe");
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync(basePath, badMime)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Link_resource_rejects_unsafe_url_without_persisting_it()
+    {
+        var client = await CreateAuthenticatedClientAsync("resource-url-validation@example.com");
+        var group = await CreateGroupAsync(client, "Resource URL Band");
+        var song = await CreateSongAsync(client, group.Id, "Song");
+        var arrangement = await CreateArrangementAsync(client, group.Id, song.Id, "Arrangement");
+        var basePath = $"/api/groups/{group.Id}/arrangements/{arrangement.Id}/resources";
+
+        var response = await client.PostAsJsonAsync(basePath, new
+        {
+            kind = "link",
+            purpose = "reference",
+            label = "Unsafe link",
+            url = "javascript:alert(1)"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+        Assert.False(await db.Resources.AnyAsync(resource => resource.ArrangementId == arrangement.Id));
     }
 
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password = "Password1")

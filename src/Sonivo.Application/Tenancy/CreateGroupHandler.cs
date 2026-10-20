@@ -26,11 +26,16 @@ public sealed class CreateGroupHandler
 {
     private readonly IGroupStore _store;
     private readonly IClock _clock;
+    private readonly IGroupDatabaseScope? _databaseScope;
 
-    public CreateGroupHandler(IGroupStore store, IClock clock)
+    public CreateGroupHandler(
+        IGroupStore store,
+        IClock clock,
+        IGroupDatabaseScope? databaseScope = null)
     {
         _store = store;
         _clock = clock;
+        _databaseScope = databaseScope;
     }
 
     public async Task<GroupDto> HandleAsync(CreateGroupCommand command, CancellationToken cancellationToken)
@@ -45,6 +50,11 @@ public sealed class CreateGroupHandler
             var now = _clock.UtcNow;
             var slug = await AllocateSlugAsync(command.Name, cancellationToken);
             var group = Group.Create(command.Name, now, slug: slug);
+            if (_databaseScope is not null)
+            {
+                await _databaseScope.SetGroupForBootstrapAsync(group.Id, cancellationToken);
+            }
+
             var ownership = Membership.CreateOwner(group.Id, command.UserId, now);
             await _store.AddAsync(group, ownership, cancellationToken);
             await _store.SaveChangesAsync(cancellationToken);
@@ -75,8 +85,18 @@ public sealed class CreateGroupHandler
     {
         var baseSlug = GroupSlug.Slugify(name);
         var candidate = baseSlug;
-        for (var suffix = 2; await _store.SlugExistsAsync(candidate, cancellationToken); suffix++)
+        for (var suffix = 2; ; suffix++)
         {
+            if (_databaseScope is not null)
+            {
+                await _databaseScope.SetGroupSlugUniquenessLookupAsync(candidate, cancellationToken);
+            }
+
+            if (!await _store.SlugExistsAsync(candidate, cancellationToken))
+            {
+                break;
+            }
+
             if (suffix > 1000)
             {
                 throw new ValidationException("Could not allocate a unique group slug.");

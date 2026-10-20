@@ -49,16 +49,21 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
         builder.ToTable("Memberships");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Role).IsRequired();
+        builder.Property(x => x.NotifyRoleChanges).IsRequired().HasDefaultValue(true);
+        builder.Property(x => x.NotifyTaskAssignments).IsRequired().HasDefaultValue(true);
+        builder.Property(x => x.AccessDisabledAt);
         builder.Property(x => x.DisplayName).HasMaxLength(Membership.DisplayNameMaxLength);
         builder.Property(x => x.Handle).HasMaxLength(MembershipHandles.MaxLength);
         builder.Property(x => x.MusicalRole).HasMaxLength(Membership.MusicalRoleMaxLength);
+        builder.Property(x => x.Description).HasMaxLength(Membership.DescriptionMaxLength);
         builder.HasIndex(x => new { x.UserId, x.GroupId }).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
         builder.HasIndex(x => new { x.GroupId, x.Handle }).IsUnique().HasFilter("\"Handle\" IS NOT NULL");
         builder.Property(x => x.GroupRoleId);
         builder.HasOne<GroupRole>()
             .WithMany()
-            .HasForeignKey(x => x.GroupRoleId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .HasForeignKey(x => new { x.GroupId, x.GroupRoleId })
+            .HasPrincipalKey(x => new { x.GroupId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(x => x.GroupId);
         builder.HasIndex(x => x.UserId);
         builder.HasOne<ApplicationUser>()
@@ -96,9 +101,11 @@ public sealed class GroupRoleConfiguration : IEntityTypeConfiguration<GroupRole>
     {
         builder.ToTable("GroupRoles");
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.GroupId, x.Id });
         builder.Property(x => x.Name).IsRequired().HasMaxLength(60);
         builder.Property(x => x.Description).HasMaxLength(200);
         builder.Property(x => x.Permissions).IsRequired().HasMaxLength(500);
+        builder.Property(x => x.ExtendsBaseRole).IsRequired().HasDefaultValue(false);
         builder.HasIndex(x => new { x.GroupId, x.Name }).IsUnique();
         builder.HasIndex(x => x.GroupId);
         builder.HasOne<Group>()
@@ -128,6 +135,31 @@ public sealed class InvitationConfiguration : IEntityTypeConfiguration<Invitatio
         builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(x => x.AcceptedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    /// <summary>
+    /// ADR-0080: one row per (group, member, item). The unique index is what
+    /// makes "allow" and "deny" the same flip rather than two competing rows.
+    /// </summary>
+    private static void ConfigureResourceGrant(EntityTypeBuilder<ResourceGrant> builder)
+    {
+        builder.ToTable("ResourceGrants");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.GroupId, x.UserId, x.ResourceType, x.ResourceId }).IsUnique();
+        builder.HasIndex(x => new { x.GroupId, x.UserId });
+        builder.Property(x => x.ResourceType).HasMaxLength(32).IsRequired();
+        builder.HasOne<Group>()
+            .WithMany()
+            .HasForeignKey(x => x.GroupId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(x => x.GrantedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
