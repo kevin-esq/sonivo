@@ -1,8 +1,9 @@
+import { routes } from '../routing/routes'
 import { useT } from '../i18n'
 import { NotificationInbox } from './NotificationInbox'
 
 /**
- * `/account/notifications` — the account inbox (security/credentials). Distinct
+ * routes.accountNotifications — the account inbox (security/credentials). Distinct
  * from the group inbox shown in the group bell.
  */
 export function AccountNotificationsPage() {

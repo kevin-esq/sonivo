@@ -44,7 +44,7 @@ Rename / soft-delete remain covered at Application/API layers until UI exists.
 
 ```powershell
 docker compose up -d
-dotnet ef database update --project src/Sonivo.Infrastructure --startup-project src/Sonivo.Api
+./scripts/db/apply-migrations.ps1
 dotnet run --project src/Sonivo.Api --launch-profile http
 # other terminal:
 cd web; npm run dev --workspace @sonivo/app
@@ -52,9 +52,15 @@ cd web; npm run dev --workspace @sonivo/app
 cd e2e; npm ci; npx playwright install chromium; npm test
 ```
 
+`apply-migrations.ps1` is strictly local and always targets the Compose
+database on port 5433, even if an external migration connection is inherited in
+the shell. It must not be used as a production migration mechanism.
+
 Notes from the UI/UX redesign wave runs:
 
 - `npm run dev` (Next) is interactive; for a deterministic full-suite run, build and serve the production app instead — `cd web; NEXT_EXPORT=1 npm run build --workspace @sonivo/app; npx serve apps/app/out -l 5173` — and keep that server alive for the whole run.
+- Do not run a production `next build` for `@sonivo/app` while its Next dev server is active; both use the app's default `.next` output. Stop dev before building, then restart it to regenerate development bundles. If a dev page returns HTML for JavaScript bundles (`Unexpected token '<'`), restart the dev server and verify the bundle content types before browser testing.
+- For isolated browser checks beside an active Next server, set `NEXT_DIST_DIR=.next-e2e` on the second server and use a separate port (for example, 5174) with `API_ORIGIN` pointing to the isolated API. Set `Passkeys__AllowedOrigins` on that Development API to the exact browser origin; the default passkey allow-list only includes ports 5173. Run Playwright with `SONIVO_E2E_BASE_URL` set to the isolated browser origin.
 - The API needs the test hook for journeys that confirm users out of band: `$env:Auth__EnableTestHook='true'` before `dotnet run`.
 - Exercising the R2 blob path locally requires the dev-bucket credentials in the process environment (`R2__AccountId`, `R2__AccessKey`, `R2__Secret`, `R2__BucketName=sonivo-blobs-dev`); otherwise the API falls back to the filesystem store and file-Resource journeys run against disk.
 

@@ -11,6 +11,7 @@ public sealed class Membership
 {
     public const int MusicalRoleMaxLength = 64;
     public const int DisplayNameMaxLength = 200;
+    public const int DescriptionMaxLength = 500;
 
     public Guid Id { get; private set; }
     public Guid GroupId { get; private set; }
@@ -19,6 +20,12 @@ public sealed class Membership
 
     /// <summary>Person name; required for roster-only rows, optional otherwise.</summary>
     public string? DisplayName { get; private set; }
+
+    /// <summary>
+    /// Optional free-text note about the person (max <see cref="DescriptionMaxLength"/>),
+    /// e.g. what they do in the group. Set by an Owner or Manager; never authorizes.
+    /// </summary>
+    public string? Description { get; private set; }
 
     /// <summary>
     /// Optional login handle (ADR-0047), unique per group and stored separately
@@ -31,12 +38,22 @@ public sealed class Membership
     public string? MusicalRole { get; private set; }
 
     /// <summary>
-    /// Optional group-defined role (ADR-0078). Adds its permission set on top of
-    /// the base <see cref="Role"/>; null when the member only carries the base role.
+    /// Optional group-defined role (ADR-0082). New exact profiles replace the
+    /// base role's content permissions; migrated legacy roles may retain additive
+    /// behavior until an Owner explicitly converts them.
     /// </summary>
     public Guid? GroupRoleId { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
+
+    /// <summary>When non-null, this account is disabled in this Group only.</summary>
+    public DateTimeOffset? AccessDisabledAt { get; private set; }
+
+    /// <summary>Whether this recipient wants in-app role-change notices for this Group.</summary>
+    public bool NotifyRoleChanges { get; private set; } = true;
+
+    /// <summary>Whether this recipient wants in-app task-assignment notices for this Group.</summary>
+    public bool NotifyTaskAssignments { get; private set; } = true;
 
     public Group? Group { get; private set; }
 
@@ -78,11 +95,25 @@ public sealed class Membership
     /// <summary>A roster row without an account is a person, never a member with access.</summary>
     public bool HasAccess => UserId is not null;
 
+    public bool AccessEnabled => AccessDisabledAt is null;
+
     /// <summary>Owner or Manager: content management (repertoire, setlists, events).</summary>
     public bool CanManageContent => MembershipRoles.CanManageContent(Role);
 
     /// <summary>Owner, Manager or Member: RSVP and practice participation.</summary>
     public bool CanParticipate => MembershipRoles.CanParticipate(Role);
+
+    /// <summary>Updates only this recipient's Group-scoped in-app preferences.</summary>
+    public void SetNotificationPreferences(bool notifyRoleChanges, bool notifyTaskAssignments)
+    {
+        NotifyRoleChanges = notifyRoleChanges;
+        NotifyTaskAssignments = notifyTaskAssignments;
+    }
+
+    public void SetAccessEnabled(bool enabled, DateTimeOffset now)
+    {
+        AccessDisabledAt = enabled ? null : now;
+    }
 
     public void AssignRole(string role)
     {
@@ -150,7 +181,26 @@ public sealed class Membership
         MusicalRole = trimmed;
     }
 
-    /// <summary>Assigns (or clears, with null) the group-defined role (ADR-0078).</summary>
+    /// <summary>Sets or clears the free-text description about the person.</summary>
+    public void SetDescription(string? description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            Description = null;
+            return;
+        }
+
+        var trimmed = description.Trim();
+        if (trimmed.Length > DescriptionMaxLength)
+        {
+            throw new ArgumentException(
+                $"Description must be {DescriptionMaxLength} characters or fewer.", nameof(description));
+        }
+
+        Description = trimmed;
+    }
+
+    /// <summary>Assigns (or clears, with null) the group-defined role (ADR-0080).</summary>
     public void AssignGroupRole(Guid? groupRoleId)
     {
         GroupRoleId = groupRoleId is { } id && id == Guid.Empty ? null : groupRoleId;

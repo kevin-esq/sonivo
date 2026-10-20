@@ -86,7 +86,9 @@ public static class GoogleAuthSetup
             UserManager<ApplicationUser> users,
             SonivoDbContext db,
             IAccountAuditStore audit,
-            IClock clock) =>
+            IGroupDataOperation groupDataOperation,
+            IClock clock,
+            CancellationToken cancellationToken) =>
         {
             if (!googleConfigured && !testHook)
             {
@@ -102,7 +104,8 @@ public static class GoogleAuthSetup
                     title: "Bad Request");
             }
 
-            var completion = await ExternalLoginCompletion.CompleteAsync(info, users, db, audit, clock);
+            var completion = await ExternalLoginCompletion.CompleteAsync(
+                info, users, db, audit, groupDataOperation, clock, cancellationToken);
             if (!completion.Succeeded || completion.User is null)
             {
                 return Results.Problem(
@@ -129,7 +132,9 @@ public static class GoogleAuthSetup
                 UserManager<ApplicationUser> users,
                 SonivoDbContext db,
                 IAccountAuditStore audit,
-                IClock clock) =>
+                IGroupDataOperation groupDataOperation,
+                IClock clock,
+                CancellationToken cancellationToken) =>
             {
                 var claims = new List<Claim>
                 {
@@ -159,7 +164,8 @@ public static class GoogleAuthSetup
                     info.AuthenticationProperties.Items[NextItemKey] = safeNext;
                 }
 
-                var completion = await ExternalLoginCompletion.CompleteAsync(info, users, db, audit, clock);
+                var completion = await ExternalLoginCompletion.CompleteAsync(
+                    info, users, db, audit, groupDataOperation, clock, cancellationToken);
                 if (!completion.Succeeded || completion.User is null)
                 {
                     return Results.Problem(

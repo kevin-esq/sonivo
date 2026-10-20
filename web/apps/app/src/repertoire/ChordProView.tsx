@@ -35,14 +35,14 @@ function ChordProLineView({
   }
 
   if (line.kind === 'comment') {
-    return <p className="text-sm italic text-muted">{line.text}</p>
+    return <p className="text-sm italic text-[var(--color-score-muted)]">{line.text}</p>
   }
 
   if (line.kind === 'directive') {
     const section = sectionKey(line.name)
     if (section == null) return null
     return (
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-score-muted)]">
         {t(section === 'chorus' ? 'practice.chordpro.chorus' : 'practice.chordpro.verse')}
       </p>
     )
@@ -57,13 +57,13 @@ function ChordProLineView({
         <span key={index} className="inline-block whitespace-pre">
           {hasChord ? (
             <span
-              className="block min-h-[1.15em] text-sm font-semibold text-primary-ink"
+              className="block min-h-[1.15em] text-sm font-semibold text-[var(--color-score-accent)]"
               data-chord={segment.chord ?? undefined}
             >
               {segment.chord && segment.chord.length > 0 ? segment.chord : '\u00A0'}
             </span>
           ) : null}
-          <span className="block text-base text-ink">
+          <span className="block text-base text-[var(--color-score-ink)]">
             {segment.lyric.length > 0 ? segment.lyric : '\u00A0'}
           </span>
         </span>
@@ -102,7 +102,7 @@ export function ChordProView({
     <div
       className={
         className ??
-        'max-h-[min(70vh,40rem)] space-y-1 overflow-y-auto rounded-2xl bg-surface-hover p-5 font-sans'
+        'max-h-[min(70vh,40rem)] space-y-1 overflow-y-auto rounded-2xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] p-5 font-sans text-[var(--color-score-ink)]'
       }
       data-testid={testId}
     >
@@ -154,7 +154,7 @@ export function RehearsalBodyView({
   }
   return (
     <pre
-      className="max-h-[min(70vh,40rem)] overflow-y-auto whitespace-pre-wrap rounded-2xl bg-surface-hover p-5 font-sans text-base leading-relaxed text-ink"
+      className="max-h-[min(70vh,40rem)] overflow-y-auto whitespace-pre-wrap rounded-2xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] p-5 font-sans text-base leading-relaxed text-[var(--color-score-ink)]"
       data-testid={plainTestId}
     >
       {text}

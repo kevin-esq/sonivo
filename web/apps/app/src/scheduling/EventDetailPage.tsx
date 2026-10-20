@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -5,7 +6,6 @@ import { CalendarDays, Copy, Music2 } from 'lucide-react'
 import {
   applySetlistToEvent,
   cancelEvent,
-  deleteEvent,
   duplicateEvent,
   getEvent,
   isConflictError,
@@ -26,7 +26,6 @@ import { cn } from '../ui/cn'
 import { fieldClass } from '../ui/field'
 import { EmptyPanel, Field, FormActions, PageBreadcrumb, ReadinessChip } from '../repertoire/chrome'
 import {
-  CONFLICT_MESSAGE,
   ConfirmDialog,
   ConflictAlert,
   canManageContentRole,
@@ -101,11 +100,9 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
   const [editing, setEditing] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelling, setCancelling] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
   const [tab, setTab] = useState<DetailTab>('plan')
-  const { t } = useT()
+  const { t, lang } = useT()
 
   const isOwner = canManageContentRole(group?.role)
   const isLive = musicalEvent != null && isLiveEvent(musicalEvent.status)
@@ -119,7 +116,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       return
     }
     setRsvps(null)
-    setError(mutationErrorMessage(result.error))
+    setError(mutationErrorMessage(result.error, t))
   }
 
   async function loadEventSurface(nextGroupId: string, nextEventId: string) {
@@ -164,7 +161,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
         setMusicalEvent(null)
         setSetlists([])
         setRsvps(null)
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
       }
     }
     void load()
@@ -181,7 +178,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       await upsertEventRsvp(groupId, eventId, response)
       applyRsvpLoad(await loadEventRsvps(groupId, eventId))
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
     } finally {
       setSavingRsvp(false)
     }
@@ -205,15 +202,15 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       if (isConflictError(err) && hasPlan && !replaceConfirmed) {
         setConfirmReplace(true)
       } else if (isConflictError(err)) {
-        setConflict(CONFLICT_MESSAGE)
+        setConflict(t('common.errorConflict'))
         setConfirmReplace(false)
         try {
           await reload()
         } catch (reloadErr) {
-          setError(mutationErrorMessage(reloadErr))
+          setError(mutationErrorMessage(reloadErr, t))
         }
       } else {
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
         setConfirmReplace(false)
       }
     } finally {
@@ -237,18 +234,18 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
     try {
       await cancelEvent(groupId, eventId, musicalEvent.version)
       setConfirmCancel(false)
-      navigate(`/groups/${groupId}/events`)
+      navigate(routes.groupEvents(groupId))
     } catch (err) {
       if (isConflictError(err)) {
-        setConflict(CONFLICT_MESSAGE)
+        setConflict(t('common.errorConflict'))
         setConfirmCancel(false)
         try {
           await reload()
         } catch (reloadErr) {
-          setError(mutationErrorMessage(reloadErr))
+          setError(mutationErrorMessage(reloadErr, t))
         }
       } else {
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
         setConfirmCancel(false)
       }
     } finally {
@@ -263,53 +260,26 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
     setConflict(null)
     try {
       const duplicated = await duplicateEvent(groupId, eventId, musicalEvent.version)
-      navigate(`/groups/${groupId}/events/${duplicated.id}`)
+      navigate(routes.groupEvent(groupId, duplicated.id))
     } catch (err) {
       if (isConflictError(err)) {
-        setConflict(CONFLICT_MESSAGE)
+        setConflict(t('common.errorConflict'))
         try {
           await reload()
         } catch (reloadErr) {
-          setError(mutationErrorMessage(reloadErr))
+          setError(mutationErrorMessage(reloadErr, t))
         }
       } else {
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
       }
     } finally {
       setDuplicating(false)
     }
   }
 
-  async function handleDeleteEvent() {
-    if (!groupId || !eventId || !musicalEvent) return
-    setDeleting(true)
-    setError(null)
-    setConflict(null)
-    try {
-      await deleteEvent(groupId, eventId, musicalEvent.version)
-      setConfirmDelete(false)
-      navigate(`/groups/${groupId}/events`)
-    } catch (err) {
-      if (isConflictError(err)) {
-        setConflict(CONFLICT_MESSAGE)
-        setConfirmDelete(false)
-        try {
-          await reload()
-        } catch (reloadErr) {
-          setError(mutationErrorMessage(reloadErr))
-        }
-      } else {
-        setError(mutationErrorMessage(err))
-        setConfirmDelete(false)
-      }
-    } finally {
-      setDeleting(false)
-    }
-  }
-
   function handleShareEvent() {
     if (!groupId || !eventId) return
-    const url = `${window.location.origin}/groups/${groupId}/events/${eventId}`
+    const url = `${window.location.origin}${routes.groupEvent(groupId, eventId)}`
     void navigator.clipboard.writeText(url).then(() => {
       // Could show a toast here
     })
@@ -323,7 +293,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/home">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           Mis grupos
         </Link>
       </div>
@@ -340,7 +310,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
         <ProblemAlert message={error ?? t('event.notFound')} />
         <Link
           className="font-semibold text-primary-ink no-underline hover:underline"
-          to={`/groups/${group.id}/events`}
+          to={routes.groupEvents(group.id)}
         >
           {t('event.events')}
         </Link>
@@ -355,8 +325,8 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       <header data-testid="event-hero" className="space-y-3">
         <PageBreadcrumb
           items={[
-            { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/events`, label: t('schedule.eventsTitle') },
+            { to: routes.group(group.id), label: group.name },
+            { to: routes.groupEvents(group.id), label: t('schedule.eventsTitle') },
             { label: musicalEvent.title },
           ]}
         />
@@ -373,7 +343,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                 {musicalEvent.title}
               </h1>
               <p className="text-sm text-muted">
-                {formatEventType(musicalEvent.type, t)} · {formatStartsAt(musicalEvent.startsAt)}
+                {formatEventType(musicalEvent.type, t)} · {formatStartsAt(musicalEvent.startsAt, lang)}
                 {!isOwner ? <span> · {t('schedule.readonly')}</span> : null}
               </p>
             </div>
@@ -501,7 +471,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   setlists !== null && setlists.length === 0 ? (
                     <Link
                       className="font-semibold text-primary-ink no-underline hover:underline"
-                      to={`/groups/${group.id}/setlists`}
+                      to={routes.groupSetlists(group.id)}
                     >
                       {t('event.goSetlists')}
                     </Link>
@@ -521,7 +491,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                 ) : (
                   <Link
                     className="font-semibold text-primary-ink no-underline hover:underline"
-                    to={`/groups/${group.id}/library`}
+                    to={routes.groupLibrary(group.id)}
                   >
                     {t('event.goLibrary')}
                   </Link>
@@ -634,12 +604,12 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                 setConflict(null)
               }}
               onConflict={async () => {
-                setConflict(CONFLICT_MESSAGE)
+                setConflict(t('common.errorConflict'))
                 setEditing(false)
                 try {
                   await reload()
                 } catch (err) {
-                  setError(mutationErrorMessage(err))
+                  setError(mutationErrorMessage(err, t))
                 }
               }}
             />
@@ -652,7 +622,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               <div>
                 <dt className="text-sm text-muted">{t('event.startsAtLabel')}</dt>
                 <dd className="font-medium text-ink">
-                  {formatStartsAt(musicalEvent.startsAt)}
+                  {formatStartsAt(musicalEvent.startsAt, lang)}
                 </dd>
               </div>
               <div>
@@ -724,9 +694,6 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
             <Button variant="danger" onClick={() => setConfirmCancel(true)}>
               {t('event.cancelEvent')}
             </Button>
-            <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-              {t('event.deleteEvent')}
-            </Button>
           </div>
         </section>
       ) : null}
@@ -757,20 +724,6 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
       >
         <p>
           {t('event.cancelBody')}
-        </p>
-      </ConfirmDialog>
-      <ConfirmDialog
-        open={confirmDelete}
-        title={t('event.deleteTitle')}
-        confirmLabel={t('event.deleteEvent')}
-        cancelLabel={t('event.back')}
-        pendingLabel={t('event.deleting')}
-        pending={deleting}
-        onCancel={() => setConfirmDelete(false)}
-        onConfirm={() => void handleDeleteEvent()}
-      >
-        <p>
-          {t('event.deleteBody')}
         </p>
       </ConfirmDialog>
     </section>
@@ -845,7 +798,7 @@ function EventEditForm({
       if (isConflictError(err)) {
         await onConflict()
       } else {
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
       }
     } finally {
       setPending(false)

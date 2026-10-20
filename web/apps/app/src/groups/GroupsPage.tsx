@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -63,18 +64,18 @@ export type GroupCardData = GroupSummary & {
 };
 
 /**
- * Functions you must wire to the backend. While they are missing, the UI warns "coming soon"
- * instead of failing. All of them must throw an error if the operation fails.
+ * Backend actions required by the authenticated application route.
+ * All actions must throw an error if the operation fails.
  */
 export type GroupsPageActions = {
   /** Rename (owner only). */
-  onRename?: (group: GroupCardData, name: string) => Promise<void>;
+  onRename: (group: GroupCardData, name: string) => Promise<void>;
   /** Leave the group (members only). */
-  onLeave?: (group: GroupCardData) => Promise<void>;
+  onLeave: (group: GroupCardData) => Promise<void>;
   /** Delete the group (owner only). */
-  onDelete?: (group: GroupCardData) => Promise<void>;
+  onDelete: (group: GroupCardData) => Promise<void>;
   /** Create an invitation link and return its full URL. */
-  onCreateInvite?: (group: GroupCardData) => Promise<string>;
+  onCreateInvite: (group: GroupCardData) => Promise<string>;
 };
 
 type RoleFilter = "all" | "owner" | "member";
@@ -324,7 +325,7 @@ function NameForm({
     try {
       await onSubmit(value);
     } catch (err) {
-      setError(problemDetail(err));
+      setError(problemDetail(err, t));
       setPending(false);
     }
   }
@@ -399,7 +400,7 @@ function JoinForm({ onCancel, t }: { onCancel: () => void; t: TFn }) {
       inputRef.current?.focus();
       return;
     }
-    navigate(`/join/${token}`);
+    navigate(`${routes.joinInvitation(token)}`);
   }
 
   return (
@@ -472,7 +473,7 @@ function ConfirmForm({
     try {
       await onConfirm();
     } catch (err) {
-      setError(problemDetail(err));
+      setError(problemDetail(err, t));
       setPending(false);
     }
   }
@@ -686,7 +687,7 @@ function GroupCardItem({
 
   const stretchyLink = (clamp: "clamp" | "truncate") => (
     <Link
-      to={`/groups/${group.id}`}
+      to={routes.group(group.id)}
       title={group.name}
       aria-describedby={`${roleId} ${metaId}`}
       onClick={onOpen}
@@ -872,7 +873,7 @@ export function GroupsPage({
   actions,
 }: {
   user: CurrentUser;
-  actions?: GroupsPageActions;
+  actions: GroupsPageActions;
 }) {
   const { t, lang } = useT();
   const navigate = useNavigate();
@@ -912,7 +913,7 @@ export function GroupsPage({
         if (!cancelled) setGroups(data as GroupCardData[]);
       })
       .catch((err) => {
-        if (!cancelled) setLoadError(problemDetail(err));
+        if (!cancelled) setLoadError(problemDetail(err, t));
       });
     return () => {
       cancelled = true;
@@ -921,7 +922,6 @@ export function GroupsPage({
 
   const notify = (kind: "ok" | "error" | "info", text: string) =>
     showToast({ kind, text });
-  const soon = () => notify("info", t("groups.comingSoon"));
 
   function retry() {
     setGroups(null);
@@ -983,7 +983,6 @@ export function GroupsPage({
   );
 
   async function copyInvite(group: GroupCardData) {
-    if (!actions?.onCreateInvite) return soon();
     try {
       const url = await actions.onCreateInvite(group);
       const copied = await copy(url);
@@ -992,12 +991,12 @@ export function GroupsPage({
         copied ? t("groups.inviteCopied") : t("groups.copyFailed"),
       );
     } catch (err) {
-      notify("error", problemDetail(err));
+      notify("error", problemDetail(err, t));
     }
   }
 
   function menuFor(group: GroupCardData): MenuItem[] {
-    const base = `/groups/${group.id}`;
+    const base = routes.group(group.id);
     const owner = isOwner(group);
     const items: MenuItem[] = [
       {
@@ -1038,8 +1037,7 @@ export function GroupsPage({
           key: "rename",
           label: t("groups.actionRename"),
           icon: Pencil,
-          onSelect: () =>
-            actions?.onRename ? setDialog({ type: "rename", group }) : soon(),
+          onSelect: () => setDialog({ type: "rename", group }),
         },
         {
           key: "settings",
@@ -1053,8 +1051,7 @@ export function GroupsPage({
           icon: Trash2,
           danger: true,
           separatorBefore: true,
-          onSelect: () =>
-            actions?.onDelete ? setDialog({ type: "delete", group }) : soon(),
+          onSelect: () => setDialog({ type: "delete", group }),
         },
       );
     } else {
@@ -1064,8 +1061,7 @@ export function GroupsPage({
         icon: LogOut,
         danger: true,
         separatorBefore: true,
-        onSelect: () =>
-          actions?.onLeave ? setDialog({ type: "leave", group }) : soon(),
+        onSelect: () => setDialog({ type: "leave", group }),
       });
     }
     return items;
@@ -1211,7 +1207,7 @@ export function GroupsPage({
           {/* Quick access to the last opened group */}
           {lastGroup && total > 1 ? (
             <Link
-              to={`/groups/${lastGroup.id}`}
+              to={routes.group(lastGroup.id)}
               className="flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 no-underline hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <span className="min-w-0">
@@ -1419,7 +1415,7 @@ export function GroupsPage({
           onSubmit={async (name) => {
             const created = await createGroup(name);
             closeDialog();
-            navigate(`/groups/${created.id}`);
+            navigate(routes.group(created.id));
           }}
         />
       </Modal>

@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Calendar, CalendarDays, ChevronRight, Mic2, Search, Sparkles } from 'lucide-react'
@@ -38,7 +39,7 @@ function eventIcon(index: number) {
 export function EventListPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
   const { group, error: groupError, reload: reloadGroup } = useGroupContext(groupId, user.id)
-  const { t } = useT()
+  const { t, lang } = useT()
   const navigate = useNavigate()
   const [events, setEvents] = useState<EventListItem[] | null>(null)
   const [listError, setListError] = useState<string | null>(null)
@@ -82,7 +83,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       setEvents(await listEvents(groupId))
     } catch (err) {
       setEvents([])
-      setListError(mutationErrorMessage(err))
+      setListError(mutationErrorMessage(err, t))
     }
   }
 
@@ -98,7 +99,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       } catch (err) {
         if (cancelled) return
         setEvents([])
-        setListError(mutationErrorMessage(err))
+        setListError(mutationErrorMessage(err, t))
       }
     }
     void load()
@@ -121,7 +122,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <GroupErrorState message={groupError} onRetry={() => void reloadGroup()} />
-        <GroupLink variant="soft" to="/home">
+        <GroupLink variant="soft" to={routes.home}>
           {t('schedule.myGroups')}
         </GroupLink>
       </div>
@@ -140,7 +141,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
           title={t('schedule.eventsTitle')}
           subtitle={t('schedule.eventsSubtitle')}
           breadcrumb={[
-            { to: `/groups/${group.id}`, label: group.name },
+            { to: routes.group(group.id), label: group.name },
             { label: t('schedule.eventsTitle') },
           ]}
           actions={
@@ -205,7 +206,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
       <GroupLimitNotice
         label={t('plan.labelEvents')}
         metric={usage?.eventsThisMonth}
-        upgradeHref={`/groups/${group.id}/settings?tab=plan`}
+        upgradeHref={`${routes.groupSettings(group.id)}?tab=plan`}
       />
 
       {events === null ? (
@@ -229,7 +230,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                 {t('schedule.newEvent')}
               </GroupButton>
             ) : (
-              <GroupLink variant="soft" to={`/groups/${group.id}/library`}>
+              <GroupLink variant="soft" to={routes.groupLibrary(group.id)}>
                 {t('schedule.goLibrary')}
               </GroupLink>
             )
@@ -260,7 +261,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                 >
                   <Link
                     className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline shadow-sm transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
-                    to={`/groups/${group.id}/events/${musicalEvent.id}`}
+                    to={routes.groupEvent(group.id, musicalEvent.id)}
                   >
                     <GroupIconWell icon={Icon} />
                     <span className="min-w-0 flex-1">
@@ -268,7 +269,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                         {musicalEvent.title}
                       </span>
                       <span className="mt-0.5 block text-sm text-muted">
-                        {formatEventType(musicalEvent.type, t)} · {formatStartsAt(musicalEvent.startsAt)}
+                        {formatEventType(musicalEvent.type, t)} · {formatStartsAt(musicalEvent.startsAt, lang)}
                       </span>
                     </span>
                     <ReadinessChip
@@ -294,7 +295,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
             setShowCreate(false)
             void reload()
             void reloadUsage()
-            navigate(`/groups/${group.id}/events/${event.id}`)
+            navigate(routes.groupEvent(group.id, event.id))
           }}
         />
       ) : null}

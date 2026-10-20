@@ -1,4 +1,5 @@
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Tenancy;
 using Sonivo.Application.Billing;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Common;
@@ -44,17 +45,19 @@ public sealed class CreateSongHandler
     private readonly GroupAccessService _access;
     private readonly ISongStore _songs;
     private readonly IClock _clock;
+    private readonly IGroupAuditStore? _audit;
 
-    public CreateSongHandler(GroupAccessService access, ISongStore songs, IClock clock)
+    public CreateSongHandler(GroupAccessService access, ISongStore songs, IClock clock, IGroupAuditStore? audit = null)
     {
         _access = access;
         _songs = songs;
         _clock = clock;
+        _audit = audit;
     }
 
     public async Task<SongDetailDto> HandleAsync(CreateSongCommand command, CancellationToken cancellationToken)
     {
-        var (group, _) = await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        var (group, _) = await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.SongCreate, cancellationToken);
         PlanLimitGuard.EnsureWithinLimit(
             group.PlanId,
             PlanMetric.Songs,
@@ -72,6 +75,11 @@ public sealed class CreateSongHandler
                 command.Tags);
 
             await _songs.AddAsync(song, cancellationToken);
+            if (_audit is not null)
+            {
+                await _audit.AddAsync(GroupAuditEntry.Create(
+                    command.GroupId, GroupAuditEntry.ActionSongCreated, song.CreatedAt, actorUserId: command.UserId), cancellationToken);
+            }
             await _songs.SaveChangesAsync(cancellationToken);
 
             return ToDetail(song, arrangementCount: 0);

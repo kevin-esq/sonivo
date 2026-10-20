@@ -18,9 +18,11 @@ so **every existing route works in Next immediately**:
 
 ## Deployment model
 
-- **Production:** `NEXT_EXPORT=1 next build` → static `out/` → copied to the .NET
-  host's `wwwroot`. The .NET host serves it with an SPA fallback to `index.html`
-  (same origin, so `/api` and `/hubs` need no proxy). Single-image model preserved.
+- **Staging (Render):** `NEXT_EXPORT=1 next build` → static `out/` → copied to
+  the .NET host's `wwwroot`. The host serves it with an SPA fallback to
+  `index.html` (same origin, so `/api` and `/hubs` need no proxy).
+- **Production (Vercel):** Next server/BFF build without `NEXT_EXPORT`; server
+  rewrites proxy `/api` and `/hubs` to the .NET API, as decided by ADR-0069.
 - **Dev/CI:** `next dev -p 5173` proxies `/api` + `/hubs` to the API and serves a
   SPA fallback for deep links.
 

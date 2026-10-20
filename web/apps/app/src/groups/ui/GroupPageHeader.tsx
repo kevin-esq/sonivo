@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '../../ui/cn'
 import { GroupIconWell } from './GroupCard'
 import { useT } from '../../i18n'
+import { useBrandPreview } from '../../shell/brandPreview'
+import { routes } from '../../routing/routes'
 
 export type GroupBreadcrumbItem = { to?: string; label: string }
 
@@ -16,10 +18,20 @@ export function GroupBreadcrumb({
   className?: string
 }) {
   const { t } = useT()
+  const { groupId } = useParams()
+  const { draft } = useBrandPreview()
+  const firstItem = items[0]
+  const previewName = draft && draft.groupId === groupId
+    ? draft.displayName.trim() || draft.groupName
+    : ''
+  const groupPath = groupId ? routes.group(groupId) : null
+  const visibleItems = firstItem?.to === groupPath && previewName
+    ? [{ ...firstItem, label: previewName }, ...items.slice(1)]
+    : items
   return (
     <nav aria-label={t('a11y.breadcrumb')} className={cn('text-sm text-muted', className)}>
       <ol className="flex flex-wrap items-center gap-1">
-        {items.map((item, index) => (
+        {visibleItems.map((item, index) => (
           <li key={`${item.label}-${index}`} className="flex items-center gap-1">
             {index > 0 ? <span aria-hidden="true">/</span> : null}
             {item.to ? (
@@ -71,10 +83,10 @@ export function GroupPageHeader({
   className,
 }: GroupPageHeaderProps) {
   return (
-    <header className={cn('space-y-4', className)}>
+    <header className={cn('group-page-header space-y-4', className)}>
       {breadcrumb?.length ? <GroupBreadcrumb items={breadcrumb} /> : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
+        <div className="flex min-w-[12rem] flex-1 items-start gap-3">
           {icon ? <GroupIconWell icon={icon} size="lg" /> : null}
           <div className="min-w-0 space-y-1">
             <h1
@@ -86,7 +98,11 @@ export function GroupPageHeader({
             {subtitle ? <p className="text-sm text-muted sm:text-base">{subtitle}</p> : null}
           </div>
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? (
+          <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
+            {actions}
+          </div>
+        ) : null}
       </div>
       {children}
     </header>

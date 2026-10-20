@@ -32,6 +32,17 @@ public sealed class ValidationException : AppException
     }
 }
 
+public sealed class UploadLimitException : AppException
+{
+    public UploadLimitException(long maximumBytes)
+        : base($"File exceeds the current upload limit ({maximumBytes} bytes).")
+    {
+        MaximumBytes = maximumBytes;
+    }
+
+    public long MaximumBytes { get; }
+}
+
 public sealed class ConflictException : AppException
 {
     public ConflictException(string message)

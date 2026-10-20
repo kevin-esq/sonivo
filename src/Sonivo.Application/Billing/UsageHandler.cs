@@ -59,7 +59,8 @@ public sealed class GetGroupUsageHandler
         var plan = PlanCatalog.Get(group.PlanId);
         var now = _clock.UtcNow;
 
-        var members = (await _memberships.ListByGroupAsync(groupId, cancellationToken)).Count;
+        var members = (await _memberships.ListByGroupAsync(groupId, cancellationToken))
+            .Count(membership => membership.AccessEnabled);
         var songs = (await _songs.ListByGroupAsync(groupId, cancellationToken)).Count;
         var setlists = (await _setlists.ListByGroupAsync(groupId, cancellationToken)).Count;
         var eventsThisMonth = (await _events.ListActiveByGroupAsync(groupId, cancellationToken))

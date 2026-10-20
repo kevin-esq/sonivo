@@ -2,9 +2,14 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Notifications;
+using Sonivo.Domain.Tenancy;
+using Sonivo.Infrastructure.Identity;
+using Sonivo.Infrastructure.Persistence;
 
 namespace Sonivo.Api.Tests;
 
@@ -100,6 +105,92 @@ public class NotificationsApiTests : IClassFixture<NotificationsOnFactory>, ICla
         Assert.Contains(sender.Sent, m => m.To == email && m.Subject.Contains("Asistencia"));
     }
 
+    [Fact]
+    public async Task Group_notification_preferences_belong_to_the_current_member_and_control_delivery()
+    {
+        const string ownerEmail = "notification-preferences-owner@example.com";
+        const string memberEmail = "notification-preferences-member@example.com";
+        var owner = await CreateAuthenticatedClientAsync(_factoryOn, ownerEmail);
+        var group = await CreateGroupAsync(owner, "Preferences Band");
+        var member = await CreateAuthenticatedClientAsync(_factoryOn, memberEmail);
+        ApplicationUser? memberUser;
+        using (var identityScope = _factoryOn.Services.CreateScope())
+        {
+            memberUser = await identityScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>()
+                .FindByEmailAsync(memberEmail);
+        }
+        Assert.NotNull(memberUser);
+
+        using (var scope = _factoryOn.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            db.Memberships.Add(Membership.CreateMember(group.Id, memberUser!.Id, DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+        }
+
+        var initial = await member.GetFromJsonAsync<PreferencesResponse>(
+            $"/api/groups/{group.Id}/notification-preferences");
+        Assert.NotNull(initial);
+        Assert.True(initial.NotifyRoleChanges);
+        Assert.True(initial.NotifyTaskAssignments);
+
+        var saved = await member.PutAsJsonAsync(
+            $"/api/groups/{group.Id}/notification-preferences",
+            new { notifyRoleChanges = false, notifyTaskAssignments = false });
+        Assert.Equal(HttpStatusCode.NoContent, saved.StatusCode);
+
+        var mutedRoleChange = await owner.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/members/{memberUser!.Id}/role", new { role = MembershipRoles.Viewer });
+        Assert.Equal(HttpStatusCode.NoContent, mutedRoleChange.StatusCode);
+        var mutedRoleInbox = await member.GetFromJsonAsync<NotificationInboxResponse>(
+            $"/api/notifications?scope=group&groupId={group.Id}");
+        Assert.NotNull(mutedRoleInbox);
+        Assert.DoesNotContain(mutedRoleInbox.Items, item => item.Kind == Notification.KindRoleChanged);
+
+        var task = await owner.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/tasks",
+            new { title = "Assigned while muted", notes = (string?)null, dueAt = (DateTimeOffset?)null, assigneeUserId = memberUser!.Id });
+        Assert.Equal(HttpStatusCode.Created, task.StatusCode);
+
+        var mutedInbox = await member.GetFromJsonAsync<NotificationInboxResponse>(
+            $"/api/notifications?scope=group&groupId={group.Id}");
+        Assert.NotNull(mutedInbox);
+        Assert.DoesNotContain(mutedInbox.Items, item => item.Kind == Notification.KindTaskAssigned);
+
+        var reenabled = await member.PutAsJsonAsync(
+            $"/api/groups/{group.Id}/notification-preferences",
+            new { notifyRoleChanges = true, notifyTaskAssignments = true });
+        Assert.Equal(HttpStatusCode.NoContent, reenabled.StatusCode);
+
+        var enabledRoleChange = await owner.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/members/{memberUser!.Id}/role", new { role = MembershipRoles.Member });
+        Assert.Equal(HttpStatusCode.NoContent, enabledRoleChange.StatusCode);
+
+        var secondTask = await owner.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/tasks",
+            new { title = "Assigned while enabled", notes = (string?)null, dueAt = (DateTimeOffset?)null, assigneeUserId = memberUser!.Id });
+        Assert.Equal(HttpStatusCode.Created, secondTask.StatusCode);
+
+        var enabledInbox = await member.GetFromJsonAsync<NotificationInboxResponse>(
+            $"/api/notifications?scope=group&groupId={group.Id}");
+        Assert.NotNull(enabledInbox);
+        Assert.Contains(enabledInbox.Items, item => item.Kind == Notification.KindTaskAssigned);
+        Assert.Contains(enabledInbox.Items, item => item.Kind == Notification.KindRoleChanged);
+
+        // Account security notifications are a separate scope and are unaffected by Group settings.
+        using var accountScope = _factoryOn.Services.CreateScope();
+        var accountDb = accountScope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+        accountDb.Notifications.Add(Notification.Create(
+            memberUser!.Id,
+            NotificationScope.Account,
+            Notification.KindPasswordChanged,
+            DateTimeOffset.UtcNow));
+        await accountDb.SaveChangesAsync();
+        var accountInbox = await member.GetFromJsonAsync<NotificationInboxResponse>("/api/notifications?scope=account");
+        Assert.NotNull(accountInbox);
+        Assert.Contains(accountInbox.Items, item => item.Kind == Notification.KindPasswordChanged);
+    }
+
     private static async Task<HttpClient> CreateAuthenticatedClientAsync(
         WebApplicationFactory<Program> factory,
         string email,
@@ -142,6 +233,9 @@ public class NotificationsApiTests : IClassFixture<NotificationsOnFactory>, ICla
 
     private sealed record GroupResponse(Guid Id, string Name, string? Slug);
     private sealed record EventResponse(Guid Id, string Title);
+    private sealed record PreferencesResponse(bool NotifyRoleChanges, bool NotifyTaskAssignments);
+    private sealed record NotificationInboxResponse(int UnreadCount, IReadOnlyList<NotificationResponse> Items);
+    private sealed record NotificationResponse(Guid Id, string Kind);
 }
 
 /// <summary>Captures outbound email instead of hitting the email transport.</summary>

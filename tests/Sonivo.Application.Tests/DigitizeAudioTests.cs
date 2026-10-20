@@ -167,7 +167,7 @@ public class DigitizeAudioTests
         var store = new InMemoryDigitizeJobStore(new FixedClock(Now));
         var groupId = Guid.NewGuid();
         var arrangementId = Guid.NewGuid();
-        var job = store.Create(groupId, arrangementId, Guid.NewGuid(), Now);
+        var job = store.Create(Guid.NewGuid(), groupId, arrangementId, Guid.NewGuid(), Now);
 
         Assert.NotNull(store.GetScoped(job.Id, groupId, arrangementId, Now));
         Assert.Null(store.GetScoped(job.Id, Guid.NewGuid(), arrangementId, Now));
@@ -243,7 +243,7 @@ public class DigitizeAudioTests
         Assert.NotNull(job.Segments);
         Assert.Equal(2, job.Segments.Count);
         Assert.Equal(0, job.Segments[0].StartMs);
-        Assert.Null(job.Error);
+        Assert.Null(job.ErrorCode);
         Assert.Equal(versionBefore, ctx.Arrangements.Items.Single().Version);
         Assert.Null(ctx.Arrangements.Items.Single().ChordTimingJson);
     }
@@ -268,8 +268,29 @@ public class DigitizeAudioTests
 
         var job = jobs.Get(started.JobId, Now)!;
         Assert.Equal(DigitizeJobStatus.Failed, job.Status);
-        Assert.Contains("500", job.Error);
+        Assert.Equal(DigitizeJobErrorCodes.TooManySegments, job.ErrorCode);
         Assert.Empty(job.Segments);
+    }
+
+    [Fact]
+    public async Task Runner_rechecks_membership_before_reading_group_resource_or_blob()
+    {
+        var ctx = await SeedOwnerMemberWithArrangementAsync();
+        var file = FileResource(ctx.ArrangementId, ResourcePurposes.Audio, "audio/wav", "g.wav", 64, objectKey: "k");
+        ctx.Resources.Add(file);
+        ctx.Blobs.Add("k", [1]);
+        var (runner, jobs) = Runner(ctx, new FakeTranscriber(_ => []));
+        var started = await new StartDigitizeJobHandler(
+                new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources, jobs, new FixedClock(Now))
+            .HandleAsync(new StartDigitizeJobCommand(ctx.Owner, ctx.GroupId, ctx.ArrangementId, file.Id), CancellationToken.None);
+
+        ctx.Groups.Memberships.RemoveAll(m => m.UserId == ctx.Owner);
+        await runner.ProcessAsync(started.JobId, CancellationToken.None);
+
+        var job = jobs.Get(started.JobId, Now)!;
+        Assert.Equal(DigitizeJobStatus.Failed, job.Status);
+        Assert.Empty(ctx.Blobs.ReadKeys);
+        Assert.Equal(ctx.Owner, job.UserId);
     }
 
     [Fact]
@@ -292,7 +313,7 @@ public class DigitizeAudioTests
 
         var job = jobs.Get(started.JobId, Now)!;
         Assert.Equal(DigitizeJobStatus.Failed, job.Status);
-        Assert.Contains("120", job.Error);
+        Assert.Equal(DigitizeJobErrorCodes.AudioTooLong, job.ErrorCode);
     }
 
     [Fact]
@@ -312,7 +333,7 @@ public class DigitizeAudioTests
 
         var job = jobs.Get(started.JobId, Now)!;
         Assert.Equal(DigitizeJobStatus.Failed, job.Status);
-        Assert.Equal("Audio ilegible.", job.Error);
+        Assert.Equal(DigitizeJobErrorCodes.TranscriptionFailed, job.ErrorCode);
     }
 
     [Fact]
@@ -394,7 +415,8 @@ public class DigitizeAudioTests
         var jobs = new InMemoryDigitizeJobStore(new FixedClock(Now));
         var options = Options.Create(new DigitizeOptions { MaxAudioSeconds = maxAudioSeconds });
         var runner = new DigitizeJobRunner(
-            jobs, ctx.Arrangements, ctx.Resources, ctx.Blobs, transcriber,
+            jobs, new GroupAccessService(ctx.Groups), new DirectGroupDataOperation(),
+            ctx.Arrangements, ctx.Resources, ctx.Blobs, transcriber,
             options, new FixedClock(Now), NullLogger<DigitizeJobRunner>.Instance);
         return (runner, jobs);
     }
@@ -535,16 +557,34 @@ public class DigitizeAudioTests
     private sealed class FakeBlobStore : IBlobStore
     {
         private readonly Dictionary<string, byte[]> _blobs = new();
+        public List<string> ReadKeys { get; } = [];
         public void Add(string objectKey, byte[] bytes) => _blobs[objectKey] = bytes;
 
         public Task PutAsync(string objectKey, Stream content, string contentType, long byteSize, CancellationToken cancellationToken)
             => Task.CompletedTask;
 
         public Task<BlobContent?> GetAsync(string objectKey, CancellationToken cancellationToken)
-            => Task.FromResult(_blobs.TryGetValue(objectKey, out var bytes)
+        {
+            ReadKeys.Add(objectKey);
+            return Task.FromResult(_blobs.TryGetValue(objectKey, out var bytes)
                 ? new BlobContent(new MemoryStream(bytes, writable: false), "audio/wav", bytes.Length)
                 : null);
+        }
 
         public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class DirectGroupDataOperation : IGroupDataOperation
+    {
+        public Task<T> ExecuteInTransactionAsync<T>(
+            Func<CancellationToken, Task<T>> operation,
+            CancellationToken cancellationToken)
+            => operation(cancellationToken);
+
+        public Task<T> ExecuteAsUserAsync<T>(
+            Guid userId,
+            Func<CancellationToken, Task<T>> operation,
+            CancellationToken cancellationToken)
+            => operation(cancellationToken);
     }
 }

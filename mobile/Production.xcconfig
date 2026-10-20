@@ -1,0 +1,4 @@
+// Public native-client endpoints for production. Never place credentials here.
+API_BASE_URL = https://api.sonivo.lat
+OIDC_ISSUER = https://api.sonivo.lat
+WEB_BASE_URL = https://app.sonivo.lat

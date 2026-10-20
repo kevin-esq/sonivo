@@ -7,6 +7,12 @@
 (**V2**), the corrections to a circulated "security setup" tutorial, and the
 concrete changes adopted in this repository.
 
+**Historical scope note:** the stack statements below about Vite and "no Next.js"
+describe Sonivo as assessed on 2026-10-05. ADR-0067 later authorized the Next.js
+App Router frontend; current stack truth is in
+[`../00-context/CONTEXT.md`](../00-context/CONTEXT.md). Do not use those dated
+statements as current implementation guidance.
+
 ---
 
 ## 1. How MCP servers are installed (OpenCode V2)
@@ -74,9 +80,9 @@ Skills are **file-discovered**, not "installed" by a command.
 | **Tab** toggles Plan/Build | ❌ V2 cycles agents with **Shift+Tab** (`agent.cycle`). |
 | `/mcps` + Space | ✅ Correct (`mcp.list`, `dialog.mcp.toggle` = space). |
 
-The tutorial also targeted a **Next.js** stack; Sonivo is React 19 + Vite +
-Tailwind (frontend) and .NET 10 / ASP.NET Core (backend), so its "skills" were
-re-authored to match this repo.
+At the time of this assessment, the tutorial targeted a **Next.js** stack while
+Sonivo was React 19 + Vite + Tailwind on the frontend and .NET 10 / ASP.NET Core
+on the backend, so its "skills" were re-authored to match the then-current repo.
 
 ## 4. Adopted for Sonivo (2026-10-05)
 
@@ -106,8 +112,8 @@ Under `.agents/skills/` (Sonivo-only, per ADR-0041):
 
 - `dotnet-secure-architecture` — ASP.NET Core / EF Core / Identity / tenancy
   hardening and review.
-- `react-frontend-security` — React 19 / Vite / Tailwind XSS, env-leak, token and
-  client-authz review.
+- `react-frontend-security` — authored for the then-current React 19 / Vite /
+  Tailwind frontend; it has since been updated for Next.js App Router.
 
 ### 4.4 GitHub MCP server (ADR-0065)
 
@@ -148,8 +154,8 @@ Windows.
   account token / desktop app) is an alternative and was **not** added.
 - `validation-symmetry` skill: server-authoritative validation with client
   symmetry. The circulated "Zod + FluentValidation" rule is **not** literal here —
-  Sonivo is React 19 + Vite (no Next.js) and uses neither library; introducing
-  either requires approval.
+  at the time Sonivo used React 19 + Vite and neither library; introducing either
+  still requires approval.
 
 ## 5. Verification
 

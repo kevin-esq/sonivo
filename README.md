@@ -15,9 +15,12 @@ replacing a DAW or a distributor.
 
 ## Status
 
-Phases **0–3.9 are CLOSED/COMPLETED** and Gate B is closed. Product truth lives in
-[`docs/00-context/CONTEXT.md`](docs/00-context/CONTEXT.md); accepted decisions and
-their scope firewalls live in
+Phases **0–3.9 are CLOSED/COMPLETED** and Gate B is closed. Product completion
+Phases **4.0** (insights, audit, onboarding, Help), **4.1** (hierarchical
+repertoire access), and **4.2** (PostgreSQL RLS defense in depth) are authorized
+and in progress; 4.2 remains ticket-gated and has no active RLS policies yet.
+Product truth lives in [`docs/00-context/CONTEXT.md`](docs/00-context/CONTEXT.md);
+accepted decisions and their scope firewalls live in
 [`docs/03-architecture/DECISIONS.md`](docs/03-architecture/DECISIONS.md).
 
 The backend is on **.NET 10 / C# 14** (native upgrade, PR
@@ -33,7 +36,7 @@ SDK/runtime.
 | Layer | Technology |
 | --- | --- |
 | Backend | .NET 10 / ASP.NET Core Web API (minimal APIs), C# 14, EF Core 10, ASP.NET Core Identity, PostgreSQL (Npgsql), SignalR |
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4; Node.js 20; `oxlint` |
+| Frontend | Next.js App Router, React 19, TypeScript, Tailwind CSS 4; Node.js 20+ |
 | Tests | xUnit (domain / application / API / integration), Playwright critical journeys, PostgreSQL-backed CI |
 | Storage | PostgreSQL by default; Cloudflare R2 optional blob backend (ADR-0035) |
 
@@ -56,7 +59,7 @@ tests/
   Sonivo.Application.Tests/
   Sonivo.Api.Tests/
   Sonivo.Integration.Tests/  # EF model + PostgreSQL-backed
-web/apps/app/              # React 19 + Vite + Tailwind SPA
+web/apps/app/                # Next.js App Router app (React 19 + Tailwind CSS 4)
 e2e/                         # Playwright critical journeys
 docs/                        # product, domain, architecture, tooling
 .github/workflows/           # ci.yml, codeql.yml, security.yml
@@ -93,18 +96,36 @@ docker compose up -d
 docker compose exec postgres pg_isready -U sonivo -d sonivo_dev
 ```
 
-Development connection (`src/Sonivo.Api/appsettings.Development.json`):
+The runtime uses the constrained `sonivo_app` database role. The compose
+bootstrap creates it on a fresh database; apply it to an existing local volume
+once with:
 
-`Host=localhost;Port=5433;Database=sonivo_dev;Username=sonivo;Password=sonivo`
-(development-only credentials).
+```powershell
+./scripts/db/bootstrap-rls-roles.ps1
+```
+
+After provisioning or updating the role, run
+`./scripts/db/apply-migrations.ps1` to apply the reviewed table grants and
+verify the connected runtime principal before starting the API. This helper is
+local-only and always forces the Compose database at `localhost:5433`; it
+ignores inherited `SONIVO_MIGRATION_CONNECTION` values. Production migrations
+must use the separate operator-controlled deployment procedure below.
+
+Development runtime connection (`src/Sonivo.Api/appsettings.Development.json`):
+
+`Host=localhost;Port=5433;Database=sonivo_dev;Username=sonivo_app;Password=sonivo-app-dev-only`
+(development-only credentials). The `sonivo` owner account is reserved for
+local migrations; `./scripts/db/apply-migrations.ps1` updates the schema and
+applies the reviewed runtime table grants. Run it before starting the API on a
+new database or after changing migrations.
 
 ### 2. Backend
 
 ```powershell
 dotnet restore Sonivo.slnx
+./scripts/db/apply-migrations.ps1
 dotnet build Sonivo.slnx
 dotnet test Sonivo.slnx          # requires PostgreSQL for the integration project
-dotnet ef database update --project src/Sonivo.Infrastructure --startup-project src/Sonivo.Api
 dotnet run --project src/Sonivo.Api --launch-profile http
 ```
 
@@ -118,11 +139,11 @@ npm install
 npm run dev
 ```
 
-Vite: `http://localhost:5173` (proxies `/api` and `/hubs` to the API).
+Next.js dev server: `http://localhost:5173` (proxies `/api` and `/hubs` to the API).
 
 ## Playwright E2E
 
-With PostgreSQL, the API, and the Vite dev server running:
+With PostgreSQL, the API, and the Next.js dev server running:
 
 ```powershell
 cd e2e

@@ -22,10 +22,11 @@ public sealed class InMemoryDigitizeJobStore : IDigitizeJobStore
         _clock = clock;
     }
 
-    public DigitizeJob Create(Guid groupId, Guid arrangementId, Guid resourceId, DateTimeOffset now)
+    public DigitizeJob Create(Guid userId, Guid groupId, Guid arrangementId, Guid resourceId, DateTimeOffset now)
     {
+        ArgumentOutOfRangeException.ThrowIfEqual(userId, Guid.Empty);
         PurgeExpired(now);
-        var job = new DigitizeJob(Guid.NewGuid(), groupId, arrangementId, resourceId, now);
+        var job = new DigitizeJob(Guid.NewGuid(), userId, groupId, arrangementId, resourceId, now);
         _jobs[job.Id] = job;
         return job;
     }
@@ -84,20 +85,20 @@ public sealed class InMemoryDigitizeJobStore : IDigitizeJobStore
             lock (job)
             {
                 job.Segments = segments;
-                job.Error = null;
+                job.ErrorCode = null;
                 job.Status = DigitizeJobStatus.Done;
             }
         }
     }
 
-    public void Fail(Guid jobId, string error)
+    public void Fail(Guid jobId, string errorCode)
     {
         if (_jobs.TryGetValue(jobId, out var job))
         {
             lock (job)
             {
                 job.Segments = [];
-                job.Error = error;
+                job.ErrorCode = errorCode;
                 job.Status = DigitizeJobStatus.Failed;
             }
         }

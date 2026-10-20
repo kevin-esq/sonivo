@@ -22,12 +22,14 @@ public sealed class DigitizeJob
 {
     public DigitizeJob(
         Guid id,
+        Guid userId,
         Guid groupId,
         Guid arrangementId,
         Guid resourceId,
         DateTimeOffset createdAt)
     {
         Id = id;
+        UserId = userId;
         GroupId = groupId;
         ArrangementId = arrangementId;
         ResourceId = resourceId;
@@ -35,12 +37,13 @@ public sealed class DigitizeJob
     }
 
     public Guid Id { get; }
+    public Guid UserId { get; }
     public Guid GroupId { get; }
     public Guid ArrangementId { get; }
     public Guid ResourceId { get; }
     public DigitizeJobStatus Status { get; set; } = DigitizeJobStatus.Queued;
     public IReadOnlyList<DigitizeJobSegment> Segments { get; set; } = [];
-    public string? Error { get; set; }
+    public string? ErrorCode { get; set; }
     public DateTimeOffset CreatedAt { get; }
 }
 
@@ -49,7 +52,7 @@ public sealed class DigitizeJob
 /// </summary>
 public interface IDigitizeJobStore
 {
-    DigitizeJob Create(Guid groupId, Guid arrangementId, Guid resourceId, DateTimeOffset now);
+    DigitizeJob Create(Guid userId, Guid groupId, Guid arrangementId, Guid resourceId, DateTimeOffset now);
 
     /// <summary>Unscoped read for the background runner; null when missing or expired.</summary>
     DigitizeJob? Get(Guid jobId, DateTimeOffset now);
@@ -65,5 +68,5 @@ public interface IDigitizeJobStore
 
     void Complete(Guid jobId, IReadOnlyList<DigitizeJobSegment> segments);
 
-    void Fail(Guid jobId, string error);
+    void Fail(Guid jobId, string errorCode);
 }

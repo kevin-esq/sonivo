@@ -3,6 +3,7 @@ using Sonivo.Application.Billing;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Common;
 using Sonivo.Domain.Scheduling;
+using Sonivo.Domain.Tenancy;
 
 namespace Sonivo.Application.Scheduling;
 
@@ -46,7 +47,7 @@ public sealed class CreateSetlistHandler
 
     public async Task<SetlistDetailDto> HandleAsync(CreateSetlistCommand command, CancellationToken cancellationToken)
     {
-        var (group, _) = await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        var (group, _) = await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.SetlistCreate, cancellationToken);
         PlanLimitGuard.EnsureWithinLimit(
             group.PlanId,
             PlanMetric.Setlists,
@@ -98,7 +99,8 @@ public sealed class ListSetlistsHandler
         Guid groupId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
+        await _access.RequirePermissionAsync(
+            groupId, userId, GroupPermissions.SetlistView, cancellationToken);
         var setlists = await _setlists.ListByGroupAsync(groupId, cancellationToken);
         return setlists
             .Select(s => CreateSetlistHandler.ToListItem(s, s.Items.Count))
@@ -131,7 +133,8 @@ public sealed class GetSetlistHandler
         Guid setlistId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
+        await _access.RequirePermissionAsync(
+            groupId, userId, GroupPermissions.SetlistView, cancellationToken);
 
         var setlist = await _setlists.GetByIdWithItemsAsync(groupId, setlistId, cancellationToken);
         if (setlist is null)
@@ -219,7 +222,7 @@ public sealed class UpdateSetlistHandler
 
     public async Task<SetlistDetailDto> HandleAsync(UpdateSetlistCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.SetlistEdit, cancellationToken);
 
         var setlist = await _setlists.GetByIdWithItemsAsync(command.GroupId, command.SetlistId, cancellationToken);
         if (setlist is null)
@@ -288,7 +291,7 @@ public sealed class ReplaceSetlistItemsHandler
         ReplaceSetlistItemsCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.SetlistEdit, cancellationToken);
 
         var setlist = await _setlists.GetByIdWithItemsAsync(command.GroupId, command.SetlistId, cancellationToken);
         if (setlist is null)

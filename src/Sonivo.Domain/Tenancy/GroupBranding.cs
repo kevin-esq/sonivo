@@ -16,7 +16,8 @@ public sealed class GroupBranding : IVersionedEntity
     public const int MaxVerseLength = 200;
     public const int MaxCoverValueLength = 32;
 
-    private static readonly string[] CoverKinds = ["emoji", "gradient"];
+    private static readonly string[] CoverKinds = ["emoji", "gradient", "preset"];
+    private static readonly string[] CoverPresets = ["soundwave", "stage", "vinyl", "choir"];
     private static readonly string[] Themes = ["light", "dark", "system"];
     private static readonly string[] Locales = ["es", "en"];
     // Curated display faces (ADR-0070). Kept in sync with the web
@@ -117,6 +118,10 @@ public sealed class GroupBranding : IVersionedEntity
         GradientStyle = CleanEnum(gradientStyle, GradientStyles, nameof(gradientStyle));
         CoverKind = CleanEnum(coverKind, CoverKinds, nameof(coverKind));
         CoverValue = CleanOptional(coverValue, MaxCoverValueLength, nameof(coverValue));
+        if (CoverKind == "preset" && !CoverPresets.Contains(CoverValue, StringComparer.Ordinal))
+        {
+            throw new ArgumentException("CoverValue must be a supported preset identifier.", nameof(coverValue));
+        }
         ThemeDefault = CleanEnum(themeDefault, Themes, nameof(themeDefault));
         DefaultLocale = CleanEnum(defaultLocale, Locales, nameof(defaultLocale));
         WelcomeText = CleanOptional(welcomeText, MaxTextLength, nameof(welcomeText));

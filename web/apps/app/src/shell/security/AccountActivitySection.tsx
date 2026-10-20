@@ -30,7 +30,7 @@ export function AccountActivitySection() {
       .catch((err) => {
         if (!cancelled) {
           setEntries([])
-          setError(problemDetail(err))
+          setError(problemDetail(err, t))
         }
       })
     return () => {
@@ -44,32 +44,32 @@ export function AccountActivitySection() {
   }
 
   return (
-    <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-      <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
+    <section className="security-section space-y-3 rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
+      <h2 className="flex items-center gap-2 text-lg font-semibold text-ink">
         <Activity className="h-5 w-5 text-primary-ink" aria-hidden="true" />
         {t('accountAudit.title')}
       </h2>
-      <p className="text-sm text-slate-500 dark:text-slate-400">{t('accountAudit.subtitle')}</p>
+      <p className="text-sm text-muted">{t('accountAudit.subtitle')}</p>
 
       {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-error-ink">
           {error}
         </p>
       ) : entries === null ? (
-        <p aria-live="polite" className="text-sm text-slate-500 dark:text-slate-400">
+        <p aria-live="polite" className="text-sm text-muted">
           {t('accountAudit.loading')}
         </p>
       ) : entries.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">{t('accountAudit.empty')}</p>
+        <p className="text-sm text-muted">{t('accountAudit.empty')}</p>
       ) : (
         <ul className="space-y-1.5" data-testid="account-activity">
           {entries.map((entry) => (
             <li
               key={entry.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-800"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border-subtle px-3 py-2"
             >
-              <span className="text-sm text-slate-900 dark:text-white">{label(entry.action)}</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="text-sm text-ink">{label(entry.action)}</span>
+              <span className="text-xs text-muted">
                 {new Date(entry.createdAt).toLocaleString()}
               </span>
             </li>

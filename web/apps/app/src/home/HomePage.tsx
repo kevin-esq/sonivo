@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -32,7 +33,7 @@ export function HomePage({ user }: { user: CurrentUser }) {
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(problemDetail(err));
+        setError(problemDetail(err, t));
         setGroups([]);
         setActivity([]);
       });
@@ -48,7 +49,7 @@ export function HomePage({ user }: { user: CurrentUser }) {
 
   return (
     <section className="space-y-8">
-      <header className="space-y-1.5">
+      <header className="dashboard-intro space-y-1.5">
         <h1 className="text-3xl font-bold tracking-tight text-ink">
           {t("home.greeting", { name: greetingName })}
         </h1>
@@ -78,7 +79,7 @@ export function HomePage({ user }: { user: CurrentUser }) {
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="dashboard-content-layout grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section aria-labelledby="home-groups-heading" className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2
@@ -88,7 +89,7 @@ export function HomePage({ user }: { user: CurrentUser }) {
               {t("home.yourGroups")}
             </h2>
             <Link
-              to="/groups"
+              to={routes.groups}
               data-testid="home-view-all"
               className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >

@@ -12,4 +12,8 @@ public interface IMembershipStore
         Task.FromResult(false);
     Task RemoveAsync(Membership membership, CancellationToken cancellationToken);
     Task<int> CountOwnersAsync(Guid groupId, CancellationToken cancellationToken);
+    Task<bool> HasMembershipInOtherGroupAsync(
+        Guid userId,
+        Guid excludedGroupId,
+        CancellationToken cancellationToken);
 }

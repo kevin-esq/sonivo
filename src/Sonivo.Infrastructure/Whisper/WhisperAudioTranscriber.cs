@@ -43,10 +43,10 @@ public sealed class WhisperAudioTranscriber : IAudioTranscriber
             bytes = buffer.ToArray();
         }
 
-        if (bytes.Length > ResourceFileConstraints.MaxByteSize)
+        if (bytes.Length > ResourceFileConstraints.MaxDigitizationByteSize)
         {
             throw new TranscriptionException(
-                $"El archivo supera el máximo de {ResourceFileConstraints.MaxByteSize} bytes.");
+                $"El archivo supera el máximo de {ResourceFileConstraints.MaxDigitizationByteSize} bytes.");
         }
 
         var maxSeconds = Math.Max(1, _caps.MaxAudioSeconds);

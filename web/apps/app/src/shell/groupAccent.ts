@@ -14,9 +14,14 @@ export const GROUP_ACCENT_PRESETS = [
 export const GROUP_COVER_EMOJIS = ['🎵', '🎸', '🥁', '🎹', '🎺', '🎤'] as const
 
 export const GROUP_COVER_GRADIENTS = ['violet', 'ocean', 'forest', 'sunset'] as const
+export const GROUP_COVER_PRESETS = ['soundwave', 'stage', 'vinyl', 'choir'] as const
 
 /** Stored cover value for the "no cover" choice: a plain surfaced tile, never a gradient. */
 export const NO_COVER = 'none'
+
+// Keep white initials and labels readable over every user selectable cover,
+// including the light yellow stop in the sunset gradient and bright cover art.
+const COVER_TEXT_SCRIM = 'linear-gradient(rgba(15, 23, 42, 0.56), rgba(15, 23, 42, 0.56))'
 
 export type GroupAppearance = {
   accent: string
@@ -28,7 +33,7 @@ export function groupAppearanceKey(groupId: string): string {
 }
 
 export function defaultAppearance(): GroupAppearance {
-  return { accent: DEFAULT_GROUP_ACCENT, cover: GROUP_COVER_EMOJIS[0] ?? '🎵' }
+  return { accent: DEFAULT_GROUP_ACCENT, cover: `preset:${GROUP_COVER_PRESETS[0]}` }
 }
 
 export function readGroupAppearance(groupId: string | undefined): GroupAppearance {
@@ -63,6 +68,10 @@ export function isNoneCover(cover: string): boolean {
   return cover === NO_COVER
 }
 
+export function isPresetCover(cover: string): boolean {
+  return cover.startsWith('preset:')
+}
+
 /** True when the cover needs light text on top; the plain "no cover" tile needs dark text. */
 export function coverUsesLightText(cover: string): boolean {
   return !isNoneCover(cover)
@@ -93,12 +102,23 @@ export function groupCoverStyle(cover: string, accent: string): CSSProperties {
       sunset: `${accent}, #f3b626`,
     }
     return {
-      backgroundImage: `linear-gradient(135deg, ${stops[id] ?? stops.violet})`,
+      backgroundImage: `${COVER_TEXT_SCRIM}, linear-gradient(135deg, ${stops[id] ?? stops.violet})`,
+      color: '#ffffff',
+    }
+  }
+  if (isPresetCover(cover)) {
+    const id = cover.slice('preset:'.length)
+    const allowed = GROUP_COVER_PRESETS as readonly string[]
+    const preset = allowed.includes(id) ? id : GROUP_COVER_PRESETS[0]
+    return {
+      backgroundImage: `${COVER_TEXT_SCRIM}, linear-gradient(110deg, ${withAlpha(accent, '22')}, transparent 58%), url('/images/group-covers/${preset}.svg')`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
       color: '#ffffff',
     }
   }
   return {
-    backgroundImage: `linear-gradient(120deg, ${withAlpha(accent, 'cc')}, ${withAlpha(accent, '33')})`,
+    backgroundImage: `${COVER_TEXT_SCRIM}, linear-gradient(120deg, ${withAlpha(accent, 'cc')}, ${withAlpha(accent, '33')})`,
     color: '#ffffff',
   }
 }

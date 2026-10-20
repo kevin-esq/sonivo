@@ -28,7 +28,7 @@ export function MustChangePassword({ onDone }: { onDone: () => void }) {
       await changePassword({ currentPassword: current, newPassword: next })
       onDone()
     } catch (err) {
-      setError(problemDetail(err))
+      setError(problemDetail(err, t))
     } finally {
       setBusy(false)
     }

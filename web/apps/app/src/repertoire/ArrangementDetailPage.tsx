@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
+import { routes } from '../routing/routes'
+import { useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   createFileResource,
@@ -19,6 +20,7 @@ import {
 } from '../api/client'
 import { Button, buttonVariants } from '../ui/button'
 import { fieldClass } from '../ui/field'
+import { FileDropzone } from '../ui/FileDropzone'
 import {
   EmptyPanel,
   Field,
@@ -30,28 +32,22 @@ import {
   groupResourcesByPurpose,
 } from './chrome'
 import { ChordProView } from './ChordProView'
-import { ChordTimingEditor } from './ChordTimingEditor'
+import { VisualChordEditor } from './VisualChordEditor'
 import { LrcPanel } from './LrcPanel'
 import { AudioDigitizer } from './AudioDigitizer'
+import { safeExternalResourceUrl } from './resourceUrl'
 import { looksLikeChordPro } from './chordPro'
 import {
-  parseChordTimingJson,
-  serializeChordTimingJson,
+  parseChordTimingTimeline,
+  serializeChordTimingTimeline,
   splitChordProLines,
-  type ChordTimingMark,
+  type ChordTimingTimeline,
 } from './chordTiming'
 import { listPracticeAudioTracks } from './pickPracticeAudio'
-import {
-  digitizeToChordPro,
-  listChordCursors,
-  nudgeChord,
-  parseChordProToDigitizer,
-  serializeDigitizerDocument,
-} from './chordProDigitizer'
+import { importChordSheetText } from './chordSheetImport'
 import { composeChordPro, varyProgression, rewriteVerse } from './composeChordPro'
-import { fileUploadErrorMessage, validateFileForUpload } from './fileUploadErrors'
+import { fileUploadErrorMessage, resourceUploadLimit, validateFileForUpload } from './fileUploadErrors'
 import {
-  CONFLICT_MESSAGE,
   ConfirmDialog,
   ConflictAlert,
   formatPurpose,
@@ -116,7 +112,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
       } catch (err) {
         if (cancelled) return
         setArrangement(null)
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
       }
     }
     void load()
@@ -133,18 +129,18 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
     try {
       await deleteArrangement(groupId, arrangementId, arrangement.version)
       setConfirmDeleteArrangement(false)
-      navigate(`/groups/${groupId}/songs/${arrangement.songId}`)
+      navigate(routes.groupSong(groupId, arrangement.songId))
     } catch (err) {
       if (isConflictError(err)) {
-        setConflict(CONFLICT_MESSAGE)
+        setConflict(t('common.errorConflict'))
         setConfirmDeleteArrangement(false)
         try {
           await reloadArrangement()
         } catch (reloadErr) {
-          setError(mutationErrorMessage(reloadErr))
+          setError(mutationErrorMessage(reloadErr, t))
         }
       } else {
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
         setConfirmDeleteArrangement(false)
       }
     } finally {
@@ -161,7 +157,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
       setResourceToDelete(null)
       await reloadArrangement()
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
       setResourceToDelete(null)
     } finally {
       setDeletingResource(false)
@@ -176,7 +172,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/home">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           {t('arrangement.myGroups')}
         </Link>
       </div>
@@ -193,7 +189,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
         <ProblemAlert message={error ?? t('arrangement.notFound')} />
         <Link
           className="font-semibold text-primary-ink no-underline hover:underline"
-          to={`/groups/${group.id}/library`}
+          to={routes.groupLibrary(group.id)}
         >
           {t('arrangement.library')}
         </Link>
@@ -203,7 +199,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
 
   const grouped = groupResourcesByPurpose(arrangement.resources)
   const showAddResource = isOwner && !creatingResource && !creatingFileResource
-  const songHref = `/groups/${group.id}/songs/${arrangement.songId}`
+  const songHref = routes.groupSong(group.id, arrangement.songId)
   const hasChart = arrangement.resources.some((resource) => resource.purpose === 'chart')
   const resourceCountLabel =
     arrangement.resources.length === 0
@@ -211,21 +207,21 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
       : plural(arrangement.resources.length, t('setlists.resourceOne'), t('setlists.resourcesMany'))
 
   return (
-    <section className="space-y-6" aria-labelledby="arrangement-heading">
-      <header data-testid="arrangement-hero" className="space-y-3">
+    <section className="space-y-8" aria-labelledby="arrangement-heading">
+      <header data-testid="arrangement-hero" className="space-y-4 rounded-3xl border border-[var(--color-score-border)] bg-[var(--color-score-soft)] p-5 text-[var(--color-score-ink)] sm:p-8">
         <PageBreadcrumb
           items={[
-            { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/library`, label: t('setlists.title') },
+            { to: routes.group(group.id), label: group.name },
+            { to: routes.groupLibrary(group.id), label: t('setlists.title') },
             { to: songHref, label: songTitle ?? t('arrangement.songFallback') },
             { label: arrangement.label },
           ]}
         />
         <div className="space-y-2">
-          <h1 id="arrangement-heading" className="text-3xl font-bold tracking-tight text-ink">
+          <h1 id="arrangement-heading" className="text-3xl font-bold tracking-tight text-[var(--color-score-ink)] sm:text-4xl">
             {arrangement.label}
           </h1>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-[var(--color-score-muted)]">
             {t('arrangement.ofPrefix')}
             {songTitle ? (
               <Link className="font-medium text-primary-ink no-underline hover:underline" to={songHref}>
@@ -249,13 +245,18 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               {hasChart ? t('setlists.hasChart') : t('setlists.noChart')}
             </ReadinessChip>
           </div>
-          <div className="pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <Link
               className={buttonVariants({ variant: 'primary' })}
-              to={`/groups/${group.id}/arrangements/${arrangement.id}/practice`}
+              to={routes.groupPractice(group.id, arrangement.id)}
             >
               {t('arrangement.practice')}
             </Link>
+            {isOwner && !editing ? (
+              <Button variant="secondary" onClick={() => setEditing(true)}>
+                {t('arrangement.editMusic')}
+              </Button>
+            ) : null}
           </div>
         </div>
       </header>
@@ -263,8 +264,42 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
       <ProblemAlert message={error} />
       <ConflictAlert message={conflict} />
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <section className="space-y-4" aria-labelledby="resources-heading">
+      {editing && isOwner ? (
+        <section
+          className="space-y-4 rounded-2xl border border-primary/30 bg-surface p-4 sm:p-6"
+          aria-labelledby="arrangement-editor-heading"
+          data-testid="arrangement-editor"
+        >
+          <div className="space-y-1">
+            <h2 id="arrangement-editor-heading" className="text-xl font-semibold tracking-tight text-ink">
+              {t('arrangement.editMusic')}
+            </h2>
+            <p className="max-w-3xl text-sm text-muted">{t('arrangement.editMusicHint')}</p>
+          </div>
+          <ArrangementEditForm
+            arrangement={arrangement}
+            groupId={group.id}
+            onCancel={() => setEditing(false)}
+            onSaved={async (next) => {
+              setArrangement(next)
+              setEditing(false)
+              setConflict(null)
+            }}
+            onConflict={async () => {
+              setConflict(t('common.errorConflict'))
+              setEditing(false)
+              try {
+                await reloadArrangement()
+              } catch (err) {
+                setError(mutationErrorMessage(err, t))
+              }
+            }}
+          />
+        </section>
+      ) : null}
+
+      <div className={editing ? 'grid grid-cols-1 gap-8' : 'grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start'}>
+        <section className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-4 sm:p-6" aria-labelledby="resources-heading">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="resources-heading" className="text-lg font-semibold">
               {t('arrangement.resourcesTitle')}
@@ -302,7 +337,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
               {grouped.map((groupItem) => (
                 <section key={groupItem.purpose} className="space-y-2" aria-label={formatPurpose(groupItem.purpose, t)}>
                   <PurposeHeading purpose={groupItem.purpose} />
-                  <ul className="divide-y divide-border-subtle">
+                  <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface-hover px-4">
                     {groupItem.resources.map((resource) => (
                       <li key={resource.id} className="py-3">
                         {editingResourceId === resource.id && isOwner ? (
@@ -358,6 +393,7 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           {isOwner && creatingFileResource ? (
             <FileResourceCreateForm
               groupId={group.id}
+              planId={group.planId}
               arrangementId={arrangement.id}
               onCancel={() => setCreatingFileResource(false)}
               onCreated={async () => {
@@ -368,29 +404,8 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           ) : null}
         </section>
 
-        <aside className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-5 shadow-sm">
-          {editing && isOwner ? (
-            <ArrangementEditForm
-              arrangement={arrangement}
-              groupId={group.id}
-              onCancel={() => setEditing(false)}
-              onSaved={async (next) => {
-                setArrangement(next)
-                setEditing(false)
-                setConflict(null)
-              }}
-              onConflict={async () => {
-                setConflict(CONFLICT_MESSAGE)
-                setEditing(false)
-                try {
-                  await reloadArrangement()
-                } catch (err) {
-                  setError(mutationErrorMessage(err))
-                }
-              }}
-            />
-          ) : (
-            <div className="space-y-5 text-sm">
+        {!editing ? <aside className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-4 sm:p-5">
+          <div className="space-y-5 text-sm">
               <section aria-labelledby="arrangement-tuning-heading" className="space-y-3">
                 <h3 id="arrangement-tuning-heading" className="text-sm font-semibold uppercase tracking-wide text-muted">
                   {t('setlists.tuningTitle')}
@@ -413,11 +428,28 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
                 <dl className="space-y-3">
                   <div>
                     <dt className="text-muted">{t('arrangement.lyricsLabel')}</dt>
-                    <dd className="whitespace-pre-wrap font-medium">{arrangement.lyrics ?? '—'}</dd>
+                    <dd className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl bg-surface p-3 text-sm leading-relaxed text-ink">
+                      {arrangement.lyrics?.trim() || '—'}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-muted">{t('arrangement.chordsLabel')}</dt>
-                    <dd className="whitespace-pre-wrap font-medium">{arrangement.chords ?? '—'}</dd>
+                    <dd className="mt-1">
+                      {arrangement.chords?.trim() ? (
+                        looksLikeChordPro(arrangement.chords) ? (
+                          <ChordProView
+                            text={arrangement.chords}
+                            className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] p-3 font-sans"
+                          />
+                        ) : (
+                          <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] p-3 font-sans text-sm text-[var(--color-score-ink)]">
+                            {arrangement.chords}
+                          </pre>
+                        )
+                      ) : (
+                        <span className="font-medium">—</span>
+                      )}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-muted">{t('arrangement.structureLabel')}</dt>
@@ -429,17 +461,8 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
                   </div>
                 </dl>
               </section>
-            </div>
-          )}
-
-          {isOwner && !editing ? (
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Button variant="secondary" onClick={() => setEditing(true)}>
-                {t('arrangement.editArrangement')}
-              </Button>
-            </div>
-          ) : null}
-        </aside>
+          </div>
+        </aside> : null}
       </div>
 
       {isOwner && arrangement && groupId ? (
@@ -514,6 +537,7 @@ function ResourceRow({
   const downloadHref = isFile
     ? resourceContentUrl(groupId, arrangementId, resource.id)
     : null
+  const externalUrl = safeExternalResourceUrl(resource.url)
   const { t } = useT()
 
   return (
@@ -523,14 +547,18 @@ function ResourceRow({
       {resource.note ? <p className="text-sm text-muted">{resource.note}</p> : null}
       {resource.url ? (
         <p>
-          <a
-            className="break-all font-medium text-primary-ink no-underline hover:underline"
-            href={resource.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {resource.url}
-          </a>
+          {externalUrl ? (
+            <a
+              className="break-all font-medium text-primary-ink no-underline hover:underline"
+              href={externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {resource.url}
+            </a>
+          ) : (
+            <span className="break-all text-muted">{resource.url}</span>
+          )}
         </p>
       ) : null}
       {isFile && downloadHref ? (
@@ -593,55 +621,22 @@ function ArrangementEditForm({
   const [chords, setChords] = useState(arrangement.chords ?? '')
   const [structure, setStructure] = useState(arrangement.structure ?? '')
   const [notes, setNotes] = useState(arrangement.notes ?? '')
-  const [timingMarks, setTimingMarks] = useState<ChordTimingMark[]>(() =>
-    parseChordTimingJson(arrangement.chordTimingJson),
+  const [timingTimeline, setTimingTimeline] = useState<ChordTimingTimeline>(() =>
+    parseChordTimingTimeline(arrangement.chordTimingJson),
   )
   const [importError, setImportError] = useState(false)
-  const [digitizerLyrics, setDigitizerLyrics] = useState('')
-  const [digitizerChords, setDigitizerChords] = useState('')
-  const [selectedChordIndex, setSelectedChordIndex] = useState(0)
+  const [importFile, setImportFile] = useState<File | null>(null)
   const [composeGenre, setComposeGenre] = useState('pop')
   const [composeKey, setComposeKey] = useState('C')
   const [composeIdea, setComposeIdea] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [maxMs, setMaxMs] = useState<number | undefined>(undefined)
   const { t } = useT()
-
-  // Load practice audio tracks to get duration for timing validation
-  useEffect(() => {
-    let cancelled = false
-    const tracks = listPracticeAudioTracks(arrangement.resources, groupId, arrangement.id)
-    if (tracks.length > 0) {
-      const audio = new Audio(tracks[0].src)
-      audio.addEventListener('loadedmetadata', () => {
-        if (!cancelled && Number.isFinite(audio.duration) && audio.duration > 0) {
-          setMaxMs(Math.round(audio.duration * 1000))
-        }
-      })
-      audio.load()
-    }
-    return () => {
-      cancelled = true
-    }
-  }, [arrangement.resources, groupId, arrangement.id])
-
-  const digitizerDoc = parseChordProToDigitizer(chords)
-  const chordCursors = listChordCursors(digitizerDoc)
-  const selectedCursor = chordCursors.find((c) => c.chordIndex === selectedChordIndex) ?? null
+  const audioTracks = useMemo(
+    () => listPracticeAudioTracks(arrangement.resources, groupId, arrangement.id),
+    [arrangement.resources, groupId, arrangement.id],
+  )
   const composeBrief = { genre: composeGenre, key: composeKey, idea: composeIdea }
-
-  function onGenerateDigitizer() {
-    const generated = digitizeToChordPro(digitizerLyrics, digitizerChords)
-    setChords(generated)
-    setSelectedChordIndex(0)
-  }
-
-  function onNudgeSelected(direction: -1 | 1) {
-    if (selectedCursor == null) return
-    const next = nudgeChord(digitizerDoc, selectedChordIndex, direction)
-    setChords(serializeDigitizerDocument(next))
-  }
 
   function onComposeGenerate() {
     setChords(composeChordPro(composeBrief))
@@ -655,9 +650,8 @@ function ArrangementEditForm({
     setChords(rewriteVerse(chords, composeBrief))
   }
 
-  function onImportChordPro(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
+  function onImportChordPro(file: File | null) {
+    setImportFile(file)
     if (!file) return
     setImportError(false)
     const reader = new FileReader()
@@ -666,7 +660,11 @@ function ArrangementEditForm({
         setImportError(true)
         return
       }
-      setChords(reader.result)
+      const extension = file.name.split('.').at(-1)?.toLowerCase()
+      setLyrics('')
+      setChords(extension === 'chord' || extension === 'crd'
+        ? importChordSheetText(reader.result)
+        : reader.result)
     }
     reader.onerror = () => {
       setImportError(true)
@@ -680,7 +678,11 @@ function ArrangementEditForm({
     setError(null)
 
     const lineCount = splitChordProLines(chords).length
-    const clippedMarks = timingMarks.filter((m) => m.lineIndex < lineCount)
+    const clippedTimeline = {
+      ...timingTimeline,
+      lineMarks: timingTimeline.lineMarks.filter((mark) => mark.lineIndex < lineCount),
+      wordMarks: timingTimeline.wordMarks.filter((mark) => mark.lineIndex < lineCount),
+    }
 
     const payload: Parameters<typeof updateArrangement>[2] = {
       expectedVersion: arrangement.version,
@@ -690,7 +692,7 @@ function ArrangementEditForm({
       chords,
       structure,
       notes,
-      chordTimingJson: serializeChordTimingJson(clippedMarks),
+      chordTimingJson: serializeChordTimingTimeline(clippedTimeline),
     }
 
     if (defaultBpm.trim()) {
@@ -710,7 +712,7 @@ function ArrangementEditForm({
       if (isConflictError(err)) {
         await onConflict()
       } else {
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
       }
     } finally {
       setPending(false)
@@ -719,154 +721,77 @@ function ArrangementEditForm({
 
   return (
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
-      <h3 className="font-semibold">{t('arrangement.editArrangement')}</h3>
       <ProblemAlert message={error} />
-      <Field label={t('arrangement.labelLabel')}>
-        <input
-          className={fieldClass}
-          required
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          maxLength={200}
-        />
-      </Field>
-      <Field label={t('arrangement.keyOptional')} hint={t('arrangement.clearKeyHint')}>
-        <input
-          className={fieldClass}
-          value={defaultKey}
-          onChange={(e) => setDefaultKey(e.target.value)}
-          maxLength={32}
-        />
-      </Field>
-      <Field
-        label={t('arrangement.bpmLabel')}
-        hint={t('arrangement.keepTempoHint')}
-      >
-        <input
-          className={fieldClass}
-          type="number"
-          min={1}
-          max={400}
-          inputMode="numeric"
-          value={defaultBpm}
-          onChange={(e) => setDefaultBpm(e.target.value)}
-        />
-      </Field>
-      <Field label={t('arrangement.lyricsOptional')}>
-        <textarea className={fieldClass} rows={3} value={lyrics} onChange={(e) => setLyrics(e.target.value)} />
-      </Field>
-      <div className="space-y-1.5">
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-ink">{t('arrangement.chordsLabel')}</span>
-          <textarea
-            className={fieldClass}
-            rows={5}
-            value={chords}
-            onChange={(e) => setChords(e.target.value)}
-            data-testid="arrangement-chords"
-            spellCheck={false}
-          />
-        </label>
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-ink">
-            {t('arrangement.importLabel')}
-          </span>
-          <input
-            className={fieldClass}
-            type="file"
-            accept=".cho,.chordpro,.txt,text/plain"
-            onChange={onImportChordPro}
-            data-testid="arrangement-chords-import"
-          />
-        </label>
-        {importError ? <p className="text-sm text-red-600">{t('arrangement.importError')}</p> : null}
-
-        <div
-          className="space-y-3 rounded-xl border border-border-subtle bg-surface-hover p-3"
-          data-testid="chordpro-digitizer"
-        >
-          <p className="text-sm font-semibold text-ink">{t('arrangement.digitizeTitle')}</p>
-          <p className="text-xs text-muted">
-            {t('arrangement.digitizeHint')}
-          </p>
-          <Field label={t('arrangement.digitizeLyrics')}>
-            <textarea
-              className={fieldClass}
-              rows={3}
-              value={digitizerLyrics}
-              onChange={(e) => setDigitizerLyrics(e.target.value)}
-              data-testid="digitizer-lyrics"
-              spellCheck={false}
-            />
-          </Field>
-          <Field label={t('arrangement.digitizeChords')} hint={t('arrangement.digitizeExample')}>
-            <textarea
-              className={fieldClass}
-              rows={2}
-              value={digitizerChords}
-              onChange={(e) => setDigitizerChords(e.target.value)}
-              data-testid="digitizer-chords"
-              spellCheck={false}
-            />
-          </Field>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={onGenerateDigitizer}
-            data-testid="digitizer-generate"
-          >
-            {t('arrangement.generateChordPro')}
-          </Button>
-          {chordCursors.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2 pt-1" data-testid="digitizer-studio">
-              <label className="text-sm text-ink">
-                {t('arrangement.selectedChord')}{' '}
-                <select
-                  className={fieldClass}
-                  value={selectedChordIndex}
-                  onChange={(e) => setSelectedChordIndex(Number(e.target.value))}
-                  data-testid="digitizer-chord-select"
-                >
-                  {chordCursors.map((c) => {
-                    const chord =
-                      digitizerDoc.lines[c.lineIndex]?.slots[c.slotIndex]?.chord ?? '?'
-                    return (
-                      <option key={c.chordIndex} value={c.chordIndex}>
-                        {c.chordIndex + 1}. [{chord}]
-                      </option>
-                    )
-                  })}
-                </select>
-              </label>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                aria-label={t('arrangement.nudgeLeft')}
-                onClick={() => onNudgeSelected(-1)}
-                data-testid="digitizer-nudge-left"
-              >
-                ←
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                aria-label={t('arrangement.nudgeRight')}
-                onClick={() => onNudgeSelected(1)}
-                data-testid="digitizer-nudge-right"
-              >
-                →
-              </Button>
-            </div>
-          ) : null}
+      <section className="space-y-4 rounded-xl border border-border-subtle bg-surface-hover/60 p-4 sm:p-5" aria-labelledby="arrangement-details-heading">
+        <div>
+          <h3 id="arrangement-details-heading" className="font-semibold text-ink">{t('arrangement.editArrangement')}</h3>
         </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label={t('arrangement.labelLabel')}>
+            <input
+              className={fieldClass}
+              required
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              maxLength={200}
+            />
+          </Field>
+          <Field label={t('arrangement.keyOptional')} hint={t('arrangement.clearKeyHint')}>
+            <input
+              className={fieldClass}
+              value={defaultKey}
+              onChange={(e) => setDefaultKey(e.target.value)}
+              maxLength={32}
+            />
+          </Field>
+          <Field label={t('arrangement.bpmLabel')} hint={t('arrangement.keepTempoHint')}>
+            <input
+              className={fieldClass}
+              type="number"
+              min={1}
+              max={400}
+              inputMode="numeric"
+              value={defaultBpm}
+              onChange={(e) => setDefaultBpm(e.target.value)}
+            />
+          </Field>
+        </div>
+      </section>
+      {arrangement.resources.some((resource) => resource.purpose === 'chart' && resource.kind === 'file') ? (
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border-subtle bg-surface-hover p-4" data-testid="existing-chart-reference">
+          <div className="min-w-0 space-y-1">
+            <h4 className="font-semibold text-ink">{t('arrangement.existingChartTitle')}</h4>
+            <p className="text-sm text-muted">{t('arrangement.existingChartHint')}</p>
+            <p className="truncate text-xs text-muted">
+              {arrangement.resources.find((resource) => resource.purpose === 'chart' && resource.kind === 'file')?.originalFileName ?? t('arrangement.fileFallback')}
+            </p>
+          </div>
+          {arrangement.resources.filter((resource) => resource.purpose === 'chart' && resource.kind === 'file').map((resource) => (
+            <a key={resource.id} className={buttonVariants({ variant: 'secondary', size: 'sm' })} href={resourceContentUrl(groupId, arrangement.id, resource.id)}>
+              {t('arrangement.openExistingChart')}
+            </a>
+          ))}
+        </section>
+      ) : null}
 
-        <div
-          className="space-y-3 rounded-xl border border-border-subtle bg-surface-hover p-3"
-          data-testid="chordpro-compose"
-        >
+      <VisualChordEditor
+        groupId={groupId}
+        arrangementId={arrangement.id}
+        arrangementLabel={label}
+        lyrics={lyrics}
+        chords={chords}
+        onLyricsChange={setLyrics}
+        onChordsChange={setChords}
+        timingTimeline={timingTimeline}
+        onTimingChange={setTimingTimeline}
+        audioTracks={audioTracks}
+        importFile={importFile}
+        importError={importError}
+        onImportFileChange={onImportChordPro}
+      />
+      <details className="rounded-xl border border-border-subtle bg-surface p-4" data-testid="chordpro-compose">
+        <summary className="cursor-pointer font-semibold text-ink">{t('arrangement.advancedToolsTitle')}</summary>
+        <div className="mt-4 space-y-4">
           <p className="text-sm font-semibold text-ink">{t('arrangement.composeTitle')}</p>
           <p className="text-xs text-muted">
             {t('arrangement.composeHint')}
@@ -929,30 +854,27 @@ function ArrangementEditForm({
               {t('arrangement.rewriteVerse')}
             </Button>
           </div>
+          {chords.trim() ? (
+            <div className="space-y-2 pt-1">
+              <p className="text-sm font-medium text-ink">{t('arrangement.previewLabel')}</p>
+              {looksLikeChordPro(chords) ? (
+                <ChordProView
+                  text={chords}
+                  testId="chords-preview"
+                  className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] p-3 font-sans"
+                />
+              ) : (
+                <pre
+                  className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] p-3 font-sans text-sm text-[var(--color-score-ink)]"
+                  data-testid="chords-preview"
+                >
+                  {chords}
+                </pre>
+              )}
+            </div>
+          ) : null}
         </div>
-
-        <ChordTimingEditor chords={chords} marks={timingMarks} onChange={setTimingMarks} maxMs={maxMs} />
-
-        {chords.trim() ? (
-          <div className="space-y-2 pt-1">
-            <p className="text-sm font-medium text-ink">{t('arrangement.previewLabel')}</p>
-            {looksLikeChordPro(chords) ? (
-              <ChordProView
-                text={chords}
-                testId="chords-preview"
-                className="max-h-48 space-y-1 overflow-y-auto rounded-xl bg-surface p-3 font-sans ring-1 ring-border-subtle"
-              />
-            ) : (
-              <pre
-                className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl bg-surface p-3 font-sans text-sm ring-1 ring-border-subtle"
-                data-testid="chords-preview"
-              >
-                {chords}
-              </pre>
-            )}
-          </div>
-        ) : null}
-      </div>
+      </details>
       <Field label={t('arrangement.structureOptional')}>
         <textarea
           className={fieldClass}
@@ -998,6 +920,10 @@ function ResourceCreateForm({
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
+    if (!safeExternalResourceUrl(url)) {
+      setError(t('resources.urlInvalid'))
+      return
+    }
     setPending(true)
     setError(null)
     try {
@@ -1010,7 +936,7 @@ function ResourceCreateForm({
       })
       await onCreated()
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
     } finally {
       setPending(false)
     }
@@ -1049,8 +975,9 @@ function ResourceCreateForm({
           type="url"
           required
           value={url}
+          maxLength={2000}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://"
+          placeholder={t('resources.urlPlaceholder')}
         />
       </Field>
       <Field label={t('arrangement.partOptional')}>
@@ -1073,11 +1000,13 @@ function ResourceCreateForm({
 
 function FileResourceCreateForm({
   groupId,
+  planId,
   arrangementId,
   onCreated,
   onCancel,
 }: {
   groupId: string
+  planId: string
   arrangementId: string
   onCreated: () => Promise<void>
   onCancel: () => void
@@ -1097,7 +1026,8 @@ function FileResourceCreateForm({
       setError(t('arrangement.selectFile'))
       return
     }
-    const clientError = validateFileForUpload(file, t)
+    const maxBytes = resourceUploadLimit(planId, purpose)
+    const clientError = validateFileForUpload(file, t, maxBytes)
     if (clientError) {
       setError(clientError)
       return
@@ -1164,22 +1094,19 @@ function FileResourceCreateForm({
           maxLength={200}
         />
       </Field>
-      <Field
-        label={t('arrangement.fileLabel')}
-        hint={t('arrangement.fileHint')}
-      >
-        <input
-          className={fieldClass}
-          type="file"
-          required
-          disabled={pending}
-          accept=".pdf,.png,.jpg,.jpeg,.webp,.mp3,.wav,.m4a,.txt,application/pdf,image/png,image/jpeg,image/webp,audio/mpeg,audio/wav,audio/mp4,text/plain"
-          onChange={(e) => {
-            setFile(e.target.files?.[0] ?? null)
-            setError(null)
-          }}
-        />
-      </Field>
+      <FileDropzone
+        title={t('arrangement.fileLabel')}
+        description={t('arrangement.fileHint')}
+        accept=".pdf,.png,.jpg,.jpeg,.webp,.mp3,.wav,.m4a,.txt,application/pdf,image/png,image/jpeg,image/webp,audio/mpeg,audio/wav,audio/mp4,text/plain"
+        file={file}
+        maxSizeBytes={resourceUploadLimit(planId, purpose)}
+        onFileChange={(next) => {
+          setFile(next)
+          setError(null)
+        }}
+        disabled={pending}
+        testId="arrangement-file-dropzone"
+      />
       <Field label={t('arrangement.partOptional')}>
         <input
           className={fieldClass}
@@ -1234,6 +1161,7 @@ function ResourceEditForm({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const { t } = useT()
+  const externalUrl = safeExternalResourceUrl(resource.url)
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -1248,7 +1176,7 @@ function ResourceEditForm({
       })
       await onSaved()
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
     } finally {
       setPending(false)
     }
@@ -1260,14 +1188,18 @@ function ResourceEditForm({
       {resource.url ? (
         <p className="text-sm text-muted">
           {t('arrangement.urlLockedPrefix')}{' '}
-          <a
-            className="break-all font-medium text-primary-ink no-underline hover:underline"
-            href={resource.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {resource.url}
-          </a>
+          {externalUrl ? (
+            <a
+              className="break-all font-medium text-primary-ink no-underline hover:underline"
+              href={externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {resource.url}
+            </a>
+          ) : (
+            <span className="break-all">{resource.url}</span>
+          )}
         </p>
       ) : null}
       {resource.kind === 'file' && resource.originalFileName ? (

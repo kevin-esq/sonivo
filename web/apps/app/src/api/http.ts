@@ -1,3 +1,5 @@
+import type { I18nKey } from '../i18n'
+
 export class ApiError extends Error {
   readonly status: number
   readonly body?: unknown
@@ -109,25 +111,34 @@ export async function apiUpload<T>(path: string, file: File, field = 'file'): Pr
   return (await response.json()) as T
 }
 
-export function problemDetail(error: unknown): string {
-  if (error instanceof ApiError) {
-    const body = error.body as
-      | { detail?: string; title?: string; errors?: Record<string, string[] | string> }
-      | undefined
-    if (body?.errors && typeof body.errors === 'object') {
-      const parts = Object.entries(body.errors).flatMap(([key, value]) => {
-        if (Array.isArray(value)) {
-          return value.map((item) => `${key}: ${item}`)
-        }
-        return [`${key}: ${value}`]
-      })
-      if (parts.length > 0) {
-        return parts.join(' ')
-      }
-    }
-    return body?.detail ?? body?.title ?? error.message
-  }
-  return 'Unexpected error'
+export function problemDetail(error: unknown, t: (key: I18nKey) => string): string {
+  if (!(error instanceof ApiError)) return t('common.errorGeneral')
+
+  if (error.status === 400 || error.status === 422) return t('common.errorInvalidRequest')
+  if (error.status === 401) return t('common.errorAuthentication')
+  if (error.status === 403) return t('common.errorForbidden')
+  if (error.status === 404) return t('common.errorNotFound')
+  if (error.status === 409) return t('common.errorConflict')
+  if (error.status === 413) return t('common.errorFileTooLarge')
+  if (error.status === 429) return t('common.errorRateLimited')
+  if (error.status >= 500) return t('common.errorUnavailable')
+  return t('common.errorGeneral')
+}
+
+/**
+ * True when the API refused a login because the mailbox is not verified yet
+ * (ADR-0038). The marker only exists on the branch where the password was
+ * already correct, so it is unreachable without a valid credential and cannot
+ * be used to discover which addresses are registered. Every other failure
+ * (unknown email, wrong password, lockout) carries no marker.
+ *
+ * `Results.Problem(extensions: …)` flattens the extension entries into the TOP
+ * LEVEL of the problem body, so `reason` sits next to `detail`, not nested.
+ */
+export function isUnverifiedEmailError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false
+  const body = error.body as { reason?: string } | undefined
+  return body?.reason === 'email_unverified'
 }
 
 export function isConflictError(error: unknown): boolean {

@@ -8,27 +8,31 @@ import {
 } from 'react'
 
 /**
- * The global player (bottom bar) and the rail live in different branches of the
- * React tree, so the rail registers its presence here. With a rail visible at
- * >=768px, the fixed player is hidden to avoid duplicating transport; on mobile
- * and on routes without a rail the bar stays the same.
+ * The global player and the group workspace live in separate React branches.
+ * The workspace shares its width and brand tokens so the player can sit beside
+ * navigation and follow the active group's configured accent.
  */
 type RailPresenceValue = {
   railPresent: boolean
+  railCollapsed: boolean
+  brandTokens: Record<string, string>
   setRailPresent: (present: boolean) => void
+  setRailCollapsed: (collapsed: boolean) => void
+  setBrandTokens: (tokens: Record<string, string>) => void
 }
 
 const RailPresenceContext = createContext<RailPresenceValue | null>(null)
 
 export function RailPresenceProvider({ children }: { children: ReactNode }) {
   const [railPresent, setRailPresentState] = useState(false)
-  const setRailPresent = useCallback(
-    (present: boolean) => setRailPresentState(present),
-    [],
-  )
+  const [railCollapsed, setRailCollapsed] = useState(false)
+  const [brandTokens, setBrandTokens] = useState<Record<string, string>>({})
+  const setRailPresent = useCallback((present: boolean) => setRailPresentState(present), [])
+  const setRailCollapsedState = useCallback((collapsed: boolean) => setRailCollapsed(collapsed), [])
+  const setBrandTokensState = useCallback((tokens: Record<string, string>) => setBrandTokens(tokens), [])
   const value = useMemo(
-    () => ({ railPresent, setRailPresent }),
-    [railPresent, setRailPresent],
+    () => ({ railPresent, railCollapsed, brandTokens, setRailPresent, setRailCollapsed: setRailCollapsedState, setBrandTokens: setBrandTokensState }),
+    [railPresent, railCollapsed, brandTokens, setRailPresent, setRailCollapsedState, setBrandTokensState],
   )
   return (
     <RailPresenceContext.Provider value={value}>

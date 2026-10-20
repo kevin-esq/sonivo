@@ -62,7 +62,7 @@ export function GroupAuditPanel({ groupId }: { groupId: string }) {
         if (cancelled) return
         setEntries([])
         setTotal(0)
-        setError(mutationErrorMessage(err))
+        setError(mutationErrorMessage(err, t))
       }
     }
     void load()

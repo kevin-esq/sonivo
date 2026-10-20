@@ -10,10 +10,12 @@ namespace Sonivo.Application.Tenancy;
 public sealed class ListCalendarEventsHandler
 {
     private readonly IEventStore _events;
+    private readonly IGroupDatabaseScope? _databaseScope;
 
-    public ListCalendarEventsHandler(IEventStore events)
+    public ListCalendarEventsHandler(IEventStore events, IGroupDatabaseScope? databaseScope = null)
     {
         _events = events;
+        _databaseScope = databaseScope;
     }
 
     public async Task<IReadOnlyList<UpcomingActivityItem>> HandleAsync(
@@ -25,6 +27,11 @@ public sealed class ListCalendarEventsHandler
         if (userId == Guid.Empty)
         {
             throw new ValidationException("Authenticated user is required.");
+        }
+
+        if (_databaseScope is not null)
+        {
+            await _databaseScope.SetMultiGroupReadAsync(userId, cancellationToken);
         }
 
         return await _events.ListForUserInRangeAsync(userId, from, to, cancellationToken);

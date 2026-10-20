@@ -1,8 +1,19 @@
-import { mutationErrorMessage } from './ui'
+import { ApiError } from '../api/http'
 import type { I18nKey } from '../i18n'
 
-/** Matches ResourceFileConstraints.MaxByteSize (5 MiB). */
+/** Matches the non-audio Resource limit; audio uses the active plan limit below. */
 export const MAX_FILE_BYTES = 5 * 1024 * 1024
+const MIB = 1024 * 1024
+
+export function resourceUploadLimit(planId: string | null | undefined, purpose: string): number {
+  if (purpose !== 'audio') return MAX_FILE_BYTES
+  if (!planId) return 25 * MIB
+  switch (planId) {
+    case 'starter': return 25 * MIB
+    case 'pro': return 100 * MIB
+    default: return 250 * MIB
+  }
+}
 
 const ALLOWED_MIMES = new Set([
   'application/pdf',
@@ -10,6 +21,12 @@ const ALLOWED_MIMES = new Set([
   'image/jpeg',
   'image/webp',
   'audio/mpeg',
+  'audio/flac',
+  'audio/x-flac',
+  'audio/aac',
+  'audio/ogg',
+  'audio/x-m4a',
+  'audio/x-wav',
   'audio/wav',
   'audio/mp4',
   'audio/x-wav',
@@ -24,6 +41,9 @@ const ALLOWED_EXTENSIONS = new Set([
   '.jpeg',
   '.webp',
   '.mp3',
+  '.flac',
+  '.aac',
+  '.ogg',
   '.wav',
   '.m4a',
   '.txt',
@@ -34,12 +54,13 @@ const TYPE_HINT_KEY: I18nKey = 'arrangement.fileTypeNotAllowed'
 export function validateFileForUpload(
   file: File,
   t: (key: I18nKey) => string,
+  maxBytes = MAX_FILE_BYTES,
 ): string | null {
   if (file.size <= 0) {
     return t('arrangement.fileEmpty')
   }
-  if (file.size > MAX_FILE_BYTES) {
-    return t('arrangement.fileTooLarge')
+  if (file.size > maxBytes) {
+    return t('arrangement.fileTooLargeForPlan')
   }
   const mime = (file.type || '').toLowerCase().split(';')[0]?.trim() ?? ''
   const extMatch = /\.[^.]+$/.exec(file.name.toLowerCase())
@@ -55,30 +76,9 @@ export function fileUploadErrorMessage(
   error: unknown,
   t: (key: I18nKey) => string,
 ): string {
-  const raw = mutationErrorMessage(error)
-  const lower = raw.toLowerCase()
-  if (
-    lower.includes('content type is not allowed') ||
-    lower.includes('content type is required')
-  ) {
-    return t(TYPE_HINT_KEY)
+  if (error instanceof ApiError && error.status === 413) {
+    return t('arrangement.fileTooLargeForPlan')
   }
-  if (
-    lower.includes('bytes or fewer') ||
-    lower.includes('file must be') ||
-    (lower.includes('5') && lower.includes('mib'))
-  ) {
-    return t('arrangement.fileTooLarge')
-  }
-  if (
-    lower.includes('file is required') ||
-    lower.includes('must not be empty') ||
-    lower.includes('file must not be empty')
-  ) {
-    return t('arrangement.fileInvalid')
-  }
-  if (raw === 'Unexpected error') {
-    return t('arrangement.uploadFailed')
-  }
-  return raw
+  if (error instanceof ApiError && error.status === 400) return t(TYPE_HINT_KEY)
+  return t('arrangement.uploadFailed')
 }

@@ -4,6 +4,7 @@ using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
@@ -23,10 +25,12 @@ using Sonivo.Application.Billing.Payments;
 using Sonivo.Domain.Billing;
 using Sonivo.Domain.Billing.Payments;
 using Sonivo.Application.Repertoire;
+using Sonivo.Application.Reports;
 using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tasks;
 using Sonivo.Application.Tenancy;
 using Sonivo.Api.Realtime;
+using Sonivo.Api.Security;
 using Sonivo.Application.Realtime;
 using Sonivo.Api.Session;
 using Sonivo.Domain.Repertoire;
@@ -49,12 +53,13 @@ if (!string.IsNullOrWhiteSpace(listenPort))
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
-builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultScheme = IdentityConstants.ApplicationScheme;
-        options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-    })
-    .AddIdentityCookies();
+var mobileAuthenticationEnabled = MobileAuthenticationSetup.IsEnabled(builder.Configuration);
+MobileVersionGateMiddleware.ValidateConfiguration(builder.Configuration);
+MobileAuthenticationSetup.AddServices(builder.Services, builder.Configuration, builder.Environment);
+builder.Services.AddScoped<IdentitySessionRegistry>();
+var authentication = builder.Services.AddAuthentication(options =>
+    MobileAuthenticationSetup.ConfigureAuthentication(options, mobileAuthenticationEnabled));
+MobileAuthenticationSetup.AddBearerForwarding(authentication, mobileAuthenticationEnabled);
 builder.Services.AddGoogleExternalLogin(builder.Configuration);
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -77,15 +82,19 @@ builder.Services.ConfigureApplicationCookie(options =>
     // L1 (SECURITY-AUDIT-2026-09): absolute session cap. Record the original
     // sign-in instant exactly once — sliding renewal re-issues the cookie (and
     // re-raises OnSigningIn), but it must never refresh this stamp.
-    options.Events.OnSigningIn = context =>
+    options.Events.OnSigningIn = async context =>
     {
         if (!context.Properties.Items.ContainsKey(SessionAbsolutePolicy.IssuedUtcProperty))
         {
-            context.Properties.Items[SessionAbsolutePolicy.IssuedUtcProperty] =
-                DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
-        }
+            var issuedAt = DateTimeOffset.UtcNow;
+            context.Properties.Items[SessionAbsolutePolicy.IssuedUtcProperty] = issuedAt.ToString("O", CultureInfo.InvariantCulture);
 
-        return Task.CompletedTask;
+            if (Guid.TryParse(context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+            {
+                var registry = context.HttpContext.RequestServices.GetRequiredService<IdentitySessionRegistry>();
+                context.Properties.Items[IdentitySessionRegistry.SessionIdProperty] = await registry.RegisterAsync(userId, issuedAt);
+            }
+        }
     };
     var previousValidatePrincipal = options.Events.OnValidatePrincipal;
     options.Events.OnValidatePrincipal = async context =>
@@ -100,6 +109,38 @@ builder.Services.ConfigureApplicationCookie(options =>
         // If the stamp validator already rejected the principal, stop here.
         if (context.Principal is null)
         {
+            return;
+        }
+
+        if (!Guid.TryParse(context.Principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+            return;
+        }
+
+        var registry = context.HttpContext.RequestServices.GetRequiredService<IdentitySessionRegistry>();
+        if (!context.Properties.Items.TryGetValue(IdentitySessionRegistry.SessionIdProperty, out var sessionId)
+            || string.IsNullOrWhiteSpace(sessionId))
+        {
+            var issuedAt = DateTimeOffset.UtcNow;
+            if (context.Properties.Items.TryGetValue(SessionAbsolutePolicy.IssuedUtcProperty, out var legacyIssuedRaw)
+                && DateTimeOffset.TryParse(legacyIssuedRaw, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsedIssuedAt))
+            {
+                issuedAt = parsedIssuedAt;
+            }
+            else
+            {
+                context.Properties.Items[SessionAbsolutePolicy.IssuedUtcProperty] = issuedAt.ToString("O", CultureInfo.InvariantCulture);
+            }
+
+            context.Properties.Items[IdentitySessionRegistry.SessionIdProperty] = await registry.RegisterAsync(userId, issuedAt);
+            context.ShouldRenew = true;
+        }
+        else if (!await registry.IsActiveAsync(userId, sessionId, DateTimeOffset.UtcNow, context.HttpContext.RequestAborted))
+        {
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
             return;
         }
 
@@ -126,7 +167,16 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+// ADR-0082 (security hardening): authorization is DENY BY DEFAULT. Any endpoint
+// that forgets to declare itself now fails closed (401) instead of silently
+// serving anonymous traffic — the failure mode a new endpoint must have.
+// Genuinely public surfaces opt out explicitly with `.AllowAnonymous()`.
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-TOKEN";
@@ -190,6 +240,9 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("auth-passkeys-manage", http => PerIp(http, 30));
     // Observability: client error reports are cheap but client-controlled — cap per IP.
     options.AddPolicy("client-errors", http => PerIp(http, 60));
+    options.AddPolicy(MobileAuthenticationSetup.AuthorizationPolicy, http => PerIp(http, 30));
+    options.AddPolicy(MobileAuthenticationSetup.TokenPolicy, http => PerIp(http, 60));
+    options.AddPolicy("payment-webhook", http => PerIp(http, 30));
     // SECURITY-AUDIT-2026-10 (B11): previously unlimited surfaces — uploads
     // (branding + file resources + LRC import), invite acceptance, digitize
     // starts (expensive) and GDPR-style exports.
@@ -272,9 +325,15 @@ builder.Services.AddHttpContextAccessor();
 // ADR-0036: self-hosted in-process SignalR (shared framework, no vendor).
 // The global antiforgery middleware above requires X-CSRF-TOKEN on the
 // /negotiate POST (Q9-Q3); GET/WebSocket hub traffic needs only the cookie.
-builder.Services.AddSignalR();
+builder.Services.AddSignalR()
+    .AddHubOptions<PracticeRoomHub>(options => options.AddFilter<RlsHubTransactionFilter>())
+    .AddHubOptions<GroupHub>(options => options.AddFilter<RlsHubTransactionFilter>())
+    .AddHubOptions<NotificationHub>(options => options.AddFilter<RlsHubTransactionFilter>());
 // Cross-user real time (ADR-0074): broadcast group data changes to members.
 builder.Services.AddSingleton<IGroupNotifier, SignalRGroupNotifier>();
+builder.Services.AddScoped<PostCommitActionQueue>();
+builder.Services.AddSingleton<GroupRealtimeConnectionRegistry>();
+builder.Services.AddSingleton<GroupMembershipRealtimeRevoker>();
 builder.Services.AddScoped<INotificationPublisher, SignalRNotificationPublisher>();
 // SECURITY-AUDIT-2026-10 (B7): bounded digitize queue (replaces Task.Run).
 builder.Services.AddSingleton<DigitizeJobQueue>();
@@ -321,8 +380,19 @@ if (!app.Environment.IsDevelopment())
 
 if (!app.Configuration.GetValue("UseInMemoryDatabase", false) && app.Configuration.GetValue("SONIVO_MIGRATE_ON_START", false))
 {
-    using var migrateScope = app.Services.CreateScope();
-    var db = migrateScope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+    if (app.Environment.IsProduction())
+    {
+        throw new InvalidOperationException(
+            "SONIVO_MIGRATE_ON_START is disabled in Production. Run migrations as a separate deployment job.");
+    }
+
+    var migrationConnection = app.Configuration["SONIVO_MIGRATION_CONNECTION"]
+        ?? throw new InvalidOperationException(
+            "SONIVO_MIGRATION_CONNECTION is required when local startup migrations are enabled.");
+    var migrationOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+        .UseNpgsql(migrationConnection)
+        .Options;
+    using var db = new SonivoDbContext(migrationOptions);
     // SECURITY-AUDIT-2026-10 (B14): real migrations — EnsureCreated builds the
     // schema from the current model snapshot and silently blocks future
     // migrations, making every later schema change a production incident.
@@ -377,7 +447,12 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// Run rate limiting before authentication request handlers so OpenIddict's
+// protocol endpoints receive their mapped endpoint policy before interception.
+app.UseRateLimiter();
+app.UseMiddleware<MobileVersionGateMiddleware>();
 app.UseAuthentication();
+app.UseMiddleware<RlsRequestScopeMiddleware>();
 app.UseAuthorization();
 
 // ADR-0047: while MustChangePassword is set, block all API calls except the
@@ -413,8 +488,6 @@ static bool IsMustChangeAllowed(string path) =>
     || path.Equals("/api/auth/logout", StringComparison.OrdinalIgnoreCase)
     || path.Equals("/api/auth/change-password", StringComparison.OrdinalIgnoreCase)
     || path.Equals("/api/auth/csrf", StringComparison.OrdinalIgnoreCase);
-app.UseRateLimiter();
-
 // SECURITY-AUDIT-2026-10 (B3): the global CSRF middleware validates EVERY
 // unsafe method (POST/PUT/PATCH/DELETE) for ALL endpoints — there is no
 // per-endpoint opt-out, by design (login CSRF protection included). The
@@ -426,10 +499,16 @@ app.Use(async (context, next) =>
     var path = context.Request.Path.Value ?? string.Empty;
     // ADR-0073: payment provider webhooks are server-to-server and cannot carry a
     // browser CSRF token; they are authenticated by an HMAC signature verified in
-    // the handler (with a config secret). This is the ONLY unsafe-method exemption
-    // and it lives behind an explicit, signature-verified endpoint.
+    // the handler (with a config secret). Bearer credentials are explicit request
+    // credentials rather than ambient browser cookies, so mobile bearer writes
+    // do not require a browser CSRF token.
     var isSignatureAuthedWebhook = path.Equals("/api/payments/webhook", StringComparison.OrdinalIgnoreCase);
-    if (!isSignatureAuthedWebhook
+    var isMobileProtocolRequest = mobileAuthenticationEnabled
+        && (path.Equals("/connect/token", StringComparison.OrdinalIgnoreCase)
+            || path.Equals("/connect/revoke", StringComparison.OrdinalIgnoreCase));
+    var isBearerRequest = mobileAuthenticationEnabled
+        && context.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
+    if (!isSignatureAuthedWebhook && !isMobileProtocolRequest && !isBearerRequest
         && (HttpMethods.IsPost(method)
             || HttpMethods.IsPut(method)
             || HttpMethods.IsPatch(method)
@@ -670,14 +749,47 @@ app.MapPost("/api/auth/login", async (
     if (result.IsNotAllowed)
     {
         // T-AU-01 (Q-AU-1): unverified mailbox denied with the IDENTICAL
-        // 401 shape as bad credentials — no new oracle. The Spanish
-        // unconfirmed copy + resend affordance live as PERMANENT
-        // unconditional elements on the login screen, never conditioned
-        // on this response.
+        // 401 status/title/detail as bad credentials — no new oracle.
+        //
+        // Identity returns NotAllowed before checking the password for an
+        // unconfirmed account. Mirror its lockout handling around this
+        // credential check so failed attempts still consume the account's
+        // normal lockout budget, while a locked account never receives the
+        // verification marker.
+        var lockoutEnabled = users.SupportsUserLockout
+            && await users.GetLockoutEnabledAsync(user);
+        var passwordMatched = false;
+        if (!await users.IsLockedOutAsync(user))
+        {
+            passwordMatched = await users.CheckPasswordAsync(user, request.Password);
+            if (lockoutEnabled)
+            {
+                var lockoutUpdate = passwordMatched
+                    ? await users.ResetAccessFailedCountAsync(user)
+                    : await users.AccessFailedAsync(user);
+                passwordMatched &= lockoutUpdate.Succeeded;
+            }
+
+            // A concurrent failed attempt may have locked the account while
+            // the password hash was being verified.
+            if (passwordMatched && await users.IsLockedOutAsync(user))
+            {
+                passwordMatched = false;
+            }
+        }
+
+        var extensions = passwordMatched && !user.EmailConfirmed
+            ? new Dictionary<string, object?>
+            {
+                ["reason"] = "email_unverified",
+            }
+            : null;
+
         return Results.Problem(
             detail: "Invalid email or password.",
             statusCode: StatusCodes.Status401Unauthorized,
-            title: "Unauthorized");
+            title: "Unauthorized",
+            extensions: extensions);
     }
 
     if (result.RequiresTwoFactor)
@@ -713,6 +825,8 @@ app.MapPost("/api/auth/login/handle/{slug}", async (
     SignInManager<ApplicationUser> signInManager,
     IGroupStore groups,
     IMembershipStore memberships,
+    IGroupDatabaseScope databaseScope,
+    IGroupDataOperation groupDataOperation,
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
 {
@@ -730,16 +844,23 @@ app.MapPost("/api/auth/login/handle/{slug}", async (
     }
 
     var normalized = MembershipHandles.Normalize(request.Handle);
-    var group = string.IsNullOrWhiteSpace(slug) ? null : await groups.GetBySlugAsync(slug.Trim(), cancellationToken);
-    ApplicationUser? user = null;
-    if (group is not null && normalized is not null)
-    {
-        var membership = await memberships.GetByHandleAsync(group.Id, normalized, cancellationToken);
-        if (membership?.UserId is { } userId)
+    var lookup = normalized is null || string.IsNullOrWhiteSpace(slug)
+        ? (UserId: (Guid?)null, GroupId: (Guid?)null)
+        : await groupDataOperation.ExecuteInTransactionAsync(async operationToken =>
         {
-            user = await users.FindByIdAsync(userId.ToString("D"));
-        }
-    }
+            await databaseScope.SetHandleLoginLookupAsync(slug, normalized, operationToken);
+            var group = await groups.GetBySlugAsync(slug.Trim(), operationToken);
+            if (group is null)
+            {
+                return (UserId: (Guid?)null, GroupId: (Guid?)null);
+            }
+
+            var membership = await memberships.GetByHandleAsync(group.Id, normalized, operationToken);
+            return (UserId: membership?.UserId, GroupId: group.Id);
+        }, cancellationToken);
+    var user = lookup.UserId is { } userId
+        ? await users.FindByIdAsync(userId.ToString("D"))
+        : null;
 
     if (user is null)
     {
@@ -771,7 +892,7 @@ app.MapPost("/api/auth/login/handle/{slug}", async (
     if (!result.Succeeded)
     {
         app.Logger.LogWarning(
-            "Security event: failed handle login. GroupId: {GroupId}", group!.Id);
+            "Security event: failed handle login. GroupId: {GroupId}", lookup.GroupId);
         return AuthUniformity.InvalidLogin();
     }
 
@@ -798,6 +919,47 @@ app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<Applica
     return Results.Ok(ToUserResponse(appUser));
 })
 .WithName("GetCurrentUser")
+.RequireAuthorization();
+
+app.MapGet("/api/auth/sessions", async (
+    ClaimsPrincipal principal,
+    HttpContext http,
+    UserManager<ApplicationUser> users,
+    IdentitySessionRegistry registry,
+    CancellationToken cancellationToken) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var authentication = await http.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+    string? currentSessionId = null;
+    authentication.Properties?.Items.TryGetValue(IdentitySessionRegistry.SessionIdProperty, out currentSessionId);
+    var sessions = await registry.ListAsync(user.Id, currentSessionId, DateTimeOffset.UtcNow, cancellationToken);
+    return Results.Ok(sessions);
+})
+.WithName("ListIdentitySessions")
+.RequireAuthorization();
+
+app.MapPost("/api/auth/sessions/{sessionKey}/revoke", async (
+    string sessionKey,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    IdentitySessionRegistry registry,
+    CancellationToken cancellationToken) =>
+{
+    var user = await users.GetUserAsync(principal);
+    if (user is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var revoked = await registry.RevokeAsync(user.Id, sessionKey, cancellationToken);
+    return revoked ? Results.NoContent() : Results.NotFound();
+})
+.WithName("RevokeIdentitySession")
 .RequireAuthorization();
 
 // ADR-0053 addendum: profile display name edit ("Editar perfil"). Cookie + antiforgery
@@ -844,6 +1006,8 @@ app.MapPost("/api/auth/change-password", async (
     IAccountAuditStore audit,
     INotificationStore notifications,
     INotificationPublisher publisher,
+    HttpContext http,
+    IdentitySessionRegistry sessions,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -873,11 +1037,15 @@ app.MapPost("/api/auth/change-password", async (
     }
 
     await audit.AddAsync(
-        AccountAudit.Create(AccountAudit.ActionPasswordChanged, clock.UtcNow, actorUserId: appUser.Id),
+        AccountAudit.Create(
+            AccountAudit.ActionPasswordChanged,
+            clock.UtcNow,
+            actorUserId: appUser.Id,
+            targetUserId: appUser.Id),
         cancellationToken);
     await audit.SaveChangesAsync(cancellationToken);
 
-    // ADR-0077: account-scoped security notification.
+    // Account-scoped security notification.
     await notifications.AddAsync(
         Notification.Create(
             appUser.Id,
@@ -889,6 +1057,11 @@ app.MapPost("/api/auth/change-password", async (
     await notifications.SaveChangesAsync(cancellationToken);
     await publisher.PublishAsync(appUser.Id, Notification.KindPasswordChanged, null, cancellationToken);
 
+    var authentication = await http.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+    string? currentSessionId = null;
+    authentication.Properties?.Items.TryGetValue(IdentitySessionRegistry.SessionIdProperty, out currentSessionId);
+    await sessions.RevokeOtherSessionsAsync(appUser.Id, currentSessionId, cancellationToken);
+
     // Rotate the session cookie so the new security stamp is honoured.
     await signInManager.RefreshSignInAsync(appUser);
 
@@ -898,9 +1071,30 @@ app.MapPost("/api/auth/change-password", async (
 .RequireAuthorization()
 .RequireRateLimiting("auth-change-password");
 
-app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInManager) =>
+app.MapPost("/api/auth/logout", async (
+    ClaimsPrincipal principal,
+    HttpContext http,
+    UserManager<ApplicationUser> users,
+    IdentitySessionRegistry sessions,
+    SignInManager<ApplicationUser> signInManager,
+    CancellationToken cancellationToken) =>
 {
-    await signInManager.SignOutAsync();
+    try
+    {
+        var user = await users.GetUserAsync(principal);
+        var authentication = await http.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+        string? currentSessionId = null;
+        authentication.Properties?.Items.TryGetValue(IdentitySessionRegistry.SessionIdProperty, out currentSessionId);
+        if (user is not null)
+        {
+            await sessions.RevokeCurrentAsync(user.Id, currentSessionId, cancellationToken);
+        }
+    }
+    finally
+    {
+        await signInManager.SignOutAsync();
+    }
+
     return Results.NoContent();
 })
 .WithName("Logout")
@@ -1010,6 +1204,7 @@ app.MapPost("/api/auth/reset-password", async (
     ResetPasswordRequest request,
     UserManager<ApplicationUser> users,
     IAccountAuditStore audit,
+    IGroupDataOperation groupDataOperation,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -1062,10 +1257,17 @@ app.MapPost("/api/auth/reset-password", async (
 
     if (managed)
     {
-        await audit.AddAsync(
-            AccountAudit.Create(AccountAudit.ActionLinked, clock.UtcNow, targetUserId: user.Id),
+        await groupDataOperation.ExecuteAsUserAsync(
+            user.Id,
+            async operationToken =>
+            {
+                await audit.AddAsync(
+                    AccountAudit.Create(AccountAudit.ActionLinked, clock.UtcNow, targetUserId: user.Id),
+                    operationToken);
+                await audit.SaveChangesAsync(operationToken);
+                return true;
+            },
             cancellationToken);
-        await audit.SaveChangesAsync(cancellationToken);
     }
 
     return Results.Ok(new { passwordReset = true });
@@ -1516,7 +1718,11 @@ app.MapPost("/api/auth/passkeys/register-finish", async (
 
         // SECURITY-AUDIT-2026-10 (A4): every passkey registration is audited.
         await audit.AddAsync(
-            AccountAudit.Create(AccountAudit.ActionPasskeyAdded, clock.UtcNow, actorUserId: user.Id),
+            AccountAudit.Create(
+                AccountAudit.ActionPasskeyAdded,
+                clock.UtcNow,
+                actorUserId: user.Id,
+                targetUserId: user.Id),
             cancellationToken);
 
         // ADR-0047 lifecycle: registering a passkey makes a group-managed account
@@ -1584,7 +1790,11 @@ app.MapDelete("/api/auth/passkeys/{id}", async (
 
     await users.RemoveAuthenticationTokenAsync(user, "Passkeys", tokenName);
     await audit.AddAsync(
-        AccountAudit.Create(AccountAudit.ActionPasskeyRemoved, clock.UtcNow, actorUserId: user.Id),
+        AccountAudit.Create(
+            AccountAudit.ActionPasskeyRemoved,
+            clock.UtcNow,
+            actorUserId: user.Id,
+            targetUserId: user.Id),
         cancellationToken);
     await audit.SaveChangesAsync(cancellationToken);
     return Results.Ok(new { deleted = true });
@@ -1732,6 +1942,7 @@ if (authTestHook && app.Environment.IsDevelopment())
 }
 
 app.MapGoogleAuthEndpoints();
+app.MapMobileAuthorizationEndpoints();
 
 // ADR-0036: Q9 conductor room. Cookie-authorized; per-method Membership
 // recheck inside the Hub (404 non-member/unknown, 403 non-Owner conduct).
@@ -1970,6 +2181,163 @@ app.MapGet("/api/groups/{groupId:guid}/usage", async (
 .WithName("GetGroupUsage")
 .RequireAuthorization();
 
+// ADR-0083 / Phase 4.0: aggregate reports use current Group data and are Owner-only.
+app.MapGet("/api/groups/{groupId:guid}/reports/repertoire", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupReportsHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(await handler.GetRepertoireAsync(userId.Value, groupId, cancellationToken));
+})
+.WithName("GetGroupRepertoireReport")
+.RequireAuthorization();
+
+app.MapGet("/api/groups/{groupId:guid}/reports/event-responses", async (
+    Guid groupId,
+    DateTimeOffset? from,
+    DateTimeOffset? to,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupReportsHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (from is not { } start || to is not { } end
+        || start >= end || end - start > TimeSpan.FromDays(366))
+    {
+        return Results.Problem(
+            detail: "A valid report range of up to 366 days is required.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Invalid report range");
+    }
+
+    return Results.Ok(await handler.GetEventResponsesAsync(
+        userId.Value, groupId, start, end, cancellationToken));
+})
+.WithName("GetGroupEventResponseReport")
+.RequireAuthorization();
+
+app.MapGet("/api/groups/{groupId:guid}/reports/tasks", async (
+    Guid groupId,
+    DateTimeOffset? from,
+    DateTimeOffset? to,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupReportsHandler handler,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (from is not { } start || to is not { } end
+        || start >= end || end - start > TimeSpan.FromDays(366))
+    {
+        return Results.Problem(
+            detail: "A valid UTC report range of up to 366 days is required.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Invalid report range");
+    }
+
+    return Results.Ok(await handler.GetTasksAsync(
+        userId.Value, groupId, start, end, clock.UtcNow, cancellationToken));
+})
+.WithName("GetGroupTasksReport")
+.RequireAuthorization();
+
+app.MapGet("/api/groups/{groupId:guid}/reports/setlist-usage", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupReportsHandler handler,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(await handler.GetSetlistUsageAsync(
+        userId.Value, groupId, clock.UtcNow, cancellationToken));
+})
+.WithName("GetGroupSetlistUsageReport")
+.RequireAuthorization();
+
+app.MapGet("/api/groups/{groupId:guid}/reports/event-responses.csv", async (
+    Guid groupId,
+    DateTimeOffset? from,
+    DateTimeOffset? to,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupReportsHandler handler,
+    SonivoDbContext db,
+    TimeProvider clock,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (from is not { } start || to is not { } end
+        || start >= end || end - start > TimeSpan.FromDays(366))
+    {
+        return Results.Problem(
+            detail: "A valid report range of up to 366 days is required.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Invalid report range");
+    }
+
+    var report = await handler.GetEventResponsesAsync(
+        userId.Value, groupId, start, end, cancellationToken);
+    db.GroupAuditLog.Add(GroupAuditEntry.Create(
+        groupId,
+        GroupAuditEntry.ActionGroupReportExported,
+        clock.GetUtcNow(),
+        actorUserId: userId.Value,
+        metadata: $"report=event_responses;fromUtc={start.UtcDateTime:O};toUtc={end.UtcDateTime:O}"));
+    await db.SaveChangesAsync(cancellationToken);
+
+    var csv = new StringBuilder();
+    csv.AppendLine("event_id,title,event_type,starts_at_utc,yes,no,maybe,no_response,current_member_count");
+    foreach (var row in report.Events)
+    {
+        csv.Append(row.EventId.ToString("D")).Append(',')
+            .Append(CsvExportCell.Escape(row.Title)).Append(',')
+            .Append(CsvExportCell.Escape(row.Type)).Append(',')
+            .Append(row.StartsAt.UtcDateTime.ToString("O", CultureInfo.InvariantCulture)).Append(',')
+            .Append(row.Yes.ToString(CultureInfo.InvariantCulture)).Append(',')
+            .Append(row.No.ToString(CultureInfo.InvariantCulture)).Append(',')
+            .Append(row.Maybe.ToString(CultureInfo.InvariantCulture)).Append(',')
+            .Append(row.NoResponse.ToString(CultureInfo.InvariantCulture)).Append(',')
+            .Append(report.Members.ToString(CultureInfo.InvariantCulture)).AppendLine();
+    }
+
+    var content = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true).GetBytes(csv.ToString());
+    return Results.File(content, "text/csv; charset=utf-8", $"sonivo-event-responses-{groupId:N}.csv");
+})
+.WithName("ExportGroupEventResponseReport")
+.RequireAuthorization();
+
 // Manual plan management (ADR-0073 placeholder; no payment gateway).
 app.MapPut("/api/groups/{groupId:guid}/plan", async (
     Guid groupId,
@@ -2018,8 +2386,33 @@ app.MapPost("/api/payments/webhook", async (
         return Results.NotFound();
     }
 
-    using var reader = new StreamReader(http.Request.Body, Encoding.UTF8);
-    var payload = await reader.ReadToEndAsync(cancellationToken);
+    const int maxPayloadBytes = 64 * 1024;
+    if (http.Request.ContentLength > maxPayloadBytes)
+    {
+        return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+    }
+
+    await using var payloadBuffer = new MemoryStream(capacity: maxPayloadBytes);
+    var readBuffer = new byte[8192];
+    var totalBytes = 0;
+    while (true)
+    {
+        var bytesRead = await http.Request.Body.ReadAsync(readBuffer, cancellationToken);
+        if (bytesRead == 0)
+        {
+            break;
+        }
+
+        totalBytes += bytesRead;
+        if (totalBytes > maxPayloadBytes)
+        {
+            return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+        }
+
+        await payloadBuffer.WriteAsync(readBuffer.AsMemory(0, bytesRead), cancellationToken);
+    }
+
+    var payload = Encoding.UTF8.GetString(payloadBuffer.GetBuffer(), 0, totalBytes);
     var signature = http.Request.Headers["X-Sonivo-Signature"].ToString();
     var result = await handler.HandleAsync(payload, signature, cancellationToken);
 
@@ -2028,7 +2421,8 @@ app.MapPost("/api/payments/webhook", async (
         : Results.BadRequest(new { error = result.Reason });
 })
 .WithName("ReceivePaymentWebhook")
-.AllowAnonymous();
+.AllowAnonymous()
+.RequireRateLimiting("payment-webhook");
 
 // Owner-only hosted checkout. Returns 409 when no gateway is configured so the
 // client falls back to manual/invoice assignment.
@@ -2551,7 +2945,9 @@ app.MapGet("/api/groups/{groupId:guid}/members", async (
             createdAt = i.CreatedAt,
             lastSeenAt = i.LastSeenAt,
             email = i.Email,
-            groupRoleId = i.GroupRoleId
+            groupRoleId = i.GroupRoleId,
+            description = i.Description,
+            accessEnabled = i.AccessEnabled
         })
     });
 })
@@ -2605,6 +3001,7 @@ app.MapPost("/api/groups/{groupId:guid}/tasks", async (
     CreateTaskHandler handler,
     INotificationStore notifications,
     INotificationPublisher publisher,
+    IMembershipStore memberships,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -2618,20 +3015,24 @@ app.MapPost("/api/groups/{groupId:guid}/tasks", async (
         new CreateTaskCommand(userId.Value, groupId, request.Title ?? string.Empty, request.Notes, request.DueAt, request.AssigneeUserId),
         cancellationToken);
 
-    // ADR-0077: notify the assignee (group scope) when it is not the creator.
+    // ADR-0062: notify a different assignee after the assignment is saved.
     if (request.AssigneeUserId is { } assignee && assignee != userId.Value)
     {
-        await notifications.AddAsync(
-            Notification.Create(
-                assignee,
-                NotificationScope.Group,
-                Notification.KindTaskAssigned,
-                clock.UtcNow,
-                groupId: groupId,
-                actorUserId: userId.Value),
-            cancellationToken);
-        await notifications.SaveChangesAsync(cancellationToken);
-        await publisher.PublishAsync(assignee, Notification.KindTaskAssigned, groupId, cancellationToken);
+        var recipient = await memberships.GetForUpdateAsync(groupId, assignee, cancellationToken);
+        if (recipient?.NotifyTaskAssignments == true)
+        {
+            await notifications.AddAsync(
+                Notification.Create(
+                    assignee,
+                    NotificationScope.Group,
+                    Notification.KindTaskAssigned,
+                    clock.UtcNow,
+                    groupId: groupId,
+                    actorUserId: userId.Value),
+                cancellationToken);
+            await notifications.SaveChangesAsync(cancellationToken);
+            await publisher.PublishAsync(assignee, Notification.KindTaskAssigned, groupId, cancellationToken);
+        }
     }
 
     return Results.Created($"/api/groups/{groupId}/tasks/{created.Id}", ToTaskResponse(created));
@@ -3102,8 +3503,8 @@ app.MapDelete("/api/groups/{groupId:guid}/roster/{memberId:guid}", async (
     UserManager<ApplicationUser> users,
     SonivoDbContext db,
     GroupAccessService access,
+    IGroupDatabaseScope databaseScope,
     IMembershipStore memberships,
-    IGroupStore groups,
     IUnitOfWork unitOfWork,
     IAccountAuditStore audit,
     IClock clock,
@@ -3146,8 +3547,14 @@ app.MapDelete("/api/groups/{groupId:guid}/roster/{memberId:guid}", async (
             var account = await users.FindByIdAsync(targetUserId.ToString("D"));
             if (account is not null && account.ManagedByGroupId == groupId)
             {
-                var belongsElsewhere = (await groups.ListForUserAsync(targetUserId, cancellationToken))
-                    .Any(g => g.Id != groupId);
+                await databaseScope.SetManagedAccountMembershipLookupAsync(
+                    groupId,
+                    targetUserId,
+                    cancellationToken);
+                var belongsElsewhere = await memberships.HasMembershipInOtherGroupAsync(
+                    targetUserId,
+                    groupId,
+                    cancellationToken);
                 if (!belongsElsewhere)
                 {
                     await users.DeleteAsync(account);
@@ -3251,6 +3658,8 @@ app.MapDelete("/api/groups/{groupId:guid}/members/{targetUserId:guid}", async (
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     RemoveMemberHandler handler,
+    GroupMembershipRealtimeRevoker realtimeRevoker,
+    PostCommitActionQueue postCommitActions,
     CancellationToken cancellationToken) =>
 {
     var userId = await RequireUserIdAsync(principal, users);
@@ -3262,6 +3671,7 @@ app.MapDelete("/api/groups/{groupId:guid}/members/{targetUserId:guid}", async (
     await handler.HandleAsync(
         new RemoveMemberCommand(userId.Value, groupId, targetUserId),
         cancellationToken);
+    postCommitActions.Enqueue(() => realtimeRevoker.RevokeAsync(groupId, targetUserId));
     return Results.NoContent();
 })
 .WithName("RemoveGroupMember")
@@ -3276,6 +3686,7 @@ app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async
     ChangeMemberRoleHandler handler,
     INotificationStore notifications,
     INotificationPublisher publisher,
+    IMembershipStore memberships,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -3289,26 +3700,98 @@ app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async
         new ChangeMemberRoleCommand(userId.Value, groupId, targetUserId, request.Role),
         cancellationToken);
 
-    // ADR-0077: tell the affected member their role changed (skip self-changes).
+    // Tell the affected member their role changed (skip self-changes).
     if (targetUserId != userId.Value)
     {
-        await notifications.AddAsync(
-            Notification.Create(
-                targetUserId,
-                NotificationScope.Group,
-                Notification.KindRoleChanged,
-                clock.UtcNow,
-                groupId: groupId,
-                actorUserId: userId.Value,
-                metadata: request.Role),
-            cancellationToken);
-        await notifications.SaveChangesAsync(cancellationToken);
-        await publisher.PublishAsync(targetUserId, Notification.KindRoleChanged, groupId, cancellationToken);
+        var recipient = await memberships.GetForUpdateAsync(groupId, targetUserId, cancellationToken);
+        if (recipient?.NotifyRoleChanges == true)
+        {
+            await notifications.AddAsync(
+                Notification.Create(
+                    targetUserId,
+                    NotificationScope.Group,
+                    Notification.KindRoleChanged,
+                    clock.UtcNow,
+                    groupId: groupId,
+                    actorUserId: userId.Value,
+                    metadata: request.Role),
+                cancellationToken);
+            await notifications.SaveChangesAsync(cancellationToken);
+            await publisher.PublishAsync(targetUserId, Notification.KindRoleChanged, groupId, cancellationToken);
+        }
     }
 
     return Results.NoContent();
 })
 .WithName("ChangeGroupMemberRole")
+.RequireAuthorization();
+
+app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/access", async (
+    Guid groupId,
+    Guid targetUserId,
+    SetMemberAccessRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IMembershipStore memberships,
+    SonivoDbContext db,
+    GroupMembershipRealtimeRevoker realtimeRevoker,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var actorId = await RequireUserIdAsync(principal, users);
+    if (actorId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireOwnerAsync(groupId, actorId.Value, cancellationToken);
+    if (request.Enabled is null)
+    {
+        return Results.Problem(
+            detail: "Enabled is required.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var target = await memberships.GetForUpdateAsync(groupId, targetUserId, cancellationToken);
+    if (target is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (target.IsOwner)
+    {
+        return Results.Conflict(new { detail = "The group owner cannot be deactivated." });
+    }
+
+    if (target.UserId is null)
+    {
+        return Results.Conflict(new { detail = "This roster person has no account access to change." });
+    }
+
+    if (target.AccessEnabled == request.Enabled.Value)
+    {
+        return Results.NoContent();
+    }
+
+    target.SetAccessEnabled(request.Enabled.Value, clock.UtcNow);
+    db.GroupAuditLog.Add(GroupAuditEntry.Create(
+        groupId,
+        request.Enabled.Value ? GroupAuditEntry.ActionMemberAccessEnabled : GroupAuditEntry.ActionMemberAccessDisabled,
+        clock.UtcNow,
+        actorUserId: actorId.Value,
+        targetUserId: targetUserId));
+    await db.SaveChangesAsync(cancellationToken);
+
+    if (!request.Enabled.Value)
+    {
+        await realtimeRevoker.RevokeAsync(groupId, targetUserId);
+    }
+
+    return Results.NoContent();
+})
+.WithName("SetGroupMemberAccess")
 .RequireAuthorization();
 
 // ADR-0051: Owner or Manager sets a member's descriptive musical role.
@@ -3333,6 +3816,30 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/musical-role"
     return Results.NoContent();
 })
 .WithName("SetGroupMemberMusicalRole")
+.RequireAuthorization();
+
+// Member profile: Owner or Manager sets the free-text description (descriptive only).
+app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/description", async (
+    Guid groupId,
+    Guid targetUserId,
+    SetMemberDescriptionRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SetMemberDescriptionHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await handler.HandleAsync(
+        new SetMemberDescriptionCommand(userId.Value, groupId, targetUserId, request.Description),
+        cancellationToken);
+    return Results.NoContent();
+})
+.WithName("SetGroupMemberDescription")
 .RequireAuthorization();
 
 // ADR-0051: per-group audit log (ids + short action metadata). Owner only.
@@ -3405,20 +3912,38 @@ app.MapGet("/api/account/audit", async (
 .WithName("ListAccountAudit")
 .RequireAuthorization();
 
-// ---- ADR-0078: group-defined roles (custom permissions, additive to the base role) ----
+// ---- ADR-0082: group-defined permission profiles (with legacy additive-role compatibility) ----
+// The canonical role -> permission mapping lives in GroupPermissions.BaseRolePermissions
+// (Sonivo.Domain) and is enforced per request by GroupAccessService.RequirePermissionAsync.
 
-static IReadOnlySet<string> BaseRolePermissions(string role) => role switch
+/// <summary>
+/// Non-throwing permission probe for endpoints that need "either of these two
+/// capabilities". Resolves the SAME effective set as the throwing gate, so it can
+/// never disagree with what an endpoint would enforce.
+/// </summary>
+static async Task<bool> CanAsync(
+    Guid groupId,
+    Guid userId,
+    string permission,
+    GroupAccessService access,
+    CancellationToken cancellationToken)
 {
-    MembershipRoles.Owner => new HashSet<string>(GroupPermissions.All, StringComparer.Ordinal),
-    MembershipRoles.Manager => new HashSet<string>(
-        [GroupPermissions.ManageBranding, GroupPermissions.ManageMembers, GroupPermissions.ManageSongs, GroupPermissions.ManageSetlists, GroupPermissions.ManageEvents, GroupPermissions.ManageTasks, GroupPermissions.RespondRsvp, GroupPermissions.Practice],
-        StringComparer.Ordinal),
-    MembershipRoles.Member => new HashSet<string>(
-        [GroupPermissions.ManageSongs, GroupPermissions.ManageSetlists, GroupPermissions.ManageEvents, GroupPermissions.RespondRsvp, GroupPermissions.Practice],
-        StringComparer.Ordinal),
-    MembershipRoles.Viewer => new HashSet<string>([GroupPermissions.Practice], StringComparer.Ordinal),
-    _ => new HashSet<string>(StringComparer.Ordinal),
-};
+    try
+    {
+        await access.RequirePermissionAsync(groupId, userId, permission, cancellationToken);
+        return true;
+    }
+    catch (ForbiddenException)
+    {
+        return false;
+    }
+    catch (NotFoundException)
+    {
+        // Non-member is not "lacking a permission": let the endpoint's own
+        // membership check produce the 404, so existence is never revealed here.
+        return false;
+    }
+}
 
 app.MapGet("/api/groups/{groupId:guid}/roles", async (
     Guid groupId,
@@ -3444,6 +3969,7 @@ app.MapGet("/api/groups/{groupId:guid}/roles", async (
             name = r.Name,
             description = r.Description,
             permissions = r.Permissions,
+            extendsBaseRole = r.ExtendsBaseRole,
             isSystem = r.IsSystem,
             createdAt = r.CreatedAt
         })
@@ -3459,6 +3985,7 @@ app.MapPost("/api/groups/{groupId:guid}/roles", async (
     UserManager<ApplicationUser> users,
     GroupAccessService access,
     IGroupRoleStore roles,
+    IGroupAuditStore audit,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -3489,7 +4016,8 @@ app.MapPost("/api/groups/{groupId:guid}/roles", async (
             name,
             clock.UtcNow,
             request.Permissions ?? Array.Empty<string>(),
-            request.Description);
+            request.Description,
+            extendsBaseRole: request.ExtendsBaseRole ?? false);
     }
     catch (ArgumentException ex)
     {
@@ -3497,6 +4025,14 @@ app.MapPost("/api/groups/{groupId:guid}/roles", async (
     }
 
     await roles.AddAsync(created, cancellationToken);
+    await audit.AddAsync(
+        GroupAuditEntry.Create(
+            groupId,
+            GroupAuditEntry.ActionGroupRoleCreated,
+            clock.UtcNow,
+            actorUserId: userId.Value,
+            metadata: $"roleId={created.Id:D}"),
+        cancellationToken);
     await roles.SaveChangesAsync(cancellationToken);
     return Results.Created($"/api/groups/{groupId}/roles/{created.Id}", new
     {
@@ -3504,6 +4040,7 @@ app.MapPost("/api/groups/{groupId:guid}/roles", async (
         name = created.Name,
         description = created.Description,
         permissions = created.Permissions,
+        extendsBaseRole = created.ExtendsBaseRole,
         isSystem = created.IsSystem,
         createdAt = created.CreatedAt
     });
@@ -3519,6 +4056,7 @@ app.MapPatch("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
     UserManager<ApplicationUser> users,
     GroupAccessService access,
     IGroupRoleStore roles,
+    IGroupAuditStore audit,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -3557,6 +4095,11 @@ app.MapPatch("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
         {
             role.SetPermissions(request.Permissions);
         }
+
+        if (request.ExtendsBaseRole is bool extendsBaseRole)
+        {
+            role.SetExtendsBaseRole(extendsBaseRole);
+        }
     }
     catch (ArgumentException ex)
     {
@@ -3568,6 +4111,14 @@ app.MapPatch("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
     }
 
     role.Touch(clock.UtcNow);
+    await audit.AddAsync(
+        GroupAuditEntry.Create(
+            groupId,
+            GroupAuditEntry.ActionGroupRoleUpdated,
+            clock.UtcNow,
+            actorUserId: userId.Value,
+            metadata: $"roleId={role.Id:D}"),
+        cancellationToken);
     await roles.SaveChangesAsync(cancellationToken);
     return Results.Ok(new
     {
@@ -3575,6 +4126,7 @@ app.MapPatch("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
         name = role.Name,
         description = role.Description,
         permissions = role.Permissions,
+        extendsBaseRole = role.ExtendsBaseRole,
         isSystem = role.IsSystem,
         createdAt = role.CreatedAt
     });
@@ -3589,6 +4141,8 @@ app.MapDelete("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
     UserManager<ApplicationUser> users,
     GroupAccessService access,
     IGroupRoleStore roles,
+    IGroupAuditStore audit,
+    IClock clock,
     SonivoDbContext db,
     CancellationToken cancellationToken) =>
 {
@@ -3611,8 +4165,24 @@ app.MapDelete("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
         return Results.Problem(detail: "Built-in roles cannot be deleted.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
     }
 
-    // Removing the role clears it on every member that carries it (FK SetNull).
+    // Clear assignments only within the selected Group before deleting the role.
+    var assignedMemberships = await db.Memberships
+        .Where(x => x.GroupId == groupId && x.GroupRoleId == role.Id)
+        .ToListAsync(cancellationToken);
+    foreach (var membership in assignedMemberships)
+    {
+        membership.AssignGroupRole(null);
+    }
+
     roles.Remove(role);
+    await audit.AddAsync(
+        GroupAuditEntry.Create(
+            groupId,
+            GroupAuditEntry.ActionGroupRoleDeleted,
+            clock.UtcNow,
+            actorUserId: userId.Value,
+            metadata: $"roleId={role.Id:D}"),
+        cancellationToken);
     await roles.SaveChangesAsync(cancellationToken);
     return Results.NoContent();
 })
@@ -3627,6 +4197,8 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/group-role", 
     UserManager<ApplicationUser> users,
     GroupAccessService access,
     IGroupRoleStore roles,
+    IGroupAuditStore audit,
+    IClock clock,
     SonivoDbContext db,
     CancellationToken cancellationToken) =>
 {
@@ -3638,23 +4210,13 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/group-role", 
 
     await access.RequireMemberAsync(groupId, userId.Value, cancellationToken);
 
-    // Effective permission: base role UNION the custom role granted to the actor.
-    var actor = await db.Memberships.FirstOrDefaultAsync(
-        m => m.GroupId == groupId && m.UserId == userId.Value,
-        cancellationToken);
-    var effective = new HashSet<string>(
-        BaseRolePermissions(actor?.Role ?? string.Empty),
-        StringComparer.Ordinal);
-    if (actor?.GroupRoleId is { } actorRoleId)
-    {
-        var granted = await roles.GetAsync(groupId, actorRoleId, cancellationToken);
-        if (granted is not null)
-        {
-            effective.UnionWith(granted.PermissionList);
-        }
-    }
-
-    if (!effective.Contains(GroupPermissions.ManageMembers) && !effective.Contains(GroupPermissions.ManageRoles))
+    // Effective permission gate (ADR-0080): assigning a role to somebody else
+    // is itself a permission. A custom role may hold `manage_members` (invite /
+    // change base role) without `manage_roles` (define custom roles), and both
+    // are Owner-only capabilities — the union rule keeps them out of reach of
+    // anything below Owner.
+    if (!await CanAsync(groupId, userId.Value, GroupPermissions.ManageRoles, access, cancellationToken)
+        && !await CanAsync(groupId, userId.Value, GroupPermissions.ManageMembers, access, cancellationToken))
     {
         return Results.Problem(
             detail: "You do not have permission to assign roles.",
@@ -3670,6 +4232,7 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/group-role", 
         return Results.NotFound();
     }
 
+    var previousGroupRoleId = target.GroupRoleId;
     if (request.GroupRoleId is { } roleId)
     {
         var role = await roles.GetAsync(groupId, roleId, cancellationToken);
@@ -3685,13 +4248,28 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/group-role", 
         target.AssignGroupRole(null);
     }
 
+    if (previousGroupRoleId != target.GroupRoleId)
+    {
+        await audit.AddAsync(
+            GroupAuditEntry.Create(
+                groupId,
+                GroupAuditEntry.ActionGroupRoleAssigned,
+                clock.UtcNow,
+                actorUserId: userId.Value,
+                targetUserId,
+                metadata: target.GroupRoleId is { } assignedRoleId
+                    ? $"roleId={assignedRoleId:D}"
+                    : "roleId=none"),
+            cancellationToken);
+    }
+
     await db.SaveChangesAsync(cancellationToken);
     return Results.NoContent();
 })
 .WithName("SetMemberGroupRole")
 .RequireAuthorization();
 
-// ---- In-app notifications (ADR-0077). Account and group inboxes are distinct:
+// ---- In-app notifications. Account and group inboxes are distinct:
 // "account" (security/credentials, one user) vs "group" (membership/repertoire,
 // one group, membership required). ----
 
@@ -3804,11 +4382,74 @@ app.MapPost("/api/notifications/read-all", async (
 .WithName("MarkAllNotificationsRead")
 .RequireAuthorization();
 
+app.MapGet("/api/groups/{groupId:guid}/notification-preferences", async (
+    Guid groupId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var (_, membership) = await access.RequireMemberAsync(groupId, userId.Value, cancellationToken);
+    return Results.Ok(new
+    {
+        notifyRoleChanges = membership.NotifyRoleChanges,
+        notifyTaskAssignments = membership.NotifyTaskAssignments
+    });
+})
+.WithName("GetGroupNotificationPreferences")
+.RequireAuthorization();
+
+app.MapPut("/api/groups/{groupId:guid}/notification-preferences", async (
+    Guid groupId,
+    UpdateGroupNotificationPreferencesRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IMembershipStore memberships,
+    IGroupStore groups,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequireMemberAsync(groupId, userId.Value, cancellationToken);
+    var membership = await memberships.GetForUpdateAsync(groupId, userId.Value, cancellationToken);
+    if (membership is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (request.NotifyRoleChanges is null || request.NotifyTaskAssignments is null)
+    {
+        return Results.Problem(
+            detail: "Both notification preferences are required.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    membership.SetNotificationPreferences(request.NotifyRoleChanges.Value, request.NotifyTaskAssignments.Value);
+    await groups.SaveChangesAsync(cancellationToken);
+    return Results.NoContent();
+})
+.WithName("UpdateGroupNotificationPreferences")
+.RequireAuthorization();
+
 app.MapPost("/api/groups/{groupId:guid}/leave", async (
     Guid groupId,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     LeaveGroupHandler handler,
+    GroupMembershipRealtimeRevoker realtimeRevoker,
+    PostCommitActionQueue postCommitActions,
     CancellationToken cancellationToken) =>
 {
     var userId = await RequireUserIdAsync(principal, users);
@@ -3818,6 +4459,7 @@ app.MapPost("/api/groups/{groupId:guid}/leave", async (
     }
 
     await handler.HandleAsync(new LeaveGroupCommand(userId.Value, groupId), cancellationToken);
+    postCommitActions.Enqueue(() => realtimeRevoker.RevokeAsync(groupId, userId.Value));
     return Results.NoContent();
 })
 .WithName("LeaveGroup")
@@ -3830,8 +4472,6 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
     UserManager<ApplicationUser> users,
     CreateInvitationHandler handler,
     IGroupAuditStore audit,
-    INotificationStore notifications,
-    INotificationPublisher publisher,
     IClock clock,
     CancellationToken cancellationToken) =>
 {
@@ -3850,27 +4490,6 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
         GroupAuditEntry.Create(groupId, GroupAuditEntry.ActionInvitationCreated, clock.UtcNow, actorUserId: userId.Value),
         cancellationToken);
     await audit.SaveChangesAsync(cancellationToken);
-
-    // ADR-0077: if the invited email belongs to an existing user, drop a group
-    // notification in their inbox (best effort; unknown emails get nothing).
-    if (!string.IsNullOrWhiteSpace(request?.Email))
-    {
-        var invitee = await users.FindByEmailAsync(request!.Email!.Trim());
-        if (invitee is not null)
-        {
-            await notifications.AddAsync(
-                Notification.Create(
-                    invitee.Id,
-                    NotificationScope.Group,
-                    Notification.KindInvitationCreated,
-                    clock.UtcNow,
-                    groupId: groupId,
-                    actorUserId: userId.Value),
-                cancellationToken);
-            await notifications.SaveChangesAsync(cancellationToken);
-            await publisher.PublishAsync(invitee.Id, Notification.KindInvitationCreated, groupId, cancellationToken);
-        }
-    }
 
     return Results.Created(
         $"/api/groups/{groupId}/invitations/{created.Id}",
@@ -4448,8 +5067,8 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resour
         {
             return Results.Problem(
                 detail: $"File must be {ResourceFileConstraints.MaxByteSize} bytes or fewer.",
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Bad Request");
+                statusCode: StatusCodes.Status413PayloadTooLarge,
+                title: "Content Too Large");
         }
 
         var contentType = ResolveUploadContentType(file.ContentType, file.FileName);
@@ -4503,9 +5122,12 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resour
 .WithName("CreateResource")
 .RequireAuthorization()
 .RequireRateLimiting("group-upload")
-// SECURITY-AUDIT-2026-10 (B6): reject oversized multipart bodies before they
-// are buffered (5 MiB file cap + form overhead).
-.WithMetadata(new RequestSizeLimitAttribute(6 * 1024 * 1024));
+// Bound multipart buffering to the largest accepted audio file plus form overhead.
+.WithMetadata(new RequestSizeLimitAttribute(251L * 1024 * 1024))
+.WithMetadata(new RequestFormLimitsAttribute
+{
+    MultipartBodyLengthLimit = 251L * 1024 * 1024
+});
 
 app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resources/{resourceId:guid}", async (
     Guid groupId,
@@ -4554,7 +5176,7 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resourc
         content.Content,
         content.ContentType,
         fileDownloadName: content.DownloadFileName,
-        enableRangeProcessing: true);
+        enableRangeProcessing: content.Content.CanSeek);
 })
 .WithName("GetResourceContent")
 .RequireAuthorization();
@@ -4681,7 +5303,7 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/digitiz
             endMs = s.EndMs,
             text = s.Text
         }),
-        error = job.Error
+        errorCode = job.ErrorCode
     });
 })
 .WithName("GetDigitizeJob")
@@ -4957,33 +5579,6 @@ app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/duplicate", async 
 .WithName("DuplicateEvent")
 .RequireAuthorization();
 
-app.MapDelete("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
-    Guid groupId,
-    Guid eventId,
-    [FromQuery] int expectedVersion,
-    ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users,
-    [FromServices] DeleteEventHandler handler,
-    CancellationToken cancellationToken) =>
-{
-    var userId = await RequireUserIdAsync(principal, users);
-    if (userId is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    await handler.HandleAsync(
-        new DeleteEventCommand(userId.Value, groupId, eventId, expectedVersion),
-        cancellationToken);
-
-    return Results.NoContent();
-})
-.WithName("DeleteEvent")
-.RequireAuthorization();
-
-// Note: DELETE endpoints with body are not supported by ASP.NET Core minimal APIs.
-// The expectedVersion is passed as a query parameter instead.
-
 app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/apply-setlist", async (
     Guid groupId,
     Guid eventId,
@@ -5113,8 +5708,200 @@ if (!app.Environment.IsDevelopment())
     // SECURITY-AUDIT-2026-10 (B1): unknown /api paths must 404 as JSON, never
     // fall through to the SPA shell (which returns index.html with 200 and
     // makes client-side routing/typos indistinguishable from real 404s).
-    app.MapFallback("/api/{**path}", () => Results.NotFound(new { detail = "Not found." }));
-    app.MapFallbackToFile("index.html");
+    app.MapFallback("/api/{**path}", () => Results.NotFound(new { detail = "Not found." }))
+        .AllowAnonymous();
+    // The SPA shell is public so guests can load /login, /register and the
+    // marketing routes. React applies its own route guards after the shell loads.
+    app.MapFallbackToFile("index.html")
+        .AllowAnonymous();
+}
+
+// ---- ADR-0085: hierarchical repertoire access overrides ----
+
+app.MapGet("/api/groups/{groupId:guid}/members/{targetUserId:guid}/resource-grants", async (
+    Guid groupId,
+    Guid targetUserId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IResourceGrantStore grants,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequirePermissionAsync(groupId, userId.Value, GroupPermissions.ManageMembers, cancellationToken);
+    var (_, targetMembership) = await access.RequireMemberAsync(groupId, targetUserId, cancellationToken);
+    if (targetMembership.IsOwner)
+    {
+        return Results.Problem(
+            detail: "Item access overrides cannot be assigned to the group owner.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var list = await grants.ListForUserAsync(groupId, targetUserId, cancellationToken);
+    return Results.Ok(new
+    {
+        items = list.Select(g => new
+        {
+            id = g.Id,
+            resourceType = g.ResourceType,
+            resourceId = g.ResourceId,
+            granted = g.Granted,
+            createdAt = g.CreatedAt
+        })
+    });
+})
+.WithName("ListMemberResourceGrants")
+.RequireAuthorization();
+
+app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/resource-grants", async (
+    Guid groupId,
+    Guid targetUserId,
+    SetResourceGrantRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupAccessService access,
+    IResourceGrantStore grants,
+    IGroupAuditStore audit,
+    ISongStore songs,
+    IArrangementStore arrangements,
+    IResourceStore resources,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    await access.RequirePermissionAsync(
+        groupId, userId.Value, GroupPermissions.ManageMembers, cancellationToken);
+    var (_, targetMembership) = await access.RequireMemberAsync(groupId, targetUserId, cancellationToken);
+    if (targetMembership.IsOwner)
+    {
+        return Results.Problem(
+            detail: "Item access overrides cannot be assigned to the group owner.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var resourceType = request.ResourceType?.Trim().ToLowerInvariant() ?? string.Empty;
+    if (!Sonivo.Domain.Tenancy.ResourceGrant.ResourceTypes.IsKnown(resourceType))
+    {
+        return Results.Problem(
+            detail: "Unknown resource type.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    if (request.ResourceId == Guid.Empty)
+    {
+        return Results.Problem(
+            detail: "ResourceId is required.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    // Polymorphic grants have no target FK. Resolve every target and its parent
+    // chain through stores scoped to this Group before persisting an override.
+    var targetExists = false;
+    if (request.Granted is not null)
+    {
+        if (resourceType == Sonivo.Domain.Tenancy.ResourceGrant.ResourceTypes.Song)
+        {
+            targetExists = await songs.GetByIdAsync(groupId, request.ResourceId, cancellationToken) is not null;
+        }
+        else if (resourceType == Sonivo.Domain.Tenancy.ResourceGrant.ResourceTypes.Arrangement)
+        {
+            var arrangement = await arrangements.GetByIdAsync(groupId, request.ResourceId, cancellationToken);
+            if (arrangement is not null)
+            {
+                targetExists = await songs.GetByIdAsync(groupId, arrangement.SongId, cancellationToken) is not null;
+            }
+        }
+        else if (resourceType == Sonivo.Domain.Tenancy.ResourceGrant.ResourceTypes.Resource)
+        {
+            var target = (await resources.ListByGroupAsync(groupId, cancellationToken))
+                .FirstOrDefault(resource => resource.Id == request.ResourceId);
+            if (target is not null)
+            {
+                var arrangement = await arrangements.GetByIdAsync(groupId, target.ArrangementId, cancellationToken);
+                targetExists = arrangement is not null
+                    && await songs.GetByIdAsync(groupId, arrangement.SongId, cancellationToken) is not null;
+            }
+        }
+
+        if (!targetExists)
+        {
+            return Results.NotFound();
+        }
+    }
+
+    // Defence in depth: an allow may only ever target a read capability, so the
+    // request cannot smuggle a write capability through the resource layer.
+    if (request.Granted is bool allow && !GroupPermissions.IsReadCapability(ReadCapabilityOf(resourceType)))
+    {
+        return Results.Problem(
+            detail: "Only read access may be granted per resource.",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request");
+    }
+
+    var existing = await grants.FindAsync(groupId, targetUserId, resourceType, request.ResourceId, cancellationToken);
+    if (request.Granted == existing?.Granted)
+    {
+        return Results.NoContent();
+    }
+
+    if (existing is not null)
+    {
+        grants.Remove(existing);
+    }
+
+    if (request.Granted is bool granted)
+    {
+        await grants.AddAsync(ResourceGrant.Create(
+            groupId,
+            targetUserId,
+            resourceType,
+            request.ResourceId,
+            granted,
+            clock.UtcNow,
+            userId.Value), cancellationToken);
+    }
+
+    await audit.AddAsync(
+        GroupAuditEntry.Create(
+            groupId,
+            GroupAuditEntry.ActionResourceGrantChanged,
+            clock.UtcNow,
+            actorUserId: userId.Value,
+            targetUserId,
+            metadata: $"resourceType={resourceType};resourceId={request.ResourceId:D};access={(request.Granted is null ? "inherit" : request.Granted.Value ? "allow" : "deny")}"),
+        cancellationToken);
+    await grants.SaveChangesAsync(cancellationToken);
+    return Results.NoContent();
+})
+.WithName("SetMemberResourceGrant")
+.RequireAuthorization();
+
+static string ReadCapabilityOf(string resourceType) => resourceType switch
+{
+    Sonivo.Domain.Tenancy.ResourceGrant.ResourceTypes.Song => Sonivo.Domain.Tenancy.GroupPermissions.SongView,
+    Sonivo.Domain.Tenancy.ResourceGrant.ResourceTypes.Arrangement => Sonivo.Domain.Tenancy.GroupPermissions.ArrangementView,
+    Sonivo.Domain.Tenancy.ResourceGrant.ResourceTypes.Resource => Sonivo.Domain.Tenancy.GroupPermissions.ResourceView,
+    _ => string.Empty,
+};
+
+if (mobileAuthenticationEnabled)
+{
+    await MobileClientRegistration.RegisterAsync(app.Services, app.Lifetime.ApplicationStopping);
 }
 
 app.Run();
@@ -5211,6 +5998,7 @@ static bool IsKnownImageSignature(ReadOnlySpan<byte> b) =>
 static async Task<IDbContextTransaction?> BeginTransactionIfSupportedAsync(
     SonivoDbContext db, IConfiguration configuration, CancellationToken cancellationToken) =>
     configuration.GetValue("UseInMemoryDatabase", false)
+        || db.Database.CurrentTransaction is not null
         ? null
         : await db.Database.BeginTransactionAsync(cancellationToken);
 
@@ -5522,6 +6310,9 @@ static string ResolveUploadContentType(string? declaredContentType, string? file
         ".jpg" or ".jpeg" => "image/jpeg",
         ".webp" => "image/webp",
         ".mp3" => "audio/mpeg",
+        ".flac" => "audio/flac",
+        ".aac" => "audio/aac",
+        ".ogg" => "audio/ogg",
         ".wav" => "audio/wav",
         ".m4a" or ".mp4" => "audio/mp4",
         ".txt" => "text/plain",
@@ -5589,6 +6380,7 @@ static object ToEventDetailResponse(EventDetailDto musicalEvent) => new
     })
 };
 
+
 internal sealed record RegisterRequest(string? Email, string? Password, string? DisplayName);
 
 /// <summary>LRC import payload. Send <c>contentBase64</c> to exercise BOM/encoding detection.</summary>
@@ -5638,7 +6430,9 @@ internal sealed record UpdateGroupBrandingRequest(
 internal sealed record CreateInvitationRequest(string? Email);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);
 internal sealed record ChangeMemberRoleRequest(string? Role);
+internal sealed record SetMemberAccessRequest(bool? Enabled);
 internal sealed record SetMusicalRoleRequest(string? MusicalRole);
+internal sealed record SetMemberDescriptionRequest(string? Description);
 internal sealed record SoftDeleteGroupRequest(int ExpectedVersion);
 internal sealed record CreateSongRequest(
     string? Title,
@@ -5764,6 +6558,7 @@ public sealed class AppExceptionHandler : IExceptionHandler
             NotFoundException => StatusCodes.Status404NotFound,
             ForbiddenException => StatusCodes.Status403Forbidden,
             PlanLimitException => StatusCodes.Status403Forbidden,
+            UploadLimitException => StatusCodes.Status413PayloadTooLarge,
             ConflictException => StatusCodes.Status409Conflict,
             ValidationException => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status500InternalServerError
@@ -5781,6 +6576,7 @@ public sealed class AppExceptionHandler : IExceptionHandler
                 {
                     404 => "Not Found",
                     403 => "Forbidden",
+                    413 => "Content Too Large",
                     409 => "Conflict",
                     400 => "Validation failed",
                     _ => "Error"
@@ -5803,7 +6599,26 @@ public sealed record ClientErrorReport(string? Source, string? Message, string? 
 internal sealed record CreateTaskRequest(string? Title, string? Notes, DateTimeOffset? DueAt, Guid? AssigneeUserId);
 internal sealed record UpdateTaskRequest(string? Title, string? Notes, DateTimeOffset? DueAt, Guid? AssigneeUserId, int ExpectedVersion);
 internal sealed record SetTaskStatusRequest(string? Status, int ExpectedVersion);
+internal sealed record UpdateGroupNotificationPreferencesRequest(
+    bool? NotifyRoleChanges,
+    bool? NotifyTaskAssignments);
 internal sealed record DeleteTaskRequest(int ExpectedVersion);
-internal sealed record CreateGroupRoleRequest(string? Name, string? Description, string[]? Permissions);
-internal sealed record UpdateGroupRoleRequest(string? Name, string? Description, string[]? Permissions);
+internal sealed record CreateGroupRoleRequest(string? Name, string? Description, string[]? Permissions, bool? ExtendsBaseRole);
+internal sealed record UpdateGroupRoleRequest(string? Name, string? Description, string[]? Permissions, bool? ExtendsBaseRole);
+
 internal sealed record SetMemberGroupRoleRequest(Guid? GroupRoleId);
+
+
+internal sealed record SetResourceGrantRequest(string? ResourceType, Guid ResourceId, bool? Granted);
+
+internal static class CsvExportCell
+{
+    public static string Escape(string value)
+    {
+        var trimmed = value.TrimStart();
+        var safe = trimmed.Length > 0 && trimmed[0] is '=' or '+' or '-' or '@'
+            ? $"'{value}"
+            : value;
+        return $"\"{safe.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+    }
+}

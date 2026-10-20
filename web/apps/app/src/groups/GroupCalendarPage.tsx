@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
@@ -55,7 +56,7 @@ function toCalendarEvent(
 }
 
 /**
- * W-C — group calendar (`/groups/:id/calendar`). Reuses the calendar views
+ * W-C — group calendar (`/app/groups/:id/calendar`). Reuses the calendar views
  * but only ever loads the current group's events, so no cross-group leak is
  * possible. Non-members get a 404 from the API.
  */
@@ -90,7 +91,7 @@ export function GroupCalendarPage() {
       .catch((err) => {
         if (!cancelled) {
           setGroup(null);
-          setError(problemDetail(err));
+          setError(problemDetail(err, t));
         }
       });
     return () => {
@@ -108,7 +109,7 @@ export function GroupCalendarPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(problemDetail(err));
+          setError(problemDetail(err, t));
           setEvents([]);
         }
       });
@@ -162,7 +163,7 @@ export function GroupCalendarPage() {
   }
 
   function openEvent(event: CalendarEvent) {
-    navigate(`/groups/${event.groupId}/events/${event.eventId}`);
+    navigate(routes.groupEvent(event.groupId, event.eventId));
   }
 
   function selectDay(date: Date) {
@@ -178,7 +179,7 @@ export function GroupCalendarPage() {
     return (
       <div className="space-y-3">
         <GroupErrorState message={error} />
-        <GroupLink variant="soft" to="/groups">
+        <GroupLink variant="soft" to={routes.groups}>
           {t("workspace.myGroups")}
         </GroupLink>
       </div>

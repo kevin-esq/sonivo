@@ -1,25 +1,65 @@
 import { createContext, useContext } from 'react'
 
-/**
- * Live brand preview (owner 2026-10-05). The branding editor publishes the
- * draft token map here while it is open, so the whole group workspace repaints
- * in real time — before saving — instead of only the small preview cards.
- *
- * The group shell owns the state and merges `tokens` over the server-saved
- * tokens; the editor only writes to it and clears on unmount.
- */
 export type BrandTokenMap = Record<string, string>
 
-export type BrandPreviewValue = {
-  tokens: BrandTokenMap | null
-  setTokens: (tokens: BrandTokenMap | null) => void
+export type BrandDraft = {
+  displayName: string
+  accentHex: string
+  secondaryHex: string
+  accentColorHex: string
+  successHex: string
+  warningHex: string
+  errorHex: string
+  typography: string
+  cover: string
+  themeDefault: string
+  defaultLocale: string
+  welcomeText: string
+  loginHeadline: string
+  tagline: string
+  verse: string
+  showSonivoCredit: boolean
+  themeId: string
+  intensity: 'subtle' | 'medium' | 'intense'
+  gradientStyle: 'fixed' | 'liquid'
 }
 
-const noop = () => {}
+export type BrandPreviewDraft = {
+  groupId: string
+  groupName: string
+  editor: BrandDraft
+  pendingImages: Partial<Record<'logo' | 'banner' | 'favicon', { file: File; url: string }>>
+  tokens: BrandTokenMap
+  displayName: string
+  tagline: string
+  verse: string
+  cover: string
+  savedCover: string
+  savedBannerUrl: string | null
+  dirty: boolean
+  save: () => Promise<string | null>
+  discard: () => void
+}
+
+export type BrandPreviewValue = {
+  draft: BrandPreviewDraft | null
+  setDraft: (draft: BrandPreviewDraft | null) => void
+  savedBrand: {
+    groupId: string
+    accentHex: string | null
+    displayName: string | null
+    tagline: string | null
+    verse: string | null
+    welcomeText: string | null
+    cover: string
+    bannerUrl: string | null
+  } | null
+}
 
 export const BrandPreviewContext = createContext<BrandPreviewValue>({
-  tokens: null,
-  setTokens: noop,
+  draft: null,
+  setDraft: () => {},
+  savedBrand: null,
 })
 
 export function useBrandPreview(): BrandPreviewValue {

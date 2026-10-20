@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="960" y2="360" gradientUnits="userSpaceOnUse"><stop stop-color="#172554"/><stop offset=".55" stop-color="#4C1D95"/><stop offset="1" stop-color="#7C3AED"/></linearGradient>
+    <linearGradient id="wave" x1="100" y1="180" x2="870" y2="180" gradientUnits="userSpaceOnUse"><stop stop-color="#67E8F9"/><stop offset=".52" stop-color="#C4B5FD"/><stop offset="1" stop-color="#F0ABFC"/></linearGradient>
+  </defs>
+  <path fill="url(#bg)" d="M0 0h960v360H0z"/>
+  <circle cx="770" cy="46" r="190" fill="#A78BFA" fill-opacity=".18"/>
+  <circle cx="130" cy="320" r="210" fill="#22D3EE" fill-opacity=".13"/>
+  <path d="M0 214c48 0 48-68 96-68s48 124 96 124 48-205 96-205 48 226 96 226 48-164 96-164 48 98 96 98 48-133 96-133 48 148 96 148 48-76 96-76 48 50 96 50" stroke="url(#wave)" stroke-linecap="round" stroke-width="14" opacity=".94"/>
+  <path d="M0 266c55 0 55-34 110-34s55 63 110 63 55-103 110-103 55 131 110 131 55-88 110-88 55 45 110 45 55-72 110-72 55 83 110 83 55-43 110-43" stroke="#fff" stroke-linecap="round" stroke-width="4" opacity=".44"/>
+</svg>

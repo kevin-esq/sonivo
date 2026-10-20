@@ -1,4 +1,5 @@
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Tenancy;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Repertoire;
 
@@ -62,30 +63,41 @@ public sealed class CreateArrangementHandler
     private readonly ISongStore _songs;
     private readonly IArrangementStore _arrangements;
     private readonly IClock _clock;
+    private readonly IGroupAuditStore? _audit;
 
     public CreateArrangementHandler(
         GroupAccessService access,
         ISongStore songs,
         IArrangementStore arrangements,
-        IClock clock)
+        IClock clock,
+        IGroupAuditStore? audit = null)
     {
         _access = access;
         _songs = songs;
         _arrangements = arrangements;
         _clock = clock;
+        _audit = audit;
     }
 
     public async Task<ArrangementDetailDto> HandleAsync(
         CreateArrangementCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.ArrangementCreate, cancellationToken);
 
         var song = await _songs.GetByIdAsync(command.GroupId, command.SongId, cancellationToken);
         if (song is null)
         {
             throw new NotFoundException("Song not found.");
         }
+
+        await _access.RequireResourcePermissionAsync(
+            command.GroupId,
+            command.UserId,
+            GroupPermissions.ArrangementCreate,
+            ResourceGrant.ResourceTypes.Song,
+            song.Id,
+            cancellationToken);
 
         try
         {
@@ -102,6 +114,11 @@ public sealed class CreateArrangementHandler
                 command.Notes);
 
             await _arrangements.AddAsync(arrangement, cancellationToken);
+            if (_audit is not null)
+            {
+                await _audit.AddAsync(GroupAuditEntry.Create(
+                    command.GroupId, GroupAuditEntry.ActionArrangementCreated, arrangement.CreatedAt, actorUserId: command.UserId), cancellationToken);
+            }
             await _arrangements.SaveChangesAsync(cancellationToken);
 
             return ToDetail(arrangement, []);

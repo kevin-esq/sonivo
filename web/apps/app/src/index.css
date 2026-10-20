@@ -88,6 +88,22 @@
   --color-muted: #94a3b8;
   --color-surface-hover: rgba(255, 255, 255, 0.06);
   --color-border-subtle: rgba(255, 255, 255, 0.1);
+  /* Repertoire surfaces derive from the active group theme and its chosen brand. */
+  --color-score-paper: var(--color-surface);
+  --color-score-paper-soft: var(--color-surface-hover);
+  --color-score-line: color-mix(in srgb, var(--color-border-subtle) 72%, transparent);
+  --color-score-border: var(--color-border-subtle);
+  --color-score-border-strong: color-mix(in srgb, var(--color-ink) 24%, var(--color-surface));
+  --color-score-ink: var(--color-ink);
+  --color-score-ink-soft: color-mix(in srgb, var(--color-ink) 82%, var(--color-surface));
+  --color-score-muted: var(--color-muted);
+  --color-score-quiet: color-mix(in srgb, var(--color-muted) 78%, var(--color-surface));
+  --color-score-soft: var(--color-surface);
+  --color-score-hover: color-mix(in srgb, var(--brand-primary) 7%, var(--color-surface-hover));
+  --color-score-current: color-mix(in srgb, var(--brand-primary) 13%, var(--color-surface));
+  --color-score-accent: var(--brand-primary);
+  --color-score-accent-soft: color-mix(in srgb, var(--brand-primary) 11%, var(--color-surface));
+  --color-score-accent-border: color-mix(in srgb, var(--brand-primary) 38%, var(--color-border-subtle));
   /* Dark theme semantic colors */
   --color-success: #4ade80;
   --color-warning: #fbbf24;
@@ -111,6 +127,21 @@
   --color-primary-ink: #6d4ee0;
   --color-surface-hover: #f8fafc;
   --color-border-subtle: #e2e8f0;
+  --color-score-paper: var(--color-surface);
+  --color-score-paper-soft: var(--color-surface-hover);
+  --color-score-line: color-mix(in srgb, var(--color-border-subtle) 72%, transparent);
+  --color-score-border: var(--color-border-subtle);
+  --color-score-border-strong: color-mix(in srgb, var(--color-ink) 24%, var(--color-surface));
+  --color-score-ink: var(--color-ink);
+  --color-score-ink-soft: color-mix(in srgb, var(--color-ink) 82%, var(--color-surface));
+  --color-score-muted: var(--color-muted);
+  --color-score-quiet: color-mix(in srgb, var(--color-muted) 78%, var(--color-surface));
+  --color-score-soft: var(--color-surface);
+  --color-score-hover: color-mix(in srgb, var(--brand-primary) 7%, var(--color-surface-hover));
+  --color-score-current: color-mix(in srgb, var(--brand-primary) 13%, var(--color-surface));
+  --color-score-accent: var(--brand-primary);
+  --color-score-accent-soft: color-mix(in srgb, var(--brand-primary) 11%, var(--color-surface));
+  --color-score-accent-border: color-mix(in srgb, var(--brand-primary) 38%, var(--color-border-subtle));
   /* Light theme semantic colors */
   --color-success: #16a34a;
   --color-success-ink: #15803d;
@@ -154,6 +185,7 @@ h4 {
 }
 
 
+
 @keyframes library-enter {
   from {
     opacity: 0;
@@ -190,6 +222,21 @@ h4 {
     opacity: 1;
     transform: none;
   }
+}
+
+.color-picker-circle {
+  appearance: none;
+  overflow: hidden;
+}
+
+.color-picker-circle::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-picker-circle::-webkit-color-swatch,
+.color-picker-circle::-moz-color-swatch {
+  border: 0;
+  border-radius: 9999px;
 }
 
 

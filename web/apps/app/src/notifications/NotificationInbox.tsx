@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bell, CalendarDays, CheckCheck, CheckSquare, KeyRound, ShieldCheck, UserPlus, type LucideIcon } from 'lucide-react'
@@ -36,15 +37,15 @@ function kindLink(notification: AppNotification): string | null {
   switch (notification.kind) {
     case 'role_changed':
     case 'invitation_created':
-      return notification.groupId ? `/groups/${notification.groupId}/people` : '/groups'
+      return notification.groupId ? routes.groupPeople(notification.groupId) : routes.groups
     case 'event_created':
-      return notification.groupId ? `/groups/${notification.groupId}/events` : '/calendar'
+      return notification.groupId ? routes.groupEvents(notification.groupId) : routes.calendar
     case 'task_assigned':
-      return notification.groupId ? `/groups/${notification.groupId}/tasks` : '/'
+      return notification.groupId ? routes.groupTasks(notification.groupId) : routes.home
     case 'password_changed':
     case 'passkey_added':
     case 'passkey_removed':
-      return '/account/security'
+      return routes.accountSecurity
     default:
       return null
   }
@@ -88,7 +89,7 @@ export function NotificationInbox({
         setInbox(result)
         onUnreadChange?.(result.unreadCount)
       } catch (err) {
-        if (!cancelled) setError(mutationErrorMessage(err))
+        if (!cancelled) setError(mutationErrorMessage(err, t))
       }
     }
     void load()
@@ -124,7 +125,7 @@ export function NotificationInbox({
       )
       onUnreadChange?.(0)
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
     }
   }
 
@@ -211,7 +212,7 @@ export function NotificationInbox({
       )}
 
       {!compact && inbox && inbox.items.length > 0 ? (
-        <Link to="/account/notifications" className="inline-block text-xs font-semibold text-primary-ink hover:underline">
+        <Link to={routes.accountNotifications} className="inline-block text-xs font-semibold text-primary-ink hover:underline">
           {t('notifications.openAccount')}
         </Link>
       ) : null}

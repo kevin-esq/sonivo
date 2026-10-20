@@ -1,16 +1,20 @@
+import { routes } from '../routing/routes'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Bell, PlugZap } from 'lucide-react'
 import {
   ApiError,
   deleteGroup,
   fetchFeatures,
   getGroup,
   getGroupBranding,
+  getGroupNotificationPreferences,
   getGroupUsage,
   problemDetail,
   updateGroup,
   updateGroupBranding,
+  updateGroupNotificationPreferences,
   uploadGroupBrandingImage,
   uploadGroupBrandingFavicon,
   type BrandingCapabilities,
@@ -18,15 +22,14 @@ import {
   type GroupBranding,
   type GroupDetail,
   type GroupUsage,
+  type GroupNotificationPreferences,
 } from '../api/client'
 import { BRAND_THEMES, GRADIENT_STYLES, INTENSITY_OPTIONS, TYPOGRAPHY_OPTIONS, deriveGroupThemeTokens } from '../brand/tokens'
-import { useBrandPreview } from './brandPreview'
+import { useBrandPreview, type BrandDraft } from './brandPreview'
 import { GroupAuditPanel } from '../groups/GroupAuditPanel'
 import { useTheme } from '../brand/theme'
 import { useT, type I18nKey } from '../i18n'
 import {
-  ACCESS_DENIED_MESSAGE,
-  CONFLICT_MESSAGE,
   ConfirmDialog,
   ConflictAlert,
   isOwnerRole,
@@ -35,16 +38,18 @@ import {
 } from '../repertoire/ui'
 import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
+import { FileDropzone } from '../ui/FileDropzone'
 import { fieldClass } from '../ui/field'
 import {
   GROUP_ACCENT_PRESETS,
-  GROUP_COVER_EMOJIS,
   GROUP_COVER_GRADIENTS,
+  GROUP_COVER_PRESETS,
   NO_COVER,
   coverUsesLightText,
   groupCoverStyle,
   isGradientCover,
   isNoneCover,
+  isPresetCover,
   readGroupAppearance,
   writeGroupAppearance,
   type GroupAppearance,
@@ -67,6 +72,7 @@ const ACCENT_NAME_KEYS: Record<string, I18nKey> = {
  * presets (`GROUP_ACCENT_PRESETS`) are decorative and are NOT all AA-safe.
  */
 const BRAND_PRIMARY_PRESETS = ['#6d4ee0', '#0369a1', '#047857', '#b45309', '#b91c1c', '#7e22ce'] as const
+const BRAND_IMAGE_MAX_BYTES = 2 * 1024 * 1024
 
 /** Secondary swatches: each meets AA with either white or near-black ink. */
 const BRAND_SECONDARY_PRESETS = ['#0ea5e9', '#10b981', '#f3b626', '#ef4444', '#e8c4f6', '#a78bfa'] as const
@@ -119,27 +125,11 @@ const GRADIENT_NAME_KEYS: Record<string, I18nKey> = {
   sunset: 'settings.coverGradientSunset',
 }
 
-/** Brand editor draft (ADR-0054); colours stay as raw hex until saved/validated. */
-type BrandDraft = {
-  displayName: string
-  accentHex: string
-  secondaryHex: string
-  accentColorHex: string
-  successHex: string
-  warningHex: string
-  errorHex: string
-  typography: string
-  cover: string
-  themeDefault: string
-  defaultLocale: string
-  welcomeText: string
-  loginHeadline: string
-  tagline: string
-  verse: string
-  showSonivoCredit: boolean
-  themeId: string
-  intensity: 'subtle' | 'medium' | 'intense'
-  gradientStyle: 'fixed' | 'liquid'
+const COVER_PRESET_NAME_KEYS: Record<(typeof GROUP_COVER_PRESETS)[number], I18nKey> = {
+  soundwave: 'settings.coverPresetSoundwave',
+  stage: 'settings.coverPresetStage',
+  vinyl: 'settings.coverPresetVinyl',
+  choir: 'settings.coverPresetChoir',
 }
 
 /** Narrow a stored intensity string to the union the token engine accepts. */
@@ -154,6 +144,7 @@ function asGradientStyle(value: string | null | undefined): 'fixed' | 'liquid' {
 
 function coverFromBranding(branding: GroupBranding): string {
   if (branding.coverKind === 'gradient' && branding.coverValue) return `gradient:${branding.coverValue}`
+  if (branding.coverKind === 'preset' && branding.coverValue) return `preset:${branding.coverValue}`
   if (branding.coverKind === 'emoji' && branding.coverValue) return branding.coverValue
   return NO_COVER
 }
@@ -161,6 +152,7 @@ function coverFromBranding(branding: GroupBranding): string {
 function coverToBranding(cover: string): { coverKind: string | null; coverValue: string | null } {
   if (cover === NO_COVER) return { coverKind: null, coverValue: null }
   if (cover.startsWith('gradient:')) return { coverKind: 'gradient', coverValue: cover.slice('gradient:'.length) }
+  if (cover.startsWith('preset:')) return { coverKind: 'preset', coverValue: cover.slice('preset:'.length) }
   return { coverKind: 'emoji', coverValue: cover }
 }
 
@@ -203,6 +195,12 @@ const SETTINGS_TABS: { id: SettingsTab; labelKey: I18nKey }[] = [
   { id: 'danger', labelKey: 'settings.tabDanger' },
 ]
 
+const SETTINGS_TAB_GROUPS: { labelKey: I18nKey; ids: SettingsTab[] }[] = [
+  { labelKey: 'settings.navIdentity', ids: ['general', 'branding'] },
+  { labelKey: 'settings.navOperation', ids: ['plan', 'permissions', 'notifications', 'integrations'] },
+  { labelKey: 'settings.navAdministration', ids: ['audit', 'danger'] },
+]
+
 /** Human-readable byte size for the storage usage row. */
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -220,12 +218,16 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const { groupId } = useParams()
   const navigate = useNavigate()
   const { t } = useT()
+  const { draft: preservedBrandDraft, setDraft: setBrandPreview } = useBrandPreview()
+  const preservedBrandDraftRef = useRef(preservedBrandDraft)
+  useEffect(() => {
+    preservedBrandDraftRef.current = preservedBrandDraft?.groupId === groupId ? preservedBrandDraft : null
+  }, [preservedBrandDraft, groupId])
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [appearance, setAppearance] = useState<GroupAppearance>(() => readGroupAppearance(groupId))
   const [saved, setSaved] = useState(false)
   const [renameName, setRenameName] = useState('')
-  const [renaming, setRenaming] = useState(false)
   const [renameError, setRenameError] = useState<string | null>(null)
   const [renameConflict, setRenameConflict] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -245,6 +247,55 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     setSearchParams(next, { replace: true })
   }
   const [usage, setUsage] = useState<GroupUsage | null>(null)
+  const [notificationPreferences, setNotificationPreferences] = useState<GroupNotificationPreferences | null>(null)
+  const [notificationPreferencesLoading, setNotificationPreferencesLoading] = useState(false)
+  const [notificationPreferencesSaving, setNotificationPreferencesSaving] = useState(false)
+  const [notificationPreferencesError, setNotificationPreferencesError] = useState<string | null>(null)
+  const [notificationPreferencesSaved, setNotificationPreferencesSaved] = useState(false)
+
+  useEffect(() => {
+    if (!groupId || activeTab !== 'notifications') return
+    let cancelled = false
+    setNotificationPreferencesLoading(true)
+    setNotificationPreferencesError(null)
+    getGroupNotificationPreferences(groupId)
+      .then((result) => {
+        if (!cancelled) setNotificationPreferences(result)
+      })
+      .catch((err) => {
+        if (!cancelled) setNotificationPreferencesError(problemDetail(err, t))
+      })
+      .finally(() => {
+        if (!cancelled) setNotificationPreferencesLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [groupId, activeTab, t])
+
+  const saveNotificationPreferences = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!groupId || !notificationPreferences) return
+    setNotificationPreferencesSaving(true)
+    setNotificationPreferencesSaved(false)
+    setNotificationPreferencesError(null)
+    try {
+      await updateGroupNotificationPreferences(groupId, notificationPreferences)
+      setNotificationPreferencesSaved(true)
+    } catch (err) {
+      setNotificationPreferencesError(problemDetail(err, t))
+    } finally {
+      setNotificationPreferencesSaving(false)
+    }
+  }
+
+  useEffect(() => {
+    if (
+      group &&
+      !isOwnerRole(group.role) &&
+      (activeTab === 'audit' || activeTab === 'danger')
+    ) {
+      setActiveTab('general')
+    }
+  }, [group, activeTab])
 
   useEffect(() => {
     if (!groupId) return
@@ -277,7 +328,9 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const [brandSaved, setBrandSaved] = useState(false)
   const [brandError, setBrandError] = useState<string | null>(null)
   const [brandConflict, setBrandConflict] = useState<string | null>(null)
-  const [uploading, setUploading] = useState<'logo' | 'banner' | 'favicon' | null>(null)
+  const [pendingImages, setPendingImages] = useState<
+    Partial<Record<'logo' | 'banner' | 'favicon', { file: File; url: string }>>
+  >(() => preservedBrandDraftRef.current?.pendingImages ?? {})
 
   // Live component preview uses the same semantic tokens as the real workspace,
   // derived from the *draft* colours so it updates before saving.
@@ -305,13 +358,46 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     [draft, previewFontFamily, theme],
   )
 
-  // Publish the draft tokens to the group shell so the WHOLE workspace
-  // repaints in real time while editing (cleared on leave).
-  const { setTokens: setBrandPreview } = useBrandPreview()
+  // Publish the complete draft so the shell keeps it available across routes.
+  const isDirty = useMemo(() => {
+    if (!draft || !branding) return Object.keys(pendingImages).length > 0
+    const current = draftFromBranding(branding)
+    return JSON.stringify(draft) !== JSON.stringify(current) || Object.keys(pendingImages).length > 0
+  }, [draft, branding, pendingImages])
+  const renameDirty = Boolean(group && renameName.trim() !== group.name)
   useEffect(() => {
-    setBrandPreview(draft ? componentPreviewTokens : null)
-    return () => setBrandPreview(null)
-  }, [draft, componentPreviewTokens, setBrandPreview])
+    if (!draft || !branding || !groupId || !group || !isOwnerRole(group.role)) return
+    setBrandPreview({
+      groupId,
+      groupName: renameName.trim() || group.name,
+      editor: draft,
+      pendingImages,
+      tokens: componentPreviewTokens,
+      displayName: draft.displayName,
+      tagline: draft.tagline,
+      verse: draft.verse,
+      cover: draft.cover,
+      savedCover: coverFromBranding(branding),
+      savedBannerUrl: branding.bannerUrl,
+      dirty: isDirty || renameDirty,
+      save: async () => {
+        if (renameDirty && !renameSaved) {
+          const renameErrorMessage = await saveGroupName()
+          if (renameErrorMessage) return renameErrorMessage
+          renameSaved = true
+        }
+        return isDirty ? onSaveBranding() : null
+      },
+      discard: () => {
+        setDraft(draftFromBranding(branding))
+        setRenameName(group.name)
+        Object.values(pendingImages).forEach((image) => image && URL.revokeObjectURL(image.url))
+        setPendingImages({})
+        setBrandSaved(false)
+      },
+    })
+    let renameSaved = false
+  }, [draft, branding, groupId, group, group?.role, renameName, componentPreviewTokens, isDirty, renameDirty, pendingImages, setBrandPreview])
 
   useEffect(() => {
     let cancelled = false
@@ -336,19 +422,31 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       setSaved(false)
       setBrandSaved(false)
       setAppearance(readGroupAppearance(groupId))
+      setBranding(null)
+      setDraft(null)
+      setPendingImages((previous) => {
+        Object.values(previous).forEach((image) => image && URL.revokeObjectURL(image.url))
+        return preservedBrandDraftRef.current?.groupId === groupId
+          ? preservedBrandDraftRef.current.pendingImages
+          : {}
+      })
       try {
         const result = await getGroup(groupId)
         if (!cancelled) {
           setGroup(result)
-          setRenameName(result.name)
+          setRenameName(
+            preservedBrandDraftRef.current?.groupId === groupId
+              ? preservedBrandDraftRef.current.groupName
+              : result.name,
+          )
         }
       } catch (err) {
         if (cancelled) return
         setGroup(null)
         if (err instanceof ApiError && err.status === 404) {
-          setError(ACCESS_DENIED_MESSAGE)
+          setError(t('common.groupNotFoundOrNoAccess'))
         } else {
-          setError(problemDetail(err))
+          setError(problemDetail(err, t))
         }
       }
     }
@@ -366,7 +464,12 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         const result = await getGroupBranding(groupId!)
         if (cancelled) return
         setBranding(result)
-        setDraft(draftFromBranding(result))
+        const preservedDraft = preservedBrandDraftRef.current
+        setDraft(
+          preservedDraft && preservedDraft.groupId === groupId
+            ? preservedDraft.editor
+            : draftFromBranding(result),
+        )
       } catch {
         if (!cancelled) {
           setBranding(null)
@@ -399,21 +502,21 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
    * ("Maximum update depth exceeded"). Coalesce a burst into one update per frame
    * and ignore non-hex / unchanged values.
    */
-  const pendingColor = useRef<{ field: keyof BrandDraft; value: string } | null>(null)
+  const pendingColors = useRef<Partial<BrandDraft>>({})
   const colorFrame = useRef<number | null>(null)
 
   function setDraftColor(field: keyof BrandDraft, value: string) {
     const next = value.toLowerCase()
     if (!/^#[0-9a-f]{6}$/.test(next)) return
     if (String(draft?.[field] ?? '').toLowerCase() === next) return
-    pendingColor.current = { field, value: next }
+    pendingColors.current = { ...pendingColors.current, [field]: next }
     if (colorFrame.current != null) return
     colorFrame.current = window.requestAnimationFrame(() => {
       colorFrame.current = null
-      const pending = pendingColor.current
-      pendingColor.current = null
-      if (!pending) return
-      setDraft((prev) => (prev ? ({ ...prev, [pending.field]: pending.value } as BrandDraft) : prev))
+      const pending = pendingColors.current
+      pendingColors.current = {}
+      if (Object.keys(pending).length === 0) return
+      setDraft((prev) => (prev ? ({ ...prev, ...pending } as BrandDraft) : prev))
       setBrandSaved(false)
     })
   }
@@ -425,16 +528,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     [],
   )
 
-  const isDirty = useMemo(() => {
-    if (!draft || !branding) return false
-    const current = draftFromBranding(branding)
-    return JSON.stringify(draft) !== JSON.stringify(current)
-  }, [draft, branding])
-
-  async function onRename(event: FormEvent) {
-    event.preventDefault()
-    if (!groupId || !group) return
-    setRenaming(true)
+  async function saveGroupName(): Promise<string | null> {
+    if (!groupId || !group || !renameDirty) return null
     setRenameError(null)
     setRenameConflict(null)
     try {
@@ -445,26 +540,26 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       setGroup(updated)
       setRenameName(updated.name)
       notifyGroupUpdated()
+      return null
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        setRenameConflict(CONFLICT_MESSAGE)
+        setRenameConflict(t('common.errorConflict'))
         try {
           const latest = await getGroup(group.id)
           setGroup(latest)
           setRenameName(latest.name)
         } catch (reloadErr) {
-          setRenameError(mutationErrorMessage(reloadErr))
+          setRenameError(mutationErrorMessage(reloadErr, t))
         }
       } else {
-        setRenameError(mutationErrorMessage(err))
+        setRenameError(mutationErrorMessage(err, t))
       }
-    } finally {
-      setRenaming(false)
+      return mutationErrorMessage(err, t)
     }
   }
 
-  async function onSaveBranding() {
-    if (!group || !branding || !draft || !isOwnerRole(group.role)) return
+  async function onSaveBranding(): Promise<string | null> {
+    if (!group || !branding || !draft || !isOwnerRole(group.role)) return t('common.errorGeneral')
     setSavingBrand(true)
     setBrandError(null)
     setBrandConflict(null)
@@ -473,8 +568,16 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     const saved = draftFromBranding(branding)
     const cover = coverToBranding(can('icon') ? draft.cover : saved.cover)
     try {
+      let currentBranding = branding
+      for (const kind of ['logo', 'banner', 'favicon'] as const) {
+        const pending = pendingImages[kind]
+        if (!pending) continue
+        currentBranding = kind === 'favicon'
+          ? await uploadGroupBrandingFavicon(group.id, pending.file)
+          : await uploadGroupBrandingImage(group.id, kind, pending.file)
+      }
       const updated = await updateGroupBranding(group.id, {
-        expectedVersion: branding.version,
+        expectedVersion: currentBranding.version,
         displayName: can('brandName') ? draft.displayName.trim() || null : saved.displayName.trim() || null,
         accentHex: can('accent') ? draft.accentHex.trim() || null : saved.accentHex.trim() || null,
         secondaryHex: can('splitColors') ? draft.secondaryHex.trim() || null : saved.secondaryHex.trim() || null,
@@ -500,43 +603,54 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       })
       setBranding(updated)
       setDraft(draftFromBranding(updated))
+      Object.values(pendingImages).forEach((pending) => {
+        if (pending) URL.revokeObjectURL(pending.url)
+      })
+      setPendingImages({})
       setBrandSaved(true)
       notifyGroupUpdated()
+      return null
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        setBrandConflict(CONFLICT_MESSAGE)
+        setBrandConflict(t('common.errorConflict'))
         try {
           const latest = await getGroupBranding(group.id)
           setBranding(latest)
           setDraft(draftFromBranding(latest))
         } catch (reloadErr) {
-          setBrandError(mutationErrorMessage(reloadErr))
+          setBrandError(mutationErrorMessage(reloadErr, t))
         }
       } else {
-        setBrandError(mutationErrorMessage(err))
+        setBrandError(mutationErrorMessage(err, t))
       }
+      return mutationErrorMessage(err, t)
     } finally {
       setSavingBrand(false)
     }
   }
 
-  async function onUploadImage(kind: 'logo' | 'banner' | 'favicon', event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
+  function onUploadImage(kind: 'logo' | 'banner' | 'favicon', file: File | null) {
     if (!file || !group) return
-    setUploading(kind)
+    const url = URL.createObjectURL(file)
+    setPendingImages((current) => {
+      const previous = current[kind]
+      if (previous) URL.revokeObjectURL(previous.url)
+      return { ...current, [kind]: { file, url } }
+    })
+    setBrandSaved(false)
     setBrandError(null)
-    try {
-      const updated = kind === 'favicon'
-        ? await uploadGroupBrandingFavicon(group.id, file)
-        : await uploadGroupBrandingImage(group.id, kind, file)
-      setBranding(updated)
-      notifyGroupUpdated()
-    } catch (err) {
-      setBrandError(mutationErrorMessage(err))
-    } finally {
-      setUploading(null)
-    }
+  }
+
+  function removePendingImage(kind: 'logo' | 'banner' | 'favicon') {
+    const previous = pendingImages[kind]
+    if (previous) URL.revokeObjectURL(previous.url)
+    setPendingImages((current) => {
+      const next = { ...current }
+      delete next[kind]
+      return next
+    })
+    setBrandSaved(false)
+    setBrandError(null)
   }
 
   async function onConfirmDelete() {
@@ -546,19 +660,19 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
     try {
       await deleteGroup(group.id, group.version)
       setDeleteOpen(false)
-      navigate('/')
+      navigate(routes.home)
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        setDeleteError(CONFLICT_MESSAGE)
+        setDeleteError(t('common.errorConflict'))
         try {
           const latest = await getGroup(group.id)
           setGroup(latest)
           setRenameName(latest.name)
         } catch (reloadErr) {
-          setDeleteError(mutationErrorMessage(reloadErr))
+          setDeleteError(mutationErrorMessage(reloadErr, t))
         }
       } else {
-        setDeleteError(mutationErrorMessage(err))
+        setDeleteError(mutationErrorMessage(err, t))
       }
     } finally {
       setDeleting(false)
@@ -575,7 +689,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         <p role="alert" className="text-error-ink">
           {error}
         </p>
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/home">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           {t('workspace.myGroups')}
         </Link>
       </div>
@@ -583,10 +697,22 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   }
 
   const isOwner = isOwnerRole(group.role)
+  const visibleSettingsTabs = SETTINGS_TABS.filter(
+    (tab) => isOwner || (tab.id !== 'audit' && tab.id !== 'danger'),
+  )
+  const visibleSettingsTabGroups = SETTINGS_TAB_GROUPS
+    .map((group) => ({ ...group, tabs: visibleSettingsTabs.filter((tab) => group.ids.includes(tab.id)) }))
+    .filter((group) => group.tabs.length > 0)
   const previewAccent = draft?.accentHex || '#8366f1'
-  const previewHeaderStyle = branding?.bannerUrl
+  const previewHeaderStyle = pendingImages.banner
     ? {
-        backgroundImage: `linear-gradient(rgba(15,23,42,0.45), rgba(15,23,42,0.45)), url(${branding.bannerUrl})`,
+        backgroundImage: `linear-gradient(rgba(15,23,42,0.56), rgba(15,23,42,0.56)), url(${pendingImages.banner.url})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : branding?.bannerUrl && draft?.cover === coverFromBranding(branding)
+    ? {
+        backgroundImage: `linear-gradient(rgba(15,23,42,0.56), rgba(15,23,42,0.56)), url(${branding.bannerUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }
@@ -609,32 +735,60 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         </p>
       )}
 
-      {/* Tab navigation */}
-      <div className="flex flex-wrap gap-1 rounded-xl bg-surface-hover p-1" role="tablist" aria-label={t('settings.tabsLabel')}>
-        {SETTINGS_TABS.filter((tab) => tab.id !== 'audit' || isOwner).map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              'min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-              activeTab === tab.id
-                ? 'bg-surface text-ink shadow-sm'
-                : 'text-muted hover:text-ink',
-              tab.id === 'danger' && activeTab !== 'danger' ? 'text-error-ink hover:text-error-ink' : '',
-            )}
-          >
-            {t(tab.labelKey)}
-          </button>
+      <div className="grid gap-5 md:grid-cols-[13rem_minmax(0,1fr)] md:items-start">
+      {/* Settings navigation */}
+      <div
+        className="flex gap-4 overflow-x-auto rounded-xl bg-surface-hover p-2 md:sticky md:top-4 md:flex-col md:overflow-visible"
+        role="tablist"
+        aria-label={t('settings.tabsLabel')}
+        onKeyDown={(event) => {
+          const currentIndex = visibleSettingsTabs.findIndex((tab) => tab.id === activeTab)
+          let nextIndex = currentIndex
+          if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % visibleSettingsTabs.length
+          else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + visibleSettingsTabs.length) % visibleSettingsTabs.length
+          else if (event.key === 'Home') nextIndex = 0
+          else if (event.key === 'End') nextIndex = visibleSettingsTabs.length - 1
+          else return
+          event.preventDefault()
+          const nextTab = visibleSettingsTabs[nextIndex]
+          if (nextTab) {
+            setActiveTab(nextTab.id)
+            document.getElementById(`settings-tab-${nextTab.id}`)?.focus()
+          }
+        }}
+      >
+        {visibleSettingsTabGroups.map((group) => (
+          <div key={group.labelKey} className="flex shrink-0 gap-1 md:flex-col">
+            <p className="hidden px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted md:block">
+              {t(group.labelKey)}
+            </p>
+            {group.tabs.map((tab) => (
+              <button
+                key={tab.id}
+                id={`settings-tab-${tab.id}`}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls="settings-panel"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'min-h-11 rounded-lg px-3 py-2 text-left text-sm font-semibold whitespace-nowrap transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none md:w-full',
+                  activeTab === tab.id ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink',
+                  tab.id === 'danger' && activeTab !== 'danger' ? 'text-error-ink hover:text-error-ink' : '',
+                )}
+              >
+                {t(tab.labelKey)}
+              </button>
+            ))}
+          </div>
         ))}
       </div>
 
+      <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`} tabIndex={0}>
       {/* General tab */}
       {activeTab === 'general' ? (
         <div className="space-y-6">
-          <form className="space-y-3" onSubmit={(event) => void onRename(event)} noValidate>
+          <form className="space-y-3" onSubmit={(event) => event.preventDefault()} noValidate>
             <h2 className="text-lg font-semibold">{t('dashboard.renameTitle')}</h2>
             <ConflictAlert message={renameConflict} />
             <ProblemAlert message={renameError} />
@@ -652,11 +806,6 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 maxLength={200}
               />
             </label>
-            {isOwner ? (
-              <Button variant="secondary" type="submit" disabled={renaming}>
-                {renaming ? t('dashboard.working') : t('dashboard.saveName')}
-              </Button>
-            ) : null}
           </form>
 
           {brandingEnabled && draft ? (
@@ -754,7 +903,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               <p className="text-sm font-semibold text-ink">{t('settings.planLockedTitle')}</p>
               <p className="text-sm text-muted">{t('settings.planLockedBody')}</p>
               <Link
-                to="/account/membership"
+                to={routes.accountMembership}
                 className="inline-block text-sm font-semibold text-primary-ink no-underline hover:underline"
               >
                 {t('settings.planUpgrade')}
@@ -776,8 +925,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 )}
                 aria-hidden="true"
               >
-                {branding.logoUrl ? (
-                  <img src={branding.logoUrl} alt="" className="h-9 w-9 rounded object-contain" />
+                {pendingImages.logo || branding.logoUrl ? (
+                  <img src={pendingImages.logo?.url ?? branding.logoUrl ?? ''} alt="" className="h-9 w-9 rounded object-contain" />
                 ) : isGradientCover(draft.cover) || isNoneCover(draft.cover) ? (
                   (draft.displayName || group.name).slice(0, 1).toUpperCase()
                 ) : (
@@ -920,7 +1069,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                           typography: 'system',
                           intensity: 'medium',
                           gradientStyle: 'fixed',
-                          cover: GROUP_COVER_EMOJIS[0] ?? '🎵',
+                          cover: `preset:${GROUP_COVER_PRESETS[0]}`,
                         }
                       : current,
                   )
@@ -1001,7 +1150,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 aria-label={t('settings.customColor')}
                 value={draft.accentHex || '#8366f1'}
                 onChange={(e) => setDraftColor('accentHex', e.target.value)}
-                className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
+                className="color-picker-circle h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
             </div>
           </fieldset>
@@ -1031,7 +1180,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 aria-label={t('settings.customColor')}
                 value={draft.secondaryHex || '#f5c542'}
                 onChange={(e) => setDraftColor('secondaryHex', e.target.value)}
-                className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
+                className="color-picker-circle h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ secondaryHex: '' })}>
                 {t('settings.clearColor')}
@@ -1064,7 +1213,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 aria-label={t('settings.customColor')}
                 value={draft.accentColorHex || '#9d8bda'}
                 onChange={(e) => setDraftColor('accentColorHex', e.target.value)}
-                className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
+                className="color-picker-circle h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
               />
               <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ accentColorHex: '' })}>
                 {t('settings.clearColor')}
@@ -1084,7 +1233,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     aria-label={t('settings.successColor')}
                     value={draft.successHex || '#10b981'}
                     onChange={(e) => setDraftColor('successHex', e.target.value)}
-                    className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
+                    className="color-picker-circle h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ successHex: '' })}>
                     {t('settings.clearColor')}
@@ -1099,7 +1248,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     aria-label={t('settings.warningColor')}
                     value={draft.warningHex || '#f59e0b'}
                     onChange={(e) => setDraftColor('warningHex', e.target.value)}
-                    className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
+                    className="color-picker-circle h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ warningHex: '' })}>
                     {t('settings.clearColor')}
@@ -1114,7 +1263,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                     aria-label={t('settings.errorColor')}
                     value={draft.errorHex || '#ef4444'}
                     onChange={(e) => setDraftColor('errorHex', e.target.value)}
-                    className="h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
+                    className="color-picker-circle h-11 w-11 cursor-pointer rounded-full border border-border-subtle bg-transparent p-1"
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ errorHex: '' })}>
                     {t('settings.clearColor')}
@@ -1185,10 +1334,18 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                   aria-pressed={draft.intensity === option.id}
                   onClick={() => patchDraft({ intensity: option.id })}
                   className={cn(
-                    'h-11 rounded-xl border px-4 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                    'flex h-14 min-w-28 items-center gap-2.5 rounded-xl border px-3 text-sm font-medium transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
                     draft.intensity === option.id ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
                   )}
                 >
+                  <span
+                    className="h-8 w-8 shrink-0 rounded-full border border-black/10"
+                    style={{
+                      backgroundImage: `radial-gradient(circle at 30% 25%, ${draft.accentHex || '#8366f1'}${option.washAlpha}, transparent 72%)`,
+                      backgroundColor: 'var(--color-canvas)',
+                    }}
+                    aria-hidden="true"
+                  />
                   {t(option.labelKey as I18nKey)}
                 </button>
               ))}
@@ -1231,19 +1388,20 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               >
                 {t('settings.coverNone')}
               </button>
-              {GROUP_COVER_EMOJIS.map((emoji) => (
+              {GROUP_COVER_PRESETS.map((id) => (
                 <button
-                  key={emoji}
+                  key={id}
                   type="button"
-                  aria-label={t('settings.coverEmojiLabel', { emoji })}
-                  aria-pressed={draft.cover === emoji}
-                  onClick={() => patchDraft({ cover: emoji })}
+                  aria-label={t(COVER_PRESET_NAME_KEYS[id])}
+                  aria-pressed={draft.cover === `preset:${id}`}
+                  onClick={() => patchDraft({ cover: `preset:${id}` })}
                   className={cn(
-                    'grid h-11 min-w-11 place-items-center rounded-xl border px-2 text-xl transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-                    draft.cover === emoji ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
+                    'relative h-20 w-36 overflow-hidden rounded-xl border text-left text-sm font-semibold text-white transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                    draft.cover === `preset:${id}` ? 'border-primary ring-2 ring-primary/35' : 'border-border-subtle hover:border-primary/50',
                   )}
+                  style={groupCoverStyle(`preset:${id}`, previewAccent)}
                 >
-                  <span aria-hidden="true">{emoji}</span>
+                  <span className="absolute inset-x-0 bottom-0 bg-slate-950/55 px-2.5 py-1.5">{t(COVER_PRESET_NAME_KEYS[id])}</span>
                 </button>
               ))}
               {GROUP_COVER_GRADIENTS.map((id) => (
@@ -1267,40 +1425,43 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
           <div className="grid gap-5 sm:grid-cols-3">
             <div className="space-y-2">
-              <p className="text-sm font-medium">{t('settings.uploadLogo')}</p>
-              <p className="text-xs text-muted">{t('settings.imageHint')}</p>
-              <input
-                type="file"
+              <FileDropzone
+                title={t('settings.uploadLogo')}
+                description={t('settings.imageHint')}
                 accept="image/png,image/jpeg,image/webp,image/gif"
-                disabled={!isOwner || locked('logo') || uploading !== null}
-                aria-label={t('settings.uploadLogo')}
-                onChange={(e) => void onUploadImage('logo', e)}
+                maxSizeBytes={BRAND_IMAGE_MAX_BYTES}
+                disabled={!isOwner || locked('logo')}
+                file={pendingImages.logo?.file ?? null}
+                onFileChange={(file) => file ? onUploadImage('logo', file) : removePendingImage('logo')}
+                compact
               />
-              {uploading === 'logo' ? <p aria-live="polite" className="text-xs text-muted">{t('settings.uploading')}</p> : null}
+              {pendingImages.logo ? <p aria-live="polite" className="text-xs text-muted">{t('settings.imageReady')}</p> : null}
             </div>
             <div className="space-y-2">
-              <p className="text-sm font-medium">{t('settings.uploadBanner')}</p>
-              <p className="text-xs text-muted">{t('settings.imageHint')}</p>
-              <input
-                type="file"
+              <FileDropzone
+                title={t('settings.uploadBanner')}
+                description={t('settings.imageHint')}
                 accept="image/png,image/jpeg,image/webp,image/gif"
-                disabled={!isOwner || locked('banner') || uploading !== null}
-                aria-label={t('settings.uploadBanner')}
-                onChange={(e) => void onUploadImage('banner', e)}
+                maxSizeBytes={BRAND_IMAGE_MAX_BYTES}
+                disabled={!isOwner || locked('banner')}
+                file={pendingImages.banner?.file ?? null}
+                onFileChange={(file) => file ? onUploadImage('banner', file) : removePendingImage('banner')}
+                compact
               />
-              {uploading === 'banner' ? <p aria-live="polite" className="text-xs text-muted">{t('settings.uploading')}</p> : null}
+              {pendingImages.banner ? <p aria-live="polite" className="text-xs text-muted">{t('settings.imageReady')}</p> : null}
             </div>
             <div className="space-y-2">
-              <p className="text-sm font-medium">{t('settings.uploadFavicon')}</p>
-              <p className="text-xs text-muted">{t('settings.faviconHint')}</p>
-              <input
-                type="file"
+              <FileDropzone
+                title={t('settings.uploadFavicon')}
+                description={t('settings.faviconHint')}
                 accept="image/png,image/jpeg,image/webp,image/gif"
-                disabled={!isOwner || uploading !== null}
-                aria-label={t('settings.uploadFavicon')}
-                onChange={(e) => void onUploadImage('favicon', e)}
+                maxSizeBytes={BRAND_IMAGE_MAX_BYTES}
+                disabled={!isOwner}
+                file={pendingImages.favicon?.file ?? null}
+                onFileChange={(file) => file ? onUploadImage('favicon', file) : removePendingImage('favicon')}
+                compact
               />
-              {uploading === 'favicon' ? <p aria-live="polite" className="text-xs text-muted">{t('settings.uploading')}</p> : null}
+              {pendingImages.favicon ? <p aria-live="polite" className="text-xs text-muted">{t('settings.imageReady')}</p> : null}
             </div>
           </div>
 
@@ -1310,35 +1471,6 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             </span>
           ) : null}
 
-          {/* Discord-style floating save bar while there are unsaved changes. */}
-          {isOwner && isDirty ? (
-            <div
-              role="status"
-              data-testid="brand-unsaved-bar"
-              className="fixed inset-x-3 bottom-20 z-50 mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 shadow-xl md:bottom-4"
-            >
-              <p className="min-w-0 flex-1 text-sm font-medium text-ink">
-                {t('settings.unsavedChanges')}
-              </p>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={savingBrand}
-                onClick={() => {
-                  if (branding) {
-                    setDraft(draftFromBranding(branding))
-                    setBrandSaved(false)
-                  }
-                }}
-              >
-                {t('settings.discardChanges')}
-              </Button>
-              <Button type="button" size="sm" disabled={savingBrand} onClick={() => void onSaveBranding()}>
-                {savingBrand ? t('dashboard.working') : t('settings.saveBranding')}
-              </Button>
-            </div>
-          ) : null}
         </section>
       ) : null}
 
@@ -1359,7 +1491,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 )}
                 aria-hidden="true"
               >
-                {isGradientCover(appearance.cover) || isNoneCover(appearance.cover)
+                {isGradientCover(appearance.cover) || isPresetCover(appearance.cover) || isNoneCover(appearance.cover)
                   ? group.name.slice(0, 1).toUpperCase()
                   : appearance.cover}
               </span>
@@ -1411,19 +1543,20 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
               >
                 {t('settings.coverNone')}
               </button>
-              {GROUP_COVER_EMOJIS.map((emoji) => (
+              {GROUP_COVER_PRESETS.map((id) => (
                 <button
-                  key={emoji}
+                  key={id}
                   type="button"
-                  aria-label={t('settings.coverEmojiLabel', { emoji })}
-                  aria-pressed={appearance.cover === emoji}
-                  onClick={() => update({ ...appearance, cover: emoji })}
+                  aria-label={t(COVER_PRESET_NAME_KEYS[id])}
+                  aria-pressed={appearance.cover === `preset:${id}`}
+                  onClick={() => update({ ...appearance, cover: `preset:${id}` })}
                   className={cn(
-                    'grid h-11 min-w-11 place-items-center rounded-xl border px-2 text-xl transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-                    appearance.cover === emoji ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
+                    'h-20 w-36 rounded-xl border text-sm font-semibold text-white transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                    appearance.cover === `preset:${id}` ? 'border-primary ring-2 ring-primary/25' : 'border-border-subtle hover:border-primary/50',
                   )}
+                  style={groupCoverStyle(`preset:${id}`, appearance.accent)}
                 >
-                  <span aria-hidden="true">{emoji}</span>
+                  {t(COVER_PRESET_NAME_KEYS[id])}
                 </button>
               ))}
               {GROUP_COVER_GRADIENTS.map((id) => (
@@ -1459,7 +1592,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       {activeTab === 'permissions' ? (
         <div className="space-y-4">
           <p className="text-sm text-muted">{t('roles.subtitle')}</p>
-          <Link to={`/groups/${group.id}/roles`}>
+          <Link to={routes.groupRoles(group.id)}>
             <Button variant="secondary">{t('roles.title')}</Button>
           </Link>
         </div>
@@ -1467,16 +1600,83 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
 
       {/* Notifications tab */}
       {activeTab === 'notifications' ? (
-        <div className="space-y-4">
-          <p className="text-sm text-muted">{t('settings.notificationsComingSoon')}</p>
-        </div>
+        <section className="mx-auto max-w-xl rounded-3xl border border-border-subtle bg-surface px-6 py-8 sm:px-10" aria-labelledby="settings-notifications-title">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary-ink" aria-hidden="true">
+              <Bell className="h-6 w-6" />
+            </span>
+            <div>
+              <h2 id="settings-notifications-title" className="text-xl font-semibold tracking-tight text-ink">{t('settings.tabNotifications')}</h2>
+              <p className="mt-1 text-sm text-muted">{t('settings.notificationsSubtitle')}</p>
+            </div>
+          </div>
+          {notificationPreferencesLoading ? (
+            <p aria-live="polite" className="mt-6 text-sm text-muted">{t('settings.notificationsLoading')}</p>
+          ) : notificationPreferences ? (
+            <form className="mt-6 space-y-5" onSubmit={saveNotificationPreferences}>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border-subtle p-4">
+                <input
+                  className="mt-1 h-4 w-4 accent-primary"
+                  type="checkbox"
+                  checked={notificationPreferences.notifyRoleChanges}
+                  onChange={(event) => {
+                    setNotificationPreferences({ ...notificationPreferences, notifyRoleChanges: event.target.checked })
+                    setNotificationPreferencesSaved(false)
+                  }}
+                />
+                <span>
+                  <span className="block text-sm font-medium text-ink">{t('settings.notifyRoleChanges')}</span>
+                  <span className="mt-1 block text-sm text-muted">{t('settings.notifyRoleChangesDescription')}</span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border-subtle p-4">
+                <input
+                  className="mt-1 h-4 w-4 accent-primary"
+                  type="checkbox"
+                  checked={notificationPreferences.notifyTaskAssignments}
+                  onChange={(event) => {
+                    setNotificationPreferences({ ...notificationPreferences, notifyTaskAssignments: event.target.checked })
+                    setNotificationPreferencesSaved(false)
+                  }}
+                />
+                <span>
+                  <span className="block text-sm font-medium text-ink">{t('settings.notifyTaskAssignments')}</span>
+                  <span className="mt-1 block text-sm text-muted">{t('settings.notifyTaskAssignmentsDescription')}</span>
+                </span>
+              </label>
+              {notificationPreferencesSaved ? <p role="status" className="text-sm text-muted">{t('settings.saved')}</p> : null}
+              {notificationPreferencesError ? <p role="alert" className="text-sm text-error-ink">{notificationPreferencesError}</p> : null}
+              <Button type="submit" disabled={notificationPreferencesSaving}>
+                {notificationPreferencesSaving ? t('profile.saving') : t('settings.saveNotifications')}
+              </Button>
+            </form>
+          ) : (
+            <p role="alert" className="mt-6 text-sm text-error-ink">{notificationPreferencesError ?? t('common.errorGeneral')}</p>
+          )}
+        </section>
       ) : null}
 
       {/* Integrations tab */}
       {activeTab === 'integrations' ? (
-        <div className="space-y-4">
-          <p className="text-sm text-muted">{t('settings.integrationsComingSoon')}</p>
-        </div>
+        <section className="mx-auto max-w-xl rounded-3xl border border-border-subtle bg-surface px-6 py-8 sm:px-10" aria-labelledby="settings-integrations-title">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary-ink" aria-hidden="true">
+              <PlugZap className="h-6 w-6" />
+            </span>
+            <div>
+              <h2 id="settings-integrations-title" className="text-xl font-semibold tracking-tight text-ink">{t('settings.tabIntegrations')}</h2>
+              <p className="mt-1 text-sm text-muted">{t('settings.calendarIntegrationTitle')}</p>
+            </div>
+          </div>
+          <p className="mt-5 text-sm leading-6 text-muted">{t('settings.calendarIntegrationHelp')}</p>
+          <a
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-on-primary no-underline hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            href={`/api/groups/${group.id}/calendar.ics`}
+            download="sonivo-calendar.ics"
+          >
+            {t('settings.calendarDownload')}
+          </a>
+        </section>
       ) : null}
 
       {/* Plan tab (ADR-0071): effective plan + usage vs limits (spec §7). */}
@@ -1529,7 +1729,7 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
                 ))}
               </div>
               <Link
-                to="/account/membership"
+                to={routes.accountMembership}
                 className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
               >
                 {t('settings.changePlan')}
@@ -1573,6 +1773,8 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
           </ConfirmDialog>
         </section>
       ) : null}
+      </div>
+      </div>
     </section>
   )
 }

@@ -1,10 +1,20 @@
 # SECURITY.md — Sonivo
 
-Security design for MVP. **No implementation.**  
-Phase 2.1–2.2 **CLOSED**. Tenancy ADR-0019, CSRF ADR-0020, soft-delete/history ADR-0023 **ACCEPTED** (HUMAN-APPROVED).
+Security design and implementation contract.
+Phase 2.1–2.2 **CLOSED**. Tenancy ADR-0019/0079, CSRF ADR-0020,
+soft-delete/history ADR-0023, and RLS defense in depth ADR-0086 are accepted.
 
 AuthN ACCEPTED: Identity + HTTP-only cookie (0009, 0011).  
 AuthZ ACCEPTED: Owner \| Member (0012).
+
+**Host separation (ADR-0089):** public marketing, identity, and product are
+separate deployment/security surfaces. Host separation does not authorize a
+request. Cookies stay host-only; each BFF uses an exact upstream/API origin;
+CSP, CORS, OAuth callbacks, and passkey origins use exact allowlists. Do not
+trust wildcard subdomains or place private data in marketing. API authorization
+and Group membership checks remain authoritative on every request. Identity
+host cutover remains blocked until passkey RP ID, OAuth, antiforgery, and
+single-use handoff gates pass.
 
 ---
 
@@ -52,7 +62,7 @@ No ACL engine.
 
 ---
 
-## 3. Tenancy — request-to-database flow (**ACCEPTED ADR-0019**)
+## 3. Tenancy — request-to-database flow (**ACCEPTED ADR-0019/0079/0086**)
 
 ### Principle
 
@@ -74,7 +84,9 @@ No ACL engine.
         (mismatch/missing → 404/400)
      e. Mutate in transaction; soft-delete filters as specified
 5. Infrastructure: tenant queries always parameterized by GroupId
-6. Blobs: authorize first; resource blobs use the opaque key `resources/{resourceId}` and are reachable only after the tenant-scoped Arrangement load succeeds (no prefix-based trust)
+6. Database transaction establishes authenticated user and verified Group scope transaction-locally before tenant-owned queries; PostgreSQL policies independently check membership and deny when context is absent
+7. Runtime database role is neither owner, superuser, nor `BYPASSRLS`; migrations use separate privileges
+8. Blobs: authorize first; resource blobs use the opaque key `resources/{resourceId}` and are reachable only after the tenant-scoped Arrangement load succeeds (no prefix-based trust)
 ```
 
 ### Challenge answers (binding intent)
@@ -93,6 +105,12 @@ No ACL engine.
 | J | See §7 security tests |
 
 Membership of User→Group is not a “cross-Group User leak”; identity is platform-scoped.
+
+RLS is defense in depth against missing tenant predicates. It does not replace
+`GroupAccessService`, role capabilities, hierarchical item checks, or explicit
+Group-scoped loads. It does not protect against arbitrary SQL executed with the
+application runtime credential. See [ADR-0086](DECISIONS.md) and the
+[Phase 4.2 rollout gates](PHASE-4.2-POSTGRESQL-RLS-SPEC.md).
 
 ---
 
@@ -138,7 +156,7 @@ Use **ASP.NET Core’s supported antiforgery** (do not invent a custom token sys
 
 | Concern | Canonical mechanism | Layer | Failure |
 | ------- | ------------------- | ----- | ------- |
-| Tenant isolation | Membership + scoped `(GroupId, Id)` loads | Application (+ DB filters) | 404 |
+| Tenant isolation | Membership + scoped `(GroupId, Id)` loads + RLS | Application + PostgreSQL | 404 / row denied |
 | Membership | `(UserId, GroupId)` lookup | Application | 404 |
 | Role AuthZ | Owner \| Member matrix | Application | 403 |
 | Cross-Group refs | Load related with same GroupId | Application | 404/400 |

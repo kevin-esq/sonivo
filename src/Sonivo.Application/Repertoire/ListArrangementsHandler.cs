@@ -1,5 +1,6 @@
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Tenancy;
+using Sonivo.Domain.Tenancy;
 
 namespace Sonivo.Application.Repertoire;
 
@@ -25,7 +26,15 @@ public sealed class ListArrangementsHandler
         Guid songId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
+        // The Song-level item grant may grant read access to this Song and its
+        // nested Arrangements even when the member has no group-wide role grant.
+        await _access.RequireResourcePermissionAsync(
+            groupId,
+            userId,
+            GroupPermissions.SongView,
+            ResourceGrant.ResourceTypes.Song,
+            songId,
+            cancellationToken);
 
         var song = await _songs.GetByIdAsync(groupId, songId, cancellationToken);
         if (song is null)
@@ -34,16 +43,34 @@ public sealed class ListArrangementsHandler
         }
 
         var arrangements = await _arrangements.ListBySongAsync(groupId, songId, cancellationToken);
-        return arrangements
-            .Select(a => new ArrangementListItemDto(
-                a.Id,
-                a.SongId,
-                a.Label,
-                a.DefaultKey,
-                a.DefaultBpm,
-                a.Version,
-                a.CreatedAt,
-                a.UpdatedAt))
-            .ToList();
+        var visible = new List<ArrangementListItemDto>(arrangements.Count);
+        foreach (var arrangement in arrangements)
+        {
+            var readable = await _access.HasResourceReadPathPermissionAsync(
+                groupId,
+                userId,
+                new[]
+                {
+                    (ResourceGrant.ResourceTypes.Song, songId, GroupPermissions.SongView),
+                    (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id, GroupPermissions.ArrangementView),
+                },
+                cancellationToken);
+            if (!readable)
+            {
+                continue;
+            }
+
+            visible.Add(new ArrangementListItemDto(
+                arrangement.Id,
+                arrangement.SongId,
+                arrangement.Label,
+                arrangement.DefaultKey,
+                arrangement.DefaultBpm,
+                arrangement.Version,
+                arrangement.CreatedAt,
+                arrangement.UpdatedAt));
+        }
+
+        return visible;
     }
 }

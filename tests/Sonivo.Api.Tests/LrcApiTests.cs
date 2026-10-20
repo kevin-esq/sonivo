@@ -43,7 +43,9 @@ public class LrcApiTests : IClassFixture<SonivoApiFactory>
         var (_, arrangement) = await SeedSongAndArrangementAsync(ownerWithFlag, "LRC Flag");
 
         // A client on the factory WITHOUT the flag (same in-memory database).
-        var ownerWithoutFlag = await LoginAsync(_factory, email);
+        var disabledFeatureFactory = _factory.WithWebHostBuilder(builder =>
+            builder.UseSetting("Features:Lrc", "false"));
+        var ownerWithoutFlag = await LoginAsync(disabledFeatureFactory, email);
         var response = await ownerWithoutFlag.PostAsJsonAsync(
             $"/api/groups/{arrangement.GroupId}/arrangements/{arrangement.Id}/lyrics/import-lrc",
             new { content = "[00:01.00]x" });

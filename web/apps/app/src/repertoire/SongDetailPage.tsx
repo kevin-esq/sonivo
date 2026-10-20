@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -18,6 +19,7 @@ import {
 } from '../api/client'
 import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
+import { safeExternalResourceUrl } from './resourceUrl'
 import { fieldClass } from '../ui/field'
 import {
   EmptyPanel,
@@ -30,7 +32,6 @@ import {
   ReadinessChip,
 } from './chrome'
 import {
-  CONFLICT_MESSAGE,
   ConfirmDialog,
   ConflictAlert,
   formatOriginKind,
@@ -43,6 +44,9 @@ import { plural } from '../ui/plural'
 import { useAction } from '../hooks/useAction'
 import { useResource } from '../hooks/useResource'
 import { useT, type I18nKey } from '../i18n'
+
+import { SongContentGuide } from './SongContentGuide'
+import { RehearsalBodyView } from './ChordProView'
 
 type SongTab = 'lyrics' | 'chords' | 'notes' | 'files'
 
@@ -102,11 +106,11 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
     try {
       await deleteSong(groupId, songId, target.version)
       setConfirmDelete(false)
-      navigate(`/groups/${groupId}/library`)
+      navigate(routes.groupLibrary(groupId))
     } catch (err) {
       setConfirmDelete(false)
       if (isConflictError(err)) {
-        setConflict(CONFLICT_MESSAGE)
+        setConflict(t('common.errorConflict'))
         surface.reload()
         return
       }
@@ -122,7 +126,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/home">
+        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           {t('song.myGroups')}
         </Link>
       </div>
@@ -136,10 +140,10 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
     }
     return (
       <div className="space-y-3">
-        <ProblemAlert message={mutationErrorMessage(surface.error)} />
+        <ProblemAlert message={mutationErrorMessage(surface.error, t)} />
         <Link
           className="font-semibold text-primary-ink no-underline hover:underline"
-          to={`/groups/${group.id}/library`}
+          to={routes.groupLibrary(group.id)}
         >
           {t('song.library')}
         </Link>
@@ -151,7 +155,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
   const selectedArrangement =
     arrangements.find((item) => item.id === selectedArrangementId) ?? null
   const arrangementDetail = detail.data
-  const deleteError = remove.error != null ? mutationErrorMessage(remove.error) : null
+  const deleteError = remove.error != null ? mutationErrorMessage(remove.error, t) : null
 
   const showAddArrangement = isOwner && !creatingArrangement
 
@@ -181,23 +185,23 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
   const resources: ResourceSummary[] = arrangementDetail?.resources ?? []
 
   return (
-    <section className="space-y-6" aria-labelledby="song-heading">
-      <header data-testid="song-hero" className="space-y-3">
+    <section className="space-y-8" aria-labelledby="song-heading">
+      <header data-testid="song-hero" className="space-y-4 rounded-3xl border border-[var(--color-score-border)] bg-[var(--color-score-soft)] p-5 text-[var(--color-score-ink)] sm:p-8">
         <PageBreadcrumb
           items={[
-            { to: `/groups/${group.id}`, label: group.name },
-            { to: `/groups/${group.id}/library`, label: t('songs.pageTitle') },
+            { to: routes.group(group.id), label: group.name },
+            { to: routes.groupLibrary(group.id), label: t('songs.pageTitle') },
             { label: song.title },
           ]}
         />
-        <div className="flex flex-wrap items-start gap-3">
+        <div className="flex flex-wrap items-start gap-4">
           <OriginMark kind={song.originKind} />
           <div className="min-w-0 flex-1 space-y-2">
-            <h1 id="song-heading" className="text-3xl font-bold tracking-tight text-ink">
+            <h1 id="song-heading" className="text-3xl font-bold tracking-tight text-[var(--color-score-ink)] sm:text-4xl">
               {song.title}
             </h1>
             {song.attribution || !isOwner ? (
-              <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
+              <p className="flex flex-wrap items-center gap-2 text-sm text-[var(--color-score-muted)]">
                 {song.attribution ? <span>{song.attribution}</span> : null}
                 {!isOwner ? <span>{t('song.readonly')}</span> : null}
               </p>
@@ -213,28 +217,34 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
               {song.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary-ink"
+                  className="rounded-full bg-[var(--color-score-paper-soft)] px-3 py-1 text-xs font-medium text-[var(--color-score-ink-soft)]"
                 >
                   {tag}
                 </span>
               ))}
             </div>
           </div>
+          {isOwner && !editing ? (
+            <Button variant="secondary" onClick={() => setEditing(true)}>
+              {t('song.editSong')}
+            </Button>
+          ) : null}
         </div>
       </header>
 
       <ProblemAlert message={deleteError} />
       <ConflictAlert message={conflict} />
+      <SongContentGuide />
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      <div className={cn('grid gap-8 lg:items-start', editing ? 'grid-cols-1' : 'lg:grid-cols-[minmax(0,1fr)_20rem]')}>
         <div className="space-y-8">
           {/* W-F: arrangement content tabs (lyrics / chords / notes / files). */}
           <section className="space-y-4" aria-label={t('song.tabsLabel')}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div
                 role="tablist"
                 aria-label={t('song.tabsLabel')}
-                className="flex flex-wrap gap-1 rounded-xl border border-border-subtle bg-surface p-0.5"
+                className="grid w-full grid-cols-2 gap-1 rounded-xl bg-surface-hover p-1 sm:w-auto sm:grid-cols-4"
               >
                 {SONG_TABS.map((option) => (
                   <button
@@ -247,9 +257,9 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                     data-testid={`song-tab-${option.id}`}
                     onClick={() => setTab(option.id)}
                     className={cn(
-                      'min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                      'min-h-11 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
                       tab === option.id
-                        ? 'bg-primary-strong text-primary-foreground'
+                        ? 'bg-surface text-ink shadow-sm'
                         : 'text-muted hover:text-ink',
                     )}
                   >
@@ -281,7 +291,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
               id={`song-panel-${tab}`}
               aria-labelledby={`song-tab-${tab}`}
               data-testid="song-tabpanel"
-              className="min-h-40 rounded-2xl border border-border-subtle bg-surface p-5"
+              className="min-h-64 rounded-2xl border border-border-subtle bg-surface p-5 sm:p-7"
             >
               {!selectedArrangement ? (
                 <p className="text-sm text-muted">{t('song.noArrangementForTabs')}</p>
@@ -294,18 +304,12 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                   <p className="text-sm text-muted">{t('song.noRelatedFiles')}</p>
                 ) : (
                   <ul className="space-y-2">
-                    {resources.map((resource) => (
-                      <li key={resource.id}>
-                        <a
-                          className="flex min-h-11 items-center gap-3 rounded-xl border border-border-subtle px-3 py-2 no-underline hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                          href={
-                            resource.kind === 'link'
-                              ? resource.url ?? '#'
-                              : resourceContentUrl(group.id, selectedArrangement.id, resource.id)
-                          }
-                          target="_blank"
-                          rel="noreferrer"
-                        >
+                    {resources.map((resource) => {
+                      const href = resource.kind === 'link'
+                        ? safeExternalResourceUrl(resource.url)
+                        : resourceContentUrl(group.id, selectedArrangement.id, resource.id)
+                      const content = (
+                        <>
                           <Paperclip className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate font-medium text-ink">
@@ -315,11 +319,31 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                               {resource.originalFileName ?? resource.url ?? resource.kind}
                             </span>
                           </span>
-                        </a>
-                      </li>
-                    ))}
+                        </>
+                      )
+                      const className =
+                        'flex min-h-11 items-center gap-3 rounded-xl border border-border-subtle px-3 py-2 no-underline hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+                      return (
+                        <li key={resource.id}>
+                          {href ? (
+                            <a className={className} href={href} target="_blank" rel="noopener noreferrer">
+                              {content}
+                            </a>
+                          ) : (
+                            <div className={className} aria-disabled="true">{content}</div>
+                          )}
+                        </li>
+                      )
+                    })}
                   </ul>
                 )
+              ) : tabContent[tab]?.trim() && (tab === 'lyrics' || tab === 'chords') ? (
+                <RehearsalBodyView
+                  text={tabContent[tab]!}
+                  chordProTestId={`song-${tab}-chordpro`}
+                  plainTestId={`song-${tab}-plain`}
+                  hideChords={tab === 'lyrics'}
+                />
               ) : tabContent[tab]?.trim() ? (
                 <pre className="max-w-full overflow-x-auto whitespace-pre-wrap font-sans text-sm text-ink">
                   {tabContent[tab]}
@@ -328,6 +352,14 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                 <p className="text-sm text-muted">{t(emptyKey[tab])}</p>
               )}
             </div>
+            {isOwner && selectedArrangement ? (
+              <Link
+              className="inline-flex min-h-11 items-center rounded-xl bg-primary-strong px-5 text-sm font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary-strong/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                to={routes.groupArrangement(group.id, selectedArrangement.id)}
+              >
+                {t('song.editArrangementContent')}
+              </Link>
+            ) : null}
           </section>
 
           <section className="space-y-4" aria-labelledby="arrangements-heading">
@@ -362,8 +394,8 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                     style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                   >
                     <Link
-                      className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-3 no-underline shadow-sm transition duration-150 hover:border-border-subtle hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none"
-                      to={`/groups/${group.id}/arrangements/${arrangement.id}`}
+                      className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-3 no-underline transition duration-150 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none"
+                      to={routes.groupArrangement(group.id, arrangement.id)}
                     >
                       <NumberedMark n={index + 1} />
                       <span className="min-w-0 flex-1">
@@ -399,20 +431,22 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                 onCancel={() => setCreatingArrangement(false)}
                 onCreated={async (createdId) => {
                   setCreatingArrangement(false)
-                  navigate(`/groups/${group.id}/arrangements/${createdId}`)
+                  navigate(routes.groupArrangement(group.id, createdId))
                 }}
               />
             ) : null}
           </section>
         </div>
 
-        <aside
+        {editing || song.rightsNotes?.trim() || resources.length > 0 ? <aside
           data-testid="song-facts"
-          className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-5 shadow-sm"
+          className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-5"
         >
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            {t('song.infoTitle')}
-          </h3>
+          {!editing ? (
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
+              {t('song.infoTitle')}
+            </h3>
+          ) : null}
           {editing && isOwner ? (
             <SongEditForm
               song={song}
@@ -424,7 +458,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                 surface.reload()
               }}
               onConflict={async () => {
-                setConflict(CONFLICT_MESSAGE)
+                setConflict(t('common.errorConflict'))
                 setEditing(false)
                 surface.reload()
               }}
@@ -432,49 +466,13 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
           ) : (
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-muted">{t('song.infoTitleLabel')}</dt>
-                <dd className="font-medium">{song.title}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">{t('song.infoArtist')}</dt>
-                <dd className="font-medium">{song.attribution ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">{t('song.infoKey')}</dt>
-                <dd className="font-medium">{selectedArrangement?.defaultKey ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">{t('song.infoTempo')}</dt>
-                <dd className="font-medium">
-                  {selectedArrangement?.defaultBpm != null
-                    ? `${selectedArrangement.defaultBpm} BPM`
-                    : '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted">{t('song.infoTags')}</dt>
-                <dd className="font-medium">{song.tags.length > 0 ? song.tags.join(', ') : '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">{t('song.originLabel')}</dt>
-                <dd className="font-medium">{formatOriginKind(song.originKind, t)}</dd>
-              </div>
-              <div>
                 <dt className="text-muted">{t('song.rightsLabel')}</dt>
                 <dd className="whitespace-pre-wrap font-medium">{song.rightsNotes ?? '—'}</dd>
               </div>
             </dl>
           )}
 
-          {isOwner && !editing ? (
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Button variant="secondary" onClick={() => setEditing(true)}>
-                {t('song.editSong')}
-              </Button>
-            </div>
-          ) : null}
-
-          <div className="space-y-2 border-t border-border-subtle pt-3">
+          {!editing ? <div className="space-y-2 border-t border-border-subtle pt-3">
             <h4 className="text-sm font-semibold text-muted">
               {t('song.relatedFiles')}
             </h4>
@@ -482,27 +480,34 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
               <p className="text-sm text-muted">{t('song.noRelatedFiles')}</p>
             ) : (
               <ul className="space-y-2">
-                {resources.slice(0, 6).map((resource) => (
-                  <li key={resource.id}>
-                    <a
-                      className="flex items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline"
-                      href={
-                        resource.kind === 'link'
-                          ? resource.url ?? '#'
-                          : resourceContentUrl(group.id, selectedArrangementId!, resource.id)
-                      }
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                {resources.slice(0, 6).map((resource) => {
+                  const href = resource.kind === 'link'
+                    ? safeExternalResourceUrl(resource.url)
+                    : resourceContentUrl(group.id, selectedArrangementId!, resource.id)
+                  const content = (
+                    <>
                       <Paperclip className="h-4 w-4 shrink-0" aria-hidden="true" />
                       <span className="truncate">{resource.label}</span>
-                    </a>
-                  </li>
-                ))}
+                    </>
+                  )
+                  const className =
+                    'flex items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline'
+                  return (
+                    <li key={resource.id}>
+                      {href ? (
+                        <a className={className} href={href} target="_blank" rel="noopener noreferrer">
+                          {content}
+                        </a>
+                      ) : (
+                        <div className={className} aria-disabled="true">{content}</div>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             )}
-          </div>
-        </aside>
+          </div> : null}
+        </aside> : null}
       </div>
 
       {isOwner ? (
@@ -586,7 +591,7 @@ function SongEditForm({
       noValidate
     >
       <h3 className="font-semibold">{t('song.editSong')}</h3>
-      <ProblemAlert message={save.error != null ? mutationErrorMessage(save.error) : null} />
+      <ProblemAlert message={save.error != null ? mutationErrorMessage(save.error, t) : null} />
       <Field label={t('songs.titleLabel')}>
         <input
           className={fieldClass}
@@ -651,10 +656,6 @@ function ArrangementCreateForm({
   const [label, setLabel] = useState('')
   const [defaultKey, setDefaultKey] = useState('')
   const [defaultBpm, setDefaultBpm] = useState('')
-  const [lyrics, setLyrics] = useState('')
-  const [chords, setChords] = useState('')
-  const [structure, setStructure] = useState('')
-  const [notes, setNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const { t } = useT()
@@ -680,22 +681,21 @@ function ArrangementCreateForm({
         label: label.trim(),
         defaultKey: defaultKey.trim() || null,
         defaultBpm: bpm,
-        lyrics: lyrics.trim() || null,
-        chords: chords.trim() || null,
-        structure: structure.trim() || null,
-        notes: notes.trim() || null,
       })
       await onCreated(created.id)
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
     } finally {
       setPending(false)
     }
   }
 
   return (
-    <form className="space-y-4 border-t border-border-subtle pt-4" onSubmit={onSubmit} noValidate>
-      <h3 className="font-semibold">{t('song.createArrangement')}</h3>
+    <form className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-4 sm:p-5" onSubmit={onSubmit} noValidate>
+      <div className="space-y-1">
+        <h3 className="font-semibold">{t('song.createArrangement')}</h3>
+        <p className="text-sm leading-6 text-muted">{t('song.createArrangementHint')}</p>
+      </div>
       <ProblemAlert message={error} />
       <Field label={t('song.labelLabel')}>
         <input
@@ -724,23 +724,6 @@ function ArrangementCreateForm({
           value={defaultBpm}
           onChange={(e) => setDefaultBpm(e.target.value)}
         />
-      </Field>
-      <Field label={t('song.lyricsLabel')}>
-        <textarea className={fieldClass} rows={3} value={lyrics} onChange={(e) => setLyrics(e.target.value)} />
-      </Field>
-      <Field label={t('song.chordsLabel')}>
-        <textarea className={fieldClass} rows={3} value={chords} onChange={(e) => setChords(e.target.value)} data-testid="arrangement-chords" />
-      </Field>
-      <Field label={t('song.structureLabel')}>
-        <textarea
-          className={fieldClass}
-          rows={2}
-          value={structure}
-          onChange={(e) => setStructure(e.target.value)}
-        />
-      </Field>
-      <Field label={t('song.notesLabel')}>
-        <textarea className={fieldClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <FormActions>
         <Button type="submit" disabled={pending}>

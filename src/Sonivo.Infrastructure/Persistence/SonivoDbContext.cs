@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using OpenIddict.EntityFrameworkCore;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Scheduling;
 using Sonivo.Domain.Tasks;
@@ -24,6 +25,7 @@ public sealed class SonivoDbContext : IdentityDbContext<ApplicationUser, Identit
     public DbSet<GroupAuditEntry> GroupAuditLog => Set<GroupAuditEntry>();
     public DbSet<Sonivo.Domain.Notifications.Notification> Notifications => Set<Sonivo.Domain.Notifications.Notification>();
     public DbSet<GroupRole> GroupRoles => Set<GroupRole>();
+public DbSet<ResourceGrant> ResourceGrants => Set<ResourceGrant>();
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
     public DbSet<Song> Songs => Set<Song>();
@@ -41,6 +43,7 @@ public sealed class SonivoDbContext : IdentityDbContext<ApplicationUser, Identit
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.UseOpenIddict<Guid>();
         builder.ApplyConfigurationsFromAssembly(typeof(SonivoDbContext).Assembly);
     }
 }

@@ -27,6 +27,7 @@ public static class ExternalLoginCompletion
         UserManager<ApplicationUser> users,
         SonivoDbContext db,
         IAccountAuditStore audit,
+        IGroupDataOperation groupDataOperation,
         IClock clock,
         CancellationToken cancellationToken = default)
     {
@@ -106,10 +107,20 @@ public static class ExternalLoginCompletion
                 await users.UpdateAsync(existingByEmail);
             }
 
-            await audit.AddAsync(
-                AccountAudit.Create(AccountAudit.ActionLinked, clock.UtcNow, targetUserId: existingByEmail.Id),
+            await groupDataOperation.ExecuteAsUserAsync(
+                existingByEmail.Id,
+                async operationToken =>
+                {
+                    await audit.AddAsync(
+                        AccountAudit.Create(
+                            AccountAudit.ActionLinked,
+                            clock.UtcNow,
+                            targetUserId: existingByEmail.Id),
+                        operationToken);
+                    await audit.SaveChangesAsync(operationToken);
+                    return true;
+                },
                 cancellationToken);
-            await audit.SaveChangesAsync(cancellationToken);
 
             return new ExternalLoginCompletionResult(true, existingByEmail, null, StatusCodes.Status200OK);
         }

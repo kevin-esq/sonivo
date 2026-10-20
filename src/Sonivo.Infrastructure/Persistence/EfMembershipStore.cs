@@ -59,4 +59,12 @@ public sealed class EfMembershipStore : IMembershipStore
         => _db.Memberships.CountAsync(
             m => m.GroupId == groupId && m.Role == MembershipRoles.Owner,
             cancellationToken);
+
+    public Task<bool> HasMembershipInOtherGroupAsync(
+        Guid userId,
+        Guid excludedGroupId,
+        CancellationToken cancellationToken)
+        => _db.Memberships.AnyAsync(
+            m => m.UserId == userId && m.GroupId != excludedGroupId,
+            cancellationToken);
 }

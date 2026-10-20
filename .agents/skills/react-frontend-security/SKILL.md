@@ -1,7 +1,7 @@
 ---
 name: react-frontend-security
 description: >
-  Hardens and audits Sonivo's React 19 + TypeScript + Vite + Tailwind frontend
+  Hardens and audits Sonivo's Next.js App Router + React 19 + TypeScript + Tailwind frontend
   against XSS, unsafe HTML, environment-variable leakage, token storage, and
   client-side-only authorization.
   USE FOR: writing or reviewing React components, hooks, data fetching, forms,
@@ -12,22 +12,23 @@ description: >
 
 # React Frontend Security (Sonivo)
 
-Security-first rules for the Sonivo frontend: **React 19, TypeScript, Vite,
-Tailwind CSS 4**. The frontend is untrusted by definition; every secret and every
-authorization decision lives on the API.
+Security-first rules for the Sonivo frontend: **Next.js App Router, React 19,
+TypeScript, Tailwind CSS 4** in the `web/` Turborepo. The frontend is untrusted
+by definition; every secret and every authorization decision lives on the API.
 
 ## When to Use
 
 - Adding or changing components, hooks, forms, routes, or data fetching.
 - Handling user- or API-provided content that is rendered as HTML.
-- Configuring Vite environment variables, proxies, or build output.
+- Configuring Next.js environment variables, rewrites, or build output.
 - Performing a security pass over a frontend diff or PR.
 
 ## Non-Negotiable Invariants
 
-1. **No secret reaches the browser.** Vite only exposes variables prefixed with
-   `VITE_` to client code. Anything without that prefix (and anything meant to be
-   secret) must never be referenced from the frontend.
+1. **No secret reaches the browser.** Next.js exposes variables prefixed with
+   `NEXT_PUBLIC_` to browser bundles at build time. Treat them as public, frozen
+   build configuration. Never put secrets there. Non-prefixed variables are
+   server-only unless code explicitly serializes or otherwise exposes them.
 2. **The client is never an authorization boundary.** Group membership, roles,
    and tenant scoping are enforced by the API. Hiding UI is UX, not security.
 3. **Auth is the Identity cookie + antiforgery** (ADR-0020). Do not store tokens
@@ -38,9 +39,13 @@ authorization decision lives on the API.
 
 ### 1. Keep secrets out of the bundle
 
-- Only `import.meta.env.VITE_*` values are client-visible. Never place API keys,
-  tokens, connection strings, or signing secrets behind a `VITE_` name.
-- Audit new env usage: if it looks sensitive, it belongs on the API, not the SPA.
+- Only use `process.env.NEXT_PUBLIC_*` for values intentionally exposed to the
+  browser. Never place API keys, tokens, connection strings, or signing secrets
+  behind that prefix. Next.js `next.config` `env` values are also bundled; do not
+  use that option for secrets.
+- Keep private variables in server-only code. Do not pass secrets through Client
+  Component props, rendered HTML, API responses, or other serialized output.
+- Audit new env usage: sensitive values belong on the API, not browser code.
 - Never commit `.env*` with real values.
 
 ### 2. Avoid XSS / unsafe HTML
@@ -90,7 +95,7 @@ return <div dangerouslySetInnerHTML={{ __html: user.bio }} />;
 
 ## Checklist
 
-- [ ] No secrets or `VITE_`-prefixed sensitive values in the client
+- [ ] No secrets or `NEXT_PUBLIC_`-prefixed sensitive values in the client
 - [ ] `dangerouslySetInnerHTML` avoided, or sanitized with a vetted sanitizer
 - [ ] No HTML string building from untrusted input
 - [ ] Cookies + antiforgery used (ADR-0020); no tokens in web storage
@@ -103,7 +108,7 @@ return <div dangerouslySetInnerHTML={{ __html: user.bio }} />;
 
 | Pitfall | Solution |
 | ------- | -------- |
-| `VITE_API_SECRET` used in the SPA | Secrets live on the API; only non-sensitive config may be `VITE_`. |
+| `NEXT_PUBLIC_API_SECRET` used in browser code | Secrets live on the API; `NEXT_PUBLIC_*` values are public and embedded at build time. |
 | `dangerouslySetInnerHTML` for rich text | Sanitize with a vetted sanitizer or render as text. |
 | Gating admin UI only on the client | Enforce on the server; treat the client check as UX. |
 | Storing a token in `localStorage` | Use the Identity cookie + antiforgery; never persist tokens in JS storage. |
@@ -114,4 +119,5 @@ return <div dangerouslySetInnerHTML={{ __html: user.bio }} />;
 
 - OWASP Top 10 (A03 Injection, A07 Auth), OWASP ASVS.
 - ADR-0020 (CSRF/antiforgery), `AGENTS.md` (auth/tenancy invariants).
+- [Next.js environment variables](https://nextjs.org/docs/app/guides/environment-variables) and [Server and Client Components](https://nextjs.org/docs/app/getting-started/server-and-client-components).
 - Related skills: `impeccable` (UX), `dotnet-secure-architecture` (API side).

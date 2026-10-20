@@ -1,11 +1,13 @@
+import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, CreditCard, Sparkles, Users } from 'lucide-react'
+import { Info, Users } from 'lucide-react'
+import { ApiError } from '../api/http'
+import { getPaymentProviderStatus, startGroupCheckout, updateGroupPlan, type PaymentProviderStatus } from '../api/billing'
 import {
   getGroupUsage,
   getPlanCatalog,
   listMyGroups,
-  problemDetail,
   type GroupSummary,
   type GroupUsage,
   type PlanCatalog,
@@ -13,49 +15,86 @@ import {
 import { useT } from '../i18n'
 import { cn } from '../ui/cn'
 
-function planPrice(priceMonthlyMxn: number): string | null {
-  return priceMonthlyMxn > 0 ? String(priceMonthlyMxn) : null
-}
-
 /**
- * Plans page (`/plan`): the real plan catalog from the API plus the plan and live
- * usage of every group the user belongs to. Replaces the previous placeholder.
+ * Plan overview: plan pricing/trials are still provisional, so this page shows
+ * current group usage without presenting placeholder commercial offers.
  */
 export function PlansPage() {
-  const { t } = useT()
-  const [catalog, setCatalog] = useState<PlanCatalog | null>(null)
+  const { t, lang } = useT()
   const [groups, setGroups] = useState<GroupSummary[] | null>(null)
   const [usage, setUsage] = useState<Record<string, GroupUsage>>({})
+  const [provider, setProvider] = useState<PaymentProviderStatus | null>(null)
+  const [catalog, setCatalog] = useState<PlanCatalog | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<Record<string, string>>({})
+  const [pendingGroup, setPendingGroup] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const [planCatalog, myGroups] = await Promise.all([getPlanCatalog(), listMyGroups()])
+        const myGroups = await listMyGroups()
         if (cancelled) return
-        setCatalog(planCatalog)
         setGroups(myGroups)
-        const entries = await Promise.all(
-          myGroups.map(async (group) => {
+        const [entries, paymentProvider, planCatalog] = await Promise.all([
+          Promise.all(myGroups.map(async (group) => {
             try {
               return [group.id, await getGroupUsage(group.id)] as const
             } catch {
               return null
             }
-          }),
-        )
+          })),
+          getPaymentProviderStatus().catch(() => null),
+          getPlanCatalog().catch(() => null),
+        ])
         if (cancelled) return
         setUsage(Object.fromEntries(entries.filter((e): e is readonly [string, GroupUsage] => e !== null)))
-      } catch (err) {
-        if (!cancelled) setError(problemDetail(err))
+        setProvider(paymentProvider)
+        setCatalog(planCatalog)
+      } catch {
+        if (!cancelled) setError(t('plans.loadError'))
       }
     }
     void load()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
+
+  const runPlanAction = async (groupId: string, action: 'assign', planId: string) => {
+    setPendingGroup(groupId)
+    setActionError(null)
+    try {
+      await updateGroupPlan(groupId, action, planId)
+      const updated = await getGroupUsage(groupId)
+      setUsage((current) => ({ ...current, [groupId]: updated }))
+    } catch (cause) {
+      setActionError(cause instanceof ApiError && cause.status === 409
+        ? t('plans.checkoutUnavailable')
+        : t('plans.updateError'))
+    } finally {
+      setPendingGroup(null)
+    }
+  }
+
+  const beginCheckout = async (groupId: string, planId: string) => {
+    setPendingGroup(groupId)
+    setActionError(null)
+    try {
+      const url = await startGroupCheckout(groupId, planId)
+      const checkout = new URL(url)
+      if (checkout.protocol !== 'https:' && !(checkout.protocol === 'http:' && window.location.hostname === 'localhost')) {
+        throw new Error('Unsupported checkout URL protocol.')
+      }
+      window.location.assign(checkout.href)
+    } catch (cause) {
+      setActionError(cause instanceof ApiError && cause.status === 409
+        ? t('plans.checkoutUnavailable')
+        : t('plans.checkoutError'))
+      setPendingGroup(null)
+    }
+  }
 
   if (error) {
     return (
@@ -78,67 +117,17 @@ export function PlansPage() {
         <p className="max-w-2xl text-muted">{t('plans.subtitle')}</p>
       </header>
 
-      {catalog === null ? (
-        <p aria-live="polite" className="text-sm text-muted">
-          {t('plans.loading')}
-        </p>
-      ) : catalog.plans.length === 0 ? (
-        <p className="rounded-xl border border-border-subtle bg-surface px-4 py-3 text-sm text-muted">
-          {t('plans.empty')}
-        </p>
-      ) : (
-        <section aria-labelledby="plans-catalog-heading" className="space-y-3">
-          <h2 id="plans-catalog-heading" className="text-xl font-semibold text-ink">
-            {t('plans.catalogTitle')}
-          </h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {catalog.plans.map((plan) => {
-              const price = planPrice(plan.priceMonthlyMxn)
-              const recommended = plan.id === catalog.defaultPlanId
-              return (
-                <article
-                  key={plan.id}
-                  className={cn(
-                    'flex flex-col rounded-2xl border p-5',
-                    recommended ? 'border-primary bg-primary/5' : 'border-border-subtle bg-surface',
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-semibold capitalize text-ink">{plan.id}</h3>
-                    {recommended ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-ink">
-                        <Sparkles className="h-3 w-3" aria-hidden="true" />
-                        {t('plans.recommended')}
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-2 font-display text-3xl font-bold text-ink">
-                    {price ? t('plans.perMonth', { price }) : t('plans.free')}
-                  </p>
-                  {plan.trialDays > 0 ? (
-                    <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
-                      <Check className="h-3.5 w-3.5 text-success-strong" aria-hidden="true" />
-                      {plan.trialRequiresCard ? t('plans.trialCard', { days: plan.trialDays }) : t('plans.trialNoCard', { days: plan.trialDays })}
-                    </p>
-                  ) : null}
-                  <Link
-                    to="/account/membership"
-                    className={cn(
-                      'mt-5 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold no-underline',
-                      recommended
-                        ? 'bg-primary-strong text-primary-foreground hover:bg-primary-strong/90'
-                        : 'border border-border-subtle text-ink hover:bg-surface-hover',
-                    )}
-                  >
-                    <CreditCard className="h-4 w-4" aria-hidden="true" />
-                    {t('plans.choose')}
-                  </Link>
-                </article>
-              )
-            })}
-          </div>
-        </section>
-      )}
+      <div className="flex items-start gap-3 rounded-2xl border border-border-subtle bg-surface p-4" role="status">
+        <Info className="mt-0.5 h-5 w-5 shrink-0 text-primary-ink" aria-hidden="true" />
+        <div className="space-y-1 text-sm leading-6 text-muted">
+          <p>{t('plans.billingStatus')}</p>
+          {provider ? <p>{t(provider.provider === 'sandbox'
+            ? provider.configured ? 'plans.sandboxConfigured' : 'plans.sandboxUnavailable'
+            : 'plans.manualProvider')}</p> : null}
+        </div>
+      </div>
+
+      {actionError ? <p role="alert" className="rounded-xl border border-error/40 bg-error/10 px-4 py-3 text-sm text-error-ink">{actionError}</p> : null}
 
       <section aria-labelledby="plans-groups-heading" className="space-y-3">
         <div className="space-y-1">
@@ -161,28 +150,75 @@ export function PlansPage() {
           <ul className="space-y-3">
             {groups.map((group) => {
               const groupUsage = usage[group.id]
+              const isOwner = group.role.toLowerCase() === 'owner'
+              const selected = selectedPlan[group.id] ?? groupUsage?.planId ?? ''
               return (
                 <li key={group.id} className="rounded-2xl border border-border-subtle bg-surface p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <Link
-                      to={`/groups/${group.id}`}
+                      to={routes.group(group.id)}
                       className="truncate font-semibold text-ink no-underline hover:underline"
                     >
                       {group.name}
                     </Link>
                     {groupUsage ? (
                       <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold capitalize text-primary-ink">
-                        {t('plans.planLabel')}: {groupUsage.planId}
+                        {t('plans.planLabel')}: {planName(groupUsage.planId, t)}
                       </span>
                     ) : null}
                   </div>
                   {groupUsage ? (
-                    <dl className="mt-3 grid gap-2 sm:grid-cols-2">
-                      <UsageRow label={t('plans.members')} metric={groupUsage.members} t={t} />
-                      <UsageRow label={t('plans.songs')} metric={groupUsage.songs} t={t} />
-                      <UsageRow label={t('plans.setlists')} metric={groupUsage.setlists} t={t} />
-                      <UsageRow label={t('plans.events')} metric={groupUsage.eventsThisMonth} t={t} />
-                    </dl>
+                    <>
+                      <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <UsageRow label={t('plans.members')} metric={groupUsage.members} t={t} />
+                        <UsageRow label={t('plans.songs')} metric={groupUsage.songs} t={t} />
+                        <UsageRow label={t('plans.setlists')} metric={groupUsage.setlists} t={t} />
+                        <UsageRow label={t('plans.events')} metric={groupUsage.eventsThisMonth} t={t} />
+                      </dl>
+                      <div className="mt-4 space-y-3 border-t border-border-subtle pt-3">
+                        <dl className="grid gap-1 text-sm sm:grid-cols-2">
+                          <div><dt className="inline text-muted">{t('plans.billingState')}: </dt><dd className="inline text-ink">{billingStatusName(groupUsage.billingStatus, t)}</dd></div>
+                          {groupUsage.trialEndsAt ? <div><dt className="inline text-muted">{t('plans.trialEnds')}: </dt><dd className="inline text-ink">{formatDate(groupUsage.trialEndsAt, lang)}</dd></div> : null}
+                          {groupUsage.scheduledPlanId ? <div><dt className="inline text-muted">{t('plans.scheduledPlan')}: </dt><dd className="inline text-ink">{planName(groupUsage.scheduledPlanId, t)}</dd></div> : null}
+                        </dl>
+                        {isOwner && catalog ? (
+                          <div className="flex flex-wrap items-end gap-2">
+                            <label className="grid min-w-44 gap-1 text-xs font-medium text-muted">
+                              {t('plans.choosePlan')}
+                              <select
+                                className="min-h-11 rounded-xl border border-border-subtle bg-surface px-3 text-sm text-ink"
+                                value={selected}
+                                onChange={(event) => setSelectedPlan((current) => ({ ...current, [group.id]: event.target.value }))}
+                                disabled={pendingGroup !== null}
+                              >
+                                {catalog.plans.map((plan) => <option key={plan.id} value={plan.id}>{planName(plan.id, t)}</option>)}
+                              </select>
+                            </label>
+                            <button
+                              type="button"
+                              className="min-h-11 rounded-xl border border-border-subtle bg-surface px-3 text-sm font-semibold text-ink hover:bg-surface-hover disabled:opacity-50"
+                              disabled={pendingGroup !== null || selected === groupUsage.planId}
+                              onClick={() => void runPlanAction(group.id, 'assign', selected)}
+                            >{t('plans.assignPlan')}</button>
+                            {provider?.provider === 'sandbox' && provider.configured ? (
+                              <button
+                                type="button"
+                                className="min-h-11 rounded-xl bg-primary-strong px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-strong/90 disabled:opacity-50"
+                                disabled={pendingGroup !== null}
+                                onClick={() => void beginCheckout(group.id, selected)}
+                              >{t('plans.sandboxCheckout')}</button>
+                            ) : null}
+                          </div>
+                        ) : isOwner ? <p className="text-sm text-muted">{t('plans.controlsUnavailable')}</p> : null}
+                        <p className="text-xs text-muted">{t(isOwner ? 'plans.ownerControlsHint' : 'plans.readOnlyHint')}</p>
+                        {isOwner ? (
+                          <Link
+                            to={`${routes.group(group.id)}/settings?tab=plan`}
+                            className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
+                          >{t('plans.groupSettings')}</Link>
+                        ) : null}
+                      </div>
+                    </>
                   ) : null}
                 </li>
               )
@@ -192,6 +228,33 @@ export function PlansPage() {
       </section>
     </div>
   )
+}
+
+function planName(planId: string, t: ReturnType<typeof useT>['t']): string {
+  switch (planId) {
+    case 'starter':
+      return t('plans.name.starter')
+    case 'pro':
+      return t('plans.name.pro')
+    case 'studio':
+      return t('plans.name.studio')
+    default:
+      return t('plans.name.unknown')
+  }
+}
+
+function billingStatusName(status: string, t: ReturnType<typeof useT>['t']): string {
+  switch (status) {
+    case 'active': return t('plans.status.active')
+    case 'trialing': return t('plans.status.trialing')
+    case 'past_due': return t('plans.status.pastDue')
+    case 'read_only': return t('plans.status.readOnly')
+    default: return t('plans.status.unknown')
+  }
+}
+
+function formatDate(value: string, lang: string): string {
+  return new Intl.DateTimeFormat(lang, { dateStyle: 'medium' }).format(new Date(value))
 }
 
 function UsageRow({

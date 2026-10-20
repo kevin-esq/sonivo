@@ -17,7 +17,12 @@ public class ConductorRoomAuthorizerTests
         await Assert.ThrowsAsync<NotFoundException>(
             () => authorizer.RequireParticipantAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None));
         await Assert.ThrowsAsync<NotFoundException>(
-            () => authorizer.RequireManagerAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None));
+            () => authorizer.RequireConductorAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None));
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => authorizer.RequireParticipantAsync(Guid.Empty, Guid.NewGuid(), CancellationToken.None));
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => authorizer.RequireConductorAsync(Guid.Empty, Guid.NewGuid(), CancellationToken.None));
     }
 
     [Fact]
@@ -32,7 +37,7 @@ public class ConductorRoomAuthorizerTests
         Assert.Equal("Event not found.", memberEx.Message);
 
         await Assert.ThrowsAsync<NotFoundException>(
-            () => authorizer.RequireManagerAsync(Guid.NewGuid(), userId, CancellationToken.None));
+            () => authorizer.RequireConductorAsync(Guid.NewGuid(), userId, CancellationToken.None));
         _ = groupId;
     }
 
@@ -50,8 +55,8 @@ public class ConductorRoomAuthorizerTests
         Assert.False(access.CanManageContent);
 
         var forbidden = await Assert.ThrowsAsync<ForbiddenException>(
-            () => authorizer.RequireManagerAsync(Guid.NewGuid(), userId, CancellationToken.None));
-        Assert.Equal("Manager role required.", forbidden.Message);
+            () => authorizer.RequireConductorAsync(Guid.NewGuid(), userId, CancellationToken.None));
+        Assert.Equal("Permission required: conduct", forbidden.Message);
     }
 
     [Fact]
@@ -67,7 +72,7 @@ public class ConductorRoomAuthorizerTests
         Assert.False(access.IsOwner);
         Assert.True(access.CanManageContent);
 
-        var conduct = await authorizer.RequireManagerAsync(Guid.NewGuid(), userId, CancellationToken.None);
+        var conduct = await authorizer.RequireConductorAsync(Guid.NewGuid(), userId, CancellationToken.None);
         Assert.True(conduct.CanManageContent);
     }
 
@@ -95,9 +100,32 @@ public class ConductorRoomAuthorizerTests
         var member = await authorizer.RequireParticipantAsync(Guid.NewGuid(), userId, CancellationToken.None);
         Assert.True(member.IsOwner);
 
-        var owner = await authorizer.RequireManagerAsync(Guid.NewGuid(), userId, CancellationToken.None);
+        var owner = await authorizer.RequireConductorAsync(Guid.NewGuid(), userId, CancellationToken.None);
         Assert.Equal(groupId, owner.GroupId);
         Assert.True(owner.IsOwner);
+    }
+
+    [Fact]
+    public async Task Event_lookup_selector_is_set_before_resolving_its_group()
+    {
+        var eventId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var scope = new RecordingDatabaseScope();
+        var resolver = new FakeEventGroupResolver(
+            groupId,
+            () => Assert.Equal(eventId, scope.MemberEventId));
+        var authorizer = new ConductorRoomAuthorizer(
+            resolver,
+            new GroupAccessService(new FakeGroupStore(Membership.CreateMember(groupId, userId, Now)),
+                databaseScope: scope),
+            scope);
+
+        var result = await authorizer.RequireParticipantAsync(eventId, userId, CancellationToken.None);
+
+        Assert.Equal(groupId, result.GroupId);
+        Assert.Equal(eventId, scope.MemberEventId);
+        Assert.Equal(groupId, scope.VerifiedGroupId);
     }
 
     private static ConductorRoomAuthorizer Build(Guid? groupId, Membership? membership = null)
@@ -110,14 +138,70 @@ public class ConductorRoomAuthorizerTests
     private sealed class FakeEventGroupResolver : IEventGroupResolver
     {
         private readonly Guid? _groupId;
+        private readonly Action? _beforeResolve;
 
-        public FakeEventGroupResolver(Guid? groupId)
+        public FakeEventGroupResolver(Guid? groupId, Action? beforeResolve = null)
         {
             _groupId = groupId;
+            _beforeResolve = beforeResolve;
         }
 
         public Task<Guid?> FindGroupIdByEventIdAsync(Guid eventId, CancellationToken cancellationToken)
-            => Task.FromResult(_groupId);
+        {
+            _beforeResolve?.Invoke();
+            return Task.FromResult(_groupId);
+        }
+    }
+
+    private sealed class RecordingDatabaseScope : IGroupDatabaseScope
+    {
+        public Guid? MemberEventId { get; private set; }
+        public Guid? VerifiedGroupId { get; private set; }
+
+        public Task SetAuthenticatedUserAsync(Guid userId, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task SetMultiGroupReadAsync(Guid userId, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task SetVerifiedGroupAsync(Guid groupId, CancellationToken cancellationToken)
+        {
+            VerifiedGroupId = groupId;
+            return Task.CompletedTask;
+        }
+
+        public Task SetSignedPaymentWebhookGroupAsync(Guid groupId, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task SetGroupForBootstrapAsync(Guid groupId, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task SetInvitationTokenLookupAsync(string tokenHash, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task SetPublicGroupSlugAsync(string slug, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task SetAuthenticatedGroupSlugLookupAsync(string slug, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task SetMemberEventLookupAsync(Guid eventId, CancellationToken cancellationToken)
+        {
+            MemberEventId = eventId;
+            return Task.CompletedTask;
+        }
+
+        public Task SetManagedAccountMembershipLookupAsync(
+            Guid groupId,
+            Guid managedUserId,
+            CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task SetHandleLoginLookupAsync(string slug, string normalizedHandle, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task SetGroupSlugUniquenessLookupAsync(string slug, CancellationToken cancellationToken)
+            => Task.CompletedTask;
     }
 
     private sealed class FakeGroupStore : IGroupStore

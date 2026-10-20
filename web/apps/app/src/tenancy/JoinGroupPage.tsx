@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useId, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -7,7 +8,7 @@ import { Button } from "../ui/button";
 import { fieldClass } from "../ui/field";
 import { parseInviteToken } from "./inviteToken";
 
-/** `/join` — join a group from an invitation link or code (ADR-0053). */
+/** routes.join — join a group from an invitation link or code (ADR-0053). */
 export function JoinGroupPage() {
   const { t } = useT();
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export function JoinGroupPage() {
       setError(t("groups.joinInvalid"));
       return;
     }
-    navigate(`/join/${token}`);
+    navigate(`${routes.joinInvitation(token)}`);
   }
 
   return (

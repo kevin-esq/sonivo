@@ -21,6 +21,15 @@ This is the Obsidian entry point for durable project knowledge. It is a navigati
 - [Persistence](../03-architecture/PERSISTENCE.md)
 - [Testing strategy](../03-architecture/TESTING.md)
 - [Phase specifications](../03-architecture/)
+- [Phase 4.0 — Insights, audit, onboarding, and Help](../03-architecture/PHASE-4.0-INSIGHTS-HELP-SPEC.md)
+- [Phase 4.1 — Hierarchical repertoire access](../03-architecture/PHASE-4.1-RESOURCE-ACCESS-SPEC.md)
+- [Phase 4.2 — PostgreSQL row-level security](../03-architecture/PHASE-4.2-POSTGRESQL-RLS-SPEC.md)
+- [Web surfaces and route ownership](../03-architecture/PHASE-WEB-BOUNDARIES-SPEC.md)
+- [Native mobile clients](../03-architecture/PHASE-MOBILE-NATIVE-SPEC.md)
+- [User-visible placeholder completion](../03-architecture/PHASE-USER-SURFACE-COMPLETION-SPEC.md)
+- [PostgreSQL RLS research](../03-architecture/POSTGRESQL-RLS-RESEARCH.md)
+- [Media upload research](../03-architecture/MEDIA-UPLOAD-RESEARCH-2026-10.md)
+- [Plan-aware media upload specification](../03-architecture/PHASE-MEDIA-UPLOADS-SPEC.md)
 - [Tooling policy](../tooling/TOOLING-AUDIT.md)
 
 ## Working state

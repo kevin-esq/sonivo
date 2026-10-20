@@ -55,7 +55,7 @@ export function GroupRosterDialog({ groupId, groupSlug, onClose, onChanged, rese
       setCredentials(result)
       onChanged()
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
     } finally {
       setPending(false)
     }

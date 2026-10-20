@@ -59,10 +59,12 @@ export type TextFieldProps = FieldMeta &
   Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> & {
     /** Rendered inside the input row, e.g. a password reveal button. */
     trailing?: ReactNode
+    /** Rendered at the start of the input row, e.g. a leading glyph. */
+    leading?: ReactNode
   }
 
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
-  { label, hint, error, id, trailing, className, ...props },
+  { label, hint, error, id, trailing, leading, className, ...props },
   ref,
 ) {
   const { fieldId, hintId, errorId, describedBy } = useFieldIds(id, hint, error)
@@ -72,11 +74,24 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
         {label}
       </label>
       <div className="relative">
+        {leading ? (
+          <span
+            className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-muted"
+            aria-hidden="true"
+          >
+            {leading}
+          </span>
+        ) : null}
         <input
           id={fieldId}
           ref={ref}
-          // `trailing` may overlap the right edge, so reserve room for it.
-          className={cn(fieldClass, trailing ? 'pr-24' : undefined, className)}
+          // `leading`/`trailing` may overlap the edges, so reserve room for them.
+          className={cn(
+            fieldClass,
+            leading ? 'pl-10' : undefined,
+            trailing ? 'pr-24' : undefined,
+            className,
+          )}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           autoCapitalize="none"

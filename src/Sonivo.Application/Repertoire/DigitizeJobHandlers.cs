@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Sonivo.Domain.Tenancy;
 using Microsoft.Extensions.Options;
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Tenancy;
@@ -16,7 +17,23 @@ public sealed record DigitizeJobDto(
     Guid JobId,
     string Status,
     IReadOnlyList<DigitizeJobSegmentDto>? Segments,
-    string? Error);
+    string? ErrorCode);
+
+public static class DigitizeJobErrorCodes
+{
+    public const string Failed = "digitize_failed";
+    public const string QueueFull = "queue_full";
+    public const string ResourceUnavailable = "resource_unavailable";
+    public const string UnsupportedResource = "unsupported_resource";
+    public const string UnsupportedPurpose = "unsupported_purpose";
+    public const string UnsupportedAudioType = "unsupported_audio_type";
+    public const string UnsupportedAudioFormat = "unsupported_audio_format";
+    public const string FileTooLarge = "file_too_large";
+    public const string AudioContentMissing = "audio_content_missing";
+    public const string TranscriptionFailed = "transcription_failed";
+    public const string TooManySegments = "too_many_segments";
+    public const string AudioTooLong = "audio_too_long";
+}
 
 /// <summary>
 /// Starts an async digitizer job (ADR-0032 Q-W32-4): Owner-only, per-request
@@ -51,7 +68,7 @@ public sealed class StartDigitizeJobHandler
         StartDigitizeJobCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.ResourceDigitize, cancellationToken);
 
         var arrangement = await _arrangements.GetByIdAsync(
             command.GroupId, command.ArrangementId, cancellationToken);
@@ -72,19 +89,31 @@ public sealed class StartDigitizeJobHandler
             throw new NotFoundException("Resource not found.");
         }
 
+        await _access.RequireResourcePathPermissionAsync(
+            command.GroupId,
+            command.UserId,
+            GroupPermissions.ResourceDigitize,
+            new[]
+            {
+                (ResourceGrant.ResourceTypes.Song, arrangement.SongId),
+                (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id),
+                (ResourceGrant.ResourceTypes.Resource, resource.Id),
+            },
+            cancellationToken);
+
         var rejection = DigitizeEligibility.RejectReason(resource);
         if (rejection is not null)
         {
             throw new ValidationException(rejection);
         }
 
-        if (resource.ByteSize is null or > ResourceFileConstraints.MaxByteSize)
+        if (resource.ByteSize is null or > ResourceFileConstraints.MaxDigitizationByteSize)
         {
             throw new ValidationException(
-                $"El archivo supera el máximo de {ResourceFileConstraints.MaxByteSize} bytes.");
+                $"El archivo supera el máximo de {ResourceFileConstraints.MaxDigitizationByteSize} bytes.");
         }
 
-        var job = _jobs.Create(command.GroupId, command.ArrangementId, command.ResourceId, _clock.UtcNow);
+        var job = _jobs.Create(command.UserId, command.GroupId, command.ArrangementId, command.ResourceId, _clock.UtcNow);
         return new DigitizeJobStartedDto(job.Id, ToStatus(job.Status));
     }
 
@@ -130,7 +159,7 @@ public sealed class GetDigitizeJobHandler
         Guid jobId,
         CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(groupId, userId, cancellationToken);
+        await _access.RequirePermissionAsync(groupId, userId, GroupPermissions.ResourceDigitize, cancellationToken);
 
         var arrangement = await _arrangements.GetByIdAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
@@ -144,25 +173,39 @@ public sealed class GetDigitizeJobHandler
             throw new NotFoundException("No se encontró el trabajo de digitalización.");
         }
 
+        await _access.RequireResourcePathPermissionAsync(
+            groupId,
+            userId,
+            GroupPermissions.ResourceDigitize,
+            new[]
+            {
+                (ResourceGrant.ResourceTypes.Song, arrangement.SongId),
+                (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id),
+                (ResourceGrant.ResourceTypes.Resource, job.ResourceId),
+            },
+            cancellationToken);
+
         return new DigitizeJobDto(
             job.Id,
             StartDigitizeJobHandler.ToStatus(job.Status),
             job.Status == DigitizeJobStatus.Done
                 ? job.Segments.Select(s => new DigitizeJobSegmentDto(s.StartMs, s.EndMs, s.Text)).ToList()
                 : null,
-            job.Error);
+            job.ErrorCode);
     }
 }
 
 /// <summary>
 /// Background transcription worker (ADR-0032 Q-W32-4/Q-W32-6). Never throws:
-/// every failure lands on the job as <c>failed</c> with a clear Spanish error.
+/// every failure lands on the job as <c>failed</c> with a stable error code.
 /// Over-cap input fails the job — never partial writes, never Arrangement
 /// writes of any kind.
 /// </summary>
 public sealed class DigitizeJobRunner
 {
     private readonly IDigitizeJobStore _jobs;
+    private readonly GroupAccessService _access;
+    private readonly IGroupDataOperation _groupDataOperation;
     private readonly IArrangementStore _arrangements;
     private readonly IResourceStore _resources;
     private readonly IBlobStore _blobs;
@@ -173,6 +216,8 @@ public sealed class DigitizeJobRunner
 
     public DigitizeJobRunner(
         IDigitizeJobStore jobs,
+        GroupAccessService access,
+        IGroupDataOperation groupDataOperation,
         IArrangementStore arrangements,
         IResourceStore resources,
         IBlobStore blobs,
@@ -182,6 +227,8 @@ public sealed class DigitizeJobRunner
         ILogger<DigitizeJobRunner> logger)
     {
         _jobs = jobs;
+        _access = access;
+        _groupDataOperation = groupDataOperation;
         _arrangements = arrangements;
         _resources = resources;
         _blobs = blobs;
@@ -207,58 +254,86 @@ public sealed class DigitizeJobRunner
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Digitize job {JobId} failed unexpectedly.", jobId);
-            _jobs.Fail(jobId, "No se pudo digitalizar el audio. Inténtalo de nuevo.");
+            _jobs.Fail(jobId, DigitizeJobErrorCodes.Failed);
         }
     }
 
     private async Task ProcessCoreAsync(DigitizeJob job, CancellationToken cancellationToken)
     {
-        var arrangement = await _arrangements.GetByIdAsync(job.GroupId, job.ArrangementId, cancellationToken);
-        if (arrangement is null)
+        var source = await _groupDataOperation.ExecuteAsUserAsync(
+            job.UserId,
+            async token =>
+            {
+                await _access.RequirePermissionAsync(
+                    job.GroupId, job.UserId, GroupPermissions.ResourceDigitize, token);
+
+                var arrangement = await _arrangements.GetByIdAsync(job.GroupId, job.ArrangementId, token);
+                if (arrangement is null)
+                {
+                    return null;
+                }
+
+                var resource = await _resources.GetByIdAsync(job.ArrangementId, job.ResourceId, token);
+                if (resource is null)
+                {
+                    return null;
+                }
+
+                await _access.RequireResourcePathPermissionAsync(
+                    job.GroupId,
+                    job.UserId,
+                    GroupPermissions.ResourceDigitize,
+                    new[]
+                    {
+                        (ResourceGrant.ResourceTypes.Song, arrangement.SongId),
+                        (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id),
+                        (ResourceGrant.ResourceTypes.Resource, resource.Id),
+                    },
+                    token);
+
+                return new DigitizeSource(resource.ObjectKey, resource.ContentType, resource.ByteSize, resource);
+            },
+            cancellationToken);
+
+        if (source is null)
         {
-            _jobs.Fail(job.Id, "El arreglo ya no existe.");
+            _jobs.Fail(job.Id, DigitizeJobErrorCodes.ResourceUnavailable);
             return;
         }
 
-        var resource = await _resources.GetByIdAsync(job.ArrangementId, job.ResourceId, cancellationToken);
-        if (resource is null)
+        var resource = source.Resource;
+        var rejectionCode = DigitizeEligibility.RejectCode(resource);
+        if (rejectionCode is not null)
         {
-            _jobs.Fail(job.Id, "El recurso ya no existe.");
+            _jobs.Fail(job.Id, rejectionCode);
             return;
         }
 
-        var rejection = DigitizeEligibility.RejectReason(resource);
-        if (rejection is not null)
+        if (source.ByteSize is null or > ResourceFileConstraints.MaxDigitizationByteSize)
         {
-            _jobs.Fail(job.Id, rejection);
+            _jobs.Fail(job.Id, DigitizeJobErrorCodes.FileTooLarge);
             return;
         }
 
-        if (resource.ByteSize is null or > ResourceFileConstraints.MaxByteSize)
+        if (string.IsNullOrWhiteSpace(source.ObjectKey))
         {
-            _jobs.Fail(job.Id, $"El archivo supera el máximo de {ResourceFileConstraints.MaxByteSize} bytes.");
+            _jobs.Fail(job.Id, DigitizeJobErrorCodes.AudioContentMissing);
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(resource.ObjectKey))
-        {
-            _jobs.Fail(job.Id, "No se encontró el contenido del audio.");
-            return;
-        }
-
-        var blob = await _blobs.GetAsync(resource.ObjectKey, cancellationToken);
+        var blob = await _blobs.GetAsync(source.ObjectKey, cancellationToken);
         if (blob is null)
         {
-            _jobs.Fail(job.Id, "No se encontró el contenido del audio.");
+            _jobs.Fail(job.Id, DigitizeJobErrorCodes.AudioContentMissing);
             return;
         }
 
         await using var buffer = new MemoryStream();
         await blob.Content.CopyToAsync(buffer, cancellationToken);
         var bytes = buffer.ToArray();
-        if (bytes.Length > ResourceFileConstraints.MaxByteSize)
+        if (bytes.Length > ResourceFileConstraints.MaxDigitizationByteSize)
         {
-            _jobs.Fail(job.Id, $"El archivo supera el máximo de {ResourceFileConstraints.MaxByteSize} bytes.");
+            _jobs.Fail(job.Id, DigitizeJobErrorCodes.FileTooLarge);
             return;
         }
 
@@ -266,11 +341,12 @@ public sealed class DigitizeJobRunner
         try
         {
             await using var audio = new MemoryStream(bytes, writable: false);
-            raw = await _transcriber.TranscribeAsync(audio, resource.ContentType!, cancellationToken);
+            raw = await _transcriber.TranscribeAsync(audio, source.ContentType!, cancellationToken);
         }
         catch (TranscriptionException ex)
         {
-            _jobs.Fail(job.Id, ex.Message);
+            _logger.LogInformation(ex, "Transcription rejected for digitize job {JobId}.", job.Id);
+            _jobs.Fail(job.Id, DigitizeJobErrorCodes.TranscriptionFailed);
             return;
         }
 
@@ -281,7 +357,8 @@ public sealed class DigitizeJobRunner
         }
         catch (TranscriptionException ex)
         {
-            _jobs.Fail(job.Id, ex.Message);
+            _logger.LogWarning(ex, "Invalid transcription output for digitize job {JobId}.", job.Id);
+            _jobs.Fail(job.Id, DigitizeJobErrorCodes.TranscriptionFailed);
             return;
         }
 
@@ -289,7 +366,7 @@ public sealed class DigitizeJobRunner
         {
             _jobs.Fail(
                 job.Id,
-                $"La transcripción produjo {cleaned.Count} segmentos (máximo {DigitizeSegmentMapper.MaxSegments}). Usa un audio más corto.");
+                DigitizeJobErrorCodes.TooManySegments);
             return;
         }
 
@@ -299,7 +376,7 @@ public sealed class DigitizeJobRunner
         {
             _jobs.Fail(
                 job.Id,
-                $"El audio dura aproximadamente {maxEndMs / 1000} s (máximo {_options.MaxAudioSeconds} s). Usa un audio más corto.");
+                DigitizeJobErrorCodes.AudioTooLong);
             return;
         }
 
@@ -307,4 +384,6 @@ public sealed class DigitizeJobRunner
             job.Id,
             cleaned.Select(s => new DigitizeJobSegment(s.StartMs, s.EndMs, s.Text)).ToList());
     }
+
+    private sealed record DigitizeSource(string? ObjectKey, string? ContentType, long? ByteSize, Resource Resource);
 }

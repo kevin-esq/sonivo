@@ -2,5 +2,5 @@
   "name": "@sonivo/mobile",
   "private": true,
   "version": "0.0.0",
-  "description": "Reserved placeholder for the future Sonivo mobile app (FUTURE, not implemented). See README.md."
+  "description": "Compatibility pointer to native Sonivo clients under the repository root. See README.md."
 }

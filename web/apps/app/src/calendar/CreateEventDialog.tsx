@@ -61,7 +61,7 @@ export function CreateEventDialog({
       });
       onCreated();
     } catch (err) {
-      setError(problemDetail(err));
+      setError(problemDetail(err, t));
       setPending(false);
     }
   }

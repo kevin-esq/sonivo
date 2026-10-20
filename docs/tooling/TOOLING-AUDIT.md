@@ -37,6 +37,10 @@
 
 `validation-symmetry` (authored for Sonivo) — server-authoritative validation; client mirrors the contract; FluentValidation/Zod not adopted
 
+### TENANCY — PROJECT-LOCAL — AUTHORIZED (user-authorized 2026-10-14)
+
+`group-tenancy-isolation` (authored for Sonivo) — Group is the only tenant; server-side membership check per request; `(GroupId, EntityId)` lookups; no ambient tenant filter. Rules recorded in **ADR-0079 (ACCEPTED)**; enforced by `tests/Sonivo.Integration.Tests/GroupIsolationArchitectureTests.cs`.
+
 ### DEFERRED — do not install, configure, invoke, or depend
 
 `setup-matt-pocock-skills` · `handoff` · `product-marketing` · Context7 · all surplus Matt Pocock skills
@@ -61,9 +65,9 @@ Audit method: existing `webappsec-review` skill (two-pass) — no new skills ins
 Rejected as redundant (see [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md) §8): Security Code Scan, OWASP Dependency-Check. `System.Formats.Cbor` for the Critical C1 passkey fix: **PENDING explicit approval**.
 Findings/plan of record: [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md).
 
-## Project-local verified state (35 skill directories)
+## Project-local verified state (36 skill directories)
 
-**13 Matt Pocock + 1 Impeccable + 8 knowledge workflows + 9 ADR-0063 additions + 2 ADR-0064 security skills + 1 ADR-0065 git governance + 1 ADR-0066 validation** under `.agents/skills/`:
+**13 Matt Pocock + 1 Impeccable + 8 knowledge workflows + 9 ADR-0063 additions + 2 ADR-0064 security skills + 1 ADR-0065 git governance + 1 ADR-0066 validation + 1 tenancy** under `.agents/skills/`:
 
 `codebase-design` · `code-review` · `diagnosing-bugs` · `domain-modeling` · `grilling` · `grill-with-docs` · `impeccable` · `implement` · `prototype` · `research` · `resolving-merge-conflicts` · `tdd` · `to-spec` · `to-tickets`
 
@@ -76,6 +80,8 @@ Findings/plan of record: [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-
 `git-governance` (ADR-0065, authored for Sonivo)
 
 `validation-symmetry` (ADR-0066, authored for Sonivo)
+
+`group-tenancy-isolation` (ADR-0079 ACCEPTED, authored for Sonivo; user-accepted 2026-10-14)
 
 `skills-lock.json` has **13** Matt core entries only; the eight knowledge workflows and the ADR-0063 additions are not all external packages, and the ADR-0063 Matt additions (`pr`, `writing-for-agents`) are not yet in the lock. Update the lock only via the official `skills` CLI (its hash algorithm is not plain sha256). Root `.obsidian/` vault configuration remains local and was not changed.
 
@@ -108,6 +114,27 @@ See Phase 0.8 history in repo conversation / prior audit versions if needed. Ful
 | Context7                                  | UNAUTHORIZED / DEFERRED user-global | Do not configure or depend                          |
 | watermarks-remover                        | UNAUTHORIZED user-global            | Do not depend; project-local artifacts removed      |
 | Taste / Emil (and related design cluster) | Ambient user-global                 | Must not become a Sonivo reproducibility dependency |
+| `playwright` MCP                          | Ambient user-global (`~/.config/opencode/opencode.json`) | Connected in this environment; **not** declared in repo `opencode.json` and not a reproducibility dependency. First-party `@playwright/mcp`; consider promoting project-local if the team relies on it |
+| `infisical-local` MCP                     | Ambient user-global                | Connected; secretless duplicate is declared `disabled` in repo `opencode.json` (ADR-0066). The global entry embeds a universal-auth client secret in **plaintext** — move it to `{env:...}` (script `scripts/harden-global-opencode-config.ps1`) |
+
+---
+
+## Global-config audit (2026-10-14)
+
+`~/.config/opencode/opencode.json` (user-global) declares `playwright` and
+`infisical-local`. Neither is in the repo config, so neither is reproducible for
+other contributors. Two findings:
+
+1. **SECURITY (FIX APPLIED 2026-10-14):** the global `infisical-local` embedded
+   `INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET` as a plaintext literal. It was moved to
+   `{env:INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET}` (matching the repo entry) via
+   `scripts/harden-global-opencode-config.ps1`, which backed up to
+   `opencode.json.bak-20261014-183030` before rewriting only that value. **Still
+   required:** set the environment variable and **rotate the previously-exposed
+   secret** in Infisical, then `opencode service restart`.
+2. **Reproducibility:** `playwright` resolves a profile under
+   `P:\repos\sonivo\.playwright-mcp\profile`; it is useful for the `e2e/`
+   Playwright suite but is a user-global dependency today.
 
 ---
 

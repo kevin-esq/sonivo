@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 
 export interface Track {
   id: string
@@ -19,6 +19,7 @@ interface AudioPlayerContextType {
   togglePlay: () => void
   closeTrack: () => void
   seek: (seconds: number) => void
+  getCurrentTime: () => number
   setVolume: (vol: number) => void
 }
 
@@ -31,6 +32,10 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const [duration, setDuration] = useState<number>(0)
   const [volume, setVolumeState] = useState<number>(0.8)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume
+  }, [volume])
 
   const playTrack = (track: Track) => {
     setCurrentTrack(track)
@@ -101,6 +106,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         togglePlay,
         closeTrack,
         seek,
+        getCurrentTime: () => audioRef.current?.currentTime ?? progress,
         setVolume,
       }}
     >

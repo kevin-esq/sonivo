@@ -7,6 +7,13 @@ Tenancy: `/api/groups/{groupId}/...` + membership (ADR-0019). **CLIENT-SUPPLIED 
 
 Convention: JSON; Problem Details ([`TECHNICAL-SPEC.md`](TECHNICAL-SPEC.md) §8).
 
+**Route ownership (ADR-0089):** `/api/*` endpoint paths are owned by the .NET
+API and documented by this contract. Browser page routes are owned by
+`web/apps/app/src/routing/routes.ts`. Do not centralize both in one frontend
+file: the frontend BFF proxies the stable API contract, while the API performs
+authentication, antiforgery, input validation, and server-side Group
+authorization regardless of the page host.
+
 ---
 
 ## Auth
@@ -71,7 +78,7 @@ All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (G
 | Update Arrangement | PATCH | `.../arrangements/{arrangementId}` | Owner | `expectedVersion` required | 200 | 401, 403, 404, 400, 409 |
 | Soft-delete Arrangement | DELETE | `.../arrangements/{arrangementId}` | Owner | Body `{ expectedVersion }`; Resources left | 204 | 401, 403, 404, 400, 409 |
 | List Resources | GET | `.../arrangements/{arrangementId}/resources` | Member | Link + file metadata (no bytes) | 200 | 401, 404 |
-| Create link Resource | POST | `.../arrangements/{arrangementId}/resources` | Owner | JSON `kind=link`; `url` required; reject JSON `kind=file` | 201 | 401, 403, 404, 400 |
+| Create link Resource | POST | `.../arrangements/{arrangementId}/resources` | Owner | JSON `kind=link`; `url` must be a well-formed absolute HTTP(S) URL without embedded credentials; reject JSON `kind=file` | 201 | 401, 403, 404, 400 |
 | Create file Resource | POST | `.../arrangements/{arrangementId}/resources` | Owner | **multipart**: purpose, label, part?, note?, file; max 5 MiB; MIME allowlist | 201 | 401, 403, 404, 400 |
 | Get Resource | GET | `.../arrangements/{arrangementId}/resources/{resourceId}` | Member | Includes `url` or file metadata; nested route only | 200 | 401, 404 |
 | Get Resource content | GET | `.../arrangements/{arrangementId}/resources/{resourceId}/content` | Member | File bytes only; `Content-Disposition: attachment` | 200 | 401, 404, 400 |
@@ -92,7 +99,7 @@ All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (G
 | Create | POST | `.../setlists` | Owner | | 201 | 403 |
 | Get | GET | `.../setlists/{setlistId}` | Member | Items included | 200 | 404 |
 | Update | PATCH | `.../setlists/{setlistId}` | Owner | Metadata | 200 | 409 |
-| Delete | DELETE | `.../setlists/{setlistId}` | Owner | Hard; null Event.sourceSetlistId | 204 | 403 |
+| Delete | — | — | — | Not implemented; excluded from the closed Phase 3.3 thin slice | — | — |
 | Replace items | PUT | `.../setlists/{setlistId}/items` | Owner | Full ordered list; duplicates OK | 200 | 400, 409 |
 | Add item | POST | `.../setlists/{setlistId}/items` | Owner | | 201 | 400 |
 | Update item | PATCH | `.../setlists/{setlistId}/items/{itemId}` | Owner | Overrides/order | 200 | 404 |

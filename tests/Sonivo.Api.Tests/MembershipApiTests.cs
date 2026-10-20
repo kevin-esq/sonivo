@@ -58,6 +58,7 @@ public class MembershipApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(2, payload.Items.Count);
         Assert.Contains(payload.Items, i => i.Role == MembershipRoles.Owner);
         Assert.Contains(payload.Items, i => i.Role == MembershipRoles.Member);
+        var memberId = payload.Items.Single(i => i.Role == MembershipRoles.Member).UserId;
 
         var leave = await member.PostAsJsonAsync($"/api/groups/{group.Id}/leave", new { });
         Assert.Equal(HttpStatusCode.NoContent, leave.StatusCode);
@@ -66,6 +67,78 @@ public class MembershipApiTests : IClassFixture<SonivoApiFactory>
         var afterPayload = await after.Content.ReadFromJsonAsync<MemberListResponse>(JsonOptions);
         Assert.NotNull(afterPayload);
         Assert.Single(afterPayload.Items);
+
+        var auditResponse = await owner.GetAsync($"/api/groups/{group.Id}/audit");
+        Assert.Equal(HttpStatusCode.OK, auditResponse.StatusCode);
+        using var auditJson = JsonDocument.Parse(await auditResponse.Content.ReadAsStringAsync());
+        Assert.Contains(
+            auditJson.RootElement.GetProperty("items").EnumerateArray(),
+            entry => entry.GetProperty("action").GetString() == GroupAuditEntry.ActionMemberLeft
+                && entry.GetProperty("actorUserId").GetGuid() == memberId
+                && entry.GetProperty("targetUserId").GetGuid() == memberId);
+    }
+
+    [Fact]
+    public async Task Owner_sets_and_clears_member_description()
+    {
+        var owner = await CreateAuthenticatedClientAsync("ppl-desc-owner@example.com");
+        var group = await CreateGroupAsync(owner, "Description Band");
+        var invite = await owner.PostAsJsonAsync($"/api/groups/{group.Id}/invitations", new { });
+        invite.EnsureSuccessStatusCode();
+        var created = await invite.Content.ReadFromJsonAsync<InvitationCreatedResponse>(JsonOptions);
+        Assert.NotNull(created);
+
+        var member = await CreateAuthenticatedClientAsync("ppl-desc-member@example.com");
+        await member.PostAsJsonAsync($"/api/invitations/{created!.Token}/accept", new { });
+
+        var list = await owner.GetAsync($"/api/groups/{group.Id}/members");
+        var payload = await list.Content.ReadFromJsonAsync<MemberListResponse>(JsonOptions);
+        var memberRow = payload!.Items.First(i => i.Role == MembershipRoles.Member);
+
+        // The description is absent until someone writes it.
+        Assert.True(string.IsNullOrEmpty(memberRow.Description));
+
+        var write = await owner.PutAsJsonAsync(
+            $"/api/groups/{group.Id}/members/{memberRow.UserId}/description",
+            new { description = "Canta los domingos" });
+        Assert.Equal(HttpStatusCode.NoContent, write.StatusCode);
+
+        var afterWrite = await owner.GetAsync($"/api/groups/{group.Id}/members");
+        var written = await afterWrite.Content.ReadFromJsonAsync<MemberListResponse>(JsonOptions);
+        Assert.Equal(
+            "Canta los domingos",
+            written!.Items.First(i => i.UserId == memberRow.UserId).Description);
+
+        // Clearing is an explicit null, not an empty string.
+        var clear = await owner.PutAsJsonAsync(
+            $"/api/groups/{group.Id}/members/{memberRow.UserId}/description",
+            new { description = (string?)null });
+        Assert.Equal(HttpStatusCode.NoContent, clear.StatusCode);
+
+        var afterClear = await owner.GetAsync($"/api/groups/{group.Id}/members");
+        var cleared = await afterClear.Content.ReadFromJsonAsync<MemberListResponse>(JsonOptions);
+        Assert.True(string.IsNullOrEmpty(cleared!.Items.First(i => i.UserId == memberRow.UserId).Description));
+    }
+
+    [Fact]
+    public async Task Member_cannot_set_another_member_description()
+    {
+        var owner = await CreateAuthenticatedClientAsync("ppl-desc-authz-owner@example.com");
+        var group = await CreateGroupAsync(owner, "Authz Description Band");
+        var invite = await owner.PostAsJsonAsync($"/api/groups/{group.Id}/invitations", new { });
+        var created = await invite.Content.ReadFromJsonAsync<InvitationCreatedResponse>(JsonOptions);
+
+        var member = await CreateAuthenticatedClientAsync("ppl-desc-authz-member@example.com");
+        await member.PostAsJsonAsync($"/api/invitations/{created!.Token}/accept", new { });
+
+        var list = await owner.GetAsync($"/api/groups/{group.Id}/members");
+        var payload = await list.Content.ReadFromJsonAsync<MemberListResponse>(JsonOptions);
+        var ownerRow = payload!.Items.First(i => i.Role == MembershipRoles.Owner);
+
+        var attempt = await member.PutAsJsonAsync(
+            $"/api/groups/{group.Id}/members/{ownerRow.UserId}/description",
+            new { description = "no debo poder" });
+        Assert.Equal(HttpStatusCode.Forbidden, attempt.StatusCode);
     }
 
     [Fact]
@@ -153,6 +226,11 @@ public class MembershipApiTests : IClassFixture<SonivoApiFactory>
     private sealed record GroupResponse(Guid Id, string Name, int Version);
     private sealed record InvitationCreatedResponse(Guid Id, string Token, DateTimeOffset ExpiresAt);
     private sealed record MemberListResponse(List<MemberItem> Items);
-    private sealed record MemberItem(Guid UserId, string DisplayName, string Role, DateTimeOffset CreatedAt);
+    private sealed record MemberItem(
+        Guid UserId,
+        string DisplayName,
+        string Role,
+        DateTimeOffset CreatedAt,
+        string? Description = null);
     private sealed record MeResponse(Guid Id);
 }

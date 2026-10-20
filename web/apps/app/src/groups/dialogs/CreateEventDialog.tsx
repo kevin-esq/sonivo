@@ -51,7 +51,7 @@ export function CreateEventDialog({
       notifyGroupDataChanged('events', groupId)
       onCreated(created)
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
       setPending(false)
     }
   }

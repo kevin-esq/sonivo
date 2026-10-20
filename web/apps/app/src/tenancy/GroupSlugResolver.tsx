@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import { getGroupBySlug } from '../api/client'
@@ -7,7 +8,7 @@ import { rememberLastGroup } from './groupSlug'
 type ResolveState = 'loading' | 'missing' | { id: string }
 
 /**
- * `/g/{slug}` entry (ADR-0045 D1): resolves the slug (current or historical) to
+ * `/app/g/{slug}` entry (ADR-0045 D1): resolves the slug (current or historical) to
  * its group, remembers the last group and forwards to the group workspace while
  * preserving the sub-path. Unknown/foreign slugs show the same not-found screen
  * (the API returns an identical 404), so the slug cannot be enumerated.
@@ -63,6 +64,6 @@ export function GroupSlugResolver() {
     )
   }
 
-  const rest = location.pathname.slice(`/g/${slug}`.length)
-  return <Navigate to={`/groups/${state.id}${rest}${location.search}`} replace />
+  const rest = location.pathname.slice(routes.groupSlug(slug ?? '').length)
+  return <Navigate to={`${routes.group(state.id)}${rest}${location.search}${location.hash}`} replace />
 }

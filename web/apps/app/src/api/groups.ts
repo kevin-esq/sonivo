@@ -75,6 +75,9 @@ export type UsageMetric = { used: number; limit: number | null }
 
 export type GroupUsage = {
   planId: string
+  billingStatus: string
+  trialEndsAt: string | null
+  scheduledPlanId: string | null
   members: UsageMetric
   songs: UsageMetric
   setlists: UsageMetric
@@ -84,6 +87,29 @@ export type GroupUsage = {
 
 export async function getGroupUsage(groupId: string): Promise<GroupUsage> {
   return apiRequest<GroupUsage>(`/api/groups/${groupId}/usage`)
+}
+
+export type GroupNotificationPreferences = {
+  notifyRoleChanges: boolean
+  notifyTaskAssignments: boolean
+}
+
+export async function getGroupNotificationPreferences(
+  groupId: string,
+): Promise<GroupNotificationPreferences> {
+  return apiRequest<GroupNotificationPreferences>(
+    `/api/groups/${groupId}/notification-preferences`,
+  )
+}
+
+export async function updateGroupNotificationPreferences(
+  groupId: string,
+  preferences: GroupNotificationPreferences,
+): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/notification-preferences`, {
+    method: 'PUT',
+    body: preferences,
+  })
 }
 
 export type GroupBySlug = GroupDetail & { moved?: boolean }

@@ -1,5 +1,8 @@
+import { routes } from '../routing/routes'
+import { GroupFilterPopover } from './ui/GroupFilterPopover'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { ReactNode, KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams } from 'react-router-dom'
 import {
   CalendarClock,
@@ -13,7 +16,6 @@ import {
   Plus,
   Trash2,
   User,
-  X,
 } from 'lucide-react'
 import {
   deleteTask,
@@ -37,6 +39,7 @@ import { ConfirmDialog } from '../ui/confirm-dialog'
 import { CreateTaskDialog } from './dialogs'
 import {
   GroupButton,
+  GroupDialog,
   GroupChip,
   GroupEmptyState,
   GroupErrorState,
@@ -56,6 +59,9 @@ import {
   useSensors,
   useDraggable,
   useDroppable,
+  useDndContext,
+  pointerWithin,
+  rectIntersection,
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core'
@@ -141,12 +147,12 @@ function initials(name: string | null): string {
     .join('')
 }
 
-type TaskFilter = 'all' | 'open' | 'done' | 'mine' | 'overdue'
+type TaskFilter = 'all' | BoardStatus
 
 /* ─────────────── main page ─────────────── */
 
 /**
- * W-G — group tasks (`/groups/:id/tasks`). Manager/Owner create/edit/complete; Member reads.
+ * W-G — group tasks (`/app/groups/:id/tasks`). Manager/Owner create/edit/complete; Member reads.
  */
 export function GroupTasksPage() {
   const { groupId } = useParams()
@@ -155,6 +161,9 @@ export function GroupTasksPage() {
   const [group, setGroup] = useState<Awaited<ReturnType<typeof getGroup>> | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<TaskFilter>('all')
+  const [search, setSearch] = useState('')
+  const [assigneeFilter, setAssigneeFilter] = useState('all')
+  const [overdueOnly, setOverdueOnly] = useState(false)
   const [view, setView] = useState<'list' | 'board'>('board')
   const [showCreate, setShowCreate] = useState(false)
   const [detailTask, setDetailTask] = useState<TaskItem | null>(null)
@@ -174,7 +183,7 @@ export function GroupTasksPage() {
       .catch((err) => {
         if (!cancelled) {
           setGroup(null)
-          setError(problemDetail(err))
+          setError(problemDetail(err, t))
         }
       })
     return () => {
@@ -206,16 +215,18 @@ export function GroupTasksPage() {
   const visible = useMemo(
     () => {
       let filtered = tasks
-      if (filter === 'done') filtered = filtered.filter((task) => task.status === 'done')
-      else if (filter === 'open') filtered = filtered.filter((task) => task.status !== 'done')
-      else if (filter === 'mine') filtered = filtered.filter((task) => task.assigneeUserId === user?.id)
-      else if (filter === 'overdue') filtered = filtered.filter((task) => {
+      if (filter !== 'all') filtered = filtered.filter((task) => task.status === filter)
+      if (assigneeFilter !== 'all') filtered = filtered.filter((task) =>
+        assigneeFilter === 'mine' ? task.assigneeUserId === user?.id : task.assigneeUserId === assigneeFilter)
+      if (search.trim()) filtered = filtered.filter((task) =>
+        `${task.title} ${task.notes ?? ''}`.toLocaleLowerCase(lang).includes(search.trim().toLocaleLowerCase(lang)))
+      if (overdueOnly) filtered = filtered.filter((task) => {
         if (task.status === 'done' || !task.dueAt) return false
         return new Date(task.dueAt).getTime() < Date.now()
       })
       return filtered
     },
-    [tasks, filter, user?.id],
+    [tasks, filter, assigneeFilter, overdueOnly, search, user?.id, lang],
   )
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
@@ -241,7 +252,7 @@ export function GroupTasksPage() {
     return (
       <div className="space-y-3">
         <GroupErrorState message={error} />
-        <GroupLink variant="secondary" to="/home">
+        <GroupLink variant="secondary" to={routes.home}>
           {t('workspace.myGroups')}
         </GroupLink>
       </div>
@@ -257,21 +268,23 @@ export function GroupTasksPage() {
     setLocalTasks(list.map((t) => t.id === task.id ? { ...t, status } : t))
     // Chain after any in-flight change for this task
     const prior = statusQueueRef.current.get(task.id) ?? Promise.resolve(task)
-    const next = prior.then(() => setTaskStatus(groupId, task.id, {
+    const next = prior.then((previous) => setTaskStatus(groupId, task.id, {
       status,
-      expectedVersion: task.version,
+      expectedVersion: previous.version,
     }))
     statusQueueRef.current.set(task.id, next)
     try {
       const result = await next
       // Apply server response (new status + new version) to local list
-      const current = localTasks ?? surface.data ?? []
-      setLocalTasks(current.map((t) => t.id === task.id ? { ...t, status: result.status, version: result.version } : t))
+      const isLatest = statusQueueRef.current.get(task.id) === next
+      setLocalTasks((current) => (current ?? surface.data ?? []).map((t) => t.id === task.id
+        ? { ...t, status: isLatest ? result.status : t.status, version: result.version }
+        : t))
     } catch (err) {
       // Revert only this task, not the whole list
       const current = localTasks ?? surface.data ?? []
       setLocalTasks(current.map((t) => t.id === task.id ? { ...t, status: task.status, version: task.version } : t))
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
     } finally {
       // Clean up queue entry if it's still the latest
       if (statusQueueRef.current.get(task.id) === next) {
@@ -288,6 +301,10 @@ export function GroupTasksPage() {
   return (
     <DndContext
       sensors={dndSensors}
+      collisionDetection={(args) => {
+        const collisions = pointerWithin(args)
+        return args.pointerCoordinates ? collisions : rectIntersection(args)
+      }}
       onDragStart={(event: DragStartEvent) => {
         const task = tasks.find((x) => x.id === event.active.id)
         setActiveTask(task ?? null)
@@ -338,7 +355,7 @@ export function GroupTasksPage() {
         ) : null}
 
         {/* View toggle: List / Board */}
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex gap-1 rounded-xl bg-surface-hover/50 p-1" role="group" aria-label={t('tasks.title')}>
             {([
               { id: 'board', label: t('tasks.viewBoard') },
@@ -361,32 +378,41 @@ export function GroupTasksPage() {
             ))}
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-wrap gap-1" role="group" aria-label={t('tasks.filterLabel')}>
-            {([
-              { id: 'all', label: t('tasks.filterAll') },
-              { id: 'open', label: t('tasks.filterOpen') },
-              { id: 'done', label: t('tasks.filterDone') },
-              { id: 'mine', label: t('tasks.filterMine') },
-              { id: 'overdue', label: t('tasks.filterOverdue') },
-            ] as { id: TaskFilter; label: string }[]).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                aria-pressed={filter === tab.id}
-                onClick={() => setFilter(tab.id)}
-                className={cn(
-                  'min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-                  filter === tab.id
-                    ? 'bg-primary-strong text-primary-foreground'
-                    : 'text-muted hover:text-ink',
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="order-last min-w-0 basis-full sm:order-none sm:min-w-48 sm:flex-1 sm:basis-0">
+            <label htmlFor="task-search" className="sr-only">{t('tasks.search')}</label>
+            <input id="task-search" type="search" className={fieldClass} value={search}
+              placeholder={t('tasks.search')} onChange={(event) => setSearch(event.target.value)} />
           </div>
+          <GroupFilterPopover count={Number(filter !== 'all') + Number(assigneeFilter !== 'all') + Number(overdueOnly)}>
+              <label className="space-y-1 text-sm text-muted">
+                <span>{t('tasks.fieldStatus')}</span>
+                <select className={fieldClass} value={filter} onChange={(event) => setFilter(event.target.value as TaskFilter)}>
+                  <option value="all">{t('tasks.filterAll')}</option>
+                  {BOARD_COLUMNS.map((status) => <option key={status} value={status}>{t(STATUS_META[status].labelKey)}</option>)}
+                </select>
+              </label>
+              <label className="space-y-1 text-sm text-muted">
+                <span>{t('tasks.fieldAssignee')}</span>
+                <select className={fieldClass} value={assigneeFilter} onChange={(event) => setAssigneeFilter(event.target.value)}>
+                  <option value="all">{t('tasks.filterAll')}</option>
+                  <option value="mine">{t('tasks.filterMine')}</option>
+                  {members.filter((member) => member.userId).map((member) => <option key={member.userId} value={member.userId}>{member.displayName}</option>)}
+                </select>
+              </label>
+              <label className="flex min-h-11 items-center gap-2 text-sm text-ink">
+                <input type="checkbox" checked={overdueOnly} onChange={(event) => setOverdueOnly(event.target.checked)} />
+                {t('tasks.filterOverdue')}
+              </label>
+          </GroupFilterPopover>
         </div>
+        {filter !== 'all' || assigneeFilter !== 'all' || overdueOnly ? (
+          <div className="flex flex-wrap items-center gap-2" aria-label={t('tasks.filterLabel')}>
+            {filter !== 'all' ? <GroupChip>{t(STATUS_META[filter].labelKey)}</GroupChip> : null}
+            {assigneeFilter !== 'all' ? <GroupChip>{t('tasks.fieldAssignee')}: {assigneeFilter === 'mine' ? t('tasks.filterMine') : memberName(members, assigneeFilter)}</GroupChip> : null}
+            {overdueOnly ? <GroupChip>{t('tasks.filterOverdue')}</GroupChip> : null}
+            <GroupButton variant="ghost" onClick={() => { setFilter('all'); setAssigneeFilter('all'); setOverdueOnly(false) }}>{t('tasks.clearFilters')}</GroupButton>
+          </div>
+        ) : null}
       </GroupPageHeader>
 
       <GroupErrorState message={error} />
@@ -415,7 +441,7 @@ export function GroupTasksPage() {
           tasks={visible}
           members={members}
           canManage={canManage}
-          onToggle={(task) => void changeStatus(task, task.status === 'done' ? 'open' : 'done')}
+          onToggle={(task) => void changeStatus(task, BOARD_COLUMNS[(BOARD_COLUMNS.indexOf(task.status as BoardStatus) + 1) % BOARD_COLUMNS.length])}
           onEdit={(task) => setDetailTask(task)}
           onDelete={(task) => void remove(task)}
           t={t}
@@ -438,7 +464,7 @@ export function GroupTasksPage() {
       {detailTask ? (
         <TaskDetailModal
           groupId={group.id}
-          task={detailTask}
+          task={tasks.find((task) => task.id === detailTask.id) ?? detailTask}
           members={members}
           canManage={canManage}
           onClose={() => setDetailTask(null)}
@@ -470,7 +496,7 @@ export function GroupTasksPage() {
                 setConfirmDelete(null)
                 reload()
               } catch (err) {
-                setError(mutationErrorMessage(err))
+                setError(mutationErrorMessage(err, t))
               }
             })()
           }
@@ -509,19 +535,22 @@ function TaskListView({
         const done = task.status === 'done'
         const overdue = !done && task.dueAt != null && new Date(task.dueAt).getTime() < Date.now()
         const assignee = memberName(members, task.assigneeUserId)
+        const nextStatus = BOARD_COLUMNS[(BOARD_COLUMNS.indexOf(task.status as BoardStatus) + 1) % BOARD_COLUMNS.length]
+        const statusAction = t('tasks.moveTo', { status: t(STATUS_META[nextStatus].labelKey) })
         return (
           <li
             key={task.id}
-            className="group flex items-start gap-3 rounded-2xl border border-border-subtle bg-surface p-4 transition-colors hover:border-primary/30"
+            className="group flex flex-wrap items-start gap-3 rounded-2xl border border-border-subtle bg-surface p-4 transition-colors hover:border-primary/30 sm:flex-nowrap"
           >
             {canManage ? (
               <button
                 type="button"
                 onClick={() => onToggle(task)}
-                aria-label={done ? t('tasks.reopen') : t('tasks.complete')}
-                className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                aria-label={`${statusAction}: ${task.title}`}
+                className="order-last flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-border-subtle bg-surface-hover/60 px-3 py-2 text-xs font-medium text-ink hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:order-none sm:w-36 sm:justify-start"
               >
                 {statusIcon(task.status, 'h-5 w-5')}
+                <span>{statusAction}</span>
               </button>
             ) : (
               <span className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center text-muted">
@@ -624,6 +653,7 @@ function TaskBoard({
       id: status,
       title: t(STATUS_META[status].columnKey),
       tasks: tasks.filter((x) => {
+        if (activeTask && x.id === activeTask.id && overColumn === status) return true
         if (status === 'open') return x.status === 'open' || !BOARD_COLUMNS.includes(x.status as BoardStatus)
         return x.status === status
       }).sort((a, b) => {
@@ -633,7 +663,7 @@ function TaskBoard({
         return 0
       }),
     }))
-  }, [tasks, t])
+  }, [tasks, t, activeTask, overColumn])
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface-hover/10 p-3 sm:p-4" style={{ backgroundImage: 'radial-gradient(circle, var(--color-border-subtle) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
@@ -654,11 +684,12 @@ function TaskBoard({
           />
         ))}
       </div>
-      <DragOverlay>
+      {/* Keep viewport coordinates independent of animated workspace ancestors. */}
+      {typeof document !== 'undefined' ? createPortal(<DragOverlay dropAnimation={null}>
         {activeTask ? (
           <TaskCardOverlay task={activeTask} members={members} t={t} lang={lang} />
         ) : null}
-      </DragOverlay>
+      </DragOverlay>, document.body) : null}
     </div>
   )
 }
@@ -690,6 +721,7 @@ function BoardColumn({
 }) {
   const meta = STATUS_META[id as BoardStatus] ?? STATUS_META.open
   const { setNodeRef } = useDroppable({ id })
+  const { active } = useDndContext()
 
   return (
     <div
@@ -711,7 +743,7 @@ function BoardColumn({
           {title}
         </h3>
         <span className="ml-auto rounded-full bg-surface-hover px-2 py-0.5 text-xs font-semibold text-muted">
-          {tasks.length}
+          {tasks.filter((task) => task.id !== activeTaskId || task.status === id).length}
         </span>
       </div>
 
@@ -725,7 +757,14 @@ function BoardColumn({
             {isOver ? t('tasks.dropHere') : t('tasks.noTasks')}
           </div>
         ) : (
-          tasks.map((task) => (
+          tasks.map((task) => task.id === activeTaskId && isOver && task.status !== id ? (
+            <div
+              key={`preview-${task.id}`}
+              aria-hidden="true"
+              className="rounded-xl border-2 border-dashed border-primary/50 bg-primary/10 motion-safe:animate-[library-enter_150ms_ease-out]"
+              style={{ height: active?.rect.current.initial?.height ?? 80 }}
+            />
+          ) : (
             <TaskCardDnd
               key={task.id}
               task={task}
@@ -772,14 +811,10 @@ function TaskCardDnd({
   t: (key: I18nKey, params?: TParams) => string
   lang: string
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging: isDragActive } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging: isDragActive } = useDraggable({
     id: task.id,
     disabled: !canManage,
   })
-
-  const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined
 
   return (
     <TaskCard
@@ -792,7 +827,6 @@ function TaskCardDnd({
       t={t}
       lang={lang}
       dndRef={setNodeRef}
-      dndStyle={style}
       dndListeners={canManage ? listeners : undefined}
       dndAttributes={canManage ? attributes : undefined}
     />
@@ -869,6 +903,7 @@ function TaskCard({
         'group relative cursor-pointer rounded-xl border border-border-subtle bg-surface p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-200',
         'hover:border-primary/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12),0_2px_4px_rgba(0,0,0,0.06)]',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+        canManage && 'touch-none',
         canManage && (isDragging ? 'cursor-grabbing' : 'cursor-grab'),
         isDragging && 'opacity-0',
       )}
@@ -1022,7 +1057,6 @@ function TaskDetailModal({
   t: (key: I18nKey, params?: TParams) => string
   lang: string
 }) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(task.title)
   const [notes, setNotes] = useState(task.notes ?? '')
@@ -1033,13 +1067,6 @@ function TaskDetailModal({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const titleId = useId()
 
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (dialog && !dialog.open) {
-      dialog.showModal()
-    }
-  }, [])
-
   // Compute hasChanges directly in render — no state, no effect
   const hasChanges = isEditing && (
     title !== task.title ||
@@ -1048,24 +1075,10 @@ function TaskDetailModal({
     assigneeUserId !== (task.assigneeUserId ?? '')
   )
 
-  // Close on click outside
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-    const d = dialog
-    function handleClick(e: MouseEvent) {
-      // Only close if clicking the dialog backdrop itself, not children
-      if (e.target === d) {
-        if (hasChanges) {
-          setConfirmDiscard(true)
-        } else {
-          onClose()
-        }
-      }
-    }
-    dialog.addEventListener('click', handleClick)
-    return () => dialog.removeEventListener('click', handleClick)
-  }, [hasChanges, onClose])
+  function requestClose() {
+    if (hasChanges) setConfirmDiscard(true)
+    else onClose()
+  }
 
   const saveAction = useAction(async () => {
     setError(null)
@@ -1084,21 +1097,6 @@ function TaskDetailModal({
     onDeleted()
   })
 
-  // Ctrl/Cmd + Enter saves (Esc is handled by onCancel)
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-    function handleKeydown(e: Event) {
-      const ke = e as globalThis.KeyboardEvent
-      if ((ke.ctrlKey || ke.metaKey) && ke.key === 'Enter' && isEditing) {
-        ke.preventDefault()
-        void saveAction.run()
-      }
-    }
-    dialog.addEventListener('keydown', handleKeydown)
-    return () => dialog.removeEventListener('keydown', handleKeydown)
-  }, [isEditing, saveAction])
-
   const assignee = memberName(members, task.assigneeUserId)
   const creator = memberName(members, task.createdByUserId)
   const done = task.status === 'done'
@@ -1106,44 +1104,20 @@ function TaskDetailModal({
   const meta = STATUS_META[task.status as BoardStatus] ?? STATUS_META.open
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={onClose}
-      aria-labelledby={titleId}
-      className={cn(
-        'w-[min(100%,40rem)] max-w-[calc(100%-2rem)] rounded-2xl border-0 bg-surface p-0 text-ink shadow-2xl',
-        'backdrop:bg-neutral-dark/60 backdrop:backdrop-blur-sm',
-        /* Slide-up entrance */
-        'animate-[modal-enter_250ms_cubic-bezier(0.22,1,0.36,1)_both]',
-      )}
-      onCancel={(e) => { e.preventDefault(); onClose() }}
-    >
-      <div className="flex flex-col">
-        {/* Header with status color bar */}
-        <div className={cn('h-1.5 rounded-t-2xl', meta.bgClass)} />
-
-        {/* Close button */}
-        <div className="flex items-start justify-between px-6 pt-4">
-          <div className="flex items-center gap-2">
-            {statusIcon(task.status, 'h-5 w-5')}
-            <span className={cn('text-xs font-semibold uppercase tracking-wider', meta.color)}>
-              {t(meta.labelKey)}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            aria-label={t('tasks.close')}
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
-        </div>
-
-        <ProblemAlert message={saveAction.error != null ? mutationErrorMessage(saveAction.error) : (deleteAction.error != null ? mutationErrorMessage(deleteAction.error) : error)} />
+    <>
+    <GroupDialog open onClose={requestClose} title={t('tasks.detailTitle')} size="lg"
+      pending={saveAction.pending || deleteAction.pending}
+      onSubmit={isEditing ? () => { if (title.trim() && !saveAction.pending) void saveAction.run() } : undefined}>
+      <div className="space-y-5" onKeyDown={(event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && isEditing && title.trim() && !saveAction.pending) {
+          event.preventDefault()
+          void saveAction.run()
+        }
+      }}>
+        <ProblemAlert message={saveAction.error != null ? mutationErrorMessage(saveAction.error, t) : (deleteAction.error != null ? mutationErrorMessage(deleteAction.error, t) : error)} />
 
         {/* Body */}
-        <div className="space-y-5 px-6 pb-6 pt-2">
+        <div className="space-y-6">
           {/* Title */}
           {isEditing ? (
             <div>
@@ -1163,20 +1137,18 @@ function TaskDetailModal({
               className={cn(
                 'text-xl font-bold text-ink',
                 done && 'text-muted line-through',
-                canManage && 'cursor-pointer hover:text-primary-ink transition-colors',
               )}
-              onClick={() => canManage && setIsEditing(true)}
             >
               {task.title}
             </h2>
           )}
 
           {/* Metadata grid (Trello sidebar-style) */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+          <div className="grid gap-5 rounded-xl bg-surface-hover/40 p-4 sm:grid-cols-2">
             {/* Status */}
-            <DetailField label={t('tasks.fieldStatus')}>
+            <DetailField label={t('tasks.fieldStatus')} className="sm:col-span-2">
               {canManage ? (
-                <div className="flex gap-1" role="group" aria-label={t('tasks.fieldStatus')}>
+                <div className="flex flex-wrap gap-1" role="group" aria-label={t('tasks.fieldStatus')}>
                   {BOARD_COLUMNS.map((s) => (
                     <button
                       key={s}
@@ -1188,7 +1160,7 @@ function TaskDetailModal({
                         }
                       }}
                       className={cn(
-                        'min-h-8 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                        'min-h-11 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
                         task.status === s
                           ? cn(STATUS_META[s].bgClass, STATUS_META[s].color)
                           : 'text-muted hover:text-ink',
@@ -1210,6 +1182,7 @@ function TaskDetailModal({
             <DetailField label={t('tasks.fieldAssignee')}>
               {canManage && isEditing ? (
                 <select
+                  aria-label={t('tasks.fieldAssignee')}
                   className={cn(fieldClass, 'text-sm')}
                   value={assigneeUserId}
                   onChange={(e) => setAssigneeUserId(e.target.value)}
@@ -1238,6 +1211,7 @@ function TaskDetailModal({
               {canManage && isEditing ? (
                 <input
                   type="date"
+                  aria-label={t('tasks.fieldDue')}
                   className={cn(fieldClass, 'text-sm')}
                   value={dueAt}
                   onChange={(e) => setDueAt(e.target.value)}
@@ -1258,14 +1232,15 @@ function TaskDetailModal({
           </div>
 
           {/* Notes */}
-          <div>
+          <div className="rounded-xl border border-border-subtle p-4">
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">
               {t('tasks.fieldNotes')}
             </p>
             {canManage && isEditing ? (
               <textarea
+                aria-label={t('tasks.fieldNotes')}
                 className={fieldClass}
-                rows={4}
+                rows={6}
                 value={notes}
                 maxLength={2000}
                 onChange={(e) => setNotes(e.target.value)}
@@ -1275,9 +1250,7 @@ function TaskDetailModal({
               <p
                 className={cn(
                   'whitespace-pre-wrap text-sm text-ink leading-relaxed',
-                  canManage && 'cursor-pointer rounded-xl p-3 hover:bg-surface-hover transition-colors',
                 )}
-                onClick={() => canManage && setIsEditing(true)}
               >
                 {task.notes}
               </p>
@@ -1285,9 +1258,7 @@ function TaskDetailModal({
               <p
                 className={cn(
                   'text-sm text-muted italic',
-                  canManage && 'cursor-pointer rounded-xl p-3 hover:bg-surface-hover transition-colors',
                 )}
-                onClick={() => canManage && setIsEditing(true)}
               >
                 {t('tasks.addNotes')}
               </p>
@@ -1343,39 +1314,39 @@ function TaskDetailModal({
         </div>
       </div>
 
-      <ConfirmDialog
+    </GroupDialog>
+      <GroupDialog
         open={confirmDiscard}
+        size="sm"
         title={t('tasks.discardConfirmTitle')}
-        message={t('tasks.discardConfirm')}
-        confirmLabel={t('tasks.discard')}
-        cancelLabel={t('tasks.cancel')}
-        onConfirm={() => {
-          setConfirmDiscard(false)
-          setIsEditing(false)
-          onClose()
-        }}
-        onCancel={() => setConfirmDiscard(false)}
-      />
+        onClose={() => setConfirmDiscard(false)}
+        footer={<>
+          <GroupButton variant="secondary" onClick={() => setConfirmDiscard(false)}>{t('tasks.cancel')}</GroupButton>
+          <GroupButton variant="danger" onClick={() => { setConfirmDiscard(false); setIsEditing(false); onClose() }}>{t('tasks.discard')}</GroupButton>
+        </>}
+      >
+        <p className="text-sm text-muted">{t('tasks.discardConfirm')}</p>
+      </GroupDialog>
 
-      <ConfirmDialog
+      <GroupDialog
         open={confirmDelete}
+        size="sm"
         title={t('tasks.deleteConfirmTitle')}
-        message={t('tasks.deleteConfirm')}
-        confirmLabel={t('tasks.delete')}
-        cancelLabel={t('tasks.cancel')}
-        onConfirm={() => {
-          setConfirmDelete(false)
-          void deleteAction.run()
-        }}
-        onCancel={() => setConfirmDelete(false)}
-      />
-    </dialog>
+        onClose={() => setConfirmDelete(false)}
+        footer={<>
+          <GroupButton variant="secondary" onClick={() => setConfirmDelete(false)}>{t('tasks.cancel')}</GroupButton>
+          <GroupButton variant="danger" onClick={() => { setConfirmDelete(false); void deleteAction.run() }}>{t('tasks.delete')}</GroupButton>
+        </>}
+      >
+        <p className="text-sm text-muted">{t('tasks.deleteConfirm')}</p>
+      </GroupDialog>
+    </>
   )
 }
 
-function DetailField({ label, children }: { label: string; children: ReactNode }) {
+function DetailField({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
-    <div>
+    <div className={className}>
       <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">{label}</p>
       <div>{children}</div>
     </div>

@@ -1,4 +1,5 @@
 import { resourceContentUrl, type ResourceSummary } from '../api/client'
+import { safeExternalResourceUrl } from './resourceUrl'
 
 const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.m4a', '.ogg', '.aac', '.flac', '.webm', '.opus']
 
@@ -39,10 +40,11 @@ function toSource(
     }
   }
 
-  if (resource.url) {
+  const externalUrl = safeExternalResourceUrl(resource.url)
+  if (externalUrl) {
     return {
       resourceId: resource.id,
-      src: resource.url,
+      src: externalUrl,
       label: resource.label,
       purpose,
     }

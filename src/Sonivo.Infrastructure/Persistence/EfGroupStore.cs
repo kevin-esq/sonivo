@@ -30,7 +30,7 @@ public sealed class EfGroupStore : IGroupStore
 
         var rows = await _db.Memberships
             .AsNoTracking()
-            .Where(m => m.UserId == userId)
+            .Where(m => m.UserId == userId && m.AccessDisabledAt == null)
             .Join(
                 _db.Groups.AsNoTracking(),
                 m => m.GroupId,
@@ -48,7 +48,7 @@ public sealed class EfGroupStore : IGroupStore
                 x.Group.Version,
                 x.Group.CreatedAt,
                 GroupUpdatedAt = x.Group.UpdatedAt,
-                MemberCount = _db.Memberships.Count(other => other.GroupId == x.Group.Id),
+                MemberCount = _db.Memberships.Count(other => other.GroupId == x.Group.Id && other.AccessDisabledAt == null),
                 NextEventAt = _db.Events
                     .Where(e => e.GroupId == x.Group.Id && !e.IsHidden && e.StartsAt >= now)
                     .Min(e => (DateTimeOffset?)e.StartsAt),

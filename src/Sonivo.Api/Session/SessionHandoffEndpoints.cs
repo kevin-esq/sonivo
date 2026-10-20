@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Tenancy;
+using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure.Identity;
 
 namespace Sonivo.Api.Session;
@@ -41,6 +42,7 @@ public static class SessionHandoffEndpoints
         SessionHandoffStartRequest request,
         ClaimsPrincipal principal,
         ITenantResolver tenants,
+        IGroupDatabaseScope databaseScope,
         GroupAccessService access,
         SessionHandoffService handoffs,
         IPublicOrigin origin,
@@ -62,6 +64,10 @@ public static class SessionHandoffEndpoints
         Guid? groupId = null;
         if (slug is not null)
         {
+            if (GroupSlug.IsValid(slug))
+            {
+                await databaseScope.SetAuthenticatedGroupSlugLookupAsync(slug, cancellationToken);
+            }
             var group = await tenants.ResolveAsync(slug, cancellationToken);
             if (group is null)
             {
@@ -90,6 +96,7 @@ public static class SessionHandoffEndpoints
         UserManager<ApplicationUser> users,
         SignInManager<ApplicationUser> signInManager,
         GroupAccessService access,
+        IGroupDataOperation groupDataOperation,
         SessionHandoffService handoffs,
         HttpContext http,
         CancellationToken cancellationToken)
@@ -102,29 +109,43 @@ public static class SessionHandoffEndpoints
             return InvalidCode();
         }
 
-        var user = await users.FindByIdAsync(ticket.UserId.ToString("D"));
+        // Redemption is anonymous at the HTTP boundary, so establish a bounded
+        // user-scoped database operation from the consumed single-use ticket.
+        // The membership check still runs before the host-only cookie is issued.
+        var user = await groupDataOperation.ExecuteAsUserAsync(
+            ticket.UserId,
+            async operationToken =>
+            {
+                var candidate = await users.FindByIdAsync(ticket.UserId.ToString("D"));
+                if (candidate is null)
+                {
+                    return null;
+                }
+
+                if (ticket.GroupId is { } groupId)
+                {
+                    try
+                    {
+                        await access.RequireMemberAsync(groupId, ticket.UserId, operationToken);
+                    }
+                    catch (Exception ex) when (ex is NotFoundException or ForbiddenException)
+                    {
+                        return null;
+                    }
+                }
+
+                return candidate;
+            },
+            cancellationToken);
         if (user is null)
         {
             return InvalidCode();
         }
 
-        // Membership is re-verified at redemption for a tenant handoff: the
-        // group may have changed (or the member removed) between issue and
-        // redeem. An app-scope handoff has no group to authorize.
-        if (ticket.GroupId is { } groupId)
-        {
-            try
-            {
-                await access.RequireMemberAsync(groupId, ticket.UserId, cancellationToken);
-            }
-            catch (Exception ex) when (ex is NotFoundException or ForbiddenException)
-            {
-                return InvalidCode();
-            }
-        }
-
         await signInManager.SignInAsync(user, isPersistent: false, authenticationMethod: null);
-        return Results.Ok(new { redirect = "/" });
+        // The root path is the public marketing landing; the product entry is
+        // the dashboard, so a redeemed handoff lands there.
+        return Results.Ok(new { redirect = "/home" });
     }
 
     private static IResult InvalidCode() =>
@@ -144,7 +165,7 @@ public static class SessionHandoffEndpoints
     }
 
     /// <summary>
-    /// Builds <c>{scheme}://{subdomain}.{apexHost}:{port}/session/handoff?code=…</c>
+    /// Builds <c>{scheme}://{subdomain}.{apexHost}:{port}/auth/session/handoff?code=…</c>
     /// from the registered apex origin, preserving scheme and non-default port.
     /// Falls back to the request's own scheme/host when no apex origin is
     /// configured (local development / tests).
@@ -168,7 +189,7 @@ public static class SessionHandoffEndpoints
             apexUri.IsDefaultPort ? -1 : apexUri.Port);
 
         var authority = builder.Uri.GetLeftPart(UriPartial.Authority);
-        return $"{authority}/session/handoff?code={Uri.EscapeDataString(code)}";
+        return $"{authority}/auth/session/handoff?code={Uri.EscapeDataString(code)}";
     }
 }
 

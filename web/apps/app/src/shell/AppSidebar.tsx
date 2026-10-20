@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { ChevronsLeft, ChevronsRight, LogOut, X } from "lucide-react";
@@ -5,7 +6,7 @@ import type { CurrentUser } from "../api/client";
 import { BrandLockup, SonivoMark } from "../brand/SonivoMark";
 import { useT } from "../i18n";
 import { cn } from "../ui/cn";
-import { sidebarSections, type SidebarItem } from "./navSections";
+import { sidebarSections } from "./navSections";
 
 /** Shared with `GroupWorkspace`: one persisted rail preference. */
 const RAIL_KEY = "sonivo:sidebar";
@@ -34,38 +35,6 @@ function linkClass(isActive: boolean, collapsed: boolean): string {
     isActive
       ? "bg-shell-hover text-shell-foreground"
       : "text-shell-foreground/70 hover:bg-shell-hover hover:text-shell-foreground",
-  );
-}
-
-function DisabledItem({ item, collapsed }: { item: SidebarItem; collapsed: boolean }) {
-  const { t } = useT();
-  const Icon = item.icon;
-  const label = t(item.labelKey);
-  if (collapsed) {
-    return (
-      <span
-        aria-disabled="true"
-        title={`${label} · ${t("app.comingSoon")}`}
-        data-testid={`nav-disabled-${item.id}`}
-        className="flex min-h-11 cursor-not-allowed items-center justify-center rounded-xl px-2 text-shell-foreground/40"
-      >
-        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-      </span>
-    );
-  }
-  return (
-    <span
-      aria-disabled="true"
-      title={t("app.comingSoon")}
-      data-testid={`nav-disabled-${item.id}`}
-      className="flex min-h-11 cursor-not-allowed items-center gap-3 rounded-xl px-3 text-sm font-medium text-shell-foreground/40"
-    >
-      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span className="shrink-0 rounded-full bg-shell-hover px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-shell-foreground/60">
-        {t("app.comingSoon")}
-      </span>
-    </span>
   );
 }
 
@@ -99,14 +68,14 @@ function SidebarBody({
       >
         {collapsed ? (
           <NavLink
-            to="/home"
+            to={routes.home}
             aria-label="Sonivo"
             className="grid min-h-11 min-w-11 place-items-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
           >
             <SonivoMark className="h-7 w-7 text-shell-link" />
           </NavLink>
         ) : (
-          <BrandLockup to="/home" shell />
+          <BrandLockup to={routes.home} shell />
         )}
         {showClose ? (
           <button
@@ -149,10 +118,7 @@ function SidebarBody({
                 {t(section.labelKey)}
               </p>
             ) : null}
-            {section.items.map((item) =>
-              item.disabled || !item.to ? (
-                <DisabledItem key={item.id} item={item} collapsed={collapsed} />
-              ) : (
+            {section.items.map((item) => (
                 <NavLink
                   key={item.id}
                   to={item.to}
@@ -168,8 +134,7 @@ function SidebarBody({
                     {t(item.labelKey)}
                   </span>
                 </NavLink>
-              ),
-            )}
+              ))}
           </div>
         ))}
       </nav>
@@ -181,7 +146,7 @@ function SidebarBody({
         )}
       >
         <NavLink
-          to="/account"
+          to={routes.account}
           onClick={onNavigate}
           data-testid="nav-user-card"
           aria-label={collapsed ? name : undefined}

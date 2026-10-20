@@ -9,9 +9,9 @@ export function PasswordSection({
   if (!hasPassword) return null
 
   return (
-    <section className="space-y-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
-      <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('security.passwordTitle')}</h2>
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+    <section className="security-section space-y-2 rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm sm:p-6">
+      <h2 className="text-lg font-bold text-ink">{t('security.passwordTitle')}</h2>
+      <p className="text-sm text-muted">
         {t('security.passwordBody')}
       </p>
     </section>

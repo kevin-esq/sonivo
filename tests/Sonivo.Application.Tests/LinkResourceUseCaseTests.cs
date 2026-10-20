@@ -129,6 +129,28 @@ public class LinkResourceUseCaseTests
     }
 
     [Fact]
+    public async Task Canceled_upload_cleans_up_a_partially_written_blob()
+    {
+        var ctx = await SeedWithArrangementAsync();
+        var blobs = new FakeBlobStore { CancelAfterPut = true };
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new CreateFileResourceHandler(
+                    new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources, blobs, new FixedClock(Now))
+                .HandleAsync(
+                    new CreateFileResourceCommand(
+                        ctx.Owner, ctx.GroupId, ctx.ArrangementId,
+                        ResourcePurposes.Chart, "Chart", null, null,
+                        "chart.txt", "text/plain", 1, new MemoryStream("x"u8.ToArray())),
+                    cancellation.Token));
+
+        Assert.Empty(blobs.Items);
+        Assert.Equal(CancellationToken.None, blobs.DeleteToken);
+    }
+
+    [Fact]
     public async Task Member_can_download_file_content_but_not_create()
     {
         var ctx = await SeedOwnerMemberWithArrangementAsync();
@@ -191,6 +213,23 @@ public class LinkResourceUseCaseTests
                         ctx.Owner, ctx.GroupId, ctx.ArrangementId, ResourceKinds.File,
                         ResourcePurposes.Other, "Label", null, null, "https://example.com"),
                     CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Unsafe_link_url_is_a_validation_error_and_is_not_persisted()
+    {
+        var ctx = await SeedWithArrangementAsync();
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            new CreateLinkResourceHandler(
+                    new GroupAccessService(ctx.Groups), ctx.Arrangements, ctx.Resources, new FixedClock(Now))
+                .HandleAsync(
+                    new CreateLinkResourceCommand(
+                        ctx.Owner, ctx.GroupId, ctx.ArrangementId, ResourceKinds.Link,
+                        ResourcePurposes.Reference, "Reference", null, null, "javascript:alert(1)"),
+                    CancellationToken.None));
+
+        Assert.Empty(ctx.Resources.Items);
     }
 
     [Fact]
@@ -290,6 +329,8 @@ public class LinkResourceUseCaseTests
     private sealed class FakeBlobStore : IBlobStore
     {
         public Dictionary<string, (byte[] Bytes, string ContentType)> Items { get; } = new();
+        public bool CancelAfterPut { get; init; }
+        public CancellationToken? DeleteToken { get; private set; }
 
         public async Task PutAsync(
             string objectKey,
@@ -299,8 +340,12 @@ public class LinkResourceUseCaseTests
             CancellationToken cancellationToken)
         {
             using var ms = new MemoryStream();
-            await content.CopyToAsync(ms, cancellationToken);
+            await content.CopyToAsync(ms, CancellationToken.None);
             Items[objectKey] = (ms.ToArray(), contentType);
+            if (CancelAfterPut)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
         }
 
         public Task<BlobContent?> GetAsync(string objectKey, CancellationToken cancellationToken)
@@ -316,6 +361,7 @@ public class LinkResourceUseCaseTests
 
         public Task DeleteAsync(string objectKey, CancellationToken cancellationToken)
         {
+            DeleteToken = cancellationToken;
             Items.Remove(objectKey);
             return Task.CompletedTask;
         }

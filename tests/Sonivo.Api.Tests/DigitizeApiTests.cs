@@ -50,7 +50,7 @@ public class DigitizeApiTests : IClassFixture<SonivoApiFactory>
         var job = await PollUntilTerminalAsync(
             client, $"/api/groups/{group.Id}/arrangements/{arr.Id}/digitize/{started.JobId}");
         Assert.Equal("done", job.Status);
-        Assert.Null(job.Error);
+        Assert.Null(job.ErrorCode);
         Assert.NotNull(job.Segments);
         Assert.Equal(2, job.Segments.Count);
         Assert.Equal(0, job.Segments[0].StartMs);
@@ -143,7 +143,7 @@ public class DigitizeApiTests : IClassFixture<SonivoApiFactory>
             client, $"/api/groups/{group.Id}/arrangements/{arr.Id}/digitize/{started.JobId}");
         Assert.Equal("failed", job.Status);
         Assert.Null(job.Segments);
-        Assert.Contains("500", job.Error);
+        Assert.Equal("too_many_segments", job.ErrorCode);
     }
 
     [Fact]
@@ -344,5 +344,5 @@ public class DigitizeApiTests : IClassFixture<SonivoApiFactory>
     private sealed record ResourceResponse(Guid Id);
     private sealed record JobStartedResponse(Guid JobId, string Status);
     private sealed record SegmentResponse(int StartMs, int EndMs, string Text);
-    private sealed record DigitizeJobResponse(Guid JobId, string Status, List<SegmentResponse>? Segments, string? Error);
+    private sealed record DigitizeJobResponse(Guid JobId, string Status, List<SegmentResponse>? Segments, string? ErrorCode);
 }

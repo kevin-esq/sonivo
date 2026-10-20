@@ -57,10 +57,10 @@ Until the user explicitly authorizes additional work:
 ## Technical context
 
 - **Backend:** .NET 10 (C# 14) / ASP.NET Core Web API, EF Core, Identity, PostgreSQL; modular monolith.
-- **Frontend:** Next.js App Router + React 19, TypeScript, Tailwind CSS 4 in a Turborepo workspace (`web/apps/*`, `web/packages/*`), served as a static export by the .NET host (ADR-0067).
+- **Frontend:** Next.js App Router + React 19, TypeScript, Tailwind CSS 4 in a Turborepo workspace (`web/apps/*`, `web/packages/*`). Production uses the Next server/BFF on Vercel; staging can use the static export served by the .NET host (ADR-0069; parity bridge).
 - **Testing:** .NET unit/integration/API tests, PostgreSQL-backed CI, and Playwright critical journeys. See [`README.md`](README.md) and [`TESTING.md`](docs/03-architecture/TESTING.md) for commands and setup.
 - **C# conventions:** nullable reference types and implicit usings are enabled. Follow nearby code and repository analyzers rather than inventing a style guide.
-- **Tenancy/auth:** Group-scoped authorization is server-enforced; client-supplied Group IDs are never authorization. Web auth uses Identity cookies plus antiforgery; no web JWT/BFF.
+- **Tenancy/auth:** Group-scoped authorization is server-enforced; client-supplied Group IDs are never authorization. Web auth uses Identity cookies plus antiforgery; Next.js is the BFF per ADR-0067/0069, with no web JWT or browser token storage.
 - **Local database:** `compose.yaml`, host port 5433. CI uses PostgreSQL 16.
 
 ---
@@ -152,7 +152,7 @@ Critical journeys live in `e2e/` and must hit the real React → API → Identit
 
 [`docs/03-architecture/DECISIONS.md`](docs/03-architecture/DECISIONS.md) is canonical; only **ACCEPTED** ADRs bind, and superseded decisions must not be treated as current.
 
-Always preserve these invariants: Group-scoped server-side authorization (never trust a client Group ID); Owner/Member roles; Identity cookie authentication with antiforgery (no web JWT/BFF); and the separate Song, Arrangement, and Arrangement Resource concepts. Consult the relevant ADR and domain docs for details rather than copying the decision ledger here.
+Always preserve these invariants: Group-scoped server-side authorization (never trust a client Group ID; **no ambient tenant filter** — ADR-0079, skill `group-tenancy-isolation`); Owner/Member roles; Identity cookie authentication with antiforgery (no web JWT/BFF); and the separate Song, Arrangement, and Arrangement Resource concepts. Consult the relevant ADR and domain docs for details rather than copying the decision ledger here.
 
 ---
 
@@ -206,6 +206,6 @@ Always preserve these invariants: Group-scoped server-side authorization (never 
 
 Authoritative policy: [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md), ADR-0002, ADR-0039, and ADR-0041.
 
-- **AUTHORIZED project-local:** 35 skills under `.agents/skills/`. Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md). MCP config (security + `github` + sandbox + secrets) lives in root `opencode.json` (ADR-0064/0065/0066).
+- **AUTHORIZED project-local:** 36 skills under `.agents/skills/`. Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md). MCP config (security + `github` + sandbox + secrets) lives in root `opencode.json` (ADR-0064/0065/0066).
 - **PRESENT ≠ AUTHORIZED.** User-global ambient tooling must **not** become a Sonivo dependency.
 - Do not install further skills/tooling without explicit approval.

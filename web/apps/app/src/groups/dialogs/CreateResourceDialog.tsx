@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Upload } from 'lucide-react'
 import {
   createFileResource,
   createLinkResource,
+  getGroup,
   listArrangements,
   listSongs,
   type ResourcePurpose,
@@ -10,9 +10,13 @@ import {
   type ArrangementListItem,
 } from '../../api/client'
 import { useT } from '../../i18n'
+import { fileUploadErrorMessage } from '../../repertoire/fileUploadErrors'
+import { safeExternalResourceUrl } from '../../repertoire/resourceUrl'
 import { formatPurpose, mutationErrorMessage } from '../../repertoire/ui'
 import { notifyGroupDataChanged } from '../../shell/groupEvents'
 import { cn } from '../../ui/cn'
+import { FileDropzone } from '../../ui/FileDropzone'
+import { resourceUploadLimit } from '../../repertoire/fileUploadErrors'
 import { GroupButton, GroupDialog, GroupInput, GroupSelect, GroupTextArea } from '../ui'
 
 const PURPOSES: ResourcePurpose[] = ['chart', 'lyrics', 'audio', 'reference', 'practice', 'other']
@@ -35,6 +39,7 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
   const [arrangementId, setArrangementId] = useState('')
   const [label, setLabel] = useState('')
   const [purpose, setPurpose] = useState<ResourcePurpose>('reference')
+  const [planId, setPlanId] = useState('starter')
   const [note, setNote] = useState('')
   const [mode, setMode] = useState<'file' | 'link'>('file')
   const [file, setFile] = useState<File | null>(null)
@@ -44,6 +49,11 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
 
   useEffect(() => {
     let cancelled = false
+    getGroup(groupId)
+      .then((group) => {
+        if (!cancelled) setPlanId(group.planId)
+      })
+      .catch(() => undefined)
     listSongs(groupId)
       .then((result) => {
         if (cancelled) return
@@ -94,6 +104,10 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
       setError(t('resources.fieldArrangement'))
       return
     }
+    if (mode === 'link' && !safeExternalResourceUrl(url)) {
+      setError(t('resources.urlInvalid'))
+      return
+    }
     setPending(true)
     try {
       if (mode === 'file') {
@@ -119,7 +133,7 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
       notifyGroupDataChanged('resources', groupId)
       onUploaded()
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mode === 'file' ? fileUploadErrorMessage(err, t) : mutationErrorMessage(err, t))
       setPending(false)
     }
   }
@@ -204,7 +218,10 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
         value={purpose}
         options={purposeOptions}
         disabled={pending}
-        onChange={(value) => setPurpose(value as ResourcePurpose)}
+        onChange={(value) => {
+          setPurpose(value as ResourcePurpose)
+          setFile(null)
+        }}
       />
       <GroupTextArea
         label={t('resources.fieldDescription')}
@@ -216,23 +233,26 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
       />
 
       {mode === 'file' ? (
-        <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border-subtle bg-surface-hover/50 px-4 py-3 text-center text-sm text-muted focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary">
-          <Upload className="h-5 w-5" aria-hidden="true" />
-          <span className="font-medium text-ink">{t('resources.fieldFile')}</span>
-          <span>{file ? file.name : t('resources.dropHint')}</span>
-          <span className="text-xs">{t('resources.formatsHint')}</span>
-          <input
-            type="file"
-            className="sr-only"
-            disabled={pending}
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
+        <FileDropzone
+          title={t('resources.fieldFile')}
+          description={t('resources.formatsHint')}
+          file={file}
+          onFileChange={setFile}
+          maxSizeBytes={resourceUploadLimit(planId, purpose)}
+          disabled={pending}
+          testId="resource-file-dropzone"
+        />
       ) : (
         <GroupInput
-          label={t('resources.fieldFile')}
+          label={t('resources.fieldUrl')}
           value={url}
-          placeholder="https://"
+          placeholder={t('resources.urlPlaceholder')}
+          maxLength={2000}
+          hint={t('resources.urlHint')}
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           disabled={pending}
           onChange={(event) => setUrl(event.target.value)}
         />

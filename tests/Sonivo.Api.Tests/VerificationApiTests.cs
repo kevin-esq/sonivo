@@ -119,6 +119,173 @@ public class VerificationApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal("Invalid email or password.", unverifiedProblem.Detail);
     }
 
+    /// <summary>
+    /// ADR-0038 (owner-authorized refinement): the login screen may reveal the
+    /// verification affordance only when the password was already correct.
+    /// Identity's <c>IsNotAllowed</c> is that branch, so the marker is
+    /// unreachable without a valid credential and cannot be used to discover
+    /// whether an address is registered.
+    /// </summary>
+    [Fact]
+    public async Task Only_a_correct_password_on_an_unverified_account_reports_email_unverified()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        await EnsureCsrfAsync(client);
+
+        var register = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email = "verify-marker@example.com",
+            password = "Password1"
+        });
+        Assert.Equal(HttpStatusCode.Created, register.StatusCode);
+
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            await EnsureCsrfAsync(client);
+            var failedLogin = await client.PostAsJsonAsync("/api/auth/login", new
+            {
+                email = "verify-marker@example.com",
+                password = "WrongPass1"
+            });
+            Assert.Equal(HttpStatusCode.Unauthorized, failedLogin.StatusCode);
+            Assert.Null(Reason(await ReadAsync(failedLogin)));
+        }
+
+        await EnsureCsrfAsync(client);
+        var unverified = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "verify-marker@example.com",
+            password = "Password1"
+        });
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await users.FindByEmailAsync("verify-marker@example.com");
+            Assert.NotNull(user);
+            Assert.Equal(0, await users.GetAccessFailedCountAsync(user));
+        }
+
+        await EnsureCsrfAsync(client);
+        var wrongPassword = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "verify-marker@example.com",
+            password = "WrongPass1"
+        });
+        await EnsureCsrfAsync(client);
+        var unknownEmail = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "verify-marker-unknown@example.com",
+            password = "Password1"
+        });
+
+        var unverifiedBody = await ReadAsync(unverified);
+        var wrongBody = await ReadAsync(wrongPassword);
+        var unknownBody = await ReadAsync(unknownEmail);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, unverified.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, wrongPassword.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, unknownEmail.StatusCode);
+
+        // The correct-password/not-allowed branch is the ONLY one that carries
+        // the marker...
+        Assert.Equal("email_unverified", Reason(unverifiedBody));
+
+        // ...and no other failure path does, so nothing about account existence
+        // leaks to a caller without the right password.
+        Assert.Null(Reason(wrongBody));
+        Assert.Null(Reason(unknownBody));
+
+        // All three keep the same status/title/detail.
+        Assert.Equal("Invalid email or password.", unverifiedBody?.Detail);
+        Assert.Equal(unverifiedBody?.Title, wrongBody?.Title);
+        Assert.Equal(unverifiedBody?.Detail, wrongBody?.Detail);
+        Assert.Equal(unverifiedBody?.Status, wrongBody?.Status);
+        Assert.Equal(unverifiedBody?.Status, unknownBody?.Status);
+    }
+
+    [Fact]
+    public async Task Wrong_password_attempts_on_unverified_account_consume_lockout_budget()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        await EnsureCsrfAsync(client);
+
+        const string email = "verify-unconfirmed-lockout@example.com";
+        var register = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email,
+            password = "Password1"
+        });
+        Assert.Equal(HttpStatusCode.Created, register.StatusCode);
+
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            await EnsureCsrfAsync(client);
+            var response = await client.PostAsJsonAsync("/api/auth/login", new
+            {
+                email,
+                password = "WrongPass1"
+            });
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+            var body = await ReadAsync(response);
+            Assert.Null(Reason(body));
+        }
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await users.FindByEmailAsync(email);
+            Assert.NotNull(user);
+            Assert.True(users.SupportsUserLockout);
+            Assert.True(await users.GetLockoutEnabledAsync(user));
+            Assert.Equal(4, await users.GetAccessFailedCountAsync(user));
+        }
+
+        await EnsureCsrfAsync(client);
+        var fifthFailure = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email,
+            password = "WrongPass1"
+        });
+        Assert.Equal(HttpStatusCode.Unauthorized, fifthFailure.StatusCode);
+        Assert.Null(Reason(await ReadAsync(fifthFailure)));
+
+        // Identity clears the counter as it starts the lockout window.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await users.FindByEmailAsync(email);
+            Assert.NotNull(user);
+            Assert.Equal(0, await users.GetAccessFailedCountAsync(user));
+            Assert.True(await users.IsLockedOutAsync(user));
+        }
+
+        await EnsureCsrfAsync(client);
+        var correctPasswordWhileLocked = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email,
+            password = "Password1"
+        });
+        Assert.Equal(HttpStatusCode.Unauthorized, correctPasswordWhileLocked.StatusCode);
+        Assert.Null(Reason(await ReadAsync(correctPasswordWhileLocked)));
+    }
+
+    private static async Task<ProblemShapeWithExtensions?> ReadAsync(HttpResponseMessage response)
+    {
+        return await response.Content.ReadFromJsonAsync<ProblemShapeWithExtensions>(JsonOptions);
+    }
+
+    private static string? Reason(ProblemShapeWithExtensions? body) => body?.Reason;
+
     [Fact]
     public async Task Resend_for_unknown_email_returns_202()
     {
@@ -420,6 +587,16 @@ public class VerificationApiTests : IClassFixture<SonivoApiFactory>
 
     private sealed record CsrfResponse(string Token);
     private sealed record ProblemShape(string? Title, string? Detail, int? Status);
+
+    /// <summary>
+    /// Problem details plus the top-level extension entries that
+    /// <c>Results.Problem(extensions: …)</c> flattens into the response body.
+    /// </summary>
+    private sealed record ProblemShapeWithExtensions(
+        string? Title,
+        string? Detail,
+        int? Status,
+        string? Reason);
     private sealed record RegisterResponse(Guid Id, string? Email, bool EmailConfirmed, bool Mailed);
     private sealed record AcceptedResponse(bool Accepted, bool Mailed);
     private sealed record ConfirmResponse(bool EmailConfirmed);

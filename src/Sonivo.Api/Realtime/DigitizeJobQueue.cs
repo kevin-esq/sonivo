@@ -35,7 +35,10 @@ public sealed class DigitizeJobQueue : BackgroundService
         _logger = logger;
         _jobs = Channel.CreateBounded<Guid>(new BoundedChannelOptions(QueueCapacity)
         {
-            FullMode = BoundedChannelFullMode.DropWrite,
+            // TryWrite returns false when this channel is full, allowing the
+            // caller to mark the persisted job failed instead of silently
+            // accepting a discarded write.
+            FullMode = BoundedChannelFullMode.Wait,
             SingleWriter = false,
             SingleReader = false
         });
@@ -46,25 +49,25 @@ public sealed class DigitizeJobQueue : BackgroundService
     /// via the store (the owner sees the error when polling) and false is
     /// returned so the endpoint can answer 503.
     /// </summary>
-    public async Task<bool> TryEnqueueAsync(Guid jobId, CancellationToken cancellationToken)
+    public Task<bool> TryEnqueueAsync(Guid jobId, CancellationToken cancellationToken)
     {
         if (_jobs.Writer.TryWrite(jobId))
         {
-            return true;
+            return Task.FromResult(true);
         }
 
         try
         {
             using var scope = _scopes.CreateScope();
             var jobs = scope.ServiceProvider.GetRequiredService<IDigitizeJobStore>();
-            jobs.Fail(jobId, "La cola de digitalización está llena. Inténtalo en unos minutos.");
+            jobs.Fail(jobId, DigitizeJobErrorCodes.QueueFull);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Could not fail digitize job {JobId} after a full-queue rejection.", jobId);
         }
 
-        return false;
+        return Task.FromResult(false);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -93,7 +96,7 @@ public sealed class DigitizeJobQueue : BackgroundService
                         {
                             using var scope = _scopes.CreateScope();
                             var jobs = scope.ServiceProvider.GetRequiredService<IDigitizeJobStore>();
-                            jobs.Fail(jobId, "No se pudo digitalizar el audio. Inténtalo de nuevo.");
+                            jobs.Fail(jobId, DigitizeJobErrorCodes.Failed);
                         }
                         catch (Exception storeEx)
                         {

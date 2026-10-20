@@ -36,7 +36,7 @@ From first-party sources, audited before install:
 Authored for Sonivo and adapted to its stack (not imported from third parties):
 
 - `dotnet-secure-architecture` - ASP.NET Core / EF Core / Identity / tenancy hardening and review
-- `react-frontend-security` - React 19 / Vite / Tailwind XSS, env-leak, token, and client-authz review
+- `react-frontend-security` - Next.js App Router / React 19 / Tailwind XSS, env-leak, token, and client-authz review
 
 ### FRONTEND STRUCTURE - PROJECT-LOCAL (user-authorized 2026-10-07)
 
@@ -59,6 +59,14 @@ Authored for Sonivo; server-authoritative validation with client symmetry:
 
 - `validation-symmetry`
 
+### TENANCY — PROJECT-LOCAL (user-authorized 2026-10-14)
+
+Authored for Sonivo; records Group-as-tenant rules and forbids the ambient-tenant
+model (ADR-0079 ACCEPTED):
+
+- `group-tenancy-isolation` — Group is the only tenant; server-side membership
+  check per request; `(GroupId, EntityId)` lookups; no ambient tenant filter.
+
 ### DEFERRED (not installed project-local; do not invoke/depend)
 
 `setup-matt-pocock-skills` · `handoff` · `product-marketing` · Context7 · surplus Matt skills
@@ -73,9 +81,9 @@ Authored for Sonivo; server-authoritative validation with client symmetry:
 
 ---
 
-## PRESENT project-local skills (35 directories)
+## PRESENT project-local skills (36 directories)
 
-**35** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063 + ADR-0064 + ADR-0065 + ADR-0066):
+**36** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063 + ADR-0064 + ADR-0065 + ADR-0066 + user-authorized 2026-10-14):
 
 | Directory                       | Role                 |
 | ------------------------------- | -------------------- |
@@ -114,8 +122,9 @@ Authored for Sonivo; server-authoritative validation with client symmetry:
 | `react-frontend-security`       | SECURITY (ADR-0064)  |
 | `git-governance`                | GIT (ADR-0065)       |
 | `validation-symmetry`           | VALIDATION (ADR-0066) |
+| `group-tenancy-isolation`       | TENANCY (2026-10-14) |
 
-= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions + **2** ADR-0064 security skills + **1** ADR-0065 git governance + **1** ADR-0066 validation = **35 AUTHORIZED**.
+= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions + **2** ADR-0064 security skills + **1** ADR-0065 git governance + **1** ADR-0066 validation + **1** tenancy = **36 AUTHORIZED**.
 
 Removed skills are **not** listed as installed.
 

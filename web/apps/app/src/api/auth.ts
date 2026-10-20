@@ -9,6 +9,22 @@ export type CurrentUser = {
   managedByGroupId?: string | null
 }
 
+export type IdentitySession = {
+  sessionKey: string
+  isCurrent: boolean
+  createdAt: string
+  lastSeenAt: string
+  expiresAt: string
+}
+
+export async function listIdentitySessions(): Promise<IdentitySession[]> {
+  return apiRequest<IdentitySession[]>('/api/auth/sessions')
+}
+
+export async function revokeIdentitySession(sessionKey: string): Promise<void> {
+  await apiRequest<void>(`/api/auth/sessions/${encodeURIComponent(sessionKey)}/revoke`, { method: 'POST' })
+}
+
 export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   try {
     return await apiRequest<CurrentUser>('/api/auth/me')

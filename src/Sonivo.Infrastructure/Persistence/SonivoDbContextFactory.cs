@@ -22,8 +22,12 @@ public sealed class SonivoDbContextFactory : IDesignTimeDbContextFactory<SonivoD
             .AddEnvironmentVariables()
             .Build();
 
+        var connectionString = configuration["SONIVO_MIGRATION_CONNECTION"]
+            ?? throw new InvalidOperationException(
+                "SONIVO_MIGRATION_CONNECTION is required for EF Core design-time operations. "
+                + "Keep this privileged connection out of the web application's runtime configuration.");
         var optionsBuilder = new DbContextOptionsBuilder<SonivoDbContext>();
-        optionsBuilder.UseNpgsql(configuration.GetConnectionString("Default"));
+        optionsBuilder.UseNpgsql(connectionString);
         return new SonivoDbContext(optionsBuilder.Options);
     }
 }

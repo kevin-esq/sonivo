@@ -28,7 +28,7 @@ export function CreateSetlistDialog({ groupId, onClose, onCreated }: CreateSetli
       notifyGroupDataChanged('setlists', groupId)
       onCreated(created)
     } catch (err) {
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
       setPending(false)
     }
   }
@@ -52,6 +52,7 @@ export function CreateSetlistDialog({ groupId, onClose, onCreated }: CreateSetli
         </>
       }
     >
+      <p className="text-sm leading-relaxed text-muted">{t('workflow.setlistSteps')}</p>
       {error ? (
         <p role="alert" className="text-sm text-error-ink">
           {error}

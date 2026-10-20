@@ -6,6 +6,9 @@
 provisional and meant to be implemented now and tuned later without touching the architecture.
 **ADRs:** [ADR-0071](DECISIONS.md) (entitlements + personalization levels),
 [ADR-0072](DECISIONS.md) (organization), [ADR-0073](DECISIONS.md) (payments IN, supersedes ADR-0042).
+**Amendment:** [ADR-0083](DECISIONS.md) separates plan usage, product reports,
+group audit, and account security history. The Phase 4.0 report spec defines the
+candidate capability keys; no report tier mapping is commercial fact yet.
 **Supersedes:** the ADR-0042 "payments OUT" prohibition and the "no billing" firewalls, only within
 the scope of this phase.
 
@@ -46,6 +49,20 @@ This is the single source of truth for plans, limits and personalization. The en
 | Trial | 14 days Starter | 14 days Pro | 14 days Studio (card required) |
 
 **Open decisions (placeholder):** see §9.
+
+### 2.1 Entitlement and history interpretation
+
+- The `Stats` column is a placeholder capability flag, not a complete report
+  contract. Do not present it as “advanced reports” until the API, definitions,
+  authorization, and UI in [Phase 4.0](PHASE-4.0-INSIGHTS-HELP-SPEC.md) ship.
+- Group usage counters explain current plan limits; they are not historical
+  analytics. Group activity history and account security history are separate.
+- Plan tiers may gate report viewing, advanced breakdowns, or export after the
+  phase spec defines stable entitlements. They never gate writing security
+  records, enforcing authorization, account security history, or access to
+  existing content.
+- All prices, limits, trials, and candidate report-to-plan mappings remain
+  provisional until explicitly confirmed.
 
 **Cost by group count (placeholder, MXN/mo):**
 

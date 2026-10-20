@@ -1,14 +1,14 @@
 # Phase — Inicio dashboard + app-shell sidebar
 
 **Status:** **IN PROGRESS** · owner: Kevin Esquivel · started: 2026-10-02
-**Scope owner:** ADR-0053 (ACCEPTED). Amends ADR-0043; supersedes `PHASE-APP-HEADER-SPEC.md` D4 for `/` and account routes.
+**Scope owner:** ADR-0053 (ACCEPTED; route assignment superseded by ADR-0081, then ADR-0092). Amends ADR-0043; supersedes `PHASE-APP-HEADER-SPEC.md` D4 for account routes.
 **Branch:** `feature/home-dashboard` → `develop` (PR, CI green before merge).
 
 ---
 
 ## 1. Why
 
-The signed-in landing route `/` was a flat "Mis grupos" list under a top header. The approved reference (ADR-0053) turns it into an **Inicio dashboard** inside a **persistent left sidebar**, matching the product's "your music, your people, your projects, one place" framing: quick actions, my groups, what's next across groups, and the account in the same rail.
+The original scope made `/` a signed-in "Mis grupos" list, then ADR-0053 turned it into an **Inicio dashboard** inside a **persistent left sidebar**. ADR-0081 assigned `/` to public marketing; ADR-0092 keeps that assignment and places the dashboard and all product pages under `/app/...`, with identity pages under `/auth/...`. Its quick actions, groups, upcoming activity, and account rail remain in scope.
 
 ---
 
@@ -16,8 +16,8 @@ The signed-in landing route `/` was a flat "Mis grupos" list under a top header.
 
 | # | Decision |
 | --- | --- |
-| H1 | `/` = Inicio dashboard; `/grupos` = Mis grupos; `/unirse` = Unirse a grupo. |
-| H2 | Left sidebar for authenticated non-group routes (`/`, `/grupos`, `/unirse`, `/cuenta/*`), responsive (rail ≥ `lg`, drawer below). Group workspace rail unchanged. |
+| H1 | `/` = public marketing; `/app/home` = authenticated Inicio dashboard; `/app/groups` = Mis grupos; `/app/join` = Unirse a grupo. |
+| H2 | Left sidebar for authenticated non-group routes (`/app/home`, `/app/groups`, `/app/join`, `/app/account/*`), responsive (rail ≥ `lg`, drawer below). Group workspace rail unchanged. |
 | H3 | Top bar: global search field, notification bell (disabled placeholder), user avatar + menu. |
 | H4 | `Plan y facturación`, `Uso y límites`, `Notificaciones` and the bell = **disabled placeholders**. No billing, no notification backend (ADR-0042 / FUTURE). |
 | H5 | Backend `GET /api/activity/upcoming` (auth, group-scoped) powers "Tu próxima actividad". |
@@ -53,20 +53,23 @@ web/sonivo-web/src/
 ### Routes
 
 ```
-/                     Inicio (AppShell)
-/grupos               Mis grupos (AppShell)
-/unirse               Unirse a grupo (AppShell)
-/cuenta               Perfil (AppShell)
-/cuenta/notificaciones  placeholder (AppShell)
-/cuenta/preferencias  Preferencias (AppShell)
-/cuenta/seguridad     SecurityPage (AppShell)
-/cuenta/grupos        -> redirect /grupos
-/plan                 placeholder (AppShell)
-/ayuda                placeholder (AppShell)
-/groups/:groupId/*    GroupWorkspace (unchanged)
+/                     Public marketing entry point
+/app/home             Inicio dashboard (AppShell)
+/app/groups           Mis grupos (AppShell)
+/app/join             Unirse a grupo (AppShell)
+/app/account          Perfil (AppShell)
+/app/account/notifications  account inbox (AppShell)
+/app/account/preferences  Preferencias (AppShell)
+/app/account/security  SecurityPage (AppShell)
+/app/account/groups   -> redirect /app/groups
+/app/plans             PlansPage (AppShell)
+/app/help              HelpPage (AppShell)
+/app/groups/:groupId/* GroupWorkspace
+/app/join/:token       Public invitation acceptance
+/auth/*                Identity, verification, and recovery
 ```
 
-Legacy redirects `/settings*`, `/security` stay valid.
+Legacy redirects `/settings*`, `/security` stay valid. Guest authentication routes remain reachable on direct navigation; the SPA fallback must allow the React router to apply each route's authentication guard.
 
 ---
 
@@ -115,7 +118,7 @@ Owner follow-up: `/cuenta` must match the account reference; Inicio drops "Explo
 ### Route added
 
 ```
-/calendario   General calendar (AppShell) — read-only, all my groups
+/app/calendar General calendar (AppShell) — read-only, all my groups
 ```
 
 ### Tickets
@@ -124,7 +127,7 @@ Owner follow-up: `/cuenta` must match the account reference; Inicio drops "Explo
 - **T-HOME-10** `PATCH /api/auth/me { displayName }` + API test + *Editar perfil* dialog.
 - **T-HOME-11** Inicio cleanup: only *Crear grupo* + *Unirse a grupo*; remove the learning banner; groups-only search ("Buscar grupos"); drop dead i18n keys and `searchFocus.ts`.
 - **T-HOME-12** `GET /api/activity/calendar?from&to` (auth, group-scoped, scheduled/non-hidden, range ≤ 62 days) + handler/store + API tests.
-- **T-HOME-13** `calendar/CalendarPage.tsx` (`/calendario`): month grid, prev/next/today, per-group colors, event → detail; "Ver calendario" links here.
+- **T-HOME-13** `calendar/CalendarPage.tsx` (`/app/calendar`): month grid, prev/next/today, per-group colors, event → detail; "Ver calendario" links here.
 - **T-HOME-14** i18n/a11y/dark for all of the above.
 - **T-HOME-15** E2E: update `home-dashboard`; new `calendar` + `cuenta`; Playwright MCP visual pass.
 - **T-HOME-16** Docs + Git (branch → PR to `develop`).

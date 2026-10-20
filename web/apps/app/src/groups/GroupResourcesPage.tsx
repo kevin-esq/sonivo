@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
@@ -17,6 +18,7 @@ import {
   type GroupResourceItem,
 } from '../api/client'
 import { useT, type I18nKey } from '../i18n'
+import { safeExternalResourceUrl } from '../repertoire/resourceUrl'
 import { cn } from '../ui/cn'
 import { canManageContentRole } from '../repertoire/ui'
 import { useResource } from '../hooks/useResource'
@@ -83,7 +85,7 @@ function formatDate(iso: string, lang: string): string {
 }
 
 /**
- * W-D — group material library (`/groups/:id/resources`). Aggregates every Resource
+ * W-D — group material library (`/app/groups/:id/resources`). Aggregates every Resource
  * across the group's arrangements (ADR-0055). Upload requires an arrangement because
  * Resources stay on arrangements (ADR-0007/0014); Owner/Manager may upload.
  */
@@ -107,7 +109,7 @@ export function GroupResourcesPage() {
       .catch((err) => {
         if (!cancelled) {
           setGroup(null)
-          setError(problemDetail(err))
+          setError(problemDetail(err, t))
         }
       })
     return () => {
@@ -154,7 +156,7 @@ export function GroupResourcesPage() {
     return (
       <div className="space-y-3">
         <GroupErrorState message={error} />
-        <GroupLink variant="soft" to="/groups">
+        <GroupLink variant="soft" to={routes.groups}>
           {t('workspace.myGroups')}
         </GroupLink>
       </div>
@@ -291,35 +293,46 @@ function ResourceCard({
     : Package
   const href =
     item.kind === 'link'
-      ? item.url ?? '#'
+      ? safeExternalResourceUrl(item.url)
       : resourceContentUrl(groupId, item.arrangementId, item.id)
+  const content = (
+    <>
+      <div className="flex items-center gap-3">
+        <GroupIconWell icon={Icon} tone="accent" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold text-ink">{item.label}</span>
+          <span className="block truncate text-xs text-muted">
+            {item.songTitle}
+            {item.arrangementLabel ? ` · ${item.arrangementLabel}` : ''}
+          </span>
+        </span>
+      </div>
+      <div className="flex items-center gap-2 text-xs text-muted">
+        <GroupChip tone="neutral">{t(CATEGORY_LABEL[category])}</GroupChip>
+        {item.kind === 'link' ? (
+          <span className="inline-flex items-center gap-1">
+            <Link2 className="h-3 w-3" aria-hidden="true" />
+            {t('resources.linkKind')}
+          </span>
+        ) : (
+          <span>{formatSize(item.byteSize)}</span>
+        )}
+        <span aria-hidden="true">·</span>
+        <span>{formatDate(item.createdAt, lang)}</span>
+      </div>
+    </>
+  )
   return (
     <li>
-      <a href={href} target="_blank" rel="noreferrer" className={RESOURCE_CARD_CLASS}>
-        <div className="flex items-center gap-3">
-          <GroupIconWell icon={Icon} tone="accent" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate font-semibold text-ink">{item.label}</span>
-            <span className="block truncate text-xs text-muted">
-              {item.songTitle}
-              {item.arrangementLabel ? ` · ${item.arrangementLabel}` : ''}
-            </span>
-          </span>
+      {href ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" className={RESOURCE_CARD_CLASS}>
+          {content}
+        </a>
+      ) : (
+        <div className={cn(RESOURCE_CARD_CLASS, 'cursor-default')} aria-disabled="true">
+          {content}
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted">
-          <GroupChip tone="neutral">{t(CATEGORY_LABEL[category])}</GroupChip>
-          {item.kind === 'link' ? (
-            <span className="inline-flex items-center gap-1">
-              <Link2 className="h-3 w-3" aria-hidden="true" />
-              {t('resources.linkKind')}
-            </span>
-          ) : (
-            <span>{formatSize(item.byteSize)}</span>
-          )}
-          <span aria-hidden="true">·</span>
-          <span>{formatDate(item.createdAt, lang)}</span>
-        </div>
-      </a>
+      )}
     </li>
   )
 }

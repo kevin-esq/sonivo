@@ -1,7 +1,7 @@
 # PERSISTENCE.md — Sonivo
 
 PostgreSQL + EF Core persistence contract for the accepted domain.  
-**Phase:** 2.2 **CLOSED** (ADR-0022, ADR-0023 **ACCEPTED** HUMAN-APPROVED 2026-09-15; integer `Version` concurrency ACCEPTED). Initial EF migration `InitialFoundation` created in Phase 2.3.
+**Phase:** 2.2 **CLOSED** (ADR-0022, ADR-0023 **ACCEPTED** HUMAN-APPROVED 2026-09-15; ADR-0088 later amends the cross-Group FK set; integer `Version` concurrency ACCEPTED). Initial EF migration `InitialFoundation` created in Phase 2.3.
 
 Domain truth: [`../02-domain/DOMAIN-MODEL.md`](../02-domain/DOMAIN-MODEL.md)  
 Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md) · Tenancy/security: [`SECURITY.md`](SECURITY.md) · ADRs: [`DECISIONS.md`](DECISIONS.md)
@@ -19,11 +19,11 @@ Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md) · Tenancy/security: [`SECURI
 | Concurrency | Optimistic; **`integer Version`** on aggregate roots (not `xmin`) |
 | Soft-delete | `DeletedAt` on Group, Song, Arrangement; EF filters; Event cancel/hide |
 | Event history read | **Never** needs `IgnoreQueryFilters`; `displaySongTitle` / `displayArrangementLabel` |
-| Cross-Group FK | App canonical + **three** composite FKs only (ADR-0022 **ACCEPTED**) |
-| `UNIQUE (GroupId, Id)` | **Only** Songs + Arrangements |
+| Cross-Group FK | App canonical + **four** composite FKs (ADR-0088 **ACCEPTED**) |
+| `UNIQUE (GroupId, Id)` | Songs, Arrangements, and Setlists |
 | Arr soft-delete → Resources | **Leave** Resource rows/blobs; explicit Resource DELETE is hard-delete |
 | GroupId column | Membership, Song, Arrangement, Setlist, SetlistItem, Event, EventSetlistItem; **not** Resource/RSVP |
-| Cascades | No cascade destroying Event plan history; composite FKs **ON DELETE RESTRICT** |
+| Cascades | Setlist deletion removes same-Group template items; no cascade destroys Event plan history |
 | Repositories | No generic repository; DbContext in Infrastructure |
 | Lazy loading | **Off** |
 | PG enums | **Avoid**; `text` + CHECK |
@@ -157,7 +157,7 @@ Kind-specific nullability enforced in Application (optional DB CHECK).
 | Version | int | N | Concurrency |
 
 **No** soft-delete. Hard-delete removes row + items.  
-**No** `UNIQUE (GroupId, Id)` (not a composite FK target).  
+**Alternate key:** `(GroupId, Id)` to support the same-Group child FK.
 **Index:** `(GroupId)`. Duplicate names ALLOW.
 
 ### 1.8 SetlistItems
@@ -176,9 +176,9 @@ Kind-specific nullability enforced in Application (optional DB CHECK).
 
 **Unique (SetlistId, ArrangementId):** **FORBIDDEN** (duplicates ALLOW).  
 **Composite FK:** `(GroupId, ArrangementId)` → `Arrangements(GroupId, Id)` **ON DELETE RESTRICT**.  
-**FK Setlist:** simple `SetlistId` → Setlists CASCADE; Application copies `GroupId` from Setlist (no composite to Setlist).  
+**Composite FK Setlist:** `(GroupId, SetlistId)` → `Setlists(GroupId, Id)` **ON DELETE CASCADE**; migration preflights and rejects cross-Group rows. Application copies `GroupId` from the parent Setlist.
 **EF:** prefer **no** required `Arrangement` navigation (FK property only) so template queries never silently drop items via filters.  
-**Index:** `(SetlistId, SortOrder)`.
+**Index:** `(GroupId, SetlistId, SortOrder)`.
 
 ### 1.9 Events
 
@@ -254,7 +254,7 @@ Kind-specific nullability enforced in Application (optional DB CHECK).
 | Song → Arrangement | Separate roots | Composite FK Arr→Song | Song.Arrangements **optional**; prefer query by SongId | Create Arr with SongId + GroupId |
 | Arrangement → Resource | Resource inside Arr aggregate | FK Resource.ArrangementId CASCADE/App delete | Arrangement.Resources OK | Mutate Resources only via Arr use-cases |
 | Group → Setlist | Separate | FK Setlist.GroupId | No required collection | Query by GroupId |
-| Setlist → SetlistItem | Items inside Setlist | FK CASCADE | Setlist.Items OK | Replace/reorder items in Setlist tx |
+| Setlist → SetlistItem | Items inside Setlist | Composite FK CASCADE | Setlist.Items OK | Replace/reorder items in Setlist tx |
 | Group → Event | Separate | FK Event.GroupId | No required collection | Query by GroupId |
 | Event → EventSetlistItem | Items inside Event | FK; delete items with Event row only | Event.Items OK | Replace-on-apply inside Event tx |
 | EventSetlistItem → Arrangement | Cross-aggregate ref | Composite FK RESTRICT | **No navigation** | Load Arr separately for materials |
@@ -269,12 +269,13 @@ Kind-specific nullability enforced in Application (optional DB CHECK).
 
 ---
 
-## 2.1 Cross-Group FK matrix (ADR-0022 **ACCEPTED**)
+## 2.1 Cross-Group FK matrix (ADR-0088 **ACCEPTED**)
 
 | Relationship | Direct FK | Composite FK | Application validation | Reason |
 | ------------ | --------- | ------------ | ---------------------- | ------ |
 | Arrangement → Song | — | **Yes** `(GroupId, SongId)` → Songs`(GroupId, Id)` **ON DELETE RESTRICT** | Yes | Same-Group proof |
 | Resource → Arrangement | **Yes** | No | Yes (Arr scoped load) | Same-aggregate |
+| SetlistItem → Setlist | — | **Yes** `(GroupId, SetlistId)` → Setlists`(GroupId, Id)` **ON DELETE CASCADE** | Yes | Prevent cross-Group cascade |
 | SetlistItem → Arrangement | — | **Yes** `(GroupId, ArrangementId)` → Arrangements`(GroupId, Id)` **ON DELETE RESTRICT** | Yes | Cross-aggregate |
 | EventSetlistItem → Arrangement | — | **Yes** `(GroupId, ArrangementId)` → Arrangements`(GroupId, Id)` **ON DELETE RESTRICT** | Yes | Cross-aggregate + history |
 | Setlist → Group | **Yes** | No | Membership | Tenant root |
@@ -283,7 +284,7 @@ Kind-specific nullability enforced in Application (optional DB CHECK).
 | Membership → Group | **Yes** | No | Membership rules | Join table |
 | RSVP → Event | **Yes** | No | Event scoped load | No Arr risk |
 
-**Principal keys:** `UNIQUE (GroupId, Id)` on **Songs** and **Arrangements** only.
+**Principal keys:** `UNIQUE (GroupId, Id)` on **Songs**, **Arrangements**, and **Setlists**.
 
 ---
 
@@ -674,14 +675,14 @@ Integration tests (Testcontainers Postgres where available) must prove:
 3. UNIQUE Membership and RSVP.  
 4. Soft-delete filters hide Song/Arr; EventSetlistItem + labels remain.  
 5. Hard-delete Resource; Event plan unchanged.  
-6. Hard-delete Setlist → SourceSetlistId null; items remain.  
+6. Hard-delete Setlist → same-Group template SetlistItems cascade; Event plans remain and SourceSetlistId becomes null.
 7. EventSetlistItem FK Restrict on Arrangement.  
 8. Version concurrency → failure on stale Event update / apply.  
 9. Replace Event Plan atomic + confirmReplace behavior (Application + DB).  
 10. Duplicate SetlistItems allowed.  
 11. Cascade Setlist→Items; no cascade Arrangement→EventSetlistItem.  
 12. Event GET with soft-deleted Arrangement still returns all EventSetlistItems + Display* (no IgnoreQueryFilters).  
-13. Composite FK rejects cross-Group SetlistItem insert.
+13. Composite FKs reject cross-Group SetlistItem parent and Arrangement references.
 
 ---
 
@@ -718,7 +719,7 @@ Integration tests (Testcontainers Postgres where available) must prove:
 
 | Topic | Status |
 | ----- | ------ |
-| ADR-0022 | **ACCEPTED** HUMAN-APPROVED 2026-09-15 |
+| ADR-0022 | **SUPERSEDED** by ADR-0088 only for exact FK set/principal alternate keys |
 | ADR-0023 | **ACCEPTED** HUMAN-APPROVED 2026-09-15 |
 | integer Version concurrency | **ACCEPTED** (documented here; no separate ADR) |
 

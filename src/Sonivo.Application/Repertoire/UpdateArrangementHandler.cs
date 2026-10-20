@@ -1,4 +1,5 @@
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Tenancy;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Common;
 
@@ -30,22 +31,25 @@ public sealed class UpdateArrangementHandler
     private readonly GroupAccessService _access;
     private readonly IArrangementStore _arrangements;
     private readonly IClock _clock;
+    private readonly IGroupAuditStore? _audit;
 
     public UpdateArrangementHandler(
         GroupAccessService access,
         IArrangementStore arrangements,
-        IClock clock)
+        IClock clock,
+        IGroupAuditStore? audit = null)
     {
         _access = access;
         _arrangements = arrangements;
         _clock = clock;
+        _audit = audit;
     }
 
     public async Task<ArrangementDetailDto> HandleAsync(
         UpdateArrangementCommand command,
         CancellationToken cancellationToken)
     {
-        await _access.RequireManagerAsync(command.GroupId, command.UserId, cancellationToken);
+        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.ArrangementEdit, cancellationToken);
 
         var arrangement = await _arrangements.GetByIdWithResourcesAsync(
             command.GroupId,
@@ -55,6 +59,17 @@ public sealed class UpdateArrangementHandler
         {
             throw new NotFoundException("Arrangement not found.");
         }
+
+        await _access.RequireResourcePathPermissionAsync(
+            command.GroupId,
+            command.UserId,
+            GroupPermissions.ArrangementEdit,
+            new[]
+            {
+                (ResourceGrant.ResourceTypes.Song, arrangement.SongId),
+                (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id),
+            },
+            cancellationToken);
 
         var label = command.Label ?? arrangement.Label;
         var defaultKey = command.DefaultKey ?? arrangement.DefaultKey;
@@ -66,6 +81,9 @@ public sealed class UpdateArrangementHandler
         string? chordTimingJson = command.ChordTimingJson is null
             ? arrangement.ChordTimingJson
             : ChordTimingJsonNormalizer.Normalize(command.ChordTimingJson);
+        ChordTimingJsonNormalizer.ValidateWordReferences(
+            chordTimingJson,
+            string.IsNullOrWhiteSpace(chords) ? lyrics : chords);
 
         try
         {
@@ -91,13 +109,31 @@ public sealed class UpdateArrangementHandler
         }
 
         await _arrangements.UpdateAsync(arrangement, cancellationToken);
+        if (_audit is not null)
+        {
+            await _audit.AddAsync(GroupAuditEntry.Create(
+                command.GroupId, GroupAuditEntry.ActionArrangementUpdated, arrangement.UpdatedAt, actorUserId: command.UserId), cancellationToken);
+        }
         await _arrangements.SaveChangesAsync(cancellationToken);
 
-        var resources = arrangement.Resources
-            .OrderBy(r => r.CreatedAt)
-            .ThenBy(r => r.Id)
-            .Select(CreateArrangementHandler.ToResourceSummary)
-            .ToList();
+        var resources = new List<ResourceSummaryDto>();
+        foreach (var resource in arrangement.Resources.OrderBy(r => r.CreatedAt).ThenBy(r => r.Id))
+        {
+            var canRead = await _access.HasResourceReadPathPermissionAsync(
+                command.GroupId,
+                command.UserId,
+                new[]
+                {
+                    (ResourceGrant.ResourceTypes.Song, arrangement.SongId, GroupPermissions.SongView),
+                    (ResourceGrant.ResourceTypes.Arrangement, arrangement.Id, GroupPermissions.ArrangementView),
+                    (ResourceGrant.ResourceTypes.Resource, resource.Id, GroupPermissions.ResourceView),
+                },
+                cancellationToken);
+            if (canRead)
+            {
+                resources.Add(CreateArrangementHandler.ToResourceSummary(resource));
+            }
+        }
 
         return CreateArrangementHandler.ToDetail(arrangement, resources);
     }

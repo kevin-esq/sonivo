@@ -31,6 +31,8 @@ public static class DependencyInjection
         var useInMemory = configuration.GetValue("UseInMemoryDatabase", false);
 
         services.AddScoped<GroupChangeInterceptor>();
+        services.AddScoped<IGroupDatabaseScope, EfGroupDatabaseScope>();
+        services.AddScoped<IGroupDataOperation, EfGroupDataOperation>();
         // Default no-op real-time transport; the API replaces it with SignalR.
         services.TryAddScoped<IGroupNotifier, NoopGroupNotifier>();
         services.AddDbContext<SonivoDbContext>((sp, options) =>
@@ -79,6 +81,8 @@ public static class DependencyInjection
         services.AddScoped<IGroupAuditStore, EfGroupAuditStore>();
         services.AddScoped<INotificationStore, EfNotificationStore>();
         services.AddScoped<IGroupRoleStore, EfGroupRoleStore>();
+        services.AddScoped<IResourceGrantStore, EfResourceGrantStore>();
+        services.AddScoped<IGroupReportStore, EfGroupReportStore>();
         services.AddScoped<IInvitationStore, EfInvitationStore>();
         services.AddScoped<ISongStore, EfSongStore>();
         services.AddScoped<IArrangementStore, EfArrangementStore>();

@@ -1,9 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, FileAudio, Music2, Pause, Play, Plus, SkipForward, Trash2, Upload, X } from 'lucide-react'
+import { routes } from '../../routing/routes'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Check, ChevronLeft, ChevronRight, Music2, Pause, Play, Plus, SkipForward, Trash2 } from 'lucide-react'
 import {
   createArrangement,
   createFileResource,
   createSong,
+  getGroup,
   type SongDetail,
   type SongOriginKind,
 } from '../../api/client'
@@ -11,7 +13,9 @@ import { useT } from '../../i18n'
 import { mutationErrorMessage } from '../../repertoire/ui'
 import { notifyGroupDataChanged } from '../../shell/groupEvents'
 import { cn } from '../../ui/cn'
-import { GroupButton, GroupDialog, GroupInput, GroupSelect, GroupTextArea } from '../ui'
+import { FileDropzone } from '../../ui/FileDropzone'
+import { resourceUploadLimit } from '../../repertoire/fileUploadErrors'
+import { GroupButton, GroupDialog, GroupInput, GroupLink, GroupSelect, GroupTextArea } from '../ui'
 
 export type CreateSongDialogProps = {
   groupId: string
@@ -21,10 +25,8 @@ export type CreateSongDialogProps = {
 
 type Step = 'details' | 'audio' | 'arrange' | 'review' | 'done'
 
-/** Audio upload cap; mirrors the server-side file resource limit. */
-const MAX_AUDIO_BYTES = 100 * 1024 * 1024
 const AUDIO_ACCEPT = 'audio/*,.mp3,.wav,.flac,.m4a,.ogg,.aac'
-const SECTION_PRESETS = ['Intro', 'Verso', 'Coro', 'Puente', 'Solo', 'Final'] as const
+const SECTION_PRESETS = ['intro', 'verse', 'chorus', 'bridge', 'solo', 'outro'] as const
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -40,18 +42,6 @@ function formatDuration(ms: number | null): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
-/** Deterministic decorative waveform (no real audio analysis; layout-only). */
-function waveformBars(seed: number, count: number): number[] {
-  const bars: number[] = []
-  let value = seed % 997
-  for (let i = 0; i < count; i += 1) {
-    value = (value * 1103515245 + 12345) % 2147483648
-    const normalized = (value % 1000) / 1000
-    bars.push(18 + Math.round(normalized * 82))
-  }
-  return bars
-}
-
 /**
  * Create-song wizard (ADR-0074 §5, redesigned): Details → optional audio
  * upload → optional arrangement/sections → review → success. Uses only the
@@ -60,9 +50,6 @@ function waveformBars(seed: number, count: number): number[] {
  */
 export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDialogProps) {
   const { t } = useT()
-  const fileInputId = useId()
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
   const [step, setStep] = useState<Step>('details')
 
   const [title, setTitle] = useState('')
@@ -73,14 +60,17 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
   const [description, setDescription] = useState('')
 
   const [file, setFile] = useState<File | null>(null)
+  const [planId, setPlanId] = useState<string>('starter')
   const [durationMs, setDurationMs] = useState<number | null>(null)
-  const [dragging, setDragging] = useState(false)
   const [fileError, setFileError] = useState<string | null>(null)
 
   const [arrangementLabel, setArrangementLabel] = useState('')
   const [defaultKey, setDefaultKey] = useState('')
   const [defaultBpm, setDefaultBpm] = useState('')
   const [sections, setSections] = useState<string[]>([])
+  const [lyrics, setLyrics] = useState('')
+  const savedSong = useRef<SongDetail | null>(null)
+  const savedArrangement = useRef<{ id: string } | null>(null)
 
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -94,6 +84,19 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
   const [peaks, setPeaks] = useState<number[] | null>(null)
   const [playing, setPlaying] = useState(false)
   const [positionMs, setPositionMs] = useState(0)
+  const maxAudioBytes = resourceUploadLimit(planId, 'audio')
+
+  useEffect(() => {
+    let cancelled = false
+    getGroup(groupId)
+      .then((group) => {
+        if (!cancelled) setPlanId(group.planId)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [groupId])
 
   const originOptions = [
     { value: 'original', label: t('songCreate.originOriginal') },
@@ -102,8 +105,8 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
   ]
 
   const steps = useMemo<Step[]>(
-    () => (file ? ['details', 'audio', 'arrange', 'review'] : ['details', 'audio', 'review']),
-    [file],
+    () => ['details', 'audio', 'arrange', 'review'],
+    [],
   )
   const stepLabels: Record<string, string> = {
     details: t('songCreate.wizardStepDetails'),
@@ -143,8 +146,7 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
     return () => URL.revokeObjectURL(url)
   }, [file])
 
-  // Decode the audio and downsample it into waveform peaks (falls back to the
-  // decorative pattern when the browser cannot decode the codec).
+  // Decode actual waveform peaks; omit the waveform when decoding is unavailable.
   useEffect(() => {
     let cancelled = false
     if (!file) {
@@ -196,17 +198,19 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
     else audio.pause()
   }
 
-  const bars = useMemo(() => waveformBars(title.length + sections.length + 7, 72), [title.length, sections.length])
-  const wave = peaks ?? bars
+  const wave = peaks ?? []
 
   function pickFile(next: File | null) {
     setFileError(null)
-    if (!next) return
+    if (!next) {
+      setFile(null)
+      return
+    }
     if (!next.type.startsWith('audio/') && !/\.(mp3|wav|flac|m4a|ogg|aac)$/i.test(next.name)) {
       setFileError(t('songCreate.wizardFileTypeError'))
       return
     }
-    if (next.size > MAX_AUDIO_BYTES) {
+    if (next.size > maxAudioBytes) {
       setFileError(t('songCreate.wizardFileTooLarge'))
       return
     }
@@ -222,7 +226,7 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
       return
     }
     if (step === 'audio') {
-      setStep(file ? 'arrange' : 'review')
+      setStep('arrange')
       return
     }
     if (step === 'arrange') {
@@ -233,7 +237,7 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
 
   function back() {
     setError(null)
-    if (step === 'review') setStep(file ? 'arrange' : 'audio')
+    if (step === 'review') setStep('arrange')
     else if (step === 'arrange') setStep('audio')
     else if (step === 'audio') setStep('details')
   }
@@ -260,7 +264,7 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
     setBusy(true)
     setError(null)
     try {
-      const song = await createSong(groupId, {
+      const song = savedSong.current ?? await createSong(groupId, {
         title: title.trim(),
         originKind,
         attribution: attribution.trim() || null,
@@ -272,20 +276,22 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
           .filter(Boolean),
       })
 
-      if (file) {
-        setUploading(true)
-        const arrangement = await createArrangement(groupId, song.id, {
+      savedSong.current = song
+      notifyGroupDataChanged('songs', groupId)
+      if (file || lyrics.trim() || arrangementLabel.trim() || defaultKey.trim() || defaultBpm.trim() || sections.length) {
+        const arrangement = savedArrangement.current ?? await createArrangement(groupId, song.id, {
           label: arrangementLabel.trim() || t('songCreate.wizardDefaultArrangement'),
           defaultKey: defaultKey.trim() || null,
           defaultBpm: defaultBpm.trim() ? Number(defaultBpm) : null,
+          lyrics: lyrics.trim() || null,
           structure: sections.length ? sections.join('\n') : null,
         })
-        await createFileResource(groupId, arrangement.id, {
-          purpose: 'audio',
-          label: file.name,
-          file,
-        })
-        setUploading(false)
+        savedArrangement.current = arrangement
+        if (file) {
+          setUploading(true)
+          await createFileResource(groupId, arrangement.id, { purpose: 'audio', label: file.name, file })
+          setUploading(false)
+        }
       }
 
       notifyGroupDataChanged('songs', groupId)
@@ -293,7 +299,7 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
       setStep('done')
     } catch (err) {
       setUploading(false)
-      setError(mutationErrorMessage(err))
+      setError(mutationErrorMessage(err, t))
     } finally {
       setBusy(false)
     }
@@ -307,6 +313,9 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
   function createAnother() {
     // Keep the shell open; the caller refreshes the library when the dialog finally closes.
     setCreated(null)
+    savedSong.current = null
+    savedArrangement.current = null
+    setLyrics('')
     setStep('details')
     setTitle('')
     setOriginKind('original')
@@ -332,9 +341,7 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
         <GroupButton variant="secondary" type="button" onClick={createAnother}>
           {t('songCreate.wizardCreateAnother')}
         </GroupButton>
-        <GroupButton type="button" onClick={finish}>
-          {t('songCreate.wizardViewLibrary')}
-        </GroupButton>
+        {created ? <GroupLink to={routes.groupSong(groupId, created.id)} onClick={finish}>{t('workflow.openSong')}</GroupLink> : null}
       </>
     ) : (
       <>
@@ -343,7 +350,7 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
             {t('songCreate.cancel')}
           </GroupButton>
         ) : (
-          <GroupButton variant="secondary" type="button" onClick={back} disabled={busy}>
+          <GroupButton variant="secondary" type="button" onClick={back} disabled={busy || savedSong.current !== null}>
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             {t('songCreate.wizardBack')}
           </GroupButton>
@@ -408,9 +415,11 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
         </p>
       ) : null}
 
+      {savedSong.current && error ? <p role="status" className="text-sm text-muted">{t('workflow.partialSave')}</p> : null}
       {/* Step: details */}
       {step === 'details' ? (
         <div className="space-y-4">
+          <p className="text-sm leading-relaxed text-muted">{t('workflow.songSteps')}</p>
           <GroupInput
             label={t('songCreate.titleLabel')}
             value={title}
@@ -451,8 +460,8 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
             />
           </div>
           <GroupTextArea
-            label={t('songCreate.wizardDescription')}
-            hint={t('songCreate.wizardDescriptionPlaceholder')}
+            label={t('workflow.rightsNotes')}
+            hint={t('workflow.rightsHint')}
             rows={3}
             value={description}
             maxLength={2000}
@@ -473,64 +482,20 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
             <p className="mt-1 text-sm text-muted">{t('songCreate.wizardAudioHint')}</p>
           </div>
 
-          {!file ? (
-            <div
-              onDragOver={(event) => {
-                event.preventDefault()
-                setDragging(true)
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(event) => {
-                event.preventDefault()
-                setDragging(false)
-                pickFile(event.dataTransfer.files?.[0] ?? null)
-              }}
-              className={cn(
-                'flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-4 py-10 text-center transition-colors',
-                dragging ? 'border-primary bg-primary/5' : 'border-border-subtle bg-surface',
-              )}
-            >
-              <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-primary-ink">
-                <Upload className="h-6 w-6" aria-hidden="true" />
-              </span>
-              <p className="text-sm font-semibold text-ink">{t('songCreate.wizardDropHere')}</p>
-              <p className="text-xs text-muted">{t('songCreate.wizardAudioFormats')}</p>
-              <input
-                ref={fileInputRef}
-                id={fileInputId}
-                type="file"
-                accept={AUDIO_ACCEPT}
-                className="sr-only"
-                onChange={(event) => {
-                  pickFile(event.target.files?.[0] ?? null)
-                  event.target.value = ''
-                }}
-              />
-              <GroupButton variant="secondary" type="button" onClick={() => fileInputRef.current?.click()}>
-                {t('songCreate.wizardChooseFile')}
-              </GroupButton>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary-ink">
-                <FileAudio className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-ink">{file.name}</span>
-                <span className="block text-xs text-muted">
-                  {formatBytes(file.size)} · {formatDuration(durationMs)}
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setFile(null)}
-                aria-label={t('songCreate.wizardRemoveFile')}
-                className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-          )}
+          <FileDropzone
+            title={t('songCreate.wizardAudioTitle')}
+            description={t('songCreate.wizardAudioFormats')}
+            chooseLabel={t('songCreate.wizardChooseFile')}
+            removeLabel={t('songCreate.wizardRemoveFile')}
+            accept={AUDIO_ACCEPT}
+            maxSizeBytes={maxAudioBytes}
+            file={file}
+            onFileChange={pickFile}
+            disabled={busy}
+            icon={Music2}
+            selectedDetail={file ? `${formatBytes(file.size)} · ${formatDuration(durationMs)}` : undefined}
+            testId="song-audio-dropzone"
+          />
 
           {fileError ? (
             <p role="alert" className="text-sm text-error-ink">
@@ -545,7 +510,7 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
       ) : null}
 
       {/* Step: arrange */}
-      {step === 'arrange' && file ? (
+      {step === 'arrange' ? (
         <div className="space-y-4">
           <div>
             <h3 className="font-medium text-ink">{t('songCreate.wizardArrangeTitle')}</h3>
@@ -570,14 +535,20 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
             <GroupInput
               label={t('songCreate.wizardBpm')}
               type="number"
+              min={1}
+              max={400}
+              step={1}
               value={defaultBpm}
               disabled={busy}
               onChange={(event) => setDefaultBpm(event.target.value)}
             />
           </div>
 
-          {/* Real audio preview: decoded waveform + inline player + section lanes. */}
-          <div className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-4">
+          <GroupTextArea label={t('song.lyricsLabel')} value={lyrics} rows={6} maxLength={100000}
+            disabled={busy} onChange={(event) => setLyrics(event.target.value)} hint={t('workflow.arrangementHint')} />
+          <p className="text-sm text-muted">{t('workflow.digitizationHint')}</p>
+          {/* Audio remains optional; lyrics and arrangement metadata can stand alone. */}
+          {file ? <div className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-4">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -623,7 +594,7 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
               className="sr-only"
             />
             <p className="text-xs text-muted">{t('songCreate.wizardPreviewHint')}</p>
-          </div>
+          </div> : null}
 
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -633,10 +604,10 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
                   <button
                     key={preset}
                     type="button"
-                    onClick={() => addSection(preset)}
-                    className="rounded-lg border border-border-subtle px-2.5 py-1 text-xs font-medium text-muted hover:border-primary/30 hover:text-ink"
+                    onClick={() => addSection(t(`workflow.section.${preset}`))}
+                    className="min-h-11 rounded-lg border border-border-subtle px-2.5 py-1 text-xs font-medium text-muted hover:border-primary/30 hover:text-ink"
                   >
-                    + {preset}
+                    + {t(`workflow.section.${preset}`)}
                   </button>
                 ))}
               </div>
@@ -705,7 +676,8 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
               label={t('songCreate.wizardReviewAudio')}
               value={file ? `${file.name} · ${formatDuration(durationMs)}` : t('songCreate.wizardReviewNoAudio')}
             />
-            {file && sections.length ? (
+            {lyrics.trim() ? <ReviewRow label={t('arrangement.lyricsLabel')} value={t('workflow.lyricsIncluded')} /> : null}
+            {sections.length ? (
               <ReviewRow label={t('songCreate.wizardSectionsTitle')} value={sections.join(' · ')} />
             ) : null}
           </dl>

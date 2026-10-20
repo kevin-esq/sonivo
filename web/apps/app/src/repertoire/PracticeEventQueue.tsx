@@ -1,3 +1,4 @@
+import { routes } from '../routing/routes'
 import { Link } from 'react-router-dom'
 import type { EventPlanItem } from '../api/client'
 import { useT } from '../i18n'
@@ -10,7 +11,7 @@ export function practiceQueueHref(
   item: EventPlanItem,
 ): string {
   const params = new URLSearchParams({ eventId, item: item.id })
-  return `/groups/${groupId}/arrangements/${item.arrangementId}/practice?${params.toString()}`
+  return `${routes.groupPractice(groupId, item.arrangementId)}?${params.toString()}`
 }
 
 const navLinkClass = cn(
@@ -116,7 +117,7 @@ export function PracticeEventQueue({
       <p>
         <Link
           className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          to={`/groups/${groupId}/events/${eventId}`}
+          to={routes.groupEvent(groupId, eventId)}
         >
           {t('queue.backToEvent')}
         </Link>

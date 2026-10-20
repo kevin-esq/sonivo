@@ -122,6 +122,27 @@ public class MembershipUseCaseTests
     }
 
     [Fact]
+    public async Task Leave_member_records_audit_while_membership_is_still_present()
+    {
+        var (groups, memberships, _, _, member, groupId) = await SeedOwnerAndMemberAsync();
+        var audit = new RecordingGroupAuditStore(memberships);
+
+        await new LeaveGroupHandler(
+                new GroupAccessService(groups),
+                memberships,
+                new FakeUnitOfWork(),
+                audit: audit,
+                clock: new FixedClock(Now))
+            .HandleAsync(new LeaveGroupCommand(member, groupId), CancellationToken.None);
+
+        Assert.DoesNotContain(memberships.Rows, row => row.UserId == member);
+        var auditEntry = Assert.Single(audit.Entries);
+        Assert.Equal(GroupAuditEntry.ActionMemberLeft, auditEntry.Action);
+        Assert.Equal(member, auditEntry.ActorUserId);
+        Assert.Equal(1, audit.SaveCount);
+    }
+
+    [Fact]
     public async Task Leave_last_owner_throws_conflict()
     {
         var (groups, memberships, owner, groupId) = await SeedOwnerOnlyAsync();
@@ -174,6 +195,44 @@ public class MembershipUseCaseTests
         }
     }
 
+    private sealed class FixedClock(DateTimeOffset now) : IClock
+    {
+        public DateTimeOffset UtcNow { get; } = now;
+    }
+
+    private sealed class RecordingGroupAuditStore(FakeMembershipStore memberships) : IGroupAuditStore
+    {
+        public List<GroupAuditEntry> Entries { get; } = [];
+        public int SaveCount { get; private set; }
+
+        public Task AddAsync(GroupAuditEntry entry, CancellationToken cancellationToken)
+        {
+            Assert.Contains(memberships.Rows, row => row.GroupId == entry.GroupId && row.UserId == entry.ActorUserId);
+            Entries.Add(entry);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<GroupAuditEntry>> ListByGroupAsync(Guid groupId, int limit, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<GroupAuditEntry>>([]);
+
+        public Task<(IReadOnlyList<GroupAuditEntry> Items, int Total)> QueryByGroupAsync(
+            Guid groupId,
+            string? action,
+            Guid? actorUserId,
+            DateTimeOffset? from,
+            DateTimeOffset? to,
+            int skip,
+            int take,
+            CancellationToken cancellationToken)
+            => Task.FromResult<(IReadOnlyList<GroupAuditEntry> Items, int Total)>(([], 0));
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken)
+        {
+            SaveCount++;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class FakeUserDirectory : IUserDirectory
     {
         private readonly Dictionary<Guid, string> _names = [];
@@ -214,6 +273,12 @@ public class MembershipUseCaseTests
 
         public Task<int> CountOwnersAsync(Guid groupId, CancellationToken cancellationToken)
             => Task.FromResult(Rows.Count(m => m.GroupId == groupId && m.IsOwner));
+
+        public Task<bool> HasMembershipInOtherGroupAsync(
+            Guid userId,
+            Guid excludedGroupId,
+            CancellationToken cancellationToken)
+            => Task.FromResult(Rows.Any(m => m.UserId == userId && m.GroupId != excludedGroupId));
     }
 
     private sealed class FakeGroupStore : IGroupStore

@@ -1,0 +1,8 @@
+version: 1
+bundleID: lat.sonivo.ios
+product: Sonivo
+infoPath: Sonivo-xtool-Info.plist
+resources:
+  - Sonivo/Resources/en.lproj
+  - Sonivo/Resources/es.lproj
+  - Sonivo/Resources/pt.lproj

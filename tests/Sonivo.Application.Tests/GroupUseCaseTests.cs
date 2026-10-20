@@ -127,6 +127,30 @@ public class GroupUseCaseTests
     }
 
     [Fact]
+    public async Task ChangeGroupSlug_sets_exact_uniqueness_selector_before_checking_other_groups()
+    {
+        var store = new FakeGroupStore();
+        var userId = Guid.NewGuid();
+        var group = Group.Create("Night Owls", Now);
+        await store.AddAsync(group, Membership.CreateOwner(group.Id, userId, Now), CancellationToken.None);
+        var scope = new RecordingGroupDatabaseScope();
+        store.OnSlugCheck = () => Assert.Equal("night-owls-new", scope.SlugCandidate);
+
+        var handler = new ChangeGroupSlugHandler(
+            new GroupAccessService(store),
+            store,
+            new FixedClock(Now.AddMinutes(1)),
+            databaseScope: scope);
+
+        var result = await handler.HandleAsync(
+            new ChangeGroupSlugCommand(userId, group.Id, "night-owls-new"),
+            CancellationToken.None);
+
+        Assert.Equal("night-owls-new", result.Slug);
+        Assert.Equal("night-owls-new", scope.SlugCandidate);
+    }
+
+    [Fact]
     public async Task SoftDelete_hides_group_from_normal_lookup_and_list()
     {
         var store = new FakeGroupStore();
@@ -151,11 +175,37 @@ public class GroupUseCaseTests
         public DateTimeOffset UtcNow { get; } = now;
     }
 
+    private sealed class RecordingGroupDatabaseScope : IGroupDatabaseScope
+    {
+        public string? SlugCandidate { get; private set; }
+
+        public Task SetAuthenticatedUserAsync(Guid userId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetMultiGroupReadAsync(Guid userId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetVerifiedGroupAsync(Guid groupId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetSignedPaymentWebhookGroupAsync(Guid groupId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetGroupForBootstrapAsync(Guid groupId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetInvitationTokenLookupAsync(string tokenHash, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetPublicGroupSlugAsync(string slug, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetAuthenticatedGroupSlugLookupAsync(string slug, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetMemberEventLookupAsync(Guid eventId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetManagedAccountMembershipLookupAsync(
+            Guid groupId,
+            Guid managedUserId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetHandleLoginLookupAsync(string slug, string normalizedHandle, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetGroupSlugUniquenessLookupAsync(string slug, CancellationToken cancellationToken)
+        {
+            SlugCandidate = slug;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class FakeGroupStore : IGroupStore
     {
         public List<Group> Groups { get; } = [];
         public List<Membership> Memberships { get; } = [];
         public int SaveCount { get; private set; }
+        public Action? OnSlugCheck { get; set; }
 
         public Task AddAsync(Group group, Membership ownerMembership, CancellationToken cancellationToken)
         {
@@ -189,6 +239,12 @@ public class GroupUseCaseTests
 
         public Task<Membership?> GetMembershipAsync(Guid groupId, Guid userId, CancellationToken cancellationToken)
             => Task.FromResult(Memberships.FirstOrDefault(m => m.GroupId == groupId && m.UserId == userId));
+
+        public Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken)
+        {
+            OnSlugCheck?.Invoke();
+            return Task.FromResult(false);
+        }
 
         public Task AddMembershipAsync(Membership membership, CancellationToken cancellationToken)
         {

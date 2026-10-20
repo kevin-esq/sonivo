@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, NavLink, useLocation, useParams } from 'react-router-dom'
-import { ChevronsLeft, ChevronsRight, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
 import {
   ApiError,
   fetchFeatures,
@@ -14,7 +14,7 @@ import {
 } from '../api/client'
 import { BrandLockup, SonivoMark } from '../brand/SonivoMark'
 import { useT } from '../i18n'
-import { ACCESS_DENIED_MESSAGE, formatMembershipRole } from '../repertoire/ui'
+import { formatMembershipRole } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { readGroupAppearance } from './groupAccent'
 import { GROUP_UPDATED_EVENT } from './groupEvents'
@@ -30,12 +30,15 @@ import {
 } from './serverBranding'
 import { useTheme } from '../brand/theme'
 import { rememberLastGroup } from '../tenancy/groupSlug'
-import { RailNowPlaying } from './RailNowPlaying'
+import { routes } from '../routing/routes'
 import { useRailPresence } from './railPresence'
-import { BrandPreviewContext, type BrandTokenMap } from './brandPreview'
+import { BrandPreviewContext, type BrandPreviewDraft } from './brandPreview'
 import { useGroupLive } from '../groups/useGroupLive'
 import { GroupTopBar } from './GroupTopBar'
+import { GroupSwitcher } from './GroupSwitcher'
 import { GroupContextRail } from './GroupContextRail'
+import { Button } from '../ui/button'
+import { useAudioPlayer } from '../repertoire/AudioPlayerContext'
 
 const SIDEBAR_KEY = 'sonivo:sidebar'
 
@@ -71,7 +74,7 @@ export function GroupWorkspace({
   const { groupId } = useParams()
   const location = useLocation()
   // The context rail (Semana / Hoy / Listas / Tu progreso) is home-only chrome.
-  const onGroupHome = Boolean(groupId) && (location.pathname === `/groups/${groupId}` || location.pathname === `/groups/${groupId}/`)
+  const onGroupHome = groupId !== undefined && (location.pathname === routes.group(groupId) || location.pathname === `${routes.group(groupId)}/`)
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [rail, setRail] = useState<RailState>(() => readRailState())
@@ -96,11 +99,26 @@ export function GroupWorkspace({
   // Bumped when the group entity changes (rename, branding save) so the shell
   // re-fetches branding instead of showing the previous theme until a reload.
   const [brandReloadKey, setBrandReloadKey] = useState(0)
-  // Live brand preview while the branding editor is open (see brandPreview.tsx).
-  const [previewTokens, setPreviewTokens] = useState<BrandTokenMap | null>(null)
+  // Pending branding edits live at the shell level so route changes keep the preview.
+  const [brandPreview, setBrandPreview] = useState<BrandPreviewDraft | null>(null)
+  const [savingBrandPreview, setSavingBrandPreview] = useState(false)
+  const [brandPreviewError, setBrandPreviewError] = useState<string | null>(null)
   const { t } = useT()
-  const { setRailPresent } = useRailPresence()
+  const { currentTrack } = useAudioPlayer()
+  const { setRailPresent, setRailCollapsed, setBrandTokens } = useRailPresence()
   const { theme } = useTheme()
+
+  useEffect(() => {
+    setRailPresent(true)
+    return () => setRailPresent(false)
+  }, [setRailPresent])
+  useEffect(() => () => setBrandTokens({}), [setBrandTokens])
+
+  useEffect(() => {
+    if (brandPreview) Object.values(brandPreview.pendingImages).forEach((image) => image && URL.revokeObjectURL(image.url))
+    setBrandPreview(null)
+    setBrandPreviewError(null)
+  }, [groupId])
 
   // Cross-user real time for the current group (all group pages).
   useGroupLive(group?.id)
@@ -120,12 +138,6 @@ export function GroupWorkspace({
       cancelled = true
     }
   }, [])
-
-  // Registers the rail with the global player (hides the bottom bar at >=768px).
-  useEffect(() => {
-    setRailPresent(true)
-    return () => setRailPresent(false)
-  }, [setRailPresent])
 
   useEffect(() => {
     try {
@@ -148,9 +160,9 @@ export function GroupWorkspace({
         if (cancelled) return
         setGroup(null)
         if (err instanceof ApiError && err.status === 404) {
-          setError(ACCESS_DENIED_MESSAGE)
+          setError(t('common.groupNotFoundOrNoAccess'))
         } else {
-          setError(problemDetail(err))
+          setError(problemDetail(err, t))
         }
       }
     }
@@ -217,17 +229,23 @@ export function GroupWorkspace({
     if (!group) return
     rememberLastGroup(group.id)
     applyDocumentBranding({
-      name: serverBrand?.displayName ?? group.name,
+      name: brandPreview?.groupId === group.id && brandPreview.displayName.trim()
+        ? brandPreview.displayName.trim()
+        : brandPreview?.groupId === group.id
+          ? brandPreview.groupName
+          : serverBrand?.displayName ?? group.name,
       slug: group.slug ?? null,
       accentHex: serverBrand?.accentHex ?? null,
       logoUrl: serverBrand?.logoUrl ?? null,
     })
-  }, [group, serverBrand])
+  }, [group, serverBrand, brandPreview])
 
   const deviceAppearance = readGroupAppearance(group?.id)
   const serverCover =
     serverBrand?.coverKind === 'gradient' && serverBrand.coverValue
       ? `gradient:${serverBrand.coverValue}`
+      : serverBrand?.coverKind === 'preset' && serverBrand.coverValue
+        ? `preset:${serverBrand.coverValue}`
       : serverBrand?.coverKind === 'emoji' && serverBrand.coverValue
         ? serverBrand.coverValue
         : null
@@ -235,10 +253,25 @@ export function GroupWorkspace({
     ? { accent: serverBrand.accentHex ?? deviceAppearance.accent, cover: serverCover ?? deviceAppearance.cover }
     : deviceAppearance
   const collapsed = rail === 'collapsed'
+  // Keep the global player beside the rail while the rail stays navigation-only.
+  useEffect(() => setRailCollapsed(collapsed), [collapsed, setRailCollapsed])
   const groupRole = group ? formatMembershipRole(group.role, t) : ''
+  const canViewReports = group?.role === 'Owner'
+  const visibleGroupNavSections = canViewReports
+    ? groupNavSections
+    : groupNavSections.map((section) => ({ ...section, items: section.items.filter((item) => item.id !== 'reports') })).filter((section) => section.items.length > 0)
+  const visibleMobileMoreItems = canViewReports
+    ? mobileMoreItems
+    : mobileMoreItems.filter((item) => item.id !== 'reports')
   const accent = appearance.accent
 
-  const brandTokens = brandTokenStyle(serverBrand, { primary: accent, theme })
+  const brandTokens = useMemo(
+    () => brandTokenStyle(serverBrand, { primary: accent, theme }),
+    [serverBrand, accent, theme],
+  )
+  useEffect(() => {
+    setBrandTokens(brandTokens)
+  }, [brandTokens, setBrandTokens])
   // Persist the computed tokens so the pre-paint script can apply them before
   // React mounts on the next visit (no default→brand flash, Gmail-style).
   const tokensJson = useMemo(() => JSON.stringify(brandTokens), [brandTokens])
@@ -266,15 +299,38 @@ export function GroupWorkspace({
   )
   const shellStyle = {
     ...brandTokens,
-    ...(previewTokens ?? {}),
+    ...(brandPreview && brandPreview.groupId === groupId ? brandPreview.tokens : {}),
     // Liquid-glass accent wash over the canvas (token from deriveGroupThemeTokens).
     backgroundImage: 'var(--brand-wash)',
   } as CSSProperties
 
   return (
-    <BrandPreviewContext.Provider value={{ tokens: previewTokens, setTokens: setPreviewTokens }}>
+    <BrandPreviewContext.Provider
+      value={{
+        draft: brandPreview,
+        setDraft: setBrandPreview,
+        savedBrand: serverBrand && groupId
+          ? {
+              groupId,
+              accentHex: serverBrand.accentHex,
+              displayName: serverBrand.displayName,
+              tagline: serverBrand.tagline,
+              verse: serverBrand.verse,
+              welcomeText: serverBrand.welcomeText,
+              cover: serverBrand.coverKind === 'preset' && serverBrand.coverValue
+                ? `preset:${serverBrand.coverValue}`
+                : serverBrand.coverKind === 'gradient' && serverBrand.coverValue
+                  ? `gradient:${serverBrand.coverValue}`
+                  : serverBrand.coverKind === 'emoji' && serverBrand.coverValue
+                    ? serverBrand.coverValue
+                    : 'none',
+              bannerUrl: serverBrand.bannerUrl,
+            }
+          : null,
+      }}
+    >
     <div
-      className="min-h-screen bg-canvas font-sans md:fixed md:inset-0 md:flex md:overflow-hidden"
+      className="group-workspace min-h-screen bg-canvas font-sans md:fixed md:inset-0 md:flex md:overflow-hidden"
       data-testid="grupo-shell"
       style={shellStyle}
     >
@@ -294,14 +350,16 @@ export function GroupWorkspace({
         >
           {collapsed ? (
             <Link
-              to={group ? `/groups/${group.id}` : '/'}
+              to={group ? routes.group(group.id) : routes.marketing}
               aria-label={group ? group.name : 'Sonivo'}
               className="grid min-h-11 min-w-11 place-items-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             >
               {group ? (
                 <span className="grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-shell-hover text-sm font-semibold text-shell-foreground">
-                  {serverBrand?.logoUrl ? (
-                    <img src={serverBrand.logoUrl} alt="" className="h-5 w-5 object-contain" />
+                {brandPreview?.groupId === group.id && brandPreview.pendingImages.logo ? (
+                  <img src={brandPreview.pendingImages.logo.url} alt="" className="h-5 w-5 object-contain" />
+                ) : serverBrand?.logoUrl ? (
+                  <img src={serverBrand.logoUrl} alt="" className="h-5 w-5 object-contain" />
                   ) : (
                     group.name.slice(0, 1).toUpperCase()
                   )}
@@ -312,12 +370,14 @@ export function GroupWorkspace({
             </Link>
           ) : group ? (
             <Link
-              to={`/groups/${group.id}`}
+              to={routes.group(group.id)}
               data-testid="rail-brand"
               className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             >
               <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-shell-hover text-sm font-semibold text-shell-foreground">
-                {serverBrand?.logoUrl ? (
+                {brandPreview?.groupId === group.id && brandPreview.pendingImages.logo ? (
+                  <img src={brandPreview.pendingImages.logo.url} alt="" className="h-6 w-6 object-contain" />
+                ) : serverBrand?.logoUrl ? (
                   <img src={serverBrand.logoUrl} alt="" className="h-6 w-6 object-contain" />
                 ) : (
                   group.name.slice(0, 1).toUpperCase()
@@ -325,17 +385,23 @@ export function GroupWorkspace({
               </span>
               <span className="min-w-0">
                 <span className="block truncate font-display text-sm font-semibold text-shell-foreground">
-                  {serverBrand?.displayName ?? group.name}
+                  {brandPreview?.groupId === group.id && brandPreview.displayName.trim()
+                    ? brandPreview.displayName.trim()
+                    : brandPreview?.groupId === group.id
+                      ? brandPreview.groupName
+                      : serverBrand?.displayName ?? group.name}
                 </span>
-                {serverBrand?.tagline ? (
-                  <span className="block truncate text-xs text-shell-foreground/60">{serverBrand.tagline}</span>
+                {(brandPreview?.groupId === group.id ? brandPreview.tagline : serverBrand?.tagline) ? (
+                  <span className="block truncate text-xs text-shell-foreground/60">
+                    {brandPreview?.groupId === group.id ? brandPreview.tagline : serverBrand?.tagline}
+                  </span>
                 ) : (
                   <span className="block truncate text-xs text-shell-foreground/60">{groupRole}</span>
                 )}
               </span>
             </Link>
           ) : (
-            <BrandLockup to="/home" shell />
+            <BrandLockup to={routes.home} shell />
           )}
           <button
             type="button"
@@ -358,7 +424,7 @@ export function GroupWorkspace({
             className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3"
             aria-label={t('workspace.groupNav')}
           >
-            {groupNavSections.map((section) => (
+            {visibleGroupNavSections.map((section) => (
               <div key={section.id} className="space-y-1">
                 {section.labelKey && !collapsed ? (
                   <p className="px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-shell-foreground/45">
@@ -402,25 +468,35 @@ export function GroupWorkspace({
           </div>
         )}
 
-        <RailNowPlaying collapsed={collapsed} />
-
         <div
           className={cn(
-            'shrink-0 border-t border-shell-border py-4',
+            'shrink-0 space-y-1 border-t border-shell-border py-4',
             collapsed ? 'px-2' : 'px-3',
           )}
         >
           {group ? (
-            <NavLink
-              to={`/groups/${group.id}/settings`}
-              data-testid="rail-settings"
-              aria-label={collapsed ? t('group.settings') : undefined}
-              title={collapsed ? t('group.settings') : undefined}
-              className={({ isActive }) => railLinkClass(isActive, collapsed)}
-            >
-              <Settings2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className={cn(collapsed && 'sr-only')}>{t('group.settings')}</span>
-            </NavLink>
+            <>
+              <NavLink
+                to={routes.groupHelp(group.id)}
+                data-testid="rail-help"
+                aria-label={collapsed ? t('sidebar.help') : undefined}
+                title={collapsed ? t('sidebar.help') : undefined}
+                className={({ isActive }) => railLinkClass(isActive, collapsed)}
+              >
+                <CircleHelp className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className={cn(collapsed && 'sr-only')}>{t('sidebar.help')}</span>
+              </NavLink>
+              <NavLink
+                to={routes.groupSettings(group.id)}
+                data-testid="rail-settings"
+                aria-label={collapsed ? t('group.settings') : undefined}
+                title={collapsed ? t('group.settings') : undefined}
+                className={({ isActive }) => railLinkClass(isActive, collapsed)}
+              >
+                <Settings2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className={cn(collapsed && 'sr-only')}>{t('group.settings')}</span>
+              </NavLink>
+            </>
           ) : null}
         </div>
 
@@ -447,13 +523,25 @@ export function GroupWorkspace({
 
       <div className="flex min-w-0 flex-1 flex-col md:h-screen md:min-h-0 md:overflow-hidden">
         {group ? (
-          <GroupTopBar groupId={group.id} user={user} role={group.role} onLogout={onLogout} />
+          <GroupTopBar
+            groupId={group.id}
+            groupName={brandPreview?.groupId === group.id && brandPreview.displayName.trim()
+              ? brandPreview.displayName.trim()
+              : brandPreview?.groupId === group.id
+                ? brandPreview.groupName
+                : serverBrand?.displayName ?? group.name}
+            user={user}
+            role={group.role}
+            onLogout={onLogout}
+          />
         ) : null}
         <header className="flex items-center justify-between gap-2 px-4 py-3 md:hidden">
-          <Link to="/home" className="flex min-h-11 items-center gap-2 no-underline">
-            <SonivoMark className="h-7 w-7 text-shell-link" />
-            <span className="font-semibold text-shell-foreground">Sonivo</span>
-          </Link>
+          {group ? (
+            <GroupSwitcher
+              currentGroupId={group.id}
+              currentGroupName={brandPreview?.groupId === group.id ? brandPreview.groupName : group.name}
+            />
+          ) : <SonivoMark className="h-7 w-7 text-shell-link" />}
           <div className="flex items-center gap-1">
             {/* Single "More" lives in the bottom tab bar; the top bar keeps only
                 account + sign-out so there is exactly one overflow menu per
@@ -469,13 +557,17 @@ export function GroupWorkspace({
                 aria-label={t('workspace.account')}
                 className="absolute right-0 top-full z-50 mt-1 w-56 space-y-0.5 rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg"
               >
-                <Link to="/groups" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                <Link to={routes.groups} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
                   <Users className="h-4 w-4 text-primary-ink" aria-hidden="true" />
                   {t('workspace.myGroups')}
                 </Link>
-                <Link to="/account" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                <Link to={routes.account} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
                   <UserRound className="h-4 w-4 text-primary-ink" aria-hidden="true" />
                   {t('workspace.account')}
+                </Link>
+                <Link to={routes.help} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                  <CircleHelp className="h-4 w-4 text-primary-ink" aria-hidden="true" />
+                  {t('sidebar.help')}
                 </Link>
                 <button
                   type="button"
@@ -499,15 +591,15 @@ export function GroupWorkspace({
 
               <main
                 data-testid="group-content"
-                className="m-3 flex-1 rounded-2xl bg-surface text-ink"
+        className="group-content-panel m-3 flex-1 rounded-2xl bg-surface text-ink"
               >
-              <div className="px-5 py-6 pb-24 md:px-8 md:pb-8">
+              <div className={`px-5 py-6 md:px-8 ${currentTrack ? 'pb-[calc(13rem+env(safe-area-inset-bottom))] md:pb-32' : 'pb-24 md:pb-8'}`}>
                 {group === null ? (
                   <div className="space-y-3">
                     <p role="alert" className="text-error-ink">
                       {error}
                     </p>
-                    <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/home">
+                    <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
                       {t('workspace.myGroups')}
                     </Link>
                   </div>
@@ -525,6 +617,47 @@ export function GroupWorkspace({
           </div>
         </div>
       </div>
+
+      {group && brandPreview && brandPreview.groupId === group.id && brandPreview.dirty ? (
+        <div
+          role="status"
+          data-testid="brand-unsaved-bar"
+          className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-shell-border bg-surface px-4 py-3 text-ink shadow-xl md:bottom-4"
+        >
+          <p className="min-w-0 flex-1 text-sm font-medium">
+            {brandPreviewError ?? t('settings.unsavedChanges')}
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={savingBrandPreview}
+            onClick={() => {
+              brandPreview.discard()
+              Object.values(brandPreview.pendingImages).forEach((image) => image && URL.revokeObjectURL(image.url))
+              setBrandPreview(null)
+              setBrandPreviewError(null)
+            }}
+          >
+            {t('settings.discardChanges')}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={savingBrandPreview}
+            onClick={() => {
+              setSavingBrandPreview(true)
+              setBrandPreviewError(null)
+              void brandPreview.save().then((error) => {
+                if (error) setBrandPreviewError(error)
+                else setBrandPreview(null)
+              }).finally(() => setSavingBrandPreview(false))
+            }}
+          >
+            {savingBrandPreview ? t('settings.saving') : t('settings.saveBranding')}
+          </Button>
+        </div>
+      ) : null}
 
       {group ? (
         <nav
@@ -568,7 +701,7 @@ export function GroupWorkspace({
                   {t('workspace.more')}
                 </summary>
                 <div className="absolute bottom-full right-0 z-50 mb-1 max-h-[70vh] w-52 overflow-y-auto rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg">
-                  {mobileMoreItems.map((item) => {
+                  {visibleMobileMoreItems.map((item) => {
                     const Icon = item.icon
                     return (
                       <NavLink
@@ -582,8 +715,13 @@ export function GroupWorkspace({
                       </NavLink>
                     )
                   })}
+                  <NavLink to={routes.groupHelp(group.id)}
+                    className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                    <CircleHelp className="h-4 w-4 text-primary-ink" aria-hidden="true" />
+                    {t('groupHelp.title')}
+                  </NavLink>
                   <NavLink
-                    to={`/groups/${group.id}/settings`}
+                    to={routes.groupSettings(group.id)}
                     className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
                   >
                     <Settings2 className="h-4 w-4 text-primary-ink" aria-hidden="true" />

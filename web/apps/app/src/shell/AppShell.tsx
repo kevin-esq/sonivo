@@ -5,10 +5,11 @@ import { useT } from "../i18n";
 import { AppSidebar } from "./AppSidebar";
 import { AppTopBar } from "./AppTopBar";
 import { AppBottomNav } from "./AppBottomNav";
+import { useAudioPlayer } from "../repertoire/AudioPlayerContext";
 
 /**
  * Shell for the signed-in, non-group routes (ADR-0053): persistent left sidebar
- * + top bar (search, notifications placeholder, user avatar). The group
+ * + top bar (search, account notifications, user avatar). The group
  * workspace keeps its own rail (`GroupWorkspace`).
  */
 export function AppShell({
@@ -21,6 +22,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const { t } = useT();
+  const { currentTrack } = useAudioPlayer();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // ADR-0055 W-E: best-effort presence heartbeat (throttled server-side, never authorizes).
@@ -40,7 +42,7 @@ export function AppShell({
   }, []);
 
   return (
-    <div className="min-h-screen bg-canvas lg:flex lg:h-screen lg:overflow-hidden">
+    <div className="app-shell min-h-screen bg-canvas lg:flex lg:h-screen lg:overflow-hidden">
       <AppSidebar
         user={user}
         onLogout={onLogout}
@@ -57,9 +59,9 @@ export function AppShell({
         <AppTopBar user={user} onOpenMenu={() => setMenuOpen(true)} />
         <main
           id="main"
-          className="flex-1 overflow-y-auto px-4 pt-6 pb-24 text-ink sm:px-6 lg:min-h-0 lg:px-8 lg:py-8"
+          className={`app-shell__main flex-1 overflow-y-auto px-4 pt-6 text-ink sm:px-6 lg:min-h-0 lg:px-8 lg:pt-8 ${currentTrack ? "pb-[calc(13rem+env(safe-area-inset-bottom))] lg:pb-32" : "pb-24 lg:pb-8"}`}
         >
-          <div className="mx-auto w-full max-w-6xl">{children}</div>
+          <div className="app-shell__page mx-auto w-full max-w-6xl">{children}</div>
         </main>
       </div>
       <AppBottomNav onOpenMenu={() => setMenuOpen(true)} />

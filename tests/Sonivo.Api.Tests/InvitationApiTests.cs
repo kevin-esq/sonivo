@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Sonivo.Domain.Notifications;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure.Identity;
 using Sonivo.Infrastructure.Persistence;
@@ -65,6 +66,32 @@ public class InvitationApiTests : IClassFixture<SonivoApiFactory>
         Assert.NotNull(created);
         Assert.False(string.IsNullOrWhiteSpace(created.Token));
         Assert.False(created.Emailed);
+    }
+
+    [Fact]
+    public async Task Owner_inviting_existing_nonmember_does_not_create_unreadable_group_notification()
+    {
+        const string inviteeEmail = "existing-invitee@example.com";
+        var owner = await CreateAuthenticatedClientAsync("invite-notification-owner@example.com");
+        var group = await CreateGroupAsync(owner, "Invitation Notification Band");
+        _ = await CreateAuthenticatedClientAsync(inviteeEmail);
+
+        var create = await owner.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/invitations",
+            new { email = inviteeEmail });
+
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+        var invitee = await users.FindByEmailAsync(inviteeEmail);
+        Assert.NotNull(invitee);
+
+        Assert.False(await db.Notifications.AsNoTracking().AnyAsync(notification =>
+            notification.UserId == invitee.Id
+            && notification.GroupId == group.Id
+            && notification.Kind == Notification.KindInvitationCreated));
     }
 
     [Fact]

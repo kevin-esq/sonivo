@@ -1,5 +1,6 @@
 import { getGroupBranding, type GroupBranding } from '../api/client'
 import { deriveGroupThemeTokens, typographyFamily } from '../brand/tokens'
+import { routes } from '../routing/routes'
 
 export type ServerBranding = {
   accentHex: string | null
@@ -202,6 +203,6 @@ export function applyDocumentBranding(input: {
     setLink('icon', input.logoUrl)
   }
   if (input.slug) {
-    setLink('manifest', `/g/${encodeURIComponent(input.slug)}/manifest.webmanifest`)
+    setLink('manifest', `${routes.groupSlug(input.slug)}/manifest.webmanifest`)
   }
 }
