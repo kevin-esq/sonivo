@@ -117,6 +117,13 @@ separate migration job, provision and wire the constrained production runtime
 role with the reviewed grants, then pass the verifier against the actual
 deployment configuration before closing this ticket.
 
+The current release batch adds four OpenIddict persistence tables for mobile
+OIDC. They are included in the exact public-table inventory; the runtime role
+has only the operations used by the registered-client, authorization, token,
+and scope stores. The first PR CI verifier run correctly rejected the missing
+inventory entries. After adding the reviewed matrix and grants, the local
+PostgreSQL 16.6 verifier passed as `sonivo_app`; GitHub CI rerun is pending.
+
 - Create/document a non-owner, non-superuser, `NOBYPASSRLS` runtime principal
   with only required DML privileges and a separate migration/ownership
   principal.

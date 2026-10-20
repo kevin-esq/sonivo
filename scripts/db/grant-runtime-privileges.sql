@@ -30,6 +30,15 @@ GRANT SELECT, INSERT ON TABLE
 
 GRANT SELECT, INSERT, UPDATE ON TABLE public."Notifications" TO sonivo_app;
 
+-- The mobile OIDC server reads registered clients and persists authorization
+-- and token state. Scopes are read-only; client registration is idempotently
+-- created/updated by the API when mobile authentication is enabled.
+GRANT SELECT, INSERT, UPDATE ON TABLE public."OpenIddictApplications" TO sonivo_app;
+GRANT SELECT ON TABLE public."OpenIddictScopes" TO sonivo_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+    public."OpenIddictAuthorizations",
+    public."OpenIddictTokens" TO sonivo_app;
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
     public."AspNetRoles",
     public."AspNetRoleClaims",

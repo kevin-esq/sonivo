@@ -2,15 +2,15 @@
 
 **Updated:** 2026-10-20
 **Active work:** version the authorized Phase 4 and mobile delivery as a reviewable release PR, then resolve E2E failures in one follow-up PR.
-**Source worktree:** `feature/phase4-release-batch` at `399f6d9`, based on `origin/develop` (`9680543`). The core release batch is committed; E2E updates remain separate and uncommitted.
+**Source worktree:** `feature/phase4-release-batch` at `13f9365`, based on `origin/develop` (`9680543`). PR #282 is open; runtime grant-matrix follow-up is being prepared. E2E updates remain separate and uncommitted.
 
 ## Checkpoint
 
 - **Implementation:** IN PROGRESS
 - **Human approval:** APPROVED for the user's explicit request to ship this batch to `develop`
 - **Git checkpoint:** COMMITTED
-- **Remote:** NOT PUSHED for this release batch
-- **CI:** NOT RUN for this release batch
+- **Remote:** PUSHED (PR #282)
+- **CI:** FAILING; fix for the missing OpenIddict runtime table matrix is local and requires push/re-run
 
 ## Release organization
 
@@ -43,4 +43,4 @@
 
 ## Validation evidence
 
-Validation for this release batch: .NET Release suite passed 835/835; web production build and standalone TypeScript check passed. The focused conductor Playwright scenario failed because the member playhead remained at 0:00 after the Owner seek. Per the user's one-time authorization, E2E may be bypassed for this merge; resolve E2E failures together in one follow-up PR. CI for this branch is not yet run. Mobile device QA and production checks remain open.
+Validation for this release batch: .NET Release suite passed 835/835; web production build and standalone TypeScript check passed; Android `assembleDebug` passed with JDK 21 and the installed Android SDK. The local runtime principal verifier passed after adding four OpenIddict tables and reviewed grants. PR #282's first CI backend run failed the same inventory check; CI rerun is pending. The focused conductor Playwright scenario failed because the member playhead remained at 0:00 after the Owner seek. Per the user's one-time authorization, E2E may be bypassed for the core merge; resolve all E2E failures together in one follow-up PR. Mobile device QA and production checks remain open.

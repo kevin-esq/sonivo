@@ -12,6 +12,7 @@ try {
     Push-Location $repoRoot
     try {
         dotnet ef database update `
+            --configuration Release `
             --project src/Sonivo.Infrastructure `
             --startup-project src/Sonivo.Api
         if ($LASTEXITCODE -ne 0) {
