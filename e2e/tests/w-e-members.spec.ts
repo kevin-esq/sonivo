@@ -21,8 +21,8 @@ test.describe('W-E members', () => {
     await expect(page.getByRole('combobox', { name: 'Filtrar por instrumento' })).toBeVisible()
 
     // The current user is the Owner: their email and a presence label are shown.
-    await expect(page.getByText(email)).toBeVisible()
-    await expect(page.getByText('En línea')).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Miembros' }).getByRole('table').getByText(email)).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Miembros' }).getByRole('table').getByText('En línea')).toBeVisible()
   })
 
   test('TC-WS-12 non-member cannot read the members list', async ({ page }) => {

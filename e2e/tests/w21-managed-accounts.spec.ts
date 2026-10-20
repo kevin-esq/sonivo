@@ -44,7 +44,7 @@ test('managed account is forced to change its temporary password', async ({ page
   await logout(page)
 
   await page.goto('/login')
-  await page.getByLabel('Correo electrónico').fill(`${provisioned.handle}@${provisioned.slug}`)
+  await page.getByLabel('Correo o usuario').fill(`${provisioned.handle}@${provisioned.slug}`)
   await page.getByLabel('Contraseña').fill(provisioned.temporaryPassword as string)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
 

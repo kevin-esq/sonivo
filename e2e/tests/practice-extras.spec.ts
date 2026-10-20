@@ -147,7 +147,7 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
     // Timing marks (no file audio): follow-along must stay disabled on
     // YouTube-sourced Practice with an explanation.
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
-    await page.getByRole('button', { name: 'Editar arreglo' }).click()
+    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
     await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
     await page.getByTestId('timing-line-0-ms').fill('500')
     await page.getByTestId('timing-line-1-ms').fill('1500')

@@ -34,6 +34,7 @@ test.describe('W-D resources', () => {
     await expect(dialog.getByRole('heading', { name: 'Subir recurso' })).toBeVisible()
     await dialog.getByLabel('Título').fill(`W-D Guia ${stamp}`)
     await dialog.locator('input[type="file"]').setInputFiles(path.join(fixturesDir, 'practice-a.wav'))
+    await expect(dialog.getByTestId('resource-file-dropzone')).toContainText('practice-a.wav')
     await dialog.getByRole('button', { name: 'Subir recurso' }).click()
 
     await expect(page.getByText(`W-D Guia ${stamp}`)).toBeVisible()

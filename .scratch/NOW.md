@@ -1,24 +1,25 @@
 # NOW — current work and Git checkpoint
 
 **Updated:** 2026-10-20
-**Active work:** version the authorized Phase 4 and mobile delivery as a reviewable release PR, then resolve E2E failures in one follow-up PR.
-**Source worktree:** `feature/phase4-release-batch` at `13f9365`, based on `origin/develop` (`9680543`). PR #282 is open; runtime grant-matrix follow-up is being prepared. E2E updates remain separate and uncommitted.
+**Active work:** resolve the Playwright failures from the Phase 4 release in one follow-up PR.
+**Source worktree:** `fix/e2e-phase4-followup`, based on `origin/develop` (`9c9eed8`). PR #282 is squash-merged to `develop`; this branch contains the authorized E2E follow-up.
 
 ## Checkpoint
 
 - **Implementation:** IN PROGRESS
 - **Human approval:** APPROVED for the user's explicit request to ship this batch to `develop`
 - **Git checkpoint:** COMMITTED
-- **Remote:** PUSHED (PR #282)
-- **CI:** FAILING; fix for the missing OpenIddict runtime table matrix is local and requires push/re-run
+- **Remote:** NOT PUSHED (E2E follow-up)
+- **CI:** NOT RUN (E2E follow-up)
 
 ## Release organization
 
-- PR #281 (`chore/repo-hygiene`) was squash-merged into `develop` as `9680543` on 2026-10-20. Frontend, backend, CodeQL, SCA, and Playwright E2E ultimately passed. The E2E job was still running at merge time; it later completed successfully. This PR is separate from the mixed source worktree.
+- PR #281 (`chore/repo-hygiene`) was squash-merged into `develop` as `9680543` on 2026-10-20. Frontend, backend, CodeQL, SCA, and Playwright E2E passed.
+- PR #282 (`feat/platform`) was squash-merged into `develop` as `9c9eed8` on 2026-10-20. Backend build/tests, Analyze, frontend, CodeQL, and SCA passed; E2E failed and was skipped only under the user's one-time authorization. Its failures are being resolved in this follow-up PR.
 - The route commit was rebased onto current `develop`; route catalog, host boundaries, redirects, and canonical specs are included together.
 - Keep generated local state and the user-provided Xcode archive out of Git. The source `.gitignore` now excludes the Playwright profile, nested visual-audit output, and Xcode archive; tracked Turbo cache removal was merged by PR #281.
 - Update the README only alongside the security/runtime changes it documents. Keep this file as a concise operational checkpoint; durable behavior and decisions belong in `docs/`.
-- `origin/develop` is at `9680543`; the fetched history has 259 commits exclusive to `develop` and 27 exclusive to `main`. PR #281 targets `develop` and is not a production release. No deployment workflow is present under `.github/workflows/`; no release promotion was performed.
+- `origin/develop` is at `9c9eed8`. PRs #281 and #282 target `develop`; neither is a production release. No deployment workflow is present under `.github/workflows/`; no release promotion was performed.
 
 ## Workstream status
 
@@ -28,7 +29,7 @@
 | Phase 4.1 resource-level access | In release batch; row-level UI journey remains in the E2E follow-up | [`PHASE-4.1-RESOURCE-ACCESS-SPEC.md`](../docs/03-architecture/PHASE-4.1-RESOURCE-ACCESS-SPEC.md) |
 | Phase 4.2 database principal separation | T-4.2.02 remains IN PROGRESS; local tests do not prove production identity or RLS policy enforcement | [`PHASE-4.2-POSTGRESQL-RLS-SPEC.md`](../docs/03-architecture/PHASE-4.2-POSTGRESQL-RLS-SPEC.md) |
 | Web route catalog and surface boundaries | In release batch; Next build and standalone TypeScript check passed | [`PHASE-WEB-BOUNDARIES-SPEC.md`](../docs/03-architecture/PHASE-WEB-BOUNDARIES-SPEC.md) |
-| Repertoire, Practice, Stage, timing, warm-up | In release batch; conductor E2E seek propagation failed and is assigned to the single E2E follow-up PR | [`PHASE-PLAY-SYNC-SPEC.md`](../docs/03-architecture/PHASE-PLAY-SYNC-SPEC.md), [`PHASE-PRACTICE-ROUTINES-SPEC.md`](../docs/03-architecture/PHASE-PRACTICE-ROUTINES-SPEC.md) |
+| Repertoire, Practice, Stage, timing, warm-up | In `develop`; conductor E2E follow-up is in progress | [`PHASE-PLAY-SYNC-SPEC.md`](../docs/03-architecture/PHASE-PLAY-SYNC-SPEC.md), [`PHASE-PRACTICE-ROUTINES-SPEC.md`](../docs/03-architecture/PHASE-PRACTICE-ROUTINES-SPEC.md) |
 | User-visible surface completion | In release batch; full .NET Release suite passed 835/835 | [`PHASE-USER-SURFACE-COMPLETION-SPEC.md`](../docs/03-architecture/PHASE-USER-SURFACE-COMPLETION-SPEC.md) |
 | Media upload limits and streaming | In release batch; aggregate storage quota remains deferred | [`PHASE-MEDIA-UPLOADS-SPEC.md`](../docs/03-architecture/PHASE-MEDIA-UPLOADS-SPEC.md) |
 | Native Android/iOS | Included locally; device QA, session audit/revocation verification, and production provisioning remain open | [`PHASE-MOBILE-NATIVE-SPEC.md`](../docs/03-architecture/PHASE-MOBILE-NATIVE-SPEC.md) |
@@ -43,4 +44,4 @@
 
 ## Validation evidence
 
-Validation for this release batch: .NET Release suite passed 835/835; web production build and standalone TypeScript check passed; Android `assembleDebug` passed with JDK 21 and the installed Android SDK. The local runtime principal verifier passed after adding four OpenIddict tables and reviewed grants. PR #282's first CI backend run failed the same inventory check; CI rerun is pending. The focused conductor Playwright scenario failed because the member playhead remained at 0:00 after the Owner seek. Per the user's one-time authorization, E2E may be bypassed for the core merge; resolve all E2E failures together in one follow-up PR. Mobile device QA and production checks remain open.
+Validation for PR #282: .NET Release suite passed 835/835; web production build and standalone TypeScript check passed; Android `assembleDebug` passed with JDK 21 and the installed Android SDK; local runtime principal verification passed. Its CI backend, Analyze, frontend, CodeQL, and SCA jobs passed. E2E failed; the user authorized skipping it for the core merge and requested one follow-up PR. That follow-up fixes the Playwright syntax/selector failures and conductor test setup; CI is required before merge. Mobile device QA and production checks remain open.

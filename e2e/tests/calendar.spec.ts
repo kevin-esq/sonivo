@@ -39,7 +39,7 @@ test.describe('General calendar (ADR-0053 addendum)', () => {
       startsAt: inDays(2),
     })
 
-    await page.goto('/')
+    await page.goto('/home')
     await page.getByTestId('home-view-calendar').click()
     await expect(page).toHaveURL(/\/calendar$/)
     await expect(page.getByRole('heading', { name: 'Calendario' })).toBeVisible()

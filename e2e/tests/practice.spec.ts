@@ -229,8 +229,8 @@ test.describe('Practice / karaoke thin', () => {
     // Go to Arrangement detail and open edit form
     // createArrangement already navigates to detail page
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
-    await page.getByRole('button', { name: 'Editar arreglo' }).click()
-    await expect(page.getByRole('heading', { name: 'Editar arreglo' })).toBeVisible()
+    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
+    await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
 
     // Wait for ChordTimingEditor to be visible (chords must be populated)
     await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
@@ -246,8 +246,8 @@ test.describe('Practice / karaoke thin', () => {
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible({ timeout: 10000 })
 
     // Re-open edit form to verify timing marks were saved
-    await page.getByRole('button', { name: 'Editar arreglo' }).click()
-    await expect(page.getByRole('heading', { name: 'Editar arreglo' })).toBeVisible()
+    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
+    await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
     await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByTestId('timing-line-0-ms')).toHaveValue(String(mark1Ms))
     await expect(page.getByTestId('timing-line-1-ms')).toHaveValue(String(mark2Ms))

@@ -27,18 +27,20 @@ test.describe('Authentication journeys', () => {
     await expect(page.getByText('Te enviamos un enlace de confirmación')).toBeVisible()
 
     await page.goto('/login')
-    // Permanent, unconditional copy + resend affordance (never conditioned
-    // on the login response — no oracle).
+    // The unverified hint is shown only after the correct password, so it
+    // cannot reveal whether an email address has an account.
+    await page.getByLabel('Correo o usuario').fill(email)
+    await page.getByLabel('Contraseña').fill(testPassword)
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+    // The UI keeps authentication failures generic and marks the resend hint
+    // only after the password has matched. No session is created.
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText(
+      'No se pudo confirmar el acceso. Revisa tus datos o inicia sesión de nuevo.',
+    )
     await expect(
       page.getByText('Tu cuenta aún no está verificada — revisa tu bandeja o reenvía el correo'),
     ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Reenviar correo' })).toBeVisible()
-
-    await page.getByLabel('Correo electrónico').fill(email)
-    await page.getByLabel('Contraseña').fill(testPassword)
-    await page.getByRole('button', { name: 'Iniciar sesión' }).click()
-    // Identical-401 shape: generic credentials error, no session created.
-    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText('Invalid email or password.')
     await expect(page).toHaveURL(/\/login/)
     await expect(page.getByRole('heading', { name: 'Mis grupos' })).toHaveCount(0)
 
@@ -70,7 +72,8 @@ test.describe('Authentication journeys', () => {
     await expect(page.getByText(email)).toBeVisible()
 
     await logout(page)
-    await page.goto('/')
+    // A protected route still bounces guests to login (`/` is public marketing).
+    await page.goto('/account')
     await expect(page).toHaveURL(/\/login/)
   })
 })

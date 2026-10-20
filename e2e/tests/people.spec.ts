@@ -2,8 +2,10 @@ import { expect, test } from '@playwright/test'
 import {
   acceptInvite,
   createGroup,
+  createSong,
   inviteMemberAndReadLink,
   logout,
+  openLibrary,
   openPeople,
   testConfirmUser,
   testPassword,
@@ -23,7 +25,7 @@ async function registerAndLogin(
   await expect(page.getByText('Te enviamos un enlace de confirmación')).toBeVisible()
   await testConfirmUser(page, input.email)
   await page.goto('/login')
-  await page.getByLabel('Correo electrónico').fill(input.email)
+  await page.getByLabel('Correo o usuario').fill(input.email)
   await page.getByLabel('Contraseña').fill(testPassword)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
@@ -36,7 +38,7 @@ async function loginAs(
   input: { email: string; password?: string },
 ) {
   await page.goto('/login')
-  await page.getByLabel('Correo electrónico').fill(input.email)
+  await page.getByLabel('Correo o usuario').fill(input.email)
   await page.getByLabel('Contraseña').fill(input.password ?? testPassword)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
@@ -77,8 +79,9 @@ test.describe('People journeys', () => {
 
     await openPeople(page)
     const roster = page.getByRole('region', { name: 'Miembros' })
-    await expect(roster.getByText(ownerName)).toBeVisible()
-    await expect(roster.getByText(memberName)).toBeVisible()
+    const table = roster.getByRole('table')
+    await expect(table.getByText(ownerName)).toBeVisible()
+    await expect(table.getByText(memberName)).toBeVisible()
 
     // Removal lives in the row menu and asks for confirmation.
     const row = roster.getByRole('row').filter({ hasText: memberName })
@@ -87,7 +90,7 @@ test.describe('People journeys', () => {
     const confirm = page.getByTestId('remove-member-dialog')
     await expect(confirm).toBeVisible()
     await confirm.getByRole('button', { name: 'Eliminar miembro' }).click()
-    await expect(roster.getByText(memberName)).toHaveCount(0)
+    await expect(table.getByText(memberName)).toHaveCount(0)
 
     await logout(page)
     await loginAs(page, { email: memberEmail })
@@ -97,7 +100,7 @@ test.describe('People journeys', () => {
     await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText('No encontramos este grupo o no tienes acceso.')
   })
 
-  test('TC-PPL-02 member profile shows information, activity, access and report placeholders', async ({
+  test('TC-PPL-02 member profile shows information, activity and access', async ({
     page,
   }) => {
     const stamp = Date.now()
@@ -106,6 +109,8 @@ test.describe('People journeys', () => {
 
     await registerAndLogin(page, { name: ownerName, email: ownerEmail })
     await createGroup(page, `People Profile ${stamp}`)
+    await openLibrary(page)
+    await createSong(page, `Profile Activity Song ${stamp}`)
     await openPeople(page)
 
     const roster = page.getByRole('region', { name: 'Miembros' })
@@ -115,7 +120,7 @@ test.describe('People journeys', () => {
 
     const profile = page.getByTestId('member-profile-dialog')
     await expect(profile).toBeVisible()
-    for (const tab of ['Información', 'Actividad', 'Acceso', 'Reportes']) {
+    for (const tab of ['Información', 'Actividad', 'Acceso']) {
       await expect(profile.getByRole('tab', { name: tab })).toBeVisible()
     }
 
@@ -123,20 +128,77 @@ test.describe('People journeys', () => {
     await expect(profile.getByText('Organizador').first()).toBeVisible()
     await expect(profile.getByText(ownerEmail).first()).toBeVisible()
 
-    // Reports are named placeholders — never invented numbers.
-    await profile.getByRole('tab', { name: 'Reportes' }).click()
-    await expect(profile.getByText('Muy pronto').first()).toBeVisible()
-    await expect(
-      profile.getByText('Todavía no hay datos suficientes para estos reportes.'),
-    ).toBeVisible()
+    await profile.getByRole('tab', { name: 'Actividad' }).click()
+    await expect(profile.getByText('Agregó una canción al repertorio')).toBeVisible()
 
-    // Your own profile has no destructive actions, but it can act on the person.
-    await expect(profile.getByRole('button', { name: `Acciones de ${ownerName}` })).toHaveCount(0)
-    await profile.getByRole('button', { name: 'Editar instrumento' }).click()
-    await expect(page.getByTestId('edit-instrument-dialog')).toBeVisible()
+    // Account identity links to account settings; Group-level self-deactivation is unavailable.
+    await expect(profile.getByRole('link', { name: 'Mi cuenta' })).toHaveAttribute('href', '/app/account')
+    await profile.getByRole('tab', { name: 'Acceso' }).click()
+    await expect(profile.getByText('Activo en este grupo')).toBeVisible()
+    await expect(profile.getByText('La persona propietaria conserva el acceso al grupo.')).toBeVisible()
+    await expect(profile.getByRole('button', { name: 'Desactivar acceso en este grupo' })).toHaveCount(0)
 
-    await page.keyboard.press('Escape')
+    await profile.getByRole('button', { name: 'Cerrar' }).last().click()
     await expect(profile).toBeHidden()
-    await expect(page.getByTestId('edit-instrument-dialog')).toBeHidden()
+  })
+
+  test('TC-PPL-03 owner can deactivate and restore access in this group', async ({ page }) => {
+    const stamp = Date.now()
+    const ownerEmail = uniqueEmail('ppl3-owner')
+    const memberEmail = uniqueEmail('ppl3-member')
+    const ownerName = `Owner ${stamp}`
+    const memberName = `Member ${stamp}`
+    const groupName = `Access Band ${stamp}`
+
+    await registerAndLogin(page, { name: ownerName, email: ownerEmail })
+    await createGroup(page, groupName)
+    const groupUrl = page.url()
+    const inviteUrl = await inviteMemberAndReadLink(page)
+
+    await logout(page)
+    await registerAndLogin(page, { name: memberName, email: memberEmail })
+    await page.goto(inviteUrl)
+    await acceptInvite(page)
+    await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
+
+    await logout(page)
+    await loginAs(page, { email: ownerEmail })
+    await page.goto(groupUrl)
+    await openPeople(page)
+    const roster = page.getByRole('region', { name: 'Miembros' })
+    const row = roster.getByRole('row').filter({ hasText: memberName })
+    await row.getByRole('button', { name: `Acciones de ${memberName}` }).click()
+    await page.getByRole('menuitem', { name: 'Ver perfil' }).click()
+    const profile = page.getByTestId('member-profile-dialog')
+    await profile.getByRole('tab', { name: 'Acceso' }).click()
+    await expect(profile.getByText('Activo en este grupo')).toBeVisible()
+    await profile.getByRole('button', { name: 'Desactivar acceso en este grupo' }).click()
+    await expect(profile.getByText('Desactivado en este grupo')).toBeVisible()
+    await expect(profile.getByRole('button', { name: 'Reactivar acceso en este grupo' })).toBeVisible()
+
+    await logout(page)
+    await loginAs(page, { email: memberEmail })
+    await expect(page.getByRole('link', { name: groupName })).toHaveCount(0)
+    await page.goto(groupUrl)
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)'))
+      .toContainText('No encontramos este grupo o no tienes acceso.')
+
+    await logout(page)
+    await loginAs(page, { email: ownerEmail })
+    await page.goto(groupUrl)
+    await openPeople(page)
+    const disabledRow = page.getByRole('region', { name: 'Miembros' }).getByRole('row').filter({ hasText: memberName })
+    await disabledRow.getByRole('button', { name: `Acciones de ${memberName}` }).click()
+    await page.getByRole('menuitem', { name: 'Ver perfil' }).click()
+    const restoredProfile = page.getByTestId('member-profile-dialog')
+    await restoredProfile.getByRole('tab', { name: 'Acceso' }).click()
+    await restoredProfile.getByRole('button', { name: 'Reactivar acceso en este grupo' }).click()
+    await expect(restoredProfile.getByText('Activo en este grupo')).toBeVisible()
+
+    await logout(page)
+    await loginAs(page, { email: memberEmail })
+    await expect(page.getByRole('link', { name: groupName })).toBeVisible()
+    await page.goto(groupUrl)
+    await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
   })
 })
