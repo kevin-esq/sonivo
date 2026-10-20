@@ -31,11 +31,10 @@ test.describe('Phase 4 product completion', () => {
 
     await page.getByTestId('rail-help').click()
     await expect(page).toHaveURL(/\/help$/)
-    await expect(page.getByRole('heading', { name: 'Ayuda clara, cuando la necesitas' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Ayuda del grupo' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Preguntas frecuentes' })).toBeVisible()
     await expect(page.getByTestId('nav-help')).toBeVisible()
-    await page.getByText('¿Qué es un grupo en Sonivo?').click()
-    await expect(page.getByText(/espacio privado para compartir el repertorio/)).toBeVisible()
+    await expect(page.getByText('Canciones, arreglos y letras', { exact: true })).toBeVisible()
 
     await page.goto(`/groups/${groupId}/reports`)
     await expect(page.getByRole('heading', { name: 'Informes del grupo' })).toBeVisible()

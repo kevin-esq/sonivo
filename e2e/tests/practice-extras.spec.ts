@@ -27,6 +27,7 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
       lyrics: `Letra afinador ${Date.now()}`,
     })
     await openPractice(page)
+    await page.getByTestId('practice-tab-afinar').click()
 
     const toggle = page.getByTestId('tuner-toggle')
     await expect(toggle).toBeVisible()
@@ -90,6 +91,7 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
       lyrics: `Letra denegada ${Date.now()}`,
     })
     await openPractice(page)
+    await page.getByTestId('practice-tab-afinar').click()
 
     await page.addInitScript(() => {
       const getUserMedia = async (): Promise<MediaStream> => {
@@ -148,9 +150,13 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
     // YouTube-sourced Practice with an explanation.
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
-    await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
-    await page.getByTestId('timing-line-0-ms').fill('500')
-    await page.getByTestId('timing-line-1-ms').fill('1500')
+    await page.locator('[data-testid="chordpro-digitizer"] > header').scrollIntoViewIfNeeded()
+    await page.getByTestId('digitizer-line-0').getByRole('button', { name: 'Añadir hora' }).click()
+    await page.getByLabel('Inicio del renglón 1').fill('0:00.5')
+    await page.getByRole('button', { name: 'Guardar hora' }).click()
+    await page.getByTestId('digitizer-line-1').getByRole('button', { name: 'Añadir hora' }).click()
+    await page.getByLabel('Inicio del renglón 2').fill('0:01.5')
+    await page.getByRole('button', { name: 'Guardar hora' }).click()
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible({
       timeout: 10_000,

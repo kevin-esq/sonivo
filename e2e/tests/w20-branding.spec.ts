@@ -126,16 +126,40 @@ test.describe('W20 group branding', () => {
     page.on('request', (request) => {
       if (request.method() === 'POST' && request.url().endsWith('/branding/banner')) bannerUploadCount += 1
     })
+    const oversizedPngBase64 = await page.evaluate(async () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 1280
+      canvas.height = 1024
+      const context = canvas.getContext('2d')!
+      const image = context.createImageData(canvas.width, canvas.height)
+      for (let offset = 0; offset < image.data.length; offset += 4) {
+        const value = Math.random() * 256
+        image.data[offset] = value
+        image.data[offset + 1] = Math.random() * 256
+        image.data[offset + 2] = Math.random() * 256
+        image.data[offset + 3] = 255
+      }
+      context.putImageData(image, 0, 0)
+      const blob = await new Promise<Blob>((resolve) => canvas.toBlob((value) => resolve(value!), 'image/png'))
+      return await new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result).split(',')[1]!)
+        reader.readAsDataURL(blob)
+      })
+    })
     await bannerInput.setInputFiles({
       name: 'too-large.png',
       mimeType: 'image/png',
-      buffer: Buffer.alloc(2 * 1024 * 1024 + 1),
+      buffer: Buffer.from(oversizedPngBase64, 'base64'),
     })
-    await expect(editor.getByRole('alert')).toContainText('2 MiB')
-    await expect(editor).not.toContainText('too-large.png')
+    await expect(editor.getByText('too-large.webp')).toBeVisible({ timeout: 15_000 })
     expect(bannerUploadCount).toBe(0)
 
-    await bannerInput.setInputFiles({ name: 'banner.png', mimeType: 'image/png', buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]) })
+    await bannerInput.setInputFiles({
+      name: 'banner.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pV8AAAAASUVORK5CYII=', 'base64'),
+    })
     await expect(editor.getByText('banner.png')).toBeVisible()
     await page.getByRole('button', { name: /Guardar identidad|Save identity/ }).click()
     await expect(page.getByText(/Identidad guardada|Identity saved/)).toBeVisible()

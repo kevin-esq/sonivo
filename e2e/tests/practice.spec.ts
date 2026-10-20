@@ -232,26 +232,31 @@ test.describe('Practice / karaoke thin', () => {
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
     await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
 
-    // Wait for ChordTimingEditor to be visible (chords must be populated)
-    await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
+    // Timing marks are edited inline in the ChordPro studio.
+    await expect(page.getByTestId('digitizer-studio')).toBeVisible({ timeout: 10_000 })
 
     // Verify chords field has content (3 lines)
     await expect(page.getByTestId('arrangement-chords')).toHaveValue(chordProBody)
 
     // Set timing marks for each line (in milliseconds) — within 3s audio duration
-    await page.getByTestId('timing-line-0-ms').fill(String(mark1Ms))
-    await page.getByTestId('timing-line-1-ms').fill(String(mark2Ms))
-    await page.getByTestId('timing-line-2-ms').fill(String(mark3Ms))
+    for (const [index, value] of [mark1Ms, mark2Ms, mark3Ms].entries()) {
+      const line = page.getByTestId(`digitizer-line-${index}`)
+      await line.getByRole('button', { name: 'Añadir hora' }).click()
+      const [whole, fraction] = String(value / 1000).split('.')
+      await page.getByLabel(`Inicio del renglón ${index + 1}`).fill(`0:${whole!.padStart(2, '0')}${fraction ? `.${fraction}` : ''}`)
+      await line.getByRole('button', { name: 'Guardar hora' }).click()
+    }
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible({ timeout: 10000 })
 
     // Re-open edit form to verify timing marks were saved
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
     await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
-    await expect(page.getByTestId('chord-timing-editor')).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByTestId('timing-line-0-ms')).toHaveValue(String(mark1Ms))
-    await expect(page.getByTestId('timing-line-1-ms')).toHaveValue(String(mark2Ms))
-    await expect(page.getByTestId('timing-line-2-ms')).toHaveValue(String(mark3Ms))
+    await expect(page.getByTestId('digitizer-studio')).toBeVisible({ timeout: 10_000 })
+    for (const [index, value] of [mark1Ms, mark2Ms, mark3Ms].entries()) {
+      const [whole, fraction] = String(value / 1000).split('.')
+      await expect(page.getByTestId(`digitizer-line-${index}`)).toContainText(`0:${whole!.padStart(2, '0')}${fraction ? `.${fraction}` : ''}`)
+    }
 
     // Close edit form and open Practice page
     await page.getByRole('button', { name: 'Cancelar' }).click()

@@ -65,11 +65,11 @@ test.describe('Home dashboard (ADR-0053)', () => {
     // Membership remains an account route; notification access uses the existing account inbox.
     // Membership is no longer group-owned: it lives in account settings, so the
     // old billing placeholder is now the real /account/membership route.
-    await expect(page.getByTestId('nav-notifications')).toHaveAttribute('href', '/account/notifications')
+    await expect(page.getByTestId('nav-notifications')).toHaveAttribute('href', '/app/account/notifications')
     await expect(page.getByTestId('nav-membership')).toBeVisible()
 
     await page.getByTestId('nav-notifications').click()
-    await expect(page).toHaveURL(/\/account\/notifications$/)
+    await expect(page).toHaveURL(/\/app\/account\/notifications$/)
     await expect(page.getByRole('heading', { name: 'Notificaciones de la cuenta' })).toBeVisible()
 
     await page.getByTestId('nav-join').click()

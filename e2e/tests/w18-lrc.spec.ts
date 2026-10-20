@@ -30,7 +30,8 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     await createArrangement(page, 'Acoustic')
 
     // The panel only renders when the server flag is on.
-    await expect(page.getByRole('heading', { name: 'Importar .lrc' })).toBeVisible()
+    await page.getByText('Importar .lrc', { exact: true }).click()
+    await expect(page.getByTestId('lrc-file-dropzone')).toBeVisible()
 
     // A realistic file: metadata tags, chords inside a line and a repeated mark.
     const lrcDropzone = page.getByTestId('lrc-file-dropzone')

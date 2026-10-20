@@ -39,6 +39,7 @@ test.describe('ChordPro formats (Wave 1)', () => {
     })
     await expect(importDropzone).toContainText('chords.txt')
     await expect(page.getByTestId('arrangement-chords')).toHaveValue(chordProBody)
+    await page.locator('[data-testid="chordpro-compose"] summary').click()
     await expect(page.getByTestId('chords-preview')).toBeVisible()
     await expect(page.getByTestId('chords-preview')).toContainText(chordToken)
     await expect(page.getByTestId('chords-preview')).toContainText(lyricWord)
@@ -150,6 +151,7 @@ test.describe('ChordPro compose assist (ADR-0030 P2)', () => {
 
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
     await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await page.locator('[data-testid="chordpro-compose"] summary').click()
     await expect(page.getByTestId('chordpro-compose')).toBeVisible()
     await page.getByTestId('compose-genre').fill('pop')
     await page.getByTestId('compose-key').fill('G')

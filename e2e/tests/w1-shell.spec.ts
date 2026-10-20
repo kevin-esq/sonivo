@@ -26,12 +26,12 @@ test.describe('W1 shell: group vs account', () => {
       await expect(cuentaNav.getByRole('link', { name: tab })).toBeVisible()
     }
     // Both App-shell entry points open the existing account notification inbox.
-    await expect(cuentaNav.getByTestId('nav-notifications')).toHaveAttribute('href', '/account/notifications')
-    await expect(page.getByTestId('app-notifications')).toHaveAttribute('href', '/account/notifications')
+    await expect(cuentaNav.getByTestId('nav-notifications')).toHaveAttribute('href', '/app/account/notifications')
+    await expect(page.getByTestId('app-notifications')).toHaveAttribute('href', '/app/account/notifications')
     await expect(page.getByTestId('nav-membership')).toBeVisible()
 
     await page.getByTestId('app-notifications').click()
-    await expect(page).toHaveURL(/\/account\/notifications$/)
+    await expect(page).toHaveURL(/\/app\/account\/notifications$/)
     await expect(page.getByRole('heading', { name: 'Notificaciones de la cuenta' })).toBeVisible()
   })
 
