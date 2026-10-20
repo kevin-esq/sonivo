@@ -153,10 +153,16 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
         })
         .toBe('0:02')
 
-      const memberTime = memberPage.getByTestId('practice-current-time')
+      const memberSeek = memberPage.getByTestId('practice-seek')
       await expect
-        .poll(async () => memberTime.innerText(), { timeout: 15_000 })
-        .toBe('0:02')
+        .poll(
+          async () => {
+            const followerSeconds = Number(await memberSeek.inputValue())
+            return Math.abs(followerSeconds - 2) <= 1
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true)
 
       // Follower ChordPro highlight tracks the broadcast (mark at 1500ms).
       const memberChordPro = memberPage.getByTestId('practice-chordpro')

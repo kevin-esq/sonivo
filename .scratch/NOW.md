@@ -10,12 +10,12 @@
 - **Human approval:** APPROVED for the user's explicit request to ship this batch to `develop`
 - **Git checkpoint:** COMMITTED (`ded76d5`)
 - **Remote:** PUSHED (`ded76d5` is on the PR #283 branch)
-- **CI:** PENDING for `ded76d5`; the previous full E2E run had 8 failures and 97 passes.
+- **CI:** Backend, frontend, Analyze, CodeQL, and SCA passed on `844c233`. Playwright completed with 104 passed, 2 skipped, and 1 flaky retry in the conductor playhead display check. That assertion is being made tolerant of whole-second display rounding and requires a new full run before merge.
 
 ## Release organization
 
 - PR #281 (`chore/repo-hygiene`) was squash-merged into `develop` as `9680543` on 2026-10-20. Frontend, backend, CodeQL, SCA, and Playwright E2E passed.
-- PR #282 (`feat/platform`) was squash-merged into `develop` as `9c9eed8` on 2026-10-20. Backend build/tests, Analyze, frontend, CodeQL, and SCA passed; E2E failed and was skipped only under the user's one-time authorization. PR #283's first Playwright run reported 20 failures; the next reported 8 failures and 97 passes while its other five CI checks passed. This correction pass updates stale UI expectations, fixes current-time entry in the Practice journey, corrects the mobile banner landmark, and uses the current branding save bar. Do not merge until the full rerun is green.
+- PR #282 (`feat/platform`) was squash-merged into `develop` as `9c9eed8` on 2026-10-20. Backend build/tests, Analyze, frontend, CodeQL, and SCA passed; E2E failed and was skipped only under the user's one-time authorization. PR #283's first Playwright run reported 20 failures; the next reported 8 failures and 97 passes. The latest run reported 104 passed, 2 skipped, and 1 flaky retry, with its other five required checks passing. The follow-up also updates stale UI expectations, fixes current-time entry in the Practice journey, corrects the mobile banner landmark, and uses the current branding save bar. Do not merge until a clean full E2E run is green.
 - The route commit was rebased onto current `develop`; route catalog, host boundaries, redirects, and canonical specs are included together.
 - Keep generated local state and the user-provided Xcode archive out of Git. The source `.gitignore` now excludes the Playwright profile, nested visual-audit output, and Xcode archive; tracked Turbo cache removal was merged by PR #281.
 - Update the README only alongside the security/runtime changes it documents. Keep this file as a concise operational checkpoint; durable behavior and decisions belong in `docs/`.
@@ -44,4 +44,4 @@
 
 ## Validation evidence
 
-Validation for PR #282: .NET Release suite passed 835/835; web production build and standalone TypeScript check passed; Android `assembleDebug` passed with JDK 21 and the installed Android SDK; local runtime principal verification passed. Its CI backend, Analyze, frontend, CodeQL, and SCA jobs passed. E2E failed; the user authorized skipping it for the core merge and requested one follow-up PR. PR #283 has two full E2E runs so far, with 20 then 8 failures; its other five CI checks passed on the latest run. Commit `ded76d5` corrects those failures and is awaiting its full CI run. Mobile device QA and production checks remain open.
+Validation for PR #282: .NET Release suite passed 835/835; web production build and standalone TypeScript check passed; Android `assembleDebug` passed with JDK 21 and the installed Android SDK; local runtime principal verification passed. Its CI backend, Analyze, frontend, CodeQL, and SCA jobs passed. E2E failed; the user authorized skipping it for the core merge and requested one follow-up PR. PR #283's initial runs had 20 then 8 failures. Run `39471307346` passed backend, frontend, Analyze, CodeQL, and SCA; Playwright had 104 passed, 2 skipped, and 1 flaky conductor assertion that passed on retry. A correction now checks the follower's numeric position with the existing one-second sync tolerance instead of comparing a rounded display string. Run the full suite again before merging. Mobile device QA and production checks remain open.
