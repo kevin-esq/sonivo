@@ -11,6 +11,21 @@
 .scratch/tmp/*
 !.scratch/tmp/.gitkeep
 .scratch/HANDOFF.md
+.scratch/rls-build/
+.scratch/rls-validation/
+.scratch/backend.log
+.scratch/backend.pid
+.scratch/*-pid.txt
+.scratch/dbtest.py
+src/**/.scratch/rls-validation/
+tests/**/.scratch/rls-validation/
+.scratch/*.mjs
+.scratch/shots/
+.scratch/clyc-recon/
+.scratch/clyc-recon/*.js
+.scratch/clyc-recon/*.css
+.scratch/clyc-recon/*.json
+.scratch/clyc-recon/*.webmanifest
 
 # Local editor / vault state (never committed)
 .obsidian/
@@ -30,6 +45,12 @@
 **/node_modules/
 **/dist/
 *.tsbuildinfo
+web/apps/app/.next-e2e/
+web/output/playwright/
+output/playwright/
+.turbo/
+mobile/android/.gradle/
+mobile/android/**/build/
 
 # Playwright
 **/test-results/
@@ -53,3 +74,7 @@ e2e/visual-audit/audit-output/
 
 # Throwaway Playwright profile from .scratch spikes (may hold cookies)
 .scratch/spikes/.pwprofile/
+
+# Local Playwright CLI profile and user-supplied SDK archive
+.playwright-cli/
+/Xcode_27.2_Release_Candidate.xip
