@@ -238,10 +238,11 @@ test.describe('Practice / karaoke thin', () => {
     // Verify chords field has content (3 lines)
     await expect(page.getByTestId('arrangement-chords')).toHaveValue(chordProBody)
 
-    // Set timing marks for each line (in milliseconds) — within 3s audio duration
+    // Set timing marks from the current playhead, then enter exact fixture times.
     for (const [index, value] of [mark1Ms, mark2Ms, mark3Ms].entries()) {
       const line = page.getByTestId(`digitizer-line-${index}`)
-      await line.getByRole('button', { name: 'Añadir hora' }).click()
+      await line.getByRole('button', { name: 'Marcar tiempo' }).click()
+      await line.getByRole('button', { name: 'Editar hora' }).click()
       const [whole, fraction] = String(value / 1000).split('.')
       await page.getByLabel(`Inicio del renglón ${index + 1}`).fill(`0:${whole!.padStart(2, '0')}${fraction ? `.${fraction}` : ''}`)
       await line.getByRole('button', { name: 'Guardar hora' }).click()

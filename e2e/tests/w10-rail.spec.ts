@@ -111,7 +111,7 @@ test.describe('W10 rail: scroll, collapse, now playing', () => {
     const player = page.getByTestId('global-player')
     await expect(player).toBeVisible()
     await expect(player).toContainText(trackLabel)
-    await expect(player.getByRole('slider')).toBeVisible()
+    await expect(player.getByRole('slider', { name: 'Progreso de reproducción de audio' })).toBeVisible()
   })
 
   test('mobile keeps the bottom tab bar and hides the rail', async ({ page }) => {

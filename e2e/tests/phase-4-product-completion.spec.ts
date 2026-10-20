@@ -33,7 +33,7 @@ test.describe('Phase 4 product completion', () => {
     await expect(page).toHaveURL(/\/help$/)
     await expect(page.getByRole('heading', { name: 'Ayuda del grupo' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Preguntas frecuentes' })).toBeVisible()
-    await expect(page.getByTestId('nav-help')).toBeVisible()
+    await expect(page.getByTestId('rail-help')).toBeVisible()
     await expect(page.getByText('Canciones, arreglos y letras', { exact: true })).toBeVisible()
 
     await page.goto(`/groups/${groupId}/reports`)

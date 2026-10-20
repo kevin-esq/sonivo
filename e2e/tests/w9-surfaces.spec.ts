@@ -159,7 +159,10 @@ test.describe('W9 outside surfaces', () => {
     await editor.getByRole('button', { name: 'Esmeralda', exact: true }).first().click()
     await noCover.click()
     await expect(noCover).toHaveAttribute('aria-pressed', 'true')
-    await editor.getByRole('button', { name: /Guardar identidad|Save identity/ }).click()
+    await page
+      .getByTestId('brand-unsaved-bar')
+      .getByRole('button', { name: /Guardar identidad|Save identity/ })
+      .click()
     await expect(page.getByText(/Identidad guardada|Identity saved/)).toBeVisible()
 
     await page.reload()

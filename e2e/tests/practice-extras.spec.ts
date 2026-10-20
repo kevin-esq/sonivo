@@ -61,7 +61,7 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
       }
     })
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'Letra' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Afinar' })).toBeVisible()
 
     await page.getByTestId('tuner-toggle').click()
     await expect(page.getByTestId('tuner-toggle')).toHaveText('Cerrar')
@@ -110,7 +110,7 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
       }
     })
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'Letra' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Afinar' })).toBeVisible()
 
     await page.getByTestId('tuner-toggle').click()
     await expect(page.getByTestId('tuner-error')).toContainText('micrófono')
