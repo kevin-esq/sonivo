@@ -447,6 +447,15 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// The published frontend assets are public. Serve them before the global
+// authorization middleware, which otherwise challenges requests without an
+// endpoint (including CSS, JavaScript, and image files).
+if (!app.Environment.IsDevelopment())
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
+
 // Run rate limiting before authentication request handlers so OpenIddict's
 // protocol endpoints receive their mapped endpoint policy before interception.
 app.UseRateLimiter();
@@ -567,12 +576,6 @@ app.Use(async (context, next) =>
 
     await next();
 });
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseDefaultFiles();
-    app.UseStaticFiles();
-}
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health")
