@@ -5,6 +5,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Sonivo',
   description: 'Group music management.',
+  robots: { index: false, follow: false },
   icons: { icon: '/favicon.svg' },
 }
 
