@@ -1,6 +1,6 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { GroupsPage } from '@/src/groups/GroupsPage'
 import type { GroupsPageLocation, GroupsPageNavigate } from '@/src/groups/GroupsPage'
 import { groupsPageActions } from '@/src/groups/groupPageActions'
@@ -10,6 +10,7 @@ import { useT } from '@/src/i18n'
 
 export function ProductGroupsContent() {
   const { session } = useAppRuntime()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const { t } = useT()
   if (session.status !== 'authenticated') return <SessionScreen message={t('state.checkingSession')} />
@@ -19,7 +20,13 @@ export function ProductGroupsContent() {
     hash: '',
     state: null,
   }
-  const navigate: GroupsPageNavigate = (to) => window.location.assign(to)
+  const navigate: GroupsPageNavigate = (to, options) => {
+    if (options?.replace) {
+      router.replace(to)
+      return
+    }
+    router.push(to)
+  }
   return (
     <GroupsPage
       user={session.user}

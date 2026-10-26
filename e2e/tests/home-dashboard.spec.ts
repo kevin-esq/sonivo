@@ -56,6 +56,11 @@ test.describe('Home dashboard (ADR-0053)', () => {
     await page.getByTestId('home-view-all').click()
     await expect(page).toHaveURL(/\/groups$/)
     await expect(page.getByRole('heading', { name: 'Mis grupos' })).toBeVisible()
+
+    await page.goto('/home')
+    await page.getByTestId('home-group-card').filter({ hasText: groupName }).click()
+    await expect(page).toHaveURL(/\/app\/groups\/[0-9a-f-]+$/i)
+    await expect(page.getByRole('main').getByRole('heading', { name: groupName })).toBeVisible()
   })
 
   test('sidebar exposes notifications and the join route', async ({ page }) => {
