@@ -222,7 +222,10 @@ cd deploy && docker compose --env-file .env up -d --build
    (the last one enables the apex -> app handoff redirect).
 3. Build **without** `NEXT_EXPORT=1` so Next runs as a server (BFF): its
    `beforeFiles` rewrites proxy `/api/:path*` and `/hubs/:path*` to
-   `API_ORIGIN`. Render staging now has a separate `sonivo-web` service whose
+   `API_ORIGIN`. The App Router serves public marketing at `/`, identity under
+   `/auth/*`, and product pages under `/app/*`. Its robots policy allows the
+   marketing root while excluding private identity and product paths. Render
+   staging now has a separate `sonivo-web` service whose
    API origin is the existing staging API. Assign `staging.sonivo.lat` to that
    service only after verifying the host-only cookie, CSRF, API proxy, realtime,
    auth, redirects, and response headers. Until then the current staging host

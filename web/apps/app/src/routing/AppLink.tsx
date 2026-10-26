@@ -13,6 +13,7 @@ export function AppNavigationProvider({ mode, children }: { mode: NavigationMode
 }
 
 const NEXT_OWNED_PATHS = new Set([
+  '/',
   '/app/home',
   '/app/groups',
   '/app/groups/',
