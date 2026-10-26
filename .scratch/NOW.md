@@ -6,9 +6,9 @@
 **Scope:** User-authorized frontend architecture cleanup aligned with accepted ADR-0089/0092 and WBR-03. No accepted ADR was changed or superseded.
 - **Implementation:** WBR-03 implementation COMPLETE; WBR-05/06 deployment integration remains IN PROGRESS. The root App Router layout owns cookie-backed session, theme, language, audio, rail-presence, and toast providers. Identity routes use `/auth/*`; product routes and Group sections use `/app/*`. The React Router bridge remains for `NEXT_EXPORT=1` static-host parity. PR #300 passes the static-export flag from the server page so .NET fallback deep links render the app instead of marketing. Existing staging host/auth and WBR-04–06 integration gates remain open; no DNS, hosting, or OAuth configuration changed.
 - **Human approval:** APPROVED for the frontend fixes and explicit request to commit, push, open a PR, and merge after validation.
-- **Git checkpoint:** PR #300 merged into `develop` as `050ff38`. Follow-up `fix/static-export-smoke-isolation` branch contains an E2E config correction; commit/PR pending.
-- **Remote:** `origin/develop` is at `050ff38`; follow-up fix not pushed.
-- **CI:** Post-merge run `40382761890` failed because the static-host-only Playwright smoke was included in the normal full-stack suite. Its intended standalone static-host CI step passed. Follow-up will exclude that spec only when `SONIVO_E2E_STATIC_EXPORT` is not enabled.
+- **Git checkpoint:** PR #300 merged into `develop` as `050ff38`; follow-up fix committed as `e8602cb` and opened in PR #301.
+- **Remote:** `origin/develop` is at `050ff38`; `fix/static-export-smoke-isolation` is pushed and PR #301 is open.
+- **CI:** Post-merge run `40382761890` failed because the static-host-only Playwright smoke was included in the normal full-stack suite. Its intended standalone static-host CI step passed. PR #301 CI is pending.
 - **Validation:** The merged static-export smoke passed locally for `/app/home` and `/app/groups/11111111-1111-1111-1111-111111111111`; the live staging browser showed the private Group app content. The follow-up spec-discovery check lists 107 tests in normal mode and 108 in static-export mode; the static smoke passed locally (1/1). Next.js static export, request-aware build, and TypeScript checks passed for PR #300. No dependency or tooling was added.
 **Updated:** 2026-10-20
 **Active work:** close the authorized release batch. PRs #281–#283 are squash-merged to `develop`; production promotion remains gated by the checks below.
