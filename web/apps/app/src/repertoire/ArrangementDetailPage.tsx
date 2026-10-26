@@ -1,7 +1,6 @@
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   createFileResource,
   createLinkResource,
@@ -58,10 +57,11 @@ import {
 } from './ui'
 import { useT } from '../i18n'
 import { plural } from '../ui/plural'
+import { AppLink } from '../routing/AppLink'
+import { useGroupShell } from '../shell/GroupShellContext'
 
-export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
-  const { groupId, arrangementId } = useParams()
-  const navigate = useNavigate()
+export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: CurrentUser; groupId: string; arrangementId: string }) {
+  const { navigate } = useGroupShell()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
   const [songTitle, setSongTitle] = useState<string | null>(null)
@@ -172,9 +172,9 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
+        <AppLink className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           {t('arrangement.myGroups')}
-        </Link>
+        </AppLink>
       </div>
     )
   }
@@ -187,12 +187,12 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={error ?? t('arrangement.notFound')} />
-        <Link
+        <AppLink
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={routes.groupLibrary(group.id)}
         >
           {t('arrangement.library')}
-        </Link>
+        </AppLink>
       </div>
     )
   }
@@ -224,9 +224,9 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
           <p className="text-sm text-[var(--color-score-muted)]">
             {t('arrangement.ofPrefix')}
             {songTitle ? (
-              <Link className="font-medium text-primary-ink no-underline hover:underline" to={songHref}>
+              <AppLink className="font-medium text-primary-ink no-underline hover:underline" to={songHref}>
                 {songTitle}
-              </Link>
+              </AppLink>
             ) : (
               t('arrangement.thisSong')
             )}
@@ -246,12 +246,12 @@ export function ArrangementDetailPage({ user }: { user: CurrentUser }) {
             </ReadinessChip>
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Link
+            <AppLink
               className={buttonVariants({ variant: 'primary' })}
               to={routes.groupPractice(group.id, arrangement.id)}
             >
               {t('arrangement.practice')}
-            </Link>
+            </AppLink>
             {isOwner && !editing ? (
               <Button variant="secondary" onClick={() => setEditing(true)}>
                 {t('arrangement.editMusic')}

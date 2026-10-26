@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
 import { BarChart3, CalendarDays, Music2 } from 'lucide-react'
 import {
   getGroupEventResponseReport,
@@ -15,6 +14,7 @@ import {
 import { ApiError } from '../api/http'
 import { useT, type I18nKey } from '../i18n'
 import { GroupButton, GroupErrorState, GroupPageHeader } from './ui'
+import { useGroupShell } from '../shell/GroupShellContext'
 
 const cardClass = 'rounded-2xl border border-border-subtle bg-surface p-5'
 const purposeLabelKeys: Record<string, I18nKey> = {
@@ -38,7 +38,7 @@ function Metric({ label, value }: { label: string; value: number }) {
 }
 
 export function GroupReportsPage() {
-  const { groupId } = useParams()
+  const { groupId } = useGroupShell()
   const { t, lang } = useT()
   const [repertoire, setRepertoire] = useState<GroupRepertoireReport | null>(null)
   const [responses, setResponses] = useState<GroupEventResponseReport | null>(null)

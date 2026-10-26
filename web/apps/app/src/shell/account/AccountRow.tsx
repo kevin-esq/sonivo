@@ -1,6 +1,6 @@
-import { Link } from "react-router-dom";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { cn } from "../../ui/cn";
+import { AppLink } from '../../routing/AppLink'
 
 export type AccountRowProps = {
   icon: LucideIcon;
@@ -64,7 +64,7 @@ export function AccountRow(props: AccountRowProps) {
 
   if (to) {
     return (
-      <Link
+      <AppLink
         to={to}
         className={cn(
           base,
@@ -72,7 +72,7 @@ export function AccountRow(props: AccountRowProps) {
         )}
       >
         <RowContent icon={icon} title={title} subtitle={subtitle} showChevron />
-      </Link>
+      </AppLink>
     );
   }
 

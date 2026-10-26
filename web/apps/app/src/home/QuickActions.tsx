@@ -1,5 +1,6 @@
+'use client'
+
 import { routes } from '../routing/routes'
-import { useNavigate } from "react-router-dom";
 import { ChevronRight, Plus, UserPlus, type LucideIcon } from "lucide-react";
 import { useT, type I18nKey } from "../i18n";
 import { cn } from "../ui/cn";
@@ -14,9 +15,8 @@ type QuickAction = {
 };
 
 /** The action cards under the greeting (ADR-0053 addendum: create + join only). */
-export function QuickActions() {
+export function QuickActions({ navigate }: { navigate: (to: string) => void }) {
   const { t } = useT();
-  const navigate = useNavigate();
 
   const actions: QuickAction[] = [
     {
@@ -25,7 +25,7 @@ export function QuickActions() {
       titleKey: "home.quickCreate",
       hintKey: "home.quickCreateHint",
       tint: "bg-emerald-500/15 text-emerald-600",
-      onClick: () => navigate(routes.groups, { state: { create: true } }),
+      onClick: () => navigate(`${routes.groups}?create=1`),
     },
     {
       id: "join",

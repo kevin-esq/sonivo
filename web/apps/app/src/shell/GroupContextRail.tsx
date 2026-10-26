@@ -1,6 +1,6 @@
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { AppLink } from '../routing/AppLink'
 import { CalendarDays, CheckSquare, ListMusic, Music2 } from 'lucide-react'
 import {
   listEvents,
@@ -80,7 +80,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
             const hasEvent = eventDays.has(dayKey(day))
             return (
               <li key={dayKey(day)}>
-                <Link
+                <AppLink
                   to={routes.groupCalendar(groupId)}
                   aria-current={active ? 'date' : undefined}
                   className={cn(
@@ -101,7 +101,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
                     )}
                     aria-hidden="true"
                   />
-                </Link>
+                </AppLink>
               </li>
             )
           })}
@@ -117,7 +117,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
           <ul className="space-y-2">
             {todayEvents.map((event) => (
               <li key={event.id}>
-                <Link
+                <AppLink
                   to={routes.groupEvent(groupId, event.id)}
                   className="flex items-center gap-3 rounded-xl px-1 py-1.5 no-underline transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
@@ -126,7 +126,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
                     <span className="block truncate text-sm font-medium text-ink">{event.title}</span>
                     <span className="block truncate text-xs text-muted">{timeLabel(event.startsAt, lang)}</span>
                   </span>
-                </Link>
+                </AppLink>
               </li>
             ))}
           </ul>
@@ -147,7 +147,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
           <ul className="space-y-2">
             {topSetlists.map((setlist) => (
               <li key={setlist.id}>
-                <Link
+                <AppLink
                   to={routes.groupSetlist(groupId, setlist.id)}
                   className="flex items-center gap-3 rounded-xl px-1 py-1.5 no-underline transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
@@ -158,7 +158,7 @@ export function GroupContextRail({ groupId }: { groupId: string }) {
                       {plural(setlist.itemCount, t('rail.songOne'), t('rail.songMany'))}
                     </span>
                   </span>
-                </Link>
+                </AppLink>
               </li>
             ))}
           </ul>

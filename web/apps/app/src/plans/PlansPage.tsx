@@ -1,6 +1,7 @@
+'use client'
+
 import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Info, Users } from 'lucide-react'
 import { ApiError } from '../api/http'
 import { getPaymentProviderStatus, startGroupCheckout, updateGroupPlan, type PaymentProviderStatus } from '../api/billing'
@@ -14,12 +15,13 @@ import {
 } from '../api/client'
 import { useT } from '../i18n'
 import { cn } from '../ui/cn'
+import { AppLink } from '../routing/AppLink'
 
 /**
  * Plan overview: plan pricing/trials are still provisional, so this page shows
  * current group usage without presenting placeholder commercial offers.
  */
-export function PlansPage() {
+export function PlansPage({ navigationMode = 'legacy' }: { navigationMode?: 'legacy' | 'next' } = {}) {
   const { t, lang } = useT()
   const [groups, setGroups] = useState<GroupSummary[] | null>(null)
   const [usage, setUsage] = useState<Record<string, GroupUsage>>({})
@@ -155,12 +157,13 @@ export function PlansPage() {
               return (
                 <li key={group.id} className="rounded-2xl border border-border-subtle bg-surface p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Link
+                    <AppLink
+                      mode={navigationMode}
                       to={routes.group(group.id)}
                       className="truncate font-semibold text-ink no-underline hover:underline"
                     >
                       {group.name}
-                    </Link>
+                    </AppLink>
                     {groupUsage ? (
                       <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold capitalize text-primary-ink">
                         {t('plans.planLabel')}: {planName(groupUsage.planId, t)}
@@ -212,10 +215,11 @@ export function PlansPage() {
                         ) : isOwner ? <p className="text-sm text-muted">{t('plans.controlsUnavailable')}</p> : null}
                         <p className="text-xs text-muted">{t(isOwner ? 'plans.ownerControlsHint' : 'plans.readOnlyHint')}</p>
                         {isOwner ? (
-                          <Link
+                          <AppLink
+                            mode={navigationMode}
                             to={`${routes.group(group.id)}/settings?tab=plan`}
                             className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
-                          >{t('plans.groupSettings')}</Link>
+                          >{t('plans.groupSettings')}</AppLink>
                         ) : null}
                       </div>
                     </>

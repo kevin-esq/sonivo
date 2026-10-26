@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Link, NavLink, useLocation, useParams } from 'react-router-dom'
+import { AppLink, AppNavLink, AppNavigationProvider, type NavigationMode } from '../routing/AppLink'
+import { GroupShellProvider } from './GroupShellContext'
 import { ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
 import {
   ApiError,
@@ -65,16 +66,24 @@ function railLinkClass(isActive: boolean, collapsed: boolean): string {
 export function GroupWorkspace({
   user,
   onLogout,
+  groupId,
+  pathname,
+  search = '',
+  navigate,
+  navigationMode = 'legacy',
   children,
 }: {
   user: CurrentUser
   onLogout: () => void
+  groupId: string
+  pathname: string
+  search?: string
+  navigate: (to: string, options?: { replace?: boolean }) => void
+  navigationMode?: NavigationMode
   children: React.ReactNode
 }) {
-  const { groupId } = useParams()
-  const location = useLocation()
   // The context rail (Semana / Hoy / Listas / Tu progreso) is home-only chrome.
-  const onGroupHome = groupId !== undefined && (location.pathname === routes.group(groupId) || location.pathname === `${routes.group(groupId)}/`)
+  const onGroupHome = pathname === routes.group(groupId) || pathname === `${routes.group(groupId)}/`
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [rail, setRail] = useState<RailState>(() => readRailState())
@@ -305,6 +314,8 @@ export function GroupWorkspace({
   } as CSSProperties
 
   return (
+    <AppNavigationProvider mode={navigationMode}>
+    <GroupShellProvider value={{ groupId, pathname, search, user, navigate, navigationMode }}>
     <BrandPreviewContext.Provider
       value={{
         draft: brandPreview,
@@ -349,7 +360,7 @@ export function GroupWorkspace({
           )}
         >
           {collapsed ? (
-            <Link
+            <AppLink
               to={group ? routes.group(group.id) : routes.marketing}
               aria-label={group ? group.name : 'Sonivo'}
               className="grid min-h-11 min-w-11 place-items-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
@@ -367,9 +378,9 @@ export function GroupWorkspace({
               ) : (
                 <SonivoMark className="h-7 w-7 text-shell-link" />
               )}
-            </Link>
+            </AppLink>
           ) : group ? (
-            <Link
+            <AppLink
               to={routes.group(group.id)}
               data-testid="rail-brand"
               className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
@@ -399,7 +410,7 @@ export function GroupWorkspace({
                   <span className="block truncate text-xs text-shell-foreground/60">{groupRole}</span>
                 )}
               </span>
-            </Link>
+            </AppLink>
           ) : (
             <BrandLockup to={routes.home} shell />
           )}
@@ -435,7 +446,7 @@ export function GroupWorkspace({
                   const Icon = item.icon
                   const label = t(item.labelKey)
                   return (
-                    <NavLink
+                    <AppNavLink
                       key={item.id}
                       to={item.href(group.id)}
                       end={item.end}
@@ -445,7 +456,7 @@ export function GroupWorkspace({
                     >
                       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                       <span className={cn(collapsed && 'sr-only')}>{label}</span>
-                    </NavLink>
+                    </AppNavLink>
                   )
                 })}
               </div>
@@ -476,7 +487,7 @@ export function GroupWorkspace({
         >
           {group ? (
             <>
-              <NavLink
+              <AppNavLink
                 to={routes.groupHelp(group.id)}
                 data-testid="rail-help"
                 aria-label={collapsed ? t('sidebar.help') : undefined}
@@ -485,8 +496,8 @@ export function GroupWorkspace({
               >
                 <CircleHelp className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className={cn(collapsed && 'sr-only')}>{t('sidebar.help')}</span>
-              </NavLink>
-              <NavLink
+              </AppNavLink>
+              <AppNavLink
                 to={routes.groupSettings(group.id)}
                 data-testid="rail-settings"
                 aria-label={collapsed ? t('group.settings') : undefined}
@@ -495,7 +506,7 @@ export function GroupWorkspace({
               >
                 <Settings2 className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className={cn(collapsed && 'sr-only')}>{t('group.settings')}</span>
-              </NavLink>
+              </AppNavLink>
             </>
           ) : null}
         </div>
@@ -533,6 +544,7 @@ export function GroupWorkspace({
             user={user}
             role={group.role}
             onLogout={onLogout}
+            navigate={navigate}
           />
         ) : null}
         <div className="flex items-center justify-between gap-2 px-4 py-3 md:hidden">
@@ -540,6 +552,7 @@ export function GroupWorkspace({
             <GroupSwitcher
               currentGroupId={group.id}
               currentGroupName={brandPreview?.groupId === group.id ? brandPreview.groupName : group.name}
+              navigate={navigate}
             />
           ) : <SonivoMark className="h-7 w-7 text-shell-link" />}
           <div className="flex items-center gap-1">
@@ -557,18 +570,18 @@ export function GroupWorkspace({
                 aria-label={t('workspace.account')}
                 className="absolute right-0 top-full z-50 mt-1 w-56 space-y-0.5 rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg"
               >
-                <Link to={routes.groups} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                <AppLink to={routes.groups} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
                   <Users className="h-4 w-4 text-primary-ink" aria-hidden="true" />
                   {t('workspace.myGroups')}
-                </Link>
-                <Link to={routes.account} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                </AppLink>
+                <AppLink to={routes.account} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
                   <UserRound className="h-4 w-4 text-primary-ink" aria-hidden="true" />
                   {t('workspace.account')}
-                </Link>
-                <Link to={routes.help} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+                </AppLink>
+                <AppLink to={routes.help} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
                   <CircleHelp className="h-4 w-4 text-primary-ink" aria-hidden="true" />
                   {t('sidebar.help')}
-                </Link>
+                </AppLink>
                 <button
                   type="button"
                   onClick={onLogout}
@@ -599,9 +612,9 @@ export function GroupWorkspace({
                     <p role="alert" className="text-error-ink">
                       {error}
                     </p>
-                    <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
+                    <AppLink className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
                       {t('workspace.myGroups')}
-                    </Link>
+                    </AppLink>
                   </div>
                 ) : (
                   children
@@ -675,7 +688,7 @@ export function GroupWorkspace({
               const Icon = item.icon
               return (
                 <li key={item.id}>
-                  <NavLink
+                  <AppNavLink
                     to={item.href(group.id)}
                     end={item.end}
                     className={({ isActive }) =>
@@ -687,7 +700,7 @@ export function GroupWorkspace({
                   >
                     <Icon className="h-5 w-5" aria-hidden="true" />
                     {t(item.labelKey)}
-                  </NavLink>
+                  </AppNavLink>
                 </li>
               )
             })}
@@ -704,7 +717,7 @@ export function GroupWorkspace({
                   {visibleMobileMoreItems.map((item) => {
                     const Icon = item.icon
                     return (
-                      <NavLink
+                      <AppNavLink
                         key={item.id}
                         to={item.href(group.id)}
                         end={item.end}
@@ -712,21 +725,21 @@ export function GroupWorkspace({
                       >
                         <Icon className="h-4 w-4 text-primary-ink" aria-hidden="true" />
                         {t(item.labelKey)}
-                      </NavLink>
+                      </AppNavLink>
                     )
                   })}
-                  <NavLink to={routes.groupHelp(group.id)}
+                  <AppNavLink to={routes.groupHelp(group.id)}
                     className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
                     <CircleHelp className="h-4 w-4 text-primary-ink" aria-hidden="true" />
                     {t('groupHelp.title')}
-                  </NavLink>
-                  <NavLink
+                  </AppNavLink>
+                  <AppNavLink
                     to={routes.groupSettings(group.id)}
                     className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
                   >
                     <Settings2 className="h-4 w-4 text-primary-ink" aria-hidden="true" />
                     {t('group.settings')}
-                  </NavLink>
+                  </AppNavLink>
                 </div>
               </details>
             </li>
@@ -735,5 +748,7 @@ export function GroupWorkspace({
       ) : null}
     </div>
     </BrandPreviewContext.Provider>
+    </GroupShellProvider>
+    </AppNavigationProvider>
   )
 }

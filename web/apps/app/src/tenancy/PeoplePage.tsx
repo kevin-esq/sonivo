@@ -1,6 +1,6 @@
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useGroupShell } from '../shell/GroupShellContext'
 import {
   Check,
   Crown,
@@ -206,8 +206,7 @@ function formatDateTime(value: string, lang: string): string {
 /* ------------------------------------------------------------------ */
 
 export function PeoplePage({ user }: { user: CurrentUser }) {
-  const { groupId } = useParams()
-  const navigate = useNavigate()
+  const { groupId, navigate } = useGroupShell()
   const { t, lang } = useT()
   const { showToast } = useToast()
   const { group, error: groupError } = useGroupContext(groupId, user.id)

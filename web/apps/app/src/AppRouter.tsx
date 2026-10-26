@@ -1,7 +1,6 @@
 import {
   Suspense,
   lazy,
-  useEffect,
 } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import {
@@ -11,28 +10,23 @@ import {
   Route,
   Routes,
   useLocation,
+  useNavigate,
   useParams,
 } from "react-router-dom";
 import { Compass, TriangleAlert, WifiOff, type LucideIcon } from "lucide-react";
-import {
-  createInvitation,
-  deleteGroup,
-  leaveGroup,
-  updateGroup,
-  type CurrentUser,
-} from "./api/client";
-import type { GroupsPageActions } from "./groups/GroupsPage";
-import { useAudioPlayer } from "./repertoire/AudioPlayerContext";
+import type { CurrentUser } from "./api/client";
+import { groupsPageActions } from './groups/groupPageActions'
+import { LegacyGroupsPageAdapter } from './groups/LegacyGroupsPageAdapter'
 import { BrandLockup } from "./brand/SonivoMark";
 import { GuestAuthRoute } from "./shell/AuthScreen";
 import { PublicChrome, SessionScreen } from "./shell/GroupsChrome";
 import { AppShell } from "./shell/AppShell";
 import { useAuth, type AuthContext } from "./shell/authContext";
 import { GroupWorkspace } from "./shell/GroupWorkspace";
+import { useGroupShellIsProvidedByNext } from './shell/GroupShellContext'
 import { GroupSlugResolver } from "./tenancy/GroupSlugResolver";
 import { BrandedLoginPage } from "./shell/BrandedLoginPage";
 import { MustChangePassword } from "./shell/MustChangePassword";
-import { PersistentGlobalPlayer } from "./shell/PersistentGlobalPlayer";
 import { Button, primaryButtonClass } from "./ui/button";
 import { cn } from "./ui/cn";
 import { ErrorBoundary } from "./ui/ErrorBoundary";
@@ -42,6 +36,7 @@ import { brandTokenStyle, readCachedBranding } from "./shell/serverBranding";
 import { readGroupAppearance } from "./shell/groupAccent";
 import { useT } from "./i18n";
 import { legacyGroupRouteRedirects, legacyRouteRedirects, routes } from "./routing/routes";
+import type { SessionState } from './appRuntime/session'
 
 // ---------- Lazy loading (less initial JS) ----------
 const named = <T extends Record<string, any>, K extends keyof T>(
@@ -50,14 +45,13 @@ const named = <T extends Record<string, any>, K extends keyof T>(
 ) => lazy(() => loader().then((m) => ({ default: m[key] })));
 
 const HomePage = named(() => import("./home/HomePage"), "HomePage");
-const GroupsPage = named(() => import("./groups/GroupsPage"), "GroupsPage");
 const MarketingPage = named(
   () => import("./marketing/MarketingPage"),
   "MarketingPage",
 );
 const JoinGroupPage = named(
-  () => import("./tenancy/JoinGroupPage"),
-  "JoinGroupPage",
+  () => import("./tenancy/LegacyJoinGroupPageAdapter"),
+  "LegacyJoinGroupPageAdapter",
 );
 const PlansPage = named(() => import("./plans/PlansPage"), "PlansPage");
 const HelpPage = named(() => import("./help/HelpPage"), "HelpPage");
@@ -66,8 +60,8 @@ const AccountNotificationsPage = named(
   "AccountNotificationsPage",
 );
 const CalendarPage = named(
-  () => import("./calendar/CalendarPage"),
-  "CalendarPage",
+  () => import("./calendar/LegacyCalendarPageAdapter"),
+  "LegacyCalendarPageAdapter",
 );
 const GroupHomePage = named(
   () => import("./groups/GroupHomePage"),
@@ -109,7 +103,7 @@ const PeoplePage = named(() => import("./tenancy/PeoplePage"), "PeoplePage");
 const JoinPage = named(() => import("./tenancy/JoinPage"), "JoinPage");
 const HandoffPage = named(() => import("./tenancy/HandoffPage"), "HandoffPage");
 const GroupSettingsPage = named(
-  () => import("./shell/GroupSettingsPage"),
+  () => import("./groups/settings/pages/GroupSettingsPage"),
   "GroupSettingsPage",
 );
 const GroupCalendarPage = named(
@@ -152,12 +146,20 @@ const SettingsMembershipPage = named(
   "SettingsMembershipPage",
 );
 
-// ---------- Session state ----------
-export type SessionState =
-  | { status: "loading" }
-  | { status: "error" }
-  | { status: "guest" }
-  | { status: "authenticated"; user: CurrentUser };
+function GroupHelpPage() {
+  const { groupId } = useParams()
+  return <HelpPage groupId={groupId} />
+}
+
+function BrandedLoginRoute({ user, onSuccess }: { user: CurrentUser | null | undefined; onSuccess: (user: CurrentUser) => void }) {
+  const { slug } = useParams()
+  return <BrandedLoginPage user={user} onSuccess={onSuccess} slug={slug} />
+}
+
+function SettingsProfileRoute() {
+  const { user, onUserChange } = useAuth()
+  return <SettingsProfilePage user={user} onUserChange={onUserChange} />
+}
 
 // ---------- Utilities ----------
 
@@ -434,8 +436,19 @@ function AppLayout() {
 function GroupLayout() {
   const ctx = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { groupId } = useParams();
+  const nextOwnsShell = useGroupShellIsProvidedByNext()
+  if (nextOwnsShell) return <Outlet context={ctx} />
   return (
-    <GroupWorkspace user={ctx.user} onLogout={ctx.onLogout}>
+    <GroupWorkspace
+      user={ctx.user}
+      onLogout={ctx.onLogout}
+      groupId={groupId ?? ''}
+      pathname={location.pathname}
+      search={location.search}
+      navigate={(to, options) => navigate(to, options)}
+    >
       <ErrorBoundary resetKey={location.pathname}>
         <Outlet context={ctx} />
       </ErrorBoundary>
@@ -449,51 +462,54 @@ const withUser = (Page: React.ComponentType<{ user: CurrentUser }>) =>
     return <Page user={useAuth().user} />;
   };
 
-/** Real GroupsPage actions; all reject when the backend fails. */
-const groupsPageActions: GroupsPageActions = {
-  onRename: async (group, name) => {
-    await updateGroup(group.id, { name, expectedVersion: group.version });
-  },
-  onDelete: async (group) => {
-    await deleteGroup(group.id, group.version);
-  },
-  onLeave: async (group) => {
-    await leaveGroup(group.id);
-  },
-  onCreateInvite: async (group) => {
-    const invitation = await createInvitation(group.id);
-    return `${window.location.origin}${routes.joinInvitation(invitation.token)}`;
-  },
-};
-
 /** GroupsPage with user and actions; the page refreshes its own list after each action. */
 function GroupsPageWithActions() {
-  return <GroupsPage user={useAuth().user} actions={groupsPageActions} />;
+  return <LegacyGroupsPageAdapter user={useAuth().user} actions={groupsPageActions} />;
 }
 
-const HomePageR = withUser(HomePage);
-const GroupHomePageR = withUser(GroupHomePage);
+function HomePageR() {
+  const user = useAuth().user
+  const navigate = useNavigate()
+  return <HomePage user={user} navigationMode="legacy" navigate={navigate} />
+}
+function GroupHomePageR() {
+  return <GroupHomePage />;
+}
 const LibraryPageR = withUser(LibraryPage);
 const SetlistListPageR = withUser(SetlistListPage);
-const SetlistDetailPageR = withUser(SetlistDetailPage);
-const EventListPageR = withUser(EventListPage);
-const EventDetailPageR = withUser(EventDetailPage);
-const PeoplePageR = withUser(PeoplePage);
-const SongDetailPageR = withUser(SongDetailPage);
-const ArrangementDetailPageR = withUser(ArrangementDetailPage);
-const PracticePageR = withUser(PracticePage);
-const GroupSettingsPageR = withUser(GroupSettingsPage);
-
-/** The player only exists with an active session. */
-export function AuthenticatedPlayer({ active }: { active: boolean }) {
-  const { closeTrack } = useAudioPlayer();
-  useEffect(() => {
-    if (!active) closeTrack(); // stops audio on logout
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]); // only on session change (closeTrack changes identity)
-  return active ? <PersistentGlobalPlayer /> : null;
+function SetlistDetailPageR() {
+  const params = useParams()
+  const { user } = useAuth()
+  if (!params.groupId || !params.setlistId) return null
+  return <SetlistDetailPage user={user} groupId={params.groupId} setlistId={params.setlistId} />
 }
-
+const EventListPageR = withUser(EventListPage);
+function EventDetailPageR() {
+  const params = useParams()
+  const { user } = useAuth()
+  if (!params.groupId || !params.eventId) return null
+  return <EventDetailPage user={user} groupId={params.groupId} eventId={params.eventId} />
+}
+const PeoplePageR = withUser(PeoplePage);
+function SongDetailPageR() {
+  const params = useParams()
+  const { user } = useAuth()
+  if (!params.groupId || !params.songId) return null
+  return <SongDetailPage user={user} groupId={params.groupId} songId={params.songId} />
+}
+function ArrangementDetailPageR() {
+  const params = useParams()
+  const { user } = useAuth()
+  if (!params.groupId || !params.arrangementId) return null
+  return <ArrangementDetailPage user={user} groupId={params.groupId} arrangementId={params.arrangementId} />
+}
+function LegacyGroupPracticePageR() {
+  const params = useParams()
+  const { user } = useAuth()
+  if (!params.groupId || !params.arrangementId) return null
+  return <PracticePage user={user} groupId={params.groupId} arrangementId={params.arrangementId} />
+}
+const GroupSettingsPageR = withUser(GroupSettingsPage)
 
 type AppRouterProps = {
   session: SessionState;
@@ -536,7 +552,7 @@ export function AppRouter({
             <Route path={routes.calendar} element={<CalendarPage />} />
             <Route path={routes.plans} element={<PlansPage />} />
             <Route path={routes.help} element={<HelpPage />} />
-            <Route path={routes.account} element={<SettingsProfilePage />} />
+            <Route path={routes.account} element={<SettingsProfileRoute />} />
             <Route
               path={routes.accountPreferences}
               element={<CuentaPreferencesPage />}
@@ -575,7 +591,7 @@ export function AppRouter({
             <Route path="roles" element={<GroupRolesPage />} />
             <Route path="resources" element={<GroupResourcesPage />} />
             <Route path="reports" element={<GroupReportsPage />} />
-            <Route path="help" element={<HelpPage />} />
+            <Route path="help" element={<GroupHelpPage />} />
             <Route path="songs/:songId" element={<SongDetailPageR />} />
             <Route
               path="arrangements/:arrangementId"
@@ -583,7 +599,7 @@ export function AppRouter({
             />
             <Route
               path="arrangements/:arrangementId/practice"
-              element={<PracticePageR />}
+              element={<LegacyGroupPracticePageR />}
             />
             <Route path="settings" element={<GroupSettingsPageR />} />
           </Route>
@@ -618,7 +634,7 @@ export function AppRouter({
         <Route
           path={routes.brandedLoginPattern}
           element={
-            <BrandedLoginPage user={guestUser} onSuccess={onAuthSuccess} />
+            <BrandedLoginRoute user={guestUser} onSuccess={onAuthSuccess} />
           }
         />
         <Route

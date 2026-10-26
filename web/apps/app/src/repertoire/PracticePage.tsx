@@ -1,6 +1,7 @@
 import { routes } from '../routing/routes'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { AppLink } from '../routing/AppLink'
+import { useGroupShell } from '../shell/GroupShellContext'
 import {
   getArrangement,
   getEvent,
@@ -124,9 +125,10 @@ function QueueSkeleton() {
   )
 }
 
-export function PracticePage({ user }: { user: CurrentUser }) {
-  const { groupId, arrangementId } = useParams()
-  const [searchParams, setSearchParams] = useSearchParams()
+export function PracticePage({ user, groupId, arrangementId, search: currentSearch = '' }: { user: CurrentUser; groupId?: string; arrangementId?: string; search?: string }) {
+  const { search, navigate } = useGroupShell()
+  const activeSearch = currentSearch || search
+  const searchParams = new URLSearchParams(activeSearch)
   const eventId = searchParams.get('eventId')
   const planItemId = searchParams.get('item')
   const tab = parsePracticeTab(searchParams.get('tab'))
@@ -303,9 +305,9 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
+        <AppLink className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           {t('practice.myGroups')}
-        </Link>
+        </AppLink>
       </div>
     )
   }
@@ -318,12 +320,12 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={error ?? t('practice.notFound')} />
-        <Link
+        <AppLink
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={routes.groupLibrary(group.id)}
         >
           {t('practice.library')}
-        </Link>
+        </AppLink>
       </div>
     )
   }
@@ -416,7 +418,8 @@ export function PracticePage({ user }: { user: CurrentUser }) {
     if (next === tab) return
     const nextParams = new URLSearchParams(searchParams)
     nextParams.set('tab', next)
-    setSearchParams(nextParams)
+    const query = nextParams.toString()
+    navigate(`${routes.groupPractice(groupId ?? '', arrangementId ?? '')}${query ? `?${query}` : ''}`)
   }
 
   async function reloadForDigitizer(): Promise<void> {
@@ -534,9 +537,9 @@ export function PracticePage({ user }: { user: CurrentUser }) {
               />
             ) : null}
             {isOwner && tab !== 'calentar' ? (
-              <Link className="inline-flex min-h-11 items-center rounded-lg border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-ink no-underline transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" to={arrangementHref}>
+              <AppLink className="inline-flex min-h-11 items-center rounded-lg border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-ink no-underline transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" to={arrangementHref}>
                 {t('practice.editLyrics')}
-              </Link>
+              </AppLink>
             ) : null}
           </div>
         </div>
@@ -562,12 +565,12 @@ export function PracticePage({ user }: { user: CurrentUser }) {
           title={t('practice.noPlanTitle')}
           description={t('practice.noPlanBody')}
           action={
-            <Link
+            <AppLink
               className="font-semibold text-primary-ink no-underline hover:underline"
               to={routes.groupEvent(liveGroup.id, eventId)}
             >
               {t('practice.backToEvent')}
-            </Link>
+            </AppLink>
           }
         />
       ) : null}
@@ -763,12 +766,12 @@ export function PracticePage({ user }: { user: CurrentUser }) {
                 title={t('practice.noLyricsTitle')}
                 description={t('practice.noLyricsBody')}
                 action={
-                  <Link
+                  <AppLink
                     className="font-semibold text-primary-ink no-underline hover:underline"
                     to={arrangementHref}
                   >
                     {t('practice.viewArrangement')}
-                  </Link>
+                  </AppLink>
                 }
               />
             )
@@ -870,13 +873,13 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             </h3>
             <p className="text-sm text-muted">{t('practice.avanzado.timingHint')}</p>
             <p>
-              <Link
+              <AppLink
                 className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 to={arrangementHref}
                 data-testid="practice-advanced-timing-link"
               >
                 {t('practice.avanzado.timingLink')}
-              </Link>
+              </AppLink>
             </p>
           </section>
 
@@ -892,13 +895,13 @@ export function PracticePage({ user }: { user: CurrentUser }) {
             </h3>
             <p className="text-sm text-muted">{t('practice.avanzado.digitizeHint')}</p>
             <p>
-              <Link
+              <AppLink
                 className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 to={arrangementHref}
                 data-testid="practice-advanced-digitize-link"
               >
                 {t('practice.avanzado.digitizeLink')}
-              </Link>
+              </AppLink>
             </p>
             {isOwner ? (
               digitizableResources.length > 0 ? (
@@ -955,19 +958,19 @@ export function PracticePage({ user }: { user: CurrentUser }) {
 
       <p>
         {eventId ? (
-          <Link
+          <AppLink
             className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             to={routes.groupEvent(group.id, eventId)}
           >
             {t('practice.backToEvent')}
-          </Link>
+          </AppLink>
         ) : (
-          <Link
+          <AppLink
             className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             to={arrangementHref}
           >
             {t('practice.backToArrangement')}
-          </Link>
+          </AppLink>
         )}
       </p>
 

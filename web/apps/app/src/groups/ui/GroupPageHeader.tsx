@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '../../ui/cn'
 import { GroupIconWell } from './GroupCard'
 import { useT } from '../../i18n'
 import { useBrandPreview } from '../../shell/brandPreview'
 import { routes } from '../../routing/routes'
+import { AppLink } from '../../routing/AppLink'
+import { useGroupShell } from '../../shell/GroupShellContext'
 
 export type GroupBreadcrumbItem = { to?: string; label: string }
 
@@ -18,7 +19,7 @@ export function GroupBreadcrumb({
   className?: string
 }) {
   const { t } = useT()
-  const { groupId } = useParams()
+  const { groupId } = useGroupShell()
   const { draft } = useBrandPreview()
   const firstItem = items[0]
   const previewName = draft && draft.groupId === groupId
@@ -35,12 +36,12 @@ export function GroupBreadcrumb({
           <li key={`${item.label}-${index}`} className="flex items-center gap-1">
             {index > 0 ? <span aria-hidden="true">/</span> : null}
             {item.to ? (
-              <Link
+              <AppLink
                 to={item.to}
                 className="inline-flex min-h-11 items-center font-medium text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 {item.label}
-              </Link>
+              </AppLink>
             ) : (
               <span aria-current="page">{item.label}</span>
             )}

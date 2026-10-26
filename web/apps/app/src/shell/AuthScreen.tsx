@@ -1,7 +1,10 @@
+'use client'
+
 import { routes } from '../routing/routes'
 import { useEffect, useId, useRef, useState } from "react";
 import type { FormEvent, RefObject } from "react";
-import { Link, Navigate, useSearchParams } from "react-router-dom";
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ArrowRight,
   AtSign,
@@ -31,7 +34,8 @@ import {
   type PublicBranding,
 } from "../api/client";
 import { performWebAuthnLogin } from "./webauthn";
-import { BrandLockup, WaveformHero } from "../brand/SonivoMark";
+import { NextBrandLockup } from '../brand/NextBrandLockup'
+import { WaveformHero } from '../brand/SonivoMarkIcon'
 import { Button, primaryButtonClass } from "../ui/button";
 import { TextField } from "../ui/text-field";
 import { SessionScreen } from "./GroupsChrome";
@@ -66,16 +70,18 @@ export function GuestAuthRoute({
   onSuccess: (user: CurrentUser) => void;
   brand?: PublicBranding | null;
 }) {
-  const [searchParams] = useSearchParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const { t } = useT();
   const next = safeNextPath(searchParams.get("next"));
+  useEffect(() => {
+    if (user) router.replace(next ?? routes.home);
+  }, [user, next, router]);
   if (user === undefined) {
     return <SessionScreen message={t("auth.checkingSession")} />;
   }
   if (user) {
-    // The dashboard lives at /app/home; the root is the public marketing
-    // landing, so an authenticated visitor must not be sent there.
-    return <Navigate to={next ?? routes.home} replace />;
+    return <SessionScreen message={t("auth.checkingSession")} />;
   }
   return (
     <AuthScreen mode={mode} next={next} onSuccess={onSuccess} brand={brand} />
@@ -566,7 +572,7 @@ function AuthScreen({
             </span>
           </div>
         ) : (
-          <BrandLockup to="/" />
+          <NextBrandLockup to={routes.marketing} />
         )}
         <div className="max-w-md space-y-5">
           {hasBrand ? (
@@ -601,7 +607,7 @@ function AuthScreen({
                 {brand?.name}
               </span>
             ) : (
-              <BrandLockup to="/" />
+              <NextBrandLockup to={routes.marketing} />
             )}
           </div>
 
@@ -629,7 +635,7 @@ function AuthScreen({
                 </div>
                 <Link
                   className={cn(primaryButtonClass, "no-underline")}
-                  to={`${routes.login}${nextQuery}`}
+                    href={`${routes.login}${nextQuery}`}
                 >
                   {t("auth.goLogin")}
                 </Link>
@@ -724,7 +730,7 @@ function AuthScreen({
                   <div className="-mt-2 flex justify-end">
                     <Link
                       className="rounded text-sm font-semibold text-primary-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                      to={routes.forgotPassword}
+                      href={routes.forgotPassword}
                     >
                       {t("auth.forgotLink")}
                     </Link>
@@ -811,7 +817,7 @@ function AuthScreen({
                       : t("auth.hasAccountPrefix")}
                     <Link
                       className="rounded font-semibold text-primary-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                      to={otherModeTo}
+                      href={otherModeTo}
                     >
                       {mode === "login"
                         ? t("auth.registerLink")

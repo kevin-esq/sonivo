@@ -31,20 +31,25 @@ npm run build          # build every app
 Two shapes, one codebase (see
 [`DEPLOYMENT.md`](../docs/03-architecture/DEPLOYMENT.md)):
 
-- **Staging (Render):** the product app is a **static export** served by the .NET
-  host from `wwwroot` (same origin, SPA fallback to `index.html`).
+- **Staging (Render):** the product app runs as a **request-aware Next server**
+  and proxies API/hub traffic to the staging .NET service. The .NET service may
+  continue serving the legacy export until the staging host is explicitly moved
+  to the new `sonivo-web` service and its request matrix passes.
 
   ```bash
   cd web
-  NEXT_EXPORT=1 npm run build --workspace @sonivo/app   # -> apps/app/out -> wwwroot
+  npm run build --workspace @sonivo/app
+  npm run start --workspace @sonivo/app
   ```
 
 - **Production (Vercel):** the Next **server** build (BFF) runs without
   `NEXT_EXPORT`; server-side rewrites proxy `/api` and `/hubs` to
   `API_ORIGIN=https://api.sonivo.lat`.
 
-In dev/CI, Next proxies `/api` and `/hubs` to the API and serves a SPA fallback
-for deep links.
+In dev/CI and on the new staging service, Next proxies `/api` and `/hubs` to the
+API and serves the SPA bridge for unmigrated deep links. The existing .NET
+service continues to build and serve the static export until the staging host is
+moved; remove that compatibility path only after the rollout gate passes.
 
 ## Shared packages (`packages/*`)
 

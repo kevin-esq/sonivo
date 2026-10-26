@@ -1,6 +1,5 @@
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
 import {
   FileText,
   Film,
@@ -22,6 +21,7 @@ import { safeExternalResourceUrl } from '../repertoire/resourceUrl'
 import { cn } from '../ui/cn'
 import { canManageContentRole } from '../repertoire/ui'
 import { useResource } from '../hooks/useResource'
+import { useGroupShell } from '../shell/GroupShellContext'
 import {
   GroupButton,
   GroupChip,
@@ -90,7 +90,7 @@ function formatDate(iso: string, lang: string): string {
  * Resources stay on arrangements (ADR-0007/0014); Owner/Manager may upload.
  */
 export function GroupResourcesPage() {
-  const { groupId } = useParams()
+  const { groupId } = useGroupShell()
   const { t, lang } = useT()
   const [group, setGroup] = useState<Awaited<ReturnType<typeof getGroup>> | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)

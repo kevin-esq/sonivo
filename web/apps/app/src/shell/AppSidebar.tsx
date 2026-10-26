@@ -1,12 +1,13 @@
 import { routes } from '../routing/routes'
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
 import { ChevronsLeft, ChevronsRight, LogOut, X } from "lucide-react";
 import type { CurrentUser } from "../api/client";
 import { BrandLockup, SonivoMark } from "../brand/SonivoMark";
 import { useT } from "../i18n";
 import { cn } from "../ui/cn";
 import { sidebarSections } from "./navSections";
+import { AppLink, AppNavLink, type NavigationMode } from '../routing/AppLink'
+import { NextBrandLockup } from '../brand/NextBrandLockup'
 
 /** Shared with `GroupWorkspace`: one persisted rail preference. */
 const RAIL_KEY = "sonivo:sidebar";
@@ -46,6 +47,7 @@ function SidebarBody({
   onToggleCollapse,
   showClose,
   onClose,
+  navigationMode,
 }: {
   user: CurrentUser;
   onLogout: () => void;
@@ -54,6 +56,7 @@ function SidebarBody({
   onToggleCollapse?: () => void;
   showClose?: boolean;
   onClose?: () => void;
+  navigationMode: NavigationMode;
 }) {
   const { t } = useT();
   const name = user.displayName?.trim() || user.email || t("app.userCard");
@@ -67,15 +70,18 @@ function SidebarBody({
         )}
       >
         {collapsed ? (
-          <NavLink
+          <AppLink
+            mode={navigationMode}
             to={routes.home}
             aria-label="Sonivo"
             className="grid min-h-11 min-w-11 place-items-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
           >
             <SonivoMark className="h-7 w-7 text-shell-link" />
-          </NavLink>
+          </AppLink>
         ) : (
-          <BrandLockup to={routes.home} shell />
+          navigationMode === 'next'
+            ? <NextBrandLockup to={routes.home} />
+            : <BrandLockup to={routes.home} shell />
         )}
         {showClose ? (
           <button
@@ -119,7 +125,8 @@ function SidebarBody({
               </p>
             ) : null}
             {section.items.map((item) => (
-                <NavLink
+                <AppNavLink
+                  mode={navigationMode}
                   key={item.id}
                   to={item.to}
                   end={item.end}
@@ -133,7 +140,7 @@ function SidebarBody({
                   <span className={cn(collapsed && "sr-only")}>
                     {t(item.labelKey)}
                   </span>
-                </NavLink>
+                </AppNavLink>
               ))}
           </div>
         ))}
@@ -145,7 +152,8 @@ function SidebarBody({
           collapsed ? "px-2" : "px-3",
         )}
       >
-        <NavLink
+        <AppLink
+          mode={navigationMode}
           to={routes.account}
           onClick={onNavigate}
           data-testid="nav-user-card"
@@ -172,7 +180,7 @@ function SidebarBody({
               ) : null}
             </span>
           ) : null}
-        </NavLink>
+        </AppLink>
         <button
           type="button"
           onClick={onLogout}
@@ -197,11 +205,13 @@ export function AppSidebar({
   onLogout,
   open,
   onClose,
+  navigationMode = 'legacy',
 }: {
   user: CurrentUser;
   onLogout: () => void;
   open: boolean;
   onClose: () => void;
+  navigationMode?: NavigationMode;
 }) {
   const [collapsed, setCollapsed] = useState(readRailState);
 
@@ -229,6 +239,7 @@ export function AppSidebar({
           onLogout={onLogout}
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed((value) => !value)}
+          navigationMode={navigationMode}
         />
       </aside>
 
@@ -251,6 +262,7 @@ export function AppSidebar({
               onNavigate={onClose}
               showClose
               onClose={onClose}
+              navigationMode={navigationMode}
             />
           </aside>
         </div>

@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ComponentProps } from 'react'
-import { Link } from 'react-router-dom'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../../ui/cn'
+import { AppLink } from '../../routing/AppLink'
 
 /**
  * Group-scoped button/link primitives (ADR-0074 §4).
@@ -68,11 +68,11 @@ export function GroupButton({
   )
 }
 
-type GroupLinkProps = ComponentProps<typeof Link> & VariantProps<typeof groupButtonVariants>
+type GroupLinkProps = Omit<ComponentProps<typeof AppLink>, 'children'> & { children: React.ReactNode } & VariantProps<typeof groupButtonVariants>
 
 /** Router link styled as a group button (keeps `min-h-11` tap targets). */
 export function GroupLink({ className, variant, size, block, ...props }: GroupLinkProps) {
   return (
-    <Link className={cn(groupButtonVariants({ variant, size, block }), className)} {...props} />
+    <AppLink className={cn(groupButtonVariants({ variant, size, block }), className)} {...props} />
   )
 }

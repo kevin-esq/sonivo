@@ -1,6 +1,5 @@
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronRight, ListMusic, Music2, Search, Star } from 'lucide-react'
 import { listSetlists, type CurrentUser, type SetlistListItem } from '../api/client'
 import { cn } from '../ui/cn'
@@ -26,6 +25,8 @@ import {
 } from '../repertoire/ui'
 import { useT } from '../i18n'
 import { plural } from '../ui/plural'
+import { AppLink } from '../routing/AppLink'
+import { useGroupShell } from '../shell/GroupShellContext'
 
 const SETLIST_ICONS = [ListMusic, Music2, Star, ListMusic] as const
 
@@ -46,10 +47,9 @@ function formatUpdatedAt(iso: string, lang: string): string {
 }
 
 export function SetlistListPage({ user }: { user: CurrentUser }) {
-  const { groupId } = useParams()
+  const { groupId, navigate } = useGroupShell()
   const { group, error: groupError, reload: reloadGroup } = useGroupContext(groupId, user.id)
   const { t, lang } = useT()
-  const navigate = useNavigate()
   const [setlists, setSetlists] = useState<SetlistListItem[] | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -231,7 +231,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                   className="library-enter"
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
-                  <Link
+                  <AppLink
                   className="group flex min-h-40 items-start gap-4 rounded-2xl border border-border-subtle bg-surface p-4 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:p-5"
                     to={routes.groupSetlist(group.id, setlist.id)}
                   >
@@ -271,7 +271,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                       </span>
                       <ChevronRight className="h-5 w-5 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                     </span>
-                  </Link>
+                  </AppLink>
                 </li>
               )
             })}

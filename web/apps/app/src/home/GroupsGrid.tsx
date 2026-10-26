@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { Crown, Music2, Users } from "lucide-react";
 import type { GroupSummary } from "../api/client";
 import { useT } from "../i18n";
@@ -10,6 +9,7 @@ import {
 } from "../shell/groupAccent";
 import { cn } from "../ui/cn";
 import { routes } from "../routing/routes";
+import { AppLink, type NavigationMode } from '../routing/AppLink'
 
 function initialsOf(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -19,7 +19,7 @@ function initialsOf(name: string): string {
   ).toUpperCase();
 }
 
-function HomeGroupCard({ group }: { group: GroupSummary }) {
+function HomeGroupCard({ group, navigationMode }: { group: GroupSummary; navigationMode: NavigationMode }) {
   const { t } = useT();
   const appearance = readGroupAppearance(String(group.id));
   const cover = appearance.cover;
@@ -28,7 +28,8 @@ function HomeGroupCard({ group }: { group: GroupSummary }) {
 
   return (
     <li className="h-full">
-      <Link
+      <AppLink
+        mode={navigationMode}
         to={routes.group(group.id)}
         data-testid="home-group-card"
         className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface text-ink no-underline shadow-sm transition duration-150 hover:border-primary/40 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
@@ -67,12 +68,12 @@ function HomeGroupCard({ group }: { group: GroupSummary }) {
             <Music2 className="h-3.5 w-3.5" aria-hidden="true" />
           </span>
         </span>
-      </Link>
+      </AppLink>
     </li>
   );
 }
 
-export function GroupsGrid({ groups }: { groups: GroupSummary[] | null }) {
+export function GroupsGrid({ groups, navigationMode = 'legacy' }: { groups: GroupSummary[] | null; navigationMode?: NavigationMode }) {
   const { t } = useT();
 
   if (groups === null) {
@@ -112,13 +113,13 @@ export function GroupsGrid({ groups }: { groups: GroupSummary[] | null }) {
           <p className="font-semibold text-ink">{t("groups.emptyTitle")}</p>
           <p className="max-w-md text-sm text-muted">{t("groups.empty")}</p>
         </div>
-        <Link
-          to={routes.groups}
-          state={{ create: true }}
+        <AppLink
+          mode={navigationMode}
+          to={navigationMode === 'next' ? `${routes.groups}?create=1` : routes.groups}
           className="inline-flex min-h-11 items-center rounded-xl bg-primary-strong px-4 text-sm font-semibold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           {t("groups.emptyCta")}
-        </Link>
+        </AppLink>
       </div>
     );
   }
@@ -126,7 +127,7 @@ export function GroupsGrid({ groups }: { groups: GroupSummary[] | null }) {
   return (
     <ul className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-3">
       {groups.slice(0, 8).map((group) => (
-        <HomeGroupCard key={group.id} group={group} />
+        <HomeGroupCard key={group.id} group={group} navigationMode={navigationMode} />
       ))}
     </ul>
   );

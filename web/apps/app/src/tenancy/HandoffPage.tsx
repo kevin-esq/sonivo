@@ -1,6 +1,9 @@
+'use client'
+
 import { routes } from '../routing/routes'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { redeemHandoff } from '../api/client'
 import { useT } from '../i18n'
 
@@ -11,7 +14,7 @@ import { useT } from '../i18n'
  * parent-domain cookie is ever involved.
  */
 export function HandoffPage() {
-  const [params] = useSearchParams()
+  const params = useSearchParams()
   const { t } = useT()
   const [failed, setFailed] = useState(false)
   const started = useRef(false)
@@ -47,7 +50,7 @@ export function HandoffPage() {
           <p className="text-lg font-semibold">{t('handoff.error')}</p>
           <Link
             className="font-semibold text-secondary-ink no-underline hover:underline"
-            to="/"
+            href={routes.marketing}
           >
             {t('slug.goHome')}
           </Link>

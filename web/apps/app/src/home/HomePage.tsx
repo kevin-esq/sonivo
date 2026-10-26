@@ -1,6 +1,7 @@
+'use client'
+
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   listMyGroups,
   listUpcomingActivity,
@@ -14,9 +15,10 @@ import { Button } from "../ui/button";
 import { ActivityRail } from "./ActivityRail";
 import { GroupsGrid } from "./GroupsGrid";
 import { QuickActions } from "./QuickActions";
+import { AppLink, type NavigationMode } from '../routing/AppLink'
 
 /** Inicio dashboard (ADR-0053): greeting, quick actions, groups and activity. */
-export function HomePage({ user }: { user: CurrentUser }) {
+export function HomePage({ user, navigationMode = 'legacy', navigate }: { user: CurrentUser; navigationMode?: NavigationMode; navigate: (to: string) => void }) {
   const { t } = useT();
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
   const [activity, setActivity] = useState<UpcomingActivity[] | null>(null);
@@ -56,7 +58,7 @@ export function HomePage({ user }: { user: CurrentUser }) {
         <p className="text-ink/80">{t("home.subtitle")}</p>
       </header>
 
-      <QuickActions />
+      <QuickActions navigate={navigate} />
 
       {error ? (
         <div
@@ -88,18 +90,19 @@ export function HomePage({ user }: { user: CurrentUser }) {
             >
               {t("home.yourGroups")}
             </h2>
-            <Link
+            <AppLink
+              mode={navigationMode}
               to={routes.groups}
               data-testid="home-view-all"
               className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               {t("home.viewAll")} →
-            </Link>
+            </AppLink>
           </div>
-          <GroupsGrid groups={groups} />
+          <GroupsGrid groups={groups} navigationMode={navigationMode} />
         </section>
 
-        <ActivityRail items={activity} />
+        <ActivityRail items={activity} navigationMode={navigationMode} />
       </div>
     </section>
   );

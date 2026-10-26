@@ -1,7 +1,6 @@
 import { routes } from '../routing/routes'
 import { GroupFilterPopover } from '../groups/ui/GroupFilterPopover'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
 import { ChevronRight, Library, Music2, Search } from 'lucide-react'
 import { listSongs, type CurrentUser, type SongListItem } from '../api/client'
 import { useT, type I18nKey } from '../i18n'
@@ -23,6 +22,8 @@ import { useGroupUsage } from '../groups/useGroupUsage'
 import { CreateSongDialog } from '../groups/dialogs'
 import { OriginBadge, OriginMark, ReadinessChip } from './chrome'
 import { plural } from '../ui/plural'
+import { AppLink } from '../routing/AppLink'
+import { useGroupShell } from '../shell/GroupShellContext'
 import {
   canManageContentRole,
   mutationErrorMessage,
@@ -41,7 +42,7 @@ const LIBRARY_SORTS: { id: LibrarySort; labelKey: I18nKey }[] = [
 ]
 
 export function LibraryPage({ user }: { user: CurrentUser }) {
-  const { groupId } = useParams()
+  const { groupId } = useGroupShell()
   const { group, error: groupError, reload: reloadGroup } = useGroupContext(groupId, user.id)
   const [songs, setSongs] = useState<SongListItem[] | null>(null)
   const [listError, setListError] = useState<string | null>(null)
@@ -261,7 +262,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                 className="library-enter relative"
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
-                <Link
+                <AppLink
                   className="group flex min-h-36 items-start gap-4 rounded-2xl border border-border-subtle bg-surface p-4 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:p-5"
                   to={routes.groupSong(group.id, song.id)}
                 >
@@ -290,7 +291,7 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                       <ChevronRight className="h-5 w-5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                     </span>
                   </span>
-                </Link>
+                </AppLink>
               </li>
             ))}
           </ul>

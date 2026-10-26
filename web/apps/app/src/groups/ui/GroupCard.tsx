@@ -1,8 +1,8 @@
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../../ui/cn'
+import { AppLink } from '../../routing/AppLink'
 
 /** Group-scoped surface card. `interactive` adds the accent hover treatment. */
 const groupCardVariants = cva(
@@ -86,9 +86,9 @@ export function GroupStat({ icon: Icon, label, description, value, to, testId }:
 
   if (to) {
     return (
-      <Link to={to} data-testid={testId} className={classes}>
+      <AppLink to={to} data-testid={testId} className={classes}>
         {body}
-      </Link>
+      </AppLink>
     )
   }
   return (

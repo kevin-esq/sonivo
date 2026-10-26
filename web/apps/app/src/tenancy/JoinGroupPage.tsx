@@ -1,17 +1,18 @@
+'use client'
+
 import { routes } from '../routing/routes'
 import { useId, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { UserPlus } from "lucide-react";
 import { useT } from "../i18n";
 import { Button } from "../ui/button";
 import { fieldClass } from "../ui/field";
 import { parseInviteToken } from "./inviteToken";
+import { AppLink } from '../routing/AppLink'
 
 /** routes.join — join a group from an invitation link or code (ADR-0053). */
-export function JoinGroupPage() {
+export function JoinGroupPage({ navigate }: { navigate: (to: string) => void }) {
   const { t } = useT();
-  const navigate = useNavigate();
   const id = useId();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -79,12 +80,12 @@ export function JoinGroupPage() {
           </div>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <Link
-            to="/"
+          <AppLink
+            to={routes.home}
             className="inline-flex min-h-11 items-center text-sm font-medium text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             {t("placeholder.back")}
-          </Link>
+          </AppLink>
           <Button type="submit" disabled={!value.trim()}>
             {t("groups.joinSubmit")}
           </Button>

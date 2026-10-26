@@ -1,6 +1,6 @@
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { AppLink } from '../routing/AppLink'
 import {
   CalendarDays,
   CheckSquare,
@@ -21,7 +21,6 @@ import {
   listEvents,
   listSetlists,
   listSongs,
-  type CurrentUser,
   type EventListItem,
   type EventRsvpResponse,
   type GroupDetail,
@@ -52,6 +51,7 @@ import {
 } from './ui'
 import { useGroupUsage } from './useGroupUsage'
 import { useBrandPreview } from '../shell/brandPreview'
+import { useGroupShell } from '../shell/GroupShellContext'
 import { groupCoverStyle } from '../shell/groupAccent'
 
 type HomeDialog = 'song' | 'setlist' | 'event' | 'task' | 'resource'
@@ -99,8 +99,8 @@ function eventDateParts(iso: string, language: string): { weekday: string; day: 
   return { weekday, day: String(date.getDate()), month }
 }
 
-export function GroupHomePage({ user }: { user: CurrentUser }) {
-  const { groupId } = useParams()
+export function GroupHomePage() {
+  const { user, groupId } = useGroupShell()
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [events, setEvents] = useState<EventListItem[] | null>(null)
@@ -393,9 +393,9 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             </div>
             {!isOwner ? (
               <p className="mt-3 text-sm text-muted">
-                <Link className="font-medium text-primary-ink underline-offset-4 hover:underline" to={routes.help}>
+                <AppLink className="font-medium text-primary-ink underline-offset-4 hover:underline" to={routes.help}>
                   {t('dashboard.memberGuideHelp')}
-                </Link>
+                </AppLink>
               </p>
             ) : null}
           </section>
@@ -457,7 +457,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
             </button>
           ))}
           {isOwner ? (
-            <Link
+            <AppLink
               to={routes.groupPeople(group.id)}
               className="flex min-h-[4.5rem] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
             >
@@ -467,7 +467,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                 <span className="block truncate text-xs text-muted">{t('home.quickAddMemberHint')}</span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
-            </Link>
+            </AppLink>
           ) : null}
         </div>
       </GroupSection>
@@ -501,7 +501,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
               const parts = eventDateParts(event.startsAt, lang)
               return (
                 <li key={event.id}>
-                  <Link
+                  <AppLink
                     to={routes.groupEvent(group.id, event.id)}
                     className="flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
                     data-testid={index === 0 ? 'home-next-event' : undefined}
@@ -529,7 +529,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                       </span>
                     ) : null}
                     <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
-                  </Link>
+                  </AppLink>
                 </li>
               )
             })}
@@ -564,7 +564,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
           <ul className="grid gap-2 sm:grid-cols-2">
             {latestSongs.map((song) => (
               <li key={song.id}>
-                <Link
+                <AppLink
                   to={routes.groupSong(group.id, song.id)}
                   className="flex min-h-16 items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
                 >
@@ -576,7 +576,7 @@ export function GroupHomePage({ user }: { user: CurrentUser }) {
                       {formatRelativeUpdated(song.updatedAt, lang)}
                     </span>
                   </span>
-                </Link>
+                </AppLink>
               </li>
             ))}
           </ul>

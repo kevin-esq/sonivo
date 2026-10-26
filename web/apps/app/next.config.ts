@@ -16,29 +16,44 @@ const nextConfig: NextConfig = {
   // production, so disabling it only affects the dev aid, not shipped behavior.
   reactStrictMode: false,
   transpilePackages: ['@sonivo/i18n', '@sonivo/api-client', '@sonivo/ui', '@sonivo/routes'],
-  // Bridge (parity migration): the ported SPA is checked by its own tsconfig;
-  // Next type/lint gating is re-enabled once the SPA is decomposed.
-  typescript: { ignoreBuildErrors: true },
+  // Keep production builds behind the app's TypeScript contract even while
+  // routes are being migrated from the React Router bridge.
   eslint: { ignoreDuringBuilds: true },
   output: isExport ? 'export' : undefined,
   images: { unoptimized: true },
-  async rewrites() {
-    if (isExport) {
-      return []
-    }
-    return {
-      beforeFiles: [
-        { source: '/api/:path*', destination: `${apiOrigin}/api/:path*` },
-        { source: '/connect/:path*', destination: `${apiOrigin}/connect/:path*` },
-        { source: '/.well-known/openid-configuration', destination: `${apiOrigin}/.well-known/openid-configuration` },
-        { source: '/hubs/:path*', destination: `${apiOrigin}/hubs/:path*` },
-        { source: '/g/:slug/manifest.webmanifest', destination: `${apiOrigin}/g/:slug/manifest.webmanifest` },
-      ],
-      // Deep links (e.g. /groups) resolve to the SPA shell in dev/CI.
-      afterFiles: [{ source: '/:path*', destination: '/' }],
-      fallback: [],
-    }
-  },
+  ...(!isExport && {
+    async headers() {
+      return [
+        {
+          source: '/:path*',
+          headers: [
+            { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+            { key: 'X-Content-Type-Options', value: 'nosniff' },
+            { key: 'X-Frame-Options', value: 'DENY' },
+            { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+            { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+            { key: 'Strict-Transport-Security', value: 'max-age=31536000' },
+          ],
+        },
+      ]
+    },
+  }),
+  ...(!isExport && {
+    async rewrites() {
+      return {
+        beforeFiles: [
+          { source: '/api/:path*', destination: `${apiOrigin}/api/:path*` },
+          { source: '/connect/:path*', destination: `${apiOrigin}/connect/:path*` },
+          { source: '/.well-known/openid-configuration', destination: `${apiOrigin}/.well-known/openid-configuration` },
+          { source: '/hubs/:path*', destination: `${apiOrigin}/hubs/:path*` },
+          { source: '/g/:slug/manifest.webmanifest', destination: `${apiOrigin}/g/:slug/manifest.webmanifest` },
+        ],
+        // Deep links (e.g. /groups) resolve to the SPA shell in dev/CI.
+        afterFiles: [{ source: '/:path*', destination: '/' }],
+        fallback: [],
+      }
+    },
+  }),
 }
 
 export default nextConfig

@@ -1,15 +1,15 @@
 import { routes } from '../routing/routes'
-import { NavLink } from "react-router-dom";
 import { CalendarDays, Home, Menu, Search } from "lucide-react";
 import { useT } from "../i18n";
 import { cn } from "../ui/cn";
 import { GLOBAL_SEARCH_INPUT_ID } from "./GlobalSearch";
+import { AppNavLink, type NavigationMode } from '../routing/AppLink'
 
 const itemClass =
   "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 px-2 py-2.5 text-[11px] font-medium no-underline transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none";
 
 /** Mobile bottom navigation for the app shell (ADR-0053 addendum). */
-export function AppBottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
+export function AppBottomNav({ onOpenMenu, navigationMode = 'legacy' }: { onOpenMenu: () => void; navigationMode?: NavigationMode }) {
   const { t } = useT();
   return (
     <nav
@@ -19,7 +19,8 @@ export function AppBottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
     >
       <ul className="grid grid-cols-4">
         <li className="flex">
-          <NavLink
+          <AppNavLink
+            mode={navigationMode}
             to={routes.home}
             end
             className={({ isActive }) =>
@@ -28,10 +29,11 @@ export function AppBottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
           >
             <Home className="h-5 w-5" aria-hidden="true" />
             {t("sidebar.home")}
-          </NavLink>
+          </AppNavLink>
         </li>
         <li className="flex">
-          <NavLink
+          <AppNavLink
+            mode={navigationMode}
             to={routes.calendar}
             className={({ isActive }) =>
               cn(itemClass, isActive ? "text-shell-foreground" : "text-shell-foreground/70")
@@ -39,7 +41,7 @@ export function AppBottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
           >
             <CalendarDays className="h-5 w-5" aria-hidden="true" />
             {t("calendar.title")}
-          </NavLink>
+          </AppNavLink>
         </li>
         <li className="flex">
           <button

@@ -1,3 +1,5 @@
+'use client'
+
 import { useEffect, useState } from 'react'
 import { fetchTwoFactorStatus, problemDetail, type TwoFactorStatus } from '../api/client'
 import { useT } from '../i18n'

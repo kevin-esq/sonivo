@@ -19,7 +19,7 @@ ADR-0049 (hosts/subdomains), ADR-0068 (email transport), ADR-0020 (CSRF).
 | Database | **Neon** (Postgres, branches) | Prod branch isolated from `staging` |
 | Object storage | **Cloudflare R2** | `sonivo-prod` bucket, separate from staging |
 | Email | Provider-agnostic `IEmailSender` (ADR-0068) | `Email:Transport=api|smtp`, config only |
-| Staging | **Render free** + Neon `staging` branch | `staging.sonivo.lat` until the project is finished |
+| Staging | **Render free** + Neon `staging` branch | API service remains on `sonivo.onrender.com`; request-aware Next service is `sonivo-web` |
 
 **PROHIBITION:** no GCP / Cloud Run; no paid tier is enabled. The prod backend is
 the owner-contracted Hetzner VPS.
@@ -222,8 +222,11 @@ cd deploy && docker compose --env-file .env up -d --build
    (the last one enables the apex -> app handoff redirect).
 3. Build **without** `NEXT_EXPORT=1` so Next runs as a server (BFF): its
    `beforeFiles` rewrites proxy `/api/:path*` and `/hubs/:path*` to
-   `API_ORIGIN`. The static export (`NEXT_EXPORT=1`) is only for the Render
-   staging image served by the .NET host.
+   `API_ORIGIN`. Render staging now has a separate `sonivo-web` service whose
+   API origin is the existing staging API. Assign `staging.sonivo.lat` to that
+   service only after verifying the host-only cookie, CSRF, API proxy, realtime,
+   auth, redirects, and response headers. Until then the current staging host
+   and .NET static fallback remain active.
 4. Add domains: `sonivo.lat`, `www.sonivo.lat`, `app.sonivo.lat`, and the
    wildcard `*.sonivo.lat`; follow Vercel's DNS targets for each.
 

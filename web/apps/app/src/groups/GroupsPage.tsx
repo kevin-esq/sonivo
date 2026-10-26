@@ -1,7 +1,6 @@
 import { routes } from '../routing/routes'
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpen,
   CalendarDays,
@@ -33,6 +32,7 @@ import {
   type GroupSummary,
 } from "../api/client";
 import { useT } from "../i18n";
+import { AppLink, type NavigationMode } from '../routing/AppLink'
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
 import { usePersisted } from "../hooks/usePersisted";
 import { formatMembershipRole } from "../repertoire/ui";
@@ -167,7 +167,7 @@ type MenuItem = {
 };
 
 /** "⋮" menu with keyboard: arrows, Home/End, Esc and click outside. */
-function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
+function ActionMenu({ label, items, navigationMode }: { label: string; items: MenuItem[]; navigationMode: NavigationMode }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -243,14 +243,15 @@ function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
                   <hr className="my-1 border-border-subtle" />
                 ) : null}
                 {item.to ? (
-                  <Link
+                  <AppLink
+                    mode={navigationMode}
                     role="menuitem"
                     to={item.to}
                     className={itemClass()}
                     onClick={() => setOpen(false)}
                   >
                     {content}
-                  </Link>
+                  </AppLink>
                 ) : (
                   <button
                     type="button"
@@ -380,9 +381,8 @@ function NameForm({
   );
 }
 
-function JoinForm({ onCancel, t }: { onCancel: () => void; t: TFn }) {
+function JoinForm({ onCancel, onNavigate, t }: { onCancel: () => void; onNavigate: (to: string) => void; t: TFn }) {
   const id = useId();
-  const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -400,7 +400,7 @@ function JoinForm({ onCancel, t }: { onCancel: () => void; t: TFn }) {
       inputRef.current?.focus();
       return;
     }
-    navigate(`${routes.joinInvitation(token)}`);
+    onNavigate(routes.joinInvitation(token));
   }
 
   return (
@@ -648,6 +648,7 @@ function GroupCardItem({
   onTogglePin,
   onOpen,
   view,
+  navigationMode,
 }: {
   group: GroupCardData;
   pinned: boolean;
@@ -657,6 +658,7 @@ function GroupCardItem({
   onTogglePin: () => void;
   onOpen: () => void;
   view: ViewMode;
+  navigationMode: NavigationMode;
 }) {
   const roleId = `group-role-${group.id}`;
   const metaId = `group-meta-${group.id}`;
@@ -686,7 +688,8 @@ function GroupCardItem({
     "block min-w-0 text-base font-semibold text-ink no-underline after:absolute after:inset-0 after:rounded-2xl after:content-[''] group-hover:text-primary-ink focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-primary focus-visible:after:ring-offset-2";
 
   const stretchyLink = (clamp: "clamp" | "truncate") => (
-    <Link
+    <AppLink
+      mode={navigationMode}
       to={routes.group(group.id)}
       title={group.name}
       aria-describedby={`${roleId} ${metaId}`}
@@ -696,7 +699,7 @@ function GroupCardItem({
       <span className={clamp === "clamp" ? "line-clamp-2" : "block truncate"}>
         {group.name}
       </span>
-    </Link>
+    </AppLink>
   );
 
   const roleChip = (
@@ -774,6 +777,7 @@ function GroupCardItem({
       <ActionMenu
         label={t("groups.menuLabel", { name: group.name })}
         items={menu}
+        navigationMode={navigationMode}
       />
       {/* The arrow only accompanies the horizontal row; in grid view it adds nothing. */}
       {view === "list" ? (
@@ -868,16 +872,34 @@ function GroupCardSkeleton({ label }: { label: string }) {
 /* Page                                                                */
 /* ================================================================== */
 
+export type GroupsPageLocation = { pathname: string; search: string; hash: string; state: unknown }
+export type GroupsPageNavigate = (to: string, options?: { replace?: boolean; state?: unknown }) => void
+
+export type GroupsPageProps = {
+  user: CurrentUser
+  actions: GroupsPageActions
+  navigationMode: NavigationMode
+  navigate: GroupsPageNavigate
+  location: GroupsPageLocation
+  initialCreate?: boolean
+}
+
 export function GroupsPage({
   user,
   actions,
+  navigationMode,
+  navigate,
+  location,
+  initialCreate = false,
 }: {
-  user: CurrentUser;
-  actions: GroupsPageActions;
+  user: CurrentUser
+  actions: GroupsPageActions
+  navigationMode: NavigationMode
+  navigate: GroupsPageNavigate
+  location: GroupsPageLocation
+  initialCreate?: boolean
 }) {
   const { t, lang } = useT();
-  const navigate = useNavigate();
-  const location = useLocation();
   const searchId = useId();
 
   const [groups, setGroups] = useState<GroupCardData[] | null>(null);
@@ -898,12 +920,21 @@ export function GroupsPage({
   );
 
   const [dialog, setDialog] = useState<DialogState>(() =>
-    (location.state as { create?: boolean } | null)?.create
+    ((location.state as { create?: boolean } | null)?.create || initialCreate || new URLSearchParams(location.search).get('create') === '1')
       ? { type: "create" }
       : null,
   );
   const { showToast } = useToast();
   const { copy } = useCopyToClipboard();
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('create') !== '1') return
+    if (navigationMode === 'next') {
+      window.history.replaceState(window.history.state, '', `${location.pathname}${location.hash}`)
+    } else {
+      navigate(`${location.pathname}${location.hash}`, { replace: true, state: location.state })
+    }
+  }, [location.hash, location.pathname, location.search, location.state, navigate, navigationMode])
 
   useEffect(() => {
     let cancelled = false;
@@ -1101,6 +1132,7 @@ export function GroupsPage({
             onTogglePin={() => togglePin(String(group.id))}
             onOpen={() => setLastGroupId(String(group.id))}
             view={view}
+            navigationMode={navigationMode}
           />
         </li>
       ))}
@@ -1206,7 +1238,8 @@ export function GroupsPage({
         <div className="space-y-4">
           {/* Quick access to the last opened group */}
           {lastGroup && total > 1 ? (
-            <Link
+            <AppLink
+              mode={navigationMode}
               to={routes.group(lastGroup.id)}
               className="flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 no-underline hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
@@ -1222,7 +1255,7 @@ export function GroupsPage({
                 className="h-5 w-5 shrink-0 text-shell-link"
                 aria-hidden="true"
               />
-            </Link>
+            </AppLink>
           ) : null}
 
           {showToolbar ? (
@@ -1426,7 +1459,7 @@ export function GroupsPage({
         title={t("groups.joinTitle")}
         closeLabel={t("groups.close")}
       >
-        <JoinForm t={t} onCancel={closeDialog} />
+        <JoinForm t={t} onCancel={closeDialog} onNavigate={(to) => navigate(to)} />
       </Modal>
 
       <Modal

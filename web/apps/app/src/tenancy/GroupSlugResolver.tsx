@@ -56,7 +56,7 @@ export function GroupSlugResolver() {
       <div className="grid min-h-screen place-items-center bg-canvas px-4 text-center text-shell-foreground">
         <div className="space-y-3">
           <p className="text-lg font-semibold">{t('slug.notFound')}</p>
-          <Link className="font-semibold text-secondary-ink no-underline hover:underline" to="/">
+          <Link className="font-semibold text-secondary-ink no-underline hover:underline" to={routes.groups}>
             {t('slug.goHome')}
           </Link>
         </div>

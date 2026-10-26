@@ -1,7 +1,6 @@
 import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, Copy, Music2 } from 'lucide-react'
 import {
   applySetlistToEvent,
@@ -42,6 +41,8 @@ import {
 } from './datetime'
 import { useT, type I18nKey } from '../i18n'
 import { plural } from '../ui/plural'
+import { AppLink } from '../routing/AppLink'
+import { useGroupShell } from '../shell/GroupShellContext'
 
 const RSVP_CHOICES: { value: EventRsvpResponse; labelKey: I18nKey }[] = [
   { value: 'yes', labelKey: 'event.rsvpYes' },
@@ -84,9 +85,8 @@ function PlanNumber({ n }: { n: number }) {
 
 type DetailTab = 'plan' | 'details'
 
-export function EventDetailPage({ user }: { user: CurrentUser }) {
-  const { groupId, eventId } = useParams()
-  const navigate = useNavigate()
+export function EventDetailPage({ user, groupId, eventId }: { user: CurrentUser; groupId: string; eventId: string }) {
+  const { navigate } = useGroupShell()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const [musicalEvent, setMusicalEvent] = useState<EventDetail | null | undefined>(undefined)
   const [setlists, setSetlists] = useState<SetlistListItem[] | null>(null)
@@ -293,9 +293,9 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
+        <AppLink className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           Mis grupos
-        </Link>
+        </AppLink>
       </div>
     )
   }
@@ -308,12 +308,12 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={error ?? t('event.notFound')} />
-        <Link
+        <AppLink
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={routes.groupEvents(group.id)}
         >
           {t('event.events')}
-        </Link>
+        </AppLink>
       </div>
     )
   }
@@ -444,7 +444,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
             </p>
             {hasPlan && isLive ? (
               <p>
-                <Link
+                <AppLink
                   className={cn(
                     buttonVariants({ variant: 'primary', size: 'default' }),
                     'min-h-11 no-underline',
@@ -453,7 +453,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                   data-testid="ensayar-plan"
                 >
                   {t('event.rehearsePlan')}
-                </Link>
+                </AppLink>
               </p>
             ) : null}
           </div>
@@ -469,12 +469,12 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
               action={
                 isOwner && isLive ? (
                   setlists !== null && setlists.length === 0 ? (
-                    <Link
+                    <AppLink
                       className="font-semibold text-primary-ink no-underline hover:underline"
                       to={routes.groupSetlists(group.id)}
                     >
                       {t('event.goSetlists')}
-                    </Link>
+                    </AppLink>
                   ) : (
                     <Button
                       variant="secondary"
@@ -489,12 +489,12 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     </Button>
                   )
                 ) : (
-                  <Link
+                  <AppLink
                     className="font-semibold text-primary-ink no-underline hover:underline"
                     to={routes.groupLibrary(group.id)}
                   >
                     {t('event.goLibrary')}
-                  </Link>
+                  </AppLink>
                 )
               }
             />
@@ -529,7 +529,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                     <span className="text-sm text-muted">{item.displayArrangementLabel}</span>
                   </span>
                   {isLive ? (
-                    <Link
+                    <AppLink
                       className={cn(
                         buttonVariants({ variant: 'secondary', size: 'sm' }),
                         'min-h-11 no-underline',
@@ -538,7 +538,7 @@ export function EventDetailPage({ user }: { user: CurrentUser }) {
                       data-testid={`practicar-item-${item.id}`}
                     >
                       {t('event.practice')}
-                    </Link>
+                    </AppLink>
                   ) : null}
                 </li>
               ))}

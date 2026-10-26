@@ -1,20 +1,18 @@
-import { routes } from '../routing/routes'
+import { routes } from '../../../routing/routes'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, FormEvent } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Bell, PlugZap } from 'lucide-react'
+import type { CSSProperties } from 'react'
+import { AppLink } from '../../../routing/AppLink'
+import { useGroupShell } from '../../../shell/GroupShellContext'
 import {
   ApiError,
   deleteGroup,
   fetchFeatures,
   getGroup,
   getGroupBranding,
-  getGroupNotificationPreferences,
   getGroupUsage,
   problemDetail,
   updateGroup,
   updateGroupBranding,
-  updateGroupNotificationPreferences,
   uploadGroupBrandingImage,
   uploadGroupBrandingFavicon,
   type BrandingCapabilities,
@@ -22,24 +20,22 @@ import {
   type GroupBranding,
   type GroupDetail,
   type GroupUsage,
-  type GroupNotificationPreferences,
-} from '../api/client'
-import { BRAND_THEMES, GRADIENT_STYLES, INTENSITY_OPTIONS, TYPOGRAPHY_OPTIONS, deriveGroupThemeTokens } from '../brand/tokens'
-import { useBrandPreview, type BrandDraft } from './brandPreview'
-import { GroupAuditPanel } from '../groups/GroupAuditPanel'
-import { useTheme } from '../brand/theme'
-import { useT, type I18nKey } from '../i18n'
+} from '../../../api/client'
+import { BRAND_THEMES, GRADIENT_STYLES, INTENSITY_OPTIONS, TYPOGRAPHY_OPTIONS, contrastRatio, deriveGroupThemeTokens } from '../../../brand/tokens'
+import { useBrandPreview, type BrandDraft } from '../../../shell/brandPreview'
+import { GroupAuditPanel } from '../../GroupAuditPanel'
+import { useTheme } from '../../../brand/theme'
+import { useT, type I18nKey } from '../../../i18n'
 import {
-  ConfirmDialog,
   ConflictAlert,
   isOwnerRole,
   mutationErrorMessage,
   ProblemAlert,
-} from '../repertoire/ui'
-import { Button } from '../ui/button'
-import { cn } from '../ui/cn'
-import { FileDropzone } from '../ui/FileDropzone'
-import { fieldClass } from '../ui/field'
+} from '../../../repertoire/ui'
+import { Button } from '../../../ui/button'
+import { cn } from '../../../ui/cn'
+import { FileDropzone } from '../../../ui/FileDropzone'
+import { fieldClass } from '../../../ui/field'
 import {
   GROUP_ACCENT_PRESETS,
   GROUP_COVER_GRADIENTS,
@@ -53,170 +49,37 @@ import {
   readGroupAppearance,
   writeGroupAppearance,
   type GroupAppearance,
-} from './groupAccent'
-import { notifyGroupUpdated } from './groupEvents'
+} from '../../../shell/groupAccent'
+import { notifyGroupUpdated } from '../../../shell/groupEvents'
+import { GroupNotificationPreferencesPanel } from '../components/GroupNotificationPreferencesPanel'
+import { GroupIntegrationsPanel } from '../components/GroupIntegrationsPanel'
+import { GroupPlanUsagePanel } from '../components/GroupPlanUsagePanel'
+import { GroupDangerZonePanel } from '../components/GroupDangerZonePanel'
+import { GroupGeneralSettingsPanel } from '../components/GroupGeneralSettingsPanel'
+import { BrandingHeaderPreview } from '../components/BrandingHeaderPreview'
+import { BrandingComponentPreview } from '../components/BrandingComponentPreview'
+import {
+  ACCENT_NAME_KEYS,
+  BRAND_COLOR_NAME_KEYS,
+  BRAND_IMAGE_MAX_BYTES,
+  BRAND_PALETTES,
+  BRAND_PRIMARY_PRESETS,
+  BRAND_SECONDARY_PRESETS,
+  COVER_PRESET_NAME_KEYS,
+  GRADIENT_NAME_KEYS,
+  SETTINGS_TAB_GROUPS,
+  SETTINGS_TABS,
+  coverFromBranding,
+  coverToBranding,
+  draftFromBranding,
+  type SettingsTab,
+} from '../lib/groupSettingsModel'
 
-/** Accessible colour names for the accent swatches (values stay hex). */
-const ACCENT_NAME_KEYS: Record<string, I18nKey> = {
-  '#8366f1': 'settings.accentViolet',
-  '#0ea5e9': 'settings.accentSky',
-  '#10b981': 'settings.accentEmerald',
-  '#f3b626': 'settings.accentAmber',
-  '#ef4444': 'settings.accentRed',
-  '#e8c4f6': 'settings.accentLilac',
-}
-
-/**
- * Server-validated primary swatches (ADR-0048/0054): each meets WCAG AA against
- * white so the accent can back white header/nav text. The legacy device-local
- * presets (`GROUP_ACCENT_PRESETS`) are decorative and are NOT all AA-safe.
- */
-const BRAND_PRIMARY_PRESETS = ['#6d4ee0', '#0369a1', '#047857', '#b45309', '#b91c1c', '#7e22ce'] as const
-const BRAND_IMAGE_MAX_BYTES = 2 * 1024 * 1024
-
-/** Secondary swatches: each meets AA with either white or near-black ink. */
-const BRAND_SECONDARY_PRESETS = ['#0ea5e9', '#10b981', '#f3b626', '#ef4444', '#e8c4f6', '#a78bfa'] as const
-
-const BRAND_COLOR_NAME_KEYS: Record<string, I18nKey> = {
-  '#6d4ee0': 'settings.accentViolet',
-  '#0369a1': 'settings.accentSky',
-  '#047857': 'settings.accentEmerald',
-  '#b45309': 'settings.accentAmber',
-  '#b91c1c': 'settings.accentRed',
-  '#7e22ce': 'settings.accentLilac',
-  '#0ea5e9': 'settings.accentSky',
-  '#10b981': 'settings.accentEmerald',
-  '#f3b626': 'settings.accentAmber',
-  '#ef4444': 'settings.accentRed',
-  '#e8c4f6': 'settings.accentLilac',
-  '#a78bfa': 'settings.accentLilac',
-}
-
-/** ADR-0059: predefined brand palettes (primary + secondary together). */
-const BRAND_PALETTES: { id: string; primary: string; secondary: string }[] = [
-  { id: 'oceano', primary: '#0369a1', secondary: '#0ea5e9' },
-  { id: 'atardecer', primary: '#b45309', secondary: '#f3b626' },
-  { id: 'bosque', primary: '#047857', secondary: '#10b981' },
-  { id: 'dark', primary: '#6d4ee0', secondary: '#a78bfa' },
-]
-
-function luminance(hex: string): number {
-  const value = hex.replace('#', '')
-  const channels = [0, 2, 4].map((index) => {
-    const channel = parseInt(value.slice(index, index + 2), 16) / 255
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
-  })
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
-}
-
-/** WCAG contrast ratio between two hex colors. */
-export function contrastRatio(foreground: string, background: string): number {
-  const a = luminance(foreground)
-  const b = luminance(background)
-  const [lighter, darker] = a >= b ? [a, b] : [b, a]
-  return (lighter + 0.05) / (darker + 0.05)
-}
-
-/** Visible/accessible gradient names, translated while the storage id stays English. */
-const GRADIENT_NAME_KEYS: Record<string, I18nKey> = {
-  violet: 'settings.coverGradientViolet',
-  ocean: 'settings.coverGradientOcean',
-  forest: 'settings.coverGradientForest',
-  sunset: 'settings.coverGradientSunset',
-}
-
-const COVER_PRESET_NAME_KEYS: Record<(typeof GROUP_COVER_PRESETS)[number], I18nKey> = {
-  soundwave: 'settings.coverPresetSoundwave',
-  stage: 'settings.coverPresetStage',
-  vinyl: 'settings.coverPresetVinyl',
-  choir: 'settings.coverPresetChoir',
-}
-
-/** Narrow a stored intensity string to the union the token engine accepts. */
-function asIntensity(value: string | null | undefined): 'subtle' | 'medium' | 'intense' {
-  return value === 'subtle' || value === 'intense' ? value : 'medium'
-}
-
-/** Narrow a stored gradient style string to the union the token engine accepts. */
-function asGradientStyle(value: string | null | undefined): 'fixed' | 'liquid' {
-  return value === 'liquid' ? 'liquid' : 'fixed'
-}
-
-function coverFromBranding(branding: GroupBranding): string {
-  if (branding.coverKind === 'gradient' && branding.coverValue) return `gradient:${branding.coverValue}`
-  if (branding.coverKind === 'preset' && branding.coverValue) return `preset:${branding.coverValue}`
-  if (branding.coverKind === 'emoji' && branding.coverValue) return branding.coverValue
-  return NO_COVER
-}
-
-function coverToBranding(cover: string): { coverKind: string | null; coverValue: string | null } {
-  if (cover === NO_COVER) return { coverKind: null, coverValue: null }
-  if (cover.startsWith('gradient:')) return { coverKind: 'gradient', coverValue: cover.slice('gradient:'.length) }
-  if (cover.startsWith('preset:')) return { coverKind: 'preset', coverValue: cover.slice('preset:'.length) }
-  return { coverKind: 'emoji', coverValue: cover }
-}
-
-function draftFromBranding(branding: GroupBranding): BrandDraft {
-  return {
-    displayName: branding.displayName ?? '',
-    accentHex: branding.accentHex ?? '',
-    secondaryHex: branding.secondaryHex ?? '',
-    accentColorHex: branding.accentColorHex ?? '',
-    successHex: branding.successHex ?? '',
-    warningHex: branding.warningHex ?? '',
-    errorHex: branding.errorHex ?? '',
-    typography: branding.typography ?? 'system',
-    cover: coverFromBranding(branding),
-    themeDefault: branding.themeDefault ?? 'system',
-    defaultLocale: branding.defaultLocale ?? 'es',
-    welcomeText: branding.welcomeText ?? '',
-    loginHeadline: branding.loginHeadline ?? '',
-    tagline: branding.tagline ?? '',
-    verse: branding.verse ?? '',
-    showSonivoCredit: branding.showSonivoCredit,
-    themeId: branding.themeId ?? 'sonivo',
-    intensity: asIntensity(branding.intensity),
-    gradientStyle: asGradientStyle(branding.gradientStyle),
-  }
-}
-
-type SettingsTab = 'general' | 'branding' | 'plan' | 'permissions' | 'notifications' | 'integrations' | 'audit' | 'danger'
-
-// Membership/billing is account-level (see /account/membership), not group-owned;
-// the group centre only exposes group-scoped settings.
-const SETTINGS_TABS: { id: SettingsTab; labelKey: I18nKey }[] = [
-  { id: 'general', labelKey: 'settings.tabGeneral' },
-  { id: 'branding', labelKey: 'settings.tabBranding' },
-  { id: 'plan', labelKey: 'settings.tabPlan' },
-  { id: 'permissions', labelKey: 'settings.tabPermissions' },
-  { id: 'notifications', labelKey: 'settings.tabNotifications' },
-  { id: 'integrations', labelKey: 'settings.tabIntegrations' },
-  { id: 'audit', labelKey: 'audit.tab' },
-  { id: 'danger', labelKey: 'settings.tabDanger' },
-]
-
-const SETTINGS_TAB_GROUPS: { labelKey: I18nKey; ids: SettingsTab[] }[] = [
-  { labelKey: 'settings.navIdentity', ids: ['general', 'branding'] },
-  { labelKey: 'settings.navOperation', ids: ['plan', 'permissions', 'notifications', 'integrations'] },
-  { labelKey: 'settings.navAdministration', ids: ['audit', 'danger'] },
-]
-
-/** Human-readable byte size for the storage usage row. */
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB', 'TB']
-  let value = bytes / 1024
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit += 1
-  }
-  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`
-}
-
-export function GroupSettingsPage({ user }: { user: CurrentUser }) {
-  const { groupId } = useParams()
-  const navigate = useNavigate()
+export function GroupSettingsPage({ user, groupId: routeGroupId }: { user: CurrentUser; groupId?: string }) {
+  const shell = useGroupShell()
+  const groupId = routeGroupId ?? shell.groupId
+  const navigate = shell.navigate
+  const search = shell.search
   const { t } = useT()
   const { draft: preservedBrandDraft, setDraft: setBrandPreview } = useBrandPreview()
   const preservedBrandDraftRef = useRef(preservedBrandDraft)
@@ -233,59 +96,27 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [searchParams, setSearchParams] = useSearchParams()
+  const searchParams = useMemo(() => new URLSearchParams(search), [search])
   const requestedTab = searchParams.get('tab') as SettingsTab | null
   const [activeTab, setActiveTabState] = useState<SettingsTab>(
     requestedTab && SETTINGS_TABS.some((tab) => tab.id === requestedTab) ? requestedTab : 'general',
   )
+  useEffect(() => {
+    const nextTab = requestedTab && SETTINGS_TABS.some((tab) => tab.id === requestedTab)
+      ? requestedTab
+      : 'general'
+    setActiveTabState(nextTab)
+  }, [requestedTab])
   // Tabs are URL-addressable so the plan-limit upgrade CTA can deep-link here.
   const setActiveTab = (tab: SettingsTab) => {
     setActiveTabState(tab)
     const next = new URLSearchParams(searchParams)
     if (tab === 'general') next.delete('tab')
     else next.set('tab', tab)
-    setSearchParams(next, { replace: true })
+    const query = next.toString()
+    navigate(`${routes.groupSettings(groupId)}${query ? `?${query}` : ''}`, { replace: true })
   }
   const [usage, setUsage] = useState<GroupUsage | null>(null)
-  const [notificationPreferences, setNotificationPreferences] = useState<GroupNotificationPreferences | null>(null)
-  const [notificationPreferencesLoading, setNotificationPreferencesLoading] = useState(false)
-  const [notificationPreferencesSaving, setNotificationPreferencesSaving] = useState(false)
-  const [notificationPreferencesError, setNotificationPreferencesError] = useState<string | null>(null)
-  const [notificationPreferencesSaved, setNotificationPreferencesSaved] = useState(false)
-
-  useEffect(() => {
-    if (!groupId || activeTab !== 'notifications') return
-    let cancelled = false
-    setNotificationPreferencesLoading(true)
-    setNotificationPreferencesError(null)
-    getGroupNotificationPreferences(groupId)
-      .then((result) => {
-        if (!cancelled) setNotificationPreferences(result)
-      })
-      .catch((err) => {
-        if (!cancelled) setNotificationPreferencesError(problemDetail(err, t))
-      })
-      .finally(() => {
-        if (!cancelled) setNotificationPreferencesLoading(false)
-      })
-    return () => { cancelled = true }
-  }, [groupId, activeTab, t])
-
-  const saveNotificationPreferences = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!groupId || !notificationPreferences) return
-    setNotificationPreferencesSaving(true)
-    setNotificationPreferencesSaved(false)
-    setNotificationPreferencesError(null)
-    try {
-      await updateGroupNotificationPreferences(groupId, notificationPreferences)
-      setNotificationPreferencesSaved(true)
-    } catch (err) {
-      setNotificationPreferencesError(problemDetail(err, t))
-    } finally {
-      setNotificationPreferencesSaving(false)
-    }
-  }
 
   useEffect(() => {
     if (
@@ -689,9 +520,9 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
         <p role="alert" className="text-error-ink">
           {error}
         </p>
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
+        <AppLink className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           {t('workspace.myGroups')}
-        </Link>
+        </AppLink>
       </div>
     )
   }
@@ -787,102 +618,17 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`} tabIndex={0}>
       {/* General tab */}
       {activeTab === 'general' ? (
-        <div className="space-y-6">
-          <form className="space-y-3" onSubmit={(event) => event.preventDefault()} noValidate>
-            <h2 className="text-lg font-semibold">{t('dashboard.renameTitle')}</h2>
-            <ConflictAlert message={renameConflict} />
-            <ProblemAlert message={renameError} />
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-ink">{t('settings.name')}</span>
-              <input
-                className={fieldClass}
-                type="text"
-                required
-                data-testid="group-name-input"
-                value={renameName}
-                disabled={!isOwner}
-                aria-readonly={!isOwner}
-                onChange={(e) => setRenameName(e.target.value)}
-                maxLength={200}
-              />
-            </label>
-          </form>
-
-          {brandingEnabled && draft ? (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">{t('settings.brandingTitle')}</h2>
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-ink">{t('settings.displayNameOverride')}</span>
-                <input
-                  className={fieldClass}
-                  type="text"
-                  data-testid="brand-display-name"
-                  value={draft.displayName}
-                  disabled={!isOwner || locked('brandName')}
-                  maxLength={120}
-                  onChange={(e) => patchDraft({ displayName: e.target.value })}
-                />
-                <span className="text-xs text-muted">{t('settings.displayNameHint')}</span>
-              </label>
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-ink">{t('settings.welcomeText')}</span>
-                <input
-                  className={fieldClass}
-                  type="text"
-                  value={draft.welcomeText}
-                  disabled={!isOwner || locked('welcomeText')}
-                  maxLength={500}
-                  onChange={(e) => patchDraft({ welcomeText: e.target.value })}
-                />
-              </label>
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-ink">{t('settings.loginHeadline')}</span>
-                <input
-                  className={fieldClass}
-                  type="text"
-                  value={draft.loginHeadline}
-                  disabled={!isOwner || locked('loginBranding')}
-                  maxLength={500}
-                  onChange={(e) => patchDraft({ loginHeadline: e.target.value })}
-                />
-              </label>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-ink">{t('settings.tagline')}</span>
-                  <input
-                    className={fieldClass}
-                    type="text"
-                    value={draft.tagline}
-                    disabled={!isOwner || locked('brandName')}
-                    maxLength={160}
-                    onChange={(e) => patchDraft({ tagline: e.target.value })}
-                  />
-                </label>
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-ink">{t('settings.verse')}</span>
-                  <input
-                    className={fieldClass}
-                    type="text"
-                    value={draft.verse}
-                    disabled={!isOwner || locked('brandName')}
-                    maxLength={200}
-                    onChange={(e) => patchDraft({ verse: e.target.value })}
-                  />
-                </label>
-              </div>
-              <label className="flex min-h-11 items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="h-5 w-5"
-                  checked={draft.showSonivoCredit}
-                  disabled={!isOwner || locked('removePoweredBy')}
-                  onChange={(e) => patchDraft({ showSonivoCredit: e.target.checked })}
-                />
-                {t('settings.showSonivoCredit')}
-              </label>
-            </div>
-          ) : null}
-        </div>
+        <GroupGeneralSettingsPanel
+          isOwner={isOwner}
+          renameName={renameName}
+          renameConflict={renameConflict}
+          renameError={renameError}
+          onRenameChange={setRenameName}
+          brandingEnabled={brandingEnabled}
+          draft={draft}
+          isBrandingFieldLocked={locked}
+          onDraftChange={patchDraft}
+        />
       ) : null}
 
       {/* Branding tab */}
@@ -902,139 +648,24 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
             >
               <p className="text-sm font-semibold text-ink">{t('settings.planLockedTitle')}</p>
               <p className="text-sm text-muted">{t('settings.planLockedBody')}</p>
-              <Link
+              <AppLink
                 to={routes.accountMembership}
                 className="inline-block text-sm font-semibold text-primary-ink no-underline hover:underline"
               >
                 {t('settings.planUpgrade')}
-              </Link>
+              </AppLink>
             </div>
           ) : null}
 
-          {/* Live preview: header with banner (or cover), logo and both brand colours. */}
-          <div
-            data-testid="branding-preview"
-            className="overflow-hidden rounded-2xl"
-            style={{ ...componentPreviewTokens, ...previewHeaderStyle } as CSSProperties}
-          >
-            <div className="flex items-center gap-4 px-5 py-5">
-              <span
-                className={cn(
-                  'grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl text-3xl font-semibold',
-                  branding.bannerUrl || !isNoneCover(draft.cover) ? 'bg-black/25' : 'bg-black/5 text-ink',
-                )}
-                aria-hidden="true"
-              >
-                {pendingImages.logo || branding.logoUrl ? (
-                  <img src={pendingImages.logo?.url ?? branding.logoUrl ?? ''} alt="" className="h-9 w-9 rounded object-contain" />
-                ) : isGradientCover(draft.cover) || isNoneCover(draft.cover) ? (
-                  (draft.displayName || group.name).slice(0, 1).toUpperCase()
-                ) : (
-                  draft.cover
-                )}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p
-                  className={cn(
-                    'truncate font-display text-2xl font-semibold tracking-tight',
-                    branding.bannerUrl || coverUsesLightText(draft.cover) ? 'text-white' : 'text-ink',
-                  )}
-                >
-                  {draft.displayName || group.name}
-                </p>
-                {draft.tagline || draft.welcomeText ? (
-                  <p
-                    className={cn(
-                      'mt-0.5 truncate text-sm',
-                      branding.bannerUrl || coverUsesLightText(draft.cover) ? 'text-white/85' : 'text-muted',
-                    )}
-                  >
-                    {draft.tagline || draft.welcomeText}
-                  </p>
-                ) : null}
-                {draft.verse ? (
-                  <p
-                    className={cn(
-                      'mt-1 truncate text-xs italic',
-                      branding.bannerUrl || coverUsesLightText(draft.cover) ? 'text-white/70' : 'text-muted',
-                    )}
-                  >
-                    {draft.verse}
-                  </p>
-                ) : null}
-              </div>
-              {draft.secondaryHex ? (
-                <span
-                  className="hidden rounded-full px-3 py-1 text-xs font-semibold sm:inline-block"
-                  style={{ backgroundColor: draft.secondaryHex, color: branding.onSecondary ?? '#0f172a' }}
-                >
-                  {t('settings.preview')}
-                </span>
-              ) : null}
-              <span
-                className={cn(
-                  'hidden rounded-full px-3 py-1 text-xs font-semibold sm:inline-block',
-                  contrastRatio(draft.accentHex || '#8366f1', '#ffffff') >= 4.5
-                    ? 'bg-success/20 text-ink'
-                    : 'bg-error/20 text-error-ink',
-                )}
-              >
-                {t('settings.contrastLabel')}{' '}
-                {contrastRatio(draft.accentHex || '#8366f1', '#ffffff') >= 4.5
-                  ? t('settings.contrastAA')
-                  : t('settings.contrastFail')}
-              </span>
-            </div>
-          </div>
-
-          {/* Component preview: buttons, nav, card and badge rendered with the
-              same semantic tokens as the live workspace (draft-driven). */}
-          <div
-            data-testid="branding-component-preview"
-            className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-4 font-sans"
-            style={componentPreviewTokens as CSSProperties}
-          >
-            <p className="text-sm font-medium text-ink">{t('settings.previewComponents')}</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-3">
-                <div className="space-y-1 rounded-xl bg-canvas p-2">
-                  <span className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-primary-ink">
-                    <span className="h-3 w-3 rounded-full bg-primary" aria-hidden="true" />
-                    {t('nav.home')}
-                  </span>
-                  <span className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted">
-                    <span className="h-3 w-3 rounded-full bg-muted/40" aria-hidden="true" />
-                    {t('nav.songs')}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex h-9 items-center rounded-xl bg-primary-strong px-3 text-sm font-semibold text-primary-foreground">
-                    {t('settings.saveBranding')}
-                  </span>
-                  <span className="inline-flex h-9 items-center rounded-xl border border-border-subtle px-3 text-sm font-medium text-ink">
-                    {t('settings.clearColor')}
-                  </span>
-                  <span className="inline-flex h-9 items-center px-1 text-sm font-semibold text-primary-ink underline">
-                    {t('settings.resetToDefault')}
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="rounded-xl border border-border-subtle bg-surface p-3">
-                  <p className="text-sm font-semibold text-ink">{t('settings.previewCardTitle')}</p>
-                  <p className="text-xs text-muted">{t('settings.previewCardBody')}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-primary-strong text-xs font-bold text-primary-foreground">
-                    A
-                  </span>
-                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">
-                    {t('nav.roles')}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <BrandingHeaderPreview
+            groupName={group.name}
+            branding={branding}
+            draft={draft}
+            pendingLogoUrl={pendingImages.logo?.url}
+            tokens={componentPreviewTokens}
+            headerStyle={previewHeaderStyle}
+          />
+          <BrandingComponentPreview tokens={componentPreviewTokens} />
 
           <ConflictAlert message={brandConflict} />
           <ProblemAlert message={brandError} />
@@ -1592,186 +1223,39 @@ export function GroupSettingsPage({ user }: { user: CurrentUser }) {
       {activeTab === 'permissions' ? (
         <div className="space-y-4">
           <p className="text-sm text-muted">{t('roles.subtitle')}</p>
-          <Link to={routes.groupRoles(group.id)}>
+          <AppLink to={routes.groupRoles(group.id)}>
             <Button variant="secondary">{t('roles.title')}</Button>
-          </Link>
+          </AppLink>
         </div>
       ) : null}
 
       {/* Notifications tab */}
-      {activeTab === 'notifications' ? (
-        <section className="mx-auto max-w-xl rounded-3xl border border-border-subtle bg-surface px-6 py-8 sm:px-10" aria-labelledby="settings-notifications-title">
-          <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary-ink" aria-hidden="true">
-              <Bell className="h-6 w-6" />
-            </span>
-            <div>
-              <h2 id="settings-notifications-title" className="text-xl font-semibold tracking-tight text-ink">{t('settings.tabNotifications')}</h2>
-              <p className="mt-1 text-sm text-muted">{t('settings.notificationsSubtitle')}</p>
-            </div>
-          </div>
-          {notificationPreferencesLoading ? (
-            <p aria-live="polite" className="mt-6 text-sm text-muted">{t('settings.notificationsLoading')}</p>
-          ) : notificationPreferences ? (
-            <form className="mt-6 space-y-5" onSubmit={saveNotificationPreferences}>
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border-subtle p-4">
-                <input
-                  className="mt-1 h-4 w-4 accent-primary"
-                  type="checkbox"
-                  checked={notificationPreferences.notifyRoleChanges}
-                  onChange={(event) => {
-                    setNotificationPreferences({ ...notificationPreferences, notifyRoleChanges: event.target.checked })
-                    setNotificationPreferencesSaved(false)
-                  }}
-                />
-                <span>
-                  <span className="block text-sm font-medium text-ink">{t('settings.notifyRoleChanges')}</span>
-                  <span className="mt-1 block text-sm text-muted">{t('settings.notifyRoleChangesDescription')}</span>
-                </span>
-              </label>
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border-subtle p-4">
-                <input
-                  className="mt-1 h-4 w-4 accent-primary"
-                  type="checkbox"
-                  checked={notificationPreferences.notifyTaskAssignments}
-                  onChange={(event) => {
-                    setNotificationPreferences({ ...notificationPreferences, notifyTaskAssignments: event.target.checked })
-                    setNotificationPreferencesSaved(false)
-                  }}
-                />
-                <span>
-                  <span className="block text-sm font-medium text-ink">{t('settings.notifyTaskAssignments')}</span>
-                  <span className="mt-1 block text-sm text-muted">{t('settings.notifyTaskAssignmentsDescription')}</span>
-                </span>
-              </label>
-              {notificationPreferencesSaved ? <p role="status" className="text-sm text-muted">{t('settings.saved')}</p> : null}
-              {notificationPreferencesError ? <p role="alert" className="text-sm text-error-ink">{notificationPreferencesError}</p> : null}
-              <Button type="submit" disabled={notificationPreferencesSaving}>
-                {notificationPreferencesSaving ? t('profile.saving') : t('settings.saveNotifications')}
-              </Button>
-            </form>
-          ) : (
-            <p role="alert" className="mt-6 text-sm text-error-ink">{notificationPreferencesError ?? t('common.errorGeneral')}</p>
-          )}
-        </section>
-      ) : null}
+      <GroupNotificationPreferencesPanel
+        groupId={groupId}
+        active={activeTab === 'notifications'}
+      />
 
       {/* Integrations tab */}
-      {activeTab === 'integrations' ? (
-        <section className="mx-auto max-w-xl rounded-3xl border border-border-subtle bg-surface px-6 py-8 sm:px-10" aria-labelledby="settings-integrations-title">
-          <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary-ink" aria-hidden="true">
-              <PlugZap className="h-6 w-6" />
-            </span>
-            <div>
-              <h2 id="settings-integrations-title" className="text-xl font-semibold tracking-tight text-ink">{t('settings.tabIntegrations')}</h2>
-              <p className="mt-1 text-sm text-muted">{t('settings.calendarIntegrationTitle')}</p>
-            </div>
-          </div>
-          <p className="mt-5 text-sm leading-6 text-muted">{t('settings.calendarIntegrationHelp')}</p>
-          <a
-            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-on-primary no-underline hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            href={`/api/groups/${group.id}/calendar.ics`}
-            download="sonivo-calendar.ics"
-          >
-            {t('settings.calendarDownload')}
-          </a>
-        </section>
-      ) : null}
+      {activeTab === 'integrations' ? <GroupIntegrationsPanel groupId={group.id} /> : null}
 
       {/* Plan tab (ADR-0071): effective plan + usage vs limits (spec §7). */}
-      {activeTab === 'plan' ? (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">{t('settings.planTitle')}</h2>
-          {usage ? (
-            <div className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-5">
-              <p className="text-sm font-semibold text-ink">
-                {usage.planId === 'starter'
-                  ? t('settings.planStarter')
-                  : usage.planId === 'pro'
-                    ? t('settings.planPro')
-                    : t('settings.planStudio')}
-              </p>
-              <div className="space-y-3">
-                {[
-                  { key: 'members', label: t('settings.usageMembers'), metric: usage.members, bytes: false },
-                  { key: 'songs', label: t('settings.usageSongs'), metric: usage.songs, bytes: false },
-                  { key: 'setlists', label: t('settings.usageSetlists'), metric: usage.setlists, bytes: false },
-                  { key: 'events', label: t('settings.usageEvents'), metric: usage.eventsThisMonth, bytes: false },
-                  { key: 'storage', label: t('settings.usageStorage'), metric: usage.storageBytes, bytes: true },
-                ].map((row) => (
-                  <div key={row.key} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-ink">{row.label}</span>
-                      <span className="text-muted">
-                        {row.metric.limit === null
-                          ? t('settings.usageUnlimited')
-                          : `${row.bytes ? formatBytes(row.metric.used) : row.metric.used} / ${
-                              row.bytes ? formatBytes(row.metric.limit) : row.metric.limit
-                            }`}
-                      </span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-surface-hover">
-                      <div
-                        className="h-full rounded-full bg-primary-strong"
-                        style={{
-                          width:
-                            row.metric.limit === null
-                              ? '8%'
-                              : `${Math.min(
-                                  100,
-                                  Math.round((row.metric.used / Math.max(1, row.metric.limit)) * 100),
-                                )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Link
-                to={routes.accountMembership}
-                className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline"
-              >
-                {t('settings.changePlan')}
-              </Link>
-            </div>
-          ) : (
-            <p className="text-sm text-muted">{t('settings.usageLoading')}</p>
-          )}
-        </div>
-      ) : null}
+      {activeTab === 'plan' ? <GroupPlanUsagePanel usage={usage} /> : null}
 
       {/* Audit tab (Owner only): append-only group activity log (ADR-0051). */}
       {activeTab === 'audit' && isOwner ? <GroupAuditPanel groupId={group.id} /> : null}
 
       {/* Danger Zone tab */}
       {activeTab === 'danger' && isOwner ? (
-        <section
-          aria-labelledby="ajustes-danger-heading"
-          className="space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
-        >
-          <h2 id="ajustes-danger-heading" className="text-lg font-semibold text-error-ink">
-            {t('dashboard.deleteTitle')}
-          </h2>
-          <ProblemAlert message={deleteError} />
-          <Button variant="danger" onClick={() => setDeleteOpen(true)}>
-            {t('dashboard.deleteTitle')}
-          </Button>
-          <ConfirmDialog
-            open={deleteOpen}
-            title={t('dashboard.deleteDialogTitle')}
-            confirmLabel={t('dashboard.deleteTitle')}
-            cancelLabel={t('dashboard.cancel')}
-            pendingLabel={t('dashboard.deleting')}
-            pending={deleting}
-            onConfirm={() => void onConfirmDelete()}
-            onCancel={() => {
-              if (!deleting) setDeleteOpen(false)
-            }}
-          >
-            <p>{t('dashboard.deleteBody')}</p>
-          </ConfirmDialog>
-        </section>
+        <GroupDangerZonePanel
+          open={deleteOpen}
+          error={deleteError}
+          pending={deleting}
+          onOpen={() => setDeleteOpen(true)}
+          onConfirm={() => void onConfirmDelete()}
+          onCancel={() => {
+            if (!deleting) setDeleteOpen(false)
+          }}
+        />
       ) : null}
       </div>
       </div>
