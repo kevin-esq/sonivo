@@ -1,5 +1,5 @@
 import type { NextConfig } from 'next'
-import { legacyGroupRouteRedirects, legacyRouteRedirects } from './src/routing/routes'
+import { legacyGroupRouteRedirects, legacyRouteRedirects, routes } from './src/routing/routes'
 
 // The .NET API is the only backend. Dev/CI and the Vercel production server
 // proxy API, hubs, and the public group manifest to it. NEXT_EXPORT=1 is the
@@ -71,10 +71,9 @@ const nextConfig: NextConfig = {
           { source: '/hubs/:path*', destination: `${apiOrigin}/hubs/:path*` },
           { source: '/g/:slug/manifest.webmanifest', destination: `${apiOrigin}/g/:slug/manifest.webmanifest` },
         ],
-        // Unknown paths retain the SPA bridge in dev/CI while the remaining
-        // product routes are migrated into the App Router.
-        afterFiles: [{ source: '/:path*', destination: '/' }],
-        fallback: [],
+        // Unknown paths retain the SPA bridge in dev/CI after App Router
+        // dynamic routes (Group, slug, and identity paths) have been checked.
+        fallback: [{ source: '/:path*', destination: routes.legacyFallback }],
       }
     },
   }),
