@@ -174,7 +174,6 @@ jobs:
         working-directory: web
         env:
           NEXT_EXPORT: "1"
-          NEXT_DIST_DIR: .next-static-smoke
         run: npm run build --workspace=@sonivo/app
       - name: Verify static-host app and Group routes
         working-directory: e2e
