@@ -14,6 +14,7 @@ const useStaticExport = process.env.SONIVO_E2E_STATIC_EXPORT === '1'
  */
 export default defineConfig({
   testDir: './tests',
+  testIgnore: useStaticExport ? [] : ['**/static-export-routing.spec.ts'],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
