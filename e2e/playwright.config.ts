@@ -5,6 +5,7 @@ if (!/^\d{1,5}$/.test(e2ePortValue) || Number(e2ePortValue) < 1 || Number(e2ePor
   throw new Error('SONIVO_E2E_PORT must be a valid TCP port.')
 }
 const e2ePort = Number(e2ePortValue)
+const useStaticExport = process.env.SONIVO_E2E_STATIC_EXPORT === '1'
 
 /**
  * Full-stack E2E against real React → API → PostgreSQL.
@@ -24,7 +25,9 @@ export default defineConfig({
   // the Next dev server so the suite is self-contained locally; in CI the
   // already-running server is reused.
   webServer: {
-    command: `node ../../node_modules/next/dist/bin/next dev --port ${e2ePort}`,
+    command: useStaticExport
+      ? `node ../../../e2e/scripts/static-export-host.mjs ${e2ePort}`
+      : `node ../../node_modules/next/dist/bin/next dev --port ${e2ePort}`,
     cwd: '../web/apps/app',
     url: `http://127.0.0.1:${e2ePort}`,
     reuseExistingServer: true,

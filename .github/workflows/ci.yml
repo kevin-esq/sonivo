@@ -170,6 +170,18 @@ jobs:
       - name: Install Playwright browsers
         working-directory: e2e
         run: npx playwright install chromium --with-deps
+      - name: Build static-export routing smoke target
+        working-directory: web
+        env:
+          NEXT_EXPORT: "1"
+        run: npm run build --workspace=@sonivo/app
+      - name: Verify static-host app and Group routes
+        working-directory: e2e
+        env:
+          SONIVO_E2E_STATIC_EXPORT: "1"
+          SONIVO_E2E_PORT: "5174"
+          SONIVO_E2E_BASE_URL: http://127.0.0.1:5174
+        run: npx playwright test tests/static-export-routing.spec.ts
       - name: Start API
         env:
           # T-AU-01: E2E-only mailbox bypass (POST /api/auth/test/confirm).
