@@ -10,5 +10,8 @@ export const metadata: Metadata = {
 }
 
 export default function Page() {
-  return <RootPageContent />
+  // NEXT_EXPORT is a server-side build setting. Pass it across the client
+  // boundary explicitly so the static SPA bridge is selected in exported
+  // deployments instead of hydrating the request-aware marketing page.
+  return <RootPageContent isStaticExport={process.env.NEXT_EXPORT === '1'} />
 }

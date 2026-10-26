@@ -8,8 +8,8 @@ import { MarketingPage } from '@/src/marketing/MarketingPage'
 // public marketing page and can reflect the current cookie-backed session.
 const Mount = dynamic(() => import('@/src/Mount'), { ssr: false })
 
-export function RootPageContent() {
-  if (process.env.NEXT_EXPORT === '1') return <Mount />
+export function RootPageContent({ isStaticExport }: { isStaticExport: boolean }) {
+  if (isStaticExport) return <Mount />
   const { user } = useAppRuntime()
   return <MarketingPage user={user} />
 }
