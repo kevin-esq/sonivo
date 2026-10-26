@@ -1,5 +1,5 @@
 import { routes } from '../routing/routes'
-import { Link } from 'react-router-dom'
+import { AppLink } from '../routing/AppLink'
 import type { EventPlanItem } from '../api/client'
 import { useT } from '../i18n'
 import { buttonVariants } from '../ui/button'
@@ -75,14 +75,14 @@ export function PracticeEventQueue({
 
       <div className="flex flex-wrap gap-3" role="group" aria-label={t('queue.navLabel')}>
         {prev ? (
-          <Link
+          <AppLink
             className={navLinkClass}
             to={practiceQueueHref(groupId, eventId, prev)}
             aria-label={`${t('queue.prevPrefix')}${prev.displaySongTitle}`}
             data-testid="practice-queue-prev"
           >
             {t('queue.prev')}
-          </Link>
+          </AppLink>
         ) : (
           <span
             className={navDisabledClass}
@@ -94,14 +94,14 @@ export function PracticeEventQueue({
           </span>
         )}
         {next ? (
-          <Link
+          <AppLink
             className={navLinkClass}
             to={practiceQueueHref(groupId, eventId, next)}
             aria-label={`${t('queue.nextPrefix')}${next.displaySongTitle}`}
             data-testid="practice-queue-next"
           >
             {t('queue.next')}
-          </Link>
+          </AppLink>
         ) : (
           <span
             className={navDisabledClass}
@@ -115,12 +115,12 @@ export function PracticeEventQueue({
       </div>
 
       <p>
-        <Link
+        <AppLink
           className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           to={routes.groupEvent(groupId, eventId)}
         >
           {t('queue.backToEvent')}
-        </Link>
+        </AppLink>
       </p>
     </section>
   )

@@ -1,6 +1,5 @@
 import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Bell, CalendarDays, CheckCheck, CheckSquare, KeyRound, ShieldCheck, UserPlus, type LucideIcon } from 'lucide-react'
 import {
   listNotifications,
@@ -15,6 +14,7 @@ import { useT, type I18nKey } from '../i18n'
 import { mutationErrorMessage } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { useNotificationsLive } from './useNotificationsLive'
+import { AppLink } from '../routing/AppLink'
 
 type KindMeta = { icon: LucideIcon; labelKey: I18nKey; tone: string }
 
@@ -65,11 +65,13 @@ export function NotificationInbox({
   groupId,
   compact = false,
   onUnreadChange,
+  navigationMode = 'legacy',
 }: {
   scope: NotificationScope
   groupId?: string | null
   compact?: boolean
   onUnreadChange?: (unread: number) => void
+  navigationMode?: 'legacy' | 'next'
 }) {
   const { t } = useT()
   const [inbox, setInbox] = useState<Inbox | null>(null)
@@ -197,9 +199,9 @@ export function NotificationInbox({
             return (
               <li key={notification.id}>
                 {to ? (
-                  <Link to={to} className={classes} onClick={() => void onRead(notification)}>
+                  <AppLink mode={navigationMode} to={to} className={classes} onClick={() => void onRead(notification)}>
                     {body}
-                  </Link>
+                  </AppLink>
                 ) : (
                   <button type="button" className={cn(classes, 'w-full text-left')} onClick={() => void onRead(notification)}>
                     {body}
@@ -212,9 +214,9 @@ export function NotificationInbox({
       )}
 
       {!compact && inbox && inbox.items.length > 0 ? (
-        <Link to={routes.accountNotifications} className="inline-block text-xs font-semibold text-primary-ink hover:underline">
+        <AppLink mode={navigationMode} to={routes.accountNotifications} className="inline-block text-xs font-semibold text-primary-ink hover:underline">
           {t('notifications.openAccount')}
-        </Link>
+        </AppLink>
       ) : null}
     </div>
   )

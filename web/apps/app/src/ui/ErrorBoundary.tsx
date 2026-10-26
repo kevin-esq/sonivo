@@ -1,11 +1,11 @@
 import { routes } from '../routing/routes'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { TriangleAlert } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { reportClientError } from '../diagnostics/clientTelemetry'
 import { useT } from '../i18n'
 import { Button } from './button'
 import { cn } from './cn'
+import { AppLink, type NavigationMode } from '../routing/AppLink'
 
 /**
  * Contained error surface for a broken region (typically one route).
@@ -15,7 +15,7 @@ import { cn } from './cn'
  * workspace down: the shell, sidebar and navigation stay alive, the user keeps a
  * way back, and the error is bounded to the area that actually broke.
  */
-export function SectionErrorFallback({ className }: { className?: string }) {
+export function SectionErrorFallback({ className, navigationMode = 'legacy' }: { className?: string; navigationMode?: NavigationMode }) {
   const { t } = useT()
   return (
     <div
@@ -40,9 +40,9 @@ export function SectionErrorFallback({ className }: { className?: string }) {
         <Button variant="secondary" onClick={() => window.location.reload()}>
           {t('state.reload')}
         </Button>
-        <Link to={routes.home} className={cn('text-sm font-semibold text-primary-ink no-underline hover:underline')}>
+        <AppLink mode={navigationMode} to={routes.home} className={cn('text-sm font-semibold text-primary-ink no-underline hover:underline')}>
           {t('state.backHome')}
-        </Link>
+        </AppLink>
       </div>
     </div>
   )
@@ -57,6 +57,7 @@ type ErrorBoundaryProps = {
   resetKey?: string
   /** Extra class for the fallback surface (e.g. vertical padding per region). */
   className?: string
+  navigationMode?: NavigationMode
 }
 
 type ErrorBoundaryState = { failed: boolean }
@@ -91,6 +92,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render() {
     if (!this.state.failed) return this.props.children
-    return <SectionErrorFallback className={this.props.className} />
+    return <SectionErrorFallback className={this.props.className} navigationMode={this.props.navigationMode} />
   }
 }

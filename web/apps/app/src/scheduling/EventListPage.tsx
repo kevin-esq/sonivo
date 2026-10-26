@@ -1,6 +1,5 @@
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Calendar, CalendarDays, ChevronRight, Mic2, Search, Sparkles } from 'lucide-react'
 import { fetchFeatures, listEvents, type CurrentUser, type EventListItem } from '../api/client'
 import { cn } from '../ui/cn'
@@ -29,6 +28,8 @@ import {
 import { useT } from '../i18n'
 import { plural } from '../ui/plural'
 import { formatEventType, formatStartsAt } from './datetime'
+import { AppLink } from '../routing/AppLink'
+import { useGroupShell } from '../shell/GroupShellContext'
 
 const EVENT_ICONS = [CalendarDays, Mic2, Sparkles, Calendar] as const
 
@@ -37,10 +38,9 @@ function eventIcon(index: number) {
 }
 
 export function EventListPage({ user }: { user: CurrentUser }) {
-  const { groupId } = useParams()
+  const { groupId, navigate } = useGroupShell()
   const { group, error: groupError, reload: reloadGroup } = useGroupContext(groupId, user.id)
   const { t, lang } = useT()
-  const navigate = useNavigate()
   const [events, setEvents] = useState<EventListItem[] | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -259,7 +259,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                   className="library-enter"
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
-                  <Link
+                  <AppLink
                     className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-2.5 no-underline shadow-sm transition duration-150 hover:border-primary/25 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none sm:first:rounded-t-2xl sm:last:rounded-b-2xl"
                     to={routes.groupEvent(group.id, musicalEvent.id)}
                   >
@@ -279,7 +279,7 @@ export function EventListPage({ user }: { user: CurrentUser }) {
                       {cancelled ? t('schedule.statusCancelled') : t('schedule.statusScheduled')}
                     </ReadinessChip>
                     <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
-                  </Link>
+                  </AppLink>
                 </li>
               )
             })}

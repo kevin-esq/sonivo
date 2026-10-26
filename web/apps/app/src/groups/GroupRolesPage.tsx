@@ -1,10 +1,10 @@
 import { routes } from '../routing/routes'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
 import { Plus, ShieldCheck } from 'lucide-react'
 import { listMembers, type MemberListItem } from '../api/client'
 import { useT } from '../i18n'
 import { useGroupContext, mutationErrorMessage } from '../repertoire/ui'
+import { useGroupShell } from '../shell/GroupShellContext'
 import { GroupRolesCenter } from './roles/GroupRolesCenter'
 import {
   GroupButton,
@@ -23,7 +23,7 @@ import {
  * server-side authorization (role CRUD requires Owner).
  */
 export function GroupRolesPage() {
-  const { groupId } = useParams()
+  const { groupId } = useGroupShell()
   const { t } = useT()
   const { group, error: groupError, reload } = useGroupContext(groupId, '')
   const [members, setMembers] = useState<MemberListItem[]>([])

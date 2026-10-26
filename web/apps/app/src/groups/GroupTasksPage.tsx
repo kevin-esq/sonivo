@@ -3,7 +3,6 @@ import { GroupFilterPopover } from './ui/GroupFilterPopover'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { ReactNode, KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { useParams } from 'react-router-dom'
 import {
   CalendarClock,
   CheckCircle2,
@@ -34,7 +33,7 @@ import { fieldClass } from '../ui/field'
 import { canManageContentRole, mutationErrorMessage, ProblemAlert } from '../repertoire/ui'
 import { useAction } from '../hooks/useAction'
 import { useResource } from '../hooks/useResource'
-import { useAuth } from '../shell/authContext'
+import { useGroupShell } from '../shell/GroupShellContext'
 import { ConfirmDialog } from '../ui/confirm-dialog'
 import { CreateTaskDialog } from './dialogs'
 import {
@@ -155,9 +154,8 @@ type TaskFilter = 'all' | BoardStatus
  * W-G — group tasks (`/app/groups/:id/tasks`). Manager/Owner create/edit/complete; Member reads.
  */
 export function GroupTasksPage() {
-  const { groupId } = useParams()
+  const { groupId, user } = useGroupShell()
   const { t, lang } = useT()
-  const { user } = useAuth()
   const [group, setGroup] = useState<Awaited<ReturnType<typeof getGroup>> | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<TaskFilter>('all')

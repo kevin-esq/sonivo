@@ -1,7 +1,8 @@
+'use client'
+
 import { routes } from '../../routing/routes'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link } from 'react-router-dom'
 import {
   BarChart3,
   Bell,
@@ -20,12 +21,13 @@ import {
   listMyGroups,
   problemDetail,
   updateProfile,
+  type CurrentUser,
   type GroupSummary,
   type TwoFactorStatus,
 } from '../../api/client'
 import { useT } from '../../i18n'
 import { useTheme } from '../../brand/theme'
-import { useAuth } from '../authContext'
+import { AppLink } from '../../routing/AppLink'
 import { Button } from '../../ui/button'
 import { fieldClass } from '../../ui/field'
 import { formatMembershipRole, isOwnerRole } from '../../repertoire/ui'
@@ -48,8 +50,7 @@ function deviceTimeZone(): string {
   }
 }
 
-export function SettingsProfilePage() {
-  const { user, onUserChange } = useAuth()
+export function SettingsProfilePage({ user, onUserChange }: { user: CurrentUser; onUserChange: (user: CurrentUser) => void }) {
   const { t, lang } = useT()
   const { theme } = useTheme()
   const [groups, setGroups] = useState<GroupSummary[] | null>(null)
@@ -362,12 +363,12 @@ export function SettingsTeamPage() {
               className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-3"
             >
               <span className="font-medium text-slate-900 dark:text-white">{group.name}</span>
-              <Link
+              <AppLink
                 className="text-sm font-semibold text-shell-link no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 to={routes.groupPeople(group.id)}
               >
                 {t('team.viewMembers')}
-              </Link>
+              </AppLink>
             </li>
           ))}
         </ul>
@@ -456,19 +457,19 @@ export function SettingsMembershipPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   {isOwnerRole(group.role) ? (
-                    <Link
+                    <AppLink
                       to={routes.groupPeople(group.id)}
                       className="text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       {t('membership.manageMembers')}
-                    </Link>
+                    </AppLink>
                   ) : null}
-                  <Link
+                  <AppLink
                     to={routes.group(group.id)}
                     className="text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                   >
                     {t('membership.openGroup')}
-                  </Link>
+                  </AppLink>
                 </div>
               </li>
             ))}

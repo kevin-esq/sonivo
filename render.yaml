@@ -3,6 +3,21 @@
 
 services:
   - type: web
+    name: sonivo-web
+    runtime: node
+    plan: free
+    rootDir: web
+    buildCommand: npm ci && npm run build --workspace=@sonivo/app
+    startCommand: npm run start --workspace=@sonivo/app
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: API_ORIGIN
+        value: https://sonivo.onrender.com
+      - key: NEXT_PUBLIC_ROOT_DOMAIN
+        value: sonivo.lat
+
+  - type: web
     name: sonivo
     runtime: docker
     plan: free
@@ -22,6 +37,9 @@ services:
         value: sonivo.onrender.com
       - key: Passkeys__AllowedOrigins
         value: https://sonivo.onrender.com
+      # The request-aware staging BFF proxies SignalR from this exact origin.
+      - key: Security__AllowedHubOrigins
+        value: staging.sonivo.lat
       # Phase 4.1 / 4.8 feature flags (defaults are ON in appsettings.json too).
       - key: Features__ManagedAccounts
         value: "true"

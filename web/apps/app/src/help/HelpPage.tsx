@@ -1,8 +1,10 @@
+'use client'
+
 import { routes } from '../routing/routes'
 import { useMemo, useState } from 'react'
 import { ArrowRight, BookOpen, CalendarDays, Music2, Search, Users, X } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
 import { useT } from '../i18n'
+import { AppLink } from '../routing/AppLink'
 
 const guides = [
   { icon: Users, title: 'help.guide.groups.title', body: 'help.guide.groups.body', to: routes.groups, action: 'help.guide.groups.action' },
@@ -18,8 +20,7 @@ const questions = [
   ['help.faq.roles.question', 'help.faq.roles.answer'],
 ] as const
 
-export function HelpPage() {
-  const { groupId } = useParams()
+export function HelpPage({ groupId = null, navigationMode = 'legacy' }: { groupId?: string | null; navigationMode?: 'legacy' | 'next' }) {
   const { t } = useT()
   const [query, setQuery] = useState('')
   const normalizedQuery = normalizeSearch(query)
@@ -79,10 +80,10 @@ export function HelpPage() {
                   <h3 className="font-semibold text-ink">{t(title)}</h3>
                   <p className="max-w-2xl text-sm leading-6 text-muted">{t(body)}</p>
                 </div>
-                <Link to={to} className="help-guide-row__action inline-flex min-h-11 shrink-0 items-center gap-2 font-semibold text-primary-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                <AppLink mode={navigationMode} to={to} className="help-guide-row__action inline-flex min-h-11 shrink-0 items-center gap-2 font-semibold text-primary-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                   {t(action)}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
+                </AppLink>
               </li>
             ))}
           </ul>

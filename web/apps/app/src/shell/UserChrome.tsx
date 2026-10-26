@@ -1,3 +1,5 @@
+'use client'
+
 import { routes } from '../routing/routes'
 import { Languages, Palette } from 'lucide-react'
 import { useTheme, type Theme } from '../brand/theme'

@@ -1,8 +1,8 @@
 import { routes } from '../routing/routes'
-import { Link } from "react-router-dom";
 import type { UpcomingActivity } from "../api/client";
 import { useT } from "../i18n";
 import { formatEventType } from "../scheduling/datetime";
+import { AppLink, type NavigationMode } from '../routing/AppLink'
 
 /** Inicio shows only the next few activities; the calendar shows them all. */
 const MAX_ACTIVITY = 5;
@@ -26,7 +26,7 @@ function timeLabel(iso: string, lang: string): string {
 }
 
 /** "Your next activity": next events across the caller's groups (ADR-0053 H5). */
-export function ActivityRail({ items }: { items: UpcomingActivity[] | null }) {
+export function ActivityRail({ items, navigationMode = 'legacy' }: { items: UpcomingActivity[] | null; navigationMode?: NavigationMode }) {
   const { t, lang } = useT();
   return (
     <section
@@ -37,13 +37,14 @@ export function ActivityRail({ items }: { items: UpcomingActivity[] | null }) {
         <h2 id="home-activity-heading" className="font-semibold text-ink">
           {t("home.activity")}
         </h2>
-        <Link
+        <AppLink
+          mode={navigationMode}
           to={routes.calendar}
           data-testid="home-view-calendar"
           className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           {t("home.viewCalendar")} →
-        </Link>
+        </AppLink>
       </div>
 
       {items === null ? (
@@ -68,7 +69,8 @@ export function ActivityRail({ items }: { items: UpcomingActivity[] | null }) {
         <ul className="space-y-1">
           {items.slice(0, MAX_ACTIVITY).map((item) => (
             <li key={`${item.groupId}-${item.eventId}`}>
-              <Link
+              <AppLink
+                mode={navigationMode}
                 to={routes.groupEvent(item.groupId, item.eventId)}
                 data-testid="home-activity-item"
                 className="flex items-center gap-3 rounded-xl px-2 py-2 no-underline text-ink hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -90,7 +92,7 @@ export function ActivityRail({ items }: { items: UpcomingActivity[] | null }) {
                 <span className="hidden shrink-0 text-xs text-muted sm:block">
                   {formatEventType(item.type, t)}
                 </span>
-              </Link>
+              </AppLink>
             </li>
           ))}
         </ul>

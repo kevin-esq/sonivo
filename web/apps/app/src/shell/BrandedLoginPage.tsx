@@ -1,9 +1,9 @@
 import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
 import { listMyGroups, getPublicBranding, type CurrentUser, type PublicBranding } from '../api/client'
 import { useT } from '../i18n'
 import { GuestAuthRoute } from './AuthScreen'
+import { AppLink, type NavigationMode } from '../routing/AppLink'
 
 /**
  * Branded group access screen at /auth/groups/{slug}/login (ADR-0048 D1). Same
@@ -23,11 +23,14 @@ import { GuestAuthRoute } from './AuthScreen'
 export function BrandedLoginPage({
   user,
   onSuccess,
+  slug,
+  navigationMode = 'legacy',
 }: {
   user: CurrentUser | null | undefined
   onSuccess: (user: CurrentUser) => void
+  slug?: string
+  navigationMode?: NavigationMode
 }) {
-  const { slug } = useParams()
   const { t } = useT()
   const [branding, setBranding] = useState<PublicBranding | null>(null)
   const [rejected, setRejected] = useState(false)
@@ -95,12 +98,13 @@ export function BrandedLoginPage({
               {t('slug.notMemberBody', { name: branding?.name ?? slug ?? '' })}
             </p>
           </div>
-          <Link
+          <AppLink
+            mode={navigationMode}
             to={routes.home}
             className="inline-flex h-12 items-center justify-center rounded-xl bg-primary-strong px-5 text-sm font-semibold text-primary-foreground no-underline shadow-sm transition hover:bg-primary-strong/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             {t('slug.goToSonivo')}
-          </Link>
+          </AppLink>
         </div>
       </div>
     )

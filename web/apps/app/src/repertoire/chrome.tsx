@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { AppLink } from '../routing/AppLink'
 import {
   AudioLines,
   BookOpen,
@@ -102,9 +102,9 @@ export function PageBreadcrumb({ items }: { items: { to?: string; label: string 
           <li key={`${item.label}-${index}`} className="flex items-center gap-1">
             {index > 0 ? <span aria-hidden="true">/</span> : null}
             {item.to ? (
-              <Link className="inline-flex min-h-11 items-center font-medium text-primary-ink no-underline hover:underline" to={item.to}>
+              <AppLink className="inline-flex min-h-11 items-center font-medium text-primary-ink no-underline hover:underline" to={item.to}>
                 {item.label}
-              </Link>
+              </AppLink>
             ) : (
               <span>{item.label}</span>
             )}

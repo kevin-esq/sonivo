@@ -12,9 +12,10 @@
   and auth paths. A separate `@sonivo/marketing` App Router workspace now renders
   the public locale pages on the server; DNS has not been cut over.
 - The route tree is declared in `web/apps/app/src/AppRouter.tsx`; session/bootstrap
-  orchestration stays in `web/apps/app/src/App.tsx`. Canonical frontend
-  route builders and aliases now live in the shared `web/packages/routes/`
-  package. The app-local module is only an import adapter.
+  orchestration lives in `web/apps/app/src/appRuntime/` and is provided by the
+  root App Router layout. Canonical frontend route builders and aliases now live
+  in the shared `web/packages/routes/` package. The app-local route module is
+  only an import adapter.
 - The current app deployment still contains the former marketing routes in the
   browser SPA. The new standalone marketing workspace is implemented locally,
   but it is not deployed or serving production traffic yet.
@@ -104,12 +105,30 @@ subdomain trust.
 
 ### WBR-03 — App Router decomposition
 
+- **Implemented locally:** Group Settings presentation/model modules are organized under
+  `src/groups/settings/`; the root layout owns shared session, theme, and
+  language, audio, rail-presence, and toast providers in `src/appRuntime/`.
+  Identity routes and all fixed product destinations (`/app`, Home, Groups,
+  Join, Calendar, Help, Plans, and Account) are static App Router routes with
+  `noindex, nofollow`. Product routes share an authenticated shell and
+  route-aware navigation adapter. ID-backed Group, repertoire, scheduling, and
+  invitation URLs, Group slug entry, and Group-branded login now enter through
+  App Router dynamic segments. The Group overview, every current top-level
+  section (including Help and Settings), Song, Arrangement, Setlist, and Event
+  details, and Practice render directly in App Router through a router-neutral
+  Group shell context. Invitation acceptance, Group slug resolution, and
+  branded Group login also have native App Router entries. The React Router
+  bridge remains only for the `NEXT_EXPORT=1` static compatibility artifact and
+  an unknown Group-path fallback. The product host root redirects to `/app/home`
+  while the static export root retains the bridge for .NET fallback parity. The
+  Next build enforces the app TypeScript contract.
 - Move marketing, auth/account, Group, repertoire, and scheduling surfaces out
   of the monolithic SPA bridge into App Router route segments and layouts.
 - Keep client components for browser APIs and interactive state. Server
   Components may render public content and fetch only data safe for that page.
-- Re-enable Next type checking once the bridge is removed. Preserve the staging
-  static path until WBR-06 is ready.
+- Keep the app TypeScript contract active during migration; `tsc --noEmit`
+  passes for the current bridge, so production builds must not ignore type
+  errors. Preserve the staging static path until WBR-06 is ready.
 
 ### WBR-04 — Identity host and session handoff
 
@@ -140,8 +159,12 @@ subdomain trust.
 
 ### WBR-06 — Request-aware staging
 
-- Replace the static export bridge with a staging Next server/deployment capable
-  of host-based routing and per-host response headers.
+- **Prepared locally:** the Render Blueprint declares a separate `sonivo-web`
+  Next server targeting the existing staging API; server responses carry private
+  indexing and browser security headers. The static export remains only on the
+  current .NET service until the staging hostname is moved.
+- Replace the static export bridge with the staging Next server/deployment and
+  assign `staging.sonivo.lat` only after the local service is deployed.
 - Preserve staging DB/data isolation and keep production secrets out of staging.
 - Gate: deep links, API proxy, realtime, auth, host redirects, and security
   headers work on staging without the .NET static fallback.

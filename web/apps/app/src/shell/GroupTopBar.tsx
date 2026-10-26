@@ -1,6 +1,6 @@
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { AppLink } from '../routing/AppLink'
 import { Bell, CalendarDays, CheckSquare, Music2, Search } from 'lucide-react'
 import {
   listEvents,
@@ -30,15 +30,16 @@ export function GroupTopBar({
   user,
   role,
   onLogout,
+  navigate,
 }: {
   groupId: string
   groupName: string
   user: CurrentUser
   role: string
   onLogout: () => void
+  navigate: (to: string) => void
 }) {
   const { t } = useT()
-  const navigate = useNavigate()
   const wrapRef = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
@@ -173,7 +174,7 @@ export function GroupTopBar({
       </div>
 
       <div className="shrink-0">
-        <GroupSwitcher currentGroupId={groupId} currentGroupName={groupName} />
+      <GroupSwitcher currentGroupId={groupId} currentGroupName={groupName} navigate={navigate} />
       </div>
 
       <GroupNotificationsBell groupId={groupId} />
@@ -190,19 +191,19 @@ export function GroupTopBar({
           className="absolute right-0 top-full z-50 mt-1 w-56 space-y-0.5 rounded-xl border border-border-subtle bg-surface p-1 text-ink shadow-lg"
         >
           <p className="px-3 py-2 text-xs text-muted">{formatMembershipRole(role, t)}</p>
-          <Link to={routes.groups} className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+          <AppLink to={routes.groups} className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
             {t('workspace.myGroups')}
-          </Link>
-          <Link
+          </AppLink>
+          <AppLink
             to={routes.accountNotifications}
             className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
           >
             <Bell className="h-4 w-4" aria-hidden="true" />
             {t('notifications.accountTitle')}
-          </Link>
-          <Link to={routes.account} className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
+          </AppLink>
+          <AppLink to={routes.account} className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
             {t('workspace.account')}
-          </Link>
+          </AppLink>
           <button
             type="button"
             onClick={onLogout}

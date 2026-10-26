@@ -1,9 +1,9 @@
-import { Link } from "react-router-dom";
 import { Bell, Menu } from "lucide-react";
 import type { CurrentUser } from "../api/client";
 import { useT } from "../i18n";
 import { routes } from "../routing/routes";
 import { GlobalSearch } from "./GlobalSearch";
+import { AppLink, type NavigationMode } from '../routing/AppLink'
 
 function initialsOf(user: CurrentUser): string {
   const source = user.displayName?.trim() || user.email?.trim() || "?";
@@ -17,9 +17,11 @@ function initialsOf(user: CurrentUser): string {
 export function AppTopBar({
   user,
   onOpenMenu,
+  navigationMode = 'legacy',
 }: {
   user: CurrentUser;
   onOpenMenu: () => void;
+  navigationMode?: NavigationMode;
 }) {
   const { t } = useT();
   return (
@@ -36,26 +38,28 @@ export function AppTopBar({
         </button>
 
         <div className="mx-auto min-w-0 max-w-xl flex-1">
-          <GlobalSearch />
+          <GlobalSearch navigationMode={navigationMode} />
         </div>
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <Link
+          <AppLink
+            mode={navigationMode}
             to={routes.accountNotifications}
             aria-label={t("app.notifications")}
             data-testid="app-notifications"
             className="grid min-h-11 min-w-11 place-items-center rounded-lg text-shell-foreground hover:bg-shell-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
           >
             <Bell className="h-5 w-5" aria-hidden="true" />
-          </Link>
-          <Link
+          </AppLink>
+          <AppLink
+            mode={navigationMode}
             to={routes.account}
             aria-label={t("app.userMenu")}
             data-testid="app-user-avatar"
             className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full bg-primary-strong text-xs font-bold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
           >
             {initialsOf(user)}
-          </Link>
+          </AppLink>
         </div>
       </div>
     </header>

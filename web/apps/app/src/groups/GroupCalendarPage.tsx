@@ -1,6 +1,5 @@
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
   getGroup,
@@ -39,6 +38,7 @@ import {
   GroupPageSkeleton,
 } from "./ui";
 import { CreateEventDialog } from "./dialogs";
+import { useGroupShell } from '../shell/GroupShellContext'
 
 /** Group-scoped event into the shared calendar shape (ADR-0055 W-C). */
 function toCalendarEvent(
@@ -61,9 +61,8 @@ function toCalendarEvent(
  * possible. Non-members get a 404 from the API.
  */
 export function GroupCalendarPage() {
-  const { groupId } = useParams();
+  const { groupId, navigate } = useGroupShell();
   const { t, lang } = useT();
-  const navigate = useNavigate();
   const today = useMemo(() => new Date(), []);
 
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined);

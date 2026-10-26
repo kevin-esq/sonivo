@@ -1,3 +1,5 @@
+'use client'
+
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -19,9 +21,21 @@ type SearchResult = {
  * Groups-only search (ADR-0053 addendum): filters the already-loaded groups.
  * No songs/events/people search in this phase.
  */
-export function GlobalSearch() {
+export function GlobalSearch({ navigationMode = 'legacy' }: { navigationMode?: 'legacy' | 'next' }) {
+  return navigationMode === 'next' ? <NextGlobalSearch /> : <LegacyGlobalSearch />
+}
+
+function LegacyGlobalSearch() {
+  const navigate = useNavigate()
+  return <GlobalSearchView navigate={navigate} />
+}
+
+function NextGlobalSearch() {
+  return <GlobalSearchView navigate={(to) => window.location.assign(to)} />
+}
+
+function GlobalSearchView({ navigate }: { navigate: (to: string) => void }) {
   const { t } = useT();
-  const navigate = useNavigate();
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");

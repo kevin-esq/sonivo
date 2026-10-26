@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { listMyGroups, type GroupSummary } from '../api/client'
 import { useT } from '../i18n'
@@ -10,9 +9,8 @@ import { routes } from '../routing/routes'
  * Header group switcher (ADR-0048): the current group first, then the last one
  * opened, then the rest by name. Hidden when the user has a single group.
  */
-export function GroupSwitcher({ currentGroupId, currentGroupName }: { currentGroupId: string; currentGroupName: string }) {
+export function GroupSwitcher({ currentGroupId, currentGroupName, navigate }: { currentGroupId: string; currentGroupName: string; navigate: (to: string) => void }) {
   const { t } = useT()
-  const navigate = useNavigate()
   const [groups, setGroups] = useState<GroupSummary[] | null>(null)
 
   useEffect(() => {

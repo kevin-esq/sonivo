@@ -1,7 +1,6 @@
 import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
 import {
   DndContext,
   closestCenter,
@@ -46,6 +45,7 @@ import {
 } from './liveArrangements'
 import { useT, type I18nKey } from '../i18n'
 import { plural } from '../ui/plural'
+import { AppLink } from '../routing/AppLink'
 
 type DraftItem = {
   key: string
@@ -170,8 +170,7 @@ function SortableSetlistItem({
   )
 }
 
-export function SetlistDetailPage({ user }: { user: CurrentUser }) {
-  const { groupId, setlistId } = useParams()
+export function SetlistDetailPage({ user, groupId, setlistId }: { user: CurrentUser; groupId: string; setlistId: string }) {
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const [setlist, setSetlist] = useState<SetlistDetail | null | undefined>(undefined)
   const [draft, setDraft] = useState<DraftItem[]>([])
@@ -323,9 +322,9 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
+        <AppLink className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           Mis grupos
-        </Link>
+        </AppLink>
       </div>
     )
   }
@@ -338,12 +337,12 @@ export function SetlistDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={error ?? t('setlist.notFound')} />
-        <Link
+        <AppLink
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={routes.groupSetlists(group.id)}
         >
           {t('setlist.setlists')}
-        </Link>
+        </AppLink>
       </div>
     )
   }

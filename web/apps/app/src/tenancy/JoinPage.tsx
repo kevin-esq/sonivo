@@ -1,6 +1,7 @@
 import { routes } from '../routing/routes'
 import { useState } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { AppLink, type NavigationMode } from '../routing/AppLink'
 import { acceptInvitation, ApiError, type CurrentUser } from '../api/client'
 import { useT } from '../i18n'
 import { mutationErrorMessage, ProblemAlert } from '../repertoire/ui'
@@ -12,22 +13,27 @@ export { safeJoinNextPath } from './safeJoinNextPath'
 export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
   const { token } = useParams()
   const navigate = useNavigate()
+  const { t } = useT()
+
+  if (user === undefined) return <p aria-live="polite">{t('joinGroup.checking')}</p>
+  if (!user) {
+    const next = token ? routes.joinInvitation(token) : routes.join
+    const loginSearch = safeJoinNextPath(next) ? `?next=${encodeURIComponent(next)}` : ''
+    return <Navigate to={`${routes.login}${loginSearch}`} replace />
+  }
+
+  return <JoinInvitationContent token={token ?? ''} navigate={navigate} />
+}
+
+export function JoinInvitationContent({ token, navigate, navigationMode = 'legacy' }: {
+  token: string
+  navigate: (to: string) => void
+  navigationMode?: NavigationMode
+}) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [alreadyMember, setAlreadyMember] = useState(false)
   const { t } = useT()
-
-  if (user === undefined) {
-    return <p aria-live="polite">{t('joinGroup.checking')}</p>
-  }
-
-  if (!user) {
-    const next = token ? `${routes.joinInvitation(token)}` : routes.join
-    const loginSearch = safeJoinNextPath(next)
-      ? `?next=${encodeURIComponent(next)}`
-      : ''
-    return <Navigate to={`${routes.login}${loginSearch}`} replace />
-  }
 
   async function onAccept() {
     if (!token) return
@@ -64,9 +70,9 @@ export function JoinPage({ user }: { user: CurrentUser | null | undefined }) {
       {alreadyMember ? (
         <div className="space-y-2" role="alert">
           <p>{t('joinGroup.alreadyMember')}</p>
-          <Link className="font-semibold text-primary-ink no-underline hover:underline" to="/">
+          <AppLink mode={navigationMode} className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
             {t('joinGroup.home')}
-          </Link>
+          </AppLink>
         </div>
       ) : (
         <Button disabled={pending || !token} onClick={() => void onAccept()}>

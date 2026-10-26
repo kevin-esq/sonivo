@@ -1,7 +1,6 @@
 import { routes } from '../routing/routes'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronRight, Paperclip } from 'lucide-react'
 import {
   createArrangement,
@@ -44,6 +43,8 @@ import { plural } from '../ui/plural'
 import { useAction } from '../hooks/useAction'
 import { useResource } from '../hooks/useResource'
 import { useT, type I18nKey } from '../i18n'
+import { AppLink } from '../routing/AppLink'
+import { useGroupShell } from '../shell/GroupShellContext'
 
 import { SongContentGuide } from './SongContentGuide'
 import { RehearsalBodyView } from './ChordProView'
@@ -57,9 +58,8 @@ const SONG_TABS: { id: SongTab; labelKey: I18nKey }[] = [
   { id: 'files', labelKey: 'song.tabFiles' },
 ]
 
-export function SongDetailPage({ user }: { user: CurrentUser }) {
-  const { groupId, songId } = useParams()
-  const navigate = useNavigate()
+export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; groupId: string; songId: string }) {
+  const { navigate } = useGroupShell()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const [conflict, setConflict] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -126,9 +126,9 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={groupError} />
-        <Link className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
+        <AppLink className="font-semibold text-primary-ink no-underline hover:underline" to={routes.home}>
           {t('song.myGroups')}
-        </Link>
+        </AppLink>
       </div>
     )
   }
@@ -141,12 +141,12 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={mutationErrorMessage(surface.error, t)} />
-        <Link
+        <AppLink
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={routes.groupLibrary(group.id)}
         >
           {t('song.library')}
-        </Link>
+        </AppLink>
       </div>
     )
   }
@@ -353,12 +353,12 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
               )}
             </div>
             {isOwner && selectedArrangement ? (
-              <Link
+              <AppLink
               className="inline-flex min-h-11 items-center rounded-xl bg-primary-strong px-5 text-sm font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary-strong/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 to={routes.groupArrangement(group.id, selectedArrangement.id)}
               >
                 {t('song.editArrangementContent')}
-              </Link>
+              </AppLink>
             ) : null}
           </section>
 
@@ -393,7 +393,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                     className="library-enter"
                     style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                   >
-                    <Link
+                    <AppLink
                       className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-3 no-underline transition duration-150 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none"
                       to={routes.groupArrangement(group.id, arrangement.id)}
                     >
@@ -418,7 +418,7 @@ export function SongDetailPage({ user }: { user: CurrentUser }) {
                           : t('setlists.noKey')}
                       </ReadinessChip>
                       <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
-                    </Link>
+                    </AppLink>
                   </li>
                 ))}
               </ol>

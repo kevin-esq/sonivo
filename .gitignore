@@ -46,6 +46,7 @@ tests/**/.scratch/rls-validation/
 **/dist/
 *.tsbuildinfo
 web/apps/app/.next-e2e/
+web/apps/*/.next-*/
 web/output/playwright/
 output/playwright/
 web/apps/app/web/output/playwright/

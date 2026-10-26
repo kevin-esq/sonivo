@@ -1,6 +1,7 @@
+'use client'
+
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -38,9 +39,8 @@ import {
   type CalendarView,
 } from "./calendarUtils";
 
-export function CalendarPage() {
+export function CalendarPage({ navigate }: { navigate: (to: string) => void }) {
   const { t, lang } = useT();
-  const navigate = useNavigate();
   const today = useMemo(() => new Date(), []);
 
   const [view, setView] = useState<CalendarView>("month");

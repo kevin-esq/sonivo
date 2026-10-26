@@ -1,7 +1,10 @@
+'use client'
+
 import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import {
   confirmEmail,
   forgotPassword,
@@ -9,7 +12,7 @@ import {
   resetPassword,
   resendConfirmation,
 } from '../api/client'
-import { BrandLockup } from '../brand/SonivoMark'
+import { NextBrandLockup } from '../brand/NextBrandLockup'
 import { useT } from '../i18n'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
@@ -24,7 +27,7 @@ function VerifyShell({
   return (
     <div className="flex min-h-screen flex-col bg-canvas px-6 py-10 text-neutral-dark">
       <div className="mb-10">
-        <BrandLockup to={routes.login} />
+        <NextBrandLockup to={routes.login} />
       </div>
       <main id="main" className="mx-auto w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
@@ -35,7 +38,7 @@ function VerifyShell({
 }
 
 export function ConfirmPage() {
-  const [searchParams] = useSearchParams()
+  const searchParams = useSearchParams()
   const { t } = useT()
   const email = searchParams.get('email') ?? ''
   const token = searchParams.get('token') ?? ''
@@ -70,7 +73,7 @@ export function ConfirmPage() {
           <p className="text-sm text-slate-600">{t('verify.confirmed')}</p>
           <Link
             className="inline-block font-semibold text-shell-link no-underline hover:underline"
-            to={routes.login}
+            href={routes.login}
           >
             {t('verify.goLogin')}
           </Link>
@@ -156,7 +159,7 @@ export function ForgotPasswordPage() {
 }
 
 export function ResetPasswordPage() {
-  const [searchParams] = useSearchParams()
+  const searchParams = useSearchParams()
   const email = searchParams.get('email') ?? ''
   const token = searchParams.get('token') ?? ''
   const [password, setPassword] = useState('')
@@ -190,7 +193,7 @@ export function ResetPasswordPage() {
           <p className="text-sm text-slate-600">{t('verify.resetDone')}</p>
           <Link
             className="inline-block font-semibold text-shell-link no-underline hover:underline"
-            to={routes.login}
+            href={routes.login}
           >
             {t('verify.goLogin')}
           </Link>
