@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import {
   ArrowRight,
   Moon,
@@ -6,7 +6,7 @@ import {
   Sparkles,
   Sun,
 } from 'lucide-react'
-import { BrandLockup } from '../brand/SonivoMark'
+import { NextBrandLockup } from '../brand/NextBrandLockup'
 import { useT } from '../i18n'
 import { useTheme } from '../brand/theme'
 import type { CurrentUser } from '../api/client'
@@ -36,7 +36,7 @@ export function MarketingPage({ user }: { user?: CurrentUser | null }) {
     <div className="marketing-page min-h-screen bg-canvas text-ink">
       <header className="marketing-header sticky top-0 z-30 border-b border-border-subtle bg-canvas/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <BrandLockup to={routes.marketing} />
+          <NextBrandLockup to={routes.marketing} />
             <nav className="hidden items-center gap-6 text-sm font-medium text-muted md:flex" aria-label={t('marketing.navLabel')}>
             <a href="#features" className="hover:text-ink">{t('marketing.navFeatures')}</a>
             <a href="#how" className="hover:text-ink">{t('marketing.navHow')}</a>
@@ -52,7 +52,7 @@ export function MarketingPage({ user }: { user?: CurrentUser | null }) {
             </button>
             {user ? (
               <Link
-                to={routes.home}
+                href={routes.home}
                 className="inline-flex items-center gap-2 rounded-xl bg-primary-strong px-4 py-2 text-sm font-semibold text-primary-foreground no-underline shadow-sm hover:bg-primary-strong/90"
               >
                 {t('marketing.goToApp')}
@@ -61,13 +61,13 @@ export function MarketingPage({ user }: { user?: CurrentUser | null }) {
             ) : (
               <>
                 <Link
-                  to={routes.login}
+                  href={routes.login}
                   className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-ink no-underline hover:bg-surface-hover sm:inline-flex"
                 >
                   {t('marketing.login')}
                 </Link>
                 <Link
-                  to={routes.register}
+                  href={routes.register}
                   className="inline-flex items-center gap-2 rounded-xl bg-primary-strong px-4 py-2 text-sm font-semibold text-primary-foreground no-underline shadow-sm hover:bg-primary-strong/90"
                 >
                   {t('marketing.register')}
@@ -100,7 +100,7 @@ export function MarketingPage({ user }: { user?: CurrentUser | null }) {
               <p className="marketing-hero__subtitle max-w-xl text-lg leading-8 text-white/75">{t('marketing.heroSubtitle')}</p>
               <div className="flex flex-wrap items-center gap-3">
                 <Link
-                  to={user ? routes.home : routes.register}
+                  href={user ? routes.home : routes.register}
                   className="marketing-hero__cta-primary inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#1b1035] no-underline shadow-sm transition-transform hover:-translate-y-0.5 hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transform-none"
                 >
                   {user ? t('marketing.goToApp') : t('marketing.heroCta')}
@@ -108,7 +108,7 @@ export function MarketingPage({ user }: { user?: CurrentUser | null }) {
                 </Link>
                 {user ? null : (
                   <Link
-                    to={routes.login}
+                    href={routes.login}
                     className="marketing-hero__cta-secondary inline-flex min-h-12 items-center gap-2 rounded-full border border-white/25 px-5 py-3 text-sm font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
                   >
                     {t('marketing.heroCtaSecondary')}
@@ -196,7 +196,7 @@ export function MarketingPage({ user }: { user?: CurrentUser | null }) {
             <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{t('marketing.finalTitle')}</h2>
             <p className="mx-auto mt-3 max-w-xl text-white/80">{t('marketing.finalBody')}</p>
             <Link
-              to={user ? routes.home : routes.register}
+              href={user ? routes.home : routes.register}
               className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#1b1035] no-underline transition-transform hover:-translate-y-0.5 hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transform-none"
             >
               {user ? t('marketing.goToApp') : t('marketing.finalCta')}
@@ -210,11 +210,11 @@ export function MarketingPage({ user }: { user?: CurrentUser | null }) {
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-muted sm:px-6">
           <span>{t('marketing.footerRights')}</span>
           {user ? (
-            <Link to={routes.home} className="no-underline hover:text-ink">{t('marketing.goToApp')}</Link>
+            <Link href={routes.home} className="no-underline hover:text-ink">{t('marketing.goToApp')}</Link>
           ) : (
             <div className="flex items-center gap-4">
-              <Link to={routes.login} className="no-underline hover:text-ink">{t('marketing.login')}</Link>
-              <Link to={routes.register} className="no-underline hover:text-ink">{t('marketing.register')}</Link>
+              <Link href={routes.login} className="no-underline hover:text-ink">{t('marketing.login')}</Link>
+              <Link href={routes.register} className="no-underline hover:text-ink">{t('marketing.register')}</Link>
             </div>
           )}
         </div>

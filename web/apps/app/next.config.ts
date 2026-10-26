@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { legacyGroupRouteRedirects, legacyRouteRedirects, routes } from './src/routing/routes'
 
 // The .NET API is the only backend. Dev/CI and the Vercel production server
 // proxy API, hubs, and the public group manifest to it. NEXT_EXPORT=1 is the
@@ -22,18 +23,40 @@ const nextConfig: NextConfig = {
   output: isExport ? 'export' : undefined,
   images: { unoptimized: true },
   ...(!isExport && {
+    async redirects() {
+      return [
+        ...legacyRouteRedirects.map(({ from, to }) => ({ source: from, destination: to, permanent: true })),
+        { source: '/groups/:groupId/:path*', destination: '/app/groups/:groupId/:path*', permanent: true },
+        { source: '/join/:token', destination: '/app/join/:token', permanent: true },
+        { source: '/g/:slug/login', destination: '/auth/groups/:slug/login', permanent: true },
+        { source: '/g/:slug/:path*', destination: '/app/g/:slug/:path*', permanent: true },
+        { source: '/g/:slug', destination: '/app/g/:slug', permanent: true },
+        ...legacyGroupRouteRedirects.map(({ from, to }) => ({
+          source: `/app/groups/:groupId/${from}/:path*`,
+          destination: `/app/groups/:groupId/${to}/:path*`,
+          permanent: true,
+        })),
+      ]
+    },
     async headers() {
       return [
         {
           source: '/:path*',
           headers: [
-            { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
             { key: 'X-Content-Type-Options', value: 'nosniff' },
             { key: 'X-Frame-Options', value: 'DENY' },
             { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
             { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
             { key: 'Strict-Transport-Security', value: 'max-age=31536000' },
           ],
+        },
+        {
+          source: '/app/:path*',
+          headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+        },
+        {
+          source: '/auth/:path*',
+          headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
         },
       ]
     },
@@ -48,9 +71,9 @@ const nextConfig: NextConfig = {
           { source: '/hubs/:path*', destination: `${apiOrigin}/hubs/:path*` },
           { source: '/g/:slug/manifest.webmanifest', destination: `${apiOrigin}/g/:slug/manifest.webmanifest` },
         ],
-        // Deep links (e.g. /groups) resolve to the SPA shell in dev/CI.
-        afterFiles: [{ source: '/:path*', destination: '/' }],
-        fallback: [],
+        // Unknown paths retain the SPA bridge in dev/CI after App Router
+        // dynamic routes (Group, slug, and identity paths) have been checked.
+        fallback: [{ source: '/:path*', destination: routes.legacyFallback }],
       }
     },
   }),

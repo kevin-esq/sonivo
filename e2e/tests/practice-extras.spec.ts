@@ -92,6 +92,7 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
     })
     await openPractice(page)
     await page.getByTestId('practice-tab-afinar').click()
+    await expect(page).toHaveURL(/[?&]tab=afinar(?:&|$)/)
 
     await page.addInitScript(() => {
       const getUserMedia = async (): Promise<MediaStream> => {

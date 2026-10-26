@@ -201,8 +201,9 @@ export async function createArrangement(
 
 export async function openPractice(page: Page) {
   await page.getByRole('link', { name: 'Practicar' }).click()
-  await expect(page.getByText('Practicar', { exact: true }).first()).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Letra' })).toBeVisible()
+  await expect(page).toHaveURL(/\/practice(?:$|[?#])/)
+  await expect(page.getByTestId('practice-tab-estudiar')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Letra', exact: true })).toBeVisible()
 }
 
 export async function createLinkResource(

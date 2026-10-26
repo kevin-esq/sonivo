@@ -4,6 +4,7 @@ const groupBase = (groupId: string) => `${appBase}/groups/${encodeURIComponent(g
 
 export const routes = {
   marketing: '/',
+  legacyFallback: '/legacy-fallback',
   marketingLocale: (locale: string) => `/${encodeURIComponent(locale)}`,
   app: appBase,
   home: `${appBase}/home`,
