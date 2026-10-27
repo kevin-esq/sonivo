@@ -8,6 +8,33 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0102 — Neon agent access for project work
+
+- **Status:** **ACCEPTED** — explicitly authorized by the owner on 2026-10-27.
+- **Extends:** ADR-0002 and ADR-0041.
+
+### Context
+
+The owner requested persistent Neon access from Codex after a staging database migration issue and supplied Neon's skill-install command. The project already uses Neon, and database troubleshooting benefits from current Neon-specific guidance and hosted MCP tools.
+
+### Decision
+
+1. Add Neon's official `neon` and `neon-postgres` agent skills under the sole project-local `.agents/skills/` tree. Track their source and hashes through `skills-lock.json` and list them in the tooling allowlist.
+2. Configure the hosted Neon MCP server (`https://mcp.neon.tech/mcp`) in the owner's global Codex configuration using Neon OAuth. Do not add personal MCP credentials or user-global configuration to the repository.
+3. Treat the MCP as optional developer tooling, not an application or deployment dependency. Other contributors configure their own access only with explicit authorization.
+
+### Scope and safeguards
+
+- This decision adds no database driver, runtime package, application configuration, or production migration workflow.
+- Review tool scope and requested actions. Destructive database operations require explicit user authorization; Neon MCP access does not override Sonivo's migration and deployment gates.
+- Do not commit OAuth tokens, API keys, or connection strings.
+
+### Consequences
+
+Codex in this checkout can use the two Neon skills; the owner's Codex MCP configuration is global and OAuth-backed. Project reproducibility is limited to the checked-in skills and lockfile, not the owner's authentication.
+
+---
+
 ## ADR-0101 — Sonivo-owned lyric document and portable exports
 
 - **Status:** **ACCEPTED** — explicitly authorized by the owner on 2026-10-21: normalize provider lyrics into Sonivo's own TTML and support native/classic/chart/PDF exports.

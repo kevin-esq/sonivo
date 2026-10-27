@@ -1,7 +1,7 @@
 # SKILLS-INVENTORY.md — Sonivo
 
 **Phase 0 status:** **CLOSED** (Phase 0.9, 2026-09-15)  
-**Allowlist:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, **ADR-0063**, and **ADR-0064**)
+**Allowlist:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, ADR-0063–0066, ADR-0099, and ADR-0102)
 
 Distinguish: **PRESENT** (on disk) · **AUTHORIZED** (Sonivo allowlist) · **DEFERRED** · **REJECTED** · **USER-GLOBAL**
 
@@ -67,6 +67,12 @@ model (ADR-0079 ACCEPTED):
 - `group-tenancy-isolation` — Group is the only tenant; server-side membership
   check per request; `(GroupId, EntityId)` lookups; no ambient tenant filter.
 
+### DATABASE PLATFORM — PROJECT-LOCAL (ADR-0102, user-authorized 2026-10-27)
+
+Official Neon skills for platform and Postgres workflows:
+
+- `neon` · `neon-postgres` — `neondatabase/agent-skills`
+
 ### DEFERRED (not installed project-local; do not invoke/depend)
 
 `setup-matt-pocock-skills` · `handoff` · `product-marketing` · Context7 · surplus Matt skills
@@ -81,9 +87,9 @@ model (ADR-0079 ACCEPTED):
 
 ---
 
-## PRESENT project-local skills (36 directories)
+## PRESENT project-local skills (39 directories)
 
-**36** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063 + ADR-0064 + ADR-0065 + ADR-0066 + user-authorized 2026-10-14):
+**39** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063–0066 + ADR-0099 + ADR-0102):
 
 | Directory                       | Role                 |
 | ------------------------------- | -------------------- |
@@ -123,8 +129,11 @@ model (ADR-0079 ACCEPTED):
 | `git-governance`                | GIT (ADR-0065)       |
 | `validation-symmetry`           | VALIDATION (ADR-0066) |
 | `group-tenancy-isolation`       | TENANCY (2026-10-14) |
+| `frontend-architecture`         | FRONTEND (2026-10-07) |
+| `neon`                          | DATABASE (ADR-0102)  |
+| `neon-postgres`                 | DATABASE (ADR-0102)  |
 
-= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions + **2** ADR-0064 security skills + **1** ADR-0065 git governance + **1** ADR-0066 validation + **1** tenancy = **36 AUTHORIZED**.
+= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions + **2** ADR-0064 security skills + **1** frontend structure + **1** ADR-0065 git governance + **1** ADR-0066 validation + **1** tenancy + **2** ADR-0102 Neon skills = **39 AUTHORIZED**.
 
 Removed skills are **not** listed as installed.
 
@@ -132,11 +141,11 @@ Removed skills are **not** listed as installed.
 
 | Path               | Notes                                                                                 |
 | ------------------ | ------------------------------------------------------------------------------------- |
-| `.agents/skills/`  | Sole project-local skills directory; contains all 35 authorized `SKILL.md` procedures |
+| `.agents/skills/`  | Sole project-local skills directory; contains all 39 authorized procedures |
 | `.obsidian/`       | Local vault configuration; intentionally not modified                                 |
 | `opencode.json`    | Root MCP servers (`drawio`, `excalidraw`, `sequential-thinking`, `fetch`) — ADR-0063; `semgrep` + `snyk` — ADR-0064; `github` (local Docker) — ADR-0065; `docker-sandbox` + `infisical` (disabled) — ADR-0066; V2-native `mcp.servers` |
 | `.githooks/`       | Conventional Commits gate (`commit-msg`) + `.commitlintrc.json` — ADR-0065 |
-| `skills-lock.json` | **13** Matt core entries only; the ADR-0063 Matt additions (`pr`, `writing-for-agents`) are not yet in the lock — update via the official `skills` CLI, never by hand |
+| `skills-lock.json` | **15** entries: 13 Matt core skills and 2 Neon skills. The ADR-0063 Matt additions (`pr`, `writing-for-agents`) are not yet in the lock — update via the official `skills` CLI, never by hand |
 
 Root `AGENTS.md` is the shared project instruction file. `.cursor/`, `.codex/`, and `.claude/` customizations are absent by ADR-0041.
 
