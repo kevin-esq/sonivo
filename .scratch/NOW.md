@@ -7,8 +7,8 @@
 - **Implementation:** COMPLETE locally. Four previously failing Playwright journeys were fixed and pass. No schema migration was applied to a database.
 - **Human approval:** APPROVED for this batch and explicit authorization to commit, push, and open a PR after validation.
 - **Git checkpoint:** COMMITTED (`feat(repertoire): complete rich lyrics and library workflows`).
-- **Remote:** NOT PUSHED. No PR created yet.
-- **CI:** NOT RUN for this branch; run after push.
+- **Remote:** PUSHED to `origin/feature/local-release-completion`; PR #302 is open against `develop`.
+- **CI:** RUNNING on PR #302; latest observed checks are pending.
 - **Validation:** `.NET Release`: 858 passed, 0 failed; Next.js production build and app TypeScript check passed; Playwright: 112 passed, 2 feature-flag skips, 0 failed; Android `assembleDebug` passed with JDK 21; `git diff --check` passed. iOS build/device QA was unavailable on this Windows host.
 - **Open gates:** Review PR CI; do not apply the included migration to staging/production from this checkpoint. Existing production, mobile provisioning/device QA and web host cutover gates remain governed by their phase specs.
 - **Git policy:** no files under `.codex-remote-attachments/` or scratch research/review notes are included.
