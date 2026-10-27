@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test'
-import { activeChordLineIndex, activeChordLineIndexes, activeChordWordLineIndexes, chordWordPresentation, parseChordTimingTimeline, serializeChordTimingTimeline } from '../../web/apps/app/src/repertoire/chordTiming'
-import { parseStageDisplayMessage } from '../../web/apps/app/src/repertoire/stageDisplaySync'
+import chordTiming from '../../web/apps/app/src/repertoire/chordTiming'
+import stageDisplaySync from '../../web/apps/app/src/repertoire/stageDisplaySync'
+
+const { activeChordLineIndex, activeChordLineIndexes, activeChordWordLineIndexes, chordWordPresentation, parseChordTimingTimeline, serializeChordTimingTimeline } = chordTiming
+const { parseStageDisplayMessage } = stageDisplaySync
 
 test('lyric line ends survive editing and stop highlighting during silence', () => {
   const timeline = parseChordTimingTimeline('[{"lineIndex":0,"atMs":1000,"endMs":4000},{"lineIndex":1,"atMs":2000,"endMs":2500}]')
