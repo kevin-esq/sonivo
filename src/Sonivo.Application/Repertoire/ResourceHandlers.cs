@@ -80,7 +80,10 @@ public sealed record ResourceContentDto(
     Stream Content,
     string ContentType,
     long ByteSize,
-    string DownloadFileName);
+    string DownloadFileName,
+    bool SupportsByteRanges = false,
+    long? RangeStart = null,
+    long? RangeEnd = null);
 
 public sealed class CreateLinkResourceHandler
 {
@@ -549,7 +552,9 @@ public sealed class GetResourceContentHandler
         Guid groupId,
         Guid arrangementId,
         Guid resourceId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        long? rangeStart = null,
+        long? rangeEnd = null)
     {
         var arrangement = await _arrangements.GetByIdAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
@@ -583,7 +588,25 @@ public sealed class GetResourceContentHandler
             throw new ValidationException("Resource content is only available for file Resources.");
         }
 
-        var blob = await _blobs.GetAsync(resource.ObjectKey, cancellationToken);
+        var requestedRange = ResolveByteRange(rangeStart, rangeEnd, resource.ByteSize.Value);
+        BlobContent? blob;
+        long? resolvedRangeStart = null;
+        long? resolvedRangeEnd = null;
+        if (requestedRange is { } byteRange && _blobs is IByteRangeBlobStore rangeStore)
+        {
+            blob = await rangeStore.GetRangeAsync(
+                resource.ObjectKey,
+                byteRange.Start,
+                byteRange.End,
+                cancellationToken);
+            resolvedRangeStart = byteRange.Start;
+            resolvedRangeEnd = byteRange.End;
+        }
+        else
+        {
+            blob = await _blobs.GetAsync(resource.ObjectKey, cancellationToken);
+        }
+
         if (blob is null)
         {
             throw new NotFoundException("Resource content not found.");
@@ -593,7 +616,44 @@ public sealed class GetResourceContentHandler
             blob.Content,
             resource.ContentType,
             resource.ByteSize.Value,
-            SanitizeDownloadFileName(resource.OriginalFileName));
+            SanitizeDownloadFileName(resource.OriginalFileName),
+            _blobs is IByteRangeBlobStore || blob.Content.CanSeek,
+            resolvedRangeStart,
+            resolvedRangeEnd);
+    }
+
+    private static (long Start, long End)? ResolveByteRange(long? start, long? end, long byteSize)
+    {
+        if (start is null && end is null || byteSize <= 0)
+        {
+            return null;
+        }
+
+        if (start is null)
+        {
+            if (end is not long suffixLength || suffixLength <= 0)
+            {
+                return null;
+            }
+
+            start = Math.Max(0, byteSize - suffixLength);
+            end = byteSize - 1;
+        }
+        else if (end is null)
+        {
+            end = byteSize - 1;
+        }
+
+        if (start is not long resolvedStart
+            || end is not long resolvedEnd
+            || resolvedStart < 0
+            || resolvedStart >= byteSize
+            || resolvedEnd < resolvedStart)
+        {
+            return null;
+        }
+
+        return (resolvedStart, Math.Min(resolvedEnd, byteSize - 1));
     }
 
     internal static string SanitizeDownloadFileName(string originalFileName)

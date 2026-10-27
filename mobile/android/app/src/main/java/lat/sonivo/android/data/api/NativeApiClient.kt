@@ -176,6 +176,16 @@ class NativeApiClient(private val baseUrl: String = BuildConfig.API_BASE_URL) {
         }
     }
 
+    fun createGroup(name: String, accessToken: String): MobileGroup {
+        val group = JSONObject(postJson(ApiEndpoints.groups(), JSONObject().put("name", name), accessToken))
+        return MobileGroup(
+            group.getString("id"),
+            group.getString("name"),
+            group.optString("role", "Owner"),
+            group.optString("slug"),
+        )
+    }
+
     fun listEvents(groupId: String, accessToken: String): List<MobileEvent> {
         val events = JSONArray(request(ApiEndpoints.events(groupId), accessToken))
         return buildList {
@@ -414,6 +424,7 @@ class NativeApiClient(private val baseUrl: String = BuildConfig.API_BASE_URL) {
     private fun openConnection(path: String, accessToken: String, method: String): HttpURLConnection {
         val connection = URL(baseUrl.trimEnd('/') + path).openConnection() as HttpURLConnection
         connection.requestMethod = method
+        connection.instanceFollowRedirects = false
         connection.connectTimeout = 15_000
         connection.readTimeout = 30_000
         ApiEndpoints.requestHeaders(accessToken).forEach(connection::setRequestProperty)

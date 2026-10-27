@@ -3,11 +3,13 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   CheckSquare,
+  CircleHelp,
   Home,
   Library,
   ListMusic,
   Music2,
   ShieldCheck,
+  Settings2,
   Users,
 } from 'lucide-react'
 import type { I18nKey } from '../i18n'
@@ -30,13 +32,14 @@ export type GroupNavSection = {
 
 /**
  * Sectioned group workspace IA (ADR-0055 + owner addendum 2026-10-03).
- * Music = structured songs + setlists; Library/files are not top-level
- * sections — files live on their song/event/resource. Resources is a
- * cross-cutting top-level section.
+ * Group navigation follows the member workflow: overview, repertoire,
+ * schedule, team, then owner-facing administration. Resource library remains
+ * grouped with music while files stay attached to their domain records.
  */
 export const groupNavSections: GroupNavSection[] = [
   {
-    id: 'main',
+    id: 'overview',
+    labelKey: 'nav.sectionOverview',
     items: [
       { id: 'home', labelKey: 'nav.home', icon: Home, end: true, href: routes.group },
     ],
@@ -47,11 +50,12 @@ export const groupNavSections: GroupNavSection[] = [
     items: [
       { id: 'songs', labelKey: 'nav.songs', icon: Music2, href: routes.groupLibrary },
       { id: 'setlists', labelKey: 'nav.setlists', icon: ListMusic, href: routes.groupSetlists },
+      { id: 'resources', labelKey: 'nav.resources', icon: Library, href: routes.groupResources },
     ],
   },
   {
-    id: 'organization',
-    labelKey: 'nav.sectionOrganization',
+    id: 'schedule',
+    labelKey: 'nav.sectionSchedule',
     items: [
       { id: 'calendar', labelKey: 'nav.calendar', icon: CalendarDays, href: routes.groupCalendar },
       { id: 'events', labelKey: 'nav.events', icon: CalendarDays, href: routes.groupEvents },
@@ -67,15 +71,12 @@ export const groupNavSections: GroupNavSection[] = [
     ],
   },
   {
-    id: 'insights',
+    id: 'administration',
+    labelKey: 'nav.sectionAdministration',
     items: [
       { id: 'reports', labelKey: 'nav.reports', icon: ChartNoAxesCombined, desktopOnly: true, href: routes.groupReports },
-    ],
-  },
-  {
-    id: 'resources',
-    items: [
-      { id: 'resources', labelKey: 'nav.resources', icon: Library, href: routes.groupResources },
+      { id: 'settings', labelKey: 'group.settings', icon: Settings2, href: routes.groupSettings },
+      { id: 'help', labelKey: 'sidebar.help', icon: CircleHelp, href: routes.groupHelp },
     ],
   },
 ]

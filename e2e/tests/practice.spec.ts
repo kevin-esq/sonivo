@@ -206,13 +206,9 @@ test.describe('Practice / karaoke thin', () => {
     const lyricsLine2 = `Segunda línea del verso ${stamp}`
     const lyricsLine3 = `Tercera línea del verso ${stamp}`
     const allLyrics = `${lyricsLine1}\n${lyricsLine2}\n${lyricsLine3}`
+    const [mark1Ms, mark2Ms, mark3Ms] = [500, 1500, 2500]
     // ChordPro body so Practice renders ChordProView (with highlight) + canTranspose toggle section
     const chordProBody = `[Am]${lyricsLine1}\n[G]${lyricsLine2}\n[C]${lyricsLine3}`
-
-    // Timing marks within the 3-second practice audio duration
-    const mark1Ms = 500
-    const mark2Ms = 1500
-    const mark3Ms = 2500
 
     await register(page, email)
     await createGroup(page, groupName)

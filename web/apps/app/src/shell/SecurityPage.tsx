@@ -29,7 +29,7 @@ export function SecurityPage() {
   return (
     <div className="security-page mx-auto max-w-4xl space-y-6">
       <header className="space-y-1.5 border-b border-border-subtle pb-5">
-        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('security.title')}</h1>
+        <h1 className="sonivo-page-title text-ink">{t('security.title')}</h1>
         <p className="text-muted">
           {t('security.subtitle')}
         </p>

@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { AudioLines, Pause, Play, Volume2 } from 'lucide-react'
 import { useT } from '../i18n'
 import { Button } from '../ui/button'
 import { useAudioPlayer } from './AudioPlayerContext'
@@ -54,6 +55,7 @@ export function PracticePlayer({
     progress,
     duration,
     volume,
+    playbackError,
     loadTrack,
     togglePlay,
     seek,
@@ -128,101 +130,58 @@ export function PracticePlayer({
   }
 
   const seekMax = duration > 0 ? duration : 0
+  const progressPercent = duration > 0 ? Math.min(100, Math.max(0, (progress / duration) * 100)) : 0
   const volumePct = Math.round(volume * 100)
   const hasTrack = currentTrack?.id === selected.resourceId
 
   return (
     <section
-      className="space-y-4 rounded-xl border border-border-subtle bg-surface p-4 sm:p-5"
+      className="relative isolate overflow-hidden rounded-[1.5rem] border border-border-subtle bg-surface p-4 shadow-sm sm:p-6"
       aria-labelledby="practice-audio-heading"
       data-testid="practice-player"
     >
-      <div className="space-y-1">
-        <h2 id="practice-audio-heading" className="text-lg font-semibold tracking-tight text-ink">
-          {t('practice.audio.title')}
-        </h2>
-        <p className="text-sm text-muted">{t('practice.audio.subtitle')}</p>
+      <div className="grid gap-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center sm:gap-6">
+        <div aria-hidden="true" className="relative grid aspect-square w-full max-w-[7.5rem] place-items-center overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_35%_30%,color-mix(in_srgb,var(--brand-primary)_88%,white),color-mix(in_srgb,var(--brand-primary)_35%,var(--color-score-ink))_58%,var(--color-score-ink))] text-white shadow-md">
+          <AudioLines className="h-10 w-10 drop-shadow" strokeWidth={1.5} />
+          <span className="absolute inset-x-0 bottom-0 h-1 bg-[var(--brand-primary)]" style={{ transform: `scaleX(${progressPercent})`, transformOrigin: 'left' }} />
+        </div>
+        <div className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <h2 id="practice-audio-heading" className="text-lg font-semibold tracking-tight text-ink">{t('practice.audio.title')}</h2>
+              <p className="text-sm text-muted">{t('practice.audio.subtitle')}</p>
+            </div>
+            <label className="sr-only" htmlFor={trackId}>{t('practice.audio.trackLabel')}</label>
+            <select id={trackId} className="min-h-11 max-w-full rounded-xl border border-border-subtle bg-surface px-3 py-2 text-sm font-medium text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" value={selected.resourceId} onChange={(e) => onTrackChange(e.target.value)} data-testid="practice-track-select">
+              {tracks.map((track) => <option key={track.resourceId} value={track.resourceId}>{track.label}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="min-w-10 text-right text-xs tabular-nums text-muted" data-testid="practice-current-time">{formatTime(progress)}</span>
+            <input id={seekId} type="range" min={0} max={seekMax || 1} step={0.1} value={Math.min(progress, seekMax || 1)} disabled={seekMax <= 0} onInput={(e) => onSeek(Number((e.target as HTMLInputElement).value))} onChange={(e) => onSeek(Number(e.target.value))} className="h-11 min-w-0 flex-1 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-valuetext={`${formatTime(progress)} ${t('practice.audio.ofWord')} ${formatTime(duration)}`} aria-label={t('practice.audio.position')} data-testid="practice-seek" />
+            <span className="min-w-10 text-xs tabular-nums text-muted" data-testid="practice-duration">{formatTime(duration)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <Button type="button" variant="primary" className="min-h-12 min-w-12 rounded-full px-4" onClick={() => void togglePlay()} aria-label={isPlaying ? t('player.pause') : t('player.play')} disabled={!hasTrack} data-testid="practice-play-pause">
+              {isPlaying ? <Pause className="h-5 w-5" fill="currentColor" /> : <Play className="h-5 w-5" fill="currentColor" />}
+              <span className="sr-only">{isPlaying ? t('player.pause') : t('player.play')}</span>
+            </Button>
+            <div className="flex min-w-0 items-center gap-2 text-muted">
+              <Volume2 className="hidden h-4 w-4 sm:block" aria-hidden="true" />
+              <label className="sr-only" htmlFor={volumeId}>{t('practice.audio.volume', { percent: volumePct })}</label>
+              <input id={volumeId} type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="h-11 w-24 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:w-32" aria-valuetext={t('practice.audio.volumeValue', { percent: volumePct })} aria-label={t('practice.audio.volume', { percent: volumePct })} data-testid="practice-volume" />
+              <span className="w-9 text-right text-xs tabular-nums">{volumePct}%</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-1.5">
-        <label htmlFor={trackId} className="block text-sm font-medium text-ink">
-          {t('practice.audio.trackLabel')}
-        </label>
-        <select
-          id={trackId}
-          className="min-h-11 w-full max-w-xl rounded-lg border border-border-subtle bg-surface px-3 py-2.5 text-base text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:text-sm"
-          value={selected.resourceId}
-          onChange={(e) => onTrackChange(e.target.value)}
-          data-testid="practice-track-select"
-        >
-          {tracks.map((track) => (
-            <option key={track.resourceId} value={track.resourceId}>
-              {track.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          type="button"
-          variant="secondary"
-          className="min-h-11 min-w-28"
-          onClick={() => void togglePlay()}
-          aria-label={isPlaying ? t('player.pause') : t('player.play')}
-          disabled={!hasTrack}
-          data-testid="practice-play-pause"
-        >
-          {isPlaying ? t('player.pause') : t('player.play')}
-        </Button>
-        <p
-          className="tabular-nums text-sm font-medium text-ink"
-          aria-live="off"
-          aria-label={`${t('practice.audio.timeLabel')} ${formatTime(progress)} ${t('practice.audio.ofWord')} ${formatTime(duration)}`}
-        >
-          <span data-testid="practice-current-time">{formatTime(progress)}</span>
-          {' / '}
-          <span data-testid="practice-duration">{formatTime(duration)}</span>
+      {playbackError ? (
+        <p role="alert" className="text-sm text-error-ink" data-testid="practice-audio-error">
+          {playbackError === 'unsupported' ? t('player.unsupportedAudio') : t('player.playbackFailed')}
         </p>
-      </div>
+      ) : null}
 
-      <div className="max-w-xl space-y-1.5">
-        <label htmlFor={seekId} className="block text-sm font-medium text-ink">
-          {t('practice.audio.position')}
-        </label>
-        <input
-          id={seekId}
-          type="range"
-          min={0}
-          max={seekMax || 1}
-          step={0.1}
-          value={Math.min(progress, seekMax || 1)}
-          disabled={seekMax <= 0}
-          onInput={(e) => onSeek(Number((e.target as HTMLInputElement).value))}
-          onChange={(e) => onSeek(Number(e.target.value))}
-          className="h-11 w-full accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-valuetext={`${formatTime(progress)} ${t('practice.audio.ofWord')} ${formatTime(duration)}`}
-          data-testid="practice-seek"
-        />
-      </div>
-
-      <div className="max-w-xs space-y-1.5">
-        <label htmlFor={volumeId} className="block text-sm font-medium text-ink">
-          {t('practice.audio.volume', { percent: volumePct })}
-        </label>
-        <input
-          id={volumeId}
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={volume}
-          onChange={(e) => setVolume(Number(e.target.value))}
-          className="h-11 w-full accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-valuetext={t('practice.audio.volumeValue', { percent: volumePct })}
-          data-testid="practice-volume"
-        />
-      </div>
     </section>
   )
 }

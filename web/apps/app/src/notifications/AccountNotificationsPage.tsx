@@ -13,7 +13,7 @@ export function AccountNotificationsPage({ navigationMode = 'legacy' }: { naviga
   return (
     <div className="space-y-4">
       <header className="space-y-1.5">
-        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('notifications.accountTitle')}</h1>
+        <h1 className="sonivo-page-title text-ink">{t('notifications.accountTitle')}</h1>
         <p className="text-muted">{t('notifications.accountSubtitle')}</p>
       </header>
       <NotificationInbox scope="account" navigationMode={navigationMode} />

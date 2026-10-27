@@ -12,7 +12,7 @@ export type FileDropzoneProps = {
   chooseLabel?: string
   removeLabel?: string
   accept?: string
-  maxSizeBytes?: number
+  maxSizeBytes?: number | ((file: File) => number)
   file: File | null
   onFileChange: (file: File | null) => void
   disabled?: boolean
@@ -59,12 +59,15 @@ export function FileDropzone({
 
     setOptimizing(true)
     try {
-      const processed = maxSizeBytes === undefined
+      const selectionLimit = typeof maxSizeBytes === 'function'
+        ? maxSizeBytes(next)
+        : maxSizeBytes
+      const processed = selectionLimit === undefined
         ? next
-        : await compressImageToMaxBytes(next, maxSizeBytes)
-      if (processed.size > (maxSizeBytes ?? Number.POSITIVE_INFINITY)) {
+        : await compressImageToMaxBytes(next, selectionLimit)
+      if (processed.size > (selectionLimit ?? Number.POSITIVE_INFINITY)) {
         const maxSizeMiB = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 }).format(
-          (maxSizeBytes ?? 0) / (1024 * 1024),
+          (selectionLimit ?? 0) / (1024 * 1024),
         )
         setSelectionError(t('fileDropzone.fileTooLarge', { size: maxSizeMiB }))
         return

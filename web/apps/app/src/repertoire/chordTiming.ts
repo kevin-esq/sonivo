@@ -3,6 +3,7 @@
 export type ChordTimingMark = {
   lineIndex: number
   atMs: number
+  endMs?: number
 }
 
 export type ChordWordTimingMark = {
@@ -51,17 +52,19 @@ export function parseChordTimingJson(raw: string | null | undefined): ChordTimin
   try {
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    const byLine = new Map<number, number>()
+    const byLine = new Map<number, ChordTimingMark>()
     for (const item of parsed) {
       if (item == null || typeof item !== 'object') continue
       const lineIndex = (item as { lineIndex?: unknown }).lineIndex
       const atMs = (item as { atMs?: unknown }).atMs
       if (typeof lineIndex !== 'number' || !Number.isInteger(lineIndex) || lineIndex < 0) continue
       if (typeof atMs !== 'number' || !Number.isInteger(atMs) || atMs < 0) continue
-      byLine.set(lineIndex, atMs)
+      const endMs = (item as { endMs?: unknown }).endMs
+      if (endMs !== undefined && (!isNonNegativeInteger(endMs) || endMs <= atMs)) continue
+      byLine.set(lineIndex, { lineIndex, atMs, ...(endMs !== undefined ? { endMs: endMs as number } : {}) })
     }
     return sortChordTimingMarks(
-      [...byLine.entries()].map(([lineIndex, atMs]) => ({ lineIndex, atMs }))
+      [...byLine.values()]
     )
   } catch {
     return []
@@ -74,7 +77,7 @@ export function parseChordTimingTimeline(raw: string | null | undefined): ChordT
   try {
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return EMPTY_CHORD_TIMELINE
-    const lineByIndex = new Map<number, number>()
+    const lineByIndex = new Map<number, ChordTimingMark>()
     const wordMarks: ChordWordTimingMark[] = []
     const instrumentals: InstrumentalTimingInterval[] = []
     for (const item of parsed) {
@@ -91,10 +94,12 @@ export function parseChordTimingTimeline(raw: string | null | undefined): ChordT
         wordMarks.push({ lineIndex: entry.lineIndex, wordIndex: entry.wordIndex, startMs: entry.startMs, endMs: entry.endMs })
         continue
       }
-      if (isNonNegativeInteger(entry.atMs)) lineByIndex.set(entry.lineIndex, entry.atMs)
+      if (isNonNegativeInteger(entry.atMs) && (entry.endMs === undefined || (isNonNegativeInteger(entry.endMs) && entry.endMs > entry.atMs))) {
+        lineByIndex.set(entry.lineIndex, { lineIndex: entry.lineIndex, atMs: entry.atMs, ...(entry.endMs !== undefined ? { endMs: entry.endMs as number } : {}) })
+      }
     }
     return {
-      lineMarks: sortChordTimingMarks([...lineByIndex.entries()].map(([lineIndex, atMs]) => ({ lineIndex, atMs }))),
+      lineMarks: sortChordTimingMarks([...lineByIndex.values()]),
       wordMarks: wordMarks.sort((a, b) => a.startMs - b.startMs || a.lineIndex - b.lineIndex || a.wordIndex - b.wordIndex),
       instrumentals: instrumentals.sort((a, b) => a.startMs - b.startMs),
     }
@@ -142,6 +147,79 @@ export function activeChordWord(
   }
 }
 
+/** All vocal lines currently singing, including overlapping backing vocals. */
+export function activeChordLineIndexes(marks: ChordTimingMark[], currentMs: number): number[] {
+  if (!Number.isFinite(currentMs) || currentMs < 0) return []
+  const active: number[] = []
+  let latest: ChordTimingMark | null = null
+  for (const mark of marks) {
+    if (mark.atMs > currentMs) continue
+    if (latest == null || mark.atMs > latest.atMs) latest = mark
+    if (mark.endMs !== undefined && currentMs < mark.endMs) active.push(mark.lineIndex)
+  }
+  if (latest?.endMs === undefined && latest != null) {
+    for (const mark of marks) if (mark.endMs === undefined && mark.atMs === latest.atMs) active.push(mark.lineIndex)
+  }
+  return [...new Set(active)].sort((a, b) => a - b)
+}
+
+export function chordWordPresentation(marks: ChordWordTimingMark[], currentMs: number) {
+  const active: Array<{ lineIndex: number; wordIndex: number; progress: number }> = []
+  const completedByLine = new Map<number, { lineIndex: number; wordIndex: number }>()
+  if (!Number.isFinite(currentMs) || currentMs < 0) return { active, completed: [] }
+  for (const mark of marks) {
+    if (mark.startMs <= currentMs && currentMs < mark.endMs) {
+      active.push({ lineIndex: mark.lineIndex, wordIndex: mark.wordIndex, progress: (currentMs - mark.startMs) / (mark.endMs - mark.startMs) })
+    } else if (mark.endMs <= currentMs) {
+      const previous = completedByLine.get(mark.lineIndex)
+      if (!previous || mark.wordIndex > previous.wordIndex) completedByLine.set(mark.lineIndex, { lineIndex: mark.lineIndex, wordIndex: mark.wordIndex })
+    }
+  }
+  return { active, completed: [...completedByLine.values()] }
+}
+
+/** Keep a word-timed lyric line active through the gap before the next line starts. */
+export function activeChordWordLineIndexes(
+  marks: ChordWordTimingMark[],
+  currentMs: number,
+  timingLineMarks: ChordTimingMark[] = [],
+): number[] {
+  if (!Number.isFinite(currentMs) || currentMs < 0 || marks.length === 0) return []
+
+  const marksByLine = new Map<number, ChordWordTimingMark[]>()
+  for (const mark of marks) {
+    const lineMarks = marksByLine.get(mark.lineIndex) ?? []
+    lineMarks.push(mark)
+    marksByLine.set(mark.lineIndex, lineMarks)
+  }
+
+  const activeLines: number[] = []
+  for (const [lineIndex, lineWordMarks] of marksByLine) {
+    const lineEndMark = timingLineMarks.find(mark => mark.lineIndex === lineIndex && mark.endMs !== undefined)
+    if (lineEndMark?.endMs !== undefined) {
+      if (lineEndMark.atMs <= currentMs && currentMs < lineEndMark.endMs) activeLines.push(lineIndex)
+      continue
+    }
+
+    const firstWordStartMs = Math.min(...lineWordMarks.map(mark => mark.startMs))
+    if (currentMs < firstWordStartMs) continue
+    const lastWordEndMs = Math.max(...lineWordMarks.map(mark => mark.endMs))
+    if (currentMs < lastWordEndMs) {
+      activeLines.push(lineIndex)
+      continue
+    }
+
+    const nextOtherLineStartMs = marks
+      .filter(mark => mark.lineIndex !== lineIndex && mark.startMs >= lastWordEndMs)
+      .reduce((next, mark) => Math.min(next, mark.startMs), Number.POSITIVE_INFINITY)
+    if (Number.isFinite(nextOtherLineStartMs) && currentMs < nextOtherLineStartMs) {
+      activeLines.push(lineIndex)
+    }
+  }
+
+  return activeLines.sort((left, right) => left - right)
+}
+
 export function activeInstrumental(
   intervals: InstrumentalTimingInterval[],
   currentMs: number,
@@ -161,13 +239,12 @@ export function activeChordLineIndex(
   currentMs: number,
 ): number | null {
   if (marks.length === 0 || !Number.isFinite(currentMs) || currentMs < 0) return null
-  const sorted = sortChordTimingMarks(marks)
-  let active: number | null = null
-  for (const mark of sorted) {
-    if (mark.atMs <= currentMs) active = mark.lineIndex
-    else break
+  const activeLines = new Set(activeChordLineIndexes(marks, currentMs))
+  let active: ChordTimingMark | null = null
+  for (const mark of marks) {
+    if (activeLines.has(mark.lineIndex) && (active == null || mark.atMs >= active.atMs)) active = mark
   }
-  return active
+  return active?.lineIndex ?? null
 }
 
 /**
@@ -182,7 +259,8 @@ export function activeChordLineBlock(
   currentMs: number,
 ): { lineIndex: number; blockEndIndex: number } | null {
   if (marks.length === 0 || !Number.isFinite(currentMs) || currentMs < 0) return null
-  const sorted = sortChordTimingMarks(marks)
+  const activeSet = new Set(activeChordLineIndexes(marks, currentMs))
+  const sorted = sortChordTimingMarks(marks.filter(mark => activeSet.has(mark.lineIndex)))
   let activeLineIndex: number | null = null
   let activeMarkAtMs: number | null = null
 

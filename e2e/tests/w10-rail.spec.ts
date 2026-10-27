@@ -67,12 +67,16 @@ test.describe('W10 rail: scroll, collapse, now playing', () => {
 
     await expect(toggle).toHaveAccessibleName('Contraer menú lateral')
     await toggle.click()
+    // The collapsed rail expands temporarily while hovered. Move away so the
+    // persisted collapsed state is what the next assertions observe.
+    await page.mouse.move(500, 300)
     await expect(toggle).toHaveAccessibleName('Expandir menú lateral')
     await expect
       .poll(async () => (await rail.boundingBox())?.width ?? Number.POSITIVE_INFINITY)
       .toBeLessThan(expanded!.width - 60)
 
     await page.reload()
+    await page.mouse.move(500, 300)
     await expect(page.getByTestId('rail-collapse-toggle')).toHaveAccessibleName(
       'Expandir menú lateral',
     )

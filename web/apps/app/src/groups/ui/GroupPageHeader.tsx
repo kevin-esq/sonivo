@@ -92,7 +92,7 @@ export function GroupPageHeader({
           <div className="min-w-0 space-y-1">
             <h1
               id={headingId}
-              className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl"
+              className="sonivo-page-title text-ink"
             >
               {title}
             </h1>

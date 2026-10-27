@@ -5,9 +5,20 @@
     </string-array>
     <string name="development_shell">Development view. Production data is not shown.</string>
     <string name="auth_unavailable">Sign in is not integrated in this build yet.</string>
+    <string name="auth_welcome_title">Reconnect with your group</string>
+    <string name="auth_welcome_body">Access your groups, events, and rehearsals in Sonivo.</string>
+    <string name="auth_landing_title">Your group, in sync</string>
+    <string name="auth_landing_body">Organize your repertoire, share arrangements, and get ready for the next rehearsal.</string>
+    <string name="auth_get_started">Create account</string>
+    <string name="auth_register_hint">Sonivo’s secure sign-up page will open.</string>
     <string name="sign_in">Sign in</string>
     <string name="sign_out">Sign out</string>
     <string name="groups_empty">You do not have any available groups.</string>
+    <string name="group_create">Create group</string>
+    <string name="group_create_title">Create your group</string>
+    <string name="group_create_hint">You can invite other people once it is created.</string>
+    <string name="group_name_label">Group name</string>
+    <string name="group_card_accessibility">%1$s, %2$s</string>
     <string name="loading">Loading…</string>
     <string name="api_not_configured">Configure the API address to sign in.</string>
     <string name="mobile_update_required">Update Sonivo to version %1$s to continue.</string>
@@ -36,6 +47,9 @@
     <string name="practice_hide_chords">Hide chords</string>
     <string name="practice_close_karaoke">Close Sing mode</string>
     <string name="practice_karaoke_no_timing">These lyrics have no sync marks; audio will play normally.</string>
+    <string name="practice_follow_lyrics">Follow lyrics</string>
+    <string name="practice_following_lyrics">Following lyrics</string>
+    <string name="practice_instrumental">Instrumental break</string>
     <string name="practice_seek">Playback position</string>
     <string name="practice_share_playhead">Share position</string>
     <string name="practice_stop_sharing">Stop sharing</string>

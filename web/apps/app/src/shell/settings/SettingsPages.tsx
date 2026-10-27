@@ -107,7 +107,7 @@ export function SettingsProfilePage({ user, onUserChange }: { user: CurrentUser;
   return (
     <div className="account-profile-page space-y-6">
       <header className="space-y-1.5">
-        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('profile.title')}</h1>
+        <h1 className="sonivo-page-title text-ink">{t('profile.title')}</h1>
         <p className="text-muted">{t('profile.subtitle')}</p>
       </header>
 
@@ -409,7 +409,7 @@ export function SettingsMembershipPage() {
   return (
     <div className="space-y-6">
       <header className="space-y-1.5">
-        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('membership.title')}</h1>
+        <h1 className="sonivo-page-title text-ink">{t('membership.title')}</h1>
         <p className="text-muted">{t('membership.subtitle')}</p>
       </header>
 

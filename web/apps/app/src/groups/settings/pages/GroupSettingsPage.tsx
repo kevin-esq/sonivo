@@ -552,7 +552,7 @@ export function GroupSettingsPage({ user, groupId: routeGroupId }: { user: Curre
   return (
     <section className="max-w-4xl space-y-6" aria-labelledby="ajustes-heading">
       <div className="space-y-1">
-        <h1 id="ajustes-heading" className="text-2xl font-bold tracking-tight">
+        <h1 id="ajustes-heading" className="sonivo-page-title text-ink">
           {t('settings.title')}
         </h1>
         <p className="text-sm text-muted">{t('settings.subtitle')}</p>
@@ -603,10 +603,10 @@ export function GroupSettingsPage({ user, groupId: routeGroupId }: { user: Curre
                 aria-controls="settings-panel"
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  'min-h-11 rounded-lg px-3 py-2 text-left text-sm font-semibold whitespace-nowrap transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none md:w-full',
-                  activeTab === tab.id ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink',
-                  tab.id === 'danger' && activeTab !== 'danger' ? 'text-error-ink hover:text-error-ink' : '',
+                  'sonivo-tab-trigger w-full text-left whitespace-nowrap transition duration-150 motion-reduce:transition-none md:w-full',
+                  activeTab === tab.id ? '' : 'text-muted hover:text-ink',
                 )}
+                data-tab-tone={tab.id === 'danger' ? 'danger' : undefined}
               >
                 {t(tab.labelKey)}
               </button>

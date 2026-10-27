@@ -39,6 +39,7 @@ export function useConductorRoom(eventId: string | null) {
     useState<ConductorConnectionState>('disconnected')
   const [presence, setPresence] = useState<ConductorPresenceEntry[]>([])
   const [lastPosition, setLastPosition] = useState<ConductorLastPosition | null>(null)
+  const [lastSentPositionMs, setLastSentPositionMs] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const connectionRef = useRef<signalR.HubConnection | null>(null)
   const eventRef = useRef<string | null>(null)
@@ -122,6 +123,7 @@ export function useConductorRoom(eventId: string | null) {
       const connection = connectionRef.current
       const currentEvent = eventRef.current
       if (!connection || !currentEvent) return
+      setLastSentPositionMs(positionMs)
       // Q9-Q1: client sends at most 1 Hz (the caller paces the interval);
       // the server additionally drops anything inside its 900 ms gap.
       void connection
@@ -140,5 +142,5 @@ export function useConductorRoom(eventId: string | null) {
     [t],
   )
 
-  return { connectionState, presence, lastPosition, error, sendPosition }
+  return { connectionState, presence, lastPosition, lastSentPositionMs, error, sendPosition }
 }

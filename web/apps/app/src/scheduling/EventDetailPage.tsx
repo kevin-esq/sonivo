@@ -322,7 +322,7 @@ export function EventDetailPage({ user, groupId, eventId }: { user: CurrentUser;
 
   return (
     <section className="space-y-6" aria-labelledby="event-heading">
-      <header data-testid="event-hero" className="space-y-3">
+      <header data-testid="event-hero" className="sonivo-score-header space-y-4">
         <PageBreadcrumb
           items={[
             { to: routes.group(group.id), label: group.name },
@@ -330,19 +330,19 @@ export function EventDetailPage({ user, groupId, eventId }: { user: CurrentUser;
             { label: musicalEvent.title },
           ]}
         />
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
+        <div className="space-y-4">
+          <div className="flex min-w-0 items-start gap-3">
             <span
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-ink"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-score-paper-soft)] text-[var(--color-score-accent)]"
               aria-hidden="true"
             >
               <CalendarDays className="h-5 w-5" />
             </span>
             <div className="min-w-0 space-y-1">
-              <h1 id="event-heading" className="text-3xl font-bold tracking-tight text-ink">
+              <h1 id="event-heading" className="sonivo-page-title text-ink">
                 {musicalEvent.title}
               </h1>
-              <p className="text-sm text-muted">
+              <p className="text-sm text-[var(--color-score-muted)]">
                 {formatEventType(musicalEvent.type, t)} · {formatStartsAt(musicalEvent.startsAt, lang)}
                 {!isOwner ? <span> · {t('schedule.readonly')}</span> : null}
               </p>
@@ -745,10 +745,8 @@ function TabButton({
       role="tab"
       aria-selected={selected}
       className={cn(
-        'flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition duration-150',
-        selected
-          ? 'bg-surface text-ink shadow-sm'
-          : 'text-muted hover:text-ink',
+        'sonivo-tab-trigger flex-1 transition duration-150',
+        selected ? '' : 'text-muted hover:text-ink',
       )}
       onClick={onClick}
     >

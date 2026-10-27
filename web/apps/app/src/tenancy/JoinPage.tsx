@@ -59,7 +59,7 @@ export function JoinInvitationContent({ token, navigate, navigationMode = 'legac
   return (
     <section className="space-y-4" aria-labelledby="join-heading">
       <div className="space-y-2">
-        <h1 id="join-heading" className="text-2xl font-bold tracking-tight">
+        <h1 id="join-heading" className="sonivo-page-title text-ink">
           {t('joinGroup.title')}
         </h1>
         <p className="text-sm text-muted">

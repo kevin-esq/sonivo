@@ -117,9 +117,11 @@ export function GroupDialog({
     previouslyFocused.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null
     const raf = requestAnimationFrame(() => {
-      const target = panelRef.current?.querySelector<HTMLElement>(
-        'input:not([type="hidden"]), textarea, select, [data-autofocus], button',
-      )
+      const panel = panelRef.current
+      const target =
+        panel?.querySelector<HTMLElement>('[data-autofocus]') ??
+        panel?.querySelector<HTMLElement>('input:not([type="hidden"]), textarea, select') ??
+        panel?.querySelector<HTMLElement>('button')
       ;(target ?? panelRef.current)?.focus()
     })
     return () => {
@@ -160,7 +162,7 @@ export function GroupDialog({
 
   const body = (
     <>
-      <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
+      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
         <div className="min-w-0 space-y-1">
           <h2 id={titleId} className="font-display text-lg font-semibold text-ink">
             {title}
@@ -176,7 +178,7 @@ export function GroupDialog({
         >
           <X className="h-5 w-5" aria-hidden="true" />
         </button>
-      </header>
+      </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">{children}</div>
       {footer ? (
         <footer className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border-subtle px-5 py-4">

@@ -68,7 +68,7 @@ test.describe('W7 hierarchy: one header per screen', () => {
     await page.getByRole('link', { name: 'Ajustes del grupo' }).first().click()
     await expect(page.getByRole('heading', { name: 'Ajustes del grupo' })).toBeVisible()
     await page.getByTestId('group-name-input').fill(renamedGroup)
-    await page.getByRole('button', { name: 'Guardar identidad' }).click()
+    await page.getByTestId('brand-unsaved-bar').getByRole('button', { name: 'Guardar identidad' }).click()
     await expect(page.getByTestId('rail-brand')).toContainText(renamedGroup)
   })
 })

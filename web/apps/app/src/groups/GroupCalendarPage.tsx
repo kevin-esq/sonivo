@@ -248,10 +248,10 @@ export function GroupCalendarPage() {
                 aria-pressed={view === option.id}
                 onClick={() => setView(option.id)}
                 className={cn(
-                  "min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                  "sonivo-choice-trigger min-h-11 rounded-lg px-3 py-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                   view === option.id
-                    ? "bg-primary-strong text-primary-foreground"
-                    : "text-muted hover:text-ink",
+                    ? ""
+                    : "text-muted hover:bg-surface-hover hover:text-ink",
                 )}
               >
                 {option.label}

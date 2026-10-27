@@ -609,6 +609,36 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Sonivo.Domain.Repertoire.SongFavorite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SongId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("GroupId", "UserId");
+
+                    b.HasIndex("GroupId", "SongId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("SongFavorites", (string)null);
+                });
+
             modelBuilder.Entity("Sonivo.Domain.Scheduling.Event", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1558,6 +1588,22 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("GroupId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Repertoire.SongFavorite", b =>
+                {
+                    b.HasOne("Sonivo.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sonivo.Domain.Repertoire.Song", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId", "SongId")
+                        .HasPrincipalKey("GroupId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

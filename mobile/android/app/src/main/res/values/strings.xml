@@ -5,9 +5,20 @@
     </string-array>
     <string name="development_shell">Vista de desarrollo. No se muestran datos de producción.</string>
     <string name="auth_unavailable">El inicio de sesión aún no está integrado en esta versión.</string>
+    <string name="auth_welcome_title">Vuelve a conectar con tu grupo</string>
+    <string name="auth_welcome_body">Accede a tus grupos, eventos y ensayos desde Sonivo.</string>
+    <string name="auth_landing_title">Tu grupo, en la misma sintonía</string>
+    <string name="auth_landing_body">Organiza el repertorio, comparte arreglos y prepara el próximo ensayo.</string>
+    <string name="auth_get_started">Crear cuenta</string>
+    <string name="auth_register_hint">Se abrirá el registro seguro de Sonivo.</string>
     <string name="sign_in">Iniciar sesión</string>
     <string name="sign_out">Cerrar sesión</string>
     <string name="groups_empty">No tienes grupos disponibles.</string>
+    <string name="group_create">Crear grupo</string>
+    <string name="group_create_title">Crea tu grupo</string>
+    <string name="group_create_hint">Podrás invitar a otras personas una vez creado.</string>
+    <string name="group_name_label">Nombre del grupo</string>
+    <string name="group_card_accessibility">%1$s, %2$s</string>
     <string name="loading">Cargando…</string>
     <string name="api_not_configured">Configura la dirección de la API para iniciar sesión.</string>
     <string name="mobile_update_required">Actualiza Sonivo a la versión %1$s para continuar.</string>
@@ -36,6 +47,9 @@
     <string name="practice_hide_chords">Ocultar acordes</string>
     <string name="practice_close_karaoke">Cerrar modo canto</string>
     <string name="practice_karaoke_no_timing">Las letras no tienen marcas de sincronización; el audio se reproduce normalmente.</string>
+    <string name="practice_follow_lyrics">Seguir letra</string>
+    <string name="practice_following_lyrics">Seguimiento activado</string>
+    <string name="practice_instrumental">Pausa instrumental</string>
     <string name="practice_seek">Posición de reproducción</string>
     <string name="practice_share_playhead">Compartir posición</string>
     <string name="practice_stop_sharing">Dejar de compartir</string>

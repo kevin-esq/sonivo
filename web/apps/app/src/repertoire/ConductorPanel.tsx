@@ -30,6 +30,8 @@ export function ConductorPanel({
   onToggleFollow,
   isLive,
   error,
+  lastPositionMs,
+  lastSentPositionMs,
 }: {
   presence: ConductorPresenceEntry[]
   connectionState: ConductorConnectionState
@@ -38,6 +40,8 @@ export function ConductorPanel({
   onToggleFollow: () => void
   isLive: boolean
   error: string | null
+  lastPositionMs: number | null
+  lastSentPositionMs: number | null
 }) {
   const { t } = useT()
   const stateLabel = connectionLabelKey(connectionState)
@@ -47,6 +51,8 @@ export function ConductorPanel({
       className="space-y-3 rounded-xl border border-border-subtle bg-surface p-4 sm:p-5 shadow-sm"
       aria-labelledby="conductor-heading"
       data-testid="conductor-panel"
+      data-last-position-ms={lastPositionMs ?? undefined}
+      data-last-sent-position-ms={lastSentPositionMs ?? undefined}
     >
       <div className="flex flex-wrap items-center gap-2">
         <h2

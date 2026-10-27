@@ -42,7 +42,7 @@ export function HelpPage({ groupId = null, navigationMode = 'legacy' }: { groupI
   return (
     <div className="help-page mx-auto max-w-5xl space-y-8">
       <header className="max-w-2xl space-y-3">
-        <h1 className="text-3xl font-bold tracking-tight text-ink">{t(groupId ? 'groupHelp.title' : 'help.title')}</h1>
+        <h1 className="sonivo-page-title text-ink">{t(groupId ? 'groupHelp.title' : 'help.title')}</h1>
         <p className="text-lg leading-7 text-muted">{t(groupId ? 'groupHelp.subtitle' : 'help.subtitle')}</p>
       </header>
 

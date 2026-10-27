@@ -24,7 +24,7 @@ export function CuentaPreferencesPage() {
   return (
     <section className="max-w-xl space-y-8" aria-labelledby="cuenta-prefs-heading">
       <header className="space-y-1">
-        <h1 id="cuenta-prefs-heading" className="text-2xl font-bold tracking-tight text-ink">
+        <h1 id="cuenta-prefs-heading" className="sonivo-page-title text-ink">
           {t('account.preferences')}
         </h1>
       </header>

@@ -70,6 +70,109 @@ public class SongApiTests : IClassFixture<SonivoApiFactory>
     }
 
     [Fact]
+    public async Task Search_is_multi_field_paginated_and_favorites_are_per_user_and_idempotent()
+    {
+        var ownerId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        await SeedUsersAndMembershipAsync(
+            ("song-search-owner@example.com", "OwnerS1!", ownerId),
+            ("song-search-member@example.com", "MemberS1!", memberId),
+            groupId,
+            "Search Band",
+            ownerId,
+            memberId);
+
+        var owner = await CreateAuthenticatedClientAsync("song-search-owner@example.com", "OwnerS1!");
+        var member = await CreateAuthenticatedClientAsync("song-search-member@example.com", "MemberS1!");
+        var firstResponse = await owner.PostAsJsonAsync($"/api/groups/{groupId}/songs", new
+        {
+            title = "Morning Song",
+            attribution = "Newton",
+            originKind = "cover",
+            tags = new[] { "worship", "morning" }
+        });
+        var secondResponse = await owner.PostAsJsonAsync($"/api/groups/{groupId}/songs", new
+        {
+            title = "Evening Song",
+            attribution = "Traditional",
+            originKind = "original",
+            tags = new[] { "evening" }
+        });
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, secondResponse.StatusCode);
+        var first = await firstResponse.Content.ReadFromJsonAsync<SongDetailResponse>();
+        var second = await secondResponse.Content.ReadFromJsonAsync<SongDetailResponse>();
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+
+        var firstArrangement = await owner.PostAsJsonAsync(
+            $"/api/groups/{groupId}/songs/{first.Id}/arrangements",
+            new { label = "Main" });
+        Assert.Equal(HttpStatusCode.Created, firstArrangement.StatusCode);
+
+        var byAttribution = await owner.GetFromJsonAsync<SongPageResponse>(
+            $"/api/groups/{groupId}/songs?q=newton&pageSize=1");
+        Assert.NotNull(byAttribution);
+        Assert.Equal(1, byAttribution.TotalCount);
+        Assert.Equal(first.Id, Assert.Single(byAttribution.Items).Id);
+
+        var byTag = await owner.GetFromJsonAsync<SongPageResponse>(
+            $"/api/groups/{groupId}/songs?tag=worship&page=1&pageSize=1");
+        Assert.NotNull(byTag);
+        Assert.Equal(1, byTag.TotalCount);
+        Assert.Contains("worship", byTag.AvailableTags);
+
+        var page = await owner.GetFromJsonAsync<SongPageResponse>(
+            $"/api/groups/{groupId}/songs?page=1&pageSize=1");
+        Assert.NotNull(page);
+        Assert.Equal(2, page.TotalCount);
+        Assert.Equal(2, page.TotalPages);
+        Assert.Single(page.Items);
+        var arrangementCounts = await owner.GetFromJsonAsync<SongPageResponse>(
+            $"/api/groups/{groupId}/songs?q=Morning&pageSize=25");
+        Assert.NotNull(arrangementCounts);
+        Assert.Equal(1, Assert.Single(arrangementCounts.Items).ArrangementCount);
+
+        var favoritePath = $"/api/groups/{groupId}/songs/{first.Id}/favorite";
+        Assert.Equal(HttpStatusCode.NoContent, (await member.PutAsync(favoritePath, null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await member.PutAsync(favoritePath, null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.PutAsync(
+            $"/api/groups/{groupId}/songs/{second.Id}/favorite", null)).StatusCode);
+
+        var memberFavorites = await member.GetFromJsonAsync<SongPageResponse>(
+            $"/api/groups/{groupId}/songs?favoritesOnly=true");
+        var ownerFavorites = await owner.GetFromJsonAsync<SongPageResponse>(
+            $"/api/groups/{groupId}/songs?favoritesOnly=true");
+        Assert.NotNull(memberFavorites);
+        Assert.NotNull(ownerFavorites);
+        Assert.Equal(first.Id, Assert.Single(memberFavorites.Items).Id);
+        Assert.Equal(second.Id, Assert.Single(ownerFavorites.Items).Id);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await member.DeleteAsync(favoritePath)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await member.DeleteAsync(favoritePath)).StatusCode);
+        var cleared = await member.GetFromJsonAsync<SongPageResponse>(
+            $"/api/groups/{groupId}/songs?favoritesOnly=true");
+        Assert.NotNull(cleared);
+        Assert.Empty(cleared.Items);
+        Assert.Equal(0, cleared.TotalCount);
+    }
+
+    [Fact]
+    public async Task Search_rejects_invalid_paging_and_tag_filters()
+    {
+        var client = await CreateAuthenticatedClientAsync("song-search-validation@example.com");
+        var group = await CreateGroupAsync(client, "Search Validation");
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.GetAsync($"/api/groups/{group.Id}/songs?page=0")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.GetAsync($"/api/groups/{group.Id}/songs?pageSize=101")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.GetAsync($"/api/groups/{group.Id}/songs?tag=two%2ctags")).StatusCode);
+    }
+
+    [Fact]
     public async Task Duplicate_titles_are_allowed()
     {
         var client = await CreateAuthenticatedClientAsync("song-dup@example.com");
@@ -107,7 +210,11 @@ public class SongApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(HttpStatusCode.NotFound,
             (await stranger.GetAsync($"/api/groups/{group.Id}/songs")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound,
+            (await stranger.GetAsync($"/api/groups/{group.Id}/songs?q=Hidden&page=1")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
             (await stranger.GetAsync($"/api/groups/{group.Id}/songs/{song.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await stranger.PutAsync($"/api/groups/{group.Id}/songs/{song.Id}/favorite", null)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound,
             (await stranger.PostAsJsonAsync($"/api/groups/{group.Id}/songs", new
             {
@@ -316,4 +423,12 @@ public class SongApiTests : IClassFixture<SonivoApiFactory>
         string? RightsNotes,
         int Version,
         int ArrangementCount);
+    private sealed record SongPageResponse(
+        List<SongPageItemResponse> Items,
+        int TotalCount,
+        int Page,
+        int PageSize,
+        int TotalPages,
+        List<string> AvailableTags);
+    private sealed record SongPageItemResponse(Guid Id, string Title, bool IsFavorite, int ArrangementCount);
 }

@@ -10,6 +10,19 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
+    "http-filesystem": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5171",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "R2__AccountId": "",
+        "R2__AccessKey": "",
+        "R2__Secret": "",
+        "R2__BucketName": ""
+      }
+    },
     "https": {
       "commandName": "Project",
       "dotnetRunMessages": true,

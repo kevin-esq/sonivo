@@ -8,11 +8,13 @@ public sealed class ListSongsHandler
 {
     private readonly GroupAccessService _access;
     private readonly ISongStore _songs;
+    private readonly ISongFavoriteStore? _favorites;
 
-    public ListSongsHandler(GroupAccessService access, ISongStore songs)
+    public ListSongsHandler(GroupAccessService access, ISongStore songs, ISongFavoriteStore? favorites = null)
     {
         _access = access;
         _songs = songs;
+        _favorites = favorites;
     }
 
     public async Task<IReadOnlyList<SongListItemDto>> HandleAsync(
@@ -34,6 +36,9 @@ public sealed class ListSongsHandler
             : await _access.GrantedResourceIdsAsync(
                 groupId, userId, ResourceGrant.ResourceTypes.Song, cancellationToken);
         var songs = await _songs.ListByGroupAsync(groupId, cancellationToken);
+        var favoriteIds = _favorites is null
+            ? new HashSet<Guid>()
+            : await _favorites.FavoriteSongIdsAsync(groupId, userId, cancellationToken);
         return songs
             .Where(s => hasGroupRead ? !denied.Contains(s.Id) : allowed!.Contains(s.Id))
             .Select(s => new SongListItemDto(
@@ -44,7 +49,8 @@ public sealed class ListSongsHandler
                 s.Version,
                 s.CreatedAt,
                 s.UpdatedAt,
-                s.TagList))
+                s.TagList,
+                favoriteIds.Contains(s.Id)))
             .ToList();
     }
 }

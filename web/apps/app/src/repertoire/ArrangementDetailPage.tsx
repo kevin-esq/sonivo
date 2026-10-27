@@ -33,6 +33,7 @@ import {
 import { ChordProView } from './ChordProView'
 import { VisualChordEditor } from './VisualChordEditor'
 import { LrcPanel } from './LrcPanel'
+import { LyricsExportPanel } from './LyricsExportPanel'
 import { AudioDigitizer } from './AudioDigitizer'
 import { safeExternalResourceUrl } from './resourceUrl'
 import { looksLikeChordPro } from './chordPro'
@@ -45,7 +46,7 @@ import {
 import { listPracticeAudioTracks } from './pickPracticeAudio'
 import { importChordSheetText } from './chordSheetImport'
 import { composeChordPro, varyProgression, rewriteVerse } from './composeChordPro'
-import { fileUploadErrorMessage, resourceUploadLimit, validateFileForUpload } from './fileUploadErrors'
+import { fileUploadErrorMessage, isAudioUpload, resourceUploadLimit, validateFileForUpload } from './fileUploadErrors'
 import {
   ConfirmDialog,
   ConflictAlert,
@@ -59,6 +60,9 @@ import { useT } from '../i18n'
 import { plural } from '../ui/plural'
 import { AppLink } from '../routing/AppLink'
 import { useGroupShell } from '../shell/GroupShellContext'
+import { Pause, Play } from 'lucide-react'
+import { useAudioPlayer } from './AudioPlayerContext'
+import { isPlayableAudioResource } from './pickPracticeAudio'
 
 export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: CurrentUser; groupId: string; arrangementId: string }) {
   const { navigate } = useGroupShell()
@@ -208,7 +212,7 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
 
   return (
     <section className="space-y-8" aria-labelledby="arrangement-heading">
-      <header data-testid="arrangement-hero" className="space-y-4 rounded-3xl border border-[var(--color-score-border)] bg-[var(--color-score-soft)] p-5 text-[var(--color-score-ink)] sm:p-8">
+      <header data-testid="arrangement-hero" className="sonivo-score-header space-y-4">
         <PageBreadcrumb
           items={[
             { to: routes.group(group.id), label: group.name },
@@ -218,7 +222,7 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
           ]}
         />
         <div className="space-y-2">
-          <h1 id="arrangement-heading" className="text-3xl font-bold tracking-tight text-[var(--color-score-ink)] sm:text-4xl">
+          <h1 id="arrangement-heading" className="sonivo-page-title text-[var(--color-score-ink)]">
             {arrangement.label}
           </h1>
           <p className="text-sm text-[var(--color-score-muted)]">
@@ -355,6 +359,7 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
                           <ResourceRow
                             groupId={group.id}
                             arrangementId={arrangement.id}
+                            songTitle={songTitle}
                             resource={resource}
                             isOwner={isOwner}
                             onEdit={() => setEditingResourceId(resource.id)}
@@ -466,8 +471,10 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
       </div>
 
       {isOwner && arrangement && groupId ? (
-        <LrcPanel groupId={groupId} arrangement={arrangement} onApplied={setArrangement} />
+        <LrcPanel groupId={groupId} arrangement={arrangement} onApplied={setArrangement} songTitle={songTitle ?? ''} />
       ) : null}
+
+      {!isOwner && arrangement && groupId ? <LyricsExportPanel groupId={groupId} arrangement={arrangement} disabled={false} /> : null}
 
       {isOwner ? (
         <section
@@ -521,6 +528,7 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
 function ResourceRow({
   groupId,
   arrangementId,
+  songTitle,
   resource,
   isOwner,
   onEdit,
@@ -528,6 +536,7 @@ function ResourceRow({
 }: {
   groupId: string
   arrangementId: string
+  songTitle: string | null
   resource: ResourceSummary
   isOwner: boolean
   onEdit: () => void
@@ -539,6 +548,22 @@ function ResourceRow({
     : null
   const externalUrl = safeExternalResourceUrl(resource.url)
   const { t } = useT()
+  const audioPlayer = useAudioPlayer()
+  const playable = isPlayableAudioResource(resource) && Boolean(downloadHref || externalUrl)
+  const isCurrentTrack = audioPlayer.currentTrack?.id === resource.id
+  const playResource = () => {
+    if (!playable) return
+    if (isCurrentTrack) {
+      audioPlayer.togglePlay()
+      return
+    }
+    audioPlayer.playTrack({
+      id: resource.id,
+      title: resource.label,
+      artist: songTitle ?? undefined,
+      url: downloadHref ?? externalUrl!,
+    })
+  }
 
   return (
     <div className="space-y-2">
@@ -568,6 +593,12 @@ function ResourceRow({
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">
+        {playable ? (
+          <Button variant="primary" size="sm" onClick={playResource} aria-label={t(isCurrentTrack && audioPlayer.isPlaying ? 'player.pauseTrack' : 'player.playTrack', { title: resource.label })}>
+            {isCurrentTrack && audioPlayer.isPlaying ? <Pause className="mr-2 h-4 w-4" aria-hidden="true" /> : <Play className="mr-2 h-4 w-4" aria-hidden="true" />}
+            {t(isCurrentTrack && audioPlayer.isPlaying ? 'player.pause' : 'player.play')}
+          </Button>
+        ) : null}
         {downloadHref ? (
           <a className={buttonVariants({ variant: 'primary', size: 'sm' })} href={downloadHref}>
             {t('arrangement.download')}
@@ -1099,8 +1130,12 @@ function FileResourceCreateForm({
         description={t('arrangement.fileHint')}
         accept=".pdf,.png,.jpg,.jpeg,.webp,.mp3,.wav,.m4a,.txt,application/pdf,image/png,image/jpeg,image/webp,audio/mpeg,audio/wav,audio/mp4,text/plain"
         file={file}
-        maxSizeBytes={resourceUploadLimit(planId, purpose)}
+        maxSizeBytes={(selectedFile) => resourceUploadLimit(
+          planId,
+          isAudioUpload(selectedFile) ? 'audio' : purpose,
+        )}
         onFileChange={(next) => {
+          if (next && isAudioUpload(next)) setPurpose('audio')
           setFile(next)
           setError(null)
         }}

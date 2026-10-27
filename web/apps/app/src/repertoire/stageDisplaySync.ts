@@ -1,12 +1,16 @@
 export type StageDisplayState = {
   activeIndex: number | null
   wordFocus: { lineIndex: number; wordIndex: number; progress: number } | null
+  activeIndexes?: number[]
+  wordFocuses?: Array<{ lineIndex: number; wordIndex: number; progress: number }>
+  completedWords?: Array<{ lineIndex: number; wordIndex: number }>
   completedWord: { lineIndex: number; wordIndex: number } | null
   instrumentalProgress: number | null
   autoFollow: boolean
   cursor: number
   fontSize: number
   scrolling: boolean
+  showLyrics: boolean
   showChords: boolean
   speed: number
 }
@@ -37,6 +41,16 @@ export function parseStageDisplayMessage(value: unknown, sessionId: string): Sta
   if (typeof state !== 'object' || state === null) return null
   const candidate = state as Record<string, unknown>
   const validIndex = (index: unknown) => typeof index === 'number' && Number.isSafeInteger(index) && index >= 0
+  const validWord = (entry: unknown, progress: boolean) => {
+    if (typeof entry !== 'object' || entry === null) return false
+    const word = entry as Record<string, unknown>
+    return validIndex(word.lineIndex) && validIndex(word.wordIndex) && (!progress || (
+      typeof word.progress === 'number' && Number.isFinite(word.progress) && word.progress >= 0 && word.progress <= 1
+    ))
+  }
+  const validArray = (value: unknown, validate: (entry: unknown) => boolean) => value === undefined || (
+    Array.isArray(value) && value.length <= 2000 && value.every(validate)
+  )
   const wordFocus = candidate.wordFocus
   const completedWord = candidate.completedWord
   const wordProgress = typeof wordFocus === 'object' && wordFocus !== null
@@ -61,9 +75,13 @@ export function parseStageDisplayMessage(value: unknown, sessionId: string): Sta
     !(candidate.activeIndex === null || validIndex(candidate.activeIndex)) ||
     !validWordFocus ||
     !validCompletedWord ||
+    !validArray(candidate.activeIndexes, validIndex) ||
+    !validArray(candidate.wordFocuses, entry => validWord(entry, true)) ||
+    !validArray(candidate.completedWords, entry => validWord(entry, false)) ||
     !(instrumentalProgress === null || (typeof instrumentalProgress === 'number' && Number.isFinite(instrumentalProgress) && instrumentalProgress >= 0 && instrumentalProgress <= 1)) ||
     !validIndex(candidate.cursor) ||
     typeof candidate.autoFollow !== 'boolean' ||
+    (candidate.showLyrics !== undefined && typeof candidate.showLyrics !== 'boolean') ||
     typeof candidate.showChords !== 'boolean' ||
     typeof candidate.scrolling !== 'boolean' ||
     typeof candidate.fontSize !== 'number' || !Number.isFinite(candidate.fontSize) || candidate.fontSize < 20 || candidate.fontSize > 120 ||
@@ -76,6 +94,9 @@ export function parseStageDisplayMessage(value: unknown, sessionId: string): Sta
     sessionId,
     state: {
       activeIndex: candidate.activeIndex as number | null,
+      activeIndexes: candidate.activeIndexes as StageDisplayState['activeIndexes'],
+      wordFocuses: candidate.wordFocuses as StageDisplayState['wordFocuses'],
+      completedWords: candidate.completedWords as StageDisplayState['completedWords'],
       wordFocus: wordFocus as StageDisplayState['wordFocus'],
       completedWord: completedWord as StageDisplayState['completedWord'],
       instrumentalProgress: instrumentalProgress as number | null,
@@ -83,6 +104,7 @@ export function parseStageDisplayMessage(value: unknown, sessionId: string): Sta
       cursor: candidate.cursor as number,
       fontSize: candidate.fontSize,
       scrolling: candidate.scrolling,
+      showLyrics: candidate.showLyrics !== false,
       showChords: candidate.showChords,
       speed: candidate.speed,
     },

@@ -269,7 +269,7 @@ function FallbackScreen({
           <Icon className="h-7 w-7" />
         </span>
         <div className="space-y-1.5">
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="sonivo-page-title text-ink">
             {title}
           </h1>
           <p className="text-sm text-muted">{message}</p>

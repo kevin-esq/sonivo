@@ -72,7 +72,7 @@ export function PersistentGlobalPlayer() {
 
   if (collapsed) {
     return (
-      <div style={brandTokens as CSSProperties} className={`fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-50 mx-auto flex items-center gap-3 rounded-2xl border border-shell-border bg-shell px-4 py-2 text-shell-foreground shadow-md motion-reduce:transition-none md:inset-x-4 md:bottom-4 md:max-w-6xl md:px-6 ${railOffset}`} data-testid="global-player">
+      <div style={brandTokens as CSSProperties} className={`fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-50 mx-auto flex items-center gap-3 rounded-2xl border border-shell-border bg-shell/90 px-4 py-2 text-shell-foreground shadow-md backdrop-blur-xl motion-reduce:transition-none md:inset-x-4 md:bottom-4 md:max-w-6xl md:px-6 ${railOffset}`} data-testid="global-player">
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]"
           aria-hidden="true"
@@ -110,13 +110,13 @@ export function PersistentGlobalPlayer() {
   }
 
   return (
-    <div style={brandTokens as CSSProperties} className={`fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-50 mx-auto grid min-h-28 max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-2xl border border-shell-border bg-shell px-4 py-2 text-shell-foreground shadow-md motion-reduce:transition-none md:inset-x-4 md:bottom-4 md:flex md:h-20 md:justify-between md:gap-3 md:px-6 ${railOffset}`} data-testid="global-player">
+    <div style={brandTokens as CSSProperties} className={`fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-50 mx-auto grid min-h-28 max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-[1.4rem] border border-shell-border bg-shell/90 px-4 py-2 text-shell-foreground shadow-lg backdrop-blur-xl motion-reduce:transition-none md:inset-x-4 md:bottom-4 md:flex md:h-20 md:justify-between md:gap-3 md:px-6 ${railOffset}`} data-testid="global-player">
       <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-2 md:w-1/4 md:gap-3">
         <span
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]"
+          className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_35%_30%,color-mix(in_srgb,var(--brand-primary)_88%,white),color-mix(in_srgb,var(--brand-primary)_35%,var(--color-score-ink))_58%,var(--color-score-ink))] text-white shadow-sm"
           aria-hidden="true"
         >
-          <Music2 size={20} />
+          <Music2 size={21} strokeWidth={1.6} />
         </span>
         <div className="hidden min-w-0 truncate sm:block">
           <p className="truncate text-sm font-semibold">{currentTrack.title}</p>
@@ -129,7 +129,7 @@ export function PersistentGlobalPlayer() {
           <button
             type="button"
             onClick={togglePlay}
-            className={`grid min-h-11 min-w-11 place-items-center rounded-full bg-[var(--brand-primary)] p-2.5 text-[var(--brand-on-primary)] shadow-md shadow-primary/30 transition-all hover:opacity-90 motion-reduce:transition-none ${focusRing}`}
+            className={`grid min-h-12 min-w-12 place-items-center rounded-full bg-[var(--brand-primary)] p-3 text-[var(--brand-on-primary)] shadow-md shadow-primary/30 transition-all hover:scale-[1.03] hover:opacity-90 motion-reduce:transform-none motion-reduce:transition-none ${focusRing}`}
             aria-label={isPlaying ? t('player.pause') : t('player.play')}
           >
             {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}

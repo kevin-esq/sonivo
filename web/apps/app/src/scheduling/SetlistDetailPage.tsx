@@ -354,7 +354,7 @@ export function SetlistDetailPage({ user, groupId, setlistId }: { user: CurrentU
 
   return (
     <section className="space-y-8" aria-labelledby="setlist-heading">
-      <header data-testid="setlist-hero" className="space-y-4 rounded-3xl border border-[var(--color-score-border)] bg-[var(--color-score-soft)] p-5 text-[var(--color-score-ink)] sm:p-8">
+      <header data-testid="setlist-hero" className="sonivo-score-header space-y-4">
         <PageBreadcrumb
           items={[
             { to: routes.group(group.id), label: group.name },
@@ -371,7 +371,7 @@ export function SetlistDetailPage({ user, groupId, setlistId }: { user: CurrentU
               <ListMusic className="h-5 w-5" />
             </span>
             <div className="min-w-0 space-y-1">
-              <h1 id="setlist-heading" className="text-3xl font-bold tracking-tight text-[var(--color-score-ink)] sm:text-4xl">
+              <h1 id="setlist-heading" className="sonivo-page-title text-[var(--color-score-ink)]">
                 {setlist.name}
               </h1>
               <p className="text-sm text-[var(--color-score-muted)]">

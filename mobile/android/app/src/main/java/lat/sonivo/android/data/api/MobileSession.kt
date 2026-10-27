@@ -146,6 +146,7 @@ internal class MobileSession(context: Context, private val issuer: String) {
 private class VersionedConnectionBuilder : ConnectionBuilder {
     override fun openConnection(uri: Uri): java.net.HttpURLConnection =
         DefaultConnectionBuilder.INSTANCE.openConnection(uri).apply {
+            instanceFollowRedirects = false
             ApiEndpoints.versionHeaders().forEach(::setRequestProperty)
         }
 }

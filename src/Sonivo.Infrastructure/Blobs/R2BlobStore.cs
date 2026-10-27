@@ -11,7 +11,7 @@ namespace Sonivo.Infrastructure.Blobs;
 // Object keys reuse the existing ObjectKey scheme unchanged (resources/{id}).
 // Reads/writes stay server-side behind the AuthZ'd GET .../content proxy:
 // no public buckets, no presigned reads, no browser-direct PUT, no CORS.
-public sealed class R2BlobStore : IBlobStore
+public sealed class R2BlobStore : IBlobStore, IByteRangeBlobStore
 {
     private readonly IAmazonS3 _client;
 
@@ -79,6 +79,43 @@ public sealed class R2BlobStore : IBlobStore
         try
         {
             response = await _client.GetObjectAsync(BucketName, objectKey, cancellationToken);
+            return new BlobContent(
+                new ResponseOwnedStream(response),
+                response.Headers.ContentType ?? "application/octet-stream",
+                response.Headers.ContentLength);
+        }
+        catch (AmazonS3Exception ex)
+            when (ex.StatusCode == HttpStatusCode.NotFound || ex.ErrorCode == "NoSuchKey")
+        {
+            response?.Dispose();
+            return null;
+        }
+        catch
+        {
+            response?.Dispose();
+            throw;
+        }
+    }
+
+    public async Task<BlobContent?> GetRangeAsync(
+        string objectKey,
+        long start,
+        long end,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);
+        ArgumentOutOfRangeException.ThrowIfNegative(start);
+        ArgumentOutOfRangeException.ThrowIfLessThan(end, start);
+
+        GetObjectResponse? response = null;
+        try
+        {
+            response = await _client.GetObjectAsync(new GetObjectRequest
+            {
+                BucketName = BucketName,
+                Key = objectKey,
+                ByteRange = new ByteRange(start, end)
+            }, cancellationToken);
             return new BlobContent(
                 new ResponseOwnedStream(response),
                 response.Headers.ContentType ?? "application/octet-stream",

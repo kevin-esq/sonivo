@@ -85,6 +85,7 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
   const [playing, setPlaying] = useState(false)
   const [positionMs, setPositionMs] = useState(0)
   const maxAudioBytes = resourceUploadLimit(planId, 'audio')
+  const willCreateArrangement = Boolean(file || lyrics.trim() || arrangementLabel.trim() || defaultKey.trim() || defaultBpm.trim() || sections.length)
 
   useEffect(() => {
     let cancelled = false
@@ -672,14 +673,20 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
             <ReviewRow label={t('songCreate.titleLabel')} value={title.trim()} />
             <ReviewRow label={t('songCreate.originLabel')} value={originOptions.find((o) => o.value === originKind)?.label ?? ''} />
             {attribution.trim() ? <ReviewRow label={t('songCreate.wizardArtist')} value={attribution.trim()} /> : null}
+            {genre.trim() ? <ReviewRow label={t('songCreate.wizardGenre')} value={genre.trim()} /> : null}
+            {tags.trim() ? <ReviewRow label={t('songCreate.tagsLabel')} value={tags.split(',').map((tag) => tag.trim()).filter(Boolean).join(', ')} /> : null}
+            {description.trim() ? <ReviewRow label={t('workflow.rightsNotes')} value={description.trim()} /> : null}
             <ReviewRow
               label={t('songCreate.wizardReviewAudio')}
               value={file ? `${file.name} · ${formatDuration(durationMs)}` : t('songCreate.wizardReviewNoAudio')}
             />
-            {lyrics.trim() ? <ReviewRow label={t('arrangement.lyricsLabel')} value={t('workflow.lyricsIncluded')} /> : null}
-            {sections.length ? (
-              <ReviewRow label={t('songCreate.wizardSectionsTitle')} value={sections.join(' · ')} />
-            ) : null}
+            {willCreateArrangement ? <>
+              <ReviewRow label={t('songCreate.wizardArrangementLabel')} value={arrangementLabel.trim() || t('songCreate.wizardDefaultArrangement')} />
+              <ReviewRow label={t('songCreate.wizardKey')} value={defaultKey.trim() || t('songCreate.wizardReviewNotSet')} />
+              <ReviewRow label={t('songCreate.wizardBpm')} value={defaultBpm.trim() || t('songCreate.wizardReviewNotSet')} />
+              <ReviewRow label={t('arrangement.lyricsLabel')} value={lyrics.trim() ? t('workflow.lyricsIncluded') : t('songCreate.wizardReviewNoLyrics')} />
+              <ReviewRow label={t('songCreate.wizardSectionsTitle')} value={sections.length ? sections.join(' · ') : t('songCreate.wizardReviewNoSections')} />
+            </> : <ReviewRow label={t('songCreate.wizardArrangementLabel')} value={t('songCreate.wizardReviewNoArrangement')} />}
           </dl>
 
           {busy ? (
@@ -725,7 +732,7 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <dt className="text-muted">{label}</dt>
-      <dd className="min-w-0 flex-1 truncate text-right font-medium text-ink">{value}</dd>
+      <dd className="min-w-0 flex-1 whitespace-pre-wrap break-words text-right font-medium text-ink">{value}</dd>
     </div>
   )
 }

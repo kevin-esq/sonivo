@@ -13,11 +13,11 @@ export function SettingsLayout() {
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t('accountSettings.title')}</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">{t('accountSettings.subtitle')}</p>
+        <h1 className="sonivo-page-title text-ink">{t('accountSettings.title')}</h1>
+        <p className="mt-1 text-muted">{t('accountSettings.subtitle')}</p>
       </header>
 
-      <nav className="flex gap-2 border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto" aria-label={t('accountSettings.tabsLabel')}>
+      <nav className="mb-8 flex gap-2 overflow-x-auto border-b border-border-subtle" aria-label={t('accountSettings.tabsLabel')}>
         {tabs.map((tab) => {
           const Icon = tab.icon
           return (
@@ -25,10 +25,10 @@ export function SettingsLayout() {
               key={tab.path}
               to={tab.path}
               className={({ isActive }) =>
-                `flex min-h-11 items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-all whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none ${
+                `flex min-h-11 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none ${
                   isActive
-                    ? 'border-primary text-shell-link'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 hover:border-slate-300'
+                    ? 'border-primary text-primary-ink'
+                    : 'border-transparent text-muted hover:border-border-subtle hover:text-ink'
                 }`
               }
             >

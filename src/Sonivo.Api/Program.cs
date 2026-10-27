@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.RateLimiting;
@@ -38,6 +39,7 @@ using Sonivo.Domain.Scheduling;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Domain.Notifications;
 using Sonivo.Api.Auth;
+using Sonivo.Api.Repertoire;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Blobs;
 using Sonivo.Infrastructure.Identity;
@@ -53,6 +55,11 @@ if (!string.IsNullOrWhiteSpace(listenPort))
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
+builder.Services.AddHttpClient("lyrics-lrclib", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(8);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Sonivo/1.0 (+https://sonivo.lat)");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 var mobileAuthenticationEnabled = MobileAuthenticationSetup.IsEnabled(builder.Configuration);
 MobileVersionGateMiddleware.ValidateConfiguration(builder.Configuration);
 MobileAuthenticationSetup.AddServices(builder.Services, builder.Configuration, builder.Environment);
@@ -4596,6 +4603,14 @@ app.MapGet("/api/groups/{groupId:guid}/songs", async (
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     ListSongsHandler handler,
+    SearchSongsHandler searchHandler,
+    string? q,
+    string? tag,
+    bool? favoritesOnly,
+    string? sort,
+    string? sortDirection,
+    int? page,
+    int? pageSize,
     CancellationToken cancellationToken) =>
 {
     var userId = await RequireUserIdAsync(principal, users);
@@ -4604,10 +4619,58 @@ app.MapGet("/api/groups/{groupId:guid}/songs", async (
         return Results.Unauthorized();
     }
 
+    if (q is not null || tag is not null || favoritesOnly is not null || sort is not null || sortDirection is not null || page is not null || pageSize is not null)
+    {
+        var result = await searchHandler.HandleAsync(
+            userId.Value,
+            groupId,
+            q,
+            tag,
+            favoritesOnly ?? false,
+            sort,
+            sortDirection,
+            page ?? 1,
+            pageSize ?? 25,
+            cancellationToken);
+        return Results.Ok(result);
+    }
+
     var songs = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
     return Results.Ok(songs.Select(ToSongListResponse));
 })
 .WithName("ListSongs")
+.RequireAuthorization();
+
+app.MapPut("/api/groups/{groupId:guid}/songs/{songId:guid}/favorite", async (
+    Guid groupId,
+    Guid songId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SetSongFavoriteHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    await handler.HandleAsync(userId.Value, groupId, songId, true, cancellationToken);
+    return Results.NoContent();
+})
+.WithName("FavoriteSong")
+.RequireAuthorization();
+
+app.MapDelete("/api/groups/{groupId:guid}/songs/{songId:guid}/favorite", async (
+    Guid groupId,
+    Guid songId,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    SetSongFavoriteHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    await handler.HandleAsync(userId.Value, groupId, songId, false, cancellationToken);
+    return Results.NoContent();
+})
+.WithName("UnfavoriteSong")
 .RequireAuthorization();
 
 app.MapPost("/api/groups/{groupId:guid}/songs", async (
@@ -4834,6 +4897,7 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", asy
 .RequireAuthorization();
 
 // ---------- .lrc import / export (ADR-0050). Flag: Features:Lrc (default off). ----------
+app.MapLyricsLookup();
 app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/import-lrc", async (
     Guid groupId,
     Guid arrangementId,
@@ -4894,7 +4958,7 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics
     var parsed = LrcParser.Parse(bytes);
 
     // Limit violations (line 0) are a hard 400 with the errors[{ line, reason }] contract.
-    if (parsed.Errors.Any(e => e.Line == 0))
+    if (parsed.Errors.Any(e => e.Line == 0) || (parsed.Format != "lrc" && parsed.Errors.Count > 0))
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>
         {
@@ -4908,11 +4972,13 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics
     return Results.Ok(new
     {
         encoding = parsed.Encoding,
+        format = parsed.Format,
+        wordCount = conversion.WordCount,
         lyrics = conversion.Lyrics,
         chordTimingJson = conversion.ChordTimingJson,
         markCount = conversion.MarkCount,
         metadata = parsed.Metadata,
-        warnings = parsed.Warnings,
+        warnings = parsed.Warnings.Concat(conversion.Warnings).Distinct(),
         errors = parsed.Errors.Select(e => new { line = e.Line, reason = e.Reason })
     });
 })
@@ -4945,7 +5011,7 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/
 
     try
     {
-        var lrc = LrcConverter.ToLrc(arrangement.Lyrics, arrangement.ChordTimingJson);
+        var lrc = LrcConverter.ToLrc(string.IsNullOrWhiteSpace(arrangement.Chords) ? arrangement.Lyrics : arrangement.Chords, arrangement.ChordTimingJson);
         return Results.Text(lrc, "text/plain; charset=utf-8");
     }
     catch (ValidationException ex)
@@ -5157,6 +5223,8 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resourc
     Guid groupId,
     Guid arrangementId,
     Guid resourceId,
+    HttpRequest httpRequest,
+    HttpContext httpContext,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     GetResourceContentHandler handler,
@@ -5168,18 +5236,28 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resourc
         return Results.Unauthorized();
     }
 
+    long? rangeStart = null;
+    long? rangeEnd = null;
+    if (string.IsNullOrWhiteSpace(httpRequest.Headers.IfRange)
+        && RangeHeaderValue.TryParse(httpRequest.Headers.Range.ToString(), out var requestedRange)
+        && string.Equals(requestedRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase)
+        && requestedRange.Ranges.Count == 1)
+    {
+        var singleRange = requestedRange.Ranges.Single();
+        rangeStart = singleRange.From;
+        rangeEnd = singleRange.To;
+    }
+
     var content = await handler.HandleAsync(
         userId.Value,
         groupId,
         arrangementId,
         resourceId,
-        cancellationToken);
+        cancellationToken,
+        rangeStart,
+        rangeEnd);
 
-    return Results.File(
-        content.Content,
-        content.ContentType,
-        fileDownloadName: content.DownloadFileName,
-        enableRangeProcessing: content.Content.CanSeek);
+    return CreateResourceContentResult(content, httpContext);
 })
 .WithName("GetResourceContent")
 .RequireAuthorization();
@@ -6383,6 +6461,34 @@ static object ToEventDetailResponse(EventDetailDto musicalEvent) => new
     })
 };
 
+static IResult CreateResourceContentResult(ResourceContentDto content, HttpContext httpContext)
+{
+    var response = httpContext.Response;
+    if (content.RangeStart is long start && content.RangeEnd is long end)
+    {
+        response.StatusCode = StatusCodes.Status206PartialContent;
+        response.Headers.ContentRange = $"bytes {start}-{end}/{content.ByteSize}";
+        response.Headers.AcceptRanges = "bytes";
+        response.ContentLength = end - start + 1;
+        return Results.Stream(content.Content, content.ContentType, content.DownloadFileName);
+    }
+
+    if (content.SupportsByteRanges)
+    {
+        response.Headers.AcceptRanges = "bytes";
+    }
+
+    if (!content.Content.CanSeek)
+    {
+        response.ContentLength = content.ByteSize;
+    }
+
+    return Results.File(
+        content.Content,
+        content.ContentType,
+        fileDownloadName: content.DownloadFileName,
+        enableRangeProcessing: content.Content.CanSeek);
+}
 
 internal sealed record RegisterRequest(string? Email, string? Password, string? DisplayName);
 

@@ -1763,19 +1763,44 @@ private struct GroupListView: View {
                 }
             } else if !api.isSignedIn {
                 Section {
-                    Button {
-                        Task { await api.signIn() }
-                    } label: {
-                        Label("auth.sign_in", systemImage: "person.crop.circle")
-                            .frame(maxWidth: .infinity)
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(alignment: .top, spacing: 14) {
+                            LucideGlyph(name: "waveform", color: SonivoBrand.primary)
+                                .frame(width: 24, height: 24)
+                                .frame(width: 48, height: 48)
+                                .background(SonivoBrand.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text("auth.welcome_title")
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(SonivoBrand.ink)
+                                Text("auth.welcome_body")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+
+                        Button {
+                            Task { await api.signIn() }
+                        } label: {
+                            HStack(spacing: 10) {
+                                if api.isLoading { ProgressView().tint(.white) }
+                                Text(LocalizedStringKey(api.isLoading ? "loading" : "auth.sign_in"))
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 28)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(api.isLoading)
+
+                        if api.pendingGroupSlug != nil {
+                            Text("group_link.sign_in_to_continue")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(api.isLoading)
-                    if api.pendingGroupSlug != nil {
-                        Text("group_link.sign_in_to_continue")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
+                    .padding(.vertical, 8)
                 }
             } else {
                 Section {
@@ -1804,7 +1829,7 @@ private struct GroupListView: View {
                     }
                 }
             }
-            if api.isLoading { ProgressView("loading") }
+            if api.isLoading && api.isSignedIn { ProgressView("loading") }
             if let key = api.lastErrorKey { Text(LocalizedStringKey(key)).foregroundStyle(.red) }
             if let version = api.requiredVersion {
                 Text("mobile.update.required \(version)").foregroundStyle(.orange)
@@ -1814,7 +1839,7 @@ private struct GroupListView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(LinearGradient(colors: [SonivoBrand.wash, SonivoBrand.canvas], startPoint: .topLeading, endPoint: .bottomTrailing))
-        .listRowBackground(SonivoBrand.surface)
+        .listRowBackground(api.isSignedIn ? SonivoBrand.surface : .clear)
     }
 }
 

@@ -20,6 +20,38 @@ export type SongDetail = SongListItem & {
   arrangementCount: number
 }
 
+export type SongCatalogPage = {
+  items: Array<SongListItem & { arrangementCount: number }>
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+  availableTags: string[]
+}
+
+export async function searchSongs(
+  groupId: string,
+  input: { query: string; tag: string; favoritesOnly: boolean; sort: string; sortDirection: 'asc' | 'desc'; page: number; pageSize: number },
+): Promise<SongCatalogPage> {
+  const params = new URLSearchParams({
+    q: input.query,
+    tag: input.tag,
+    favoritesOnly: String(input.favoritesOnly),
+    sort: input.sort,
+    sortDirection: input.sortDirection,
+    page: String(input.page),
+    pageSize: String(input.pageSize),
+  })
+  return apiRequest<SongCatalogPage>(`/api/groups/${encodeURIComponent(groupId)}/songs?${params}`)
+}
+
+export async function setSongFavorite(groupId: string, songId: string, favorite: boolean): Promise<void> {
+  await apiRequest<void>(
+    `/api/groups/${encodeURIComponent(groupId)}/songs/${encodeURIComponent(songId)}/favorite`,
+    { method: favorite ? 'PUT' : 'DELETE' },
+  )
+}
+
 export type ArrangementListItem = {
   id: string
   songId: string
@@ -133,6 +165,8 @@ export async function getArrangement(
 
 export type LrcPreview = {
   encoding: string
+  format?: string
+  wordCount?: number
   lyrics: string
   chordTimingJson: string | null
   markCount: number
@@ -145,6 +179,12 @@ export type LrcPreview = {
   }
   warnings: string[]
   errors: Array<{ line: number; reason: string }>
+}
+
+export type LyricsLookupCandidate = { source: string; recordId: number; title: string; artist: string; album: string | null; duration: number; content: string }
+
+export function lookupArrangementLyrics(groupId: string, arrangementId: string, input: { title: string; artist: string; duration?: number }): Promise<LyricsLookupCandidate> {
+  return apiRequest<LyricsLookupCandidate>(`/api/groups/${groupId}/arrangements/${arrangementId}/lyrics/lookup`, { method: 'POST', body: input })
 }
 
 /** Preview only: the API never persists on import (ADR-0050). */
@@ -171,6 +211,12 @@ export async function exportArrangementLrc(
   if (!response.ok) {
     throw new ApiError(`export failed (${response.status})`, response.status)
   }
+  return response.text()
+}
+
+export async function exportArrangementLyricsDocument(groupId: string, arrangementId: string, format: 'ttml' | 'cho'): Promise<string> {
+  const response = await fetch(`/api/groups/${groupId}/arrangements/${arrangementId}/lyrics/export.${format}`, { credentials: 'include' })
+  if (!response.ok) throw new ApiError(`Lyrics export failed (${response.status})`, response.status)
   return response.text()
 }
 

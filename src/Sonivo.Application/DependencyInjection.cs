@@ -59,6 +59,8 @@ public static class DependencyInjection
         services.AddScoped<RevokeInvitationHandler>();
         services.AddScoped<CreateSongHandler>();
         services.AddScoped<ListSongsHandler>();
+        services.AddScoped<SearchSongsHandler>();
+        services.AddScoped<SetSongFavoriteHandler>();
         services.AddScoped<GetSongHandler>();
         services.AddScoped<UpdateSongHandler>();
         services.AddScoped<SoftDeleteSongHandler>();

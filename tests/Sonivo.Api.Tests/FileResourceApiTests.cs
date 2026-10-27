@@ -68,6 +68,14 @@ public class FileResourceApiTests : IClassFixture<SonivoApiFactory>
         var downloaded = await download.Content.ReadAsByteArrayAsync();
         Assert.Equal(payload, downloaded);
 
+        using var rangeRequest = new HttpRequestMessage(HttpMethod.Get, $"{basePath}/{created.Id}/content");
+        rangeRequest.Headers.Range = new RangeHeaderValue(2, 5);
+        var rangedDownload = await memberClient.SendAsync(rangeRequest);
+        Assert.Equal(HttpStatusCode.PartialContent, rangedDownload.StatusCode);
+        Assert.Equal(2, rangedDownload.Content.Headers.ContentRange?.From);
+        Assert.Equal(5, rangedDownload.Content.Headers.ContentRange?.To);
+        Assert.Equal(payload[2..6], await rangedDownload.Content.ReadAsByteArrayAsync());
+
         // A child allow never bypasses an arrangement restriction.
         var denyArrangement = await ownerClient.PutAsJsonAsync(
             $"/api/groups/{groupId}/members/{memberId}/resource-grants",
@@ -81,6 +89,10 @@ public class FileResourceApiTests : IClassFixture<SonivoApiFactory>
             (await memberClient.GetAsync($"/api/groups/{groupId}/arrangements/{arr.Id}")).StatusCode);
         Assert.NotEqual(HttpStatusCode.OK,
             (await memberClient.GetAsync($"{basePath}/{created.Id}/content")).StatusCode);
+        using var deniedRangeRequest = new HttpRequestMessage(HttpMethod.Get, $"{basePath}/{created.Id}/content");
+        deniedRangeRequest.Headers.Range = new RangeHeaderValue(2, 5);
+        Assert.NotEqual(HttpStatusCode.PartialContent,
+            (await memberClient.SendAsync(deniedRangeRequest)).StatusCode);
 
         var clearArrangement = await ownerClient.PutAsJsonAsync(
             $"/api/groups/{groupId}/members/{memberId}/resource-grants",

@@ -29,6 +29,7 @@ public DbSet<ResourceGrant> ResourceGrants => Set<ResourceGrant>();
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
     public DbSet<Song> Songs => Set<Song>();
+    public DbSet<SongFavorite> SongFavorites => Set<SongFavorite>();
     public DbSet<Arrangement> Arrangements => Set<Arrangement>();
     public DbSet<Resource> Resources => Set<Resource>();
     public DbSet<Setlist> Setlists => Set<Setlist>();

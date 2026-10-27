@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure.Persistence;
 
@@ -203,6 +204,173 @@ public class LrcApiTests : IClassFixture<SonivoApiFactory>
     }
 
     // ---------- helpers ----------
+
+    [Theory]
+    [InlineData("<!DOCTYPE tt [<!ENTITY stolen SYSTEM 'file:///missing'>]><tt xmlns='http://www.w3.org/ns/ttml'><body><p begin='00:01.000' end='00:02.000'>&stolen;</p></body></tt>")]
+    [InlineData("<tt xmlns='http://www.w3.org/ns/ttml'><body><p begin='00:03.000' end='00:02.000'>Original</p></body></tt>")]
+    [InlineData("{\"lyrics\":{\"lines\":[1]}}")]
+    public async Task Unsafe_or_invalid_rich_documents_return_400_without_saving(string content)
+    {
+        var (owner, _) = await CreateUserAsync($"invalid-rich-{Guid.NewGuid():N}@example.com");
+        var (_, ids) = await SeedSongAndArrangementAsync(owner, "Invalid rich input");
+        var path = $"/api/groups/{ids.GroupId}/arrangements/{ids.Id}";
+        var response = await owner.PostAsJsonAsync(path + "/lyrics/import-lrc", new { content });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var arrangement = await owner.GetFromJsonAsync<JsonElement>(path);
+        Assert.Equal(JsonValueKind.Null, arrangement.GetProperty("lyrics").ValueKind);
+    }
+
+    [Fact]
+    public async Task Lookup_and_native_exports_keep_membership_and_owner_authorization()
+    {
+        var (owner, _) = await CreateUserAsync("lookup-auth-owner@example.com");
+        var (member, memberId) = await CreateUserAsync("lookup-auth-member@example.com");
+        var (outsider, _) = await CreateUserAsync("lookup-auth-outsider@example.com");
+        var (_, ids) = await SeedSongAndArrangementAsync(owner, "Lookup isolation");
+        await AddMemberAsync(ids.GroupId, memberId);
+        var path = $"/api/groups/{ids.GroupId}/arrangements/{ids.Id}/lyrics/";
+        Assert.Equal(HttpStatusCode.Forbidden, (await member.PostAsJsonAsync(path + "lookup", new { title = "Original light", artist = "Test artist" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await outsider.PostAsJsonAsync(path + "lookup", new { title = "Original light", artist = "Test artist" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await outsider.GetAsync(path + "export.ttml")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await member.GetAsync(path + "export.ttml")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await member.GetAsync(path + "export.cho")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Saved_lyrics_export_as_native_ttml_and_reimport_without_provider_dependencies()
+    {
+        var (owner, _) = await CreateUserAsync("native-export@example.com");
+        var (_, ids) = await SeedSongAndArrangementAsync(owner, "Native export");
+        await SaveLyricsAsync(owner, ids, "[00:01.234]Original light");
+        var path = $"/api/groups/{ids.GroupId}/arrangements/{ids.Id}/lyrics/";
+        var export = await owner.GetAsync(path + "export.ttml");
+        Assert.Equal(HttpStatusCode.OK, export.StatusCode);
+        Assert.Equal("application/ttml+xml", export.Content.Headers.ContentType!.MediaType);
+        var xml = await export.Content.ReadAsStringAsync();
+        Assert.Contains("sonivo:version=\"1\"", xml);
+        var import = await owner.PostAsJsonAsync(path + "import-lrc", new { content = xml });
+        Assert.Equal(HttpStatusCode.OK, import.StatusCode);
+        var preview = await import.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Original light", preview.GetProperty("lyrics").GetString());
+        Assert.Contains("\"atMs\":1234", preview.GetProperty("chordTimingJson").GetString());
+    }
+
+    [Fact]
+    public async Task Owner_can_review_a_verified_provider_match_without_persisting_it()
+    {
+        var (owner, _) = await CreateUserAsync("lookup-owner@example.com");
+        var (_, ids) = await SeedSongAndArrangementAsync(owner, "Provider preview");
+        using var configured = _lrc.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            services.AddHttpClient("lyrics-lrclib").ConfigurePrimaryHttpMessageHandler(() => new LyricsProviderHandler())));
+        using var client = await LoginAsync(configured, "lookup-owner@example.com");
+        var path = $"/api/groups/{ids.GroupId}/arrangements/{ids.Id}";
+        var result = await client.PostAsJsonAsync(path + "/lyrics/lookup", new { title = "Original light", artist = "Test artist", duration = 120 });
+        Assert.Equal(HttpStatusCode.OK, result.StatusCode);
+        var candidate = await result.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("LRCLIB", candidate.GetProperty("source").GetString());
+        Assert.Equal("[00:01.00]Original light", candidate.GetProperty("content").GetString());
+        var arrangement = await client.GetFromJsonAsync<JsonElement>(path);
+        Assert.Equal(JsonValueKind.Null, arrangement.GetProperty("lyrics").ValueKind);
+    }
+
+    private sealed class LyricsProviderHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Assert.Equal("lrclib.net", request.RequestUri!.Host);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new { id = 7, trackName = "Original light", artistName = "Test artist", albumName = "Test album", duration = 120, instrumental = false, syncedLyrics = "[00:01.00]Original light" })
+            });
+        }
+    }
+
+    [Fact]
+    public async Task Owner_previews_and_applies_ttml_without_losing_word_or_line_ends()
+    {
+        var (owner, _) = await CreateUserAsync("ttml-owner@example.com");
+        var (_, ids) = await SeedSongAndArrangementAsync(owner, "TTML preview");
+        var path = $"/api/groups/{ids.GroupId}/arrangements/{ids.Id}";
+        var response = await owner.PostAsJsonAsync(path + "/lyrics/import-lrc", new
+        {
+            content = """<tt xmlns="http://www.w3.org/ns/ttml"><body><div><p begin="00:01.000" end="00:03.000"><span begin="00:01.000" end="00:02.000">Original</span> <span begin="00:02.000" end="00:03.000">light</span></p></div></body></tt>"""
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var preview = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("ttml", preview.GetProperty("format").GetString());
+        Assert.Equal(2, preview.GetProperty("wordCount").GetInt32());
+        var before = await owner.GetFromJsonAsync<JsonElement>(path);
+        Assert.True(before.GetProperty("lyrics").ValueKind == JsonValueKind.Null);
+        var patch = await owner.PatchAsJsonAsync(path, new
+        {
+            expectedVersion = before.GetProperty("version").GetInt32(),
+            lyrics = preview.GetProperty("lyrics").GetString(),
+            chordTimingJson = preview.GetProperty("chordTimingJson").GetString(),
+        });
+        Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
+        var after = await owner.GetFromJsonAsync<JsonElement>(path);
+        Assert.Equal("Original light", after.GetProperty("lyrics").GetString());
+        Assert.Contains("\"endMs\":3000", after.GetProperty("chordTimingJson").GetString());
+        Assert.Contains("\"wordIndex\":1", after.GetProperty("chordTimingJson").GetString());
+    }
+
+    [Fact]
+    public async Task Pasting_ttml_into_arrangement_lyrics_normalizes_the_saved_practice_body()
+    {
+        var (owner, _) = await CreateUserAsync("ttml-paste-owner@example.com");
+        var (_, ids) = await SeedSongAndArrangementAsync(owner, "TTML paste");
+        var path = $"/api/groups/{ids.GroupId}/arrangements/{ids.Id}";
+        const string xml = """<tt xmlns="http://w3.org"><body><div><p begin="00:01.000" end="00:03.000">Original light</p></div></body></tt>""";
+
+        var patch = await owner.PatchAsJsonAsync(path, new { lyrics = xml, expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
+        var saved = await owner.GetFromJsonAsync<JsonElement>(path);
+        Assert.Equal("Original light", saved.GetProperty("lyrics").GetString());
+        Assert.Equal("Original light", saved.GetProperty("chords").GetString());
+        Assert.Contains("\"endMs\":3000", saved.GetProperty("chordTimingJson").GetString());
+    }
+
+    [Fact]
+    public async Task Existing_raw_ttml_is_projected_as_synchronized_lyrics_on_read()
+    {
+        var (owner, _) = await CreateUserAsync("ttml-legacy-owner@example.com");
+        var (_, ids) = await SeedSongAndArrangementAsync(owner, "Legacy TTML");
+        const string xml = """<tt xmlns="http://w3.org"><body><div><p begin="00:01.000" end="00:03.000">Original light</p></div></body></tt>""";
+        using (var scope = _lrc.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            var arrangement = await db.Arrangements.SingleAsync(item => item.Id == ids.Id);
+            arrangement.Update(arrangement.Label, arrangement.DefaultKey, arrangement.DefaultBpm,
+                xml, null, arrangement.Structure, arrangement.Notes, null, arrangement.Version, DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        }
+
+        var detail = await owner.GetFromJsonAsync<JsonElement>($"/api/groups/{ids.GroupId}/arrangements/{ids.Id}");
+        Assert.Equal("Original light", detail.GetProperty("lyrics").GetString());
+        Assert.Equal("Original light", detail.GetProperty("chords").GetString());
+        Assert.Contains("\"endMs\":3000", detail.GetProperty("chordTimingJson").GetString());
+    }
+
+    [Fact]
+    public async Task Existing_apple_ttml_with_decimal_second_times_is_projected_on_read()
+    {
+        var (owner, _) = await CreateUserAsync("apple-ttml-owner@example.com");
+        var (_, ids) = await SeedSongAndArrangementAsync(owner, "Apple TTML");
+        const string xml = """<tt xmlns="http://www.w3.org/ns/ttml" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="Line" xml:lang="es"><head/><body dur="5:05.204"><div begin="15.884" end="45.731" itunes:songPart="Verse"><p begin="15.884" end="18.799" itunes:key="L1">Me gusta estar al lado del camino</p><p begin="19.695" end="23.279" itunes:key="L2">Fumando el humo mientras todo pasa</p></div></body></tt>""";
+        using (var scope = _lrc.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            var arrangement = await db.Arrangements.SingleAsync(item => item.Id == ids.Id);
+            arrangement.Update(arrangement.Label, arrangement.DefaultKey, arrangement.DefaultBpm,
+                xml, null, arrangement.Structure, arrangement.Notes, null, arrangement.Version, DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        }
+
+        var detail = await owner.GetFromJsonAsync<JsonElement>($"/api/groups/{ids.GroupId}/arrangements/{ids.Id}");
+        Assert.Equal("Me gusta estar al lado del camino\nFumando el humo mientras todo pasa", detail.GetProperty("lyrics").GetString());
+        Assert.Contains("\"atMs\":15884", detail.GetProperty("chordTimingJson").GetString());
+        Assert.Contains("\"endMs\":18799", detail.GetProperty("chordTimingJson").GetString());
+    }
 
     private async Task SaveLyricsAsync(HttpClient owner, ArrangementIds ids, string lyrics)
     {

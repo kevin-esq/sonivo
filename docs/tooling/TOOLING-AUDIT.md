@@ -1,7 +1,7 @@
 # TOOLING-AUDIT.md — Sonivo
 
 **Phase 0 status:** **CLOSED** (Phase 0.9 documentation reconciliation, 2026-09-15)  
-**Tooling policy:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, **ADR-0063**, and **ADR-0064**)  
+**Tooling policy:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, ADR-0063–0066, and ADR-0099)
 **Phase 0.9:** Documentation reconciliation only — **no** installs, uninstalls, or tooling changes.  
 **Rule:** `DOCUMENTED ≠ VERIFIED PRESENT ≠ APPROVED/AUTHORIZED` · Sonivo allowlist is binding.
 
@@ -40,6 +40,11 @@
 ### TENANCY — PROJECT-LOCAL — AUTHORIZED (user-authorized 2026-10-14)
 
 `group-tenancy-isolation` (authored for Sonivo) — Group is the only tenant; server-side membership check per request; `(GroupId, EntityId)` lookups; no ambient tenant filter. Rules recorded in **ADR-0079 (ACCEPTED)**; enforced by `tests/Sonivo.Integration.Tests/GroupIsolationArchitectureTests.cs`.
+
+### DEVICE / GIT WORKFLOWS — PROJECT-LOCAL — AUTHORIZED (ADR-0099, user-authorized 2026-10-20)
+
+- `android` — community `@us-all/android-mcp@1.14.4`; app/UI/emulator writes enabled for testing; arbitrary ADB shell disabled; categories limited to `device,apps,ui,logcat,emulator`. Package source and execution boundary reviewed; requires ADB on `PATH` and Node.js 22+.
+- `GitKraken` — official GitKraken MCP via the GitKraken CLI; configured with `--readonly`. CLI 3.1.77 installed on this development host. GitKraken account authentication is still required for account-backed integrations.
 
 ### DEFERRED — do not install, configure, invoke, or depend
 
@@ -88,6 +93,8 @@ Findings/plan of record: [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-
 **ADR-0063 (user-authorized 2026-10-04):** nine project-local skills from first-party sources (Microsoft .NET, Anthropic, Matt Pocock, Trail of Bits) plus the user-authored `creative-frameworks`, and the root `opencode.json` MCP servers (`drawio`, `excalidraw`, `sequential-thinking`, `fetch`). Sources were audited (frontmatter + bundled scripts/references). All four MCP servers verified connected via `opencode mcp list`; the earlier `@cmd8/excalidraw-mcp` candidate was dropped because it ships broken (`ERR_MODULE_NOT_FOUND`). See [`SKILLS-ECOSYSTEM-RESEARCH-2026-10.md`](SKILLS-ECOSYSTEM-RESEARCH-2026-10.md).
 
 **ADR-0064 (user-authorized 2026-10-05):** migrated `opencode.json` to V2-native `mcp.servers`; added MCP `semgrep` and `snyk` (both enabled; `snyk` authenticates via `snyk_auth`); added project-local skills `dotnet-secure-architecture` and `react-frontend-security` (31 → 33). See [`OPENCODE-V2-MCP-SKILLS-2026-10.md`](OPENCODE-V2-MCP-SKILLS-2026-10.md).
+
+**ADR-0099 (user-authorized 2026-10-20):** added the pinned community Android MCP with shell execution disabled and the official GitKraken MCP in read-only mode. See [`OPENCODE-V2-MCP-SKILLS-2026-10.md`](OPENCODE-V2-MCP-SKILLS-2026-10.md). Both are project-local in root `opencode.json`; the GitKraken CLI is installed on this development host.
 
 | Artifact                                | State                                    |
 | --------------------------------------- | ---------------------------------------- |
@@ -140,7 +147,7 @@ other contributors. Two findings:
 
 ## ADR-0002
 
-**ACCEPTED** — original tooling policy and allowlist. ADR-0039 adds eight local knowledge workflows; ADR-0041 keeps all project skills in `.agents/skills/` only; **ADR-0063** adds nine first-party platform/meta/security skills and the root `opencode.json` MCP servers (user-authorized 2026-10-04). **ADR-0064** migrates `opencode.json` to V2-native `mcp.servers` and adds the `semgrep`/`snyk` MCP servers plus two project-local security skills (user-authorized 2026-10-05). **ADR-0065** adds the official `github` MCP server (local Docker) and the project-local `git-governance` skill with a Conventional Commits `commit-msg` hook (user-authorized 2026-10-05). **ADR-0066** adds the `docker-sandbox` MCP server (enabled) and the `infisical` secrets MCP (`disabled`), plus the `validation-symmetry` skill (user-authorized 2026-10-05).
+**ACCEPTED** — original tooling policy and allowlist. ADR-0039 adds eight local knowledge workflows; ADR-0041 keeps all project skills in `.agents/skills/` only; ADR-0063–0066 add the previously recorded project-local MCP servers and skills; **ADR-0099** adds the Android and GitKraken MCP servers (user-authorized 2026-10-20).
 
 ---
 
@@ -155,6 +162,7 @@ other contributors. Two findings:
 | ADR-0064 | User-authorized OpenCode V2-native MCP config + `semgrep`/`snyk` MCP servers + two project-local security skills |
 | ADR-0065 | User-authorized official `github` MCP server (local Docker) + `git-governance` skill and Conventional Commits `commit-msg` hook |
 | ADR-0066 | User-authorized `docker-sandbox` MCP (enabled) + `infisical` secrets MCP (disabled) + `validation-symmetry` skill |
+| ADR-0099 | User-authorized Android MCP (ADB shell disabled) + official GitKraken MCP (read-only) |
 
 ADR-0040 is **SUPERSEDED** by ADR-0041; the user authorized one project-local customization tree under `.agents/`, with vendor hooks and agents removed.
 
