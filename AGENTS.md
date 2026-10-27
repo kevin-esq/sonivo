@@ -206,6 +206,6 @@ Always preserve these invariants: Group-scoped server-side authorization (never 
 
 Authoritative policy: [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md), ADR-0002, ADR-0039, and ADR-0041.
 
-- **AUTHORIZED project-local:** 36 skills under `.agents/skills/`. Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md). MCP config (security + `github` + sandbox + secrets) lives in root `opencode.json` (ADR-0064/0065/0066).
+- **AUTHORIZED project-local:** 39 skills under `.agents/skills/`. Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md). MCP config for repository workflows remains in root `opencode.json` (ADR-0064/0065/0066/0099). Neon skills are authorized by ADR-0102; the owner's global Neon MCP is optional developer tooling, not a Sonivo dependency.
 - **PRESENT ≠ AUTHORIZED.** User-global ambient tooling must **not** become a Sonivo dependency.
 - Do not install further skills/tooling without explicit approval.
