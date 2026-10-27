@@ -3,17 +3,25 @@ package lat.sonivo.android
 import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
+import android.text.InputType
+import android.text.TextWatcher
+import android.view.Gravity
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import androidx.credentials.CreatePublicKeyCredentialRequest
 import androidx.credentials.CreatePublicKeyCredentialResponse
 import androidx.credentials.CredentialManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.Image
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -24,6 +32,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -32,6 +41,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -43,6 +54,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
@@ -73,12 +87,22 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -100,6 +124,9 @@ import lat.sonivo.android.data.api.MobileSetlistSummary
 import lat.sonivo.android.playback.PracticePlayerController
 import lat.sonivo.android.practice.PracticeChart
 import lat.sonivo.android.practice.PracticeChartLine
+import lat.sonivo.android.practice.PracticeChartWord
+import lat.sonivo.android.practice.PracticeInstrumentalInterval
+import lat.sonivo.android.practice.PracticeChartTimeline
 import lat.sonivo.android.practice.KaraokePracticeScreen
 import org.json.JSONArray
 import org.json.JSONObject
@@ -217,40 +244,142 @@ private fun SonivoTabIcon(index: Int, tint: Color) {
 
 @Composable
 private fun SonivoBottomBar(tabs: Array<String>, selected: Int, onSelect: (Int) -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 8.dp),
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.85f)),
-        shadowElevation = 10.dp,
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+    val haptic = LocalHapticFeedback.current
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+        tabs.forEachIndexed { index, title ->
+            NavigationBarItem(
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = title
+                    role = Role.Tab
+                    onClick(label = title) {
+                        if (index != selected) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onSelect(index)
+                        true
+                    }
+                },
+                selected = index == selected,
+                onClick = {
+                    if (index != selected) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onSelect(index)
+                },
+                icon = { SonivoTabIcon(index, MaterialTheme.colorScheme.onSurfaceVariant) },
+                label = { Text(title, maxLines = 1) },
+                alwaysShowLabel = true,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SonivoWelcomeScreen(
+    dark: Boolean,
+    configured: Boolean,
+    signingIn: Boolean,
+    error: String?,
+    minimumVersion: String?,
+    onRegister: () -> Unit,
+    onSignIn: () -> Unit,
+) {
+    val background = MaterialTheme.colorScheme.background
+    val registerLabel = stringResource(R.string.auth_get_started)
+    val signInLabel = stringResource(R.string.sign_in)
+    Box(Modifier.fillMaxSize().background(background)) {
+        Image(
+            painter = painterResource(if (dark) R.drawable.welcome_rehearsal else R.drawable.welcome_rehearsal_light),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.82f).align(Alignment.TopCenter),
+        )
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    0.48f to Color.Transparent,
+                    0.70f to background.copy(alpha = 0.82f),
+                    0.82f to background,
+                    1f to background,
+                ),
+            ),
+        )
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 24.dp).padding(top = 22.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            tabs.forEachIndexed { index, title ->
-                val active = index == selected
-                val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                Column(
-                    modifier = Modifier.weight(1f).clickable { onSelect(index) }
-                        .semantics { contentDescription = title }
-                        .padding(vertical = 1.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    Modifier.size(width = 30.dp, height = 34.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
-                    Box(
-                        Modifier.size(width = 44.dp, height = 36.dp).background(
-                            if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                            CircleShape,
-                        ),
-                        contentAlignment = Alignment.Center,
-                    ) { SonivoTabIcon(index, color) }
+                    listOf(12.dp, 24.dp, 18.dp, 9.dp).forEach { barHeight ->
+                        Box(Modifier.width(4.dp).height(barHeight).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp)))
+                    }
+                }
+                Text(
+                    stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    color = if (dark) Color.White else Color(0xFF0F172A),
+                )
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 20.dp, bottomEnd = 20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 3.dp,
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
                     Text(
-                        title,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp),
-                        color = color,
-                        maxLines = 1,
-                        minLines = 1,
+                        stringResource(R.string.auth_landing_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     )
+                    Text(
+                        stringResource(R.string.auth_landing_body),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (!configured) {
+                        Text(stringResource(R.string.api_not_configured), color = MaterialTheme.colorScheme.error)
+                    }
+                    if (error != null) {
+                        Text(
+                            if (error == "update") stringResource(R.string.mobile_update_required, minimumVersion.orEmpty())
+                            else stringResource(R.string.request_failed),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    Button(
+                        onClick = onRegister,
+                        enabled = configured && !signingIn,
+                        modifier = Modifier.fillMaxWidth().height(54.dp).clearAndSetSemantics {
+                            contentDescription = registerLabel
+                            role = Role.Button
+                            onClick(label = registerLabel) { onRegister(); true }
+                        },
+                    ) {
+                        Text(stringResource(R.string.auth_get_started), fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                    }
+                    OutlinedButton(
+                        onClick = onSignIn,
+                        enabled = configured && !signingIn,
+                        modifier = Modifier.fillMaxWidth().height(54.dp).clearAndSetSemantics {
+                            contentDescription = signInLabel
+                            role = Role.Button
+                            onClick(label = signInLabel) { onSignIn(); true }
+                        },
+                    ) {
+                        if (signingIn) {
+                            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(10.dp))
+                        }
+                        Text(stringResource(R.string.sign_in))
+                    }
                 }
             }
         }
@@ -260,6 +389,7 @@ private fun SonivoBottomBar(tabs: Array<String>, selected: Int, onSelect: (Int) 
 @Composable
 private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersion: State<Int>) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val activity = context as Activity
     val preferences = remember(context) { context.getSharedPreferences("sonivo_preferences", Context.MODE_PRIVATE) }
     var themePreference by remember { mutableStateOf(preferences.getString("theme", "system") ?: "system") }
@@ -287,9 +417,14 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
     var karaokeOpen by rememberSaveable { mutableStateOf(false) }
     var showChords by rememberSaveable { mutableStateOf(true) }
     var selectedGroup by remember { mutableStateOf<MobileGroup?>(null) }
+    var showCreateGroup by remember { mutableStateOf(false) }
+    var newGroupName by rememberSaveable { mutableStateOf("") }
+    var creatingGroup by remember { mutableStateOf(false) }
     var pendingGroupSlug by rememberSaveable { mutableStateOf(incomingGroupSlug.value ?: preferences.getString("pending_group_slug", null)) }
     var groupLinkRejected by rememberSaveable { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
+    var restoringSession by remember { mutableStateOf(true) }
+    var signingIn by remember { mutableStateOf(false) }
     var signedIn by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var requiredVersion by remember { mutableStateOf<String?>(null) }
@@ -480,7 +615,9 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                 groups = it
                 signedIn = true
                 error = null
+                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
             }.onFailure { failure ->
+                haptic.performHapticFeedback(HapticFeedbackType.Reject)
                 signedIn = false
                 error = if (failure is MobileApiException && failure.status == 426) {
                     requiredVersion = failure.minimumVersion
@@ -568,6 +705,7 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
             }
             loading = false
         }
+        restoringSession = false
     }
     val dark = when (themePreference) {
         "dark" -> true
@@ -590,21 +728,85 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
             onSurfaceVariant = Color(0xFF64748B), outline = Color(0xFFE2E8F0),
         )
     }
+    fun submitGroupCreation() {
+        val name = newGroupName.trim()
+        if (name.isBlank() || creatingGroup) return
+        creatingGroup = true
+        error = null
+        scope.launch {
+            runCatching {
+                val token = session.accessToken() ?: error("No access token")
+                withContext(Dispatchers.IO) { api.createGroup(name, token) }
+            }.onSuccess { group ->
+                groups = groups + group
+                showCreateGroup = false
+                creatingGroup = false
+                newGroupName = ""
+                error = null
+                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                selectGroup(group)
+            }.onFailure { failure ->
+                if (failure is MobileApiException && failure.status == 426) {
+                    requiredVersion = failure.minimumVersion
+                    storeUrl = failure.storeUrl
+                    error = "update"
+                } else error = "request"
+                creatingGroup = false
+                haptic.performHapticFeedback(HapticFeedbackType.Reject)
+            }
+        }
+    }
     MaterialTheme(colorScheme = colors) {
         Scaffold(bottomBar = {
-            if (!karaokeOpen) Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 4.dp)) {
+            if (signedIn && !karaokeOpen) {
                 SonivoBottomBar(tabs, selected) { selected = it }
             }
         }) { padding ->
             Surface(Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
-                if (karaokeOpen && selectedGroup != null && activeArrangement != null) {
+                if (restoringSession) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                } else if (!signedIn) {
+                    SonivoWelcomeScreen(
+                        dark = dark,
+                        configured = BuildConfig.API_BASE_URL.isNotBlank() && BuildConfig.OIDC_ISSUER.isNotBlank(),
+                        signingIn = signingIn,
+                        error = error,
+                        minimumVersion = requiredVersion,
+                        onRegister = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            runCatching {
+                                val registrationUri = Uri.parse("${BuildConfig.WEB_BASE_URL.trimEnd('/')}/auth/register")
+                                CustomTabsIntent.Builder().setShowTitle(true).build().launchUrl(context, registrationUri)
+                            }.onFailure {
+                                error = "request"
+                                haptic.performHapticFeedback(HapticFeedbackType.Reject)
+                            }
+                        },
+                        onSignIn = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            signingIn = true
+                            error = null
+                            session.authorizationIntent { intent, _ ->
+                                signingIn = false
+                                if (intent != null) launcher.launch(intent)
+                                else {
+                                    error = "request"
+                                    haptic.performHapticFeedback(HapticFeedbackType.Reject)
+                                }
+                            }
+                        },
+                    )
+                } else if (karaokeOpen && selectedGroup != null && activeArrangement != null) {
                     val arrangement = activeArrangement!!
                     val body = arrangement.chords?.takeIf(String::isNotBlank) ?: arrangement.lyrics.orEmpty()
-                    val lines = timedPracticeLines(body, arrangement.chordTimingJson)
+                    val timeline = timedPracticeLines(body, arrangement.chordTimingJson)
                     KaraokePracticeScreen(
                         groupName = selectedGroup!!.name,
                         title = arrangement.label,
-                        lines = lines,
+                        lines = timeline.lines,
+                        instrumentals = timeline.instrumentals,
                         positionMs = conductorPosition?.takeIf { it.arrangementId == arrangement.id }?.positionMs ?: playbackPositionMs.toLong(),
                         durationMs = playbackDurationMs.toLong(),
                         playing = playing,
@@ -647,17 +849,74 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                                     Text(stringResource(R.string.api_not_configured), style = MaterialTheme.typography.bodyLarge)
                                 }
                             }
-                        !signedIn -> Button(onClick = {
-                            error = null
-                            session.authorizationIntent { intent, failure ->
-                                if (intent != null) launcher.launch(intent)
-                                else error = "request"
+                        !signedIn -> Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    Box(
+                                        Modifier.size(48.dp)
+                                            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(16.dp)),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        LucideIcon("waveform", MaterialTheme.colorScheme.primary, size = 24.dp)
+                                    }
+                                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        Text(
+                                            stringResource(R.string.auth_welcome_title),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                                        )
+                                        Text(
+                                            stringResource(R.string.auth_welcome_body),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                                Button(
+                                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                                    onClick = {
+                                        error = null
+                                        session.authorizationIntent { intent, _ ->
+                                            if (intent != null) launcher.launch(intent)
+                                            else error = "request"
+                                        }
+                                    },
+                                ) {
+                                    Text(stringResource(R.string.sign_in), fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                                }
+                                if (pendingGroupSlug != null) {
+                                    Text(
+                                        stringResource(R.string.group_link_sign_in),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
-                        }) { Text(stringResource(R.string.sign_in)) }
+                        }
                         else -> {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(selectedGroup?.name ?: stringResource(R.string.groups_title), style = MaterialTheme.typography.titleMedium)
-                                OutlinedButton(onClick = {
+                                if (selected == 0) {
+                                    val createGroupLabel = stringResource(R.string.group_create)
+                                    Button(
+                                        onClick = { error = null; showCreateGroup = true },
+                                        modifier = Modifier.clearAndSetSemantics {
+                                            contentDescription = createGroupLabel
+                                            role = Role.Button
+                                            onClick(label = createGroupLabel) { error = null; showCreateGroup = true; true }
+                                        },
+                                    ) { Text(createGroupLabel, maxLines = 1) }
+                                }
+                                val signOutLabel = stringResource(R.string.sign_out)
+                                val signOut: () -> Unit = {
                                     scope.launch {
                                         withContext(Dispatchers.IO) { session.signOut() }
                                         groups = emptyList()
@@ -677,14 +936,33 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                                         selectedGroupVersion = null
                                         signedIn = false
                                     }
-                                }) { Text(stringResource(R.string.sign_out)) }
+                                }
+                                OutlinedButton(
+                                    onClick = signOut,
+                                    modifier = Modifier.clearAndSetSemantics {
+                                        contentDescription = signOutLabel
+                                        role = Role.Button
+                                        onClick(label = signOutLabel) { signOut(); true }
+                                    },
+                                ) { Text(signOutLabel) }
                             }
                             if (selected == 0) when {
                                 loading -> Text(stringResource(R.string.loading))
                                 groups.isEmpty() -> Text(stringResource(R.string.groups_empty))
                                 else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     items(groups, key = { it.id }) { group ->
-                                        Card(onClick = { selectGroup(group) }, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                                        val groupAccessibilityLabel = stringResource(R.string.group_card_accessibility, group.name, group.role)
+                                        Card(
+                                            onClick = { selectGroup(group) },
+                                            modifier = Modifier.clearAndSetSemantics {
+                                                contentDescription = groupAccessibilityLabel
+                                                role = Role.Button
+                                                onClick(label = groupAccessibilityLabel) { selectGroup(group); true }
+                                            },
+                                            shape = RoundedCornerShape(16.dp),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                        ) {
                                             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                                                 Text(group.name, style = MaterialTheme.typography.titleMedium)
                                                 Text(group.role, style = MaterialTheme.typography.bodyMedium)
@@ -846,7 +1124,10 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                                     activeArrangement != null -> {
                                         val sharedPosition = conductorPosition?.takeIf { it.arrangementId == activeArrangement!!.id }
                                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            OutlinedButton(onClick = { karaokeOpen = true }) { Text(stringResource(R.string.practice_karaoke)) }
+                                            OutlinedButton(onClick = {
+                                                karaokeOpen = true
+                                                if (!playing) player.resume()
+                                            }) { Text(stringResource(R.string.practice_karaoke)) }
                                             OutlinedButton(onClick = { player.pause(); playing = false }) { Text(stringResource(R.string.practice_pause)) }
                                             OutlinedButton(onClick = { player.resume(); playing = true }) { Text(stringResource(R.string.practice_play)) }
                                             OutlinedButton(onClick = { karaokeOpen = false; activeArrangement = null }) { Text(stringResource(R.string.practice_back)) }
@@ -866,7 +1147,7 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                                             )
                                         }
                                         PracticeChart(
-                                            lines = timedPracticeLines(activeArrangement!!.chords?.takeIf(String::isNotBlank) ?: activeArrangement!!.lyrics.orEmpty(), activeArrangement!!.chordTimingJson),
+                                            lines = timedPracticeLines(activeArrangement!!.chords?.takeIf(String::isNotBlank) ?: activeArrangement!!.lyrics.orEmpty(), activeArrangement!!.chordTimingJson).lines,
                                             positionMs = sharedPosition?.positionMs ?: playbackPositionMs.toLong(),
                                         )
                                         activeArrangement!!.resources.filter { it.kind.equals("file", true) && (it.contentType?.startsWith("audio/") == true || it.purpose.contains("audio", true)) }.forEach { resource ->
@@ -1044,7 +1325,15 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                                     }
                                     Column(Modifier.fillMaxSize()) {
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                            OutlinedButton(onClick = { morePage = null }) { Text(stringResource(R.string.more_back)) }
+                                            val backLabel = stringResource(R.string.more_back)
+                                            OutlinedButton(
+                                                onClick = { morePage = null },
+                                                modifier = Modifier.clearAndSetSemantics {
+                                                    contentDescription = backLabel
+                                                    role = Role.Button
+                                                    onClick(label = backLabel) { morePage = null; true }
+                                                },
+                                            ) { Text(backLabel) }
                                             Text(stringResource(destination.title), style = MaterialTheme.typography.titleLarge)
                                         }
                                         when {
@@ -1179,21 +1468,23 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                                                 Text(stringResource(R.string.preferences_language))
                                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                     listOf("es" to R.string.language_spanish, "en" to R.string.language_english, "pt" to R.string.language_portuguese).forEach { (code, label) ->
-                                                        if ((preferences.getString("language", "es") ?: "es") == code) Button(onClick = {}) { Text(stringResource(label)) }
-                                                        else OutlinedButton(onClick = {
+                                                        val choiceLabel = stringResource(label)
+                                                        val isSelected = (preferences.getString("language", "es") ?: "es") == code
+                                                        PreferenceChoice(choiceLabel, isSelected) {
                                                             preferences.edit().putString("language", code).apply()
                                                             (context as? Activity)?.recreate()
-                                                        }) { Text(stringResource(label)) }
+                                                        }
                                                     }
                                                 }
                                                 Text(stringResource(R.string.preferences_appearance))
                                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                     listOf("system" to R.string.theme_system, "light" to R.string.theme_light, "dark" to R.string.theme_dark).forEach { (choice, label) ->
-                                                        if (themePreference == choice) Button(onClick = {}) { Text(stringResource(label)) }
-                                                        else OutlinedButton(onClick = {
+                                                        val choiceLabel = stringResource(label)
+                                                        val isSelected = themePreference == choice
+                                                        PreferenceChoice(choiceLabel, isSelected) {
                                                             themePreference = choice
                                                             preferences.edit().putString("theme", choice).apply()
-                                                        }) { Text(stringResource(label)) }
+                                                        }
                                                     }
                                                 }
                                             }
@@ -1215,7 +1506,7 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                                             }
                                             destination.id == "profile" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 16.dp)) {
                                                 OutlinedTextField(value = profileDisplayName, onValueChange = { profileDisplayName = it }, label = { Text(stringResource(R.string.more_profile_name)) }, modifier = Modifier.fillMaxWidth())
-                                                Button(enabled = profileDisplayName.isNotBlank() && !morePageLoading, onClick = {
+                                                val saveProfile: () -> Unit = {
                                                     scope.launch {
                                                         morePageLoading = true
                                                         runCatching {
@@ -1224,7 +1515,18 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                                                         }.onSuccess { moreReloadKey++ }.onFailure { error = "request" }
                                                         morePageLoading = false
                                                     }
-                                                }) { Text(stringResource(R.string.more_save)) }
+                                                }
+                                                val saveLabel = stringResource(R.string.more_save)
+                                                val canSave = profileDisplayName.isNotBlank() && !morePageLoading
+                                                Button(
+                                                    enabled = canSave,
+                                                    onClick = saveProfile,
+                                                    modifier = Modifier.clearAndSetSemantics {
+                                                        contentDescription = saveLabel
+                                                        role = Role.Button
+                                                        onClick(label = saveLabel) { if (canSave) saveProfile(); true }
+                                                    },
+                                                ) { Text(saveLabel) }
                                             }
                                             destination.id == "people" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 16.dp)) {
                                                 Text(stringResource(R.string.people_invite), style = MaterialTheme.typography.titleSmall)
@@ -2426,6 +2728,87 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                 },
             )
         }
+        if (showCreateGroup) {
+            AlertDialog(
+                onDismissRequest = { if (!creatingGroup) showCreateGroup = false },
+                title = { Text(stringResource(R.string.group_create_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(stringResource(R.string.group_create_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val groupNameLabel = stringResource(R.string.group_name_label)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        ) {
+                            val inputTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
+                            val inputHintColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
+                            AndroidView(
+                                modifier = Modifier.fillMaxSize(),
+                                factory = { viewContext ->
+                                    EditText(viewContext).apply {
+                                        hint = groupNameLabel
+                                        contentDescription = groupNameLabel
+                                        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                                        imeOptions = EditorInfo.IME_ACTION_DONE
+                                        gravity = Gravity.CENTER_VERTICAL
+                                        setSingleLine(true)
+                                        setTextColor(inputTextColor)
+                                        setHintTextColor(inputHintColor)
+                                        setPadding((16 * resources.displayMetrics.density).toInt(), 0, (16 * resources.displayMetrics.density).toInt(), 0)
+                                        background = null
+                                        addTextChangedListener(object : TextWatcher {
+                                            override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                                            override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                                            override fun afterTextChanged(text: android.text.Editable?) { newGroupName = text?.toString()?.take(200).orEmpty() }
+                                        })
+                                    }
+                                },
+                                update = { editText ->
+                                    editText.hint = groupNameLabel
+                                    editText.contentDescription = groupNameLabel
+                                    editText.isEnabled = !creatingGroup
+                                    editText.setTextColor(inputTextColor)
+                                    editText.setHintTextColor(inputHintColor)
+                                    if (editText.text.toString() != newGroupName) editText.setText(newGroupName)
+                                },
+                            )
+                        }
+                        if (error == "request") Text(stringResource(R.string.request_failed), color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                confirmButton = {
+                    val createGroupLabel = stringResource(R.string.group_create)
+                    Button(
+                        onClick = { submitGroupCreation() },
+                        enabled = newGroupName.isNotBlank() && !creatingGroup,
+                        modifier = Modifier.clearAndSetSemantics {
+                            contentDescription = createGroupLabel
+                            role = Role.Button
+                            onClick(label = createGroupLabel) { submitGroupCreation(); true }
+                        },
+                    ) {
+                        if (creatingGroup) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                        else Text(createGroupLabel)
+                    }
+                },
+                dismissButton = {
+                    val cancelLabel = stringResource(R.string.people_cancel)
+                    OutlinedButton(
+                        onClick = { showCreateGroup = false },
+                        enabled = !creatingGroup,
+                        modifier = Modifier.clearAndSetSemantics {
+                            contentDescription = cancelLabel
+                            role = Role.Button
+                            onClick(label = cancelLabel) { showCreateGroup = false; true }
+                        },
+                    ) {
+                        Text(cancelLabel)
+                    }
+                },
+            )
+        }
     }
 }
 
@@ -2588,7 +2971,8 @@ private fun nativeReportRows(context: Context, reports: List<Pair<String, String
         fun addMetric(key: String) {
             if (!root.has(key) || root.isNull(key)) return
             val label = metricLabels[key]?.let(context::getString) ?: key
-            add(NativeDataItem("$section-$key", label, root.opt(key).toString(), null, null))
+            val value = root.opt(key)?.toString() ?: return
+            add(NativeDataItem("$section-$key", label, value, null, null))
         }
         when (section) {
             "repertoire" -> listOf("songs", "arrangements", "files", "links").forEach(::addMetric)
@@ -2619,17 +3003,40 @@ private fun nativeReportRows(context: Context, reports: List<Pair<String, String
 
 @Composable
 private fun DestinationCard(destination: NativeDestination, onClick: () -> Unit) {
+    val title = stringResource(destination.title)
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
+            contentDescription = title
+            role = Role.Button
+            onClick(label = title) { onClick(); true }
+        },
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(destination.title), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
             Text("›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge)
         }
+    }
+}
+
+@Composable
+private fun PreferenceChoice(label: String, selected: Boolean, onClick: () -> Unit) {
+    val modifier = Modifier.clearAndSetSemantics {
+        contentDescription = label
+        role = Role.Button
+        this.selected = selected
+        onClick(label = label) {
+            if (!selected) onClick()
+            true
+        }
+    }
+    if (selected) {
+        Button(onClick = {}, modifier = modifier) { Text(label) }
+    } else {
+        OutlinedButton(onClick = onClick, modifier = modifier) { Text(label) }
     }
 }
 
@@ -2662,30 +3069,67 @@ private fun nativeDisplayRows(raw: String, page: String): List<NativeDataItem> {
                 row(item, "${index + 1}")
             }
             is JSONObject -> {
-                val entries = value.keys().asSequence().mapNotNull { key ->
-                    val nested = value.optJSONArray(key) ?: return@mapNotNull null
-                    (0 until nested.length()).mapNotNull { index -> nested.optJSONObject(index)?.let { row(it, key) } }
-                }.flatten().toList()
-                if (entries.isNotEmpty()) entries else value.keys().asSequence().map { key -> NativeDataItem(key, key, value.optString(key), null, null) }.filter { it.detail.isNotBlank() }.toList()
+                if (page == "notifications") {
+                    val items = value.optJSONArray("items") ?: JSONArray()
+                    (0 until items.length()).mapNotNull { index ->
+                        items.optJSONObject(index)?.let { row(it, "${index + 1}") }
+                    }
+                } else {
+                    val entries = value.keys().asSequence().mapNotNull { key ->
+                        val nested = value.optJSONArray(key) ?: return@mapNotNull null
+                        (0 until nested.length()).mapNotNull { index -> nested.optJSONObject(index)?.let { row(it, key) } }
+                    }.flatten().toList()
+                    if (entries.isNotEmpty()) entries else value.keys().asSequence().map { key -> NativeDataItem(key, key, value.optString(key), null, null) }.filter { it.detail.isNotBlank() }.toList()
+                }
             }
             else -> emptyList()
         }.take(100)
     }.getOrDefault(emptyList())
 }
 
-private fun timedPracticeLines(source: String, timingJson: String?): List<PracticeChartLine> {
-    val positions = runCatching {
+private fun timedPracticeLines(source: String, timingJson: String?): PracticeChartTimeline {
+    val marks = runCatching {
         val marks = JSONArray(timingJson.orEmpty())
-        buildMap {
+        buildList {
             for (index in 0 until marks.length()) {
                 val mark = marks.optJSONObject(index) ?: continue
+                val type = mark.optString("type")
+                if (type.equals("instrumental", true)) {
+                    val startMs = mark.optLong("startMs", -1L)
+                    val endMs = mark.optLong("endMs", -1L)
+                    if (startMs >= 0L && endMs > startMs) {
+                        add(ParsedPracticeTiming(-1, startMs, endMs, null, type))
+                    }
+                    continue
+                }
                 val lineIndex = mark.optInt("lineIndex", -1)
                 val atMs = mark.optLong("atMs", -1L)
-                if (lineIndex >= 0 && atMs >= 0L) put(lineIndex, atMs)
+                if (lineIndex < 0) continue
+                val startMs = mark.optLong("startMs", -1L)
+                val wordIndex = mark.optInt("wordIndex", -1)
+                val endMs = mark.optLong("endMs", -1L)
+                if (wordIndex >= 0 && startMs >= 0L && endMs > startMs) {
+                    add(ParsedPracticeTiming(lineIndex, startMs, endMs, PracticeChartWord(wordIndex, startMs, endMs), type))
+                } else if (atMs >= 0L) add(ParsedPracticeTiming(lineIndex, atMs, endMs.takeIf { it > atMs }, null, type))
             }
         }
-    }.getOrDefault(emptyMap())
-    return source.replace("\r\n", "\n").replace('\r', '\n')
+    }.getOrDefault(emptyList())
+    val lines = source.replace("\r\n", "\n").replace('\r', '\n')
         .split('\n')
-        .mapIndexed { index, line -> PracticeChartLine(line, positions[index]) }
+        .mapIndexed { index, line ->
+            val lineMarks = marks.filter { it.lineIndex == index }.sortedBy { it.startMs }
+            val words = lineMarks.mapNotNull { it.word }
+            PracticeChartLine(line, lineMarks.firstOrNull()?.startMs, words, lineMarks.mapNotNull { it.endMs }.maxOrNull())
+        }
+    val instrumentals = marks.filter { it.endMs != null && it.endMs > it.startMs && it.word == null && it.type.contains("instrument", true) }
+        .map { PracticeInstrumentalInterval(it.startMs, it.endMs!!) }
+    return PracticeChartTimeline(lines, instrumentals)
 }
+
+private data class ParsedPracticeTiming(
+    val lineIndex: Int,
+    val startMs: Long,
+    val endMs: Long?,
+    val word: PracticeChartWord?,
+    val type: String,
+)

@@ -28,7 +28,7 @@ test.describe('W2 setlists immersive redesign', () => {
 
     const search = page.getByTestId('library-search')
     await expect(search).toBeVisible()
-    await expect(search).toHaveAccessibleName('Buscar por título de canción')
+    await expect(search).toHaveAccessibleName('Buscar por título, intérprete o etiqueta')
 
     await search.fill('Alpha')
     await expect(page.getByRole('link', { name: alphaTitle })).toBeVisible()

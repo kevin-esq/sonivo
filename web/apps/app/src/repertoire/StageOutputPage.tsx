@@ -5,7 +5,7 @@ import { useT } from '../i18n'
 import { fetchFeatures } from '../api/client'
 import { parseChordPro } from './chordPro'
 import { activeChordLineIndex, type ChordTimingMark, type ChordTimingTimeline } from './chordTiming'
-import { StageLine } from './StageModePanel'
+import { InstrumentalCue, StageLine, isBackingVocalLine } from './StageModePanel'
 import {
   parseStageDisplayMessage,
   stageDisplayChannelName,
@@ -21,6 +21,7 @@ const INITIAL_STATE: StageDisplayState = {
   cursor: 0,
   fontSize: 44,
   scrolling: false,
+  showLyrics: true,
   showChords: false,
   speed: 30,
 }
@@ -52,7 +53,9 @@ export function StageOutputPage({
   const lines = useMemo(() => (text.trim() ? parseChordPro(text).lines : null), [text])
   const plainLines = useMemo(() => text.split('\n'), [text])
   const activeIndex = state.activeIndex ?? state.wordFocus?.lineIndex ?? (timingMarks.length ? activeChordLineIndex(timingMarks, 0) : null)
-  const focusedIndex = state.autoFollow && activeIndex != null ? activeIndex : state.cursor
+  const focusedIndex = state.instrumentalProgress != null
+    ? state.cursor
+    : state.autoFollow && activeIndex != null ? activeIndex : state.cursor
   const completedWord = useMemo(
     () => state.completedWord,
     [state.completedWord?.lineIndex, state.completedWord?.wordIndex],
@@ -190,31 +193,38 @@ export function StageOutputPage({
 
   return (
     <main
-      style={brandTokens as CSSProperties}
-      className="fixed inset-0 z-[9999] isolate flex h-[100dvh] w-[100dvw] min-h-0 flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--brand-primary)_22%,#101014)_0%,_#101014_45%,_#070709_100%)] text-white"
+      style={{ ...brandTokens, backgroundColor: 'color-mix(in srgb, var(--brand-primary) 24%, #17212b)' } as CSSProperties}
+      className="fixed inset-0 z-[9999] isolate flex h-[100dvh] w-[100dvw] min-h-0 flex-col overflow-hidden text-white"
       aria-label={t('stage.displayOutput')}
       data-testid="stage-display-output"
     >
       {enabled ? <div
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-8 sm:px-12 sm:py-14"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-8 [mask-image:linear-gradient(to_bottom,transparent,black_9%,black_88%,transparent)] sm:px-12 sm:py-14"
         style={{ fontSize: `${state.fontSize}px` }}
       >
         <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col justify-center gap-y-5 text-left leading-snug sm:gap-y-7">
           <div ref={topSpacerRef} aria-hidden="true" className="shrink-0" />
           {lines
             ? lines.map((line, index) => (
-                <div key={index} ref={(node) => { lineRefs.current[index] = node }}>
-                  <StageLine
-                    line={line}
-                    hideChords={!state.showChords}
-                    index={index}
-                    active={state.autoFollow && activeIndex === index}
-                    focused={focusedIndex === index}
-                    wordMarks={state.autoFollow ? timingTimeline.wordMarks : NO_WORD_MARKS}
-                    wordFocus={state.wordFocus?.lineIndex === index ? state.wordFocus : null}
-                    completedWord={completedWord}
-                  />
+                <div key={index}>
+                  {state.instrumentalProgress != null && focusedIndex === index ? <InstrumentalCue progress={state.instrumentalProgress} /> : null}
+                  <div ref={(node) => { lineRefs.current[index] = node }}>
+                    <StageLine
+                      line={line}
+                      hideChords={!state.showChords}
+                      showLyrics={state.showLyrics}
+                      index={index}
+                      active={state.instrumentalProgress == null && state.autoFollow && (state.activeIndexes?.includes(index) ?? activeIndex === index)}
+                      focused={state.instrumentalProgress == null && (focusedIndex === index || (state.autoFollow && !!state.activeIndexes?.includes(index)))}
+                      distance={index - focusedIndex}
+                      backing={isBackingVocalLine(line)}
+                      waitingForVocal={state.instrumentalProgress != null && focusedIndex === index}
+                      wordMarks={state.autoFollow ? timingTimeline.wordMarks : NO_WORD_MARKS}
+                      wordFocus={state.wordFocuses?.find(word => word.lineIndex === index) ?? (state.wordFocus?.lineIndex === index ? state.wordFocus : null)}
+                      completedWord={state.completedWords ? state.completedWords.find(word => word.lineIndex === index) ?? null : completedWord}
+                    />
+                  </div>
                 </div>
               ))
             : plainLines.map((line, index) => (
@@ -227,14 +237,9 @@ export function StageOutputPage({
                   {line || '\u00A0'}
                 </div>
               ))}
-          {state.instrumentalProgress != null ? (
-            <div className="mx-auto flex w-full max-w-sm items-center gap-3 rounded-full border border-white/15 bg-black/25 px-4 py-2 text-sm font-medium text-white/80" role="status" aria-live="off">
-              <span className="shrink-0">{t('times.instrumentalLabel')}</span>
-              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/15">
-                <span className="block h-full rounded-full bg-[var(--brand-primary)]" style={{ width: `${state.instrumentalProgress * 100}%` }} />
-              </span>
-            </div>
-          ) : null}
+          {state.instrumentalProgress != null && focusedIndex >= (lines?.length ?? 0)
+            ? <InstrumentalCue progress={state.instrumentalProgress} />
+            : null}
           <div ref={bottomSpacerRef} aria-hidden="true" className="shrink-0" />
         </div>
       </div> : null}

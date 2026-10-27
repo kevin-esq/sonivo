@@ -292,7 +292,7 @@ export function GroupHomePage() {
         style={heroStyle}
       >
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">{t('home.welcomeTitle')}</p>
-        <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">
+        <h1 className="sonivo-page-title mt-1 text-white">
           {heroTitle}
         </h1>
         <p className="mt-1 max-w-xl text-sm text-white/85">

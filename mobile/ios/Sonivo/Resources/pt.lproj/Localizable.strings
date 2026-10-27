@@ -6,6 +6,8 @@
 "auth.unavailable" = "O início de sessão ainda não está integrado nesta versão.";
 "chart.empty" = "Não há conteúdo de cifra disponível.";
 "auth.sign_in" = "Iniciar sessão";
+"auth.welcome_title" = "Volte a se conectar com seu grupo";
+"auth.welcome_body" = "Acesse seus grupos, eventos e ensaios no Sonivo.";
 "auth.sign_out" = "Terminar sessão";
 "groups.title" = "Seus grupos";
 "groups.empty" = "Você não tem grupos disponíveis.";

@@ -8,6 +8,53 @@ Only **ACCEPTED** ADRs bind implementation. Newest first.
 
 ---
 
+## ADR-0101 — Sonivo-owned lyric document and portable exports
+
+- **Status:** **ACCEPTED** — explicitly authorized by the owner on 2026-10-21: normalize provider lyrics into Sonivo's own TTML and support native/classic/chart/PDF exports.
+- **Extends:** ADR-0100; preserves Arrangement storage, permissions and Practice firewalls.
+- **Spec:** [`PHASE-LYRICS-INTEROPERABILITY-SPEC.md`](PHASE-LYRICS-INTEROPERABILITY-SPEC.md).
+
+### Decision
+
+1. Sonivo owns the normalized lyric text and validated timeline; provider payloads are adapters, never a persisted provider-specific model or runtime dependency for playback.
+2. Sonivo TTML v1 uses standard TTML content plus `https://sonivo.lat/ns/lyrics/1` metadata. The native source/timeline retains ChordPro, untimed lines, line ends, words and instrumentals; the TTML body is a portable presentation projection. Import/export uses the existing Arrangement fields without a schema migration.
+3. Support user-supplied TTML, LRC, Enhanced LRC, plain/ChordPro text, and recognized JSON lyric payloads. Unknown proprietary payloads fail with a localized explanation; supporting a source's interchange format does not imply direct access to its catalog.
+4. Export native TTML, classic line-level LRC, ChordPro text, and printable lyrics/charts with browser Save as PDF. Native export is lossless for the Sonivo source/timeline; classic LRC and printed pages explicitly omit rich timing. No external document-generation service or dependency is needed.
+5. Extend the incumbent immersive Stage with Sonivo branding and accessible interactions. Reuse general reading/synchronization techniques independently; do not copy Apple assets or code.
+
+### Trade-offs
+
+Keeping normalized text/timing avoids duplicate persistence and vendor lock-in. Native XML metadata is authoritative for lossless Sonivo round-trips; standard TTML body content is a projection for other readers. Full arbitrary TTML layout, language translation and named vocal-agent editing are not claimed. Direct catalog lookup initially uses only LRCLIB's documented contract.
+
+---
+
+## ADR-0100 — Rich lyric interchange and reviewed provider lookup
+
+- **Status:** **ACCEPTED** — explicitly authorized by the owner on 2026-10-21 ("Si apruebo todo ... integrarlo hasta terminar").
+- **Amends:** ADR-0050's lossy Enhanced LRC import and ADR-0096's no-external-lookup and manual-word-import boundaries only. Remaining Practice firewalls stay binding.
+- **Spec:** [`PHASE-LYRICS-INTEROPERABILITY-SPEC.md`](PHASE-LYRICS-INTEROPERABILITY-SPEC.md).
+
+### Context
+
+The Owner supplied Apple line-timed TTML and requested the best lyric interoperability and presentation techniques from multiple providers. Sonivo already renders manually timed words, but its LRC-only importer loses rich timing and the timeline cannot represent simultaneous sung lines.
+
+### Decision
+
+1. Import user-supplied TTML and Enhanced LRC through the existing authenticated Owner preview/apply flow, retaining plain LRC compatibility. Never invent word timestamps from line-only input. Parse XML without DTDs or external resolution and retain the existing byte/mark limits.
+2. Add optional `endMs` to legacy line marks. Allow concurrent vocal intervals on different lyric lines, while rejecting overlapping words on the same line and instrumental/vocal conflicts. Existing marks and versioned Arrangement persistence remain valid; no table or migration is needed.
+3. Stage uses the audio clock and renders every concurrently active line/word. Reduced motion, keyboard seeking and same-browser display validation remain mandatory. Voice identity, translations and syllable-only effects may be reported as unsupported rather than silently claimed lossless.
+4. Allow explicit Owner-initiated lookup through documented public provider contracts. Initially use LRCLIB, exact title/artist metadata and optional album/duration. Return a reviewable candidate; never overwrite an Arrangement automatically. Fixed provider origins, bounded responses/timeouts, cancellation and unchanged Group authorization apply. Do not scrape cookies/tokens or integrate undocumented proxy endpoints.
+5. Reimplement general techniques independently with platform libraries. No copied third-party code/assets, GPL/AGPL dependency, cloud LLM, automated alignment, microphone, scoring, offline media download or external audio transport is authorized.
+
+### Alternatives and consequences
+
+- Flatten all imports to line starts: rejected because it discards available timing and breaks overlaps.
+- Integrate every screenshot endpoint: rejected because an adapter's presence does not establish a supported provider contract or current availability.
+- Keep rich metadata in a separate format column: rejected in favor of the existing validated timing array and explicit conversion warnings.
+- Export remains line-level LRC and is explicitly described as such. Native clients retain backward-compatible line starts; rich web presentation is the first implementation target.
+
+---
+
 ## ADR-0098 — Full authenticated product parity in native mobile clients
 
 - **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-10-20.
@@ -38,6 +85,55 @@ The first native release was limited to a member rehearsal journey. The owner ha
 - The native phase expands to include account-level and Owner/admin workflows already present in the authenticated web product.
 - The native endpoint catalogs and client DTOs may grow; endpoint changes must remain centralized and backed by existing server operations and authorization.
 - Delivery is complete only when each authenticated web navigation destination has a native counterpart on both platforms, applicable actions are wired to real server data, and functional/error/accessibility states are documented. Store signing/publication and production rollout gates remain unchanged.
+
+---
+
+## ADR-0099 — Project-local Android and GitKraken MCP servers
+
+- **Status:** **ACCEPTED** — explicitly authorized by the user on 2026-10-20.
+- **Date:** 2026-10-20
+- **Extends:** ADR-0002, ADR-0041, ADR-0063–0066.
+- **Reference:** [`../tooling/OPENCODE-V2-MCP-SKILLS-2026-10.md`](../tooling/OPENCODE-V2-MCP-SKILLS-2026-10.md)
+
+### Context
+
+The user requested MCP access for Android app testing and GitKraken workflows. The
+repository already uses project-local OpenCode MCP configuration and requires
+third-party tooling to be explicitly authorized and audited.
+
+### Decision
+
+1. Add the community `@us-all/android-mcp` server at pinned version `1.14.4` to
+   root `opencode.json`. Enable writes required for taps, APK installation, and
+   app/emulator control; restrict categories to device, apps, UI, logcat, and
+   emulator; keep arbitrary shell execution disabled. It invokes the installed
+   Android Debug Bridge through `execFile`.
+2. Add the official GitKraken MCP through the GitKraken CLI, using OpenCode's
+   host configuration and `--readonly`. Install the CLI on the development host;
+   GitKraken account authentication remains local to the user's environment.
+3. Keep both integrations project-local. Neither grants authority to commit,
+   push, create or merge PRs, or override the Git authorization rules in
+   `AGENTS.md`.
+
+### Alternatives considered
+
+- Continue issuing ADB commands manually: rejected because the user requested
+  reusable MCP tools for screen interaction and Android diagnostics.
+- Enable unrestricted `adb shell` or Git write tools: rejected because these
+  capabilities exceed the requested workflow and weaken the repository's
+  execution and Git authority boundaries.
+
+### Consequences and scope firewall
+
+- OpenCode must be restarted or its MCP configuration reloaded before these
+  project-local servers appear in its tool list.
+- Android requires ADB on `PATH` (or `ADB_PATH`) and an authorized connected
+  device/emulator. Android UI and installation writes are enabled; raw shell is
+  disabled. The community package remains third-party software.
+- GitKraken requires `gk auth login` for account-backed integrations. It starts
+  in read-only mode; no Git mutations are authorized by this ADR.
+- No credentials are added to the repository, and no Codex global MCP settings
+  are changed.
 
 ---
 

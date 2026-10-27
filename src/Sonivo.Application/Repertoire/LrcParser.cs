@@ -7,7 +7,10 @@ namespace Sonivo.Application.Repertoire;
 public sealed record LrcError(int Line, string Reason);
 
 /// <summary>One timed lyric line. <see cref="LineIndex"/> indexes the produced lyrics text.</summary>
-public sealed record LrcEntry(int LineIndex, int AtMs, string Text);
+public sealed record LrcEntry(int LineIndex, int AtMs, string Text, int? EndMs = null);
+
+public sealed record LyricWord(int LineIndex, int WordIndex, int StartMs, int EndMs);
+public sealed record LyricInstrumental(int StartMs, int EndMs);
 
 /// <summary>[ti]/[ar]/[al]/[by]/[offset] tags.</summary>
 public sealed record LrcMetadata(string? Title, string? Artist, string? Album, string? By, int OffsetMs);
@@ -17,7 +20,13 @@ public sealed record LrcParseResult(
     LrcMetadata Metadata,
     IReadOnlyList<LrcError> Errors,
     IReadOnlyList<string> Warnings,
-    string Encoding);
+    string Encoding)
+{
+    public string Format { get; init; } = "lrc";
+    public IReadOnlyList<LyricWord> Words { get; init; } = [];
+    public IReadOnlyList<LyricInstrumental> Instrumentals { get; init; } = [];
+    public string? SourceText { get; init; }
+}
 
 /// <summary>
 /// Parses the LRC lyric format (ADR-0050). Pure and dependency-free: it is the single
@@ -53,12 +62,28 @@ public static partial class LrcParser
                 "not valid UTF-8: decoded as Windows-1252; accented characters may be wrong");
         }
 
+        for (var wrapper = 0; wrapper < 8 && Regex.IsMatch(text, @"^\s*(?:\{\s*""|\[\s*\{)"); wrapper++)
+        {
+            var payload = ReadProviderPayload(text, encoding);
+            if (payload.Parsed is not null) return payload.Parsed;
+            text = payload.Text!;
+        }
+        if (Regex.IsMatch(text, @"^\s*(?:\{\s*""|\[\s*\{)"))
+            return new([], EmptyMetadata, [new(0, "lyrics.invalidImport")], warnings, encoding);
+
+        if (text.AsSpan().TrimStart().StartsWith("<", StringComparison.Ordinal))
+        {
+            return ParseTtml(text, encoding, warnings);
+        }
+
         var rawLines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
         if (rawLines.Length > MaxLines)
         {
             errors.Add(new LrcError(0, $"file has more than {MaxLines} lines"));
             return new LrcParseResult([], EmptyMetadata, errors, warnings, encoding);
         }
+        if (!Regex.IsMatch(text, @"\[(?:\d|[a-zA-Z]+:)"))
+            return new([], EmptyMetadata, [], warnings, encoding) { Format = "text", SourceText = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n') };
 
         string? title = null, artist = null, album = null, by = null;
         var offsetMs = 0;
@@ -167,7 +192,7 @@ public static partial class LrcParser
         entries.Sort(static (a, b) => a.AtMs.CompareTo(b.AtMs));
 
         var metadata = new LrcMetadata(title, artist, album, by, offsetMs);
-        return new LrcParseResult(entries, metadata, errors, warnings, encoding);
+        return AddEnhancedTiming(new LrcParseResult(entries, metadata, errors, warnings, encoding));
     }
 
     private static LrcMetadata EmptyMetadata => new(null, null, null, null, 0);

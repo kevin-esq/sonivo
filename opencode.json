@@ -84,6 +84,36 @@
       "resend": {
         "type": "remote",
         "url": "https://mcp.resend.com/mcp"
+      },
+      "android": {
+        "type": "local",
+        "command": ["npx", "-y", "@us-all/android-mcp@1.14.4"],
+        "environment": {
+          "ANDROID_HOME": "C:\\Users\\Maria\\AppData\\Local\\Android\\Sdk",
+          "ADB_PATH": "C:\\Users\\Maria\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe",
+          "ANDROID_MCP_ALLOW_WRITE": "true",
+          "ANDROID_MCP_ALLOW_SHELL": "false",
+          "ANDROID_TOOLS": "device,apps,ui,logcat,emulator"
+        },
+        "timeout": {
+          "startup": 120000,
+          "catalog": 120000
+        }
+      },
+      "GitKraken": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "@gitkraken/gk@3.1.77",
+          "mcp",
+          "--host=opencode",
+          "--readonly"
+        ],
+        "timeout": {
+          "startup": 120000,
+          "catalog": 120000
+        }
       }
     }
   }

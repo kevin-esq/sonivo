@@ -243,6 +243,7 @@ export async function deleteSong(page: Page, title: string) {
   await page.getByRole('button', { name: 'Eliminar canción' }).click()
   const dialog = page.getByRole('dialog', { name: '¿Eliminar canción?' })
   await expect(dialog).toBeVisible()
+  await dialog.getByLabel('Título de la canción').fill(title)
   await dialog.getByRole('button', { name: 'Eliminar canción' }).click()
   await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
   await expect(page.getByRole('link', { name: title })).toHaveCount(0)

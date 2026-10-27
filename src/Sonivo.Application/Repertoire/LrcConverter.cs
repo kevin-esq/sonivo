@@ -6,7 +6,11 @@ using Sonivo.Application.Abstractions;
 namespace Sonivo.Application.Repertoire;
 
 /// <summary>Result of converting LRC into the stored shape (ChordPro text + ADR-0031 marks).</summary>
-public sealed record LrcConversion(string Lyrics, string ChordTimingJson, int MarkCount);
+public sealed record LrcConversion(string Lyrics, string ChordTimingJson, int MarkCount)
+{
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+    public int WordCount { get; init; }
+}
 
 /// <summary>
 /// Converts between the LRC interchange format and what Sonivo stores: plain ChordPro
@@ -37,17 +41,51 @@ public static class LrcConverter
             position[index] = lines.Count;
             lines.Add(parsed.Entries.First(e => e.LineIndex == index).Text);
         }
+        if (parsed.SourceText is { } source)
+        {
+            lines = source.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n').ToList();
+            position = Enumerable.Range(0, lines.Count).ToDictionary(index => index);
+        }
+        // Arrangement normalizes its body with Trim(). Remap before preview so saved
+        // word/line references cannot drift when the input has blank edge lines.
+        var body = string.Join("\n", lines);
+        var leadingWhitespace = body.Length - body.TrimStart().Length;
+        var removedLines = body[..leadingWhitespace].Count(c => c == '\n');
+        lines = body.Trim().Split('\n').ToList();
+        position = position.Where(item => item.Value >= removedLines && item.Value < removedLines + lines.Count)
+            .ToDictionary(item => item.Key, item => item.Value - removedLines);
 
         // LRC convention: the [offset] tag is SUBTRACTED from the marks. The UI offset is added.
-        var shift = -parsed.Metadata.OffsetMs + extraOffsetMs;
-        var marks = parsed.Entries
-            .Select(e => new
+        var shift = -(long)parsed.Metadata.OffsetMs + extraOffsetMs;
+        var marks = new List<object>();
+        foreach (var entry in parsed.Entries)
+        {
+            if (!position.TryGetValue(entry.LineIndex, out var lineIndex)) continue;
+            var atMs = Shift(entry.AtMs, shift);
+            if (entry.EndMs is { } end)
             {
-                lineIndex = position[e.LineIndex],
-                atMs = Math.Max(0, e.AtMs + shift),
-            })
-            .OrderBy(m => m.atMs)
-            .ToList();
+                var endMs = Shift(end, shift);
+                if (endMs <= atMs) continue;
+                marks.Add(new { lineIndex, atMs, endMs });
+            }
+            else marks.Add(new { lineIndex, atMs });
+        }
+        var wordCount = 0;
+        foreach (var word in parsed.Words)
+        {
+            if (!position.TryGetValue(word.LineIndex, out var lineIndex)) continue;
+            var startMs = Shift(word.StartMs, shift);
+            var endMs = Shift(word.EndMs, shift);
+            if (endMs <= startMs) continue;
+            marks.Add(new { lineIndex, wordIndex = word.WordIndex, startMs, endMs });
+            wordCount++;
+        }
+        foreach (var instrumental in parsed.Instrumentals)
+        {
+            var startMs = Shift(instrumental.StartMs, shift);
+            var endMs = Shift(instrumental.EndMs, shift);
+            if (endMs > startMs) marks.Add(new { type = "instrumental", startMs, endMs });
+        }
 
         var json = marks.Count == 0
             ? string.Empty
@@ -57,7 +95,20 @@ public static class LrcConverter
             });
 
         var normalized = ChordTimingJsonNormalizer.Normalize(json) ?? string.Empty;
-        return new LrcConversion(string.Join("\n", lines), normalized, marks.Count);
+        var clipped = parsed.Entries.Any(e => !position.ContainsKey(e.LineIndex) || e.AtMs + shift < 0) ||
+            parsed.Words.Any(w => w.StartMs + shift < 0) || parsed.Instrumentals.Any(i => i.StartMs + shift < 0);
+        return new LrcConversion(string.Join("\n", lines), normalized, marks.Count)
+        {
+            WordCount = wordCount,
+            Warnings = clipped ? ["lyrics.clippedTiming"] : [],
+        };
+    }
+
+    private static int Shift(int time, long shift)
+    {
+        var value = Math.Max(0, time + shift);
+        if (value > int.MaxValue) throw new ValidationException("Lyric time exceeds the supported millisecond range.");
+        return (int)value;
     }
 
     /// <summary>

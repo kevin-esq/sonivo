@@ -193,7 +193,7 @@ export function CalendarPage({ navigate }: { navigate: (to: string) => void }) {
           <div className="space-y-1">
             <h1
               id="calendar-heading"
-              className="text-3xl font-bold tracking-tight text-ink"
+              className="sonivo-page-title text-ink"
             >
               {t("calendar.title")}
             </h1>

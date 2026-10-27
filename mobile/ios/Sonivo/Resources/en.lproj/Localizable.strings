@@ -6,6 +6,8 @@
 "auth.unavailable" = "Sign in is not integrated in this build yet.";
 "chart.empty" = "No chart content is available.";
 "auth.sign_in" = "Sign in";
+"auth.welcome_title" = "Reconnect with your group";
+"auth.welcome_body" = "Access your groups, events, and rehearsals in Sonivo.";
 "auth.sign_out" = "Sign out";
 "groups.title" = "Your groups";
 "groups.empty" = "You do not have any available groups.";

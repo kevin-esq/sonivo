@@ -34,7 +34,8 @@ test.describe('Phase 4 product completion', () => {
     await expect(page.getByRole('heading', { name: 'Ayuda del grupo' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Preguntas frecuentes' })).toBeVisible()
     await expect(page.getByTestId('rail-help')).toBeVisible()
-    await expect(page.getByText('Canciones, arreglos y letras', { exact: true })).toBeVisible()
+    await page.getByText('¿Cómo invito a alguien?').click()
+    await expect(page.getByText(/Abre tu grupo, entra en Personas y elige Invitar/)).toBeVisible()
 
     await page.goto(`/groups/${groupId}/reports`)
     await expect(page.getByRole('heading', { name: 'Informes del grupo' })).toBeVisible()

@@ -214,6 +214,8 @@ export function AppSidebar({
   navigationMode?: NavigationMode;
 }) {
   const [collapsed, setCollapsed] = useState(readRailState);
+  const [hovered, setHovered] = useState(false);
+  const expanded = !collapsed || hovered;
 
   useEffect(() => {
     try {
@@ -228,16 +230,25 @@ export function AppSidebar({
       {/* Desktop rail: fixed to the viewport, one accessible instance. */}
       <aside
         data-testid="app-sidebar"
-        data-collapsed={collapsed ? "true" : "false"}
+        data-collapsed={expanded ? "false" : "true"}
+        data-pinned={collapsed ? "false" : "true"}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onFocusCapture={() => setHovered(true)}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setHovered(false);
+          }
+        }}
         className={cn(
-          "hidden shrink-0 flex-col border-r border-shell-border bg-shell text-shell-foreground lg:flex",
-          collapsed ? "lg:w-[4.5rem]" : "lg:w-64",
+          "hidden shrink-0 flex-col border-r border-shell-border bg-shell text-shell-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none lg:sticky lg:left-0 lg:top-0 lg:z-30 lg:flex lg:h-screen",
+          expanded ? "lg:w-64" : "lg:w-[4.5rem]",
         )}
       >
         <SidebarBody
           user={user}
           onLogout={onLogout}
-          collapsed={collapsed}
+          collapsed={!expanded}
           onToggleCollapse={() => setCollapsed((value) => !value)}
           navigationMode={navigationMode}
         />

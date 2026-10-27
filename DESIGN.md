@@ -60,6 +60,16 @@ As-built visual system from ADR-0043 (ACCEPTED; waves W0–W5 shipped 2026-09-30
 - **PersistentGlobalPlayer:** fixed bottom bar (above mobile tabs), accent glow on play, aria-live track/position announcements; never unmounts on route change.
 - **Nav:** app sidebar for signed-in non-group routes (Inicio · Mis grupos · Unirse · Cuenta) · group workspace rail (Grupo sections + Cuenta footer) · mobile bottom tabs/drawer. `/` is public marketing and `/home` is the Inicio dashboard (ADR-0081); the group list lives at `/grupos`; a read-only general month calendar lives at `/calendario` (reached from "Ver calendario").
 
+## Component contracts
+
+- **Shared web contracts:** `web/apps/app/src/ui/shared-components.css` is imported by both Next and Vite entry stylesheets. Use its `.sonivo-page-title`, `.sonivo-score-header`, `.sonivo-tab-trigger`, and `.sonivo-choice-trigger` contracts so the two app entry points render the same shared controls.
+- **Web page titles:** use `.sonivo-page-title` for authenticated page-level `h1` headings. Marketing, authentication, and focused full-screen experiences keep their own hierarchy.
+- **Web group pages:** use `GroupPageHeader` and `GroupSection`; group forms use `GroupInput`, `GroupTextArea`, and `GroupSelect`; actions use the `GroupButton` variants. These resolve the active Group's semantic tokens.
+- **Web account and shared panel:** use the fixed Sonivo primitives under `src/ui`; do not import group-scoped components into account routes.
+- **Selection controls:** tabs use `.sonivo-tab-trigger` and `aria-selected`; view and filter toggles use `.sonivo-choice-trigger` and `aria-pressed`. Selected controls use a visible semantic primary fill and readable foreground; Group routes resolve those tokens from the active Group, while Account routes use Sonivo's fixed palette. Destructive settings tabs retain the error semantic.
+- **Editors:** song, arrangement, setlist, event, and practice detail headers share `.sonivo-score-header`; titles use `.sonivo-page-title`. Score tabs use `.sonivo-tab-trigger` with a visible brand-colored pill for the selected item. Page-specific content and actions stay in their own layout.
+- **Native clients:** Android uses Material 3 `ColorScheme` and typography roles; iOS uses semantic SwiftUI styles and the centralized `SonivoBrand` palette. Keep native controls and platform navigation while matching the same semantic roles (primary, surface, muted, error, selected) and hierarchy.
+
 ---
 
 ## A11y floor (non-negotiable)

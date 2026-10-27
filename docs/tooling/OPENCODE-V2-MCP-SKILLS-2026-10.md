@@ -157,10 +157,32 @@ Windows.
   at the time Sonivo used React 19 + Vite and neither library; introducing either
   still requires approval.
 
+### 4.8 Android and GitKraken MCP servers (ADR-0099)
+
+- `android` — `npx -y @us-all/android-mcp@1.14.4`; requires Node.js 22+ and ADB
+  available on `PATH`. The reviewed package calls ADB through Node `execFile`,
+  not a shell. Its MCP exposes UI/app/emulator write actions for device testing;
+  arbitrary ADB shell stays disabled. The configured categories are
+  `device,apps,ui,logcat,emulator`.
+- `GitKraken` — official `@gitkraken/gk@3.1.77` MCP package, launched with
+  `mcp --host=opencode --readonly`. GitKraken CLI 3.1.77 was also installed from
+  the official Winget package `GitKraken.cli`; run `gk auth login` locally to
+  connect account integrations. No authentication material is stored in Git.
+- Both servers are project-local; reload OpenCode after pulling or changing the
+  configuration. The GitKraken server's read-only setting does not grant commit,
+  push, branch mutation, PR creation, or merge authorization.
+
+**Verification (2026-10-20):** `opencode debug config` parsed both project
+entries; Android reported connected and GitKraken's official `--list-tools`
+returned 13 tools. The GitKraken account was already authenticated. The
+background `opencode mcp list` still reported GitKraken as `pending` from this
+Codex-driven shell, so confirm it becomes connected in the active OpenCode
+project session after reload.
+
 ## 5. Verification
 
 ```sh
-opencode mcp list         # expect semgrep, snyk, github and docker-sandbox connected (infisical disabled)
+opencode mcp list         # expect authorized project MCPs; connection may require local auth / runtime prerequisites
 opencode debug config     # confirm merged configuration
 opencode reload           # reload config without restarting the server
 ```

@@ -147,6 +147,35 @@ public sealed class R2BlobBackendTests
     }
 
     [Fact]
+    public async Task R2BlobStore_get_range_requests_only_the_requested_bytes()
+    {
+        var payload = "cde"u8.ToArray();
+        var capture = new CaptureHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
+            {
+                Content = new ByteArrayContent(payload)
+            };
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("audio/wav");
+            response.Content.Headers.ContentRange = new ContentRangeHeaderValue(2, 4, 8);
+            return response;
+        });
+        var options = TestOptions();
+        using var client = R2BlobStore.CreateClient(options, new CaptureFactory(capture));
+        var store = new R2BlobStore(client, Options.Create(options));
+
+        var blob = await store.GetRangeAsync("resources/abc", 2, 4, CancellationToken.None);
+
+        Assert.NotNull(blob);
+        Assert.NotNull(capture.LastRequest);
+        var range = Assert.Single(capture.LastRequest!.Headers.Range!.Ranges);
+        Assert.Equal(2, range.From);
+        Assert.Equal(4, range.To);
+        Assert.Equal(payload, await ReadBytesAsync(blob!.Content));
+        Assert.Equal(payload.Length, blob.ByteSize);
+    }
+
+    [Fact]
     public async Task R2BlobStore_get_miss_returns_null()
     {
         var capture = new CaptureHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));

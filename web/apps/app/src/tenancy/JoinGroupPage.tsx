@@ -37,7 +37,7 @@ export function JoinGroupPage({ navigate }: { navigate: (to: string) => void }) 
           <UserPlus className="h-5 w-5" />
         </span>
         <div className="space-y-0.5">
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="sonivo-page-title text-ink">
             {t("join.title")}
           </h1>
           <p className="text-sm text-ink/80">{t("join.subtitle")}</p>

@@ -365,10 +365,10 @@ export function GroupTasksPage() {
                 aria-pressed={view === tab.id}
                 onClick={() => setView(tab.id)}
                 className={cn(
-                  'min-h-11 rounded-lg px-4 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                  'sonivo-choice-trigger min-h-11 rounded-lg px-4 py-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
                   view === tab.id
-                    ? 'bg-surface text-ink shadow-sm'
-                    : 'text-muted hover:text-ink',
+                    ? ''
+                    : 'text-muted hover:bg-surface-hover hover:text-ink',
                 )}
               >
                 {tab.label}

@@ -56,6 +56,22 @@ public sealed class GetArrangementHandler
             }
         }
 
-        return CreateArrangementHandler.ToDetail(arrangement, resources);
+        var detail = CreateArrangementHandler.ToDetail(arrangement, resources);
+        try
+        {
+            var importedTtml = RawTtmlLyrics.ConvertIfPresent(
+                string.IsNullOrWhiteSpace(detail.Chords) ? detail.Lyrics : detail.Chords);
+            return importedTtml is null ? detail : detail with
+            {
+                Lyrics = importedTtml.Lyrics,
+                Chords = importedTtml.Lyrics,
+                ChordTimingJson = importedTtml.ChordTimingJson,
+            };
+        }
+        catch (ValidationException)
+        {
+            // Keep malformed legacy content available to the editor for repair.
+            return detail;
+        }
     }
 }

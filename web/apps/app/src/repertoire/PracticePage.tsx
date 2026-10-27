@@ -140,6 +140,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
   const isOwner = canManageContentRole(group?.role)
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
   const [songTitle, setSongTitle] = useState<string | null>(null)
+  const [songAttribution, setSongAttribution] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tracks, setTracks] = useState<PracticeAudioSource[]>([])
   const [eventDetail, setEventDetail] = useState<EventDetail | null | undefined>(
@@ -188,6 +189,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
     async function load() {
       setArrangement(undefined)
       setSongTitle(null)
+      setSongAttribution(null)
       setTracks([])
       setError(null)
       try {
@@ -197,9 +199,15 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
         setTracks(listPracticeAudioTracks(result.resources, groupId!, arrangementId!))
         try {
           const song = await getSong(groupId!, result.songId)
-          if (!cancelled) setSongTitle(song.title)
+          if (!cancelled) {
+            setSongTitle(song.title)
+            setSongAttribution(song.attribution)
+          }
         } catch {
-          if (!cancelled) setSongTitle(null)
+          if (!cancelled) {
+            setSongTitle(null)
+            setSongAttribution(null)
+          }
         }
       } catch (err) {
         if (cancelled) return
@@ -492,7 +500,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
   return (
     <section className={cn(tab === 'calentar' ? 'space-y-5 sm:space-y-8' : 'space-y-8')} aria-labelledby="practice-heading">
       <div className={cn(
-        'rounded-3xl border border-[var(--color-score-border)] bg-[var(--color-score-soft)] text-[var(--color-score-ink)]',
+        'sonivo-score-header',
         tab === 'calentar' ? 'space-y-3 p-4 sm:space-y-4 sm:p-8' : 'space-y-4 p-5 sm:p-8',
       )}>
         <PageBreadcrumb items={visibleBreadcrumbItems} />
@@ -501,7 +509,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
             <p className={cn('text-sm font-medium uppercase tracking-wide text-muted', tab === 'calentar' && 'hidden')}>
               {eventId ? t('practice.rehearsePlan') : t('practice.kicker')}
             </p>
-            <h1 id="practice-heading" className="text-3xl font-bold tracking-tight text-[var(--color-score-ink)] sm:text-4xl">
+            <h1 id="practice-heading" className="sonivo-page-title text-[var(--color-score-ink)]">
               {displayTitle}
             </h1>
             <p className="text-base font-medium text-[var(--color-score-ink-soft)]">{displayLabel}</p>
@@ -523,7 +531,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
                 timingTimeline={timingTimeline}
                 currentMs={highlightMs}
                 title={displayTitle}
-                subtitle={displayLabel}
+                subtitle={songAttribution?.trim() || displayLabel}
                 hasAudio={tracks.length > 0}
                 isPlaying={audioPlayer.isPlaying}
                 progress={audioPlayer.progress}
@@ -589,10 +597,11 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
             aria-selected={tab === id}
             aria-controls={`practice-panel-${id}`}
             data-testid={`practice-tab-${id}`}
+            data-tab-surface="score"
             className={cn(
-              'min-h-12 rounded-xl px-3 py-2 text-sm font-semibold transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+              'sonivo-tab-trigger min-h-12 rounded-xl',
               tab === id
-                ? 'bg-[var(--color-score-paper)] text-[var(--color-score-ink)] shadow-sm'
+                ? ''
                 : 'text-[var(--color-score-muted)] hover:bg-[var(--color-score-paper-soft)] hover:text-[var(--color-score-ink)]',
             )}
             onClick={() => setTabPersist(id)}
@@ -619,6 +628,8 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
           onToggleFollow={toggleFollowDirector}
           isLive={conductorLive}
           error={conductor.error}
+          lastPositionMs={conductor.lastPosition?.position.positionMs ?? null}
+          lastSentPositionMs={conductor.lastSentPositionMs}
         />
       ) : null}
 
@@ -931,6 +942,8 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
               onToggleFollow={toggleFollowDirector}
               isLive={conductorLive}
               error={conductor.error}
+          lastPositionMs={conductor.lastPosition?.position.positionMs ?? null}
+          lastSentPositionMs={conductor.lastSentPositionMs}
             />
           ) : (
             <p className="text-sm text-muted" data-testid="practice-advanced-conductor-hint">

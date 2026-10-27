@@ -36,8 +36,8 @@ import { useRailPresence } from './railPresence'
 import { BrandPreviewContext, type BrandPreviewDraft } from './brandPreview'
 import { useGroupLive } from '../groups/useGroupLive'
 import { GroupTopBar } from './GroupTopBar'
-import { GroupSwitcher } from './GroupSwitcher'
 import { GroupContextRail } from './GroupContextRail'
+import { GroupSwitcher } from './GroupSwitcher'
 import { Button } from '../ui/button'
 import { useAudioPlayer } from '../repertoire/AudioPlayerContext'
 
@@ -87,6 +87,7 @@ export function GroupWorkspace({
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [rail, setRail] = useState<RailState>(() => readRailState())
+  const [railHovered, setRailHovered] = useState(false)
   const [brandingEnabled, setBrandingEnabled] = useState<boolean | null>(null)
   // Branding resolved from the server for the current group; `null` while the
   // first load is in flight. Keyed by group so switching groups never flashes
@@ -261,14 +262,19 @@ export function GroupWorkspace({
   const appearance = serverBrand
     ? { accent: serverBrand.accentHex ?? deviceAppearance.accent, cover: serverCover ?? deviceAppearance.cover }
     : deviceAppearance
-  const collapsed = rail === 'collapsed'
+  const collapsed = rail === 'collapsed' && !railHovered
   // Keep the global player beside the rail while the rail stays navigation-only.
-  useEffect(() => setRailCollapsed(collapsed), [collapsed, setRailCollapsed])
+  useEffect(() => setRailCollapsed(rail === 'collapsed'), [rail, setRailCollapsed])
   const groupRole = group ? formatMembershipRole(group.role, t) : ''
   const canViewReports = group?.role === 'Owner'
-  const visibleGroupNavSections = canViewReports
-    ? groupNavSections
-    : groupNavSections.map((section) => ({ ...section, items: section.items.filter((item) => item.id !== 'reports') })).filter((section) => section.items.length > 0)
+  const visibleGroupNavSections = groupNavSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) =>
+        item.id !== 'settings' && item.id !== 'help' && (canViewReports || item.id !== 'reports'),
+      ),
+    }))
+    .filter((section) => section.items.length > 0)
   const visibleMobileMoreItems = canViewReports
     ? mobileMoreItems
     : mobileMoreItems.filter((item) => item.id !== 'reports')
@@ -347,11 +353,20 @@ export function GroupWorkspace({
     >
       <aside
         className={cn(
-          'hidden shrink-0 flex-col border-r border-shell-edge bg-shell text-shell-foreground md:flex md:h-screen',
+          'hidden shrink-0 flex-col border-r border-shell-edge bg-shell text-shell-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none md:sticky md:left-0 md:top-0 md:z-30 md:flex md:h-screen',
           collapsed ? 'md:w-[4.5rem]' : 'md:w-60',
         )}
         data-testid="group-rail"
         data-rail={rail}
+        data-collapsed={collapsed ? 'true' : 'false'}
+        onMouseEnter={() => setRailHovered(true)}
+        onMouseLeave={() => setRailHovered(false)}
+        onFocusCapture={() => setRailHovered(true)}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setRailHovered(false)
+          }
+        }}
       >
         <div
           className={cn(
@@ -450,6 +465,7 @@ export function GroupWorkspace({
                       key={item.id}
                       to={item.href(group.id)}
                       end={item.end}
+                      data-testid={item.id === 'settings' ? 'rail-settings' : item.id === 'help' ? 'rail-help' : undefined}
                       aria-label={collapsed ? label : undefined}
                       title={collapsed ? label : undefined}
                       className={({ isActive }) => railLinkClass(isActive, collapsed)}

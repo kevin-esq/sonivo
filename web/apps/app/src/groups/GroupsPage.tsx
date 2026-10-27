@@ -45,6 +45,7 @@ import {
   readGroupAppearance,
 } from "../shell/groupAccent";
 import { Button } from "../ui/button";
+import { cn } from "../ui/cn";
 import { fieldClass } from "../ui/field";
 import { useToast } from "../ui/toast";
 import { parseInviteToken } from "../tenancy/inviteToken";
@@ -1105,12 +1106,8 @@ export function GroupsPage({
   const showToolbar = total >= TOOLBAR_THRESHOLD;
   const resultsActive = !!query || filter !== "all";
 
-  const chip = (active: boolean) =>
-    `inline-flex min-h-11 items-center rounded-full border px-3 text-sm font-medium transition motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
-      active
-        ? "border-primary bg-primary/10 text-shell-link"
-        : "border-border-subtle bg-surface text-muted hover:border-primary/40"
-    }`;
+  const chip = () =>
+    "sonivo-choice-trigger min-h-11 rounded-full border border-border-subtle px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary";
 
   const renderCards = (list: GroupCardData[]) => (
     <ul
@@ -1151,7 +1148,7 @@ export function GroupsPage({
           <div className="flex items-center gap-2">
             <h1
               id="groups-heading"
-              className="text-3xl font-bold tracking-tight text-shell-foreground"
+              className="sonivo-page-title text-ink"
             >
               {t("groups.title")}
             </h1>
@@ -1292,7 +1289,7 @@ export function GroupsPage({
                     type="button"
                     aria-pressed={filter === value}
                     onClick={() => setFilter(value)}
-                    className={chip(filter === value)}
+                    className={cn(chip(), filter !== value && 'text-muted hover:bg-surface-hover')}
                   >
                     {t(
                       value === "all"
@@ -1352,11 +1349,10 @@ export function GroupsPage({
                             : "groups.viewList",
                         )}
                         onClick={() => setView(mode)}
-                        className={`grid h-11 w-11 place-items-center transition duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-primary ${
-                          view === mode
-                            ? "bg-primary/10 text-shell-link"
-                            : "bg-surface text-muted hover:bg-surface-hover"
-                        }`}
+                        className={cn(
+                          'sonivo-choice-trigger grid h-11 w-11 p-0 focus-visible:outline-2 focus-visible:outline-primary',
+                          view !== mode && 'bg-surface text-muted hover:bg-surface-hover',
+                        )}
                       >
                         <Icon className="h-4 w-4" aria-hidden="true" />
                       </button>

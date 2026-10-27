@@ -10,7 +10,7 @@ import {
   type ArrangementListItem,
 } from '../../api/client'
 import { useT } from '../../i18n'
-import { fileUploadErrorMessage } from '../../repertoire/fileUploadErrors'
+import { fileUploadErrorMessage, isAudioUpload } from '../../repertoire/fileUploadErrors'
 import { safeExternalResourceUrl } from '../../repertoire/resourceUrl'
 import { formatPurpose, mutationErrorMessage } from '../../repertoire/ui'
 import { notifyGroupDataChanged } from '../../shell/groupEvents'
@@ -180,10 +180,8 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
             disabled={pending}
             onClick={() => setMode(option)}
             className={cn(
-              'min-h-9 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-              mode === option
-                ? 'bg-primary-strong text-primary-foreground'
-                : 'text-muted hover:text-ink',
+              'sonivo-tab-trigger min-h-9 transition-colors motion-reduce:transition-none',
+              mode === option ? '' : 'text-muted hover:text-ink',
             )}
           >
             {option === 'file' ? t('resources.fileKind') : t('resources.linkKind')}
@@ -237,8 +235,14 @@ export function CreateResourceDialog({ groupId, onClose, onUploaded }: CreateRes
           title={t('resources.fieldFile')}
           description={t('resources.formatsHint')}
           file={file}
-          onFileChange={setFile}
-          maxSizeBytes={resourceUploadLimit(planId, purpose)}
+          onFileChange={(next) => {
+            if (next && isAudioUpload(next)) setPurpose('audio')
+            setFile(next)
+          }}
+          maxSizeBytes={(selectedFile) => resourceUploadLimit(
+            planId,
+            isAudioUpload(selectedFile) ? 'audio' : purpose,
+          )}
           disabled={pending}
           testId="resource-file-dropzone"
         />

@@ -291,10 +291,10 @@ export function GroupRolesCenter({
                   aria-pressed={filter === value}
                   onClick={() => setFilter(value)}
                   className={cn(
-                    'min-h-9 rounded-full border px-3 text-xs font-semibold transition-colors',
+                    'sonivo-choice-trigger min-h-9 rounded-full border border-border-subtle px-3 text-xs',
                     filter === value
-                      ? 'border-primary/40 bg-primary/15 text-primary-ink'
-                      : 'border-border-subtle text-muted hover:bg-surface-hover',
+                      ? ''
+                      : 'text-muted hover:bg-surface-hover',
                   )}
                 >
                   {value === 'all'

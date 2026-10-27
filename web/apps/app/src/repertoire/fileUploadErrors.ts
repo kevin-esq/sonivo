@@ -15,6 +15,11 @@ export function resourceUploadLimit(planId: string | null | undefined, purpose: 
   }
 }
 
+export function isAudioUpload(file: File): boolean {
+  return file.type.toLowerCase().startsWith('audio/')
+    || /\.(mp3|wav|flac|m4a|ogg|aac)$/i.test(file.name)
+}
+
 const ALLOWED_MIMES = new Set([
   'application/pdf',
   'image/png',

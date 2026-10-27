@@ -61,8 +61,8 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
       }
     })
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'Afinar' })).toBeVisible()
 
+    await page.getByTestId('practice-tab-afinar').click()
     await page.getByTestId('tuner-toggle').click()
     await expect(page.getByTestId('tuner-toggle')).toHaveText('Cerrar')
     await expect(page.getByTestId('tuner-panel')).toBeVisible()
@@ -111,8 +111,7 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
       }
     })
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'Afinar' })).toBeVisible()
-
+    await page.getByTestId('practice-tab-afinar').click()
     await page.getByTestId('tuner-toggle').click()
     await expect(page.getByTestId('tuner-error')).toContainText('micrófono')
   })
@@ -151,13 +150,12 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
     // YouTube-sourced Practice with an explanation.
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
-    await page.locator('[data-testid="chordpro-digitizer"] > header').scrollIntoViewIfNeeded()
-    await page.getByTestId('digitizer-line-0').getByRole('button', { name: 'Añadir hora' }).click()
-    await page.getByLabel('Inicio del renglón 1').fill('0:00.5')
-    await page.getByRole('button', { name: 'Guardar hora' }).click()
-    await page.getByTestId('digitizer-line-1').getByRole('button', { name: 'Añadir hora' }).click()
-    await page.getByLabel('Inicio del renglón 2').fill('0:01.5')
-    await page.getByRole('button', { name: 'Guardar hora' }).click()
+    for (const [line, timestamp] of [[0, '0:00.5'], [1, '0:01.5']] as const) {
+      const lineEditor = page.getByTestId(`digitizer-line-${line}`)
+      await lineEditor.getByRole('button', { name: 'Añadir hora' }).click()
+      await page.getByLabel(`Inicio del renglón ${line + 1}`).fill(timestamp)
+      await lineEditor.getByRole('button', { name: 'Guardar hora' }).click()
+    }
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible({
       timeout: 10_000,

@@ -7,12 +7,15 @@ export interface Track {
   url: string
 }
 
+export type AudioPlaybackError = 'unsupported' | 'unavailable'
+
 interface AudioPlayerContextType {
   currentTrack: Track | null
   isPlaying: boolean
   progress: number
   duration: number
   volume: number
+  playbackError: AudioPlaybackError | null
   playTrack: (track: Track) => void
   /** Loads a paused track (no autoplay); used by surfaces such as Practice. */
   loadTrack: (track: Track) => void
@@ -31,7 +34,27 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const [progress, setProgress] = useState<number>(0)
   const [duration, setDuration] = useState<number>(0)
   const [volume, setVolumeState] = useState<number>(0.8)
+  const [playbackError, setPlaybackError] = useState<AudioPlaybackError | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const playbackAttemptRef = useRef(0)
+
+  const beginPlayback = (audio: HTMLAudioElement) => {
+    const attempt = ++playbackAttemptRef.current
+    void audio.play().then(() => {
+      if (attempt !== playbackAttemptRef.current) return
+      setPlaybackError(null)
+      setIsPlaying(true)
+    }).catch((error: unknown) => {
+      if (attempt !== playbackAttemptRef.current) return
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      setIsPlaying(false)
+      setProgress(0)
+      setDuration(0)
+      setPlaybackError(error instanceof DOMException && error.name === 'NotSupportedError'
+        ? 'unsupported'
+        : 'unavailable')
+    })
+  }
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume
@@ -39,10 +62,11 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
   const playTrack = (track: Track) => {
     setCurrentTrack(track)
-    setIsPlaying(true)
+    setIsPlaying(false)
+    setPlaybackError(null)
     if (audioRef.current) {
       audioRef.current.src = track.url
-      void audioRef.current.play()
+      beginPlayback(audioRef.current)
     }
   }
 
@@ -51,6 +75,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     setIsPlaying(false)
     setProgress(0)
     setDuration(0)
+    setPlaybackError(null)
+    playbackAttemptRef.current += 1
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.src = track.url
@@ -65,8 +91,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       audioRef.current.pause()
       setIsPlaying(false)
     } else {
-      void audioRef.current.play()
-      setIsPlaying(true)
+      setPlaybackError(null)
+      beginPlayback(audioRef.current)
     }
   }
 
@@ -91,6 +117,9 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     setCurrentTrack(null)
     setIsPlaying(false)
     setProgress(0)
+    setDuration(0)
+    setPlaybackError(null)
+    playbackAttemptRef.current += 1
   }
 
   return (
@@ -101,6 +130,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         progress,
         duration,
         volume,
+        playbackError,
         playTrack,
         loadTrack,
         togglePlay,
@@ -116,6 +146,14 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         preload="metadata"
         onTimeUpdate={() => setProgress(audioRef.current?.currentTime || 0)}
         onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
+        onError={() => {
+          setIsPlaying(false)
+          setProgress(0)
+          setDuration(0)
+          setPlaybackError(audioRef.current?.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+            ? 'unsupported'
+            : 'unavailable')
+        }}
         onEnded={() => setIsPlaying(false)}
       />
     </AudioPlayerContext.Provider>

@@ -52,7 +52,7 @@ export function HomePage({ user, navigationMode = 'legacy', navigate }: { user: 
   return (
     <section className="space-y-8">
       <header className="dashboard-intro space-y-1.5">
-        <h1 className="text-3xl font-bold tracking-tight text-ink">
+        <h1 className="sonivo-page-title text-ink">
           {t("home.greeting", { name: greetingName })}
         </h1>
         <p className="text-ink/80">{t("home.subtitle")}</p>

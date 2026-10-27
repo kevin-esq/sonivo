@@ -8,11 +8,13 @@ public sealed class GetSongHandler
 {
     private readonly GroupAccessService _access;
     private readonly ISongStore _songs;
+    private readonly ISongFavoriteStore? _favorites;
 
-    public GetSongHandler(GroupAccessService access, ISongStore songs)
+    public GetSongHandler(GroupAccessService access, ISongStore songs, ISongFavoriteStore? favorites = null)
     {
         _access = access;
         _songs = songs;
+        _favorites = favorites;
     }
 
     public async Task<SongDetailDto> HandleAsync(
@@ -39,6 +41,8 @@ public sealed class GetSongHandler
         }
 
         var arrangementCount = await _songs.CountLiveArrangementsAsync(groupId, songId, cancellationToken);
-        return CreateSongHandler.ToDetail(song, arrangementCount);
+        var isFavorite = _favorites is not null
+            && await _favorites.IsFavoriteAsync(groupId, songId, userId, cancellationToken);
+        return CreateSongHandler.ToDetail(song, arrangementCount, isFavorite);
     }
 }

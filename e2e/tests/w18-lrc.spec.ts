@@ -29,12 +29,12 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     await openSong(page, 'LRC Song')
     await createArrangement(page, 'Acoustic')
 
-    // The panel only renders when the server flag is on.
-    await page.getByText('Importar .lrc', { exact: true }).click()
-    await expect(page.getByTestId('lrc-file-dropzone')).toBeVisible()
+    // The import panel is disclosed inside the arrangement editor.
+    await page.locator('details[aria-labelledby="lrc-heading"] summary').click()
 
     // A realistic file: metadata tags, chords inside a line and a repeated mark.
     const lrcDropzone = page.getByTestId('lrc-file-dropzone')
+    await expect(lrcDropzone).toBeVisible()
     await lrcDropzone.locator('input[type="file"]').setInputFiles({
       name: 'practice.lrc',
       mimeType: 'text/plain',

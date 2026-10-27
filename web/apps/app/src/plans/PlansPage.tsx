@@ -102,7 +102,7 @@ export function PlansPage({ navigationMode = 'legacy' }: { navigationMode?: 'leg
     return (
       <div className="space-y-4">
         <header className="space-y-1.5">
-          <h1 className="text-3xl font-bold tracking-tight text-ink">{t('plans.title')}</h1>
+          <h1 className="sonivo-page-title text-ink">{t('plans.title')}</h1>
           <p className="text-muted">{t('plans.subtitle')}</p>
         </header>
         <p role="alert" className="rounded-xl border border-error/40 bg-error/10 px-4 py-3 text-sm text-error-ink">
@@ -115,7 +115,7 @@ export function PlansPage({ navigationMode = 'legacy' }: { navigationMode?: 'leg
   return (
     <div className="space-y-8">
       <header className="space-y-1.5">
-        <h1 className="text-3xl font-bold tracking-tight text-ink">{t('plans.title')}</h1>
+        <h1 className="sonivo-page-title text-ink">{t('plans.title')}</h1>
         <p className="max-w-2xl text-muted">{t('plans.subtitle')}</p>
       </header>
 

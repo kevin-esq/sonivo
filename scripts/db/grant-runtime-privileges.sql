@@ -14,6 +14,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
     public."Invitations",
     public."ResourceGrants",
     public."Songs",
+    public."SongFavorites",
     public."Arrangements",
     public."Resources",
     public."Setlists",

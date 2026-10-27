@@ -26,13 +26,15 @@ public sealed class UpdateSongHandler
     private readonly ISongStore _songs;
     private readonly IClock _clock;
     private readonly IGroupAuditStore? _audit;
+    private readonly ISongFavoriteStore? _favorites;
 
-    public UpdateSongHandler(GroupAccessService access, ISongStore songs, IClock clock, IGroupAuditStore? audit = null)
+    public UpdateSongHandler(GroupAccessService access, ISongStore songs, IClock clock, IGroupAuditStore? audit = null, ISongFavoriteStore? favorites = null)
     {
         _access = access;
         _songs = songs;
         _clock = clock;
         _audit = audit;
+        _favorites = favorites;
     }
 
     public async Task<SongDetailDto> HandleAsync(UpdateSongCommand command, CancellationToken cancellationToken)
@@ -81,6 +83,8 @@ public sealed class UpdateSongHandler
         await _songs.SaveChangesAsync(cancellationToken);
 
         var arrangementCount = await _songs.CountLiveArrangementsAsync(command.GroupId, command.SongId, cancellationToken);
-        return CreateSongHandler.ToDetail(song, arrangementCount);
+        var isFavorite = _favorites is not null
+            && await _favorites.IsFavoriteAsync(command.GroupId, command.SongId, command.UserId, cancellationToken);
+        return CreateSongHandler.ToDetail(song, arrangementCount, isFavorite);
     }
 }

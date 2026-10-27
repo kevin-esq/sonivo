@@ -30,7 +30,8 @@ export type SidebarSection = {
 /** Sidebar navigation for the signed-in, non-group routes (ADR-0053). */
 export const sidebarSections: SidebarSection[] = [
   {
-    id: "principal",
+    id: "spaces",
+    labelKey: "sidebar.spaces",
     items: [
       { id: "home", labelKey: "sidebar.home", icon: Home, to: routes.home, end: true },
       {
@@ -70,17 +71,18 @@ export const sidebarSections: SidebarSection[] = [
         icon: Settings,
         to: routes.accountPreferences,
       },
-    ],
-  },
-  {
-    id: "secondary",
-    items: [
       {
         id: "membership",
         labelKey: "sidebar.membership",
         icon: CreditCard,
         to: routes.accountMembership,
       },
+    ],
+  },
+  {
+    id: "support",
+    labelKey: "sidebar.support",
+    items: [
       { id: "help", labelKey: "sidebar.help", icon: CircleHelp, to: routes.help },
     ],
   },

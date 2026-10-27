@@ -276,7 +276,7 @@ export function MemberProfileDialog({
           </div>
 
           <div
-            className="flex flex-wrap gap-1 border-b border-border-subtle"
+            className="flex flex-wrap gap-1 rounded-xl bg-surface-hover p-1"
             role="tablist"
             aria-label={t('people.profileTabsLabel')}
             onKeyDown={(event) => {
@@ -311,10 +311,7 @@ export function MemberProfileDialog({
                   }}
                   onClick={() => setTab(definition.id)}
                   className={cn(
-                    '-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-                    active
-                      ? 'border-primary text-primary-ink'
-                      : 'border-transparent text-muted hover:text-ink',
+                    'sonivo-tab-trigger inline-flex items-center gap-2 transition-colors',
                   )}
                 >
                   <Icon className="h-4 w-4" aria-hidden="true" />

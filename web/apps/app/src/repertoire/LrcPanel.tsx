@@ -13,6 +13,9 @@ import { useT } from '../i18n'
 import { Button } from '../ui/button'
 import { FileDropzone } from '../ui/FileDropzone'
 import { cn } from '../ui/cn'
+import { LyricsLookupPanel } from './LyricsLookupPanel'
+import { lyricImportMessage } from './lyricImportMessage'
+import { LyricsExportPanel } from './LyricsExportPanel'
 
 /**
  * .lrc import / preview / offset / export (ADR-0050). Import is preview-only: the
@@ -23,10 +26,12 @@ export function LrcPanel({
   groupId,
   arrangement,
   onApplied,
+  songTitle = '',
 }: {
   groupId: string
   arrangement: ArrangementDetail
   onApplied: (updated: ArrangementDetail) => void
+  songTitle?: string
 }) {
   const { t } = useT()
   const [enabled, setEnabled] = useState(false)
@@ -53,6 +58,8 @@ export function LrcPanel({
   }, [])
 
   async function onFile(next: File | null) {
+    setPreview(null)
+    setError(null)
     setFile(next)
     if (!next) {
       setText('')
@@ -60,18 +67,22 @@ export function LrcPanel({
       setError(null)
       return
     }
-    // Read as base64 so the server can detect BOM / encoding (Windows-1252 fallback).
-    const buffer = await next.arrayBuffer()
-    const bytes = new Uint8Array(buffer)
-    let binary = ''
-    for (const byte of bytes) binary += String.fromCharCode(byte)
-    setText(`data:base64,${btoa(binary)}`)
-    setPreview(null)
-    setError(null)
+    setText('')
+    if (next.size > 256 * 1024) { setError(t('lyrics.tooLarge')); return }
+    setBusy(true)
+    try {
+      const bytes = new Uint8Array(await next.arrayBuffer())
+      let binary = ''
+      for (const byte of bytes) binary += String.fromCharCode(byte)
+      setText(`data:base64,${btoa(binary)}`)
+    } catch { setError(t('lyrics.readFailed')) }
+    finally { setBusy(false) }
   }
 
   async function onPreview() {
     if (!text.trim()) return
+    if (!text.startsWith('data:base64,') && new TextEncoder().encode(text).length > 256 * 1024) { setError(t('lyrics.tooLarge')); return }
+    if (!Number.isInteger(offsetMs) || offsetMs < -2147483648 || offsetMs > 2147483647) { setError(t('lyrics.invalidOffset')); return }
     setBusy(true)
     setError(null)
     try {
@@ -91,13 +102,14 @@ export function LrcPanel({
   }
 
   async function onApply() {
-    if (!preview) return
+    if (!preview || preview.errors.length || !preview.lyrics.trim()) return
     setBusy(true)
     setError(null)
     try {
       const updated = await updateArrangement(groupId, arrangement.id, {
         expectedVersion: arrangement.version,
         lyrics: preview.lyrics,
+        chords: preview.lyrics,
         chordTimingJson: preview.chordTimingJson,
       })
       onApplied(updated)
@@ -153,9 +165,11 @@ export function LrcPanel({
           placeholder={'[00:12.00]' + t('lrc.placeholderLine')}
           onChange={(event) => {
             setText(event.target.value)
+            setFile(null)
             setPreview(null)
           }}
           spellCheck={false}
+          disabled={busy}
         />
       </label>
 
@@ -163,7 +177,7 @@ export function LrcPanel({
         <FileDropzone
           title={t('lrc.chooseFile')}
           description={t('lrc.hint')}
-          accept=".lrc,text/plain"
+          accept=".lrc,.elrc,.ttml,.xml,.json,.txt,.cho,.chordpro,text/plain,application/ttml+xml,application/xml,text/xml,application/json"
           file={file}
           onFileChange={(selected) => void onFile(selected)}
           disabled={busy}
@@ -178,6 +192,7 @@ export function LrcPanel({
             className="w-24 rounded-lg border border-border-subtle bg-surface px-2 py-1 text-sm text-ink"
             value={offsetMs}
             step={100}
+            disabled={busy}
             onChange={(event) => {
               setOffsetMs(Number(event.target.value) || 0)
               setPreview(null)
@@ -207,14 +222,14 @@ export function LrcPanel({
           </p>
           {preview.warnings.map((warning) => (
             <p key={warning} role="status" className="rounded-lg bg-warning/15 px-2 py-1 text-sm text-ink">
-              {t('lrc.warning')}: {warning}
+              {t('lrc.warning')}: {lyricImportMessage(warning, t)}
             </p>
           ))}
           {preview.errors.length > 0 ? (
             <ul className="space-y-1 text-sm text-error-ink">
               {preview.errors.map((entry) => (
                 <li key={`${entry.line}-${entry.reason}`}>
-                  {t('lrc.brokenLine', { line: entry.line })}: {entry.reason}
+                  {t('lrc.brokenLine', { line: entry.line })}: {lyricImportMessage(entry.reason, t)}
                 </li>
               ))}
             </ul>
@@ -222,11 +237,15 @@ export function LrcPanel({
           <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-2 text-sm text-ink">
             {preview.lyrics}
           </pre>
-          <Button type="button" onClick={() => void onApply()} disabled={busy}>
+          <p className="text-sm text-muted">{t('lyrics.precision', { format: (preview.format ?? 'lrc').toUpperCase(), words: preview.wordCount ?? 0 })}</p>
+          <p className="text-sm text-muted">{t('lyrics.replacesBody')}</p>
+          <Button type="button" onClick={() => void onApply()} disabled={busy || preview.errors.length > 0 || !preview.lyrics.trim()}>
             {t('lrc.apply')}
           </Button>
         </div>
       ) : null}
+      <LyricsLookupPanel key={arrangement.id} groupId={groupId} arrangementId={arrangement.id} songTitle={songTitle} disabled={busy} onChoose={content => { setText(content); setFile(null); setPreview(null); setError(null) }} />
+      <LyricsExportPanel groupId={groupId} arrangement={arrangement} disabled={busy} />
       </div>
     </details>
   )

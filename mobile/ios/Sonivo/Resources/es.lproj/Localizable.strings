@@ -6,6 +6,8 @@
 "auth.unavailable" = "El inicio de sesión aún no está integrado en esta versión.";
 "chart.empty" = "No hay contenido de chart disponible.";
 "auth.sign_in" = "Iniciar sesión";
+"auth.welcome_title" = "Vuelve a conectar con tu grupo";
+"auth.welcome_body" = "Accede a tus grupos, eventos y ensayos desde Sonivo.";
 "auth.sign_out" = "Cerrar sesión";
 "groups.title" = "Tus grupos";
 "groups.empty" = "No tienes grupos disponibles.";

@@ -40,6 +40,29 @@ internal fun LucideIcon(name: String, tint: Color, modifier: Modifier = Modifier
                 "close" -> { path.moveTo(18f, 6f); path.lineTo(6f, 18f); path.moveTo(6f, 6f); path.lineTo(18f, 18f) }
                 "play" -> { path.moveTo(8f, 5f); path.lineTo(19f, 12f); path.lineTo(8f, 19f); path.close() }
                 "pause" -> { path.moveTo(8f, 5f); path.lineTo(8f, 19f); path.moveTo(16f, 5f); path.lineTo(16f, 19f) }
+                "waveform" -> {
+                    listOf(5f to 10f, 9f to 17f, 13f to 21f, 17f to 15f, 21f to 10f).forEach { (x, bottom) ->
+                        path.moveTo(x, 24f - bottom)
+                        path.lineTo(x, bottom)
+                    }
+                }
+                "audioLines" -> {
+                    listOf(3f to 9f, 7f to 5f, 11f to 2f, 15f to 6f, 19f to 8f, 23f to 10f).forEach { (x, top) ->
+                        path.moveTo(x, top)
+                        path.lineTo(x, 24f - top)
+                    }
+                }
+                "locateFixed" -> {
+                    path.addOval(androidx.compose.ui.geometry.Rect(8f, 8f, 16f, 16f))
+                    path.moveTo(12f, 2f); path.lineTo(12f, 5f)
+                    path.moveTo(12f, 19f); path.lineTo(12f, 22f)
+                    path.moveTo(2f, 12f); path.lineTo(5f, 12f)
+                    path.moveTo(19f, 12f); path.lineTo(22f, 12f)
+                    path.moveTo(5f, 5f); path.lineTo(7f, 7f)
+                    path.moveTo(17f, 17f); path.lineTo(19f, 19f)
+                    path.moveTo(19f, 5f); path.lineTo(17f, 7f)
+                    path.moveTo(7f, 17f); path.lineTo(5f, 19f)
+                }
                 else -> return@Canvas
             }
             drawPath(path, tint, style = Stroke(width = 1.8f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))

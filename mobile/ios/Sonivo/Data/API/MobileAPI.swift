@@ -250,6 +250,11 @@ enum MobileAPIError: Error {
 
 @MainActor
 final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentationContextProviding, ASAuthorizationControllerPresentationContextProviding, ASAuthorizationControllerDelegate {
+    private let networkSession = URLSession(
+        configuration: .ephemeral,
+        delegate: RedirectBlockingSessionDelegate(),
+        delegateQueue: nil
+    )
     @Published private(set) var groups: [MobileGroup] = []
     @Published private(set) var pendingGroupSlug: String? = UserDefaults.standard.string(forKey: "sonivo.pendingGroupSlug")
     @Published private(set) var events: [MobileEvent] = []
@@ -321,15 +326,17 @@ final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentati
     func signOut() async {
         await leavePracticeRoom()
         if let token, let issuer = configuration.issuerURL {
-            let data = try? await URLSession.shared.data(from: issuer.appending(path: MobileEndpoints.discoveryPath)).0
+            let data = try? await networkSession.data(from: issuer.appending(path: MobileEndpoints.discoveryPath)).0
             if let data, let discovery = try? JSONDecoder().decode(OIDCDiscovery.self, from: data),
-               let endpoint = discovery.revocationEndpoint, let url = URL(string: endpoint) {
+               discovery.issuer == issuer.absoluteString,
+               let endpoint = discovery.revocationEndpoint,
+               let url = trustedEndpoint(endpoint, issuer: issuer) {
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
                 MobileEndpoints.versionHeaders(version: appVersion).forEach { request.setValue($1, forHTTPHeaderField: $0) }
                 request.httpBody = TokenExchange(grantType: "", clientId: clientId, refreshToken: token.refreshToken).revocationEncoded.data(using: .utf8)
-                _ = try? await URLSession.shared.data(for: request)
+                _ = try? await networkSession.data(for: request)
             }
         }
         token = nil
@@ -757,10 +764,10 @@ final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentati
                 MobileEndpoints.versionHeaders(version: appVersion).forEach { request.setValue($1, forHTTPHeaderField: $0) }
                 return request
             }
-            var (data, response) = try await URLSession.shared.upload(for: makeRequest(credential), fromFile: bodyURL)
+            var (data, response) = try await networkSession.upload(for: makeRequest(credential), fromFile: bodyURL)
             if (response as? HTTPURLResponse)?.statusCode == 401 {
                 credential = try await refreshAccessToken()
-                (data, response) = try await URLSession.shared.upload(for: makeRequest(credential), fromFile: bodyURL)
+                (data, response) = try await networkSession.upload(for: makeRequest(credential), fromFile: bodyURL)
             }
             guard let http = response as? HTTPURLResponse else { throw MobileAPIError.invalidResponse }
             if http.statusCode == 426 {
@@ -959,10 +966,10 @@ final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentati
                 MobileEndpoints.versionHeaders(version: appVersion).forEach { request.setValue($1, forHTTPHeaderField: $0) }
                 return request
             }
-            var (data, response) = try await URLSession.shared.upload(for: makeRequest(credential), fromFile: bodyURL)
+            var (data, response) = try await networkSession.upload(for: makeRequest(credential), fromFile: bodyURL)
             if (response as? HTTPURLResponse)?.statusCode == 401 {
                 credential = try await refreshAccessToken()
-                (data, response) = try await URLSession.shared.upload(for: makeRequest(credential), fromFile: bodyURL)
+                (data, response) = try await networkSession.upload(for: makeRequest(credential), fromFile: bodyURL)
             }
             guard let http = response as? HTTPURLResponse else { throw MobileAPIError.invalidResponse }
             if http.statusCode == 426 {
@@ -1242,12 +1249,11 @@ final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentati
         guard let issuer = configuration.issuerURL,
               configuration.baseURL != nil else { throw MobileAPIError.notConfigured }
         let discoveryURL = issuer.appending(path: MobileEndpoints.discoveryPath)
-        let discoveryData = try await URLSession.shared.data(from: discoveryURL).0
+        let discoveryData = try await networkSession.data(from: discoveryURL).0
         let endpoints = try JSONDecoder().decode(OIDCDiscovery.self, from: discoveryData)
         guard endpoints.issuer == issuer.absoluteString,
-              let authorizationEndpoint = URL(string: endpoints.authorizationEndpoint),
-              let tokenEndpoint = URL(string: endpoints.tokenEndpoint),
-              authorizationEndpoint.scheme == "https", tokenEndpoint.scheme == "https" else {
+              let authorizationEndpoint = trustedEndpoint(endpoints.authorizationEndpoint, issuer: issuer),
+              let tokenEndpoint = trustedEndpoint(endpoints.tokenEndpoint, issuer: issuer) else {
             throw MobileAPIError.invalidResponse
         }
 
@@ -1302,11 +1308,11 @@ final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentati
         request.setValue("Bearer \(credential)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         MobileEndpoints.versionHeaders(version: appVersion).forEach { request.setValue($1, forHTTPHeaderField: $0) }
-        var (data, response) = try await URLSession.shared.data(for: request)
+        var (data, response) = try await networkSession.data(for: request)
         if let http = response as? HTTPURLResponse, http.statusCode == 401 {
             credential = try await refreshAccessToken()
             request.setValue("Bearer \(credential)", forHTTPHeaderField: "Authorization")
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await networkSession.data(for: request)
         }
         guard let http = response as? HTTPURLResponse else { throw MobileAPIError.invalidResponse }
         if http.statusCode == 426 {
@@ -1329,9 +1335,12 @@ final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentati
     private func refreshAccessToken() async throws -> String {
         guard let token, let issuer = configuration.issuerURL,
               configuration.baseURL != nil else { throw MobileAPIError.requestFailed }
-        let discoveryData = try await URLSession.shared.data(from: issuer.appending(path: MobileEndpoints.discoveryPath)).0
-        let endpoint = try JSONDecoder().decode(OIDCDiscovery.self, from: discoveryData).tokenEndpoint
-        guard let tokenURL = URL(string: endpoint) else { throw MobileAPIError.invalidResponse }
+        let discoveryData = try await networkSession.data(from: issuer.appending(path: MobileEndpoints.discoveryPath)).0
+        let discovery = try JSONDecoder().decode(OIDCDiscovery.self, from: discoveryData)
+        guard discovery.issuer == issuer.absoluteString,
+              let tokenURL = trustedEndpoint(discovery.tokenEndpoint, issuer: issuer) else {
+            throw MobileAPIError.invalidResponse
+        }
         let body = TokenExchange(grantType: "refresh_token", clientId: clientId, refreshToken: token.refreshToken)
         self.token = try await exchange(body, endpoint: tokenURL, prior: token)
         keychain.write(self.token)
@@ -1344,7 +1353,10 @@ final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentati
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         MobileEndpoints.versionHeaders(version: appVersion).forEach { request.setValue($1, forHTTPHeaderField: $0) }
         request.httpBody = value.formEncoded.data(using: .utf8)
-        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let issuer = configuration.issuerURL, trustedEndpoint(endpoint.absoluteString, issuer: issuer) != nil else {
+            throw MobileAPIError.invalidResponse
+        }
+        let (data, response) = try await networkSession.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw MobileAPIError.invalidResponse }
         if http.statusCode == 426 {
             let problem = try? JSONDecoder().decode(MobileVersionProblem.self, from: data)
@@ -1477,6 +1489,34 @@ final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentati
         var encoded = value.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
         encoded += String(repeating: "=", count: (4 - encoded.count % 4) % 4)
         return Data(base64Encoded: encoded)
+    }
+
+    private func trustedEndpoint(_ value: String, issuer: URL) -> URL? {
+        guard let endpoint = URL(string: value),
+              let endpointComponents = URLComponents(url: endpoint, resolvingAgainstBaseURL: false),
+              let issuerComponents = URLComponents(url: issuer, resolvingAgainstBaseURL: false),
+              endpointComponents.scheme?.lowercased() == "https",
+              issuerComponents.scheme?.lowercased() == "https",
+              endpointComponents.host?.lowercased() == issuerComponents.host?.lowercased(),
+              (endpointComponents.port ?? 443) == (issuerComponents.port ?? 443),
+              endpointComponents.user == nil,
+              endpointComponents.password == nil,
+              endpointComponents.fragment == nil else {
+            return nil
+        }
+        return endpoint
+    }
+}
+
+private final class RedirectBlockingSessionDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        completionHandler(nil)
     }
 }
 

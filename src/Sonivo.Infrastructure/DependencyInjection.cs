@@ -85,6 +85,8 @@ public static class DependencyInjection
         services.AddScoped<IGroupReportStore, EfGroupReportStore>();
         services.AddScoped<IInvitationStore, EfInvitationStore>();
         services.AddScoped<ISongStore, EfSongStore>();
+        services.AddScoped<ISongCatalogStore, EfSongCatalogStore>();
+        services.AddScoped<ISongFavoriteStore, EfSongFavoriteStore>();
         services.AddScoped<IArrangementStore, EfArrangementStore>();
         services.AddScoped<IResourceStore, EfResourceStore>();
         // T-R2-04: R2 configured (all four R2__* values present) → R2 singleton,

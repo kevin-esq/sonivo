@@ -65,15 +65,27 @@ public static class ChordTimingJsonNormalizer
             }
 
             marks.Sort(static (a, b) => a.StartMs.CompareTo(b.StartMs));
-            var lastIntervalEndMs = -1;
-            foreach (var interval in marks.Where(static mark => mark.EndMs.HasValue))
+            var intervals = marks.Where(static mark => mark.EndMs.HasValue).ToList();
+            var endByLine = new Dictionary<int, int>();
+            foreach (var interval in intervals.Where(m => m.LineIndex.HasValue))
             {
-                if (interval.StartMs < lastIntervalEndMs)
+                var line = interval.LineIndex!.Value;
+                if (endByLine.TryGetValue(line, out var previousEnd) && interval.StartMs < previousEnd)
                 {
-                    throw new ValidationException("chordTimingJson word and instrumental intervals cannot overlap.");
+                    throw new ValidationException("chordTimingJson words on the same line cannot overlap.");
                 }
-
-                lastIntervalEndMs = interval.EndMs!.Value;
+                endByLine[line] = interval.EndMs!.Value;
+            }
+            var instrumentalEnd = -1;
+            foreach (var instrumental in intervals.Where(m => !m.LineIndex.HasValue))
+            {
+                if (instrumental.StartMs < instrumentalEnd ||
+                    marks.Any(m => m.LineIndex.HasValue && m.StartMs < instrumental.EndMs &&
+                        (m.EndMs ?? m.LineEndMs ?? m.StartMs) > instrumental.StartMs))
+                {
+                    throw new ValidationException("chordTimingJson instrumental intervals cannot overlap vocals or other instrumentals.");
+                }
+                instrumentalEnd = instrumental.EndMs!.Value;
             }
             return JsonSerializer.Serialize(marks.Select(m => m.Value), WriteOptions);
         }
@@ -81,9 +93,9 @@ public static class ChordTimingJsonNormalizer
 
     public static void ValidateWordReferences(string? normalizedJson, string? lyricSource)
     {
-        if (string.IsNullOrWhiteSpace(normalizedJson) || string.IsNullOrWhiteSpace(lyricSource)) return;
+        if (string.IsNullOrWhiteSpace(normalizedJson)) return;
         using var document = JsonDocument.Parse(normalizedJson);
-        var lines = lyricSource.Replace("\r\n", "\n", StringComparison.Ordinal)
+        var lines = (lyricSource ?? string.Empty).Replace("\r\n", "\n", StringComparison.Ordinal)
             .Replace('\r', '\n')
             .Split('\n');
         foreach (var element in document.RootElement.EnumerateArray())
@@ -138,11 +150,18 @@ public static class ChordTimingJsonNormalizer
                 throw new ValidationException("chordTimingJson endMs must be greater than startMs.");
             }
 
-            return new Entry(startMs, endMs, new { lineIndex, wordIndex, startMs, endMs });
+            return new Entry(startMs, endMs, new { lineIndex, wordIndex, startMs, endMs }, lineIndex);
         }
 
         var atMs = ReadRequiredInt(element, "atMs");
-        return new Entry(atMs, null, new { lineIndex, atMs });
+        if (element.TryGetProperty("endMs", out var lineEnd))
+        {
+            var endMs = ReadNonNegativeInt(lineEnd, "endMs");
+            if (endMs <= atMs) throw new ValidationException("chordTimingJson endMs must be greater than atMs.");
+            // Line intervals may overlap; word/instrumental validation is separate.
+            return new Entry(atMs, null, new { lineIndex, atMs, endMs }, lineIndex, endMs);
+        }
+        return new Entry(atMs, null, new { lineIndex, atMs }, lineIndex);
     }
 
     private static int ReadRequiredInt(JsonElement element, string name)
@@ -166,5 +185,5 @@ public static class ChordTimingJsonNormalizer
         return value;
     }
 
-    private sealed record Entry(int StartMs, int? EndMs, object Value);
+    private sealed record Entry(int StartMs, int? EndMs, object Value, int? LineIndex = null, int? LineEndMs = null);
 }

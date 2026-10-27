@@ -81,6 +81,13 @@ public sealed class UpdateArrangementHandler
         string? chordTimingJson = command.ChordTimingJson is null
             ? arrangement.ChordTimingJson
             : ChordTimingJsonNormalizer.Normalize(command.ChordTimingJson);
+        var importedTtml = RawTtmlLyrics.ConvertIfPresent(command.Chords) ?? RawTtmlLyrics.ConvertIfPresent(command.Lyrics);
+        if (importedTtml is not null)
+        {
+            lyrics = importedTtml.Lyrics;
+            chords = importedTtml.Lyrics;
+            chordTimingJson = importedTtml.ChordTimingJson;
+        }
         ChordTimingJsonNormalizer.ValidateWordReferences(
             chordTimingJson,
             string.IsNullOrWhiteSpace(chords) ? lyrics : chords);

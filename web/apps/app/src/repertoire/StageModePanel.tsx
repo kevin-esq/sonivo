@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Eye, EyeOff, Maximize2, Minus, MonitorUp, Pause, Play, Plus, SkipBack, SkipForward, Volume2, X } from 'lucide-react'
+import { AudioLines, Maximize2, Minus, MonitorUp, MoreHorizontal, Music2, Pause, Play, Plus, SkipBack, SkipForward, Volume2, X } from 'lucide-react'
 import { fetchFeatures } from '../api/client'
 import { usePersisted } from '../hooks/usePersisted'
 import { useT } from '../i18n'
@@ -11,7 +11,10 @@ import { useRailPresence } from '../shell/railPresence'
 import { parseChordPro, type ChordProLine } from './chordPro'
 import { useAudioPlayer } from './AudioPlayerContext'
 import {
+  activeChordWordLineIndexes,
   activeChordLineIndex,
+  activeChordLineIndexes,
+  chordWordPresentation,
   activeChordWord,
   activeInstrumental,
   type ChordTimingMark,
@@ -55,9 +58,36 @@ function toStageLines(text: string): ChordProLine[] | null {
 
 type StageWordCursor = { lineIndex: number; wordIndex: number }
 
+export function isBackingVocalLine(line: ChordProLine): boolean {
+  return line.kind === 'lyric' && /^\([^()]+\)$/.test(line.segments.map(segment => segment.lyric).join('').trim())
+}
+
+export function InstrumentalCue({ progress }: { progress: number }) {
+  const { t } = useT()
+  return (
+    <div
+      className="flex min-h-10 items-center gap-4 py-1 text-[color-mix(in_srgb,var(--brand-primary)_60%,white)]"
+      role="status"
+      aria-label={t('times.instrumentalLabel')}
+      aria-live="off"
+      data-testid="stage-instrumental-cue"
+    >
+      <span className="flex items-center gap-2 opacity-75" aria-hidden="true">
+        <Music2 className="h-6 w-6" />
+        <Music2 className="h-6 w-6" />
+        <Music2 className="h-6 w-6" />
+      </span>
+      <span className="h-1.5 min-w-16 max-w-32 flex-1 overflow-hidden rounded-full bg-white/15" aria-hidden="true">
+        <span className="block h-full rounded-full bg-[var(--brand-primary)] transition-[width] duration-100 motion-reduce:transition-none" style={{ width: `${progress * 100}%` }} />
+      </span>
+    </div>
+  )
+}
+
 export const StageLine = memo(function StageLine({
   line,
   hideChords,
+  showLyrics,
   index,
   active,
   focused,
@@ -66,9 +96,13 @@ export const StageLine = memo(function StageLine({
   wordFocus = null,
   completedWord = null,
   onSeek,
+  distance = 0,
+  backing = false,
+  waitingForVocal = false,
 }: {
   line: ChordProLine
   hideChords: boolean
+  showLyrics: boolean
   index: number
   active: boolean
   focused: boolean
@@ -77,6 +111,9 @@ export const StageLine = memo(function StageLine({
   wordFocus?: { lineIndex: number; wordIndex: number; progress: number } | null
   completedWord?: StageWordCursor | null
   onSeek?: (seconds: number) => void
+  distance?: number
+  backing?: boolean
+  waitingForVocal?: boolean
 }) {
   const { t } = useT()
   if (line.kind === 'empty') {
@@ -129,35 +166,35 @@ export const StageLine = memo(function StageLine({
       const currentWordIndex = wordIndex++
       const mark = markByWord.get(currentWordIndex)
       const activeByFocus = wordFocus?.lineIndex === index && wordFocus.wordIndex === currentWordIndex
-      const completed = mark != null && completedWord != null && (
-        index < completedWord.lineIndex ||
-        (index === completedWord.lineIndex && currentWordIndex <= completedWord.wordIndex)
-      )
+      const completed = mark != null && completedWord?.lineIndex === index && currentWordIndex <= completedWord.wordIndex
       const progress = activeByFocus ? wordFocus.progress : 0
-      const style: CSSProperties = activeByFocus
-        ? {
-            backgroundImage: `linear-gradient(90deg, color-mix(in srgb, var(--brand-primary) 58%, white) ${progress * 100}%, rgba(255,255,255,.7) ${progress * 100}%)`,
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            color: 'transparent',
-            filter: 'drop-shadow(0 0 12px color-mix(in srgb, var(--brand-primary) 46%, transparent))',
-          }
-        : {}
       const seekMs = mark?.startMs ?? lineSeekMs ?? nearestTimedWordMs(currentWordIndex)
-      const wordClass = mark == null
-        ? ''
-        : completed
-          ? 'text-[color-mix(in_srgb,var(--brand-primary)_58%,white)]'
-          : !activeByFocus
-            ? 'text-white/55'
-            : 'font-bold'
-      const word = <span className={wordClass} style={style}>{part}</span>
+      const wordClass = completed
+        ? 'text-[color-mix(in_srgb,var(--brand-primary)_68%,white)]'
+        : 'text-white'
+      const fillPercent = Math.round(progress * 1000) / 10
+      const sweepEdgeStart = Math.max(0, fillPercent - 2)
+      const sweepEdgeEnd = Math.min(100, fillPercent + 2)
+      const word = <span
+        className={cn('inline transition-colors duration-200 motion-reduce:transition-none', wordClass)}
+        data-stage-word={currentWordIndex}
+        data-word-progress={activeByFocus ? progress.toFixed(3) : undefined}
+        style={activeByFocus ? {
+          backgroundImage: `linear-gradient(90deg, color-mix(in srgb, var(--brand-primary) 68%, white) 0%, color-mix(in srgb, var(--brand-primary) 68%, white) ${sweepEdgeStart}%, color-mix(in srgb, var(--brand-primary) 38%, white) ${fillPercent}%, white ${sweepEdgeEnd}%, white 100%)`,
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          color: 'transparent',
+          WebkitTextFillColor: 'transparent',
+        } : undefined}
+      >
+        {part}
+      </span>
       return onSeek && seekMs != null
         ? (
             <button
               key={`word-${currentWordIndex}`}
               type="button"
-              className="cursor-pointer rounded-sm border-0 bg-transparent p-0 text-inherit hover:underline hover:decoration-[var(--brand-primary)] hover:underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary)]"
+              className="inline cursor-pointer rounded-sm border-0 bg-transparent p-0 text-left text-inherit hover:underline hover:decoration-[var(--brand-primary)] hover:underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary)]"
               style={{ font: 'inherit', lineHeight: 'inherit' }}
               aria-label={t('stage.seekWord', { word: part })}
               onClick={() => onSeek(seekMs / 1000)}
@@ -173,31 +210,49 @@ export const StageLine = memo(function StageLine({
     <div
       data-stage-line={index}
       data-active-line={active ? 'true' : undefined}
+      data-backing-vocal={backing ? 'true' : undefined}
+      style={{
+        fontSize: backing ? '0.72em' : undefined,
+        opacity: focused
+          ? (backing ? 0.82 : 1)
+          : distance < 0
+            ? Math.max(0.24, 0.96 - Math.abs(distance) * 0.22)
+            : waitingForVocal && distance === 0
+              ? 0.3
+              : Math.max(0.18, 0.66 - Math.abs(distance) * 0.18),
+        '--lyric-line-blur': `${focused
+          ? 0
+          : distance < 0
+            ? Math.min(6, Math.min(Math.abs(distance), 1) * 2.8 + Math.max(0, Math.abs(distance) - 1) * 1.1)
+            : Math.min(5, Math.min(distance, 1) * 2.2 + Math.max(0, distance - 1) * 1.15)}px`,
+      } as CSSProperties}
       className={cn(
-        'flex flex-wrap items-end justify-start gap-x-0 leading-tight transition-colors duration-200 motion-reduce:transition-none',
-        focused && 'origin-left scale-[1.045] text-white',
-        !focused && 'scale-[0.985] opacity-40 blur-[2px]',
-        'transition-[transform,filter,opacity,color] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transform-none motion-reduce:filter-none motion-reduce:transition-none',
+        'flex w-full flex-wrap items-end justify-center gap-x-0 text-center leading-[1.3] font-semibold tracking-[-0.025em]',
+        '[filter:blur(var(--lyric-line-blur))] transition-[filter,opacity,color] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:[filter:none] motion-reduce:transition-none',
       )}
     >
       {line.segments.map((segment, segmentIndex) => (
-        <span key={segmentIndex} className="inline-block whitespace-pre">
+        <span key={segmentIndex} className="inline-block max-w-full whitespace-pre-wrap [overflow-wrap:anywhere]">
           {hasChord ? (
             <span className="block font-semibold text-white" style={{ fontSize: '0.7em', color: 'color-mix(in srgb, var(--brand-primary) 58%, white)' }}>
               {segment.chord && segment.chord.length > 0 ? segment.chord : '\u00A0'}
             </span>
           ) : null}
-          <span
-            className={cn('block transition-[color,text-shadow,font-weight] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none', focused ? 'font-semibold text-white' : 'text-white/70')}
-            style={focused ? { textShadow: '0 3px 20px color-mix(in srgb, var(--brand-primary) 32%, transparent)' } : undefined}
+          {showLyrics ? <span
+            className="block font-semibold text-white"
+            style={focused ? { textShadow: '0 2px 18px rgba(0,0,0,.12)' } : undefined}
           >
             {segment.lyric.length > 0 ? renderSegment(segment.lyric) : '\u00A0'}
-          </span>
+          </span> : null}
         </span>
       ))}
     </div>
   )
-})
+}, (previous, next) => previous.line === next.line && previous.hideChords === next.hideChords && previous.index === next.index &&
+  previous.active === next.active && previous.focused === next.focused && previous.distance === next.distance && previous.backing === next.backing && previous.waitingForVocal === next.waitingForVocal && previous.showLyrics === next.showLyrics &&
+  previous.wordMarks === next.wordMarks && previous.lineSeekMs === next.lineSeekMs && previous.onSeek === next.onSeek &&
+  previous.wordFocus?.lineIndex === next.wordFocus?.lineIndex && previous.wordFocus?.wordIndex === next.wordFocus?.wordIndex && previous.wordFocus?.progress === next.wordFocus?.progress &&
+  previous.completedWord?.lineIndex === next.completedWord?.lineIndex && previous.completedWord?.wordIndex === next.completedWord?.wordIndex)
 
 /**
  * Phase 4.5 — Stage mode (ADR-0048 neighbourhood). A full-screen, large-type view of
@@ -253,22 +308,27 @@ export function StageModePanel({
   openLabel?: string
 }) {
   const { t } = useT()
-  const { getCurrentTime } = useAudioPlayer()
+  const { getCurrentTime, playbackError } = useAudioPlayer()
   const { brandTokens } = useRailPresence()
   const reducedMotion = usePrefersReducedMotion()
   const [enabled, setEnabled] = useState(false)
   const [open, setOpen] = useState(false)
   const [showChords, setShowChords] = useState(false)
+  const [showLyrics, setShowLyrics] = useState(true)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [moreMenuPosition, setMoreMenuPosition] = useState<CSSProperties | null>(null)
   const [fontSize, setFontSize] = usePersisted('sonivo:stage:fontSize', 44)
   const [speed, setSpeed] = usePersisted('sonivo:stage:speed', 30)
   const [autoFollow, setAutoFollow] = useState(true)
   const [scrolling, setScrolling] = useState(false)
   const [cursor, setCursor] = useState(0)
+  const [lineDistances, setLineDistances] = useState<number[]>([])
   const [stageTimeMs, setStageTimeMs] = useState(currentMs)
   const [wakeStatus, setWakeStatus] = useState<'idle' | 'active' | 'unsupported' | 'denied'>('idle')
   const [displayStatus, setDisplayStatus] = useState<'idle' | 'opening' | 'connected' | 'manual' | 'unavailable' | 'blocked'>('idle')
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+  const moreButtonRef = useRef<HTMLDivElement | null>(null)
   const ownsFullscreenRef = useRef(false)
   const stageOpenRef = useRef(false)
   const lineRefs = useRef<Array<HTMLElement | null>>([])
@@ -286,6 +346,67 @@ export function StageModePanel({
   audioClockRef.current = getCurrentTime
   const nextScrollBehaviorRef = useRef<ScrollBehavior | null>(null)
   const previousReportedTimeRef = useRef(currentMs)
+  const updateCursorFromManualScrollRef = useRef<() => void>(() => undefined)
+
+  const measureLineDistances = useCallback((focusedLineIndex: number) => {
+    const focusedLine = lineRefs.current[focusedLineIndex]
+    if (!focusedLine) return
+    const focusedBounds = focusedLine.getBoundingClientRect()
+    const focusedCenter = (focusedBounds.top + focusedBounds.bottom) / 2
+    const adjacentSteps = [focusedLineIndex - 1, focusedLineIndex + 1]
+      .map(index => lineRefs.current[index]?.getBoundingClientRect())
+      .filter((bounds): bounds is DOMRect => bounds != null)
+      .map(bounds => Math.abs((bounds.top + bounds.bottom) / 2 - focusedCenter))
+      .filter(step => step > 0)
+    const step = adjacentSteps.length > 0
+      ? adjacentSteps.reduce((sum, value) => sum + value, 0) / adjacentSteps.length
+      : Math.max(focusedBounds.height, fontSize)
+    if (step <= 0) return
+
+    const next = Array.from({ length: lineRefs.current.length }, (_, index) => {
+      const line = lineRefs.current[index]
+      if (!line) return index - focusedLineIndex
+      const bounds = line.getBoundingClientRect()
+      return Math.round((((bounds.top + bounds.bottom) / 2 - focusedCenter) / step) * 100) / 100
+    })
+    setLineDistances(previous => previous.length === next.length &&
+      next.every((distance, index) => Math.abs(distance - (previous[index] ?? Number.POSITIVE_INFINITY)) < 0.02)
+      ? previous
+      : next)
+  }, [fontSize])
+
+  useLayoutEffect(() => {
+    if (!moreOpen) {
+      setMoreMenuPosition(null)
+      return
+    }
+
+    const updatePosition = () => {
+      const button = moreButtonRef.current
+      if (!button) return
+
+      const bounds = button.getBoundingClientRect()
+      const viewportPadding = 12
+      const menuWidth = Math.min(288, window.innerWidth - viewportPadding * 2)
+      const left = clamp(bounds.left, viewportPadding, window.innerWidth - viewportPadding - menuWidth)
+      setMoreMenuPosition({
+        position: 'fixed',
+        left,
+        top: bounds.bottom + 8,
+        width: menuWidth,
+        maxHeight: `calc(100dvh - ${bounds.bottom + 20}px)`,
+        overflowY: 'auto',
+      })
+    }
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [moreOpen])
 
   useEffect(() => {
     if (Math.abs(currentMs - previousReportedTimeRef.current) > 350) {
@@ -299,26 +420,27 @@ export function StageModePanel({
   // four times per second). Sample the real audio clock while Stage is visible
   // so word fills advance smoothly without rerendering the full Practice page.
   useEffect(() => {
-    if (!open || !autoFollow || !hasAudio || !isPlaying) return
+    if (!open || !hasAudio || !isPlaying) return
     let frame = 0
     let lastUpdate = 0
     const sampleAudioClock = (now: number) => {
-      if (now - lastUpdate >= 1000 / 30) {
+      if (now - lastUpdate >= 1000 / 60) {
         const nextTimeMs = Math.max(0, audioClockRef.current() * 1000)
-        setStageTimeMs((previous) => Math.abs(previous - nextTimeMs) >= 12 ? nextTimeMs : previous)
+        setStageTimeMs((previous) => Math.abs(previous - nextTimeMs) >= 8 ? nextTimeMs : previous)
         lastUpdate = now
       }
       frame = requestAnimationFrame(sampleAudioClock)
     }
     frame = requestAnimationFrame(sampleAudioClock)
     return () => cancelAnimationFrame(frame)
-  }, [autoFollow, hasAudio, isPlaying, open])
+  }, [hasAudio, isPlaying, open])
 
   const wordMarks = timingTimeline?.wordMarks ?? []
   const instrumentalIntervals = timingTimeline?.instrumentals ?? []
   const hasMarks = timingMarks.length > 0 || wordMarks.length > 0 || instrumentalIntervals.length > 0
   const isWarmup = displayMode === 'warmup'
   const stageTitle = modeLabel ?? t('stage.title')
+  const stageHeaderSubtitle = subtitle.trim() === title.trim() ? '' : subtitle
   const lines = useMemo(() => toStageLines(text), [text])
   const lineCount = lines?.length ?? text.split('\n').length
   const activeIndex = useMemo(
@@ -329,6 +451,26 @@ export function StageModePanel({
     () => autoFollow ? activeChordWord(wordMarks, stageTimeMs) : null,
     [autoFollow, wordMarks, stageTimeMs],
   )
+  const wordPresentation = useMemo(() => chordWordPresentation(wordMarks, stageTimeMs), [wordMarks, stageTimeMs])
+  const completedWordsByLine = useMemo(
+    () => new Map(wordPresentation.completed.map((word) => [word.lineIndex, word])),
+    [wordPresentation.completed],
+  )
+  const activeIndexes = useMemo(() => autoFollow
+    ? [...new Set([
+      ...activeChordLineIndexes(timingMarks, stageTimeMs),
+      ...activeChordWordLineIndexes(wordMarks, stageTimeMs, timingMarks),
+    ])].sort((left, right) => left - right)
+    : [], [autoFollow, timingMarks, wordMarks, stageTimeMs])
+  const wordsByLine = useMemo(() => {
+    const indexed = new Map<number, ChordWordTimingMark[]>()
+    for (const word of wordMarks) {
+      const line = indexed.get(word.lineIndex) ?? []
+      line.push(word)
+      indexed.set(word.lineIndex, line)
+    }
+    return indexed
+  }, [wordMarks])
   const lastCompletedWordMark = useMemo(() => wordMarks.reduce<ChordWordTimingMark | null>(
     (latest, mark) => mark.endMs <= stageTimeMs && (latest == null || mark.endMs > latest.endMs) ? mark : latest,
     null,
@@ -336,33 +478,64 @@ export function StageModePanel({
   const completedWord = useMemo(() => lastCompletedWordMark
     ? { lineIndex: lastCompletedWordMark.lineIndex, wordIndex: lastCompletedWordMark.wordIndex }
     : null, [lastCompletedWordMark])
-  const activeBreak = useMemo(
-    () => autoFollow ? activeInstrumental(instrumentalIntervals, stageTimeMs) : null,
-    [autoFollow, instrumentalIntervals, stageTimeMs],
-  )
-  const markedLineIndex = activeIndex ?? activeWord?.lineIndex ?? null
   const firstWordMarkMs = wordMarks.reduce((earliest, mark) => Math.min(earliest, mark.startMs), Number.POSITIVE_INFINITY)
   const firstLineMarkMs = timingMarks.reduce((earliest, mark) => Math.min(earliest, mark.atMs), Number.POSITIVE_INFINITY)
   const firstLyricMarkMs = Math.min(firstWordMarkMs, firstLineMarkMs)
+  const explicitActiveBreak = activeInstrumental(instrumentalIntervals, stageTimeMs)
+  const inferredIntroActive = !explicitActiveBreak && Number.isFinite(firstLyricMarkMs) &&
+    firstLyricMarkMs >= 2000 && stageTimeMs < firstLyricMarkMs
+  const activeBreak = explicitActiveBreak ?? (inferredIntroActive
+    ? { progress: clamp(stageTimeMs / firstLyricMarkMs, 0, 1) }
+    : null)
+  const activeInstrumentalInterval = explicitActiveBreak
+    ? instrumentalIntervals.find(interval => interval.startMs <= stageTimeMs && stageTimeMs < interval.endMs) ?? null
+    : inferredIntroActive
+      ? { type: 'instrumental' as const, startMs: 0, endMs: firstLyricMarkMs }
+      : null
+  const instrumentalAnchorIndex = activeInstrumentalInterval
+    ? (() => {
+        const nextMarks = [
+          ...timingMarks.map(mark => ({ lineIndex: mark.lineIndex, atMs: mark.atMs })),
+          ...wordMarks.map(mark => ({ lineIndex: mark.lineIndex, atMs: mark.startMs })),
+        ].filter(mark => mark.atMs >= activeInstrumentalInterval.endMs)
+          .sort((left, right) => left.atMs - right.atMs || left.lineIndex - right.lineIndex)
+        if (nextMarks.length > 0) return nextMarks[0].lineIndex
+        const hasEarlierVocal = timingMarks.some(mark => mark.atMs < activeInstrumentalInterval.startMs) ||
+          wordMarks.some(mark => mark.startMs < activeInstrumentalInterval.startMs)
+        return hasEarlierVocal ? lineCount : 0
+      })()
+    : null
+  const markedLineIndex = activeIndexes.find(index => lines?.[index] && !isBackingVocalLine(lines[index])) ?? activeIndexes[0] ?? activeWord?.lineIndex ?? activeIndex
   const beforeFirstLyricMark = Number.isFinite(firstLyricMarkMs) && stageTimeMs < firstLyricMarkMs
-  const focusedIndex = autoFollow && markedLineIndex != null
+  const focusedIndex = autoFollow && activeBreak && instrumentalAnchorIndex != null
+    ? Math.min(instrumentalAnchorIndex, Math.max(0, lineCount - 1))
+    : autoFollow && markedLineIndex != null
     ? markedLineIndex
     : autoFollow && beforeFirstLyricMark
       ? 0
       : cursor
+  useLayoutEffect(() => {
+    measureLineDistances(focusedIndex)
+  }, [focusedIndex, measureLineDistances, open])
   const displayState: StageDisplayState = {
     activeIndex: markedLineIndex,
     wordFocus: activeWord,
+    activeIndexes,
+    wordFocuses: autoFollow ? wordPresentation.active : [],
+    completedWords: autoFollow ? wordPresentation.completed : [],
     completedWord,
     instrumentalProgress: activeBreak?.progress ?? null,
     autoFollow,
     cursor: focusedIndex,
     fontSize,
     scrolling,
+    showLyrics,
     showChords,
     speed,
   }
   const focusedIndexRef = useRef(focusedIndex)
+  const displayStateRef = useRef(displayState)
+  displayStateRef.current = displayState
   focusedIndexRef.current = focusedIndex
 
   useEffect(() => {
@@ -370,7 +543,7 @@ export function StageModePanel({
     const sessionId = displaySessionRef.current
     if (!channel || !sessionId || displayWindowRef.current?.closed) return
     channel.postMessage({ type: 'state', sessionId, state: displayState })
-  }, [activeIndex, activeWord?.lineIndex, activeWord?.wordIndex, activeWord?.progress, completedWord?.lineIndex, completedWord?.wordIndex, activeBreak?.progress, autoFollow, cursor, fontSize, scrolling, showChords, speed])
+  }, [activeIndex, activeIndexes, wordPresentation, activeWord?.lineIndex, activeWord?.wordIndex, activeWord?.progress, completedWord?.lineIndex, completedWord?.wordIndex, activeBreak?.progress, autoFollow, cursor, fontSize, scrolling, showLyrics, showChords, speed])
 
   useEffect(() => () => {
     const sessionId = displaySessionRef.current
@@ -467,14 +640,16 @@ export function StageModePanel({
   // Follow the timing marks while the audio plays (default when marks exist).
   useLayoutEffect(() => {
     if (!open || !autoFollow) return
-    const targetIndex = markedLineIndex ?? (beforeFirstLyricMark ? 0 : null)
+    const targetIndex = activeBreak && instrumentalAnchorIndex != null
+      ? Math.min(instrumentalAnchorIndex, Math.max(0, lineCount - 1))
+      : markedLineIndex ?? (beforeFirstLyricMark ? 0 : null)
     if (targetIndex == null || lastScrolled.current === targetIndex) return
     lastScrolled.current = targetIndex
     setCursor(targetIndex)
     const behavior = nextScrollBehaviorRef.current ?? (reducedMotion ? 'auto' : 'smooth')
     nextScrollBehaviorRef.current = null
     centerStageLine(targetIndex, behavior)
-  }, [open, autoFollow, markedLineIndex, beforeFirstLyricMark, reducedMotion, centerStageLine])
+  }, [open, autoFollow, activeBreak, instrumentalAnchorIndex, lineCount, markedLineIndex, beforeFirstLyricMark, reducedMotion, centerStageLine])
 
   const seekFromStage = useCallback((seconds: number, lineIndex?: number) => {
     const targetSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
@@ -675,7 +850,7 @@ export function StageModePanel({
       const message = parseStageDisplayMessage(event.data, sessionId)
       if (!message) return
       if (message.type === 'ready') {
-        channel.postMessage({ type: 'state', sessionId, state: displayState })
+        channel.postMessage({ type: 'state', sessionId, state: displayStateRef.current })
         setDisplayStatus(displayPlacementRef.current === 'automatic' ? 'connected' : 'manual')
       } else if (message.type === 'closed') {
         setDisplayStatus('idle')
@@ -741,6 +916,7 @@ export function StageModePanel({
   function closeStage() {
     stageOpenRef.current = false
     setOpen(false)
+    setMoreOpen(false)
     setScrolling(false)
     closeSecondaryDisplay()
     if (ownsFullscreenRef.current && document.fullscreenElement) {
@@ -766,6 +942,36 @@ export function StageModePanel({
     }
   }
 
+  const pauseFollowForManualScroll = useCallback(() => {
+    if (!autoFollow) return
+    setAutoFollow(false)
+    setScrolling(false)
+    requestAnimationFrame(() => requestAnimationFrame(() => updateCursorFromManualScrollRef.current()))
+  }, [autoFollow])
+
+  const updateCursorFromManualScroll = useCallback(() => {
+    if (autoFollow) return
+    const container = scrollRef.current
+    if (!container) return
+    const center = container.getBoundingClientRect().top + container.clientHeight / 2
+    let nearestIndex = cursor
+    let nearestDistance = Number.POSITIVE_INFINITY
+    for (let index = 0; index < lineCount; index++) {
+      const line = lineRefs.current[index]
+      if (!line) continue
+      const bounds = line.getBoundingClientRect()
+      if (bounds.bottom <= container.getBoundingClientRect().top || bounds.top >= container.getBoundingClientRect().bottom) continue
+      const distance = Math.abs((bounds.top + bounds.bottom) / 2 - center)
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+        nearestIndex = index
+      }
+    }
+    measureLineDistances(nearestIndex)
+    setCursor((current) => current === nearestIndex ? current : nearestIndex)
+  }, [autoFollow, cursor, lineCount, measureLineDistances])
+  updateCursorFromManualScrollRef.current = updateCursorFromManualScroll
+
   function adjustFont(delta: number) {
     setFontSize(clamp(fontSize + delta, MIN_FONT, MAX_FONT))
   }
@@ -786,85 +992,83 @@ export function StageModePanel({
 
       {open ? createPortal((
         <div
-          style={brandTokens as CSSProperties}
-          className="fixed inset-0 z-[9999] flex h-[100dvh] w-[100dvw] min-h-0 flex-col isolate overflow-hidden bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--brand-primary)_22%,#101014)_0%,_#101014_45%,_#070709_100%)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-white"
+          style={{
+            ...brandTokens,
+            backgroundColor: '#0a0910',
+            backgroundImage: 'radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--brand-primary) 26%, #30264c), #17141f 48%, #09090d 100%)',
+          } as CSSProperties}
+          className="fixed inset-0 z-[9999] flex h-[100dvh] w-[100dvw] min-h-0 flex-col isolate overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-white"
           role="dialog"
           aria-modal="true"
           aria-label={stageTitle}
           data-testid="stage-mode"
         >
-          <div className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-black/20 px-4 py-2 sm:px-6">
-            <div className="mr-auto min-w-0">
-              <p className="truncate text-sm font-semibold text-white">{title}</p>
-              <p className="truncate text-xs text-white/65">{subtitle} · {stageTitle}</p>
+          <div className="relative flex flex-wrap items-center gap-2 border-b border-white/10 bg-black/15 px-4 py-2 sm:px-6">
+            <div className="mr-auto flex min-w-0 basis-full items-center gap-3 pr-12 sm:basis-auto sm:pr-0">
+              {hasAudio ? <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[radial-gradient(circle_at_35%_30%,color-mix(in_srgb,var(--brand-primary)_88%,white),color-mix(in_srgb,var(--brand-primary)_35%,#211735)_58%,#211735)] text-white shadow-sm"><AudioLines className="h-5 w-5" strokeWidth={1.6} /></span> : null}
+              <div className="min-w-0">
+                <p className="truncate text-base font-semibold text-white">{title}</p>
+                {stageHeaderSubtitle ? <p className="truncate text-xs text-white/65">{stageHeaderSubtitle}</p> : null}
+              </div>
             </div>
-            {!isWarmup ? (
+            <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-1 pb-1 sm:w-auto sm:flex-1 sm:justify-center sm:gap-2 sm:overflow-visible sm:pb-0 [&>button]:shrink-0">
+              {!isWarmup ? <>
+                <Button
+                  variant={showLyrics ? 'primary' : 'secondary'}
+                  size="sm"
+                  aria-pressed={showLyrics}
+                  data-testid="stage-lyrics-toggle"
+                  onClick={() => setShowLyrics(visible => !visible)}
+                >
+                  {t('stage.lyrics')}
+                </Button>
+                <Button
+                  variant={showChords ? 'primary' : 'secondary'}
+                  size="sm"
+                  aria-pressed={showChords}
+                  data-testid="stage-chords-toggle"
+                  onClick={() => setShowChords(visible => !visible)}
+                >
+                  <Music2 className="h-4 w-4" aria-hidden="true" />
+                  {t('stage.chords')}
+                </Button>
+              </> : null}
               <Button
-                variant={displayStatus === 'connected' ? 'primary' : 'secondary'}
+                variant="ghost"
                 size="sm"
-                onClick={displayStatus === 'connected' || displayStatus === 'manual' ? closeSecondaryDisplay : () => void openSecondaryDisplay()}
-                data-testid="stage-secondary-display"
+                className="h-11 w-9 px-0"
+                aria-label={t('stage.fontSmaller')}
+                data-testid="stage-font-down"
+                onClick={() => adjustFont(-4)}
               >
-                <MonitorUp className="h-4 w-4" aria-hidden="true" />
-                {displayStatus === 'connected' || displayStatus === 'manual' ? t('stage.closeDisplay') : t('stage.openDisplay')}
+                <Minus className="h-5 w-5" aria-hidden="true" />
               </Button>
-            ) : null}
-            {displayStatus !== 'idle' ? (
-              <span className="w-full text-right text-xs text-white/65 sm:order-1" role="status" data-testid="stage-display-status">
-                {displayStatus === 'opening' ? t('stage.displayOpening') : null}
-                {displayStatus === 'connected' ? t('stage.displayConnected') : null}
-                {displayStatus === 'manual' ? t('stage.displayManual') : null}
-                {displayStatus === 'unavailable' ? t('stage.displayUnavailable') : null}
-                {displayStatus === 'blocked' ? t('stage.displayBlocked') : null}
+              <span className="min-w-7 text-center text-sm tabular-nums" data-testid="stage-font-size">
+                {fontSize}
               </span>
-            ) : null}
-            {!isWarmup ? <Button
-              variant={showChords ? 'primary' : 'secondary'}
-              size="sm"
-              aria-pressed={showChords}
-              data-testid="stage-chords-toggle"
-              onClick={() => setShowChords((visible) => !visible)}
-            >
-              {showChords ? <Eye className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4" aria-hidden="true" />}
-              {showChords ? t('stage.hideChords') : t('stage.showChords')}
-            </Button> : null}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-11 w-11 px-0"
-              aria-label={t('stage.fontSmaller')}
-              data-testid="stage-font-down"
-              onClick={() => adjustFont(-4)}
-            >
-              <Minus className="h-5 w-5" aria-hidden="true" />
-            </Button>
-            <span className="min-w-10 text-center text-sm tabular-nums" data-testid="stage-font-size">
-              {fontSize}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-11 w-11 px-0"
-              aria-label={t('stage.fontLarger')}
-              data-testid="stage-font-up"
-              onClick={() => adjustFont(4)}
-            >
-              <Plus className="h-5 w-5" aria-hidden="true" />
-            </Button>
-
-            {!isWarmup && hasMarks ? (
               <Button
-                variant={autoFollow ? 'primary' : 'secondary'}
+                variant="ghost"
                 size="sm"
-                data-testid="stage-follow"
-                aria-pressed={autoFollow}
-                onClick={toggleScroll}
+                className="h-11 w-9 px-0"
+                aria-label={t('stage.fontLarger')}
+                data-testid="stage-font-up"
+                onClick={() => adjustFont(4)}
               >
-                {autoFollow ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
-                {autoFollow ? t('stage.followOn') : t('stage.followOff')}
+                <Plus className="h-5 w-5" aria-hidden="true" />
               </Button>
-            ) : !isWarmup ? (
-              <>
+
+              {!isWarmup && hasMarks ? (
+                <Button
+                  variant={autoFollow ? 'primary' : 'secondary'}
+                  size="sm"
+                  data-testid="stage-follow"
+                  aria-pressed={autoFollow}
+                  onClick={toggleScroll}
+                >
+                  <AudioLines className="h-4 w-4" aria-hidden="true" />
+                  {autoFollow ? t('stage.followOn') : t('stage.followOff')}
+                </Button>
+              ) : !isWarmup ? (
                 <Button
                   variant={scrolling ? 'primary' : 'secondary'}
                   size="sm"
@@ -875,24 +1079,61 @@ export function StageModePanel({
                   {scrolling ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
                   {scrolling ? t('stage.scrollPause') : t('stage.scrollPlay')}
                 </Button>
-                <label className="flex items-center gap-2 text-xs text-white/65">
-                  {t('stage.speed')}
-                  <input
-                    type="range"
-                    min={MIN_SPEED}
-                    max={MAX_SPEED}
-                    step={5}
-                    value={speed}
-                    aria-label={t('stage.speed')}
-                    onChange={(event) => setSpeed(clamp(Number(event.target.value) || MIN_SPEED, MIN_SPEED, MAX_SPEED))}
-                  />
-                </label>
-              </>
-            ) : null}
+              ) : null}
 
+              {!isWarmup ? <div ref={moreButtonRef} className="static shrink-0">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-11 w-11 px-0"
+                  aria-label={t('stage.moreOptions')}
+                  aria-expanded={moreOpen}
+                  data-testid="stage-more-options"
+                  onClick={() => setMoreOpen(open => !open)}
+                >
+                  <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+                </Button>
+                {moreOpen ? <div style={moreMenuPosition ?? { position: 'fixed', left: 0, top: 0, visibility: 'hidden' }} className="z-20 flex flex-col gap-2 rounded-xl border border-white/15 bg-[#101821] p-3 shadow-[0_12px_36px_rgba(0,0,0,.38)]">
+                  <Button
+                    variant={displayStatus === 'connected' ? 'primary' : 'secondary'}
+                    size="sm"
+                    className="justify-start"
+                    onClick={() => {
+                      if (displayStatus === 'connected' || displayStatus === 'manual') closeSecondaryDisplay()
+                      else void openSecondaryDisplay()
+                      setMoreOpen(false)
+                    }}
+                    data-testid="stage-secondary-display"
+                  >
+                    <MonitorUp className="h-4 w-4" aria-hidden="true" />
+                    {displayStatus === 'connected' || displayStatus === 'manual' ? t('stage.closeDisplay') : t('stage.openDisplay')}
+                  </Button>
+                  {!hasMarks ? <label className="flex items-center gap-3 px-2 py-1 text-xs text-white/75">
+                    {t('stage.speed')}
+                    <input
+                      type="range"
+                      min={MIN_SPEED}
+                      max={MAX_SPEED}
+                      step={5}
+                      value={speed}
+                      aria-label={t('stage.speed')}
+                      onChange={(event) => setSpeed(clamp(Number(event.target.value) || MIN_SPEED, MIN_SPEED, MAX_SPEED))}
+                      className="min-w-0 flex-1 accent-[var(--brand-primary)]"
+                    />
+                  </label> : null}
+                  {displayStatus !== 'idle' ? <span className="px-2 text-xs text-white/65" role="status" data-testid="stage-display-status">
+                    {displayStatus === 'opening' ? t('stage.displayOpening') : null}
+                    {displayStatus === 'connected' ? t('stage.displayConnected') : null}
+                    {displayStatus === 'manual' ? t('stage.displayManual') : null}
+                    {displayStatus === 'unavailable' ? t('stage.displayUnavailable') : null}
+                    {displayStatus === 'blocked' ? t('stage.displayBlocked') : null}
+                  </span> : null}
+                </div> : null}
+              </div> : null}
+            </div>
             <button
               type="button"
-              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-11 w-11 px-0')}
+              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'absolute right-3 top-2 h-11 w-11 px-0 sm:static')}
               ref={closeButtonRef}
               aria-label={t('stage.close')}
               data-testid="stage-close"
@@ -902,67 +1143,90 @@ export function StageModePanel({
             </button>
           </div>
 
-          <div
-            ref={scrollRef}
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-8 sm:px-10 sm:py-12"
-            style={{ fontSize: `${fontSize}px` }}
-            data-testid="stage-scroll"
-          >
-            <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col justify-center gap-y-4 text-left leading-snug sm:gap-y-6">
-              <div ref={topSpacerRef} aria-hidden="true" className="shrink-0" />
-              {stageContent ?? (lines
-                ? lines.map((line, index) => (
-                    <div
-                      key={index}
-                      ref={(node) => {
-                        lineRefs.current[index] = node
-                      }}
-                    >
-                      <StageLine
-                        line={line}
-                        hideChords={!showChords}
-                        index={index}
-                        active={autoFollow && activeIndex === index}
-                        focused={focusedIndex === index}
-                        wordMarks={autoFollow ? wordMarks : NO_WORD_MARKS}
-                        lineSeekMs={timingMarks.find((mark) => mark.lineIndex === index)?.atMs}
-                        wordFocus={activeWord?.lineIndex === index ? activeWord : null}
-                        completedWord={completedWord}
-                        onSeek={hasAudio ? lineSeekHandlers[index] : undefined}
-                      />
-                    </div>
-                  ))
-                : text.split('\n').map((lineText, index) => (
-                    <div
-                      key={index}
-                      ref={(node) => {
-                        lineRefs.current[index] = node
-                      }}
-                      data-stage-line={index}
-                      data-active-line={autoFollow && activeIndex === index ? 'true' : undefined}
-                      className={cn(
-                        'rounded-2xl px-4 py-3 leading-snug transition-colors duration-200 motion-reduce:transition-none',
-                        focusedIndex === index ? 'bg-white/10 font-semibold text-white ring-1 ring-white/20' : 'text-white/70',
-                      )}
-                    >
-                      {lineText.length > 0 ? lineText : '\u00A0'}
-                    </div>
-                )))}
-              {activeBreak && autoFollow ? (
-                <div className="mx-auto flex w-full max-w-sm items-center gap-3 rounded-full border border-white/15 bg-black/25 px-4 py-2 text-sm font-medium text-white/80" role="status" aria-live="off">
-                  <span className="shrink-0">{t('times.instrumentalLabel')}</span>
-                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/15">
-                    <span className="block h-full rounded-full bg-[var(--brand-primary)] transition-[width] duration-100 motion-reduce:transition-none" style={{ width: `${activeBreak.progress * 100}%` }} />
-                  </span>
-                </div>
-              ) : null}
-              <div ref={bottomSpacerRef} aria-hidden="true" className="shrink-0" />
+          <main className="flex min-h-0 flex-1 flex-col">
+            <div
+              ref={scrollRef}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-8 [mask-image:linear-gradient(to_bottom,transparent,black_9%,black_88%,transparent)] sm:px-12 sm:py-8 lg:px-10 xl:px-16"
+              style={{ fontSize: `${fontSize}px` }}
+              data-testid="stage-scroll"
+              onWheelCapture={pauseFollowForManualScroll}
+              onTouchMoveCapture={pauseFollowForManualScroll}
+              onScroll={updateCursorFromManualScroll}
+            >
+              <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col justify-center gap-y-6 text-left leading-snug sm:gap-y-9">
+                <div ref={topSpacerRef} aria-hidden="true" className="shrink-0" />
+                {stageContent ?? (lines
+                  ? lines.map((line, index) => (
+                      <div key={index}>
+                        {activeBreak && instrumentalAnchorIndex === index ? <InstrumentalCue progress={activeBreak.progress} /> : null}
+                        <div ref={(node) => {
+                          lineRefs.current[index] = node
+                        }}>
+                          <StageLine
+                          line={line}
+                          hideChords={!showChords}
+                          showLyrics={showLyrics}
+                          index={index}
+                          active={autoFollow && (activeIndexes.includes(index) || wordPresentation.active.some(word => word.lineIndex === index))}
+                          focused={autoFollow && (activeBreak || (hasMarks && beforeFirstLyricMark))
+                            ? false
+                            : ((!autoFollow || !hasMarks) ? focusedIndex === index : activeIndexes.includes(index) || wordPresentation.active.some(word => word.lineIndex === index))}
+                          distance={lineDistances[index] ?? index - focusedIndex}
+                          backing={isBackingVocalLine(line)}
+                          waitingForVocal={Boolean(activeBreak && instrumentalAnchorIndex === index)}
+                          wordMarks={wordsByLine.get(index) ?? NO_WORD_MARKS}
+                          lineSeekMs={timingMarks.find((mark) => mark.lineIndex === index)?.atMs}
+                          wordFocus={wordPresentation.active.find(word => word.lineIndex === index) ?? null}
+                          completedWord={completedWordsByLine.get(index) ?? null}
+                          onSeek={hasAudio ? lineSeekHandlers[index] : undefined}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  : text.split('\n').map((lineText, index) => (
+                      <div
+                        key={index}
+                        ref={(node) => {
+                          lineRefs.current[index] = node
+                        }}
+                        data-stage-line={index}
+                        data-active-line={autoFollow && activeIndex === index ? 'true' : undefined}
+                        className={cn(
+                          'rounded-2xl px-4 py-3 leading-snug transition-colors duration-200 motion-reduce:transition-none',
+                          focusedIndex === index ? 'bg-white/10 font-semibold text-white ring-1 ring-white/20' : 'text-white/70',
+                        )}
+                      >
+                        {lineText.length > 0 ? lineText : '\u00A0'}
+                      </div>
+                  )))}
+                {activeBreak && instrumentalAnchorIndex === lineCount ? <InstrumentalCue progress={activeBreak.progress} /> : null}
+                <div ref={bottomSpacerRef} aria-hidden="true" className="shrink-0" />
+              </div>
             </div>
-          </div>
+          </main>
 
-          <div className="border-t border-white/10 bg-black/25 px-4 py-3 sm:px-6">
+          <div className="border-t border-white/10 bg-black/20 px-4 py-3 sm:px-6">
+            {hasAudio ? (
+              <section aria-label={t('practice.audio.title')} className="mx-auto flex w-full max-w-5xl items-center gap-3 px-1 pb-2 sm:gap-5 sm:px-2">
+                <div aria-hidden="true" className="relative grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-[radial-gradient(circle_at_35%_30%,color-mix(in_srgb,var(--brand-primary)_88%,white),color-mix(in_srgb,var(--brand-primary)_35%,#211735)_58%,#211735)] text-white shadow-md sm:h-14 sm:w-14">
+                  <AudioLines className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold tracking-tight text-white sm:text-base">{title}</p>
+                  {subtitle.trim() !== title.trim() ? <p className="truncate text-xs text-white/65 sm:text-sm">{subtitle}</p> : null}
+                  <div className="mt-1 flex items-center gap-2 text-xs tabular-nums text-white/70 sm:gap-3">
+                    <span className="min-w-8 text-right">{formatTime(progress)}</span>
+                    <input type="range" min={0} max={duration > 0 ? duration : 1} step={0.1} value={Math.min(progress, duration || 1)} aria-label={t('stage.playbackPosition')} onChange={(event) => seekFromStage(Number(event.target.value))} className="stage-range h-9 min-w-0 flex-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary)]" style={{ '--range-progress': `${duration > 0 ? (progress / duration) * 100 : 0}%` } as CSSProperties} data-testid="stage-seek" />
+                    <span className="min-w-8">{formatTime(duration)}</span>
+                  </div>
+                </div>
+                <Button variant="primary" size="lg" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full p-0 shadow-md" aria-label={isPlaying ? t('player.pause') : t('player.play')} data-testid="stage-play-pause-desktop" onClick={onTogglePlayback}>
+                  {isPlaying ? <Pause className="h-5 w-5" aria-hidden="true" /> : <Play className="h-5 w-5" aria-hidden="true" />}
+                </Button>
+              </section>
+            ) : null}
             {stageControls ? <div className="mx-auto mb-3 w-full max-w-5xl">{stageControls}</div> : null}
-            {hasAudio ? <label className="mx-auto mb-3 flex w-full max-w-5xl items-center gap-3 text-sm text-white/75">
+            {hasAudio ? <label className="mx-auto mb-2 flex w-full max-w-5xl items-center gap-3 text-sm text-white/75">
               <Volume2 className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="sr-only">{t('player.volume')}</span>
               <input
@@ -973,7 +1237,8 @@ export function StageModePanel({
                 value={Math.round(clamp(volume, 0, 1) * 100)}
                 aria-label={t('player.volume')}
                 onChange={(event) => onVolumeChange(Number(event.target.value) / 100)}
-                className="h-11 min-w-0 flex-1 accent-[var(--brand-primary)]"
+                className="stage-range h-11 min-w-0 flex-1"
+                style={{ '--range-progress': `${Math.round(clamp(volume, 0, 1) * 100)}%` } as CSSProperties}
                 data-testid="stage-volume"
               />
               <input
@@ -987,37 +1252,15 @@ export function StageModePanel({
                   const next = Number(event.target.value)
                   if (Number.isFinite(next)) onVolumeChange(clamp(next, 0, 100) / 100)
                 }}
-                className="w-14 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-center tabular-nums text-white"
+                className="w-16 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-center tabular-nums text-white"
                 data-testid="stage-volume-value"
               />
               <span aria-hidden="true">%</span>
             </label> : null}
-            {hasAudio ? (
-              <div className="mx-auto mb-3 flex w-full max-w-5xl items-center gap-3">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="min-h-11 min-w-11 rounded-full"
-                  aria-label={isPlaying ? t('player.pause') : t('player.play')}
-                  data-testid="stage-play-pause"
-                  onClick={onTogglePlayback}
-                >
-                  {isPlaying ? <Pause className="h-5 w-5" aria-hidden="true" /> : <Play className="h-5 w-5" aria-hidden="true" />}
-                </Button>
-                <input
-                  type="range"
-                  min={0}
-                  max={duration > 0 ? duration : 1}
-                  step={0.1}
-                  value={Math.min(progress, duration || 1)}
-                  aria-label={t('stage.playbackPosition')}
-                  onChange={(event) => seekFromStage(Number(event.target.value))}
-                  className="h-11 min-w-0 flex-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary)]"
-                  style={{ accentColor: 'var(--brand-primary)' }}
-                  data-testid="stage-seek"
-                />
-                <span className="min-w-20 text-right text-xs tabular-nums text-white/70">{formatTime(progress)} / {formatTime(duration)}</span>
-              </div>
+            {hasAudio && playbackError ? (
+              <p role="alert" className="mx-auto mb-3 w-full max-w-5xl text-center text-sm text-rose-200" data-testid="stage-audio-error">
+                {playbackError === 'unsupported' ? t('player.unsupportedAudio') : t('player.playbackFailed')}
+              </p>
             ) : null}
             {!isWarmup ? (
               <div className="flex items-center justify-between gap-2">

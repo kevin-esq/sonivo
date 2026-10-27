@@ -1,7 +1,7 @@
 import { routes } from '../routing/routes'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ChevronRight, Paperclip } from 'lucide-react'
+import { ChevronRight, Paperclip, Pause, Play } from 'lucide-react'
 import {
   createArrangement,
   deleteSong,
@@ -20,6 +20,7 @@ import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
 import { safeExternalResourceUrl } from './resourceUrl'
 import { fieldClass } from '../ui/field'
+import { GroupButton, GroupDialog, GroupInput } from '../groups/ui'
 import {
   EmptyPanel,
   Field,
@@ -48,6 +49,8 @@ import { useGroupShell } from '../shell/GroupShellContext'
 
 import { SongContentGuide } from './SongContentGuide'
 import { RehearsalBodyView } from './ChordProView'
+import { useAudioPlayer } from './AudioPlayerContext'
+import { isPlayableAudioResource } from './pickPracticeAudio'
 
 type SongTab = 'lyrics' | 'chords' | 'notes' | 'files'
 
@@ -65,9 +68,12 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
   const [editing, setEditing] = useState(false)
   const [creatingArrangement, setCreatingArrangement] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [tab, setTab] = useState<SongTab>('lyrics')
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [pickedArrangementId, setPickedArrangementId] = useState<string | null>(null)
   const { t } = useT()
+  const audioPlayer = useAudioPlayer()
 
   const isOwner = canManageContentRole(group?.role)
 
@@ -106,9 +112,11 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
     try {
       await deleteSong(groupId, songId, target.version)
       setConfirmDelete(false)
+      setDeleteConfirmation('')
       navigate(routes.groupLibrary(groupId))
     } catch (err) {
       setConfirmDelete(false)
+      setDeleteConfirmation('')
       if (isConflictError(err)) {
         setConflict(t('common.errorConflict'))
         surface.reload()
@@ -157,7 +165,7 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
   const arrangementDetail = detail.data
   const deleteError = remove.error != null ? mutationErrorMessage(remove.error, t) : null
 
-  const showAddArrangement = isOwner && !creatingArrangement
+  const showAddArrangement = isOwner
 
   const arrangementCountLabel =
     song.arrangementCount === 0
@@ -183,10 +191,11 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
   }
 
   const resources: ResourceSummary[] = arrangementDetail?.resources ?? []
+  const showSongFacts = editing || Boolean(song.rightsNotes?.trim()) || resources.length > 0
 
   return (
     <section className="space-y-8" aria-labelledby="song-heading">
-      <header data-testid="song-hero" className="space-y-4 rounded-3xl border border-[var(--color-score-border)] bg-[var(--color-score-soft)] p-5 text-[var(--color-score-ink)] sm:p-8">
+      <header data-testid="song-hero" className="sonivo-score-header space-y-4">
         <PageBreadcrumb
           items={[
             { to: routes.group(group.id), label: group.name },
@@ -194,10 +203,10 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
             { label: song.title },
           ]}
         />
-        <div className="flex flex-wrap items-start gap-4">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
           <OriginMark kind={song.originKind} />
           <div className="min-w-0 flex-1 space-y-2">
-            <h1 id="song-heading" className="text-3xl font-bold tracking-tight text-[var(--color-score-ink)] sm:text-4xl">
+            <h1 id="song-heading" className="sonivo-page-title text-[var(--color-score-ink)]">
               {song.title}
             </h1>
             {song.attribution || !isOwner ? (
@@ -225,7 +234,7 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
             </div>
           </div>
           {isOwner && !editing ? (
-            <Button variant="secondary" onClick={() => setEditing(true)}>
+            <Button className="col-span-2 justify-self-end sm:col-span-1" variant="secondary" onClick={() => setEditing(true)}>
               {t('song.editSong')}
             </Button>
           ) : null}
@@ -236,15 +245,15 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
       <ConflictAlert message={conflict} />
       <SongContentGuide />
 
-      <div className={cn('grid gap-8 lg:items-start', editing ? 'grid-cols-1' : 'lg:grid-cols-[minmax(0,1fr)_20rem]')}>
-        <div className="space-y-8">
+      <div className={cn('grid gap-8 lg:items-start', showSongFacts ? 'lg:grid-cols-[minmax(0,1fr)_20rem]' : 'grid-cols-1')}>
+        <div className={cn('grid gap-4 lg:items-start', editing ? 'grid-cols-1' : 'lg:grid-cols-[minmax(0,1.35fr)_minmax(16rem,1fr)]')}>
           {/* W-F: arrangement content tabs (lyrics / chords / notes / files). */}
-          <section className="space-y-4" aria-label={t('song.tabsLabel')}>
+          <section className="order-last space-y-4 lg:order-none" aria-label={t('song.tabsLabel')}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div
                 role="tablist"
                 aria-label={t('song.tabsLabel')}
-                className="grid w-full grid-cols-2 gap-1 rounded-xl bg-surface-hover p-1 sm:w-auto sm:grid-cols-4"
+                className="grid w-full flex-1 grid-cols-2 gap-1 rounded-xl bg-surface-hover p-1 sm:grid-cols-4"
               >
                 {SONG_TABS.map((option) => (
                   <button
@@ -254,13 +263,30 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
                     id={`song-tab-${option.id}`}
                     aria-selected={tab === option.id}
                     aria-controls={`song-panel-${option.id}`}
+                    aria-setsize={SONG_TABS.length}
+                    aria-posinset={SONG_TABS.findIndex((item) => item.id === option.id) + 1}
+                    tabIndex={tab === option.id ? 0 : -1}
                     data-testid={`song-tab-${option.id}`}
+                    data-tab-surface="score"
+                    ref={(element) => { tabRefs.current[SONG_TABS.findIndex((item) => item.id === option.id)] = element }}
                     onClick={() => setTab(option.id)}
+                    onKeyDown={(event) => {
+                      const currentIndex = SONG_TABS.findIndex((item) => item.id === option.id)
+                      let nextIndex: number | null = null
+                      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % SONG_TABS.length
+                      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + SONG_TABS.length) % SONG_TABS.length
+                      if (event.key === 'Home') nextIndex = 0
+                      if (event.key === 'End') nextIndex = SONG_TABS.length - 1
+                      if (nextIndex === null) return
+                      event.preventDefault()
+                      const nextTab = SONG_TABS[nextIndex]
+                      if (!nextTab) return
+                      setTab(nextTab.id)
+                      tabRefs.current[nextIndex]?.focus()
+                    }}
                     className={cn(
-                      'min-h-11 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-                      tab === option.id
-                        ? 'bg-surface text-ink shadow-sm'
-                        : 'text-muted hover:text-ink',
+                      'sonivo-tab-trigger',
+                      tab === option.id ? '' : 'text-muted hover:text-ink',
                     )}
                   >
                     {t(option.labelKey)}
@@ -321,17 +347,30 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
                           </span>
                         </>
                       )
-                      const className =
-                        'flex min-h-11 items-center gap-3 rounded-xl border border-border-subtle px-3 py-2 no-underline hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+                      const playable = isPlayableAudioResource(resource) && Boolean(href)
+                      const isCurrentTrack = audioPlayer.currentTrack?.id === resource.id
+                      const playResource = () => {
+                        if (!href || !playable) return
+                        if (isCurrentTrack) {
+                          audioPlayer.togglePlay()
+                        } else {
+                          audioPlayer.playTrack({ id: resource.id, title: resource.label, artist: song.attribution ?? undefined, url: href })
+                        }
+                      }
                       return (
-                        <li key={resource.id}>
+                        <li key={resource.id} className="flex items-center gap-2">
                           {href ? (
-                            <a className={className} href={href} target="_blank" rel="noopener noreferrer">
+                            <a className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-xl border border-border-subtle px-3 py-2 no-underline hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href={href} target="_blank" rel="noopener noreferrer">
                               {content}
                             </a>
                           ) : (
-                            <div className={className} aria-disabled="true">{content}</div>
+                            <div className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-xl border border-border-subtle px-3 py-2" aria-disabled="true">{content}</div>
                           )}
+                          {playable ? (
+                            <Button variant="secondary" aria-label={t(isCurrentTrack && audioPlayer.isPlaying ? 'player.pauseTrack' : 'player.playTrack', { title: resource.label })} onClick={playResource}>
+                              {isCurrentTrack && audioPlayer.isPlaying ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
+                            </Button>
+                          ) : null}
                         </li>
                       )
                     })}
@@ -362,7 +401,7 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
             ) : null}
           </section>
 
-          <section className="space-y-4" aria-labelledby="arrangements-heading">
+          <section className="order-first space-y-4 lg:order-none" aria-labelledby="arrangements-heading">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 id="arrangements-heading" className="text-lg font-semibold">
                 {t('song.arrangementsTitle')}
@@ -375,7 +414,7 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
               {t('song.arrangementsHint')}
             </p>
 
-            {arrangements.length === 0 && !creatingArrangement ? (
+            {arrangements.length === 0 ? (
               <EmptyPanel
                 title={t('song.noArrangementsTitle')}
                 description={t('song.noArrangementsBody')}
@@ -438,7 +477,7 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
           </section>
         </div>
 
-        {editing || song.rightsNotes?.trim() || resources.length > 0 ? <aside
+        {showSongFacts ? <aside
           data-testid="song-facts"
           className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-5"
         >
@@ -507,6 +546,7 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
               </ul>
             )}
           </div> : null}
+
         </aside> : null}
       </div>
 
@@ -514,12 +554,13 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
         <section
           aria-labelledby="song-danger-heading"
           data-testid="danger-zone"
-          className="space-y-3 rounded-2xl border border-error/40 bg-error/5 p-5"
+          className="space-y-4 rounded-2xl border border-error/50 bg-error/5 p-5 sm:p-6"
         >
           <h2 id="song-danger-heading" className="text-lg font-semibold text-error-ink">
             {t('common.dangerZone')}
           </h2>
-          <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+          <p className="max-w-2xl text-sm text-muted">{t('song.deleteZoneHint')}</p>
+          <Button variant="danger" onClick={() => { setDeleteConfirmation(''); setConfirmDelete(true) }}>
             {t('song.deleteSong')}
           </Button>
         </section>
@@ -532,12 +573,24 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
         cancelLabel={t('song.cancel')}
         pendingLabel={t('song.deleting')}
         pending={remove.pending}
-        onCancel={() => setConfirmDelete(false)}
-        onConfirm={() => void remove.run()}
+        confirmDisabled={deleteConfirmation !== song.title}
+        onCancel={() => { setConfirmDelete(false); setDeleteConfirmation('') }}
+        onConfirm={() => { if (deleteConfirmation === song.title) void remove.run() }}
       >
-        <p>
-          {t('song.deleteBody')}
-        </p>
+        <p>{t('song.deleteBody')}</p>
+        <p>{t('song.deleteConfirmInstruction', { title: song.title })}</p>
+        <label className="block space-y-1 text-sm font-medium text-ink" htmlFor="delete-song-confirmation">
+          <span>{t('song.deleteConfirmLabel')}</span>
+          <input
+            id="delete-song-confirmation"
+            className={fieldClass}
+            value={deleteConfirmation}
+            onChange={(event) => setDeleteConfirmation(event.target.value)}
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+          />
+        </label>
       </ConfirmDialog>
     </section>
   )
@@ -691,48 +744,50 @@ function ArrangementCreateForm({
   }
 
   return (
-    <form className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-4 sm:p-5" onSubmit={onSubmit} noValidate>
-      <div className="space-y-1">
-        <h3 className="font-semibold">{t('song.createArrangement')}</h3>
-        <p className="text-sm leading-6 text-muted">{t('song.createArrangementHint')}</p>
-      </div>
-      <ProblemAlert message={error} />
-      <Field label={t('song.labelLabel')}>
-        <input
-          className={fieldClass}
-          required
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          maxLength={200}
-        />
-      </Field>
-      <Field label={t('song.keyLabel')}>
-        <input
-          className={fieldClass}
-          value={defaultKey}
-          onChange={(e) => setDefaultKey(e.target.value)}
-          maxLength={32}
-        />
-      </Field>
-      <Field label={t('song.bpmLabel')}>
-        <input
-          className={fieldClass}
-          type="number"
-          min={1}
-          max={400}
-          inputMode="numeric"
-          value={defaultBpm}
-          onChange={(e) => setDefaultBpm(e.target.value)}
-        />
-      </Field>
-      <FormActions>
-        <Button type="submit" disabled={pending}>
-          {pending ? t('song.creating') : t('song.createArrangement')}
-        </Button>
-        <Button variant="secondary" disabled={pending} onClick={onCancel}>
-          {t('song.cancel')}
-        </Button>
-      </FormActions>
-    </form>
+    <GroupDialog
+      open
+      onClose={onCancel}
+      title={t('song.createArrangement')}
+      description={t('song.createArrangementHint')}
+      pending={pending}
+      testId="arrangement-create-dialog"
+      size="sm"
+      onSubmit={onSubmit}
+      footer={
+        <>
+          <GroupButton variant="secondary" onClick={onCancel} disabled={pending}>
+            {t('song.cancel')}
+          </GroupButton>
+          <GroupButton type="submit" disabled={pending || !label.trim()}>
+            {pending ? t('song.creating') : t('song.createArrangement')}
+          </GroupButton>
+        </>
+      }
+    >
+      {error ? <p role="alert" className="text-sm text-error-ink">{error}</p> : null}
+      <GroupInput
+        label={t('song.labelLabel')}
+        value={label}
+        onChange={(event) => setLabel(event.target.value)}
+        required
+        maxLength={200}
+        data-autofocus
+      />
+      <GroupInput
+        label={t('song.keyLabel')}
+        value={defaultKey}
+        onChange={(event) => setDefaultKey(event.target.value)}
+        maxLength={32}
+      />
+      <GroupInput
+        label={t('song.bpmLabel')}
+        type="number"
+        min={1}
+        max={400}
+        inputMode="numeric"
+        value={defaultBpm}
+        onChange={(event) => setDefaultBpm(event.target.value)}
+      />
+    </GroupDialog>
   )
 }
