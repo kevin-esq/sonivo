@@ -77,11 +77,11 @@ test.describe('Library journeys', () => {
     await dialog.getByRole('link', { name: 'Abrir canción' }).click()
 
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
-    await page.getByRole('button', { name: 'Cambiar versión' }).click()
+    await page.getByRole('button', { name: /(?:Cambiar|Elegir) versión/ }).click()
     const versionPicker = page.getByTestId('song-arrangement-picker')
     await expect(versionPicker.getByRole('button', { name: /Barítono/ })).toBeVisible()
     await versionPicker.getByRole('button', { name: /Barítono/ }).click()
-    await expect(page.getByText('Barítono', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Barítono' })).toBeVisible()
   })
 
   test('TC-LIB-05 dirty song wizard asks before discarding its draft', async ({ page }) => {

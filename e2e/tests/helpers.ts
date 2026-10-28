@@ -90,7 +90,12 @@ export async function createGroup(page: Page, name: string) {
 
 export async function openLibrary(page: Page) {
   await page.getByTestId('group-rail').getByRole('link', { name: 'Canciones', exact: true }).click()
+  // Wait for Next to commit the catch-all Group route before treating the
+  // library as ready. The shell can retain matching labels while navigation
+  // is still in flight, which otherwise lets modal flows race a route change.
+  await expect(page).toHaveURL(/\/library(?:[?#]|$)/)
   await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
+  await expect(page.getByTestId('library-hero')).toBeVisible()
 }
 
 /**

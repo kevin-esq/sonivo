@@ -6,12 +6,14 @@
 **Branch:** `feature/song-library-ux-redesign`, rebased onto `develop` at `1b996c0`.
 **Implementation:** COMPLETE for the approved Song library, detail, multiversion creation, Arrangement editing, lyrics/chords, Resources, and Practice scope. Storybook stories and the local song redesign prototype are included.
 **Human approval:** APPROVED; the user explicitly authorized commit, push, and PR creation when the planned scope was complete.
-**Git checkpoint:** COMMITTED as `1e8939c` (`feat(repertoire): redesign song and arrangement workflows`).
+**Git checkpoint:** COMMITTED as `529a2ea` (`fix(repertoire): align journeys with redesigned song flows`); original redesign remains committed as `1e8939c`.
 **Remote:** PUSHED to `origin/feature/song-library-ux-redesign`; [PR #305](https://github.com/kevin-esq/sonivo/pull/305) is open against `develop`.
-**CI:** RUNNING on PR #305; Analyze, Backend build & tests, Frontend build, and SCA were pending at the latest check.
-**Validation:** `.NET Release` 859 passed before rebase; Next production build passed after rebase; `git diff --check` passed. Playwright ChordPro formats passed 4/4 after updating the import-mode selector. A broader targeted run was not clean (10 passed, 11 failed); it exposed stale selectors, unstable wizard transitions, and local Next server exit. A development-server retry timed out in TC-LIB-07. Storybook generated the static bundle but its Node 24 process ended with Windows native error `3221226505`, so Storybook build is not marked passed.
+**CI:** FAILING only in Playwright E2E (106 passed, 2 skipped, 12 failed); backend, frontend, CodeQL, SCA, and Analyze passed on head `025e18b`.
+**CI follow-up:** Updated stale journey expectations to match progressive disclosure, draft-then-save lyrics editing, the version chooser, and current localized copy. Fixed Stage mode so second-screen status remains visible after the options menu closes. No API or domain contracts changed.
+**Validation:** Next production build passed locally, including TypeScript checks. Targeted Playwright passed: TC-LIB-07/05, TC-LIB-08, TC-PLAY-SYNC-01, W2 readiness/resources, W7 hierarchy, W18 LRC import/export, and W19 stage mode. The rich-lyrics and W-F detail runs could not complete locally because the local API did not create their test Group; CI had previously reached those journeys. Digitizer journeys were not rerun locally because their transcription job is long-running. `git diff --check` passed.
+**Open gate:** Push the CI follow-up, then review the new full Playwright result. Do not merge until all CI checks pass. No merge was performed.
 **Penpot:** remote OAuth registration did not complete (HTTP 405); the connection is not functional and no token was added to repository files.
-**Open gate:** Review all PR CI and resolve failures before merge. No merge was performed.
+
 
 ## T-UX-SIDEBAR — Gmail-style desktop navigation
 

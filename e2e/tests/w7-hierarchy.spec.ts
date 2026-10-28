@@ -53,8 +53,8 @@ test.describe('W7 hierarchy: one header per screen', () => {
     await createArrangement(page, arrangementLabel)
     await page.getByRole('link', { name: songTitle }).first().click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
-    await expect(page.getByTestId('song-readiness')).toContainText('1 arreglo')
-    await expect(page.getByText('1 arreglo', { exact: true })).toHaveCount(1)
+    await expect(page.getByTestId('song-readiness')).toContainText('1 versión')
+    await expect(page.getByText('1 versión', { exact: true })).toHaveCount(1)
 
     // 4. Plural: a setlist with one arrangement reads "1 arreglo", never "1 arreglos".
     await openSetlists(page)

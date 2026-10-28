@@ -239,8 +239,11 @@ test.describe('Practice / karaoke thin', () => {
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
     await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await selectArrangementEditorMode(page, 'chords')
+    const chordSource = page.getByTestId('arrangement-chords')
+    await page.locator('details').filter({ has: chordSource }).locator('summary').click()
     // Verify chords field has content (3 lines)
-    await expect(page.getByTestId('arrangement-chords')).toHaveValue(chordProBody)
+    await expect(chordSource).toHaveValue(chordProBody)
 
     await selectArrangementEditorMode(page, 'timing')
 

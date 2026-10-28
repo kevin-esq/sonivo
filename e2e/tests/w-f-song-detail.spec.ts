@@ -37,20 +37,21 @@ test.describe('W-F song detail', () => {
     // Back to the song detail via the breadcrumb.
     await page.getByRole('link', { name: songTitle }).first().click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
-    const firstVersion = page.getByTestId(/^song-arrangement-select-/).filter({ hasText: arrangementLabel })
-    await expect(firstVersion).toContainText('G')
-    await expect(firstVersion).toContainText('68 BPM')
+    // A single version is shown directly; the chooser appears only when there
+    // is a real choice to make.
+    await expect(page.getByText(/Tono: G.*Tempo: 68/)).toBeVisible()
 
     const secondArrangementLabel = `W-F Acoustic ${stamp}`
     await createArrangement(page, secondArrangementLabel, { lyrics: 'Otra forma de preparar esta canción' })
     await page.getByRole('link', { name: songTitle }).first().click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
 
+    await page.getByRole('button', { name: /(?:Cambiar|Elegir) versión/ }).click()
     const versionChoice = page.getByRole('button', { name: `Consultar materiales de ${arrangementLabel}` })
     const secondVersionChoice = page.getByRole('button', { name: `Consultar materiales de ${secondArrangementLabel}` })
     await expect(versionChoice).toHaveAttribute('aria-pressed', 'false')
     await versionChoice.click()
-    await expect(versionChoice).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByTestId('song-arrangement-picker')).toBeHidden()
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
 
     // Tabs: Letra / Acordes / Notas / Archivos.
@@ -66,11 +67,13 @@ test.describe('W-F song detail', () => {
     await page.getByTestId('song-tab-files').click()
     await expect(page.getByTestId('song-tabpanel')).toContainText(`W-F Guia ${stamp}`)
 
+    await page.getByRole('button', { name: /(?:Cambiar|Elegir) versión/ }).click()
+    await expect(versionChoice).toHaveAttribute('aria-pressed', 'true')
     await secondVersionChoice.click()
-    await expect(secondVersionChoice).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByTestId('song-arrangement-picker')).toBeHidden()
     await expect(page.getByRole('heading', { name: secondArrangementLabel })).toBeVisible()
     await page.getByTestId('song-tab-lyrics').click()
     await expect(page.getByTestId('song-tabpanel')).toContainText('Otra forma de preparar esta canción')
-    await expect(page.getByRole('link', { name: 'Abrir versión' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Editar materiales' })).toBeVisible()
   })
 })

@@ -47,7 +47,9 @@ test.describe('Audio digitizer thin (Whisper)', () => {
       purpose: 'audio',
     })
 
-    // Owner-only digitizer surface is visible; members never see drafts (server is Owner-only too).
+    // Advanced audio tools are deliberately disclosed on demand; members
+    // never see drafts (the API is Owner-only too).
+    await page.locator('details').filter({ has: page.getByTestId('audio-digitizer') }).locator('summary').click()
     await expect(page.getByTestId('audio-digitizer')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Digitalizar audio' })).toBeVisible()
 
@@ -104,6 +106,7 @@ test.describe('Audio digitizer thin (Whisper)', () => {
       purpose: 'audio',
     })
 
+    await page.locator('details').filter({ has: page.getByTestId('audio-digitizer') }).locator('summary').click()
     await expect(page.getByTestId('audio-digitizer')).toBeVisible()
     await page.getByTestId('digitize-start').click()
 
