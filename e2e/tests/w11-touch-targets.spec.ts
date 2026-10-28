@@ -17,7 +17,9 @@ async function box(locator: Locator): Promise<{ w: number; h: number }> {
 
 async function expectMinAxis(locator: Locator, min: number, label: string) {
   const { w, h } = await box(locator)
-  expect(Math.min(w, h), `${label} is ${Math.round(w)}x${Math.round(h)}`).toBeGreaterThanOrEqual(min)
+  // getBoundingClientRect can report a subpixel rounding delta for exact CSS
+  // sizes (for example, 43.999969px for a 44px control).
+  expect(Math.min(w, h), `${label} is ${w.toFixed(3)}x${h.toFixed(3)}`).toBeGreaterThanOrEqual(min - 0.001)
 }
 
 const INTERACTIVE = [
