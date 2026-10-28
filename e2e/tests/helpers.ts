@@ -73,6 +73,7 @@ export async function logout(page: Page) {
   // shell does, so navigate there before signing out.
   await page.goto('/account')
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
+  await page.getByRole('dialog', { name: '¿Quieres cerrar sesión?' }).getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
 }
 

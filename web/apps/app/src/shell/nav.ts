@@ -83,22 +83,5 @@ export const groupNavSections: GroupNavSection[] = [
 
 export const groupNavItems: GroupNavItem[] = groupNavSections.flatMap((section) => section.items)
 
-/**
- * Primary mobile destinations (approved 2026-10-05): Home, Songs,
- * Events, Tasks. Picked for the four highest-frequency tasks so the bottom
- * bar carries four real tabs (the previous list resolved to three, leaving a
- * dead 5th column in a `grid-cols-5`).
- */
-const MOBILE_TAB_IDS = ['home', 'songs', 'events', 'tasks'] as const
-
-export const mobileTabItems: GroupNavItem[] = MOBILE_TAB_IDS
-  .map((id) => groupNavItems.find((item) => item.id === id))
-  .filter((item): item is GroupNavItem => Boolean(item))
-
-/**
- * Everything else lives in the single "More" sheet (nav.ts), plus Settings which
- * the workspace appends. Keeps full parity with the desktop rail.
- */
-export const mobileMoreItems = groupNavItems.filter(
-  (item) => !(MOBILE_TAB_IDS as readonly string[]).includes(item.id),
-)
+export const mobileQuickItems = ['home', 'songs', 'setlists', 'events', 'tasks', 'people', 'resources']
+  .flatMap((id) => groupNavItems.filter((item) => item.id === id))

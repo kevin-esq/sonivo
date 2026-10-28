@@ -1,0 +1,109 @@
+/* The slot follows only the saved preference; the surface can reveal over the page. */
+.desktop-sidebar-slot {
+  --sidebar-width: 16rem;
+  --sidebar-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  flex-shrink: 0;
+  width: 4.5rem;
+  height: 100%;
+  z-index: 40;
+  transition: width 320ms var(--sidebar-ease);
+}
+
+.desktop-sidebar-slot[data-pinned='true'] { width: var(--sidebar-width); }
+.desktop-sidebar-slot[data-pinned='false'] { transition-duration: 200ms; }
+.desktop-sidebar-slot--group { --sidebar-width: 15rem; }
+
+.desktop-sidebar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  width: 4.5rem;
+  overflow: hidden;
+  transition: width 320ms var(--sidebar-ease), box-shadow 240ms ease-out;
+}
+.desktop-sidebar[data-collapsed='true'] { transition-duration: 200ms, 180ms; }
+
+.desktop-sidebar > nav { padding-top: 1rem; }
+
+.desktop-sidebar[data-collapsed='false'] { width: var(--sidebar-width); }
+.desktop-sidebar[data-pinned='false'][data-collapsed='false'] {
+  border-radius: 0 1rem 1rem 0;
+  box-shadow: 8px 0 28px -12px var(--color-shell-border);
+}
+
+/* Keep icons and rows anchored as their labels are revealed. */
+.desktop-sidebar > * { width: var(--sidebar-width); }
+.desktop-sidebar__label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 1;
+  transform: translateX(0);
+  clip-path: inset(0);
+  transition:
+    opacity 200ms var(--sidebar-ease) var(--sidebar-reveal-delay, 50ms),
+    transform 320ms var(--sidebar-ease) var(--sidebar-reveal-delay, 50ms),
+    clip-path 320ms var(--sidebar-ease) var(--sidebar-reveal-delay, 50ms);
+}
+.desktop-sidebar[data-collapsed='true'] .desktop-sidebar__label {
+  opacity: 0;
+  transform: translateX(-6px);
+  clip-path: inset(0 100% 0 0);
+  pointer-events: none;
+  transition-duration: 90ms, 150ms, 150ms;
+  transition-delay: 0ms;
+}
+/* Reveal each category just behind the opening edge, keeping every icon anchored. */
+.desktop-sidebar nav > div:nth-child(1) { --sidebar-reveal-delay: 40ms; }
+.desktop-sidebar nav > div:nth-child(2) { --sidebar-reveal-delay: 55ms; }
+.desktop-sidebar nav > div:nth-child(3) { --sidebar-reveal-delay: 70ms; }
+.desktop-sidebar nav > div:nth-child(4) { --sidebar-reveal-delay: 85ms; }
+.desktop-sidebar nav > div:nth-child(5) { --sidebar-reveal-delay: 100ms; }
+.desktop-sidebar nav a,
+.desktop-sidebar__footer > a,
+.desktop-sidebar__footer > button {
+  gap: 1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: calc(var(--sidebar-width) - 1.5rem);
+  overflow: hidden;
+  transition: width 320ms var(--sidebar-ease), background-color 150ms ease-out;
+}
+.desktop-sidebar[data-collapsed='true'] nav a,
+.desktop-sidebar[data-collapsed='true'] .desktop-sidebar__footer > a,
+.desktop-sidebar[data-collapsed='true'] .desktop-sidebar__footer > button {
+  width: 3rem;
+  transition-duration: 200ms, 150ms;
+}
+.desktop-sidebar__footer > a[data-testid='nav-user-card'] { padding-left: 0.5rem; }
+.desktop-sidebar__heading { height: 1.75rem; }
+.desktop-sidebar__section-short {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 140ms ease-out;
+}
+.desktop-sidebar[data-collapsed='true'] .desktop-sidebar__section-short {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 100ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-sidebar-slot, .desktop-sidebar, .desktop-sidebar__label, .desktop-sidebar__section-short,
+  .desktop-sidebar nav a, .desktop-sidebar__footer > a,
+  .desktop-sidebar__footer > button { transition: none; }
+  .desktop-sidebar__label { transform: none; }
+}
+
+.shell-focus-backdrop { animation: shell-focus-enter 160ms ease-out both; }
+@keyframes shell-focus-enter { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .shell-focus-backdrop { animation: none; backdrop-filter: none; }
+}
+
+/* Focus layers begin below the complete header, including the mobile quick/search row. */
+.app-shell-header, .group-shell-header { --shell-header-height: 7.75rem; }
+@media (min-width: 768px) { .group-shell-header { --shell-header-height: 4rem; } }
+@media (min-width: 1024px) { .app-shell-header { --shell-header-height: 4rem; } }

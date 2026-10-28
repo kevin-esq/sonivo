@@ -8,7 +8,7 @@ test.describe('Group journeys', () => {
     await register(page, email)
 
     await createGroup(page, groupName)
-    await expect(page.getByTestId('group-rail').getByText('Organizador', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('rail-brand').getByText('Organizador', { exact: true })).toBeVisible()
     await expect(page.getByRole('main').getByRole('heading', { name: groupName })).toBeVisible()
 
     await page.goto('/groups')

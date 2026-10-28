@@ -5,6 +5,7 @@ import {
   CreditCard,
   Home,
   Settings,
+  ShieldCheck,
   UserPlus,
   UserRound,
   Users,
@@ -22,7 +23,7 @@ export type SidebarItem = {
 
 export type SidebarSection = {
   id: string;
-  /** Visible section label; the first (principal) group has none. */
+  /** Localized section title; optional for unlabeled navigation groups. */
   labelKey?: I18nKey;
   items: SidebarItem[];
 };
@@ -60,16 +61,22 @@ export const sidebarSections: SidebarSection[] = [
         end: true,
       },
       {
-        id: "notifications",
-        labelKey: "sidebar.notifications",
-        icon: Bell,
-        to: routes.accountNotifications,
+        id: "security",
+        labelKey: "account.security",
+        icon: ShieldCheck,
+        to: routes.accountSecurity,
       },
       {
         id: "preferences",
         labelKey: "sidebar.preferences",
         icon: Settings,
         to: routes.accountPreferences,
+      },
+      {
+        id: "notifications",
+        labelKey: "sidebar.notifications",
+        icon: Bell,
+        to: routes.accountNotifications,
       },
       {
         id: "membership",

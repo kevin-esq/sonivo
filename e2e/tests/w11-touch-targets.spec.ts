@@ -79,13 +79,15 @@ test.describe('W11 touch targets', () => {
     await expectMinAxis(page.getByTestId('rail-settings'), 44, 'rail settings')
     await expectMinAxis(page.getByTestId('rail-brand'), 44, 'brand lockup')
 
-    // Mobile: bottom tab bar + top-bar account/sign-out controls.
+    // Mobile: quick navigation and header actions.
     await page.setViewportSize({ width: 390, height: 844 })
-    const tabbar = page.getByTestId('mobile-tabbar')
+    const tabbar = page.getByTestId('mobile-section-nav')
     await expect(tabbar).toBeVisible()
     for (const link of await tabbar.getByRole('link').all()) {
       await expectMinAxis(link, 44, `tab ${(await link.textContent()) ?? ''}`)
     }
+
+    await expectMinAxis(page.getByTestId('mobile-more').locator('summary'), 44, 'mobile More menu')
 
     // Hard WCAG 2.2 AA floor: nothing interactive below 24x24 on this screen.
     const offenders = await subTargetOffenders(page, 24)

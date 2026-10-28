@@ -7,6 +7,7 @@ import { Search, Users } from "lucide-react";
 import { listMyGroups, type GroupSummary } from "../api/client";
 import { useT } from "../i18n";
 import { cn } from "../ui/cn";
+import { FocusBackdrop } from "./FocusBackdrop";
 
 /** Shared handle so other surfaces can focus the top-bar search. */
 export const GLOBAL_SEARCH_INPUT_ID = "global-search";
@@ -21,20 +22,22 @@ type SearchResult = {
  * Groups-only search (ADR-0053 addendum): filters the already-loaded groups.
  * No songs/events/people search in this phase.
  */
-export function GlobalSearch({ navigationMode = 'legacy' }: { navigationMode?: 'legacy' | 'next' }) {
-  return navigationMode === 'next' ? <NextGlobalSearch /> : <LegacyGlobalSearch />
+type SearchFocusProps = { onFocusChange?: (focused: boolean) => void }
+
+export function GlobalSearch({ navigationMode = 'legacy', onFocusChange }: { navigationMode?: 'legacy' | 'next' } & SearchFocusProps) {
+  return navigationMode === 'next' ? <NextGlobalSearch onFocusChange={onFocusChange} /> : <LegacyGlobalSearch onFocusChange={onFocusChange} />
 }
 
-function LegacyGlobalSearch() {
+function LegacyGlobalSearch({ onFocusChange }: SearchFocusProps) {
   const navigate = useNavigate()
-  return <GlobalSearchView navigate={navigate} />
+  return <GlobalSearchView navigate={navigate} onFocusChange={onFocusChange} />
 }
 
-function NextGlobalSearch() {
-  return <GlobalSearchView navigate={(to) => window.location.assign(to)} />
+function NextGlobalSearch({ onFocusChange }: SearchFocusProps) {
+  return <GlobalSearchView navigate={(to) => window.location.assign(to)} onFocusChange={onFocusChange} />
 }
 
-function GlobalSearchView({ navigate }: { navigate: (to: string) => void }) {
+function GlobalSearchView({ navigate, onFocusChange }: { navigate: (to: string) => void } & SearchFocusProps) {
   const { t } = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,6 +85,7 @@ function GlobalSearchView({ navigate }: { navigate: (to: string) => void }) {
   function choose(result: SearchResult) {
     setOpen(false);
     setQuery("");
+    onFocusChange?.(false);
     navigate(result.to);
   }
 
@@ -106,7 +110,11 @@ function GlobalSearchView({ navigate }: { navigate: (to: string) => void }) {
   const showPanel = open && query.trim().length > 0;
 
   return (
-    <div ref={wrapRef} className="relative w-full">
+    <>
+    {open ? <FocusBackdrop testId="search-backdrop" onDismiss={() => { setOpen(false); inputRef.current?.blur(); onFocusChange?.(false); }} /> : null}
+    <div ref={wrapRef} className="relative z-20 w-full" onBlurCapture={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) { setOpen(false); onFocusChange?.(false); }
+    }}>
       <label htmlFor={GLOBAL_SEARCH_INPUT_ID} className="sr-only">
         {t("app.searchLabel")}
       </label>
@@ -131,7 +139,7 @@ function GlobalSearchView({ navigate }: { navigate: (to: string) => void }) {
           setActive(0);
           setOpen(true);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => { setOpen(true); onFocusChange?.(true); }}
         onKeyDown={onKeyDown}
       />
       {showPanel ? (
@@ -167,5 +175,6 @@ function GlobalSearchView({ navigate }: { navigate: (to: string) => void }) {
         </div>
       ) : null}
     </div>
+    </>
   );
 }
