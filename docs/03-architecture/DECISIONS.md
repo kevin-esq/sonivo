@@ -6,12 +6,12 @@ Architecture Decision Records.
 
 Only **ACCEPTED** ADRs bind implementation. Newest first.
 
-## ADR-0105 — List-first Song library presentation
+## ADR-0106 — List-first Song library presentation
 
 - **Status:** **ACCEPTED** — owner selected Storybook proposal C and explicitly authorized applying it to the product on 2026-10-27.
 - **Date:** 2026-10-27
 - **Amends:** ADR-0055 W-B, only its dense desktop table presentation.
-- **Related:** ADR-0074 (group UI primitives), ADR-0103 (Song genre).
+- **Related:** ADR-0074 (group UI primitives), ADR-0104 (Song genre).
 
 ### Context
 
@@ -36,7 +36,7 @@ Song detail tabs, Song/Arrangement/Resource domain boundaries, create modal, lyr
 
 ---
 
-## ADR-0104 — Local Storybook design workbench
+## ADR-0105 — Local Storybook design workbench
 
 - **Status:** **ACCEPTED** — explicitly requested by the owner on 2026-10-27.
 - **Date:** 2026-10-27
@@ -62,7 +62,7 @@ The owner requested an isolated environment to explore and validate Sonivo inter
 
 ---
 
-## ADR-0103 — Optional Song genre metadata
+## ADR-0104 — Optional Song genre metadata
 
 - **Status:** **ACCEPTED** — explicitly authorized by the owner on 2026-10-27.
 - **Date:** 2026-10-27
@@ -87,6 +87,35 @@ The Canciones creation and detail experience needs a distinct optional genre fie
 - Search can find songs by genre using the existing query.
 - Genre values may vary in spelling and language; a normalized taxonomy or multi-genre model would require a later decision.
 - Existing Songs remain valid and read as genre `null` after migration.
+
+---
+
+## ADR-0103 — Agent response and context workflow skills
+
+- **Status:** **ACCEPTED** — explicitly authorized by the owner on 2026-10-28.
+- **Extends:** ADR-0002 and ADR-0041.
+
+### Context
+
+The owner requested project-local skills for concise responses, minimal code changes, focused over-engineering reviews, and safe context compression. RTK command filtering and the Headroom MCP are available as owner-level tooling, but project reproducibility must not depend on personal configuration.
+
+### Decision
+
+1. Add the upstream `caveman` skill from `JuliusBrussee/caveman` commit `9b68f7ed12b05e7efaff18e65c5a3fc2849fd0a4` and the upstream `ponytail` skill from `DietrichGebert/ponytail` commit `09c434ab73ca43761c5d8b0c5d341926c2fba710` under `.agents/skills/`. Preserve their applicable license and notice files; record source commits in the inventory.
+2. Add Sonivo-authored `ponytail-review` and `headroom-context` skills. The review skill reports only unnecessary complexity, dependencies, and speculative abstractions, one line per finding. The Headroom skill calls the connector only when available and only for content safe to send externally; exact follow-up uses its retrieval hash.
+3. Install RTK `1.1.0` OSS for the owner as an optional host tool and verify its global Codex integration. Do not add its binary, user paths, or user-global hook configuration to the repository. Treat the available Headroom MCP the same way.
+4. Do not add these manually installed skills to `skills-lock.json`; that file remains managed only by its authorized CLI workflow.
+
+### Scope and safeguards
+
+- These skills and tools change agent workflow only. They add no application code, package, runtime dependency, or database behavior.
+- Keep the sole project-local skills tree at `.agents/skills/`; do not create `.codex/`, `.cursor/`, or `.claude/` project trees or commit absolute user paths.
+- Never send secrets, personal data, production data, or proprietary source/configuration to Headroom. If it is unavailable or content is sensitive, summarize locally.
+- Root `AGENTS.md`, explicit user instructions, security rules, validation, authorization, and Git gates remain authoritative over skill suggestions.
+
+### Consequences
+
+The project-local inventory grows from 39 to 43 skills. RTK and Headroom remain optional owner-level tools and are not needed by other contributors, CI, builds, or deployment. The source commits and installed RTK archive checksum are recorded in [`../tooling/SKILLS-INVENTORY.md`](../tooling/SKILLS-INVENTORY.md) and [`../tooling/TOOLING-AUDIT.md`](../tooling/TOOLING-AUDIT.md).
 
 ---
 
@@ -4131,6 +4160,9 @@ Sonivo is not church-first; worship is a supported segment. Core language stays 
 
 | ADR  | Title                                           | Status       |
 | ---- | ----------------------------------------------- | ------------ |
+| 0103 | Agent response and context workflow skills      | **ACCEPTED** |
+| 0102 | Neon agent access for project work              | **ACCEPTED** |
+| 0101 | Sonivo-owned lyric document and portable exports | **ACCEPTED** |
 | 0093 | Native mobile clients and project location      | **ACCEPTED** |
 | 0094 | Native mobile authentication                    | **ACCEPTED** |
 | 0001 | Positioning                                     | ACCEPTED     |

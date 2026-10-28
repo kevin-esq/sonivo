@@ -3,15 +3,15 @@
 ## Song library UX redesign — PR #305
 
 **Updated:** 2026-10-28
-**Branch:** `feature/song-library-ux-redesign`, rebased onto `develop` at `1b996c0`.
+**Branch:** `feature/song-library-ux-redesign`, synced with `develop` at `252234d`; the three Song UX ADRs were renumbered 0104–0106 to preserve the existing ADR-0103.
 **Implementation:** COMPLETE for the approved Song library, detail, multiversion creation, Arrangement editing, lyrics/chords, Resources, and Practice scope. Storybook stories and the local song redesign prototype are included.
 **Human approval:** APPROVED; the user explicitly authorized commit, push, and PR creation when the planned scope was complete.
-**Git checkpoint:** COMMITTED as `7f1391f` (`fix(repertoire): preserve digitizer feedback after save`); prior CI follow-up `529a2ea` and original redesign `1e8939c` remain committed.
-**Remote:** PUSHED to `origin/feature/song-library-ux-redesign`; [PR #305](https://github.com/kevin-esq/sonivo/pull/305) is open against `develop`.
-**CI:** Latest run on `990e757` passed all checks except Playwright E2E (115 passed, 2 skipped, 3 failed); backend, frontend, CodeQL, and SCA passed. Failures were both Whisper digitizer journeys and the empty-library search expectation.
+**Git checkpoint:** COMMITTED as `2ca66ed` (`chore(repertoire): sync song redesign with develop`); prior follow-ups `b95e244`, `990e757`, `529a2ea`, and original redesign `1e8939c` remain committed.
+**Remote:** Latest pushed head `b95e244` on `origin/feature/song-library-ux-redesign`; [PR #305](https://github.com/kevin-esq/sonivo/pull/305) is open against `develop`.
+**CI:** Last completed run on `990e757` passed all checks except Playwright E2E (115 passed, 2 skipped, 3 failed); backend, frontend, CodeQL, and SCA passed. No checks were reported for `b95e244` while the PR base conflicted with `develop`.
 **CI follow-ups:** Updated stale journey expectations to match progressive disclosure, draft-then-save lyrics editing, the version chooser, and current localized copy. Fixed Stage mode status persistence. Latest trace confirmed the digitizer PATCH returns 200; the Arrangement refresh was clearing the page and unmounting the digitizer before its success feedback could persist. The follow-up keeps the current detail mounted during refresh. The empty-library test now verifies the persistent search visible in the product. No API or domain contracts changed.
 **Validation:** Next production build passed locally, including TypeScript checks. Targeted Playwright passed: TC-LIB-07/05, TC-LIB-08, TC-PLAY-SYNC-01, both Whisper digitizer journeys, W2 empty/readiness/resources, W7 hierarchy, W18 LRC import/export, and W19 stage mode. The rich-lyrics and W-F detail runs could not complete locally because the local API did not create their test Group; CI reached those journeys. `git diff --check` passed.
-**Open gate:** Push the second CI follow-up, then review the new full Playwright result. Do not merge until all CI checks pass. No merge was performed.
+**Open gate:** Push the develop sync, then review the new full CI result. Do not merge until all CI checks pass. No PR merge was performed.
 **Penpot:** remote OAuth registration did not complete (HTTP 405); the connection is not functional and no token was added to repository files.
 
 

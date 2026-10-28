@@ -1,7 +1,7 @@
 # TOOLING-AUDIT.md — Sonivo
 
 **Phase 0 status:** **CLOSED** (Phase 0.9 documentation reconciliation, 2026-09-15)  
-**Tooling policy:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, ADR-0063–0066, ADR-0099, and ADR-0102)
+**Tooling policy:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, ADR-0063–0066, ADR-0099, ADR-0102, and ADR-0103)
 **Phase 0.9:** Documentation reconciliation only — **no** installs, uninstalls, or tooling changes.  
 **Rule:** `DOCUMENTED ≠ VERIFIED PRESENT ≠ APPROVED/AUTHORIZED` · Sonivo allowlist is binding.
 
@@ -49,6 +49,13 @@ Official Neon agent skills installed through Neon's CLI and tracked in `skills-l
 
 The owner's hosted Neon MCP uses global Codex OAuth configuration. It is optional developer tooling and is not a Sonivo runtime or deployment dependency. Keep its credentials outside the repository; database writes remain subject to explicit authorization and migration gates.
 
+### RESPONSE / CONTEXT WORKFLOWS — PROJECT-LOCAL (ADR-0103, user-authorized 2026-10-28)
+
+- `caveman` — upstream skill from `JuliusBrussee/caveman`, commit `9b68f7ed12b05e7efaff18e65c5a3fc2849fd0a4`; skill-only copy with Apache-2.0 `LICENSE` and upstream `NOTICE`.
+- `ponytail` — upstream skill from `DietrichGebert/ponytail`, commit `09c434ab73ca43761c5d8b0c5d341926c2fba710`; skill-only copy with MIT `LICENSE`.
+- `ponytail-review` and `headroom-context` — authored for Sonivo. Headroom use is conditional on the connector being available and on the content being safe to send externally.
+- No application code, package, or runtime dependency was added. The manually copied skills are source-pinned in the inventory and intentionally are not `skills-lock.json` entries.
+
 ### DEVICE / GIT WORKFLOWS — PROJECT-LOCAL — AUTHORIZED (ADR-0099, user-authorized 2026-10-20)
 
 - `android` — community `@us-all/android-mcp@1.14.4`; app/UI/emulator writes enabled for testing; arbitrary ADB shell disabled; categories limited to `device,apps,ui,logcat,emulator`. Package source and execution boundary reviewed; requires ADB on `PATH` and Node.js 22+.
@@ -78,9 +85,9 @@ Audit method: existing `webappsec-review` skill (two-pass) — no new skills ins
 Rejected as redundant (see [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md) §8): Security Code Scan, OWASP Dependency-Check. `System.Formats.Cbor` for the Critical C1 passkey fix: **PENDING explicit approval**.
 Findings/plan of record: [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md).
 
-## Project-local verified state (39 skill directories)
+## Project-local verified state (43 skill directories)
 
-**13 Matt Pocock + 1 Impeccable + 8 knowledge workflows + 9 ADR-0063 additions + 2 ADR-0064 security skills + 1 frontend structure + 1 ADR-0065 git governance + 1 ADR-0066 validation + 1 tenancy + 2 ADR-0102 Neon skills** under `.agents/skills/`:
+**13 Matt Pocock + 1 Impeccable + 8 knowledge workflows + 9 ADR-0063 additions + 2 ADR-0064 security skills + 1 frontend structure + 1 ADR-0065 git governance + 1 ADR-0066 validation + 1 tenancy + 2 ADR-0102 Neon skills + 4 ADR-0103 response/context skills** under `.agents/skills/`:
 
 `codebase-design` · `code-review` · `diagnosing-bugs` · `domain-modeling` · `grilling` · `grill-with-docs` · `impeccable` · `implement` · `prototype` · `research` · `resolving-merge-conflicts` · `tdd` · `to-spec` · `to-tickets`
 
@@ -100,7 +107,11 @@ Findings/plan of record: [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-
 
 `neon` · `neon-postgres` (official `neondatabase/agent-skills`; ADR-0102)
 
+`caveman` · `ponytail` · `ponytail-review` · `headroom-context` (ADR-0103)
+
 `skills-lock.json` has **15** entries: 13 Matt core skills and 2 Neon skills. The eight knowledge workflows and the ADR-0063 additions are not all external packages, and the ADR-0063 Matt additions (`pr`, `writing-for-agents`) are not yet in the lock. Update the lock only via the official `skills` CLI (its hash algorithm is not plain sha256). Root `.obsidian/` vault configuration remains local and was not changed.
+
+The ADR-0103 skills were copied manually; their upstream commits and licenses are recorded in `SKILLS-INVENTORY.md`. Keep the lockfile under the official CLI workflow.
 
 **ADR-0063 (user-authorized 2026-10-04):** nine project-local skills from first-party sources (Microsoft .NET, Anthropic, Matt Pocock, Trail of Bits) plus the user-authored `creative-frameworks`, and the root `opencode.json` MCP servers (`drawio`, `excalidraw`, `sequential-thinking`, `fetch`). Sources were audited (frontmatter + bundled scripts/references). All four MCP servers verified connected via `opencode mcp list`; the earlier `@cmd8/excalidraw-mcp` candidate was dropped because it ships broken (`ERR_MODULE_NOT_FOUND`). See [`SKILLS-ECOSYSTEM-RESEARCH-2026-10.md`](SKILLS-ECOSYSTEM-RESEARCH-2026-10.md).
 
@@ -130,6 +141,8 @@ See Phase 0.8 history in repo conversation / prior audit versions if needed. Ful
 | Item | Status |
 | --- | --- |
 | Neon MCP | Hosted `https://mcp.neon.tech/mcp`, configured in global Codex settings with OAuth; credentials are not stored in the repository |
+| RTK | `1.1.0` OSS (Apache-2.0) manually installed at the owner host; global Codex hook verified with `rtk init -g --codex --show`; binary and hook config are not tracked |
+| Headroom MCP | Available in the current Codex host; optional and not configured by the repository |
 
 ## Unauthorized / ambient USER-GLOBAL tooling (documented, not touched)
 
@@ -182,6 +195,7 @@ other contributors. Two findings:
 | ADR-0066 | User-authorized `docker-sandbox` MCP (enabled) + `infisical` secrets MCP (disabled) + `validation-symmetry` skill |
 | ADR-0099 | User-authorized Android MCP (ADB shell disabled) + official GitKraken MCP (read-only) |
 | ADR-0102 | User-authorized Neon skills + owner-global Neon MCP via OAuth; no repo credentials |
+| ADR-0103 | User-authorized Caveman/Ponytail skills, Sonivo review/context workflows, and optional owner-global RTK OSS; Headroom remains host-provided |
 
 ADR-0040 is **SUPERSEDED** by ADR-0041; the user authorized one project-local customization tree under `.agents/`, with vendor hooks and agents removed.
 

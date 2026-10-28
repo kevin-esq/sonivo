@@ -19,7 +19,7 @@ Until the user explicitly authorizes additional work:
 - Do **not** expand RSVP beyond the closed thin 3.5 spec without further approval
 - Do **not** add Practice scope beyond accepted ADRs. Follow-on work is shipped; cloud LLM remains closed and karaoke scoring remains OUT. Honor the explicit firewalls in ADR-0032–0037.
 - Do **not** bypass the T-R2-04 verified-backfill merge gate or change its approved scope.
-- Do **not** install additional skills or tooling without explicit approval. ADR-0039/0041 authorize only the documented project-local workflows; user-global tooling must not become a project dependency.
+- Do **not** install additional skills or tooling without explicit approval. ADR-0039/0041/0103 authorize only the documented project-local workflows; user-global tooling must not become a project dependency.
 - Do **not** recreate `.cursor/`, `.codex/`, or `.claude/` project customization trees unless a superseding decision explicitly authorizes them.
 - Do **not** push / create GitHub remotes / change branch protection unless explicitly authorized
 - Local PostgreSQL: repository `compose.yaml` (host port **5433**)
@@ -33,7 +33,7 @@ Until the user explicitly authorizes additional work:
 2. Read the relevant accepted ADR(s) in [`docs/03-architecture/DECISIONS.md`](docs/03-architecture/DECISIONS.md).
 3. Do not reopen accepted ADRs without a superseding decision; ADR-0033 is superseded.
 4. Do not invent FUTURE features or reopen closed Q8 (ADR-0028); Q9's thin conductor is answered by ADR-0036.
-5. Check [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md) for the **AUTHORIZED** project-local allowlist (ADR-0002, 0039, and 0040). Present tooling ≠ authorized.
+5. Check [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md) for the **AUTHORIZED** project-local allowlist (ADR-0002, 0039, 0041, 0063–0066, 0099, 0102, and 0103). Present tooling ≠ authorized.
 
 ---
 
@@ -208,8 +208,8 @@ Always preserve these invariants: Group-scoped server-side authorization (never 
 
 ## Tooling
 
-Authoritative policy: [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md), ADR-0002, ADR-0039, and ADR-0041.
+Authoritative policy: [`docs/tooling/TOOLING-AUDIT.md`](docs/tooling/TOOLING-AUDIT.md), ADR-0002, ADR-0039, ADR-0041, and ADR-0103.
 
-- **AUTHORIZED project-local:** 39 skills under `.agents/skills/`. Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md). MCP config for repository workflows remains in root `opencode.json` (ADR-0064/0065/0066/0099). Neon skills are authorized by ADR-0102; the owner's global Neon MCP is optional developer tooling, not a Sonivo dependency.
+- **AUTHORIZED project-local:** 43 skills under `.agents/skills/`. Inventory: [`docs/tooling/SKILLS-INVENTORY.md`](docs/tooling/SKILLS-INVENTORY.md). MCP config for repository workflows remains in root `opencode.json` (ADR-0064/0065/0066/0099). Neon skills are authorized by ADR-0102. RTK and Headroom are optional host-level aids under ADR-0103, not Sonivo dependencies.
 - **PRESENT ≠ AUTHORIZED.** User-global ambient tooling must **not** become a Sonivo dependency.
 - Do not install further skills/tooling without explicit approval.

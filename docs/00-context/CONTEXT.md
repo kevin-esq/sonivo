@@ -4,8 +4,10 @@ Durable high-level project context.
 
 **Rich lyrics authorized 2026-10-21:** ADR-0100/0101 add Sonivo-owned lyric handling with native TTML interchange, TTML/Enhanced LRC/provider-payload import, real word timing, line ends and overlapping vocal lines, reviewed Owner-triggered LRCLIB lookup, and native/classic/ChordPro/print exports. Existing Arrangement persistence and Practice firewalls remain; no automated alignment or scoring. Scope: [`PHASE-LYRICS-INTEROPERABILITY-SPEC.md`](../03-architecture/PHASE-LYRICS-INTEROPERABILITY-SPEC.md).
 
-**Last updated:** 2026-10-27 (ADR-0105: Song library presentation)
-**Song library presentation:** ADR-0105 (2026-10-27) amends ADR-0055 W-B to use the owner-selected responsive list-first library. Existing song search, favorite, filter, sort, pagination, domain and authorization contracts remain unchanged.
+**Agent tooling authorized 2026-10-28:** ADR-0103 adds project-local `caveman`, `ponytail`, `ponytail-review`, and `headroom-context` skills. RTK OSS and the Headroom MCP are optional owner-level aids; neither is a Sonivo runtime or contributor dependency. Inventory and provenance: [`../tooling/SKILLS-INVENTORY.md`](../tooling/SKILLS-INVENTORY.md).
+
+**Last updated:** 2026-10-28 (ADR-0106: Song library presentation)
+**Song library presentation:** ADR-0106 (2026-10-27) amends ADR-0055 W-B to use the owner-selected responsive list-first library. Existing song search, favorite, filter, sort, pagination, domain and authorization contracts remain unchanged.
 **Native mobile:** ADR-0093 authorizes native Kotlin/Compose and Swift/SwiftUI clients in `mobile/android` and `mobile/ios`, using Media3 and AVPlayer. ADR-0094 authorizes OIDC Authorization Code + PKCE, OpenIddict, and bearer validation; client/server implementation and deployment configuration are tracked in [`../03-architecture/PHASE-MOBILE-NATIVE-SPEC.md`](../03-architecture/PHASE-MOBILE-NATIVE-SPEC.md).
 **Development tooling:** ADR-0099 adds project-local Android device-control and GitKraken MCP servers in root `opencode.json`. Android writes are enabled for app testing while arbitrary ADB shell is disabled; GitKraken starts read-only. GitKraken account authentication remains local to the developer.
 **Native mobile parity:** ADR-0098 (accepted 2026-10-20) expands the native clients from the member rehearsal journey to every authenticated web-app destination and existing action, including account and Group Owner workflows. Server-side authorization and product/domain boundaries remain unchanged; delivery tickets MOB-08–12 are in the mobile phase specification.
@@ -75,7 +77,7 @@ Knowledge navigation: [`INDEX.md`](INDEX.md) · Current task/checkpoint: [`../..
 5. Song may have zero Arrangements (ADR-0017). Song create does **not** require an Arrangement (**ADR-0025 ACCEPTED**).
 6. Resource purpose: `chart`\|`lyrics`\|`audio`\|`click`\|`reference`\|`practice`\|`other`; required Label; optional free-text Part (ADR-0017 revised by **ADR-0024 ACCEPTED**).  
    13a. Song Title duplicates ALLOWED; Attribution free text; OriginKind `original`\|`cover`\|`other`; Arrangement Label required; no `IsDefault`; Key free text; BPM optional int 1–400; lyrics/chords/structure/notes plain text; Song soft-delete cascades live Arr soft-delete with Song `expectedVersion` / one tx / 409 on conflict (**ADR-0025 ACCEPTED**).
-   13b. Song Genre is optional nullable free text, max 100 characters, distinct from Tags and RightsNotes (**ADR-0103 ACCEPTED**).
+   13b. Song Genre is optional nullable free text, max 100 characters, distinct from Tags and RightsNotes (**ADR-0104 ACCEPTED**).
 7. Setlist = reusable template; apply = copy to EventSetlistItems; `sourceSetlistId` provenance only (ADR-0016, 0017).
 8. Duplicate Arrangement appearances ALLOWED (ADR-0016).
 9. Event types: `rehearsal`\|`performance`\|`other`; cancel + soft-hide (ADR-0016).

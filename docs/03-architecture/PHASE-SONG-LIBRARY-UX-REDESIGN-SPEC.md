@@ -1,9 +1,9 @@
 # Phase — Song library UX redesign
 
 **Status:** User-authorized implementation, 2026-10-27.
-**Scope:** Incremental UX, interaction, responsive and accessibility improvements to the existing Canciones, Song, Arrangement, Resources and Practice journeys. ADR-0103 authorizes the additive optional Song Genre field; no other domain capabilities are added by this phase.
+**Scope:** Incremental UX, interaction, responsive and accessibility improvements to the existing Canciones, Song, Arrangement, Resources and Practice journeys. ADR-0104 authorizes the additive optional Song Genre field; no other domain capabilities are added by this phase.
 **Research baseline:** Staging walkthrough and source inspection on 2026-10-27; screenshots are in the task's external Codex visualization folder, not the repository.
-**Binding decisions:** ADR-0007/0008/0014/0025 (Song, Arrangement and Resource boundaries; zero or multiple arrangements; no default arrangement), ADR-0020 (cookie/antiforgery), ADR-0055 as amended by ADR-0105 for the list-first Canciones presentation (Song detail tabs remain), ADR-0074 (Group UI primitives and modal creation), ADR-0079/0082/0085 (server-enforced Group/item access), ADR-0089/0092 (canonical routes), ADR-0096/0100/0101 (Practice and lyric boundaries), ADR-0097 (media limits), and ADR-0103 (optional Song Genre).
+**Binding decisions:** ADR-0007/0008/0014/0025 (Song, Arrangement and Resource boundaries; zero or multiple arrangements; no default arrangement), ADR-0020 (cookie/antiforgery), ADR-0055 as amended by ADR-0106 for the list-first Canciones presentation (Song detail tabs remain), ADR-0074 (Group UI primitives and modal creation), ADR-0079/0082/0085 (server-enforced Group/item access), ADR-0089/0092 (canonical routes), ADR-0096/0100/0101 (Practice and lyric boundaries), ADR-0097 (media limits), and ADR-0104 (optional Song Genre).
 **Existing adjacent contract:** [`PHASE-SONG-LIBRARY-ENHANCEMENTS-SPEC.md`](PHASE-SONG-LIBRARY-ENHANCEMENTS-SPEC.md) owns search, favorites and pagination contracts. Do not duplicate or broaden those APIs here.
 
 ## 1. Goal
@@ -24,7 +24,7 @@ The selected staging Song and Group were test records. Do not copy their identif
 
 - Song is musical identity; Arrangement is the playable version and owns lyrics, chords, notes and Resources.
 - A Song can have zero, one or many Arrangements. Do not create a preferred/default Arrangement or force selection when none exists.
-- Keep ADR-0055's Canciones destination, favorites/tags and Song detail tabs/related materials. ADR-0105 amends only the desktop table presentation to the responsive list selected by the owner.
+- Keep ADR-0055's Canciones destination, favorites/tags and Song detail tabs/related materials. ADR-0106 amends only the desktop table presentation to the responsive list selected by the owner.
 - Existing lyric formats, LRCLIB reviewed lookup, print/export, audio eligibility, Stage and Practice remain bounded by ADR-0096/0100/0101 and feature flags. Do not add providers, automatic lyric application, alignment, scoring, YouTube synchronization, audio transport, or media formats.
 - Preserve `/app` canonical routes, static export bridge compatibility, group branding tokens, shared group components, Identity cookies and antiforgery.
 - Group membership and effective item permissions are decided on the server on every request. Client capability presentation is a usability hint only.
@@ -47,7 +47,7 @@ The selected staging Song and Group were test records. Do not copy their identif
 - Use the broad, consistent label “Versiones” for Arrangements. Explain once that Sonivo calls each version an arreglo; do not frame the product as only for singing. Keep version selection and creation above the Letra/Acordes/Notas/Archivos workspace at every width.
 - Make selection of a version visibly control the materials shown below, and keep a clear route to its full detail for advanced editing and resources.
 - If there is exactly one Arrangement, make its playable content and Practice path easy to reach without implying the Song and Arrangement are the same object. If there are several, present an explicit version choice. If there are none, explain that arrangements contain playable material and offer the permitted creation action.
-- Keep secondary identity metadata (Genre, attribution, tags and rights notes) visible/editable without hiding where lyrics/chords are edited. Genre is a separate Song field under ADR-0103; it is not stored as a tag.
+- Keep secondary identity metadata (Genre, attribution, tags and rights notes) visible/editable without hiding where lyrics/chords are edited. Genre is a separate Song field under ADR-0104; it is not stored as a tag.
 - Display resource and lyrics loading/error states with retry. Keep missing content distinct from failed requests.
 
 ### 4.3 Creation and edit flows
@@ -129,7 +129,7 @@ Each stage is reviewable separately. Do not rewrite the repertoire module wholes
 
 ## 9. Decisions and documentation
 
-ADR-0105 records the owner's explicit selection of a list-first Canciones presentation and amends only ADR-0055 W-B's dense desktop table pattern. Song detail information/tabs remain unchanged. A change from modal creation to route-based creation still conflicts with ADR-0074 and requires an amendment. A permission UX solution that requires a new capabilities endpoint must first establish that the current server contract cannot support the needed presentation; any new authorization semantics require an ADR and owner decision.
+ADR-0106 records the owner's explicit selection of a list-first Canciones presentation and amends only ADR-0055 W-B's dense desktop table pattern. Song detail information/tabs remain unchanged. A change from modal creation to route-based creation still conflicts with ADR-0074 and requires an amendment. A permission UX solution that requires a new capabilities endpoint must first establish that the current server contract cannot support the needed presentation; any new authorization semantics require an ADR and owner decision.
 
 After implementation, update only the relevant stage evidence and validation status in this spec and `.scratch/NOW.md`. Do not duplicate the spec into `CONTEXT.md` or revise ADRs without a material accepted-decision change.
 
