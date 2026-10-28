@@ -97,10 +97,13 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
 
   async function reloadArrangement() {
     if (!groupId || !arrangementId) return
+    const keepCurrentView = arrangement != null
     setLoadFailed(false)
     setError(null)
-    setLoadingArrangement(true)
-    setArrangement(undefined)
+    if (!keepCurrentView) {
+      setLoadingArrangement(true)
+      setArrangement(undefined)
+    }
     try {
       const result = await getArrangement(groupId, arrangementId)
       setArrangement(result)

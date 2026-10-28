@@ -93,7 +93,7 @@ test.describe('W2 setlists immersive redesign', () => {
     await openLibrary(page)
 
     await expect(page.getByText('Aún no hay canciones')).toBeVisible()
-    await expect(page.getByTestId('library-search')).toHaveCount(0)
+    await expect(page.getByTestId('library-search')).toBeVisible()
     const cta = page.getByTestId('library-empty-add-song')
     await expect(cta).toBeVisible()
     await cta.click()
