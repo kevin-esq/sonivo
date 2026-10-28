@@ -1,5 +1,18 @@
 # NOW — current work and Git checkpoint
 
+## Song library UX redesign — PR #305
+
+**Updated:** 2026-10-28
+**Branch:** `feature/song-library-ux-redesign`, rebased onto `develop` at `1b996c0`.
+**Implementation:** COMPLETE for the approved Song library, detail, multiversion creation, Arrangement editing, lyrics/chords, Resources, and Practice scope. Storybook stories and the local song redesign prototype are included.
+**Human approval:** APPROVED; the user explicitly authorized commit, push, and PR creation when the planned scope was complete.
+**Git checkpoint:** COMMITTED as `1e8939c` (`feat(repertoire): redesign song and arrangement workflows`).
+**Remote:** PUSHED to `origin/feature/song-library-ux-redesign`; [PR #305](https://github.com/kevin-esq/sonivo/pull/305) is open against `develop`.
+**CI:** RUNNING on PR #305; Analyze, Backend build & tests, Frontend build, and SCA were pending at the latest check.
+**Validation:** `.NET Release` 859 passed before rebase; Next production build passed after rebase; `git diff --check` passed. Playwright ChordPro formats passed 4/4 after updating the import-mode selector. A broader targeted run was not clean (10 passed, 11 failed); it exposed stale selectors, unstable wizard transitions, and local Next server exit. A development-server retry timed out in TC-LIB-07. Storybook generated the static bundle but its Node 24 process ended with Windows native error `3221226505`, so Storybook build is not marked passed.
+**Penpot:** remote OAuth registration did not complete (HTTP 405); the connection is not functional and no token was added to repository files.
+**Open gate:** Review all PR CI and resolve failures before merge. No merge was performed.
+
 ## T-UX-SIDEBAR — Gmail-style desktop navigation
 
 **Updated:** 2026-10-28
