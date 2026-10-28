@@ -4,7 +4,9 @@ Durable high-level project context.
 
 **Rich lyrics authorized 2026-10-21:** ADR-0100/0101 add Sonivo-owned lyric handling with native TTML interchange, TTML/Enhanced LRC/provider-payload import, real word timing, line ends and overlapping vocal lines, reviewed Owner-triggered LRCLIB lookup, and native/classic/ChordPro/print exports. Existing Arrangement persistence and Practice firewalls remain; no automated alignment or scoring. Scope: [`PHASE-LYRICS-INTEROPERABILITY-SPEC.md`](../03-architecture/PHASE-LYRICS-INTEROPERABILITY-SPEC.md).
 
-**Last updated:** 2026-10-19 (ADR-0093: native mobile client stack and location)
+**Agent tooling authorized 2026-10-28:** ADR-0103 adds project-local `caveman`, `ponytail`, `ponytail-review`, and `headroom-context` skills. RTK OSS and the Headroom MCP are optional owner-level aids; neither is a Sonivo runtime or contributor dependency. Inventory and provenance: [`../tooling/SKILLS-INVENTORY.md`](../tooling/SKILLS-INVENTORY.md).
+
+**Last updated:** 2026-10-28 (ADR-0103: agent tooling)
 **Native mobile:** ADR-0093 authorizes native Kotlin/Compose and Swift/SwiftUI clients in `mobile/android` and `mobile/ios`, using Media3 and AVPlayer. ADR-0094 authorizes OIDC Authorization Code + PKCE, OpenIddict, and bearer validation; client/server implementation and deployment configuration are tracked in [`../03-architecture/PHASE-MOBILE-NATIVE-SPEC.md`](../03-architecture/PHASE-MOBILE-NATIVE-SPEC.md).
 **Development tooling:** ADR-0099 adds project-local Android device-control and GitKraken MCP servers in root `opencode.json`. Android writes are enabled for app testing while arbitrary ADB shell is disabled; GitKraken starts read-only. GitKraken account authentication remains local to the developer.
 **Native mobile parity:** ADR-0098 (accepted 2026-10-20) expands the native clients from the member rehearsal journey to every authenticated web-app destination and existing action, including account and Group Owner workflows. Server-side authorization and product/domain boundaries remain unchanged; delivery tickets MOB-08–12 are in the mobile phase specification.

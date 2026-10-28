@@ -1,7 +1,7 @@
 # SKILLS-INVENTORY.md — Sonivo
 
 **Phase 0 status:** **CLOSED** (Phase 0.9, 2026-09-15)  
-**Allowlist:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, ADR-0063–0066, ADR-0099, and ADR-0102)
+**Allowlist:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, ADR-0063–0066, ADR-0099, ADR-0102, and ADR-0103)
 
 Distinguish: **PRESENT** (on disk) · **AUTHORIZED** (Sonivo allowlist) · **DEFERRED** · **REJECTED** · **USER-GLOBAL**
 
@@ -73,6 +73,12 @@ Official Neon skills for platform and Postgres workflows:
 
 - `neon` · `neon-postgres` — `neondatabase/agent-skills`
 
+### RESPONSE / CONTEXT WORKFLOWS — PROJECT-LOCAL (ADR-0103, user-authorized 2026-10-28)
+
+- `caveman` · `ponytail` — upstream skills, source commits and licenses pinned below.
+- `ponytail-review` — Sonivo-authored, user-invoked review limited to over-engineering.
+- `headroom-context` — Sonivo-authored; uses the optional Headroom MCP only for safe-to-send content and preserves the retrieval hash.
+
 ### DEFERRED (not installed project-local; do not invoke/depend)
 
 `setup-matt-pocock-skills` · `handoff` · `product-marketing` · Context7 · surplus Matt skills
@@ -87,9 +93,9 @@ Official Neon skills for platform and Postgres workflows:
 
 ---
 
-## PRESENT project-local skills (39 directories)
+## PRESENT project-local skills (43 directories)
 
-**39** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063–0066 + ADR-0099 + ADR-0102):
+**43** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063–0066 + ADR-0099 + ADR-0102/0103):
 
 | Directory                       | Role                 |
 | ------------------------------- | -------------------- |
@@ -132,8 +138,12 @@ Official Neon skills for platform and Postgres workflows:
 | `frontend-architecture`         | FRONTEND (2026-10-07) |
 | `neon`                          | DATABASE (ADR-0102)  |
 | `neon-postgres`                 | DATABASE (ADR-0102)  |
+| `caveman`                       | RESPONSE (ADR-0103)  |
+| `ponytail`                      | ENGINEERING (ADR-0103) |
+| `ponytail-review`               | REVIEW (ADR-0103)    |
+| `headroom-context`              | CONTEXT (ADR-0103)   |
 
-= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions + **2** ADR-0064 security skills + **1** frontend structure + **1** ADR-0065 git governance + **1** ADR-0066 validation + **1** tenancy + **2** ADR-0102 Neon skills = **39 AUTHORIZED**.
+= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions + **2** ADR-0064 security skills + **1** frontend structure + **1** ADR-0065 git governance + **1** ADR-0066 validation + **1** tenancy + **2** ADR-0102 Neon skills + **4** ADR-0103 response/context skills = **43 AUTHORIZED**.
 
 Removed skills are **not** listed as installed.
 
@@ -146,6 +156,7 @@ Removed skills are **not** listed as installed.
 | `opencode.json`    | Root MCP servers (`drawio`, `excalidraw`, `sequential-thinking`, `fetch`) — ADR-0063; `semgrep` + `snyk` — ADR-0064; `github` (local Docker) — ADR-0065; `docker-sandbox` + `infisical` (disabled) — ADR-0066; V2-native `mcp.servers` |
 | `.githooks/`       | Conventional Commits gate (`commit-msg`) + `.commitlintrc.json` — ADR-0065 |
 | `skills-lock.json` | **15** entries: 13 Matt core skills and 2 Neon skills. The ADR-0063 Matt additions (`pr`, `writing-for-agents`) are not yet in the lock — update via the official `skills` CLI, never by hand |
+| RTK / Headroom | Owner-level optional tools; neither is configured or required by the repository |
 
 Root `AGENTS.md` is the shared project instruction file. `.cursor/`, `.codex/`, and `.claude/` customizations are absent by ADR-0041.
 
@@ -160,6 +171,8 @@ Graphify rule / `graphify-out/` · watermarks project rule · `product-marketing
 | Item                          | Status                                |
 | ----------------------------- | ------------------------------------- |
 | Taste / Emil / design cluster | USER-GLOBAL ambient — do not depend   |
+| RTK 1.1.0 OSS                  | Owner-level optional CLI; not a Sonivo dependency |
+| Headroom MCP                  | Available to the current Codex host; not a Sonivo dependency |
 | Graphify CLI                  | USER-GLOBAL — UNAUTHORIZED for Sonivo |
 | Context7                      | USER-GLOBAL — UNAUTHORIZED / DEFERRED |
 | watermarks-remover            | USER-GLOBAL — UNAUTHORIZED            |
@@ -182,3 +195,8 @@ Graphify rule / `graphify-out/` · watermarks project rule · `product-marketing
 | Knowledge workflows      | Adapted from user-provided `opencode-obsidian-memory-full.zip`; project-local under `.agents/skills/`; authorized by ADR-0039    |
 | Layout decision          | Root `AGENTS.md` plus sole project-local `.agents/skills/` tree; vendor customizations removed by ADR-0041                      |
 | Taste/Emil               | USER-GLOBAL; **UNKNOWN ORIGIN**; created 2026-09-03                                                                             |
+| `caveman`                 | [Upstream skill](https://github.com/JuliusBrussee/caveman/tree/9b68f7ed12b05e7efaff18e65c5a3fc2849fd0a4/skills/caveman), commit `9b68f7ed12b05e7efaff18e65c5a3fc2849fd0a4`; skill-only, Apache-2.0; upstream `LICENSE` and `NOTICE` retained |
+| `ponytail`                | [Upstream skill](https://github.com/DietrichGebert/ponytail/tree/09c434ab73ca43761c5d8b0c5d341926c2fba710/skills/ponytail), commit `09c434ab73ca43761c5d8b0c5d341926c2fba710`; skill-only, MIT; upstream `LICENSE` retained |
+| `ponytail-review`         | Authored for Sonivo under ADR-0103; user-invoked and limited to over-engineering findings |
+| `headroom-context`        | Authored for Sonivo under ADR-0103; optional connector use only for non-sensitive content |
+| RTK                      | `rtk-ai/rtk` v1.1.0 `rtk-oss-x86_64-pc-windows-msvc.zip`; SHA-256 `9b076379be9d86011ca3f3a0264d0be4851da5535453a47f67fa46b4e893fbb2`; installed to owner profile, not tracked |
