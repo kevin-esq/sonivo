@@ -28,6 +28,7 @@ public sealed record GroupExportSong(
     string Title,
     string? Attribution,
     string OriginKind,
+    string? Genre,
     string? RightsNotes,
     DateTimeOffset UpdatedAt,
     IReadOnlyList<GroupExportArrangement> Arrangements);
@@ -119,7 +120,7 @@ public sealed class ExportGroupHandler
                 .ToList();
 
             songs.Add(new GroupExportSong(
-                song.Id, song.Title, song.Attribution, song.OriginKind, song.RightsNotes, song.UpdatedAt, arrangements));
+                song.Id, song.Title, song.Attribution, song.OriginKind, song.Genre, song.RightsNotes, song.UpdatedAt, arrangements));
         }
 
         return new GroupExport(query.GroupId, group.Name, group.Slug, _clock.UtcNow, members, songs);

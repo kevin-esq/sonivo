@@ -26,11 +26,13 @@ export function LrcPanel({
   groupId,
   arrangement,
   onApplied,
+  onDraftImported,
   songTitle = '',
 }: {
   groupId: string
   arrangement: ArrangementDetail
-  onApplied: (updated: ArrangementDetail) => void
+  onApplied?: (updated: ArrangementDetail) => void
+  onDraftImported?: (draft: { lyrics: string; chordTimingJson: string | null }) => void
   songTitle?: string
 }) {
   const { t } = useT()
@@ -103,6 +105,14 @@ export function LrcPanel({
 
   async function onApply() {
     if (!preview || preview.errors.length || !preview.lyrics.trim()) return
+    if (onDraftImported) {
+      onDraftImported({ lyrics: preview.lyrics, chordTimingJson: preview.chordTimingJson })
+      setPreview(null)
+      setText('')
+      setFile(null)
+      setError(null)
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -112,7 +122,7 @@ export function LrcPanel({
         chords: preview.lyrics,
         chordTimingJson: preview.chordTimingJson,
       })
-      onApplied(updated)
+      onApplied?.(updated)
       setPreview(null)
       setText('')
       setFile(null)
@@ -145,15 +155,17 @@ export function LrcPanel({
   if (!enabled) return null
 
   return (
-    <details className="overflow-hidden rounded-2xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] text-[var(--color-score-ink)]" aria-labelledby="lrc-heading">
+    <details className="overflow-hidden rounded-2xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] text-[var(--color-score-ink)]" aria-labelledby="lrc-heading" data-testid="lyric-import-options">
       <summary className="flex cursor-pointer list-none items-start gap-3 px-5 py-4 marker:hidden hover:bg-[var(--color-score-hover)] sm:px-6">
         <FileText className="mt-0.5 h-5 w-5 shrink-0 text-primary-ink" aria-hidden="true" />
         <span className="min-w-0 flex-1">
-          <span id="lrc-heading" className="block font-semibold">{t('lrc.title')}</span>
+          <span id="lrc-heading" className="block font-semibold">{t(onDraftImported ? 'lrc.editorTitle' : 'lrc.title')}</span>
           <span className="mt-1 block text-sm leading-6 text-[var(--color-score-muted)]">{t('lrc.hint')}</span>
         </span>
       </summary>
       <div className="space-y-3 border-t border-[var(--color-score-line)] p-5 sm:p-6">
+
+      {onDraftImported ? <p className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-primary-ink" role="status">{t('lrc.draftHint')}</p> : null}
 
       <label className="block space-y-1.5">
         <span className="text-sm font-medium text-ink">{t('lrc.paste')}</span>

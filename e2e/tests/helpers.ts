@@ -90,7 +90,12 @@ export async function createGroup(page: Page, name: string) {
 
 export async function openLibrary(page: Page) {
   await page.getByTestId('group-rail').getByRole('link', { name: 'Canciones', exact: true }).click()
+  // Wait for Next to commit the catch-all Group route before treating the
+  // library as ready. The shell can retain matching labels while navigation
+  // is still in flight, which otherwise lets modal flows race a route change.
+  await expect(page).toHaveURL(/\/library(?:[?#]|$)/)
   await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
+  await expect(page.getByTestId('library-hero')).toBeVisible()
 }
 
 /**
@@ -138,7 +143,7 @@ async function openCreateDialogAndFill(
 }
 
 export async function createSong(page: Page, title: string) {
-  // The create-song flow is a wizard: Details → Audio → Arrangement → Review.
+  // The create-song flow is a wizard: Details → Audio → Version → Review.
   // The whole run is retried as one unit so a mid-flight re-render cannot leave
   // the dialog half-filled.
   await expect(async () => {
@@ -148,7 +153,8 @@ export async function createSong(page: Page, title: string) {
     }
     await expect(dialog).toBeVisible({ timeout: 2000 })
     await dialog.getByLabel('Título').fill(title, { timeout: 3000 })
-    await dialog.getByRole('combobox', { name: 'Origen' }).click({ timeout: 3000 })
+    await dialog.getByRole('button', { name: 'Más datos (opcional)' }).click({ timeout: 3000 })
+    await dialog.getByRole('combobox', { name: 'Tipo de canción' }).click({ timeout: 3000 })
     await page.getByRole('option', { name: 'Propia', exact: true }).click({ timeout: 3000 })
     await dialog.getByRole('button', { name: 'Continuar' }).click({ timeout: 3000 })
     await dialog.getByRole('button', { name: 'Omitir audio' }).click({ timeout: 3000 })
@@ -171,16 +177,18 @@ export async function createArrangement(
   label: string,
   options?: { lyrics?: string; chords?: string; defaultKey?: string; defaultBpm?: string },
 ) {
-  await page.getByRole('button', { name: 'Agregar arreglo' }).click()
-  await expect(page.getByRole('heading', { name: 'Crear arreglo' })).toBeVisible()
-  await page.getByLabel('Etiqueta', { exact: true }).fill(label)
+  await page.getByRole('button', { name: 'Agregar versión' }).click()
+  await expect(page.getByRole('heading', { name: 'Crear versión' })).toBeVisible()
+  await page.getByLabel('Nombre de la versión', { exact: true }).fill(label)
   if (options?.defaultKey) {
-    await page.getByLabel('Tonalidad (opcional)').fill(options.defaultKey)
+    await page.getByRole('button', { name: 'Agregar tono y velocidad (opcional)' }).click()
+    await page.getByLabel('Tono (opcional)').fill(options.defaultKey)
   }
   if (options?.defaultBpm) {
-    await page.getByLabel('Tempo / BPM (opcional, 1–400)').fill(options.defaultBpm)
+    if (!options.defaultKey) await page.getByRole('button', { name: 'Agregar tono y velocidad (opcional)' }).click()
+    await page.getByLabel('Velocidad de la canción (BPM, opcional)').fill(options.defaultBpm)
   }
-  await page.getByRole('button', { name: 'Crear arreglo' }).click()
+  await page.getByRole('button', { name: 'Crear versión' }).click()
   // Create navigates to the new arrangement detail.
   await expect(page.getByRole('heading', { name: label })).toBeVisible()
 
@@ -191,6 +199,7 @@ export async function createArrangement(
       await page.getByTestId('digitizer-lyrics').fill(options.lyrics)
     }
     if (options?.chords) {
+      await page.getByTestId('arrangement-editor-mode-chords').click()
       const chordsField = page.getByTestId('arrangement-chords')
       await page.locator('details').filter({ has: chordsField }).locator('summary').click()
       await chordsField.fill(options.chords)
@@ -198,6 +207,10 @@ export async function createArrangement(
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await expect(page.getByRole('button', { name: 'Editar letra y acordes' })).toBeVisible()
   }
+}
+
+export async function selectArrangementEditorMode(page: Page, mode: 'lyrics' | 'chords' | 'timing') {
+  await page.getByTestId(`arrangement-editor-mode-${mode}`).click()
 }
 
 export async function openPractice(page: Page) {
@@ -213,8 +226,8 @@ export async function createLinkResource(
 ) {
   await page.getByRole('button', { name: 'Agregar enlace' }).click()
   await expect(page.getByRole('heading', { name: 'Agregar enlace' })).toBeVisible()
-  await page.getByLabel('Propósito').selectOption(input.purpose ?? 'practice')
-  await page.getByLabel('Etiqueta', { exact: true }).fill(input.label)
+  await page.getByLabel('Tipo de material').selectOption(input.purpose ?? 'practice')
+  await page.getByLabel('Nombre del material', { exact: true }).fill(input.label)
   await page.getByLabel('URL').fill(input.url)
   await page.getByRole('button', { name: 'Crear enlace' }).click()
   await expect(page.getByText(input.label, { exact: true })).toBeVisible()
@@ -230,11 +243,11 @@ export async function createFileResource(
 ) {
   await page.getByRole('button', { name: 'Subir archivo' }).click()
   await expect(page.getByRole('heading', { name: 'Subir archivo' })).toBeVisible()
-  await page.getByLabel('Propósito').selectOption(input.purpose ?? 'practice')
-  await page.getByLabel('Etiqueta', { exact: true }).fill(input.label)
+  await page.getByLabel('Tipo de material').selectOption(input.purpose ?? 'practice')
+  await page.getByLabel('Nombre del material', { exact: true }).fill(input.label)
   await page.getByTestId('arrangement-file-dropzone').locator('input[type="file"]').setInputFiles(input.filePath)
   await expect(page.getByTestId('arrangement-file-dropzone')).toContainText(path.basename(input.filePath))
-  await page.getByRole('button', { name: 'Subir archivo' }).click()
+  await page.getByTestId('arrangement-upload-dialog').getByRole('button', { name: 'Subir archivo' }).click()
   const row = page.getByRole('listitem').filter({ hasText: input.label })
   await expect(row.getByText(input.label, { exact: true })).toBeVisible()
   await expect(row.getByRole('link', { name: 'Descargar' })).toBeVisible()

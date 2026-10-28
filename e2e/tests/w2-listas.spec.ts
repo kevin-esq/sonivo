@@ -63,24 +63,24 @@ test.describe('W2 setlists immersive redesign', () => {
     await createArrangement(page, arrangementLabel, { defaultKey: 'G', defaultBpm: '100' })
 
     await expect(page.getByTestId('arrangement-hero')).toBeVisible()
-    await expect(page.getByTestId('arrangement-resource-count')).toContainText('Sin recursos')
-    await expect(page.getByTestId('arrangement-chart-chip')).toContainText('Sin partitura')
+    await expect(page.getByTestId('arrangement-resource-count')).toContainText('Sin materiales todavía')
+    // The detail header only adds a chart chip when a chart exists.
+    await expect(page.getByTestId('arrangement-chart-chip')).toHaveCount(0)
 
     await createLinkResource(page, {
       label: resourceLabel,
       url: resourceUrl,
       purpose: 'chart',
     })
-    await expect(page.getByTestId('arrangement-resource-count')).toContainText('1 recurso')
+    await expect(page.getByTestId('arrangement-resource-count')).toContainText('1 material')
     await expect(page.getByTestId('arrangement-chart-chip')).toContainText('Con partitura')
 
     await page.getByRole('link', { name: songTitle }).first().click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
-    await expect(page.getByTestId('song-readiness')).toContainText('1 arreglo')
+    await expect(page.getByTestId('song-readiness')).toContainText('1 versión')
 
-    const row = page.getByRole('link', { name: arrangementLabel })
-    await expect(row.getByTestId('arrangement-readiness')).toContainText('G')
-    await row.click()
+    await expect(page.getByText(/Tono: G.*Tempo: 100/)).toBeVisible()
+    await page.getByRole('link', { name: 'Editar materiales' }).click()
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
   })
 
@@ -93,7 +93,7 @@ test.describe('W2 setlists immersive redesign', () => {
     await openLibrary(page)
 
     await expect(page.getByText('Aún no hay canciones')).toBeVisible()
-    await expect(page.getByTestId('library-search')).toHaveCount(0)
+    await expect(page.getByTestId('library-search')).toBeVisible()
     const cta = page.getByTestId('library-empty-add-song')
     await expect(cta).toBeVisible()
     await cta.click()

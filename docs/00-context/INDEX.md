@@ -32,6 +32,12 @@ This is the Obsidian entry point for durable project knowledge. It is a navigati
 - [Plan-aware media upload specification](../03-architecture/PHASE-MEDIA-UPLOADS-SPEC.md)
 - [Tooling policy](../tooling/TOOLING-AUDIT.md)
 
+## Product design
+
+- [UX guidelines](../design/UX_GUIDELINES.md)
+- [Design system reference](../design/DESIGN_SYSTEM.md)
+- [Redesign workflow](../design/REDESIGN_WORKFLOW.md)
+
 ## Working state
 
 - [Current task and Git checkpoint](../../.scratch/NOW.md)

@@ -1121,16 +1121,18 @@ export function StageModePanel({
                       className="min-w-0 flex-1 accent-[var(--brand-primary)]"
                     />
                   </label> : null}
-                  {displayStatus !== 'idle' ? <span className="px-2 text-xs text-white/65" role="status" data-testid="stage-display-status">
-                    {displayStatus === 'opening' ? t('stage.displayOpening') : null}
-                    {displayStatus === 'connected' ? t('stage.displayConnected') : null}
-                    {displayStatus === 'manual' ? t('stage.displayManual') : null}
-                    {displayStatus === 'unavailable' ? t('stage.displayUnavailable') : null}
-                    {displayStatus === 'blocked' ? t('stage.displayBlocked') : null}
-                  </span> : null}
                 </div> : null}
               </div> : null}
             </div>
+            {displayStatus !== 'idle' ? (
+              <p className="basis-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/75 sm:text-center" role="status" data-testid="stage-display-status">
+                {displayStatus === 'opening' ? t('stage.displayOpening') : null}
+                {displayStatus === 'connected' ? t('stage.displayConnected') : null}
+                {displayStatus === 'manual' ? t('stage.displayManual') : null}
+                {displayStatus === 'unavailable' ? t('stage.displayUnavailable') : null}
+                {displayStatus === 'blocked' ? t('stage.displayBlocked') : null}
+              </p>
+            ) : null}
             <button
               type="button"
               className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'absolute right-3 top-2 h-11 w-11 px-0 sm:static')}

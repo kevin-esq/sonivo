@@ -132,6 +132,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
   const eventId = searchParams.get('eventId')
   const planItemId = searchParams.get('item')
   const tab = parsePracticeTab(searchParams.get('tab'))
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const stageOutputRequested = searchParams.get('stageOutput') === '1'
   const stageSessionId = searchParams.get('stageSession')
   const { t } = useT()
@@ -596,6 +597,8 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
             id={`practice-tab-${id}`}
             aria-selected={tab === id}
             aria-controls={`practice-panel-${id}`}
+            tabIndex={tab === id ? 0 : -1}
+            ref={(element) => { tabRefs.current[tabOrder.indexOf(id)] = element }}
             data-testid={`practice-tab-${id}`}
             data-tab-surface="score"
             className={cn(
@@ -605,6 +608,20 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
                 : 'text-[var(--color-score-muted)] hover:bg-[var(--color-score-paper-soft)] hover:text-[var(--color-score-ink)]',
             )}
             onClick={() => setTabPersist(id)}
+            onKeyDown={(event) => {
+              const currentIndex = tabOrder.indexOf(id)
+              let nextIndex: number | null = null
+              if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % tabOrder.length
+              if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + tabOrder.length) % tabOrder.length
+              if (event.key === 'Home') nextIndex = 0
+              if (event.key === 'End') nextIndex = tabOrder.length - 1
+              if (nextIndex === null) return
+              event.preventDefault()
+              const nextTab = tabOrder[nextIndex]
+              if (!nextTab) return
+              setTabPersist(nextTab)
+              tabRefs.current[nextIndex]?.focus()
+            }}
           >
             {tabLabels[id]}
           </button>

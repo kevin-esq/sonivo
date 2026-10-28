@@ -64,6 +64,14 @@ test.describe('W19 stage mode', () => {
     await page.getByTestId('stage-next').click()
     await page.getByTestId('stage-prev').click()
 
+    const hasBroadcastChannel = await page.evaluate(() => 'BroadcastChannel' in window)
+    await page.evaluate(() => { window.open = () => null })
+    await page.getByTestId('stage-more-options').click()
+    await page.getByTestId('stage-secondary-display').click()
+    await expect(page.getByTestId('stage-display-status')).toContainText(
+      hasBroadcastChannel ? 'El navegador bloqueó la ventana' : 'No se detectó otra pantalla disponible.',
+    )
+
     // Escape closes the overlay.
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()

@@ -11,7 +11,7 @@ import {
 } from './helpers'
 
 test.describe('W-F song detail', () => {
-  test('TC-WS-13 tabs, Información sidebar and related files', async ({ page }) => {
+  test('TC-WS-13 versions, song materials and related files', async ({ page }) => {
     const email = uniqueEmail('wfsong')
     await register(page, email)
     const stamp = Date.now()
@@ -37,6 +37,22 @@ test.describe('W-F song detail', () => {
     // Back to the song detail via the breadcrumb.
     await page.getByRole('link', { name: songTitle }).first().click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
+    // A single version is shown directly; the chooser appears only when there
+    // is a real choice to make.
+    await expect(page.getByText(/Tono: G.*Tempo: 68/)).toBeVisible()
+
+    const secondArrangementLabel = `W-F Acoustic ${stamp}`
+    await createArrangement(page, secondArrangementLabel, { lyrics: 'Otra forma de preparar esta canción' })
+    await page.getByRole('link', { name: songTitle }).first().click()
+    await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
+
+    await page.getByRole('button', { name: /(?:Cambiar|Elegir) versión/ }).click()
+    const versionChoice = page.getByRole('button', { name: `Consultar materiales de ${arrangementLabel}` })
+    const secondVersionChoice = page.getByRole('button', { name: `Consultar materiales de ${secondArrangementLabel}` })
+    await expect(versionChoice).toHaveAttribute('aria-pressed', 'false')
+    await versionChoice.click()
+    await expect(page.getByTestId('song-arrangement-picker')).toBeHidden()
+    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
 
     // Tabs: Letra / Acordes / Notas / Archivos.
     for (const tab of ['lyrics', 'chords', 'notes', 'files']) {
@@ -47,19 +63,17 @@ test.describe('W-F song detail', () => {
     await page.getByTestId('song-tab-lyrics').click()
     await expect(page.getByTestId('song-tabpanel')).toContainText('Santo es el Señor')
     await page.getByTestId('song-tab-notes').click()
-    await expect(page.getByTestId('song-tabpanel')).toContainText('Aún no hay notas en este arreglo.')
+    await expect(page.getByTestId('song-tabpanel')).toContainText('Esta versión todavía no tiene notas.')
     await page.getByTestId('song-tab-files').click()
     await expect(page.getByTestId('song-tabpanel')).toContainText(`W-F Guia ${stamp}`)
 
-    // Información sidebar.
-    const facts = page.getByTestId('song-facts')
-    await expect(facts).toContainText('Información')
-    await expect(facts).toContainText('G')
-    const arrangementCard = page.getByRole('link').filter({ hasText: arrangementLabel })
-    await expect(arrangementCard).toContainText('68 BPM')
-
-    // Related files in the sidebar.
-    await expect(facts).toContainText('Archivos relacionados')
-    await expect(facts.getByRole('link', { name: `W-F Guia ${stamp}` })).toBeVisible()
+    await page.getByRole('button', { name: /(?:Cambiar|Elegir) versión/ }).click()
+    await expect(versionChoice).toHaveAttribute('aria-pressed', 'true')
+    await secondVersionChoice.click()
+    await expect(page.getByTestId('song-arrangement-picker')).toBeHidden()
+    await expect(page.getByRole('heading', { name: secondArrangementLabel })).toBeVisible()
+    await page.getByTestId('song-tab-lyrics').click()
+    await expect(page.getByTestId('song-tabpanel')).toContainText('Otra forma de preparar esta canción')
+    await expect(page.getByRole('link', { name: 'Editar materiales' })).toBeVisible()
   })
 })

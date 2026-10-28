@@ -19,6 +19,7 @@ public sealed class Song : IVersionedEntity
     public string Title { get; private set; } = string.Empty;
     public string? Attribution { get; private set; }
     public string OriginKind { get; private set; } = SongOriginKinds.Original;
+    public string? Genre { get; private set; }
     public string? RightsNotes { get; private set; }
     /// <summary>Normalized comma-separated tags (lowercase, trimmed, deduped). ADR-0055 W-B.</summary>
     public string? Tags { get; private set; }
@@ -33,6 +34,7 @@ public sealed class Song : IVersionedEntity
 
     public const int MaxTagCount = 12;
     public const int MaxTagLength = 32;
+    public const int MaxGenreLength = 100;
 
     public IReadOnlyList<string> TagList =>
         Tags is null ? [] : Tags.Split(',', StringSplitOptions.RemoveEmptyEntries);
@@ -45,7 +47,8 @@ public sealed class Song : IVersionedEntity
         string? attribution = null,
         string? rightsNotes = null,
         string? tags = null,
-        Guid? id = null)
+        Guid? id = null,
+        string? genre = null)
     {
         if (groupId == Guid.Empty)
         {
@@ -59,6 +62,7 @@ public sealed class Song : IVersionedEntity
             Title = NormalizeTitle(title),
             Attribution = NormalizeOptional(attribution, 300, nameof(attribution)),
             OriginKind = NormalizeOriginKind(originKind),
+            Genre = NormalizeOptional(genre, MaxGenreLength, nameof(genre)),
             RightsNotes = NormalizeOptional(rightsNotes, 2000, nameof(rightsNotes)),
             Tags = NormalizeTags(tags),
             CreatedAt = now,
@@ -74,13 +78,15 @@ public sealed class Song : IVersionedEntity
         string? rightsNotes,
         string? tags,
         int expectedVersion,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        string? genre = null)
     {
         EnsureNotDeleted();
         EnsureExpectedVersion(expectedVersion);
         Title = NormalizeTitle(title);
         Attribution = NormalizeOptional(attribution, 300, nameof(attribution));
         OriginKind = NormalizeOriginKind(originKind);
+        Genre = NormalizeOptional(genre, MaxGenreLength, nameof(genre));
         RightsNotes = NormalizeOptional(rightsNotes, 2000, nameof(rightsNotes));
         Tags = NormalizeTags(tags);
         Touch(now);

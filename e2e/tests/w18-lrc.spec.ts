@@ -28,8 +28,10 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     await createSong(page, 'LRC Song')
     await openSong(page, 'LRC Song')
     await createArrangement(page, 'Acoustic')
+    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
+    await expect(page.getByTestId('arrangement-editor')).toBeVisible()
 
-    // The import panel is disclosed inside the arrangement editor.
+    // Import is an advanced option inside the lyrics editor.
     await page.locator('details[aria-labelledby="lrc-heading"] summary').click()
 
     // A realistic file: metadata tags, chords inside a line and a repeated mark.
@@ -63,13 +65,18 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     const offsetPreview = await offsetResponse.json()
     expect(offsetPreview.chordTimingJson).toContain('"atMs":13000')
 
-    // Apply persists through the normal versioned PATCH.
+    // Applying updates the editor draft; the explicit save persists it.
+    await page.getByRole('button', { name: 'Aplicar a la letra' }).click()
+    await expect(page.getByRole('button', { name: 'Aplicar a la letra' })).toBeHidden()
+
     const [patchResponse] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/arrangements/') && r.request().method() === 'PATCH'),
-      page.getByRole('button', { name: 'Aplicar a la letra' }).click(),
+      page.getByRole('button', { name: 'Guardar cambios' }).click(),
     ])
     expect(patchResponse.ok()).toBeTruthy()
-    await expect(page.getByRole('button', { name: 'Aplicar a la letra' })).toBeHidden()
+    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
+    await expect(page.getByTestId('arrangement-editor')).toBeVisible()
+    await page.locator('details[aria-labelledby="lrc-heading"] summary').click()
 
     // Export downloads a .lrc file containing the timestamps.
     const [download] = await Promise.all([
@@ -83,5 +90,6 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     console.log(`EXPORTED_LRC_START\n${exported}EXPORTED_LRC_END`)
     expect(exported).toContain('[00:13.00]Hola')
     expect(exported).toContain('[00:16.50][Am]Dos')
+    await page.getByRole('button', { name: 'Cancelar' }).click()
   })
 })

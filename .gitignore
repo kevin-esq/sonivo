@@ -45,6 +45,7 @@ tests/**/.scratch/rls-validation/
 **/node_modules/
 **/dist/
 *.tsbuildinfo
+web/apps/app/storybook-static/
 web/apps/app/.next-e2e/
 web/apps/*/.next-*/
 web/output/playwright/

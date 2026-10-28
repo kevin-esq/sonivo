@@ -1,7 +1,7 @@
 import { routes } from '../routing/routes'
-import { useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ChevronRight, Paperclip, Pause, Play } from 'lucide-react'
+import { Check, ChevronRight, Paperclip, Pause, Play, Search } from 'lucide-react'
 import {
   createArrangement,
   deleteSong,
@@ -20,12 +20,11 @@ import { Button } from '../ui/button'
 import { cn } from '../ui/cn'
 import { safeExternalResourceUrl } from './resourceUrl'
 import { fieldClass } from '../ui/field'
-import { GroupButton, GroupDialog, GroupInput } from '../groups/ui'
+import { GroupButton, GroupDialog, GroupInput, groupFieldClass } from '../groups/ui'
 import {
   EmptyPanel,
   Field,
   FormActions,
-  NumberedMark,
   OriginBadge,
   OriginMark,
   PageBreadcrumb,
@@ -62,9 +61,10 @@ const SONG_TABS: { id: SongTab; labelKey: I18nKey }[] = [
 ]
 
 export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; groupId: string; songId: string }) {
-  const { navigate } = useGroupShell()
+  const { navigate, search } = useGroupShell()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const [conflict, setConflict] = useState<string | null>(null)
+  const [latestSong, setLatestSong] = useState<SongDetail | null>(null)
   const [editing, setEditing] = useState(false)
   const [creatingArrangement, setCreatingArrangement] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -72,10 +72,13 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
   const [tab, setTab] = useState<SongTab>('lyrics')
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [pickedArrangementId, setPickedArrangementId] = useState<string | null>(null)
+  const [selectingArrangement, setSelectingArrangement] = useState(false)
+  const [arrangementQuery, setArrangementQuery] = useState('')
   const { t } = useT()
   const audioPlayer = useAudioPlayer()
 
   const isOwner = canManageContentRole(group?.role)
+  const editRequested = new URLSearchParams(search).get('edit') === 'true'
 
   // Song + arrangement list load together; stays idle until the group is known.
   const surface = useResource(
@@ -92,9 +95,26 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
   )
 
   const arrangements = surface.data?.arrangements ?? []
+  const filteredArrangements = useMemo(() => {
+    const query = arrangementQuery.trim().normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase()
+    if (!query) return arrangements
+    return arrangements.filter((arrangement) => {
+      const searchable = [arrangement.label, arrangement.defaultKey, arrangement.defaultBpm]
+        .filter((value) => value != null)
+        .join(' ')
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .toLocaleLowerCase()
+      return searchable.includes(query)
+    })
+  }, [arrangements, arrangementQuery])
+
+  useEffect(() => {
+    if (editRequested && surface.data && isOwner) setEditing(true)
+  }, [editRequested, surface.data, isOwner])
   const selectedArrangementId =
     arrangements.find((item) => item.id === pickedArrangementId)?.id ??
-    arrangements[0]?.id ??
+    (arrangements.length === 1 ? arrangements[0]?.id : undefined) ??
     null
 
   // Selected arrangement content (lyrics/chords/notes/resources) for the tabs.
@@ -160,6 +180,16 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
   }
 
   const { song } = loaded
+
+  function exitEditing() {
+    setLatestSong(null)
+    setEditing(false)
+    if (!editRequested) return
+    const params = new URLSearchParams(search)
+    params.delete('edit')
+    const query = params.toString()
+    navigate(`${routes.groupSong(groupId, songId)}${query ? `?${query}` : ''}`, { replace: true })
+  }
   const selectedArrangement =
     arrangements.find((item) => item.id === selectedArrangementId) ?? null
   const arrangementDetail = detail.data
@@ -172,8 +202,8 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
       ? t('setlists.noArrangements')
       : plural(
           song.arrangementCount,
-          t('schedule.setlistArrangementsOne'),
-          t('schedule.setlistArrangementsMany'),
+          t('song.versionsOne'),
+          t('song.versionsMany'),
         )
 
   const tabContent: Record<SongTab, string | null> = {
@@ -191,10 +221,10 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
   }
 
   const resources: ResourceSummary[] = arrangementDetail?.resources ?? []
-  const showSongFacts = editing || Boolean(song.rightsNotes?.trim()) || resources.length > 0
+  const showSongFacts = Boolean(song.attribution?.trim() || song.genre?.trim() || song.rightsNotes?.trim() || song.tags.length)
 
   return (
-    <section className="space-y-8" aria-labelledby="song-heading">
+      <section className="space-y-7" aria-labelledby="song-heading">
       <header data-testid="song-hero" className="sonivo-score-header space-y-4">
         <PageBreadcrumb
           items={[
@@ -223,33 +253,214 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
               >
                 {arrangementCountLabel}
               </ReadinessChip>
-              {song.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-[var(--color-score-paper-soft)] px-3 py-1 text-xs font-medium text-[var(--color-score-ink-soft)]"
-                >
-                  {tag}
-                </span>
-              ))}
             </div>
           </div>
-          {isOwner && !editing ? (
-            <Button className="col-span-2 justify-self-end sm:col-span-1" variant="secondary" onClick={() => setEditing(true)}>
-              {t('song.editSong')}
-            </Button>
-          ) : null}
+          <div className="col-span-2 flex flex-wrap items-center justify-end gap-2 sm:col-span-1">
+            {selectedArrangement ? (
+              <AppLink className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary-strong px-4 text-sm font-semibold text-primary-foreground no-underline shadow-sm hover:bg-primary-strong/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" to={routes.groupPractice(group.id, selectedArrangement.id)}>
+                {t('song.practiceArrangement')}
+              </AppLink>
+            ) : null}
+            {isOwner && !editing ? (
+              <Button variant="secondary" onClick={() => { setLatestSong(null); setEditing(true) }}>
+                {t('song.editSong')}
+              </Button>
+            ) : null}
+          </div>
         </div>
       </header>
 
       <ProblemAlert message={deleteError} />
       <ConflictAlert message={conflict} />
-      <SongContentGuide />
 
-      <div className={cn('grid gap-8 lg:items-start', showSongFacts ? 'lg:grid-cols-[minmax(0,1fr)_20rem]' : 'grid-cols-1')}>
-        <div className={cn('grid gap-4 lg:items-start', editing ? 'grid-cols-1' : 'lg:grid-cols-[minmax(0,1.35fr)_minmax(16rem,1fr)]')}>
-          {/* W-F: arrangement content tabs (lyrics / chords / notes / files). */}
-          <section className="order-last space-y-4 lg:order-none" aria-label={t('song.tabsLabel')}>
+      {editing && isOwner ? (
+        <section
+          data-testid="song-edit-form"
+          aria-label={t('song.editSong')}
+          className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6"
+        >
+          <SongEditForm
+            song={song}
+            groupId={group.id}
+            onCancel={exitEditing}
+            onSaved={async () => {
+              exitEditing()
+              setConflict(null)
+              surface.reload()
+            }}
+            onConflict={async () => {
+              setConflict(t('common.errorConflict'))
+              try {
+                setLatestSong(await getSong(group.id, song.id))
+              } catch {
+                setConflict(t('song.conflictReloadFailed'))
+              }
+            }}
+            latestSong={latestSong}
+          />
+        </section>
+      ) : null}
+
+      <section className="min-w-0 space-y-3" aria-labelledby="arrangements-heading">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1">
+              <h2 id="arrangements-heading" className="text-lg font-semibold">
+                {t('song.arrangementsTitle')}
+              </h2>
+              <SongContentGuide />
+            </div>
+            <p className="mt-1 text-sm text-muted">{t('song.arrangementsHint')}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {arrangements.length > 1 ? (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setArrangementQuery('')
+                  setSelectingArrangement(true)
+                }}
+                aria-haspopup="dialog"
+                aria-expanded={selectingArrangement}
+                data-testid="song-open-arrangement-picker"
+              >
+                {selectedArrangement ? t('song.changeVersion') : t('song.chooseVersion')}
+                <ChevronRight className="ml-1 h-4 w-4 rotate-90" aria-hidden="true" />
+              </Button>
+            ) : null}
+            {showAddArrangement ? (
+              <Button onClick={() => setCreatingArrangement(true)}>{t('song.addArrangement')}</Button>
+            ) : null}
+          </div>
+        </div>
+        {arrangements.length === 0 ? (
+          <EmptyPanel
+            title={t('song.noArrangementsTitle')}
+            description={t(showAddArrangement ? 'song.noArrangementsBody' : 'song.noArrangementsMemberBody')}
+          />
+        ) : selectedArrangement ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-border-subtle bg-surface px-4 py-3">
+            <span className="min-w-0 flex-1 break-words font-semibold text-ink [overflow-wrap:anywhere]">
+              {selectedArrangement.label}
+            </span>
+            <span className="shrink-0 rounded-full bg-surface-hover px-2.5 py-1 text-xs font-medium text-primary-ink">
+              {t('song.versionSelected')}
+            </span>
+            <span className="w-full text-sm text-muted sm:w-auto">
+              {[
+                selectedArrangement.defaultKey ? `${t('song.infoKey')}: ${selectedArrangement.defaultKey}` : null,
+                selectedArrangement.defaultBpm != null ? `${t('song.infoTempo')}: ${selectedArrangement.defaultBpm}` : null,
+              ].filter(Boolean).join(' · ') || t('song.noKeyTempo')}
+            </span>
+          </div>
+        ) : null}
+
+        {isOwner && creatingArrangement ? (
+          <ArrangementCreateForm
+            groupId={group.id}
+            songId={song.id}
+            onCancel={() => setCreatingArrangement(false)}
+            onCreated={async (createdId) => {
+              setCreatingArrangement(false)
+              navigate(routes.groupArrangement(group.id, createdId))
+            }}
+          />
+        ) : null}
+      </section>
+
+      <GroupDialog
+        open={selectingArrangement}
+        onClose={() => setSelectingArrangement(false)}
+        title={t('song.chooseVersionTitle')}
+        description={t('song.chooseVersionDescription')}
+        size="sm"
+        mobileFullscreen
+        testId="song-arrangement-picker"
+      >
+        <div className="space-y-3">
+          <label className="sr-only" htmlFor="song-arrangement-search">{t('song.searchVersions')}</label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+            <input
+              id="song-arrangement-search"
+              type="search"
+              autoComplete="off"
+              value={arrangementQuery}
+              onChange={(event) => setArrangementQuery(event.target.value)}
+              placeholder={t('song.searchVersions')}
+              className={`${groupFieldClass} pl-10`}
+              data-autofocus
+              data-testid="song-arrangement-search"
+            />
+          </div>
+          {filteredArrangements.length ? (
+            <ul className="max-h-[55dvh] space-y-2 overflow-y-auto overscroll-contain pr-1">
+              {filteredArrangements.map((arrangement) => {
+                const isSelected = arrangement.id === selectedArrangementId
+                const keyAndTempo = [
+                  arrangement.defaultKey ? `${t('song.infoKey')}: ${arrangement.defaultKey}` : null,
+                  arrangement.defaultBpm != null ? `${t('song.infoTempo')}: ${arrangement.defaultBpm}` : null,
+                ].filter(Boolean).join(' · ')
+                return (
+                  <li key={arrangement.id}>
+                    <button
+                      type="button"
+                      aria-pressed={isSelected}
+                      aria-label={t('song.selectArrangement', { label: arrangement.label })}
+                      data-testid={`song-arrangement-select-${arrangement.id}`}
+                      onClick={() => {
+                        setPickedArrangementId(arrangement.id)
+                        setSelectingArrangement(false)
+                      }}
+                      className={cn(
+                        'flex min-h-14 w-full min-w-0 items-center gap-3 rounded-xl border border-border-subtle px-3 py-3 text-left transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none',
+                        isSelected ? 'bg-surface-hover' : 'bg-surface',
+                      )}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block break-words font-semibold text-ink [overflow-wrap:anywhere]">{arrangement.label}</span>
+                        <span className="block text-sm text-muted">{keyAndTempo || t('song.noKeyTempo')}</span>
+                      </span>
+                      {isSelected ? (
+                        <span className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-primary-ink">
+                          <Check className="h-4 w-4" aria-hidden="true" />
+                          {t('song.versionSelected')}
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <p role="status" className="rounded-xl bg-surface-hover px-4 py-6 text-center text-sm text-muted">
+              {t('song.noVersionSearchResults')}
+            </p>
+          )}
+        </div>
+      </GroupDialog>
+
+      <section className="min-w-0 space-y-4" aria-labelledby="song-materials-heading">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <h2 id="song-materials-heading" className="break-words text-lg font-semibold text-ink [overflow-wrap:anywhere]">
+                  {selectedArrangement?.label ?? t('song.tabsLabel')}
+                </h2>
+                {selectedArrangement ? (
+                  <p className="mt-1 text-sm text-muted">{t('song.versionMaterialsHint')}</p>
+                ) : null}
+              </div>
+              {selectedArrangement ? (
+                <AppLink
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-border-subtle bg-surface px-4 text-sm font-semibold text-ink no-underline hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)]"
+                  to={routes.groupArrangement(group.id, selectedArrangement.id)}
+                >
+                  {t(isOwner ? 'song.editArrangementContent' : 'song.openArrangement')}
+                  <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
+                </AppLink>
+              ) : null}
+            </div>
+
               <div
                 role="tablist"
                 aria-label={t('song.tabsLabel')}
@@ -294,37 +505,24 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
                 ))}
               </div>
 
-              {arrangements.length > 1 ? (
-                <label className="flex items-center gap-2 text-sm text-muted">
-                  <span>{t('song.arrangementPicker')}</span>
-                  <select
-                    className={cn(fieldClass, 'min-w-40')}
-                    value={selectedArrangementId ?? ''}
-                    onChange={(event) => setPickedArrangementId(event.target.value)}
-                  >
-                    {arrangements.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-            </div>
-
             <div
               role="tabpanel"
               id={`song-panel-${tab}`}
               aria-labelledby={`song-tab-${tab}`}
               data-testid="song-tabpanel"
-              className="min-h-64 rounded-2xl border border-border-subtle bg-surface p-5 sm:p-7"
+              className="min-h-72 rounded-2xl border border-border-subtle bg-surface p-5 sm:p-8"
             >
               {!selectedArrangement ? (
-                <p className="text-sm text-muted">{t('song.noArrangementForTabs')}</p>
+                <p className="text-sm text-muted">{arrangements.length > 1 ? t('song.chooseArrangementForContent') : t('song.noArrangementForTabs')}</p>
               ) : detail.loading ? (
                 <p aria-live="polite" className="text-sm text-muted">
                   {t('song.loadingArrangements')}
                 </p>
+              ) : detail.error != null ? (
+                <div className="space-y-3" role="alert">
+                  <p className="text-sm text-error-ink">{t('song.contentLoadError')}</p>
+                  <Button type="button" variant="secondary" onClick={detail.reload}>{t('state.retry')}</Button>
+                </div>
               ) : tab === 'files' ? (
                 resources.length === 0 ? (
                   <p className="text-sm text-muted">{t('song.noRelatedFiles')}</p>
@@ -391,164 +589,45 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
                 <p className="text-sm text-muted">{t(emptyKey[tab])}</p>
               )}
             </div>
-            {isOwner && selectedArrangement ? (
-              <AppLink
-              className="inline-flex min-h-11 items-center rounded-xl bg-primary-strong px-5 text-sm font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary-strong/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                to={routes.groupArrangement(group.id, selectedArrangement.id)}
-              >
-                {t('song.editArrangementContent')}
-              </AppLink>
-            ) : null}
-          </section>
+      </section>
 
-          <section className="order-first space-y-4 lg:order-none" aria-labelledby="arrangements-heading">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="arrangements-heading" className="text-lg font-semibold">
-                {t('song.arrangementsTitle')}
-              </h2>
-              {showAddArrangement && arrangements.length > 0 ? (
-                <Button onClick={() => setCreatingArrangement(true)}>{t('song.addArrangement')}</Button>
-              ) : null}
+      {!editing && showSongFacts ? (
+        <section data-testid="song-facts" aria-labelledby="song-facts-heading" className="space-y-3 border-t border-border-subtle pt-5">
+          <h2 id="song-facts-heading" className="text-base font-semibold text-ink">{t('song.infoTitle')}</h2>
+          <dl className="grid min-w-0 gap-x-8 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <dt className="text-muted">{t('song.originLabel')}</dt>
+              <dd className="mt-1 font-medium">{formatOriginKind(song.originKind, t)}</dd>
             </div>
-            <p className="text-sm text-muted">
-              {t('song.arrangementsHint')}
-            </p>
-
-            {arrangements.length === 0 ? (
-              <EmptyPanel
-                title={t('song.noArrangementsTitle')}
-                description={t('song.noArrangementsBody')}
-                action={
-                  showAddArrangement ? (
-                    <Button onClick={() => setCreatingArrangement(true)}>{t('song.addArrangement')}</Button>
-                  ) : null
-                }
-              />
-            ) : (
-              <ol className="space-y-2">
-                {arrangements.map((arrangement, index) => (
-                  <li
-                    key={arrangement.id}
-                    className="library-enter"
-                    style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
-                  >
-                    <AppLink
-                      className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-border-subtle bg-surface px-3 py-3 no-underline transition duration-150 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none"
-                      to={routes.groupArrangement(group.id, arrangement.id)}
-                    >
-                      <NumberedMark n={index + 1} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold text-ink">{arrangement.label}</span>
-                        <span className="block truncate text-sm text-muted">
-                          {arrangement.defaultKey ? arrangement.defaultKey : ''}
-                          {arrangement.defaultBpm != null
-                            ? `${arrangement.defaultKey ? ' · ' : ''}${arrangement.defaultBpm} BPM`
-                            : !arrangement.defaultKey
-                              ? t('song.noKeyTempo')
-                              : ''}
-                        </span>
-                      </span>
-                      <ReadinessChip
-                        testId="arrangement-readiness"
-                        tone={arrangement.defaultKey || arrangement.defaultBpm != null ? 'accent' : 'neutral'}
-                      >
-                        {arrangement.defaultKey
-                          ? `${arrangement.defaultKey}${arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm}` : ''}`
-                          : t('setlists.noKey')}
-                      </ReadinessChip>
-                      <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
-                    </AppLink>
-                  </li>
-                ))}
-              </ol>
-            )}
-
-            {isOwner && creatingArrangement ? (
-              <ArrangementCreateForm
-                groupId={group.id}
-                songId={song.id}
-                onCancel={() => setCreatingArrangement(false)}
-                onCreated={async (createdId) => {
-                  setCreatingArrangement(false)
-                  navigate(routes.groupArrangement(group.id, createdId))
-                }}
-              />
-            ) : null}
-          </section>
-        </div>
-
-        {showSongFacts ? <aside
-          data-testid="song-facts"
-          className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-5"
-        >
-          {!editing ? (
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
-              {t('song.infoTitle')}
-            </h3>
-          ) : null}
-          {editing && isOwner ? (
-            <SongEditForm
-              song={song}
-              groupId={group.id}
-              onCancel={() => setEditing(false)}
-              onSaved={async () => {
-                setEditing(false)
-                setConflict(null)
-                surface.reload()
-              }}
-              onConflict={async () => {
-                setConflict(t('common.errorConflict'))
-                setEditing(false)
-                surface.reload()
-              }}
-            />
-          ) : (
-            <dl className="space-y-3 text-sm">
+            {song.attribution ? (
               <div>
-                <dt className="text-muted">{t('song.rightsLabel')}</dt>
-                <dd className="whitespace-pre-wrap font-medium">{song.rightsNotes ?? '—'}</dd>
+                <dt className="text-muted">{t('songs.attributionLabel')}</dt>
+                <dd className="mt-1 break-words font-medium">{song.attribution}</dd>
               </div>
-            </dl>
-          )}
-
-          {!editing ? <div className="space-y-2 border-t border-border-subtle pt-3">
-            <h4 className="text-sm font-semibold text-muted">
-              {t('song.relatedFiles')}
-            </h4>
-            {resources.length === 0 ? (
-              <p className="text-sm text-muted">{t('song.noRelatedFiles')}</p>
-            ) : (
-              <ul className="space-y-2">
-                {resources.slice(0, 6).map((resource) => {
-                  const href = resource.kind === 'link'
-                    ? safeExternalResourceUrl(resource.url)
-                    : resourceContentUrl(group.id, selectedArrangementId!, resource.id)
-                  const content = (
-                    <>
-                      <Paperclip className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span className="truncate">{resource.label}</span>
-                    </>
-                  )
-                  const className =
-                    'flex items-center gap-2 text-sm font-medium text-primary-ink no-underline hover:underline'
-                  return (
-                    <li key={resource.id}>
-                      {href ? (
-                        <a className={className} href={href} target="_blank" rel="noopener noreferrer">
-                          {content}
-                        </a>
-                      ) : (
-                        <div className={className} aria-disabled="true">{content}</div>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div> : null}
-
-        </aside> : null}
-      </div>
+            ) : null}
+            {song.genre ? (
+              <div>
+                <dt className="text-muted">{t('songCreate.wizardGenre')}</dt>
+                <dd className="mt-1 break-words font-medium">{song.genre}</dd>
+              </div>
+            ) : null}
+            {song.tags.length > 0 ? (
+              <div>
+                <dt className="text-muted">{t('song.infoTags')}</dt>
+                <dd className="mt-1 flex flex-wrap gap-1.5">
+                  {song.tags.map((tag) => <span key={tag} className="rounded-full bg-surface-hover px-2.5 py-1 text-xs font-medium text-ink">{tag}</span>)}
+                </dd>
+              </div>
+            ) : null}
+            {song.rightsNotes ? (
+              <div className="sm:col-span-2 lg:col-span-4">
+                <dt className="text-muted">{t('song.rightsLabel')}</dt>
+                <dd className="mt-1 whitespace-pre-wrap font-medium">{song.rightsNotes}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </section>
+      ) : null}
 
       {isOwner ? (
         <section
@@ -596,33 +675,55 @@ export function SongDetailPage({ user, groupId, songId }: { user: CurrentUser; g
   )
 }
 
-function SongEditForm({
+export function SongEditForm({
   song,
   groupId,
   onCancel,
   onSaved,
   onConflict,
+  latestSong,
+  onDirtyChange,
 }: {
   song: SongDetail
   groupId: string
   onCancel: () => void
   onSaved: (song: SongDetail) => Promise<void>
   onConflict: () => Promise<void>
+  latestSong: SongDetail | null
+  onDirtyChange?: (dirty: boolean) => void
 }) {
   const [title, setTitle] = useState(song.title)
   const [originKind, setOriginKind] = useState<SongOriginKind>(song.originKind as SongOriginKind)
   const [attribution, setAttribution] = useState(song.attribution ?? '')
+  const [genre, setGenre] = useState(song.genre ?? '')
   const [rightsNotes, setRightsNotes] = useState(song.rightsNotes ?? '')
+  const [tags, setTags] = useState(song.tags.join(', '))
+  const [reviewedLatest, setReviewedLatest] = useState(false)
   const { t } = useT()
+
+  useEffect(() => {
+    onDirtyChange?.(
+      title !== song.title ||
+      originKind !== song.originKind ||
+      attribution !== (song.attribution ?? '') ||
+      genre !== (song.genre ?? '') ||
+      rightsNotes !== (song.rightsNotes ?? '') ||
+      tags !== song.tags.join(', '),
+    )
+  }, [title, originKind, attribution, genre, rightsNotes, tags, song, onDirtyChange])
+
+  useEffect(() => setReviewedLatest(false), [latestSong?.version])
 
   const save = useAction(async () => {
     try {
       const updated = await updateSong(groupId, song.id, {
-        expectedVersion: song.version,
+        expectedVersion: latestSong?.version ?? song.version,
         title: title.trim(),
         originKind,
         attribution,
+        genre: genre.trim() || null,
         rightsNotes,
+        tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
       })
       await onSaved(updated)
     } catch (err) {
@@ -644,6 +745,21 @@ function SongEditForm({
       noValidate
     >
       <h3 className="font-semibold">{t('song.editSong')}</h3>
+      {latestSong ? (
+        <div className="space-y-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm" role="status">
+          <p className="font-semibold text-ink">{t('song.latestVersionAvailable')}</p>
+          <dl className="grid gap-x-3 gap-y-1 sm:grid-cols-[auto_1fr]">
+            <dt className="text-muted">{t('songs.titleLabel')}</dt><dd className="break-words font-medium">{latestSong.title}</dd>
+            <dt className="text-muted">{t('songs.attributionLabel')}</dt><dd className="break-words">{latestSong.attribution || '—'}</dd>
+            <dt className="text-muted">{t('songCreate.wizardGenre')}</dt><dd className="break-words">{latestSong.genre || '—'}</dd>
+            <dt className="text-muted">{t('songs.rightsLabel')}</dt><dd className="whitespace-pre-wrap break-words">{latestSong.rightsNotes || '—'}</dd>
+          </dl>
+          <label className="flex min-h-11 items-center gap-2 font-medium text-ink">
+            <input type="checkbox" checked={reviewedLatest} onChange={(event) => setReviewedLatest(event.target.checked)} />
+            {t('song.reviewLatestVersion')}
+          </label>
+        </div>
+      ) : null}
       <ProblemAlert message={save.error != null ? mutationErrorMessage(save.error, t) : null} />
       <Field label={t('songs.titleLabel')}>
         <input
@@ -674,6 +790,9 @@ function SongEditForm({
           maxLength={500}
         />
       </Field>
+      <Field label={t('songCreate.wizardGenre')}>
+        <input className={fieldClass} value={genre} onChange={(e) => setGenre(e.target.value)} maxLength={100} />
+      </Field>
       <Field label={t('songs.rightsLabel')} hint={t('song.clearRightsHint')}>
         <textarea
           className={fieldClass}
@@ -683,8 +802,11 @@ function SongEditForm({
           maxLength={2000}
         />
       </Field>
+      <Field label={t('songCreate.tagsLabel')} hint={t('songCreate.tagsPlaceholder')}>
+        <input className={fieldClass} value={tags} onChange={(event) => setTags(event.target.value)} maxLength={200} />
+      </Field>
       <FormActions>
-        <Button type="submit" disabled={save.pending}>
+        <Button type="submit" disabled={save.pending || Boolean(latestSong && !reviewedLatest)}>
           {save.pending ? t('song.saving') : t('song.save')}
         </Button>
         <Button variant="secondary" disabled={save.pending} onClick={onCancel}>
@@ -711,6 +833,7 @@ function ArrangementCreateForm({
   const [defaultBpm, setDefaultBpm] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [showMusicalDetails, setShowMusicalDetails] = useState(false)
   const { t } = useT()
 
   async function onSubmit(event: FormEvent) {
@@ -750,6 +873,7 @@ function ArrangementCreateForm({
       title={t('song.createArrangement')}
       description={t('song.createArrangementHint')}
       pending={pending}
+      confirmDiscard
       testId="arrangement-create-dialog"
       size="sm"
       onSubmit={onSubmit}
@@ -765,29 +889,45 @@ function ArrangementCreateForm({
       }
     >
       {error ? <p role="alert" className="text-sm text-error-ink">{error}</p> : null}
-      <GroupInput
-        label={t('song.labelLabel')}
-        value={label}
-        onChange={(event) => setLabel(event.target.value)}
-        required
-        maxLength={200}
-        data-autofocus
-      />
-      <GroupInput
-        label={t('song.keyLabel')}
-        value={defaultKey}
-        onChange={(event) => setDefaultKey(event.target.value)}
-        maxLength={32}
-      />
-      <GroupInput
-        label={t('song.bpmLabel')}
-        type="number"
-        min={1}
-        max={400}
-        inputMode="numeric"
-        value={defaultBpm}
-        onChange={(event) => setDefaultBpm(event.target.value)}
-      />
+      <div className="space-y-4">
+        <GroupInput
+          label={t('song.labelLabel')}
+          hint={t('song.versionNameHint')}
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+          required
+          maxLength={200}
+          data-autofocus
+        />
+        <button
+          type="button"
+          aria-expanded={showMusicalDetails}
+          onClick={() => setShowMusicalDetails((current) => !current)}
+          className="min-h-11 rounded-lg text-sm font-medium text-primary-ink underline decoration-primary/40 underline-offset-4 hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          {t(showMusicalDetails ? 'song.hideVersionDetails' : 'song.showVersionDetails')}
+        </button>
+        {showMusicalDetails ? (
+          <div className="space-y-4 rounded-xl bg-surface-hover p-4">
+            <p className="text-sm text-muted">{t('song.versionDetailsHint')}</p>
+            <GroupInput
+              label={t('song.keyLabel')}
+              value={defaultKey}
+              onChange={(event) => setDefaultKey(event.target.value)}
+              maxLength={32}
+            />
+            <GroupInput
+              label={t('song.bpmLabel')}
+              type="number"
+              min={1}
+              max={400}
+              inputMode="numeric"
+              value={defaultBpm}
+              onChange={(event) => setDefaultBpm(event.target.value)}
+            />
+          </div>
+        ) : null}
+      </div>
     </GroupDialog>
   )
 }

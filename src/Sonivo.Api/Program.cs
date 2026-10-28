@@ -4695,7 +4695,8 @@ app.MapPost("/api/groups/{groupId:guid}/songs", async (
             request.Attribution,
             request.OriginKind ?? string.Empty,
             request.RightsNotes,
-            request.Tags is null ? null : string.Join(',', request.Tags)),
+            request.Tags is null ? null : string.Join(',', request.Tags),
+            request.Genre),
         cancellationToken);
 
     return Results.Created($"/api/groups/{groupId}/songs/{created.Id}", ToSongDetailResponse(created));
@@ -4748,7 +4749,8 @@ app.MapPatch("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
             request.OriginKind,
             request.RightsNotes,
             request.ExpectedVersion,
-            request.Tags is null ? null : string.Join(',', request.Tags)),
+            request.Tags is null ? null : string.Join(',', request.Tags),
+            request.Genre),
         cancellationToken);
 
     return Results.Ok(ToSongDetailResponse(updated));
@@ -6250,6 +6252,7 @@ static object ToSongListResponse(SongListItemDto song) => new
     title = song.Title,
     attribution = song.Attribution,
     originKind = song.OriginKind,
+    genre = song.Genre,
     version = song.Version,
     createdAt = song.CreatedAt,
     updatedAt = song.UpdatedAt,
@@ -6263,6 +6266,7 @@ static object ToSongDetailResponse(SongDetailDto song) => new
     title = song.Title,
     attribution = song.Attribution,
     originKind = song.OriginKind,
+    genre = song.Genre,
     rightsNotes = song.RightsNotes,
     version = song.Version,
     createdAt = song.CreatedAt,
@@ -6548,14 +6552,16 @@ internal sealed record CreateSongRequest(
     string? Attribution,
     string? OriginKind,
     string? RightsNotes,
-    string[]? Tags = null);
+    string[]? Tags = null,
+    string? Genre = null);
 internal sealed record UpdateSongRequest(
     string? Title,
     string? Attribution,
     string? OriginKind,
     string? RightsNotes,
     int ExpectedVersion,
-    string[]? Tags = null);
+    string[]? Tags = null,
+    string? Genre = null);
 internal sealed record SoftDeleteSongRequest(int ExpectedVersion);
 internal sealed record CreateArrangementRequest(
     string? Label,

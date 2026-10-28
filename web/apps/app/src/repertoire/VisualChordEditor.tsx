@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Button } from '../ui/button'
 import { fieldClass } from '../ui/field'
 import { FileDropzone } from '../ui/FileDropzone'
 import { useT } from '../i18n'
 import { PracticePlayer } from './PracticePlayer'
 import { useAudioPlayer } from './AudioPlayerContext'
+import { chordSuggestionsForKey } from './chordPro'
 import {
   listChordCursors,
   lyricsToDocument,
@@ -19,11 +21,14 @@ import {
 import {
   activeChordLineIndex,
   clearChordTimingMark,
+  nudgeChordWordTiming,
   splitChordProLines,
   upsertChordTimingMark,
   type ChordTimingTimeline,
 } from './chordTiming'
 import type { PracticeAudioSource } from './pickPracticeAudio'
+
+export type ArrangementEditorMode = 'lyrics' | 'chords' | 'timing'
 
 type VisualChordEditorProps = {
   lyrics: string
@@ -35,10 +40,15 @@ type VisualChordEditorProps = {
   groupId: string
   arrangementId: string
   arrangementLabel: string
+  defaultKey: string
   audioTracks: PracticeAudioSource[]
   importFile: File | null
   importError: boolean
   onImportFileChange: (file: File | null) => void
+  mode: ArrangementEditorMode
+  editorTitle: string
+  editorHint: string
+  additionalLyricsImport?: ReactNode
 }
 
 function formatTimestamp(milliseconds: number): string {
@@ -171,10 +181,15 @@ export function VisualChordEditor({
   groupId,
   arrangementId,
   arrangementLabel,
+  defaultKey,
   audioTracks,
   importFile,
   importError,
   onImportFileChange,
+  mode,
+  editorTitle,
+  editorHint,
+  additionalLyricsImport,
 }: VisualChordEditorProps) {
   const { t } = useT()
   const audioPlayer = useAudioPlayer()
@@ -195,6 +210,7 @@ export function VisualChordEditor({
   const [savedSource, setSavedSource] = useState({ lyrics, chords })
   const [currentAudioMs, setCurrentAudioMs] = useState(0)
   const [instrumentalStartMs, setInstrumentalStartMs] = useState<number | null>(null)
+  const [selectedLineIndex, setSelectedLineIndex] = useState(0)
 
   useEffect(() => {
     if (savedSource.lyrics === lyrics && savedSource.chords === chords) return
@@ -207,6 +223,7 @@ export function VisualChordEditor({
 
   const cursors = listChordCursors(document)
   const palette = Array.from(new Set([...chordTokens(document), ...manualChords, selectedChord].filter(Boolean))) as string[]
+  const suggestedChords = chordSuggestionsForKey(defaultKey)
   const timingMarks = timingTimeline.lineMarks
   const timeByLine = new Map(timingMarks.map((mark) => [mark.lineIndex, mark.atMs]))
   const timeByWord = new Map(timingTimeline.wordMarks.map((mark) => [`${mark.lineIndex}:${mark.wordIndex}`, mark]))
@@ -245,12 +262,7 @@ export function VisualChordEditor({
   function nudgeWord(lineIndex: number, wordIndex: number, deltaMs: number) {
     onTimingChange({
       ...timingTimeline,
-      wordMarks: timingTimeline.wordMarks.map((mark) => mark.lineIndex === lineIndex && mark.wordIndex === wordIndex
-        ? (() => {
-            const startMs = Math.max(0, mark.startMs + deltaMs)
-            return { startMs, endMs: Math.max(startMs + 1, mark.endMs + deltaMs), lineIndex, wordIndex }
-          })()
-        : mark),
+      wordMarks: nudgeChordWordTiming(timingTimeline.wordMarks, lineIndex, wordIndex, deltaMs),
     })
   }
 
@@ -410,29 +422,31 @@ export function VisualChordEditor({
     <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface" aria-labelledby="visual-chord-editor-title" data-testid="chordpro-digitizer" data-visual-editor="true">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle bg-surface-hover px-5 py-4 sm:px-6">
         <div className="max-w-xl space-y-1">
-          <h3 id="visual-chord-editor-title" className="text-lg font-semibold text-ink">{t('arrangement.visualEditorTitle')}</h3>
-          <p className="text-sm text-muted">{t('arrangement.visualEditorHint')}</p>
+          <h3 id="visual-chord-editor-title" className="text-lg font-semibold text-ink">{editorTitle}</h3>
+          <p className="text-sm text-muted">{editorHint}</p>
         </div>
         <div className="space-y-1 sm:text-right">
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <Button type="button" variant="secondary" size="sm" onClick={() => downloadChordPro('cho')} disabled={!lyricsDraft.trim() && !chords.trim()} data-testid="arrangement-chordpro-export">
-              {t('arrangement.exportChordPro')}
-            </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => downloadChordPro('txt')} disabled={!lyricsDraft.trim() && !chords.trim()} data-testid="arrangement-text-export">
-              {t('arrangement.exportText')}
-            </Button>
+            {mode === 'chords' ? <>
+              <Button type="button" variant="secondary" size="sm" onClick={() => downloadChordPro('cho')} disabled={!lyricsDraft.trim() && !chords.trim()} data-testid="arrangement-chordpro-export">
+                {t('arrangement.exportChordPro')}
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => downloadChordPro('txt')} disabled={!lyricsDraft.trim() && !chords.trim()} data-testid="arrangement-text-export">
+                {t('arrangement.exportText')}
+              </Button>
+            </> : null}
           </div>
-          <p className="max-w-xs text-xs text-muted sm:ml-auto">{t('arrangement.exportChordProHint')}</p>
+          {mode === 'chords' ? <p className="max-w-xs text-xs text-muted sm:ml-auto">{t('arrangement.exportChordProHint')}</p> : null}
         </div>
       </header>
 
-      <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(17rem,0.82fr)_minmax(0,1.6fr)]">
-        <div className="min-w-0 space-y-5">
-          <div className="space-y-3">
+      <div className={`grid gap-5 p-4 sm:p-6 ${mode === 'lyrics' ? 'grid-cols-1' : mode === 'chords' ? 'xl:grid-cols-[minmax(20rem,0.85fr)_minmax(0,1.5fr)]' : ''}`}>
+        <div className="min-w-0 w-full space-y-5">
+          {mode === 'lyrics' ? <div className="space-y-3">
             <label className="block space-y-2">
               <span className="text-sm font-semibold text-ink">{t('arrangement.lyricsOptional')}</span>
               <textarea
-                className={`${fieldClass} min-h-52 resize-y border-[var(--color-score-border)] bg-[var(--color-score-paper)] font-sans text-base leading-8 text-[var(--color-score-ink)]`}
+                className={`${fieldClass} min-h-64 resize-y font-sans text-base leading-8`}
                 rows={7}
                 value={lyricsDraft}
                 onChange={(event) => editLyrics(event.target.value)}
@@ -451,11 +465,12 @@ export function VisualChordEditor({
               compact
             />
             {importError ? <p className="text-sm text-red-600" role="alert">{t('arrangement.importError')}</p> : null}
-          </div>
+            {additionalLyricsImport}
+          </div> : null}
 
-          <div className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-hover p-4 sm:flex-row sm:items-end">
-              <label className="block min-w-0 flex-1 space-y-2" htmlFor="visual-chord-input">
+          {mode === 'chords' ? <div className="space-y-4">
+            <div className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-hover p-4 sm:flex-row sm:flex-wrap sm:items-end">
+              <label className="block w-full shrink-0 space-y-2" htmlFor="visual-chord-input">
                 <span className="block text-sm font-semibold text-ink">{t('arrangement.addChordLabel')}</span>
                 <input
                   id="visual-chord-input"
@@ -502,6 +517,31 @@ export function VisualChordEditor({
                 </div>
               </div>
             ) : null}
+            {suggestedChords.length > 0 ? (
+              <div className="space-y-2" aria-label={t('arrangement.keyChordSuggestions', { key: defaultKey })}>
+                <div>
+                  <p className="text-sm font-semibold text-ink">{t('arrangement.keyChordSuggestions', { key: defaultKey })}</p>
+                  <p className="text-xs text-muted">{t('arrangement.keyChordSuggestionsHint')}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedChords.map((chord) => (
+                    <button
+                      key={chord}
+                      type="button"
+                      className={`min-h-11 rounded-xl px-4 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${selectedChord === chord && !selectedCursor ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface text-ink ring-1 ring-border-subtle hover:bg-primary/10'}`}
+                      aria-pressed={selectedChord === chord && !selectedCursor}
+                      onClick={() => {
+                        setManualChords((current) => Array.from(new Set([...current, chord])))
+                        setSelectedChord(chord)
+                        setSelectedCursor(null)
+                      }}
+                    >
+                      {chord}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div className="flex flex-wrap items-center gap-3 rounded-xl bg-primary/5 px-4 py-3 text-sm text-primary-ink" role="status">
               {selectedCursor ? (
                 <>
@@ -514,9 +554,9 @@ export function VisualChordEditor({
                 <span>{t('arrangement.visualChordHelp')}</span>
               )}
             </div>
-          </div>
+          </div> : null}
 
-          <div className="space-y-4">
+          {mode === 'timing' ? <div className="space-y-4">
             {audioTracks.length > 0 ? (
               <PracticePlayer
                 groupId={groupId}
@@ -558,26 +598,28 @@ export function VisualChordEditor({
               </div>
             ) : null}
             {timeError ? <p className="text-sm font-medium text-error-ink" role="alert">{t('times.invalidTimestamp')}</p> : null}
-          </div>
+          </div> : null}
         </div>
 
-        <div className="min-w-0 overflow-hidden rounded-2xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] text-[var(--color-score-ink)]" data-testid="digitizer-studio" data-visual-song-sheet="true">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-score-line)] px-5 py-4 sm:px-6">
+        {mode !== 'lyrics' ? <div className="min-w-0 overflow-hidden rounded-2xl border border-border-subtle bg-surface text-ink" data-testid="digitizer-studio" data-visual-song-sheet="true">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-5 py-4 sm:px-6">
             <div>
               <h4 className="font-semibold">{t('arrangement.songSheetTitle')}</h4>
-              <p className="mt-1 text-sm text-[var(--color-score-muted)]">{t('arrangement.songSheetHint')}</p>
+              <p className="mt-1 text-sm text-muted">{t('arrangement.songSheetHint')}</p>
             </div>
-            <span className="rounded-full bg-[var(--color-score-hover)] px-3 py-1 text-xs font-semibold text-[var(--color-score-ink-soft)]" aria-live="off">
+            <span className="rounded-full bg-surface-hover px-3 py-1 text-xs font-semibold text-ink" aria-live="off">
               {formatTimestamp(currentAudioMs)}
             </span>
           </div>
-          <div className="min-h-56 divide-y divide-[var(--color-score-line)] px-4 sm:px-6">
+          <div className="min-h-56 divide-y divide-border-subtle px-4 sm:px-6 xl:max-h-[min(62vh,42rem)] xl:overflow-y-auto xl:overscroll-contain" role="region" aria-label={t('arrangement.songSheetTitle')} tabIndex={0}>
             {(lyricsDraft.trim() || timingMarks.length > 0 || timingTimeline.wordMarks.length > 0) ? sheetLines.map(({ line, lineIndex }) => {
               const markedAtMs = timeByLine.get(lineIndex)
               const isActiveLine = activeLine === lineIndex
               return (
-                <div key={lineIndex} data-testid={`digitizer-line-${lineIndex}`} className={`flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:gap-5 ${isActiveLine ? 'bg-[var(--color-score-current)] -mx-4 px-4 sm:-mx-6 sm:px-6' : ''}`} aria-current={isActiveLine ? 'true' : undefined}>
-                  <span className="w-8 shrink-0 font-mono text-xs text-[var(--color-score-quiet)]">{String(lineIndex + 1).padStart(2, '0')}</span>
+                <div key={lineIndex} data-testid={`digitizer-line-${lineIndex}`} className={`flex flex-col gap-3 py-4 xl:flex-row xl:items-center xl:gap-5 ${isActiveLine ? 'bg-primary/10 -mx-4 px-4 xl:-mx-6 xl:px-6' : ''}`} aria-current={isActiveLine ? 'true' : undefined}>
+                  {mode === 'timing' ? (
+                    <button type="button" className={`min-h-11 min-w-11 shrink-0 rounded-lg font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${selectedLineIndex === lineIndex ? 'bg-primary/10 font-bold text-primary-ink' : 'text-muted'}`} aria-label={t('times.selectLine', { line: lineIndex + 1 })} aria-pressed={selectedLineIndex === lineIndex} data-testid={`digitizer-select-line-${lineIndex}`} onClick={() => setSelectedLineIndex(lineIndex)}>{String(lineIndex + 1).padStart(2, '0')}</button>
+                  ) : <span className="w-8 shrink-0 font-mono text-sm text-muted">{String(lineIndex + 1).padStart(2, '0')}</span>}
                   <div className="flex min-h-10 min-w-0 flex-1 flex-wrap items-end gap-x-1 gap-y-3">
                     {line.slots.length ? line.slots.map((slot, slotIndex) => {
                       const cursor = cursors.find((item) => item.lineIndex === lineIndex && item.slotIndex === slotIndex)
@@ -586,10 +628,10 @@ export function VisualChordEditor({
                       const wordTiming = slot.text ? timeByWord.get(`${lineIndex}:${wordIndex}`) : undefined
                       return (
                         <span key={`${lineIndex}-${slotIndex}`} className="inline-flex flex-col items-start">
-                          {slot.chord ? (
+                          {slot.chord ? mode === 'chords' ? (
                             <button
                               type="button"
-                              className={`mb-0.5 rounded-md px-1.5 py-0.5 text-xs font-bold text-[var(--color-score-accent)] transition-colors hover:bg-[var(--color-score-accent-soft)] focus-visible:outline-2 focus-visible:outline-primary ${isMoving ? 'bg-[var(--color-score-accent-soft)] ring-1 ring-[var(--color-score-accent-border)]' : ''}`}
+                              className={`mb-0.5 rounded-md px-1.5 py-0.5 text-xs font-bold text-primary-ink transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${isMoving ? 'bg-primary/10 ring-1 ring-primary/30' : ''}`}
                               aria-label={t('arrangement.selectChordOnWord', { chord: slot.chord, word: slot.text || t('arrangement.chordOnly') })}
                               aria-pressed={isMoving}
                               onClick={() => {
@@ -599,32 +641,32 @@ export function VisualChordEditor({
                             >
                               {slot.chord}
                             </button>
-                          ) : <span className="mb-0.5 h-5" aria-hidden="true" />}
+                          ) : <span className="mb-0.5 rounded-md px-1.5 py-0.5 text-xs font-bold text-primary-ink">{slot.chord}</span> : <span className="mb-0.5 h-5" aria-hidden="true" />}
                           {slot.text ? <span className="inline-flex flex-col items-start">
-                            {selectedChord || selectedCursor ? (
+                            {mode === 'chords' && (selectedChord || selectedCursor) ? (
                               <button
                                 type="button"
-                                className="rounded-md px-1.5 py-1 text-left text-base leading-6 text-[var(--color-score-ink)] transition-colors hover:bg-[var(--color-score-hover)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+                                className="rounded-md px-1.5 py-1 text-left text-base leading-6 text-ink transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                                 aria-label={t('arrangement.placeChordOnWord', { chord: selectedCursor ? t('arrangement.moveSelectedChord') : selectedChord ?? t('arrangement.noChordSelected'), word: slot.text })}
                                 onClick={() => placeChord(lineIndex, slotIndex)}
                               >
                                 {slot.text}
                               </button>
                             ) : <span className="px-1.5 py-1 text-base leading-6">{slot.text}</span>}
-                            {audioTracks.length > 0 ? <div className="flex items-center gap-1.5 px-1.5">
+                            {mode === 'timing' && selectedLineIndex === lineIndex && audioTracks.length > 0 ? <div className="flex flex-wrap items-center gap-1.5 px-1.5">
                               <button
                                 type="button"
-                                className="min-h-8 rounded-md px-2 text-[11px] font-semibold text-[var(--color-score-accent)] hover:bg-[var(--color-score-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                                className="min-h-11 rounded-lg px-3 text-xs font-semibold text-primary-ink hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                                 onClick={() => markWord(lineIndex, wordIndex)}
                                 aria-label={t('times.markWord', { word: slot.text })}
                               >
                                 {wordTiming ? formatTimestamp(wordTiming.startMs) : t('times.markWordShort')}
                               </button>
                               {wordTiming ? <>
-                                <span className="text-[10px] text-[var(--color-score-muted)]">– {formatTimestamp(wordTiming.endMs)}</span>
-                                <button type="button" className="min-h-8 min-w-8 rounded-md text-xs text-[var(--color-score-muted)] hover:bg-[var(--color-score-hover)]" onClick={() => nudgeWord(lineIndex, wordIndex, -50)} aria-label={t('times.nudgeWordEarlier', { word: slot.text })}>−</button>
-                                <button type="button" className="min-h-8 min-w-8 rounded-md text-xs text-[var(--color-score-muted)] hover:bg-[var(--color-score-hover)]" onClick={() => nudgeWord(lineIndex, wordIndex, 50)} aria-label={t('times.nudgeWordLater', { word: slot.text })}>+</button>
-                                <button type="button" className="min-h-8 rounded-md px-1 text-[10px] text-[var(--color-score-muted)] hover:bg-[var(--color-score-hover)]" onClick={() => clearWord(lineIndex, wordIndex)} aria-label={t('times.clearWord', { word: slot.text })}>{t('times.clear')}</button>
+                                <span className="text-xs text-muted">– {formatTimestamp(wordTiming.endMs)}</span>
+                                <button type="button" className="min-h-11 min-w-11 rounded-lg text-sm text-muted hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" onClick={() => nudgeWord(lineIndex, wordIndex, -50)} aria-label={t('times.nudgeWordEarlier', { word: slot.text })}>−</button>
+                                <button type="button" className="min-h-11 min-w-11 rounded-lg text-sm text-muted hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" onClick={() => nudgeWord(lineIndex, wordIndex, 50)} aria-label={t('times.nudgeWordLater', { word: slot.text })}>+</button>
+                                <button type="button" className="min-h-11 rounded-lg px-2 text-xs text-muted hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" onClick={() => clearWord(lineIndex, wordIndex)} aria-label={t('times.clearWord', { word: slot.text })}>{t('times.clear')}</button>
                               </> : null}
                             </div> : null}
                           </span> : null}
@@ -632,11 +674,11 @@ export function VisualChordEditor({
                       )
                     }) : <span className="min-h-5 w-full" aria-hidden="true" />}
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+                  {mode === 'timing' ? <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
                       {editingTimeLine === lineIndex ? (
                         <>
                           <input
-                            className="min-h-11 w-28 rounded-lg border border-[var(--color-score-border-strong)] bg-[var(--color-score-paper)] px-3 font-mono text-sm text-[var(--color-score-ink)] outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            className="min-h-11 w-28 rounded-lg border border-border-subtle bg-surface px-3 font-mono text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-primary"
                             type="text"
                             inputMode="text"
                             placeholder={t('times.timestampExample')}
@@ -657,7 +699,7 @@ export function VisualChordEditor({
                         </>
                       ) : (
                         <>
-                          <span className={`min-w-16 rounded-lg px-3 py-2 text-center font-mono text-sm font-semibold ${markedAtMs != null ? 'bg-[var(--color-score-hover)] text-[var(--color-score-ink-soft)]' : 'bg-[var(--color-score-paper-soft)] text-[var(--color-score-quiet)]'}`}>
+                          <span className={`min-w-16 rounded-lg px-3 py-2 text-center font-mono text-sm font-semibold ${markedAtMs != null ? 'bg-surface-hover text-ink' : 'bg-surface-hover text-muted'}`}>
                             {markedAtMs != null ? formatTimestamp(markedAtMs) : t('times.notMarked')}
                           </span>
                           <Button type="button" variant={markedAtMs != null ? 'secondary' : 'primary'} size="sm" onClick={() => {
@@ -679,21 +721,21 @@ export function VisualChordEditor({
                           ) : null}
                         </>
                       )}
-                  </div>
+                  </div> : null}
                 </div>
               )
-            }) : <p className="py-10 text-center text-sm text-[var(--color-score-muted)]">{t('arrangement.songSheetEmpty')}</p>}
+            }) : <p className="py-10 text-center text-sm text-muted">{t('arrangement.songSheetEmpty')}</p>}
           </div>
           {selectedCursor ? (
-            <div className="flex items-center justify-between gap-3 border-t border-[var(--color-score-line)] bg-[var(--color-score-paper-soft)] px-5 py-3 sm:px-6">
-              <span className="text-sm text-[var(--color-score-ink-soft)]">{t('arrangement.moveChordHint')}</span>
+            <div className="flex items-center justify-between gap-3 border-t border-border-subtle bg-surface-hover px-5 py-3 sm:px-6">
+              <span className="text-sm text-ink">{t('arrangement.moveChordHint')}</span>
               <Button type="button" variant="ghost" size="sm" onClick={removeSelectedChord}>{t('arrangement.removeChord')}</Button>
             </div>
           ) : null}
-        </div>
+        </div> : null}
       </div>
 
-      <details className="border-t border-border-subtle px-5 py-3">
+      {mode === 'chords' ? <details className="border-t border-border-subtle px-5 py-3">
         <summary className="cursor-pointer text-sm font-medium text-muted hover:text-ink">{t('arrangement.advancedChordSource')}</summary>
         <textarea
           className="mt-3 max-h-64 min-h-36 w-full resize-y rounded-lg border border-border-subtle bg-surface-hover p-3 font-mono text-xs leading-5 text-ink outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -703,7 +745,7 @@ export function VisualChordEditor({
           data-testid="arrangement-chords"
           spellCheck={false}
         />
-      </details>
+      </details> : null}
     </section>
   )
 }

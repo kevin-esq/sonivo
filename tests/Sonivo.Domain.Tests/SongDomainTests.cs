@@ -61,6 +61,16 @@ public class SongDomainTests
     }
 
     [Fact]
+    public void Create_trims_optional_genre_and_enforces_its_length()
+    {
+        var song = Song.Create(GroupId, "Song", SongOriginKinds.Original, Now, genre: "  Folk rock  ");
+
+        Assert.Equal("Folk rock", song.Genre);
+        Assert.Throws<ArgumentException>(() => Song.Create(
+            GroupId, "Song", SongOriginKinds.Original, Now, genre: new string('g', Song.MaxGenreLength + 1)));
+    }
+
+    [Fact]
     public void Domain_does_not_reject_duplicate_titles()
     {
         var a = Song.Create(GroupId, "Same Title", SongOriginKinds.Original, Now);

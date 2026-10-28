@@ -6,7 +6,7 @@ using Sonivo.Domain.Common;
 namespace Sonivo.Application.Repertoire;
 
 /// <summary>
-/// PATCH semantics: null Title/OriginKind/Attribution/RightsNotes keep current values.
+/// PATCH semantics: null Title/OriginKind/Attribution/Genre/RightsNotes keep current values.
 /// Non-null optional strings are applied (whitespace-only → null in the domain).
 /// </summary>
 public sealed record UpdateSongCommand(
@@ -18,7 +18,8 @@ public sealed record UpdateSongCommand(
     string? OriginKind,
     string? RightsNotes,
     int ExpectedVersion,
-    string? Tags = null);
+    string? Tags = null,
+    string? Genre = null);
 
 public sealed class UpdateSongHandler
 {
@@ -60,10 +61,11 @@ public sealed class UpdateSongHandler
         var attribution = command.Attribution ?? song.Attribution;
         var rightsNotes = command.RightsNotes ?? song.RightsNotes;
         var tags = command.Tags ?? song.Tags;
+        var genre = command.Genre ?? song.Genre;
 
         try
         {
-            song.Update(title, attribution, originKind, rightsNotes, tags, command.ExpectedVersion, _clock.UtcNow);
+            song.Update(title, attribution, originKind, rightsNotes, tags, command.ExpectedVersion, _clock.UtcNow, genre);
         }
         catch (ArgumentException ex)
         {

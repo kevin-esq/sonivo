@@ -1,5 +1,20 @@
 # NOW — current work and Git checkpoint
 
+## Song library UX redesign — PR #305
+
+**Updated:** 2026-10-28
+**Branch:** `feature/song-library-ux-redesign`, synced with `develop` at `252234d`; the three Song UX ADRs were renumbered 0104–0106 to preserve the existing ADR-0103.
+**Implementation:** COMPLETE for the approved Song library, detail, multiversion creation, Arrangement editing, lyrics/chords, Resources, and Practice scope. Storybook stories and the local song redesign prototype are included.
+**Human approval:** APPROVED; the user explicitly authorized commit, push, and PR creation when the planned scope was complete.
+**Git checkpoint:** COMMITTED; `develop` sync is `1e8585b` (`chore(repertoire): sync song redesign with develop`). Prior follow-ups `b95e244`, `990e757`, `529a2ea`, and original redesign `1e8939c` remain committed.
+**Remote:** PUSHED to `origin/feature/song-library-ux-redesign`; [PR #305](https://github.com/kevin-esq/sonivo/pull/305) is open against `develop`.
+**CI:** Latest completed run on `1e8585b` passed the other 5 checks; Playwright had 117 passed, 2 skipped, and 1 failure. W11 measured the password reveal target at `43.999969px` against its 44px CSS minimum.
+**CI follow-ups:** Updated stale journey expectations to match progressive disclosure, draft-then-save lyrics editing, the version chooser, and current localized copy. Fixed Stage mode status persistence. Latest trace confirmed the digitizer PATCH returns 200; the Arrangement refresh was clearing the page and unmounting the digitizer before its success feedback could persist. The follow-up keeps the current detail mounted during refresh. The empty-library test now verifies the persistent search visible in the product. W11 now allows a 0.001px browser subpixel tolerance; its local focused test passed. No API or domain contracts changed.
+**Validation:** Next production build passed locally, including TypeScript checks. Targeted Playwright passed: TC-LIB-07/05, TC-LIB-08, TC-PLAY-SYNC-01, both Whisper digitizer journeys, W2 empty/readiness/resources, W7 hierarchy, W18 LRC import/export, and W19 stage mode. The rich-lyrics and W-F detail runs could not complete locally because the local API did not create their test Group; CI reached those journeys. `git diff --check` passed.
+**Open gate:** Push the W11 precision correction and review the full CI result on that head. Do not merge until all CI checks pass. No PR merge was performed.
+**Penpot:** remote OAuth registration did not complete (HTTP 405); the connection is not functional and no token was added to repository files.
+
+
 ## T-UX-SIDEBAR — Gmail-style desktop navigation
 
 **Updated:** 2026-10-28
