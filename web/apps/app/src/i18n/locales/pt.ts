@@ -2,6 +2,8 @@ import type {
  I18nKey } from '../keys'
 
 export const pt: Record<I18nKey, string> = {
+  "app.closeSearch": "Fechar busca",
+  "workspace.sonivoCredit": "Powered by Sonivo",
   "workflow.contentGuide": "A música identifica a obra. Cada arranjo reúne sua letra, acordes e recursos; a digitalização é revisada nele. As listas reúnem arranjos, não cópias da música.",
   "workflow.openArrangement": "Abrir arranjo",
   "workflow.section.intro": "Intro",
@@ -57,6 +59,8 @@ export const pt: Record<I18nKey, string> = {
   "chrome.tagline": "Plan. Play. Together.",
   "chrome.security": "Segurança",
   "chrome.logout": "Sair",
+  "auth.logoutConfirmTitle": "Quer sair da conta?",
+  "auth.logoutConfirmMessage": "Você precisará entrar novamente para voltar aos seus grupos.",
   "chrome.login": "Entrar",
   "chrome.account": "Conta",
   "nav.home": "Início",
@@ -1034,6 +1038,9 @@ export const pt: Record<I18nKey, string> = {
   "security.addingPasskey": "Adicionando…",
   "security.addPasskey": "Adicionar chave de acesso",
   "player.pause": "Pausar",
+  "player.controls": "Opções do reprodutor",
+  "player.rewind": "Voltar 10 segundos",
+  "player.forward": "Avançar 10 segundos",
   "player.play": "Reproduzir",
   "player.playTrack": "Reproduzir {title}",
   "player.pauseTrack": "Pausar {title}",
@@ -1764,7 +1771,7 @@ export const pt: Record<I18nKey, string> = {
   "app.userMenu": "Menu da conta",
   "app.userCard": "Conta",
   "sidebar.home": "Início",
-  "sidebar.spaces": "Espaços",
+  "sidebar.spaces": "Principal",
   "sidebar.myGroups": "Meus grupos",
   "sidebar.joinGroup": "Entrar em um grupo",
   "sidebar.account": "Conta",

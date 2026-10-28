@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "../src/ui/shared-components.css";
+@import "../src/shell/desktop-sidebar.css";
+@import "../src/shell/persistent-player.css";
 
 .stage-range {
   appearance: none;

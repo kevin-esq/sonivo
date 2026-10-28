@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "./ui/shared-components.css";
+@import "./shell/desktop-sidebar.css";
+@import "./shell/persistent-player.css";
 
 /* The app switches themes with `data-theme` on <html> (see brand/theme.tsx),
    not the OS preference, so `dark:` utilities must key off that attribute. */

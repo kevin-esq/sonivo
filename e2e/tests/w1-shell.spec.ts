@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { createGroup, register, uniqueEmail } from './helpers'
 
 test.describe('W1 shell: group vs account', () => {
-  test('group tabs visible in group; account renders 4 sections', async ({ page }) => {
+  test('group and account navigation keep their own destinations', async ({ page }) => {
     const email = uniqueEmail('w1shell')
     await register(page, email)
     const name = `W1 Group ${Date.now()}`
@@ -14,7 +14,7 @@ test.describe('W1 shell: group vs account', () => {
 
     const groupNav = page.getByRole('navigation', { name: 'Grupo' })
     await expect(groupNav.getByRole('link', { name: 'Canciones' })).toBeVisible()
-    // ADR-0055: group settings is pinned in the rail footer, outside the nav.
+    // Group settings belongs to the normal administration navigation.
     await expect(page.getByTestId('rail-settings')).toBeVisible()
 
     await page.goto('/account')
@@ -27,10 +27,13 @@ test.describe('W1 shell: group vs account', () => {
     }
     // Both App-shell entry points open the existing account notification inbox.
     await expect(cuentaNav.getByTestId('nav-notifications')).toHaveAttribute('href', '/app/account/notifications')
-    await expect(page.getByTestId('app-notifications')).toHaveAttribute('href', '/app/account/notifications')
+    await expect(page.getByTestId('app-notifications')).toHaveAttribute('aria-expanded', 'false')
     await expect(page.getByTestId('nav-membership')).toBeVisible()
 
     await page.getByTestId('app-notifications').click()
+    await expect(page.getByTestId('account-notifications-panel')).toBeVisible()
+    await page.getByTestId('app-notifications').press('Escape')
+    await cuentaNav.getByTestId('nav-notifications').click()
     await expect(page).toHaveURL(/\/app\/account\/notifications$/)
     await expect(page.getByRole('heading', { name: 'Notificaciones de la cuenta' })).toBeVisible()
   })

@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { AppLink, AppNavLink, AppNavigationProvider, type NavigationMode } from '../routing/AppLink'
 import { GroupShellProvider } from './GroupShellContext'
-import { ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Menu, Settings2, UserRound, Users } from 'lucide-react'
 import {
   ApiError,
   fetchFeatures,
@@ -19,7 +18,7 @@ import { formatMembershipRole } from '../repertoire/ui'
 import { cn } from '../ui/cn'
 import { readGroupAppearance } from './groupAccent'
 import { GROUP_UPDATED_EVENT } from './groupEvents'
-import { groupNavSections, mobileTabItems, mobileMoreItems } from './nav'
+import { groupNavSections, mobileQuickItems } from './nav'
 import {
   applyDocumentBranding,
   brandTokenStyle,
@@ -36,27 +35,17 @@ import { useRailPresence } from './railPresence'
 import { BrandPreviewContext, type BrandPreviewDraft } from './brandPreview'
 import { useGroupLive } from '../groups/useGroupLive'
 import { GroupTopBar } from './GroupTopBar'
+import { ShellHeaderBrand } from './ShellHeaderBrand'
 import { GroupContextRail } from './GroupContextRail'
-import { GroupSwitcher } from './GroupSwitcher'
 import { Button } from '../ui/button'
 import { useAudioPlayer } from '../repertoire/AudioPlayerContext'
+import { useDesktopSidebar } from './useDesktopSidebar'
+import { SidebarSectionHeading } from './SidebarSectionHeading'
 
-const SIDEBAR_KEY = 'sonivo:sidebar'
-
-type RailState = 'expanded' | 'collapsed'
-
-function readRailState(): RailState {
-  try {
-    return localStorage.getItem(SIDEBAR_KEY) === 'collapsed' ? 'collapsed' : 'expanded'
-  } catch {
-    return 'expanded'
-  }
-}
-
-function railLinkClass(isActive: boolean, collapsed: boolean): string {
+function railLinkClass(isActive: boolean): string {
   return cn(
     'flex min-h-11 items-center rounded-xl text-sm font-medium no-underline transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none',
-    collapsed ? 'justify-center px-2' : 'gap-3 px-3 py-2.5',
+    'gap-3 px-3 py-2.5',
     isActive
       ? 'bg-shell-hover text-shell-foreground'
       : 'text-shell-foreground/70 hover:bg-shell-hover hover:text-shell-foreground',
@@ -86,8 +75,7 @@ export function GroupWorkspace({
   const onGroupHome = pathname === routes.group(groupId) || pathname === `${routes.group(groupId)}/`
   const [group, setGroup] = useState<GroupDetail | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
-  const [rail, setRail] = useState<RailState>(() => readRailState())
-  const [railHovered, setRailHovered] = useState(false)
+  const sidebar = useDesktopSidebar()
   const [brandingEnabled, setBrandingEnabled] = useState<boolean | null>(null)
   // Branding resolved from the server for the current group; `null` while the
   // first load is in flight. Keyed by group so switching groups never flashes
@@ -149,13 +137,7 @@ export function GroupWorkspace({
     }
   }, [])
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(SIDEBAR_KEY, rail)
-    } catch {
-      // Storage unavailable; the preference only lives in memory.
-    }
-  }, [rail])
+
 
   useEffect(() => {
     let cancelled = false
@@ -262,22 +244,17 @@ export function GroupWorkspace({
   const appearance = serverBrand
     ? { accent: serverBrand.accentHex ?? deviceAppearance.accent, cover: serverCover ?? deviceAppearance.cover }
     : deviceAppearance
-  const collapsed = rail === 'collapsed' && !railHovered
+  const collapsed = !sidebar.expanded
   // Keep the global player beside the rail while the rail stays navigation-only.
-  useEffect(() => setRailCollapsed(rail === 'collapsed'), [rail, setRailCollapsed])
+  useEffect(() => setRailCollapsed(!sidebar.pinned), [sidebar.pinned, setRailCollapsed])
   const groupRole = group ? formatMembershipRole(group.role, t) : ''
-  const canViewReports = group?.role === 'Owner'
-  const visibleGroupNavSections = groupNavSections
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) =>
-        item.id !== 'settings' && item.id !== 'help' && (canViewReports || item.id !== 'reports'),
-      ),
-    }))
-    .filter((section) => section.items.length > 0)
-  const visibleMobileMoreItems = canViewReports
-    ? mobileMoreItems
-    : mobileMoreItems.filter((item) => item.id !== 'reports')
+  const canManageGroup = group?.role === 'Owner'
+  const visibleGroupNavSections = groupNavSections.filter(
+    (section) => section.id !== 'administration' || canManageGroup,
+  )
+  const mobileQuickIds = new Set(mobileQuickItems.map((item) => item.id))
+  const visibleMobileMoreItems = visibleGroupNavSections.flatMap((section) => section.items)
+    .filter((item) => !mobileQuickIds.has(item.id) && item.id !== 'calendar')
   const accent = appearance.accent
 
   const brandTokens = useMemo(
@@ -347,115 +324,83 @@ export function GroupWorkspace({
       }}
     >
     <div
-      className="group-workspace min-h-screen bg-canvas font-sans md:fixed md:inset-0 md:flex md:overflow-hidden"
+      className="group-workspace min-h-screen bg-canvas font-sans md:fixed md:inset-0 md:flex md:flex-col md:overflow-hidden"
       data-testid="grupo-shell"
       style={shellStyle}
     >
-      <aside
-        className={cn(
-          'hidden shrink-0 flex-col border-r border-shell-edge bg-shell text-shell-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none md:sticky md:left-0 md:top-0 md:z-30 md:flex md:h-screen',
-          collapsed ? 'md:w-[4.5rem]' : 'md:w-60',
-        )}
-        data-testid="group-rail"
-        data-rail={rail}
-        data-collapsed={collapsed ? 'true' : 'false'}
-        onMouseEnter={() => setRailHovered(true)}
-        onMouseLeave={() => setRailHovered(false)}
-        onFocusCapture={() => setRailHovered(true)}
-        onBlurCapture={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-            setRailHovered(false)
-          }
-        }}
-      >
-        <div
-          className={cn(
-            'flex items-center gap-2 px-3 py-4',
-            collapsed ? 'flex-col' : 'justify-between',
-          )}
-        >
-          {collapsed ? (
-            <AppLink
-              to={group ? routes.group(group.id) : routes.marketing}
-              aria-label={group ? group.name : 'Sonivo'}
-              className="grid min-h-11 min-w-11 place-items-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-            >
-              {group ? (
-                <span className="grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-shell-hover text-sm font-semibold text-shell-foreground">
-                {brandPreview?.groupId === group.id && brandPreview.pendingImages.logo ? (
-                  <img src={brandPreview.pendingImages.logo.url} alt="" className="h-5 w-5 object-contain" />
-                ) : serverBrand?.logoUrl ? (
-                  <img src={serverBrand.logoUrl} alt="" className="h-5 w-5 object-contain" />
+        {group ? (
+          <GroupTopBar
+            brand={
+              <AppLink
+                to={routes.group(group.id)}
+                data-testid="rail-brand"
+                className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-shell-hover text-sm font-semibold text-shell-foreground">
+                  {brandPreview?.groupId === group.id && brandPreview.pendingImages.logo ? (
+                    <img src={brandPreview.pendingImages.logo.url} alt="" className="h-6 w-6 object-contain" />
+                  ) : serverBrand?.logoUrl ? (
+                    <img src={serverBrand.logoUrl} alt="" className="h-6 w-6 object-contain" />
                   ) : (
                     group.name.slice(0, 1).toUpperCase()
                   )}
                 </span>
-              ) : (
-                <SonivoMark className="h-7 w-7 text-shell-link" />
-              )}
-            </AppLink>
-          ) : group ? (
-            <AppLink
-              to={routes.group(group.id)}
-              data-testid="rail-brand"
-              className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-            >
-              <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-shell-hover text-sm font-semibold text-shell-foreground">
-                {brandPreview?.groupId === group.id && brandPreview.pendingImages.logo ? (
-                  <img src={brandPreview.pendingImages.logo.url} alt="" className="h-6 w-6 object-contain" />
-                ) : serverBrand?.logoUrl ? (
-                  <img src={serverBrand.logoUrl} alt="" className="h-6 w-6 object-contain" />
-                ) : (
-                  group.name.slice(0, 1).toUpperCase()
-                )}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate font-display text-sm font-semibold text-shell-foreground">
-                  {brandPreview?.groupId === group.id && brandPreview.displayName.trim()
-                    ? brandPreview.displayName.trim()
-                    : brandPreview?.groupId === group.id
-                      ? brandPreview.groupName
-                      : serverBrand?.displayName ?? group.name}
-                </span>
-                {(brandPreview?.groupId === group.id ? brandPreview.tagline : serverBrand?.tagline) ? (
-                  <span className="block truncate text-xs text-shell-foreground/60">
-                    {brandPreview?.groupId === group.id ? brandPreview.tagline : serverBrand?.tagline}
+                <span className="min-w-0">
+                  <span className="block truncate font-display text-lg font-semibold text-shell-foreground md:text-sm">
+                    {brandPreview?.groupId === group.id && brandPreview.displayName.trim()
+                      ? brandPreview.displayName.trim()
+                      : brandPreview?.groupId === group.id
+                        ? brandPreview.groupName
+                        : serverBrand?.displayName ?? group.name}
                   </span>
-                ) : (
-                  <span className="block truncate text-xs text-shell-foreground/60">{groupRole}</span>
-                )}
-              </span>
-            </AppLink>
-          ) : (
-            <BrandLockup to={routes.home} shell />
-          )}
-          <button
-            type="button"
-            onClick={() => setRail((state) => (state === 'collapsed' ? 'expanded' : 'collapsed'))}
-            aria-label={collapsed ? t('workspace.expandRail') : t('workspace.collapseRail')}
-            aria-expanded={!collapsed}
-            className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-lg text-shell-foreground/70 transition-colors hover:bg-shell-hover hover:text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none"
-            data-testid="rail-collapse-toggle"
-          >
-            {collapsed ? (
-              <ChevronsRight size={18} aria-hidden="true" />
-            ) : (
-              <ChevronsLeft size={18} aria-hidden="true" />
-            )}
-          </button>
-        </div>
-
+                  {(brandPreview?.groupId === group.id ? brandPreview.tagline : serverBrand?.tagline) ? (
+                    <span className="hidden truncate text-xs text-shell-foreground/60 md:block">
+                      {brandPreview?.groupId === group.id ? brandPreview.tagline : serverBrand?.tagline}
+                    </span>
+                  ) : (
+                    <span className="hidden truncate text-xs text-shell-foreground/60 md:block">{groupRole}</span>
+                  )}
+                </span>
+              </AppLink>
+            }
+            pinned={sidebar.pinned}
+            onToggleSidebar={sidebar.toggle}
+            mobileItems={mobileQuickItems
+              .map((item) => ({ id: item.id, label: t(item.labelKey), icon: item.icon, to: item.href(group.id), end: item.end }))}
+            moreItems={visibleMobileMoreItems.map((item) => ({ id: item.id, label: t(item.labelKey), icon: item.icon, to: item.href(group.id), end: item.end }))}
+            groupId={group.id}
+            user={user}
+            role={group.role}
+            onLogout={onLogout}
+            navigate={navigate}
+          />
+        ) : (
+          <header className="flex h-16 shrink-0 bg-shell">
+            <ShellHeaderBrand group pinned={sidebar.pinned} onToggle={sidebar.toggle}>
+              <BrandLockup to={routes.home} shell />
+            </ShellHeaderBrand>
+          </header>
+        )}
+      <div className="flex min-h-0 flex-1">
+      <div className="desktop-sidebar-slot desktop-sidebar-slot--group hidden md:block" data-pinned={sidebar.pinned}>
+      <aside
+        className="desktop-sidebar bg-shell text-shell-foreground"
+        data-testid="group-rail"
+        data-rail={sidebar.pinned ? 'expanded' : 'collapsed'}
+        data-pinned={sidebar.pinned}
+        data-collapsed={collapsed}
+        {...sidebar.interactionProps}
+      >
         {group ? (
           <nav
             className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3"
             aria-label={t('workspace.groupNav')}
+            id="group-sidebar-navigation"
           >
             {visibleGroupNavSections.map((section) => (
               <div key={section.id} className="space-y-1">
-                {section.labelKey && !collapsed ? (
-                  <p className="px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-shell-foreground/45">
-                    {t(section.labelKey)}
-                  </p>
+                {section.labelKey ? (
+                  <SidebarSectionHeading label={t(section.labelKey)} />
                 ) : null}
                 {section.items.map((item) => {
                   const Icon = item.icon
@@ -468,10 +413,10 @@ export function GroupWorkspace({
                       data-testid={item.id === 'settings' ? 'rail-settings' : item.id === 'help' ? 'rail-help' : undefined}
                       aria-label={collapsed ? label : undefined}
                       title={collapsed ? label : undefined}
-                      className={({ isActive }) => railLinkClass(isActive, collapsed)}
+                      className={({ isActive }) => railLinkClass(isActive)}
                     >
                       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span className={cn(collapsed && 'sr-only')}>{label}</span>
+                      <span className="desktop-sidebar__label whitespace-nowrap">{label}</span>
                     </AppNavLink>
                   )
                 })}
@@ -495,122 +440,17 @@ export function GroupWorkspace({
           </div>
         )}
 
-        <div
-          className={cn(
-            'shrink-0 space-y-1 border-t border-shell-border py-4',
-            collapsed ? 'px-2' : 'px-3',
-          )}
-        >
-          {group ? (
-            <>
-              <AppNavLink
-                to={routes.groupHelp(group.id)}
-                data-testid="rail-help"
-                aria-label={collapsed ? t('sidebar.help') : undefined}
-                title={collapsed ? t('sidebar.help') : undefined}
-                className={({ isActive }) => railLinkClass(isActive, collapsed)}
-              >
-                <CircleHelp className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className={cn(collapsed && 'sr-only')}>{t('sidebar.help')}</span>
-              </AppNavLink>
-              <AppNavLink
-                to={routes.groupSettings(group.id)}
-                data-testid="rail-settings"
-                aria-label={collapsed ? t('group.settings') : undefined}
-                title={collapsed ? t('group.settings') : undefined}
-                className={({ isActive }) => railLinkClass(isActive, collapsed)}
-              >
-                <Settings2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className={cn(collapsed && 'sr-only')}>{t('group.settings')}</span>
-              </AppNavLink>
-            </>
-          ) : null}
-        </div>
-
-        {/* Powered by Sonivo - subtle attribution */}
         {group ? (
-          <div
-            className={cn(
-              'shrink-0 border-t border-shell-border py-2',
-              collapsed ? 'px-2' : 'px-3',
-            )}
-          >
-            {collapsed ? (
-              <p className="text-center text-[10px] text-shell-foreground/30">
-                Powered by Sonivo
-              </p>
-            ) : (
-              <p className="text-center text-[10px] text-shell-foreground/30">
-                Powered by Sonivo
-              </p>
-            )}
+          <div className="desktop-sidebar__label shrink-0 border-t border-shell-border px-3 py-2">
+            <p className="text-center text-[10px] text-shell-foreground/60">
+              {t('workspace.sonivoCredit')}
+            </p>
           </div>
         ) : null}
       </aside>
+      </div>
 
-      <div className="flex min-w-0 flex-1 flex-col md:h-screen md:min-h-0 md:overflow-hidden">
-        {group ? (
-          <GroupTopBar
-            groupId={group.id}
-            groupName={brandPreview?.groupId === group.id && brandPreview.displayName.trim()
-              ? brandPreview.displayName.trim()
-              : brandPreview?.groupId === group.id
-                ? brandPreview.groupName
-                : serverBrand?.displayName ?? group.name}
-            user={user}
-            role={group.role}
-            onLogout={onLogout}
-            navigate={navigate}
-          />
-        ) : null}
-        <div className="flex items-center justify-between gap-2 px-4 py-3 md:hidden">
-          {group ? (
-            <GroupSwitcher
-              currentGroupId={group.id}
-              currentGroupName={brandPreview?.groupId === group.id ? brandPreview.groupName : group.name}
-              navigate={navigate}
-            />
-          ) : <SonivoMark className="h-7 w-7 text-shell-link" />}
-          <div className="flex items-center gap-1">
-            {/* Single "More" lives in the bottom tab bar; the top bar keeps only
-                account + sign-out so there is exactly one overflow menu per
-                breakpoint (owner request 2026-10-05). */}
-            <details className="relative" data-testid="mobile-user-menu">
-              <summary
-                aria-label={t('workspace.account')}
-                className="grid min-h-11 min-w-11 cursor-pointer list-none place-items-center rounded-lg text-shell-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary [&::-webkit-details-marker]:hidden"
-              >
-                <UserRound className="h-5 w-5" aria-hidden="true" />
-              </summary>
-              <nav
-                aria-label={t('workspace.account')}
-                className="absolute right-0 top-full z-50 mt-1 w-56 space-y-0.5 rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg"
-              >
-                <AppLink to={routes.groups} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
-                  <Users className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-                  {t('workspace.myGroups')}
-                </AppLink>
-                <AppLink to={routes.account} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
-                  <UserRound className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-                  {t('workspace.account')}
-                </AppLink>
-                <AppLink to={routes.help} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
-                  <CircleHelp className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-                  {t('sidebar.help')}
-                </AppLink>
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm font-medium text-error-ink transition-colors hover:bg-error/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                >
-                  <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  {t('workspace.logout')}
-                </button>
-              </nav>
-            </details>
-          </div>
-        </div>
-
+      <div className="flex min-w-0 flex-1 flex-col md:min-h-0 md:overflow-hidden">
         <div
           className="flex flex-1 flex-col md:min-h-0 md:overflow-y-auto"
           data-testid="group-content-scroll"
@@ -622,7 +462,7 @@ export function GroupWorkspace({
                 data-testid="group-content"
         className="group-content-panel m-3 flex-1 rounded-2xl bg-surface text-ink"
               >
-              <div className={`px-5 py-6 md:px-8 ${currentTrack ? 'pb-[calc(13rem+env(safe-area-inset-bottom))] md:pb-32' : 'pb-24 md:pb-8'}`}>
+              <div className={`px-5 py-6 md:px-8 ${currentTrack ? 'pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-32' : 'pb-8'}`}>
                 {group === null ? (
                   <div className="space-y-3">
                     <p role="alert" className="text-error-ink">
@@ -647,11 +487,13 @@ export function GroupWorkspace({
         </div>
       </div>
 
+      </div>
+
       {group && brandPreview && brandPreview.groupId === group.id && brandPreview.dirty ? (
         <div
           role="status"
           data-testid="brand-unsaved-bar"
-          className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-shell-border bg-surface px-4 py-3 text-ink shadow-xl md:bottom-4"
+          className="fixed inset-x-3 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-shell-border bg-surface px-4 py-3 text-ink shadow-xl md:bottom-4"
         >
           <p className="min-w-0 flex-1 text-sm font-medium">
             {brandPreviewError ?? t('settings.unsavedChanges')}
@@ -688,80 +530,7 @@ export function GroupWorkspace({
         </div>
       ) : null}
 
-      {group ? (
-        <nav
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-shell-border bg-shell md:hidden"
-          aria-label={t('workspace.sections')}
-          data-testid="mobile-tabbar"
-        >
-          <ul
-            className="grid"
-            style={{
-              gridTemplateColumns: `repeat(${mobileTabItems.length + 1}, minmax(0, 1fr))`,
-            }}
-          >
-            {mobileTabItems.map((item) => {
-              const Icon = item.icon
-              return (
-                <li key={item.id}>
-                  <AppNavLink
-                    to={item.href(group.id)}
-                    end={item.end}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex min-h-11 flex-col items-center gap-1 px-2 py-2.5 text-[11px] font-medium no-underline transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none',
-                        isActive ? 'text-shell-foreground' : 'text-shell-foreground/70',
-                      )
-                    }
-                  >
-                    <Icon className="h-5 w-5" aria-hidden="true" />
-                    {t(item.labelKey)}
-                  </AppNavLink>
-                </li>
-              )
-            })}
-            <li>
-              <details className="relative" data-testid="mobile-more">
-                <summary
-                  aria-label={t('workspace.more')}
-                  className="flex min-h-11 cursor-pointer list-none flex-col items-center gap-1 px-2 py-2.5 text-[11px] font-medium text-shell-foreground/70 transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary motion-reduce:transition-none [&::-webkit-details-marker]:hidden"
-                >
-                  <Menu className="h-5 w-5" aria-hidden="true" />
-                  {t('workspace.more')}
-                </summary>
-                <div className="absolute bottom-full right-0 z-50 mb-1 max-h-[70vh] w-52 overflow-y-auto rounded-xl border border-shell-border bg-surface p-1 text-ink shadow-lg">
-                  {visibleMobileMoreItems.map((item) => {
-                    const Icon = item.icon
-                    return (
-                      <AppNavLink
-                        key={item.id}
-                        to={item.href(group.id)}
-                        end={item.end}
-                        className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
-                      >
-                        <Icon className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-                        {t(item.labelKey)}
-                      </AppNavLink>
-                    )
-                  })}
-                  <AppNavLink to={routes.groupHelp(group.id)}
-                    className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light">
-                    <CircleHelp className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-                    {t('groupHelp.title')}
-                  </AppNavLink>
-                  <AppNavLink
-                    to={routes.groupSettings(group.id)}
-                    className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-ink no-underline hover:bg-neutral-light"
-                  >
-                    <Settings2 className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-                    {t('group.settings')}
-                  </AppNavLink>
-                </div>
-              </details>
-            </li>
-          </ul>
-        </nav>
-      ) : null}
+
     </div>
     </BrandPreviewContext.Provider>
     </GroupShellProvider>

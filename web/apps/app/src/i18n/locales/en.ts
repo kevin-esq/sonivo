@@ -2,6 +2,8 @@ import type {
  I18nKey } from '../keys'
 
 export const en: Record<I18nKey, string> = {
+  "app.closeSearch": "Close search",
+  "workspace.sonivoCredit": "Powered by Sonivo",
   "workflow.contentGuide": "The song identifies the work. Each arrangement holds its lyrics, chords and resources, and is where digitization is reviewed. Setlists collect arrangements rather than copies of the song.",
   "workflow.openArrangement": "Open arrangement",
   "workflow.section.intro": "Intro",
@@ -57,6 +59,8 @@ export const en: Record<I18nKey, string> = {
   "chrome.tagline": "Plan. Play. Together.",
   "chrome.security": "Security",
   "chrome.logout": "Sign out",
+  "auth.logoutConfirmTitle": "Do you want to sign out?",
+  "auth.logoutConfirmMessage": "You’ll need to sign in again to return to your groups.",
   "chrome.login": "Sign in",
   "chrome.account": "Account",
   "nav.home": "Home",
@@ -1059,6 +1063,9 @@ export const en: Record<I18nKey, string> = {
   "security.addingPasskey": "Adding…",
   "security.addPasskey": "Add passkey",
   "player.pause": "Pause",
+  "player.controls": "Player options",
+  "player.rewind": "Rewind 10 seconds",
+  "player.forward": "Forward 10 seconds",
   "player.play": "Play",
   "player.playTrack": "Play {title}",
   "player.pauseTrack": "Pause {title}",
@@ -1827,7 +1834,7 @@ export const en: Record<I18nKey, string> = {
   "app.userMenu": "Account menu",
   "app.userCard": "Account",
   "sidebar.home": "Home",
-  "sidebar.spaces": "Workspaces",
+  "sidebar.spaces": "Main",
   "sidebar.myGroups": "My groups",
   "sidebar.joinGroup": "Join a group",
   "sidebar.account": "Account",
