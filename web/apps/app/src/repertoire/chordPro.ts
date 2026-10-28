@@ -34,6 +34,26 @@ const NOTE_INDEX: Record<string, number> = {
 
 const ROOT_RE = /^([A-Ga-g][#b]?)(.*)$/
 
+const SCALES: Record<string, { intervals: number[]; qualities: string[] }> = {
+  major: { intervals: [0, 2, 4, 5, 7, 9, 11], qualities: ['', 'm', 'm', '', '', 'm', 'dim'] },
+  minor: { intervals: [0, 2, 3, 5, 7, 8, 10], qualities: ['m', 'dim', '', 'm', 'm', '', ''] },
+}
+
+/** Return basic in-key triads for the key signature entered in the Arrangement. */
+export function chordSuggestionsForKey(key: string | null | undefined): string[] {
+  const match = key?.trim().match(/^([A-Ga-g][#b]?)(.*)$/)
+  if (!match) return []
+  const root = normalizeRoot(match[1] ?? '')
+  const tonic = NOTE_INDEX[root]
+  if (tonic === undefined) return []
+
+  const mode = /^\s*m(?:inor)?\s*$/i.test(match[2] ?? '') ? 'minor' : 'major'
+  const scale = SCALES[mode]!
+  const preferFlat = root.endsWith('b')
+  const noteNames = preferFlat ? FLAT_NAMES : SHARP_NAMES
+  return scale.intervals.map((interval, index) => `${noteNames[(tonic + interval) % 12]}${scale.qualities[index]}`)
+}
+
 export type ChordProSegment = {
   /** Chord token without brackets; null = lyric-only chunk. */
   chord: string | null

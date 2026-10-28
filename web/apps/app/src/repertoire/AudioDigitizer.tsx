@@ -72,7 +72,13 @@ export function AudioDigitizer({
   // Reset the draft when navigating to a different arrangement via remount key.
   // (A version bump after apply/append keeps the draft + success message visible.)
 
-  if (eligible.length === 0) return null
+  if (eligible.length === 0) {
+    return (
+      <p className="max-w-2xl text-sm leading-6 text-muted" data-testid="audio-digitizer-empty-state">
+        {t('arrangement.audioToolsRequirement')}
+      </p>
+    )
+  }
 
   async function pollStatus(resourceId: string, jobId: string): Promise<void> {
     let current: DigitizeJob

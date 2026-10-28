@@ -39,13 +39,15 @@ public class SongApiTests : IClassFixture<SonivoApiFactory>
             title = "Amazing Grace",
             attribution = "Newton",
             originKind = "cover",
-            rightsNotes = "public domain"
+            rightsNotes = "public domain",
+            genre = "Folk rock"
         });
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
         var created = await create.Content.ReadFromJsonAsync<SongDetailResponse>();
         Assert.NotNull(created);
         Assert.Equal("Amazing Grace", created.Title);
         Assert.Equal("cover", created.OriginKind);
+        Assert.Equal("Folk rock", created.Genre);
         Assert.Equal(1, created.Version);
         Assert.Equal(0, created.ArrangementCount);
 
@@ -58,6 +60,11 @@ public class SongApiTests : IClassFixture<SonivoApiFactory>
         var detail = await get.Content.ReadFromJsonAsync<SongDetailResponse>();
         Assert.NotNull(detail);
         Assert.Equal("public domain", detail.RightsNotes);
+        Assert.Equal("Folk rock", detail.Genre);
+        var byGenre = await client.GetFromJsonAsync<SongPageResponse>(
+            $"/api/groups/{group.Id}/songs?q=folk%20rock");
+        Assert.NotNull(byGenre);
+        Assert.Contains(byGenre.Items, item => item.Id == created.Id);
 
         var patch = await client.PatchAsJsonAsync(
             $"/api/groups/{group.Id}/songs/{created.Id}",
@@ -414,7 +421,7 @@ public class SongApiTests : IClassFixture<SonivoApiFactory>
     }
 
     private sealed record GroupResponse(Guid Id, string Name, int Version, string? Role);
-    private sealed record SongListResponse(Guid Id, string Title, string? Attribution, string OriginKind, int Version);
+    private sealed record SongListResponse(Guid Id, string Title, string? Attribution, string OriginKind, int Version, string? Genre);
     private sealed record SongDetailResponse(
         Guid Id,
         string Title,
@@ -422,7 +429,8 @@ public class SongApiTests : IClassFixture<SonivoApiFactory>
         string OriginKind,
         string? RightsNotes,
         int Version,
-        int ArrangementCount);
+        int ArrangementCount,
+        string? Genre);
     private sealed record SongPageResponse(
         List<SongPageItemResponse> Items,
         int TotalCount,
@@ -430,5 +438,5 @@ public class SongApiTests : IClassFixture<SonivoApiFactory>
         int PageSize,
         int TotalPages,
         List<string> AvailableTags);
-    private sealed record SongPageItemResponse(Guid Id, string Title, bool IsFavorite, int ArrangementCount);
+    private sealed record SongPageItemResponse(Guid Id, string Title, bool IsFavorite, int ArrangementCount, string? Genre);
 }

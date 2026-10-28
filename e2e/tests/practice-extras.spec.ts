@@ -8,6 +8,7 @@ import {
   openPractice,
   openSong,
   register,
+  selectArrangementEditorMode,
   uniqueEmail,
 } from './helpers'
 
@@ -150,6 +151,7 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
     // YouTube-sourced Practice with an explanation.
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
+    await selectArrangementEditorMode(page, 'timing')
     for (const [line, timestamp] of [[0, '0:00.5'], [1, '0:01.5']] as const) {
       const lineEditor = page.getByTestId(`digitizer-line-${line}`)
       await lineEditor.getByRole('button', { name: 'Añadir hora' }).click()

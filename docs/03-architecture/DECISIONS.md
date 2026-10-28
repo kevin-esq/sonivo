@@ -6,6 +6,88 @@ Architecture Decision Records.
 
 Only **ACCEPTED** ADRs bind implementation. Newest first.
 
+## ADR-0105 — List-first Song library presentation
+
+- **Status:** **ACCEPTED** — owner selected Storybook proposal C and explicitly authorized applying it to the product on 2026-10-27.
+- **Date:** 2026-10-27
+- **Amends:** ADR-0055 W-B, only its dense desktop table presentation.
+- **Related:** ADR-0074 (group UI primitives), ADR-0103 (Song genre).
+
+### Context
+
+The accepted Song library UX plan retained ADR-0055's dense desktop table. After evaluating functional Storybook proposals against Penpot community references, the owner selected a responsive list-first library for its clearer song identity and lower visual complexity for beginning users. This changes the presentation pattern, not the Song library's data or behavior contracts.
+
+### Decision
+
+1. Use the same compact, readable song list at desktop, tablet and mobile widths. Each row opens the Song and keeps its attribution, optional genre, up to two tags, update date, Arrangement count, favorite action and Owner edit action available.
+2. Keep search and Favorites visible. Place tag filtering, sorting and sort direction under a clearly named “More options” disclosure; show active criteria and a clear-filters action when relevant.
+3. Preserve the existing paged search API, URL state, favorites behavior, create limit, empty/loading/error handling, Group authorization, canonical routes and all Song/Arrangement/Resource boundaries.
+4. Use existing localized copy, group UI primitives and group brand tokens. Do not add endpoints, fields, dependencies or bulk operations for this presentation change.
+
+### Consequences
+
+- Song identity and common actions are easier to scan across screen sizes; secondary filtering takes one additional explicit action to discover.
+- The desktop library no longer uses the table presentation from ADR-0055 W-B. The underlying data, search, filter, sorting, pagination and authorization contracts remain unchanged.
+- Desktop and narrow layouts now share one row implementation, reducing differences between breakpoint-specific behavior.
+
+### Not changed
+
+Song detail tabs, Song/Arrangement/Resource domain boundaries, create modal, lyric/practice behavior, permissions, API contracts, pagination size, or Group visual identity.
+
+---
+
+## ADR-0104 — Local Storybook design workbench
+
+- **Status:** **ACCEPTED** — explicitly requested by the owner on 2026-10-27.
+- **Date:** 2026-10-27
+- **Related:** ADR-0041 (project customization boundary), ADR-0074 (group UI primitives), ADR-0069 (web delivery).
+
+### Context
+
+The owner requested an isolated environment to explore and validate Sonivo interface redesigns with real components, responsive previews, and accessibility feedback. The app already has reusable UI components, global themes, and a Playwright E2E workspace; Storybook was not present.
+
+### Decision
+
+1. Use Storybook with the official `@storybook/nextjs-vite` framework in the `@sonivo/app` workspace, loading existing app styles and language context.
+2. Keep the design workbench as local development tooling bound to loopback. Do not add a production route or include Storybook output in application deployment.
+3. Document UX principles, current design-system ownership/tokens, and the redesign workflow under `docs/design/`, with a concise pointer from `AGENTS.md` and navigation from the knowledge index.
+4. Reuse the existing Playwright setup for browser journeys. Do not install or replace Playwright as part of the design workbench.
+5. Keep personal Penpot credentials in the owner's global Codex configuration only. Repository configuration and documentation must not contain tokens. Treat Penpot as connected only after an actual tool call succeeds.
+
+### Consequences
+
+- Designers and engineers can inspect and exercise actual Sonivo primitives in a production-like style context without exposing an experiment route to production.
+- Storybook framework/addon upgrades are dev-tooling changes; validate compatibility with the pinned app stack before upgrading.
+- Personal Penpot MCP availability depends on the user's Codex session and an explicitly connected design file; it is not a project dependency.
+
+---
+
+## ADR-0103 — Optional Song genre metadata
+
+- **Status:** **ACCEPTED** — explicitly authorized by the owner on 2026-10-27.
+- **Date:** 2026-10-27
+- **Amends:** ADR-0025 Song field model; ADR-0055 library search fields.
+- **Related:** ADR-0074 Group UI primitives; ADR-0082 resource-level permissions.
+
+### Context
+
+The Canciones creation and detail experience needs a distinct optional genre field alongside tags and rights notes. Storing genre as a tag would conflate a descriptive classification with the group's free-form organization labels, and would make it impossible to present or edit genre independently. The accepted Song model currently stores title, attribution, origin, rights notes and tags, but no genre.
+
+### Decision
+
+1. Add nullable free-text `Song.Genre`, trimmed on write and limited to 100 characters. Empty input is stored as null. Genre is optional and does not use a controlled vocabulary.
+2. Keep `Song.Tags` and `Song.RightsNotes` semantically separate. Genre does not get copied into tags, and rights notes remain optional free text.
+3. Include Genre in Song create/update request contracts and list/detail responses. Include it in library text search, but do not add a separate genre taxonomy or filtering endpoint in this decision.
+4. Preserve the existing Song aggregate, Group authorization, version concurrency, API route, and soft-delete behavior. Add one nullable database column through a forward migration.
+5. Expose Genre in localized Song creation/edit/detail UI. Do not make it required.
+
+### Consequences
+
+- Groups can record and edit a genre without polluting their tags.
+- Search can find songs by genre using the existing query.
+- Genre values may vary in spelling and language; a normalized taxonomy or multi-genre model would require a later decision.
+- Existing Songs remain valid and read as genre `null` after migration.
+
 ---
 
 ## ADR-0102 — Neon agent access for project work

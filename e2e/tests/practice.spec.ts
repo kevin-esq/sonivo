@@ -19,6 +19,7 @@ import {
   openEvents,
   openSetlists,
   saveSetlistOrder,
+  selectArrangementEditorMode,
 } from './helpers'
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures')
@@ -43,6 +44,17 @@ test.describe('Practice / karaoke thin', () => {
     })
 
     await openPractice(page)
+
+    const practiceTabs = page.getByRole('tablist', { name: 'Secciones de práctica' })
+    const studyTab = page.getByTestId('practice-tab-estudiar')
+    await expect(studyTab).toHaveAttribute('tabindex', '0')
+    await studyTab.focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(page.getByTestId('practice-tab-calentar')).toHaveAttribute('aria-selected', 'true')
+    await expect(page).toHaveURL(/[?&]tab=calentar/)
+    await page.keyboard.press('Home')
+    await expect(studyTab).toHaveAttribute('aria-selected', 'true')
+    await expect(practiceTabs).toBeVisible()
 
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
     await expect(page.getByRole('paragraph').filter({ hasText: arrangementLabel })).toBeVisible()
@@ -227,12 +239,13 @@ test.describe('Practice / karaoke thin', () => {
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
     await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    // Verify chords field has content (3 lines)
+    await expect(page.getByTestId('arrangement-chords')).toHaveValue(chordProBody)
+
+    await selectArrangementEditorMode(page, 'timing')
 
     // Timing marks are edited inline in the ChordPro studio.
     await expect(page.getByTestId('digitizer-studio')).toBeVisible({ timeout: 10_000 })
-
-    // Verify chords field has content (3 lines)
-    await expect(page.getByTestId('arrangement-chords')).toHaveValue(chordProBody)
 
     // Set timing marks from the current playhead, then enter exact fixture times.
     for (const [index, value] of [mark1Ms, mark2Ms, mark3Ms].entries()) {
@@ -249,6 +262,7 @@ test.describe('Practice / karaoke thin', () => {
     // Re-open edit form to verify timing marks were saved
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
     await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await selectArrangementEditorMode(page, 'timing')
     await expect(page.getByTestId('digitizer-studio')).toBeVisible({ timeout: 10_000 })
     for (const [index, value] of [mark1Ms, mark2Ms, mark3Ms].entries()) {
       const [whole, fraction] = String(value / 1000).split('.')

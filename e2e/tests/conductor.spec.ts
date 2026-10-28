@@ -20,6 +20,7 @@ import {
   register,
   saveSetlistOrder,
   uniqueEmail,
+  selectArrangementEditorMode,
 } from './helpers'
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures')
@@ -65,6 +66,7 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
       // Timing marks so the follower highlight path is exercised too.
       await expect(ownerPage.getByRole('heading', { name: arrangementLabel })).toBeVisible()
       await ownerPage.getByRole('button', { name: 'Editar letra y acordes' }).click()
+      await selectArrangementEditorMode(ownerPage, 'timing')
       await expect(ownerPage.getByTestId('digitizer-studio')).toBeVisible({ timeout: 10_000 })
       for (const [index, time] of ['00:00.500', '00:01.500', '00:02.500'].entries()) {
         const line = ownerPage.getByTestId(`digitizer-line-${index}`)

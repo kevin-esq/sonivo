@@ -44,6 +44,7 @@ public sealed class EfSongCatalogStore : ISongCatalogStore
             songs = songs.Where(song =>
                 song.Title.ToLower().Contains(term)
                 || (song.Attribution != null && song.Attribution.ToLower().Contains(term))
+                || (song.Genre != null && song.Genre.ToLower().Contains(term))
                 || (song.Tags != null && song.Tags.ToLower().Contains(term)));
         }
 

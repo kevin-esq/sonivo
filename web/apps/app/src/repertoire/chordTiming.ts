@@ -308,3 +308,28 @@ export function clearChordTimingMark(
 ): ChordTimingMark[] {
   return marks.filter((m) => m.lineIndex !== lineIndex)
 }
+
+/** Move a word interval without crossing adjacent words on the same lyric line. */
+export function nudgeChordWordTiming(
+  marks: ChordWordTimingMark[],
+  lineIndex: number,
+  wordIndex: number,
+  deltaMs: number,
+): ChordWordTimingMark[] {
+  const selected = marks.find((mark) => mark.lineIndex === lineIndex && mark.wordIndex === wordIndex)
+  if (!selected || !Number.isFinite(deltaMs)) return marks
+
+  const sameLine = marks
+    .filter((mark) => mark.lineIndex === lineIndex && mark.wordIndex !== wordIndex)
+    .sort((left, right) => left.startMs - right.startMs || left.wordIndex - right.wordIndex)
+  const previous = [...sameLine].reverse().find((mark) => mark.endMs <= selected.startMs)
+  const next = sameLine.find((mark) => mark.startMs >= selected.endMs)
+  const lowerBound = Math.max(-selected.startMs, previous ? previous.endMs - selected.startMs : Number.NEGATIVE_INFINITY)
+  const upperBound = next ? next.startMs - selected.endMs : Number.POSITIVE_INFINITY
+  const shift = Math.max(lowerBound, Math.min(upperBound, Math.round(deltaMs)))
+  if (shift === 0) return marks
+
+  return marks.map((mark) => mark === selected
+    ? { ...mark, startMs: mark.startMs + shift, endMs: mark.endMs + shift }
+    : mark)
+}

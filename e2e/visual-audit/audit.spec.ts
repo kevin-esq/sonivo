@@ -255,7 +255,8 @@ test.describe('Sonivo visual/UX audit', () => {
     await audit(page, project, 'library-create-song-modal')
 
     await page.getByLabel('Título').fill(songTitle)
-    await page.getByLabel('Origen').selectOption('original')
+    await page.getByRole('button', { name: 'Más datos (opcional)' }).click()
+    await page.getByLabel('Tipo de canción').selectOption('original')
     await kill()
     await page.getByRole('button', { name: 'Crear canción' }).click()
     await expect(page.getByRole('link', { name: songTitle })).toBeVisible()
@@ -274,25 +275,26 @@ test.describe('Sonivo visual/UX audit', () => {
     await kill()
     await audit(page, project, 'song-detail-no-arrangements')
 
-    await page.getByRole('button', { name: 'Agregar arreglo' }).click()
-    await expect(page.getByRole('heading', { name: 'Crear arreglo' })).toBeVisible()
-    await page.getByLabel('Etiqueta', { exact: true }).fill(arrangementLabel)
-    await page.getByLabel('Tonalidad (opcional)').fill('G')
-    await page.getByLabel('Tempo / BPM (opcional, 1–400)').fill('96')
+    await page.getByRole('button', { name: 'Crear versión' }).click()
+    await expect(page.getByRole('heading', { name: 'Crear versión' })).toBeVisible()
+    await page.getByLabel('Nombre de la versión', { exact: true }).fill(arrangementLabel)
+    await page.getByRole('button', { name: 'Agregar tono y velocidad (opcional)' }).click()
+    await page.getByLabel('Tono (opcional)').fill('G')
+    await page.getByLabel('Velocidad de la canción (BPM, opcional)').fill('96')
     await page.getByLabel('Letra (opcional)').fill('Gracias por tanto amor\nGracias por la vida')
     await page.getByTestId('arrangement-chords').fill('{title: Gracias}\n{start_of_verse}\n[C]Gracias por tanto [G]amor')
     await kill()
     await audit(page, project, 'song-create-arrangement-modal')
 
-    await page.getByRole('button', { name: 'Crear arreglo' }).click()
+    await page.getByRole('button', { name: 'Crear versión' }).click()
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
     await kill()
     await audit(page, project, 'arrangement-detail')
 
     await page.getByRole('button', { name: 'Agregar enlace' }).click()
     await expect(page.getByRole('heading', { name: 'Agregar enlace' })).toBeVisible()
-    await page.getByLabel('Propósito').selectOption('chart')
-    await page.getByLabel('Etiqueta', { exact: true }).fill('Partitura oficial')
+    await page.getByLabel('Tipo de material').selectOption('chart')
+    await page.getByLabel('Nombre del material', { exact: true }).fill('Partitura oficial')
     await page.getByLabel('URL').fill('https://example.com/partituras/gracias.pdf')
     await kill()
     await page.getByRole('button', { name: 'Crear enlace' }).click()
@@ -301,7 +303,7 @@ test.describe('Sonivo visual/UX audit', () => {
     await audit(page, project, 'arrangement-with-resource')
 
     /* ---------- focus + hover states ---------- */
-    await page.getByRole('button', { name: 'Editar arreglo' }).focus()
+    await page.getByRole('button', { name: 'Editar versión' }).focus()
     await audit(page, project, 'arrangement-focus-state', { axe: false, note: 'foco de teclado' })
 
     /* ---------- practice ---------- */

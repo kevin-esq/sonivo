@@ -7,6 +7,7 @@ export type SongListItem = {
   id: string
   title: string
   attribution: string | null
+  genre: string | null
   originKind: SongOriginKind
   version: number
   createdAt: string
@@ -83,6 +84,7 @@ export async function createSong(
     title: string
     originKind: SongOriginKind
     attribution?: string | null
+    genre?: string | null
     rightsNotes?: string | null
     tags?: string[]
   },
@@ -105,6 +107,7 @@ export async function updateSong(
     title?: string | null
     originKind?: SongOriginKind | null
     attribution?: string | null
+    genre?: string | null
     rightsNotes?: string | null
     tags?: string[]
   },

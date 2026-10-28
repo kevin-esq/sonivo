@@ -55,19 +55,23 @@ export type GroupDialogProps = {
   onClose: () => void
   title: string
   description?: string
-  children: ReactNode
-  footer?: ReactNode
+  children: ReactNode | ((requestClose: () => void) => ReactNode)
+  footer?: ReactNode | ((requestClose: () => void) => ReactNode)
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void
   size?: keyof typeof SIZE_CLASS
   pending?: boolean
   testId?: string
   closeLabel?: string
+  /** Optional dirty-state guard for workflows that own an editable draft. */
+  confirmDiscard?: boolean
   /**
    * Takes the whole viewport on phones (a full-screen sheet) and behaves like a
    * centered dialog from `sm` up. Meant for wide, content-heavy panels such as
    * the member profile, which would otherwise be a ~360px column.
    */
   mobileFullscreen?: boolean
+  /** Keeps short workflows compact while allowing long dialog content to scroll. */
+  fitContent?: boolean
 }
 
 export function GroupDialog({
@@ -82,14 +86,19 @@ export function GroupDialog({
   pending,
   testId,
   closeLabel,
+  confirmDiscard = false,
   mobileFullscreen = false,
+  fitContent = false,
 }: GroupDialogProps) {
   const { t } = useT()
   const panelRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const discardCancelRef = useRef<HTMLButtonElement>(null)
   const previouslyFocused = useRef<HTMLElement | null>(null)
   const layerRef = useRef<symbol | null>(null)
   const titleId = useId()
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null)
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const attachAnchor = useCallback((anchor: HTMLSpanElement | null) => {
     if (!anchor) return
     // Escape animated/clipped page containers while retaining group theme tokens.
@@ -108,8 +117,23 @@ export function GroupDialog({
   const isTopMost = () => layerRef.current !== null && openLayers[openLayers.length - 1] === layerRef.current
 
   const requestClose = useCallback(() => {
-    if (!pending) onClose()
-  }, [pending, onClose])
+    if (pending) return
+    if (confirmDiscard) {
+      if (confirmingDiscard) {
+        setConfirmingDiscard(false)
+        return
+      }
+      setConfirmingDiscard(true)
+      return
+    }
+    onClose()
+  }, [pending, confirmDiscard, confirmingDiscard, onClose])
+
+  useEffect(() => {
+    if (!confirmingDiscard) return
+    const raf = requestAnimationFrame(() => discardCancelRef.current?.focus())
+    return () => cancelAnimationFrame(raf)
+  }, [confirmingDiscard])
 
   // Focus the first field on open and restore focus to the trigger on close.
   useEffect(() => {
@@ -170,6 +194,7 @@ export function GroupDialog({
           {description ? <p className="text-sm text-muted">{description}</p> : null}
         </div>
         <button
+          ref={closeButtonRef}
           type="button"
           onClick={() => requestClose()}
           disabled={pending}
@@ -179,10 +204,27 @@ export function GroupDialog({
           <X className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">{children}</div>
-      {footer ? (
+      <div className={cn(
+        'min-h-0 space-y-4 overflow-y-auto px-5 py-4',
+        fitContent ? 'flex-1 sm:max-h-[calc(85dvh-10rem)] sm:flex-none' : 'flex-1',
+      )}>
+        <div className={confirmingDiscard ? 'hidden' : undefined} aria-hidden={confirmingDiscard}>
+          {typeof children === 'function' ? children(requestClose) : children}
+        </div>
+        {confirmingDiscard ? (
+          <div role="group" aria-labelledby={`${titleId}-discard`} className="rounded-xl border border-error/30 bg-error/5 p-4">
+            <p id={`${titleId}-discard`} className="font-semibold text-ink">{t('common.unsavedChanges')}</p>
+            <p className="mt-1 text-sm text-muted">{t('common.discardChanges')}</p>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button ref={discardCancelRef} type="button" onClick={() => { setConfirmingDiscard(false); closeButtonRef.current?.focus() }} className="min-h-11 rounded-xl border border-border-subtle px-4 text-sm font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('common.cancel')}</button>
+              <button type="button" onClick={() => { setConfirmingDiscard(false); onClose() }} className="min-h-11 rounded-xl bg-error-strong px-4 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error">{t('common.discard')}</button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+      {footer && !confirmingDiscard ? (
         <footer className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border-subtle px-5 py-4">
-          {footer}
+          {typeof footer === 'function' ? footer(requestClose) : footer}
         </footer>
       ) : null}
     </>
@@ -218,7 +260,7 @@ export function GroupDialog({
             : 'rounded-2xl border ' + SIZE_CLASS[size],
         )}
       >
-        <div className={cn('flex flex-col', mobileFullscreen ? 'h-[100dvh] sm:max-h-[85dvh]' : 'max-h-[85dvh]')}>
+        <div className={cn('flex flex-col', mobileFullscreen ? 'h-[100dvh] sm:h-auto sm:max-h-[85dvh]' : 'max-h-[85dvh]')}>
           {onSubmit ? (
             <form
               onSubmit={(event) => {

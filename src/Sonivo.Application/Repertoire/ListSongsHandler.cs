@@ -50,7 +50,8 @@ public sealed class ListSongsHandler
                 s.CreatedAt,
                 s.UpdatedAt,
                 s.TagList,
-                favoriteIds.Contains(s.Id)))
+                favoriteIds.Contains(s.Id),
+                s.Genre))
             .ToList();
     }
 }

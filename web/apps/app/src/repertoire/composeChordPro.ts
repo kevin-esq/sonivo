@@ -2,6 +2,7 @@
  * Deterministic ChordPro composition assist (ADR-0030 P2).
  * Template/rules only — no cloud LLM.
  */
+import { transposeChordToken } from './chordPro'
 
 export type ComposeBrief = {
   genre: string
@@ -16,9 +17,9 @@ const PROGRESSIONS: Record<string, string[][]> = {
     ['C', 'Am', 'F', 'G'],
   ],
   rock: [
-    ['E', 'A', 'B', 'E'],
-    ['A', 'D', 'E', 'A'],
-    ['Em', 'C', 'G', 'D'],
+    ['C', 'F', 'G', 'C'],
+    ['F', 'Bb', 'C', 'F'],
+    ['Am', 'F', 'C', 'G'],
   ],
   gospel: [
     ['C', 'F', 'G', 'C'],
@@ -49,6 +50,23 @@ function normalizeGenre(genre: string): keyof typeof PROGRESSIONS {
 function sanitizeKey(key: string): string {
   const k = key.trim()
   return k || 'C'
+}
+
+const PITCH_CLASS: Record<string, number> = {
+  C: 0, 'B#': 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4,
+  Fb: 4, F: 5, 'E#': 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8,
+  A: 9, 'A#': 10, Bb: 10, B: 11, Cb: 11,
+}
+
+function transposeForKey(progression: string[], key: string): string[] {
+  const root = /^\s*([A-Ga-g][#b]?)/.exec(key)?.[1]
+  if (!root) return progression
+  const targetPitch = PITCH_CLASS[root[0]!.toUpperCase() + root.slice(1)]
+  if (targetPitch === undefined) return progression
+  const transposed = progression.map((chord) => transposeChordToken(chord, targetPitch))
+  if (!root.toLowerCase().endsWith('b')) return transposed
+  const flatNames: Record<string, string> = { 'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb' }
+  return transposed.map((chord) => chord.replace(/\b(C#|D#|F#|G#|A#)/g, (note) => flatNames[note] ?? note))
 }
 
 function sanitizeIdea(idea: string): string {
@@ -93,8 +111,8 @@ export function composeChordPro(
   const progressions = PROGRESSIONS[genreKey]!
   const pIndex = (options?.progressionIndex ?? 0) % progressions.length
   const vIndex = options?.lyricVariant ?? 0
-  const progression = progressions[pIndex]!
   const key = sanitizeKey(brief.key)
+  const progression = transposeForKey(progressions[pIndex]!, key)
   const titleIdea = sanitizeIdea(brief.idea)
 
   const verse = lineWithChords(progression, verseWords(titleIdea, vIndex))

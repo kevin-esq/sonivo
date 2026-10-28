@@ -74,6 +74,10 @@ Until the user explicitly authorizes additional work:
 - No unnecessary dependencies; no scope creep
 - Never claim tests passed if they were not actually run
 
+## UI/UX work
+
+For any UI research, prototype, redesign, or visual review, read [`docs/design/UX_GUIDELINES.md`](docs/design/UX_GUIDELINES.md), [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md), and [`docs/design/REDESIGN_WORKFLOW.md`](docs/design/REDESIGN_WORKFLOW.md) before changing UI. Use the app's Storybook for isolated component exploration and preserve its local-only boundary. Follow the source-of-truth hierarchy and relevant ADRs; report observed, inferred, and proposed findings separately.
+
 ## Git
 
 Branches: `main` (stable), `develop` (integration), `feature/*`, `fix/*`, `chore/*`, `docs/*`.  

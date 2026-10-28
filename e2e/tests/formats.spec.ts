@@ -7,6 +7,7 @@ import {
   openPractice,
   openSong,
   register,
+  selectArrangementEditorMode,
   uniqueEmail,
 } from './helpers'
 
@@ -31,6 +32,7 @@ test.describe('ChordPro formats (Wave 1)', () => {
 
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
     await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await selectArrangementEditorMode(page, 'lyrics')
     const importDropzone = page.getByTestId('arrangement-chords-import')
     await importDropzone.locator('input[type="file"]').setInputFiles({
       name: 'chords.txt',
@@ -38,6 +40,7 @@ test.describe('ChordPro formats (Wave 1)', () => {
       buffer: Buffer.from(chordProBody),
     })
     await expect(importDropzone).toContainText('chords.txt')
+    await selectArrangementEditorMode(page, 'chords')
     await expect(page.getByTestId('arrangement-chords')).toHaveValue(chordProBody)
     await page.locator('[data-testid="chordpro-compose"] summary').click()
     await expect(page.getByTestId('chords-preview')).toBeVisible()
@@ -73,6 +76,7 @@ test.describe('ChordPro transpose + views (ADR-0030 P0)', () => {
 
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
     await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await selectArrangementEditorMode(page, 'chords')
     const chordsField = page.getByTestId('arrangement-chords')
     await page.locator('details').filter({ has: chordsField }).locator('summary').click()
     await chordsField.fill(chordProBody)
@@ -118,6 +122,7 @@ test.describe('ChordPro text digitizer (ADR-0030 P1)', () => {
     await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
     await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
     await page.getByTestId('digitizer-lyrics').fill(`${lyricWord} la`)
+    await selectArrangementEditorMode(page, 'chords')
     await page.getByTestId('digitizer-chords').fill(`${chordToken} G`)
     await page.getByTestId('digitizer-generate').click()
     await expect(page.getByTestId('arrangement-chords')).toContainText(`[${chordToken}]`)
@@ -151,6 +156,7 @@ test.describe('ChordPro compose assist (ADR-0030 P2)', () => {
 
     await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
     await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await selectArrangementEditorMode(page, 'chords')
     await page.locator('[data-testid="chordpro-compose"] summary').click()
     await expect(page.getByTestId('chordpro-compose')).toBeVisible()
     await page.getByTestId('compose-genre').fill('pop')

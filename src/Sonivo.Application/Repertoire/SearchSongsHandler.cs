@@ -24,7 +24,8 @@ public sealed record SongCatalogItemDto(
     DateTimeOffset UpdatedAt,
     IReadOnlyList<string> Tags,
     bool IsFavorite,
-    int ArrangementCount);
+    int ArrangementCount,
+    string? Genre = null);
 
 public sealed class SearchSongsHandler
 {
@@ -106,7 +107,8 @@ public sealed class SearchSongsHandler
                 row.Song.UpdatedAt,
                 row.Song.TagList,
                 row.IsFavorite,
-                row.ArrangementCount)).ToArray(),
+                row.ArrangementCount,
+                row.Song.Genre)).ToArray(),
             result.TotalCount,
             result.Page,
             pageSize,

@@ -1,6 +1,6 @@
 import { routes } from '../../routing/routes'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, Music2, Pause, Play, Plus, SkipForward, Trash2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ClipboardCheck, Music2, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react'
 import {
   createArrangement,
   createFileResource,
@@ -24,9 +24,9 @@ export type CreateSongDialogProps = {
 }
 
 type Step = 'details' | 'audio' | 'arrange' | 'review' | 'done'
+type ExtraVersion = { id: string; label: string; key: string; bpm: string; lyrics: string; chords: string; structure: string; file: File | null }
 
 const AUDIO_ACCEPT = 'audio/*,.mp3,.wav,.flac,.m4a,.ogg,.aac'
-const SECTION_PRESETS = ['intro', 'verse', 'chorus', 'bridge', 'solo', 'outro'] as const
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -64,13 +64,17 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
   const [durationMs, setDurationMs] = useState<number | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
 
-  const [arrangementLabel, setArrangementLabel] = useState('')
   const [defaultKey, setDefaultKey] = useState('')
   const [defaultBpm, setDefaultBpm] = useState('')
   const [sections, setSections] = useState<string[]>([])
   const [lyrics, setLyrics] = useState('')
+  const [chords, setChords] = useState('')
+  const [showMoreSongDetails, setShowMoreSongDetails] = useState(false)
+  const [expandedVersionDetails, setExpandedVersionDetails] = useState<Record<string, boolean>>({})
+  const [extraVersions, setExtraVersions] = useState<ExtraVersion[]>([])
   const savedSong = useRef<SongDetail | null>(null)
-  const savedArrangement = useRef<{ id: string } | null>(null)
+  const savedArrangements = useRef(new Map<string, { id: string }>())
+  const uploadedAudio = useRef(new Set<string>())
 
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -85,7 +89,8 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
   const [playing, setPlaying] = useState(false)
   const [positionMs, setPositionMs] = useState(0)
   const maxAudioBytes = resourceUploadLimit(planId, 'audio')
-  const willCreateArrangement = Boolean(file || lyrics.trim() || arrangementLabel.trim() || defaultKey.trim() || defaultBpm.trim() || sections.length)
+  const willCreateInitialArrangement = Boolean(extraVersions.length || file || lyrics.trim() || defaultKey.trim() || defaultBpm.trim() || sections.length)
+  const willCreateArrangement = willCreateInitialArrangement || extraVersions.length > 0
 
   useEffect(() => {
     let cancelled = false
@@ -216,7 +221,6 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
       return
     }
     setFile(next)
-    if (!arrangementLabel) setArrangementLabel(next.name.replace(/\.[^.]+$/, ''))
   }
 
   function next() {
@@ -243,21 +247,29 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
     else if (step === 'audio') setStep('details')
   }
 
-  function addSection(name: string) {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    setSections((list) => [...list, trimmed])
+  function addVersion() {
+    setExtraVersions((current) => [...current, { id: crypto.randomUUID(), label: '', key: '', bpm: '', lyrics: '', chords: '', structure: '', file: null }])
   }
 
-  function moveSection(index: number, delta: number) {
-    setSections((list) => {
-      const target = index + delta
-      if (target < 0 || target >= list.length) return list
-      const copy = [...list]
-      const [item] = copy.splice(index, 1)
-      copy.splice(target, 0, item!)
-      return copy
-    })
+  function updateVersion(id: string, patch: Partial<ExtraVersion>) {
+    setExtraVersions((current) => current.map((version) => version.id === id ? { ...version, ...patch } : version))
+  }
+
+  function toggleVersionDetails(id: string) {
+    setExpandedVersionDetails((current) => ({ ...current, [id]: !current[id] }))
+  }
+
+  function pickVersionFile(id: string, next: File | null) {
+    if (next && !next.type.startsWith('audio/') && !/\.(mp3|wav|flac|m4a|ogg|aac)$/i.test(next.name)) {
+      setError(t('songCreate.wizardFileTypeError'))
+      return
+    }
+    if (next && next.size > maxAudioBytes) {
+      setError(t('songCreate.wizardFileTooLarge'))
+      return
+    }
+    setError(null)
+    updateVersion(id, { file: next })
   }
 
   async function submit() {
@@ -269,9 +281,9 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
         title: title.trim(),
         originKind,
         attribution: attribution.trim() || null,
+        genre: genre.trim() || null,
         rightsNotes: description.trim() || null,
-        tags: [genre, tags]
-          .join(',')
+        tags: tags
           .split(',')
           .map((tag) => tag.trim())
           .filter(Boolean),
@@ -279,18 +291,24 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
 
       savedSong.current = song
       notifyGroupDataChanged('songs', groupId)
-      if (file || lyrics.trim() || arrangementLabel.trim() || defaultKey.trim() || defaultBpm.trim() || sections.length) {
-        const arrangement = savedArrangement.current ?? await createArrangement(groupId, song.id, {
-          label: arrangementLabel.trim() || t('songCreate.wizardDefaultArrangement'),
-          defaultKey: defaultKey.trim() || null,
-          defaultBpm: defaultBpm.trim() ? Number(defaultBpm) : null,
-          lyrics: lyrics.trim() || null,
-          structure: sections.length ? sections.join('\n') : null,
+      const drafts = [
+        ...(willCreateInitialArrangement ? [{ id: 'initial', label: title.trim(), key: defaultKey, bpm: defaultBpm, lyrics, chords, structure: sections.join('\n'), file }] : []),
+        ...extraVersions.map((version) => ({ id: version.id, label: version.label.trim() || t('songCreate.wizardDefaultArrangement'), key: version.key, bpm: version.bpm, lyrics: version.lyrics, chords: version.chords, structure: version.structure, file: version.file })),
+      ]
+      for (const draft of drafts) {
+        const arrangement = savedArrangements.current.get(draft.id) ?? await createArrangement(groupId, song.id, {
+          label: draft.label,
+          defaultKey: draft.key.trim() || null,
+          defaultBpm: draft.bpm.trim() ? Number(draft.bpm) : null,
+          lyrics: draft.lyrics.trim() || null,
+          chords: draft.chords.trim() || null,
+          structure: draft.structure.trim() || null,
         })
-        savedArrangement.current = arrangement
-        if (file) {
+        savedArrangements.current.set(draft.id, arrangement)
+        if (draft.file && !uploadedAudio.current.has(draft.id)) {
           setUploading(true)
-          await createFileResource(groupId, arrangement.id, { purpose: 'audio', label: file.name, file })
+          await createFileResource(groupId, arrangement.id, { purpose: 'audio', label: draft.file.name, file: draft.file })
+          uploadedAudio.current.add(draft.id)
           setUploading(false)
         }
       }
@@ -315,8 +333,10 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
     // Keep the shell open; the caller refreshes the library when the dialog finally closes.
     setCreated(null)
     savedSong.current = null
-    savedArrangement.current = null
+    savedArrangements.current.clear()
+    uploadedAudio.current.clear()
     setLyrics('')
+    setChords('')
     setStep('details')
     setTitle('')
     setOriginKind('original')
@@ -324,19 +344,21 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
     setGenre('')
     setTags('')
     setDescription('')
+    setShowMoreSongDetails(false)
     setFile(null)
     setDurationMs(null)
-    setArrangementLabel('')
     setDefaultKey('')
     setDefaultBpm('')
     setSections([])
+    setExtraVersions([])
+    setExpandedVersionDetails({})
     setError(null)
   }
 
   const activeIndex = steps.indexOf(step === 'done' ? 'review' : step)
   const pendingLabel = uploading ? t('songCreate.wizardUploadingAudio') : t('songCreate.creating')
 
-  const footer =
+  const footer = (requestClose: () => void) =>
     step === 'done' ? (
       <>
         <GroupButton variant="secondary" type="button" onClick={createAnother}>
@@ -347,7 +369,7 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
     ) : (
       <>
         {step === 'details' ? (
-          <GroupButton variant="ghost" type="button" onClick={onClose} disabled={busy}>
+          <GroupButton variant="ghost" type="button" onClick={requestClose} disabled={busy}>
             {t('songCreate.cancel')}
           </GroupButton>
         ) : (
@@ -379,32 +401,34 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
       open
       onClose={busy ? () => undefined : finish}
       title={t('songCreate.createTitle')}
-      size="lg"
+      size="xl"
+      mobileFullscreen
+      fitContent
       pending={busy}
+      confirmDiscard={step !== 'done' && (title.trim().length > 0 || savedSong.current !== null || step !== 'details')}
       testId="create-song-dialog"
       footer={footer}
     >
       {step !== 'done' ? (
-        <ol className="flex flex-wrap items-center gap-2 text-xs font-medium" aria-label={t('songCreate.createTitle')}>
+        <ol className="grid grid-cols-2 gap-2 text-xs font-medium sm:grid-cols-4" aria-label={t('songCreate.createTitle')}>
           {steps.map((id, index) => (
-            <li key={id} className="flex items-center gap-2">
+            <li key={id} className="min-w-0">
               <span
                 className={cn(
-                  'flex items-center gap-2 rounded-full px-3 py-1',
+                  'flex min-h-11 items-center gap-2 rounded-xl border px-3 py-1.5',
                   index === activeIndex
-                    ? 'bg-primary-strong text-primary-foreground'
+                    ? 'border-primary-strong bg-primary-strong text-primary-foreground'
                     : index < activeIndex
-                      ? 'bg-primary/15 text-primary-ink'
-                      : 'bg-surface-hover text-muted',
+                      ? 'border-primary/20 bg-primary/10 text-primary-ink'
+                      : 'border-border-subtle bg-surface-hover text-muted',
                 )}
                 aria-current={index === activeIndex ? 'step' : undefined}
               >
-                <span className="grid h-4 w-4 place-items-center rounded-full bg-black/15 text-[10px]">
-                  {index < activeIndex ? <Check className="h-3 w-3" aria-hidden="true" /> : index + 1}
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-black/15 text-[10px]">
+                  {index < activeIndex ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : index + 1}
                 </span>
-                {stepLabels[id]}
+                <span className="truncate">{stepLabels[id]}</span>
               </span>
-              {index < steps.length - 1 ? <ChevronRight className="h-3.5 w-3.5 text-muted" aria-hidden="true" /> : null}
             </li>
           ))}
         </ol>
@@ -419,68 +443,88 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
       {savedSong.current && error ? <p role="status" className="text-sm text-muted">{t('workflow.partialSave')}</p> : null}
       {/* Step: details */}
       {step === 'details' ? (
-        <div className="space-y-4">
-          <p className="text-sm leading-relaxed text-muted">{t('workflow.songSteps')}</p>
-          <GroupInput
-            label={t('songCreate.titleLabel')}
-            value={title}
-            maxLength={200}
-            disabled={busy}
-            onChange={(event) => setTitle(event.target.value)}
-            data-autofocus
-          />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <GroupSelect
-              label={t('songCreate.originLabel')}
-              value={originKind}
-              options={originOptions}
-              disabled={busy}
-              onChange={(value) => setOriginKind(value as SongOriginKind)}
-            />
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary-ink"><Music2 className="h-5 w-5" aria-hidden="true" /></span>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-ink">{t('songCreate.wizardDetailsTitle')}</h3>
+              <p className="text-sm text-muted">{t('workflow.songSteps')}</p>
+            </div>
+          </div>
+          <div className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-4 sm:p-5">
             <GroupInput
-              label={t('songCreate.wizardArtist')}
-              value={attribution}
-              maxLength={500}
-              disabled={busy}
-              onChange={(event) => setAttribution(event.target.value)}
-            />
-            <GroupInput
-              label={t('songCreate.wizardGenre')}
-              value={genre}
-              maxLength={80}
-              disabled={busy}
-              onChange={(event) => setGenre(event.target.value)}
-            />
-            <GroupInput
-              label={t('songCreate.tagsLabel')}
-              hint={t('songCreate.tagsPlaceholder')}
-              value={tags}
+              label={t('songCreate.titleLabel')}
+              value={title}
               maxLength={200}
               disabled={busy}
-              onChange={(event) => setTags(event.target.value)}
+              onChange={(event) => setTitle(event.target.value)}
+              data-autofocus
             />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <GroupSelect
+                label={t('songCreate.originLabel')}
+                value={originKind}
+                options={originOptions}
+                disabled={busy}
+                onChange={(value) => setOriginKind(value as SongOriginKind)}
+              />
+              <GroupInput
+                label={t('songCreate.wizardArtist')}
+                value={attribution}
+                maxLength={500}
+                disabled={busy}
+                onChange={(event) => setAttribution(event.target.value)}
+              />
+            </div>
           </div>
-          <GroupTextArea
-            label={t('workflow.rightsNotes')}
-            hint={t('workflow.rightsHint')}
-            rows={3}
-            value={description}
-            maxLength={2000}
-            disabled={busy}
-            onChange={(event) => setDescription(event.target.value)}
-          />
+          <button
+            type="button"
+            aria-expanded={showMoreSongDetails}
+            onClick={() => setShowMoreSongDetails((current) => !current)}
+            className="min-h-11 rounded-lg text-sm font-medium text-primary-ink underline decoration-primary/40 underline-offset-4 hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            {t(showMoreSongDetails ? 'songCreate.wizardHideDetails' : 'songCreate.wizardMoreDetails')}
+          </button>
+          {showMoreSongDetails ? (
+            <div className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-4">
+              <GroupInput
+                label={t('songCreate.wizardGenre')}
+                value={genre}
+                maxLength={100}
+                disabled={busy}
+                onChange={(event) => setGenre(event.target.value)}
+              />
+              <GroupInput
+                label={t('songCreate.tagsLabel')}
+                hint={t('songCreate.tagsPlaceholder')}
+                value={tags}
+                maxLength={200}
+                disabled={busy}
+                onChange={(event) => setTags(event.target.value)}
+              />
+              <GroupTextArea
+                label={t('workflow.rightsNotes')}
+                hint={t('workflow.rightsHint')}
+                rows={3}
+                value={description}
+                maxLength={2000}
+                disabled={busy}
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       {/* Step: audio */}
       {step === 'audio' ? (
-        <div className="space-y-4">
-          <div>
-            <h3 className="flex items-center gap-2 font-medium text-ink">
-              <Music2 className="h-4 w-4 text-primary-ink" aria-hidden="true" />
-              {t('songCreate.wizardAudioTitle')}
-            </h3>
-            <p className="mt-1 text-sm text-muted">{t('songCreate.wizardAudioHint')}</p>
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary-ink"><Music2 className="h-5 w-5" aria-hidden="true" /></span>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-ink">{t('songCreate.wizardAudioTitle')}</h3>
+              <p className="text-sm text-muted">{t('songCreate.wizardAudioHint')}</p>
+            </div>
           </div>
 
           <FileDropzone
@@ -503,191 +547,171 @@ export function CreateSongWizard({ groupId, onClose, onCreated }: CreateSongDial
               {fileError}
             </p>
           ) : null}
-          <p className="flex items-center gap-2 text-xs text-muted">
-            <SkipForward className="h-3.5 w-3.5" aria-hidden="true" />
-            {t('songCreate.wizardAudioOptional')}
-          </p>
+          {file ? (
+            <div className="rounded-2xl border border-border-subtle bg-surface p-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={togglePreview}
+                  aria-label={playing ? t('songCreate.wizardPausePreview') : t('songCreate.wizardPlayPreview')}
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary-strong text-primary-foreground shadow-sm transition hover:bg-primary-strong/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                  {playing ? <Pause className="h-5 w-5" aria-hidden="true" /> : <Play className="h-5 w-5" aria-hidden="true" />}
+                </button>
+                <div className="flex h-16 min-w-0 flex-1 items-center gap-[2px] overflow-hidden rounded-lg bg-surface-hover/60 px-1" aria-hidden="true">
+                  {wave.map((height, index, all) => {
+                    const total = durationMs ?? 0
+                    const passed = total > 0 ? (index / all.length) * total <= positionMs : false
+                    return <span key={index} className={cn('w-[2px] shrink-0 rounded-full', passed ? 'bg-primary' : 'bg-primary/35')} style={{ height: `${height}%` }} />
+                  })}
+                </div>
+                <span className="w-24 shrink-0 text-right text-xs tabular-nums text-muted">{formatDuration(positionMs)} / {formatDuration(durationMs)}</span>
+              </div>
+              <audio
+                ref={audioRef}
+                src={previewSrc ?? undefined}
+                preload="metadata"
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+                onEnded={() => { setPlaying(false); setPositionMs(0) }}
+                onTimeUpdate={(event) => setPositionMs(event.currentTarget.currentTime * 1000)}
+                className="sr-only"
+              />
+              <p className="mt-3 text-xs text-muted">{t('songCreate.wizardPreviewHint')}</p>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       {/* Step: arrange */}
       {step === 'arrange' ? (
-        <div className="space-y-4">
-          <div>
-            <h3 className="font-medium text-ink">{t('songCreate.wizardArrangeTitle')}</h3>
-            <p className="mt-1 text-sm text-muted">{t('songCreate.wizardArrangeHint')}</p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <GroupInput
-              label={t('songCreate.wizardArrangementLabel')}
-              value={arrangementLabel}
-              maxLength={120}
-              disabled={busy}
-              onChange={(event) => setArrangementLabel(event.target.value)}
-            />
-            <GroupInput
-              label={t('songCreate.wizardKey')}
-              value={defaultKey}
-              maxLength={12}
-              disabled={busy}
-              onChange={(event) => setDefaultKey(event.target.value)}
-            />
-            <GroupInput
-              label={t('songCreate.wizardBpm')}
-              type="number"
-              min={1}
-              max={400}
-              step={1}
-              value={defaultBpm}
-              disabled={busy}
-              onChange={(event) => setDefaultBpm(event.target.value)}
-            />
-          </div>
-
-          <GroupTextArea label={t('song.lyricsLabel')} value={lyrics} rows={6} maxLength={100000}
-            disabled={busy} onChange={(event) => setLyrics(event.target.value)} hint={t('workflow.arrangementHint')} />
-          <p className="text-sm text-muted">{t('workflow.digitizationHint')}</p>
-          {/* Audio remains optional; lyrics and arrangement metadata can stand alone. */}
-          {file ? <div className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-4">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={togglePreview}
-                aria-label={playing ? t('songCreate.wizardPausePreview') : t('songCreate.wizardPlayPreview')}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary-strong text-primary-foreground shadow-sm transition hover:bg-primary-strong/90"
-              >
-                {playing ? (
-                  <Pause className="h-5 w-5" aria-hidden="true" />
-                ) : (
-                  <Play className="h-5 w-5" aria-hidden="true" />
-                )}
-              </button>
-              <div className="flex h-16 min-w-0 flex-1 items-center gap-[2px] overflow-hidden rounded-lg bg-surface-hover/60 px-1">
-                {wave.map((height, index, all) => {
-                  const total = durationMs ?? 0
-                  const passed = total > 0 ? (index / all.length) * total <= positionMs : false
-                  return (
-                    <span
-                      key={index}
-                      aria-hidden="true"
-                      className={cn('w-[2px] shrink-0 rounded-full', passed ? 'bg-primary' : 'bg-primary/35')}
-                      style={{ height: `${height}%` }}
-                    />
-                  )
-                })}
-              </div>
-              <span className="w-24 shrink-0 text-right text-xs tabular-nums text-muted">
-                {formatDuration(positionMs)} / {formatDuration(durationMs)}
-              </span>
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary-ink"><Music2 className="h-5 w-5" aria-hidden="true" /></span>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-ink">{t('songCreate.wizardArrangeTitle')}</h3>
+              <p className="text-sm text-muted">{t('songCreate.wizardArrangeHint')}</p>
             </div>
-            <audio
-              ref={audioRef}
-              src={previewSrc ?? undefined}
-              preload="metadata"
-              onPlay={() => setPlaying(true)}
-              onPause={() => setPlaying(false)}
-              onEnded={() => {
-                setPlaying(false)
-                setPositionMs(0)
-              }}
-              onTimeUpdate={(event) => setPositionMs(event.currentTarget.currentTime * 1000)}
-              className="sr-only"
-            />
-            <p className="text-xs text-muted">{t('songCreate.wizardPreviewHint')}</p>
-          </div> : null}
-
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-medium text-ink">{t('songCreate.wizardSectionsTitle')}</span>
-              <div className="flex flex-wrap gap-1.5">
-                {SECTION_PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => addSection(t(`workflow.section.${preset}`))}
-                    className="min-h-11 rounded-lg border border-border-subtle px-2.5 py-1 text-xs font-medium text-muted hover:border-primary/30 hover:text-ink"
-                  >
-                    + {t(`workflow.section.${preset}`)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {sections.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-border-subtle px-3 py-4 text-center text-sm text-muted">
-                {t('songCreate.wizardSectionsEmpty')}
-              </p>
-            ) : (
-              <ul className="space-y-1.5">
-                {sections.map((section, index) => (
-                  <li
-                    key={`${section}-${index}`}
-                    className="flex items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2"
-                  >
-                    <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/15 text-xs font-semibold text-primary-ink">
-                      {index + 1}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-ink">{section}</span>
-                    <button
-                      type="button"
-                      onClick={() => moveSection(index, -1)}
-                      disabled={index === 0}
-                      aria-label={t('songCreate.wizardMoveUp')}
-                      className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink disabled:opacity-40"
-                    >
-                      <ChevronLeft className="h-4 w-4 rotate-90" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveSection(index, 1)}
-                      disabled={index === sections.length - 1}
-                      aria-label={t('songCreate.wizardMoveDown')}
-                      className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-ink disabled:opacity-40"
-                    >
-                      <ChevronRight className="h-4 w-4 rotate-90" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSections((list) => list.filter((_, i) => i !== index))}
-                      aria-label={t('songCreate.wizardRemove')}
-                      className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-error-ink"
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <SectionComposer onAdd={addSection} placeholder={t('songCreate.wizardSectionCustomPlaceholder')} addLabel={t('songCreate.wizardSectionAdd')} />
           </div>
+
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h4 className="font-semibold text-ink">{t('songCreate.wizardVersionsTitle')}</h4><p className="text-sm text-muted">{t('songCreate.wizardVersionsHint')}</p></div>
+              <GroupButton type="button" variant="secondary" onClick={addVersion} disabled={busy || savedSong.current !== null}><Plus className="h-4 w-4" aria-hidden="true" />{t('songCreate.wizardAddVersion')}</GroupButton>
+            </div>
+            <section className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-4 sm:p-5" aria-labelledby="initial-version-heading">
+              <header><h4 id="initial-version-heading" className="font-semibold text-ink">{t('songCreate.wizardVersionNumber', { number: 1 })}</h4><p className="mt-1 text-sm text-muted">{t('songCreate.wizardSelectedSong')}: <span className="font-medium text-ink">{title.trim()}</span></p></header>
+            <GroupTextArea
+              label={t('song.lyricsLabel')}
+              value={lyrics}
+              rows={4}
+              maxLength={100000}
+              disabled={busy}
+              onChange={(event) => setLyrics(event.target.value)}
+              hint={t('workflow.arrangementHint')}
+            />
+            <FileDropzone title={t('songCreate.wizardVersionAudio')} description={t('songCreate.wizardAudioFormats')} chooseLabel={t('songCreate.wizardChooseFile')} removeLabel={t('songCreate.wizardRemoveFile')} accept={AUDIO_ACCEPT} maxSizeBytes={maxAudioBytes} file={file} onFileChange={pickFile} disabled={busy} icon={Music2} selectedDetail={file ? `${formatBytes(file.size)} · ${formatDuration(durationMs)}` : undefined} testId="song-version-audio-1" />
+            <button
+              type="button"
+              aria-expanded={Boolean(expandedVersionDetails.initial)}
+              onClick={() => toggleVersionDetails('initial')}
+              className="min-h-11 rounded-lg text-sm font-medium text-primary-ink underline decoration-primary/40 underline-offset-4 hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              {t(expandedVersionDetails.initial ? 'songCreate.wizardHideMusicDetails' : 'songCreate.wizardMoreMusicDetails')}
+            </button>
+            {expandedVersionDetails.initial ? (
+              <div className="space-y-4 rounded-xl border border-border-subtle bg-surface-hover p-4">
+                <p className="text-sm text-muted">{t('songCreate.wizardMusicDetailsHint')}</p>
+                <GroupTextArea label={t('songCreate.wizardChords')} value={chords} rows={4} maxLength={100000} disabled={busy} onChange={(event) => setChords(event.target.value)} hint={t('songCreate.wizardChordsHint')} />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <GroupInput
+                    label={t('songCreate.wizardKey')}
+                    value={defaultKey}
+                    maxLength={12}
+                    disabled={busy}
+                    onChange={(event) => setDefaultKey(event.target.value)}
+                  />
+                  <GroupInput
+                    label={t('songCreate.wizardBpm')}
+                    type="number"
+                    min={1}
+                    max={400}
+                    step={1}
+                    value={defaultBpm}
+                    disabled={busy}
+                    onChange={(event) => setDefaultBpm(event.target.value)}
+                  />
+                </div>
+                <GroupTextArea label={t('songCreate.wizardSectionsTitle')} value={sections.join('\n')} rows={3} maxLength={5000} disabled={busy} onChange={(event) => setSections(event.target.value.split('\n'))} hint={t('songCreate.wizardStructureHint')} />
+              </div>
+            ) : null}
+            </section>
+          </div>
+          {extraVersions.map((version, index) => (
+            <section key={version.id} className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-4 sm:p-5" aria-labelledby={`extra-version-${version.id}`}>
+              <header className="flex items-center justify-between gap-3"><div><h4 id={`extra-version-${version.id}`} className="font-semibold text-ink">{t('songCreate.wizardVersionNumber', { number: index + 2 })}</h4><p className="text-sm text-muted">{t('songCreate.wizardVersionAudioHint')}</p></div><GroupButton variant="ghost" type="button" onClick={() => setExtraVersions((current) => current.filter((item) => item.id !== version.id))} disabled={busy || savedSong.current !== null}><Trash2 className="h-4 w-4" aria-hidden="true" />{t('songCreate.wizardRemove')}</GroupButton></header>
+              <GroupInput label={t('songCreate.wizardArrangementLabel')} value={version.label} maxLength={120} disabled={busy} onChange={(event) => updateVersion(version.id, { label: event.target.value })} placeholder={index === 0 ? t('songCreate.wizardVersionBaritone') : t('songCreate.wizardVersionSoprano')} />
+              <GroupTextArea label={t('song.lyricsLabel')} value={version.lyrics} rows={4} maxLength={100000} disabled={busy} onChange={(event) => updateVersion(version.id, { lyrics: event.target.value })} />
+              <button type="button" aria-expanded={Boolean(expandedVersionDetails[version.id])} onClick={() => toggleVersionDetails(version.id)} className="min-h-11 text-sm font-medium text-primary-ink underline underline-offset-4">{t(expandedVersionDetails[version.id] ? 'songCreate.wizardHideMusicDetails' : 'songCreate.wizardMoreMusicDetails')}</button>
+              {expandedVersionDetails[version.id] ? <div className="space-y-4 rounded-xl border border-border-subtle bg-surface-hover p-4"><p className="text-sm text-muted">{t('songCreate.wizardMusicDetailsHint')}</p><GroupTextArea label={t('songCreate.wizardChords')} value={version.chords} rows={4} maxLength={100000} disabled={busy} onChange={(event) => updateVersion(version.id, { chords: event.target.value })} hint={t('songCreate.wizardChordsHint')} /><div className="grid gap-4 sm:grid-cols-2"><GroupInput label={t('songCreate.wizardKey')} value={version.key} maxLength={12} disabled={busy} onChange={(event) => updateVersion(version.id, { key: event.target.value })} /><GroupInput label={t('songCreate.wizardBpm')} type="number" min={1} max={400} value={version.bpm} disabled={busy} onChange={(event) => updateVersion(version.id, { bpm: event.target.value })} /></div><GroupTextArea label={t('songCreate.wizardSectionsTitle')} value={version.structure} rows={3} maxLength={5000} disabled={busy} onChange={(event) => updateVersion(version.id, { structure: event.target.value })} hint={t('songCreate.wizardStructureHint')} /></div> : null}
+              <FileDropzone title={t('songCreate.wizardVersionAudio')} description={t('songCreate.wizardAudioFormats')} chooseLabel={t('songCreate.wizardChooseFile')} removeLabel={t('songCreate.wizardRemoveFile')} accept={AUDIO_ACCEPT} maxSizeBytes={maxAudioBytes} file={version.file} onFileChange={(next) => pickVersionFile(version.id, next)} disabled={busy} icon={Music2} testId={`song-version-audio-${index + 2}`} />
+            </section>
+          ))}
         </div>
       ) : null}
 
       {/* Step: review */}
       {step === 'review' ? (
-        <div className="space-y-4">
-          <h3 className="font-medium text-ink">{t('songCreate.wizardReviewTitle')}</h3>
-          <dl className="space-y-2 rounded-2xl border border-border-subtle bg-surface p-4 text-sm">
-            <ReviewRow label={t('songCreate.titleLabel')} value={title.trim()} />
-            <ReviewRow label={t('songCreate.originLabel')} value={originOptions.find((o) => o.value === originKind)?.label ?? ''} />
-            {attribution.trim() ? <ReviewRow label={t('songCreate.wizardArtist')} value={attribution.trim()} /> : null}
-            {genre.trim() ? <ReviewRow label={t('songCreate.wizardGenre')} value={genre.trim()} /> : null}
-            {tags.trim() ? <ReviewRow label={t('songCreate.tagsLabel')} value={tags.split(',').map((tag) => tag.trim()).filter(Boolean).join(', ')} /> : null}
-            {description.trim() ? <ReviewRow label={t('workflow.rightsNotes')} value={description.trim()} /> : null}
-            <ReviewRow
-              label={t('songCreate.wizardReviewAudio')}
-              value={file ? `${file.name} · ${formatDuration(durationMs)}` : t('songCreate.wizardReviewNoAudio')}
-            />
-            {willCreateArrangement ? <>
-              <ReviewRow label={t('songCreate.wizardArrangementLabel')} value={arrangementLabel.trim() || t('songCreate.wizardDefaultArrangement')} />
-              <ReviewRow label={t('songCreate.wizardKey')} value={defaultKey.trim() || t('songCreate.wizardReviewNotSet')} />
-              <ReviewRow label={t('songCreate.wizardBpm')} value={defaultBpm.trim() || t('songCreate.wizardReviewNotSet')} />
-              <ReviewRow label={t('arrangement.lyricsLabel')} value={lyrics.trim() ? t('workflow.lyricsIncluded') : t('songCreate.wizardReviewNoLyrics')} />
-              <ReviewRow label={t('songCreate.wizardSectionsTitle')} value={sections.length ? sections.join(' · ') : t('songCreate.wizardReviewNoSections')} />
-            </> : <ReviewRow label={t('songCreate.wizardArrangementLabel')} value={t('songCreate.wizardReviewNoArrangement')} />}
-          </dl>
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary-ink"><ClipboardCheck className="h-5 w-5" aria-hidden="true" /></span>
+            <div>
+              <h3 className="font-semibold text-ink">{t('songCreate.wizardReviewTitle')}</h3>
+              <p className="text-sm text-muted">{t('songCreate.wizardReviewHint')}</p>
+            </div>
+          </div>
+
+          <section className="rounded-2xl border border-border-subtle bg-surface p-4 sm:p-5" aria-labelledby="review-details-heading">
+            <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h4 id="review-details-heading" className="font-semibold text-ink">{t('songCreate.wizardDetailsTitle')}</h4>
+              <GroupButton variant="secondary" onClick={() => setStep('details')} disabled={savedSong.current !== null}><Pencil className="h-4 w-4" aria-hidden="true" />{t('songCreate.wizardEdit')}</GroupButton>
+            </header>
+            <dl className="space-y-2 text-sm">
+              <ReviewRow label={t('songCreate.titleLabel')} value={title.trim()} />
+              <ReviewRow label={t('songCreate.originLabel')} value={originOptions.find((option) => option.value === originKind)?.label ?? ''} />
+              {attribution.trim() ? <ReviewRow label={t('songCreate.wizardArtist')} value={attribution.trim()} /> : null}
+              {tags.trim() ? <ReviewRow label={t('songCreate.tagsLabel')} value={tags.split(',').map((tag) => tag.trim()).filter(Boolean).join(', ')} /> : null}
+              {description.trim() ? <ReviewRow label={t('workflow.rightsNotes')} value={description.trim()} /> : null}
+            </dl>
+          </section>
+
+          <section className="rounded-2xl border border-border-subtle bg-surface p-4 sm:p-5" aria-labelledby="review-audio-heading">
+            <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h4 id="review-audio-heading" className="font-semibold text-ink">{t('songCreate.wizardReviewAudio')}</h4>
+              <GroupButton variant="secondary" onClick={() => setStep('audio')} disabled={savedSong.current !== null}><Pencil className="h-4 w-4" aria-hidden="true" />{t('songCreate.wizardEdit')}</GroupButton>
+            </header>
+            <p className="text-sm text-muted">{file ? `${file.name} · ${formatBytes(file.size)} · ${formatDuration(durationMs)}` : t('songCreate.wizardReviewNoAudio')}</p>
+          </section>
+
+          <section className="rounded-2xl border border-border-subtle bg-surface p-4 sm:p-5" aria-labelledby="review-version-heading">
+            <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h4 id="review-version-heading" className="font-semibold text-ink">{t('songCreate.wizardArrangeTitle')}</h4>
+              <GroupButton variant="secondary" onClick={() => setStep('arrange')} disabled={savedSong.current !== null}><Pencil className="h-4 w-4" aria-hidden="true" />{t('songCreate.wizardEdit')}</GroupButton>
+            </header>
+            {willCreateArrangement ? (
+              <dl className="space-y-2 text-sm">
+                {willCreateInitialArrangement ? <ReviewRow label={t('songCreate.wizardVersionNumber', { number: 1 })} value={title.trim()} /> : null}
+                {willCreateInitialArrangement ? <>
+                  {defaultKey.trim() ? <ReviewRow label={t('songCreate.wizardKey')} value={defaultKey.trim()} /> : null}
+                  {defaultBpm.trim() ? <ReviewRow label={t('songCreate.wizardBpm')} value={defaultBpm.trim()} /> : null}
+                  {lyrics.trim() ? <ReviewRow label={t('arrangement.lyricsLabel')} value={t('workflow.lyricsIncluded')} /> : null}
+                  {chords.trim() ? <ReviewRow label={t('songCreate.wizardChords')} value={t('workflow.lyricsIncluded')} /> : null}
+                  {sections.length ? <ReviewRow label={t('songCreate.wizardSectionsTitle')} value={sections.join(' · ')} /> : null}
+                </> : null}
+                {extraVersions.map((version, index) => <span key={version.id} className="block space-y-2 border-t border-border-subtle pt-2 first:border-t-0"><ReviewRow label={t('songCreate.wizardVersionNumber', { number: index + 2 })} value={version.label.trim() || t('songCreate.wizardDefaultArrangement')} />{version.key.trim() ? <ReviewRow label={t('songCreate.wizardKey')} value={version.key.trim()} /> : null}{version.bpm.trim() ? <ReviewRow label={t('songCreate.wizardBpm')} value={version.bpm.trim()} /> : null}{version.lyrics.trim() ? <ReviewRow label={t('arrangement.lyricsLabel')} value={t('workflow.lyricsIncluded')} /> : null}{version.chords.trim() ? <ReviewRow label={t('songCreate.wizardChords')} value={t('workflow.lyricsIncluded')} /> : null}{version.structure.trim() ? <ReviewRow label={t('songCreate.wizardSectionsTitle')} value={version.structure.trim()} /> : null}{version.file ? <ReviewRow label={t('songCreate.wizardVersionAudio')} value={version.file.name} /> : null}</span>)}
+              </dl>
+            ) : <p className="text-sm text-muted">{t('songCreate.wizardReviewNoArrangement')}</p>}
+          </section>
 
           {busy ? (
             <div className="space-y-2" role="status" aria-live="polite">
@@ -733,50 +757,6 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-start justify-between gap-4">
       <dt className="text-muted">{label}</dt>
       <dd className="min-w-0 flex-1 whitespace-pre-wrap break-words text-right font-medium text-ink">{value}</dd>
-    </div>
-  )
-}
-
-function SectionComposer({
-  onAdd,
-  placeholder,
-  addLabel,
-}: {
-  onAdd: (name: string) => void
-  placeholder: string
-  addLabel: string
-}) {
-  const [value, setValue] = useState('')
-  return (
-    <div className="flex items-end gap-2">
-      <div className="flex-1">
-        <GroupInput
-          label={addLabel}
-          value={value}
-          maxLength={60}
-          placeholder={placeholder}
-          onChange={(event) => setValue(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault()
-              onAdd(value)
-              setValue('')
-            }
-          }}
-        />
-      </div>
-      <GroupButton
-        variant="secondary"
-        type="button"
-        onClick={() => {
-          onAdd(value)
-          setValue('')
-        }}
-        disabled={!value.trim()}
-      >
-        <Plus className="h-4 w-4" aria-hidden="true" />
-        {addLabel}
-      </GroupButton>
     </div>
   )
 }

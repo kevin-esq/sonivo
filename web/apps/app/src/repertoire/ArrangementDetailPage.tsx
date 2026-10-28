@@ -31,7 +31,7 @@ import {
   groupResourcesByPurpose,
 } from './chrome'
 import { ChordProView } from './ChordProView'
-import { VisualChordEditor } from './VisualChordEditor'
+import { VisualChordEditor, type ArrangementEditorMode } from './VisualChordEditor'
 import { LrcPanel } from './LrcPanel'
 import { LyricsExportPanel } from './LyricsExportPanel'
 import { AudioDigitizer } from './AudioDigitizer'
@@ -63,17 +63,23 @@ import { useGroupShell } from '../shell/GroupShellContext'
 import { Pause, Play } from 'lucide-react'
 import { useAudioPlayer } from './AudioPlayerContext'
 import { isPlayableAudioResource } from './pickPracticeAudio'
+import { GroupDialog } from '../groups/ui'
 
 export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: CurrentUser; groupId: string; arrangementId: string }) {
   const { navigate } = useGroupShell()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [loadingArrangement, setLoadingArrangement] = useState(true)
   const [songTitle, setSongTitle] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [conflict, setConflict] = useState<string | null>(null)
+  const [latestArrangement, setLatestArrangement] = useState<ArrangementDetail | null>(null)
   const [editing, setEditing] = useState(false)
+  const [confirmCancelEdit, setConfirmCancelEdit] = useState(false)
   const [creatingResource, setCreatingResource] = useState(false)
   const [creatingFileResource, setCreatingFileResource] = useState(false)
+  const [resourceDraftDirty, setResourceDraftDirty] = useState(false)
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null)
   const [confirmDeleteArrangement, setConfirmDeleteArrangement] = useState(false)
   const [deletingArrangement, setDeletingArrangement] = useState(false)
@@ -83,15 +89,34 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
 
   const isOwner = canManageContentRole(group?.role)
 
+  function cancelArrangementEdit() {
+    setConfirmCancelEdit(false)
+    setLatestArrangement(null)
+    setEditing(false)
+  }
+
   async function reloadArrangement() {
     if (!groupId || !arrangementId) return
-    const result = await getArrangement(groupId, arrangementId)
-    setArrangement(result)
+    setLoadFailed(false)
+    setError(null)
+    setLoadingArrangement(true)
+    setArrangement(undefined)
     try {
-      const song = await getSong(groupId, result.songId)
-      setSongTitle(song.title)
-    } catch {
-      setSongTitle(null)
+      const result = await getArrangement(groupId, arrangementId)
+      setArrangement(result)
+      try {
+        const song = await getSong(groupId, result.songId)
+        setSongTitle(song.title)
+      } catch {
+        setSongTitle(null)
+      }
+    } catch (err) {
+      setArrangement(null)
+      setError(mutationErrorMessage(err, t))
+      setLoadFailed(true)
+      throw err
+    } finally {
+      setLoadingArrangement(false)
     }
   }
 
@@ -100,6 +125,8 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
     let cancelled = false
     async function load() {
       setArrangement(undefined)
+      setLoadFailed(false)
+      setLoadingArrangement(true)
       setSongTitle(null)
       setError(null)
       setConflict(null)
@@ -107,6 +134,7 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
         const result = await getArrangement(groupId!, arrangementId!)
         if (cancelled) return
         setArrangement(result)
+        setLoadingArrangement(false)
         try {
           const song = await getSong(groupId!, result.songId)
           if (!cancelled) setSongTitle(song.title)
@@ -116,6 +144,8 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
       } catch (err) {
         if (cancelled) return
         setArrangement(null)
+        setLoadingArrangement(false)
+        setLoadFailed(true)
         setError(mutationErrorMessage(err, t))
       }
     }
@@ -184,13 +214,20 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
   }
 
   if (arrangement === undefined) {
-    return <p aria-live="polite">{t('arrangement.loading')}</p>
+    return loadingArrangement ? <p aria-live="polite">{t('arrangement.loading')}</p> : (
+      <div className="space-y-3" role="alert">
+        <ProblemAlert message={error ?? t('arrangement.loadError')} />
+        <Button type="button" variant="secondary" onClick={() => void reloadArrangement()}>{t('state.retry')}</Button>
+        <AppLink className="block font-semibold text-primary-ink no-underline hover:underline" to={routes.groupLibrary(group.id)}>{t('arrangement.library')}</AppLink>
+      </div>
+    )
   }
 
   if (arrangement === null) {
     return (
       <div className="space-y-3">
         <ProblemAlert message={error ?? t('arrangement.notFound')} />
+        {loadFailed ? <Button type="button" variant="secondary" onClick={() => void reloadArrangement()}>{t('state.retry')}</Button> : null}
         <AppLink
           className="font-semibold text-primary-ink no-underline hover:underline"
           to={routes.groupLibrary(group.id)}
@@ -202,13 +239,27 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
   }
 
   const grouped = groupResourcesByPurpose(arrangement.resources)
-  const showAddResource = isOwner && !creatingResource && !creatingFileResource
+  const showAddResource = isOwner
   const songHref = routes.groupSong(group.id, arrangement.songId)
   const hasChart = arrangement.resources.some((resource) => resource.purpose === 'chart')
   const resourceCountLabel =
     arrangement.resources.length === 0
-      ? t('setlists.noResources')
-      : plural(arrangement.resources.length, t('setlists.resourceOne'), t('setlists.resourcesMany'))
+      ? t('arrangement.noMaterialsCount')
+      : plural(arrangement.resources.length, t('arrangement.materialOne'), t('arrangement.materialMany'))
+  const hasRehearsalDetails = Boolean(
+    arrangement.defaultKey ||
+    arrangement.defaultBpm != null ||
+    arrangement.lyrics?.trim() ||
+    arrangement.chords?.trim() ||
+    arrangement.structure?.trim() ||
+    arrangement.notes?.trim(),
+  )
+  const showRehearsalSummary = !editing && hasRehearsalDetails
+  const hasLyrics = Boolean(arrangement.lyrics?.trim())
+  const chordText = arrangement.chords?.trim()
+  const hasDistinctChords = Boolean(
+    chordText && chordText !== arrangement.lyrics?.trim(),
+  )
 
   return (
     <section className="space-y-8" aria-labelledby="arrangement-heading">
@@ -216,13 +267,13 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
         <PageBreadcrumb
           items={[
             { to: routes.group(group.id), label: group.name },
-            { to: routes.groupLibrary(group.id), label: t('setlists.title') },
+            { to: routes.groupLibrary(group.id), label: t('songs.pageTitle') },
             { to: songHref, label: songTitle ?? t('arrangement.songFallback') },
             { label: arrangement.label },
           ]}
         />
         <div className="space-y-2">
-          <h1 id="arrangement-heading" className="sonivo-page-title text-[var(--color-score-ink)]">
+          <h1 id="arrangement-heading" className="sonivo-page-title max-w-full break-words text-[var(--color-score-ink)] [overflow-wrap:anywhere]">
             {arrangement.label}
           </h1>
           <p className="text-sm text-[var(--color-score-muted)]">
@@ -234,10 +285,9 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
             ) : (
               t('arrangement.thisSong')
             )}
-            {arrangement.defaultKey ? ` · ${arrangement.defaultKey}` : ''}
-            {arrangement.defaultBpm != null ? ` · ${arrangement.defaultBpm} BPM` : ''}
             {!isOwner ? ` · ${t('arrangement.readonly')}` : ''}
           </p>
+          {!editing ? <>
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <ReadinessChip
               testId="arrangement-resource-count"
@@ -245,9 +295,7 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
             >
               {resourceCountLabel}
             </ReadinessChip>
-            <ReadinessChip testId="arrangement-chart-chip" tone={hasChart ? 'accent' : 'neutral'}>
-              {hasChart ? t('setlists.hasChart') : t('setlists.noChart')}
-            </ReadinessChip>
+            {hasChart ? <ReadinessChip testId="arrangement-chart-chip" tone="accent">{t('setlists.hasChart')}</ReadinessChip> : null}
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <AppLink
@@ -257,11 +305,12 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
               {t('arrangement.practice')}
             </AppLink>
             {isOwner && !editing ? (
-              <Button variant="secondary" onClick={() => setEditing(true)}>
+              <Button variant="secondary" onClick={() => { setLatestArrangement(null); setEditing(true) }}>
                 {t('arrangement.editMusic')}
               </Button>
             ) : null}
           </div>
+          </> : null}
         </div>
       </header>
 
@@ -283,26 +332,35 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
           <ArrangementEditForm
             arrangement={arrangement}
             groupId={group.id}
-            onCancel={() => setEditing(false)}
+            songTitle={songTitle ?? ''}
+            onCancelAttempt={(dirty) => {
+              if (dirty) setConfirmCancelEdit(true)
+              else cancelArrangementEdit()
+            }}
             onSaved={async (next) => {
               setArrangement(next)
               setEditing(false)
               setConflict(null)
+              setLatestArrangement(null)
             }}
             onConflict={async () => {
               setConflict(t('common.errorConflict'))
-              setEditing(false)
               try {
-                await reloadArrangement()
+                const latest = await getArrangement(group.id, arrangement.id)
+                setArrangement(latest)
+                setLatestArrangement(latest)
               } catch (err) {
                 setError(mutationErrorMessage(err, t))
               }
             }}
+            latestArrangement={latestArrangement}
           />
         </section>
       ) : null}
 
-      <div className={editing ? 'grid grid-cols-1 gap-8' : 'grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start'}>
+      {!editing ? <>
+      <div className="grid grid-cols-1 gap-5">
+
         <section className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-4 sm:p-6" aria-labelledby="resources-heading">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="resources-heading" className="text-lg font-semibold">
@@ -310,26 +368,24 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
             </h2>
             {showAddResource && arrangement.resources.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => setCreatingResource(true)}>{t('arrangement.addLink')}</Button>
-                <Button variant="secondary" onClick={() => setCreatingFileResource(true)}>
+                <Button onClick={() => { setResourceDraftDirty(false); setCreatingResource(true) }}>{t('arrangement.addLink')}</Button>
+                <Button variant="secondary" onClick={() => { setResourceDraftDirty(false); setCreatingFileResource(true) }}>
                   {t('arrangement.uploadFile')}
                 </Button>
               </div>
             ) : null}
           </div>
-          <p className="text-sm text-muted">
-            {t('arrangement.resourcesHint')}
-          </p>
+          <p className="max-w-2xl text-sm text-muted">{t('arrangement.resourcesHint')}</p>
 
-          {arrangement.resources.length === 0 && !creatingResource && !creatingFileResource ? (
+          {arrangement.resources.length === 0 ? (
             <EmptyPanel
               title={t('arrangement.noMaterialsTitle')}
               description={t('arrangement.noMaterialsBody')}
               action={
                 showAddResource ? (
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => setCreatingResource(true)}>{t('arrangement.addLink')}</Button>
-                    <Button variant="secondary" onClick={() => setCreatingFileResource(true)}>
+                    <Button onClick={() => { setResourceDraftDirty(false); setCreatingResource(true) }}>{t('arrangement.addLink')}</Button>
+                    <Button variant="secondary" onClick={() => { setResourceDraftDirty(false); setCreatingFileResource(true) }}>
                       {t('arrangement.uploadFile')}
                     </Button>
                   </div>
@@ -375,106 +431,68 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
           )}
 
           {isOwner ? (
-            <AudioDigitizer
-              key={arrangement.id}
-              groupId={group.id}
-              arrangement={arrangement}
-              onChanged={reloadArrangement}
-            />
+            <details className="rounded-xl border border-border-subtle bg-surface-hover p-4">
+              <summary className="min-h-11 cursor-pointer py-2 font-semibold text-ink">{t('arrangement.audioToolsTitle')}</summary>
+              <div className="mt-3">
+                <AudioDigitizer
+                  key={arrangement.id}
+                  groupId={group.id}
+                  arrangement={arrangement}
+                  onChanged={reloadArrangement}
+                />
+              </div>
+            </details>
           ) : null}
 
-          {isOwner && creatingResource ? (
-            <ResourceCreateForm
-              groupId={group.id}
-              arrangementId={arrangement.id}
-              onCancel={() => setCreatingResource(false)}
-              onCreated={async () => {
-                setCreatingResource(false)
-                await reloadArrangement()
-              }}
-            />
-          ) : null}
-
-          {isOwner && creatingFileResource ? (
-            <FileResourceCreateForm
-              groupId={group.id}
-              planId={group.planId}
-              arrangementId={arrangement.id}
-              onCancel={() => setCreatingFileResource(false)}
-              onCreated={async () => {
-                setCreatingFileResource(false)
-                await reloadArrangement()
-              }}
-            />
-          ) : null}
         </section>
 
-        {!editing ? <aside className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-4 sm:p-5">
+        {showRehearsalSummary ? <aside className="space-y-4 rounded-2xl border border-border-subtle bg-surface-hover p-4 sm:p-6" aria-labelledby="arrangement-music-heading">
           <div className="space-y-5 text-sm">
-              <section aria-labelledby="arrangement-tuning-heading" className="space-y-3">
+              {arrangement.defaultKey || arrangement.defaultBpm != null ? <section aria-labelledby="arrangement-tuning-heading" className="space-y-3">
                 <h3 id="arrangement-tuning-heading" className="text-sm font-semibold uppercase tracking-wide text-muted">
-                  {t('setlists.tuningTitle')}
+                  {t('arrangement.rehearsalDetailsTitle')}
                 </h3>
-                <dl className="space-y-3">
-                  <div>
-                    <dt className="text-muted">{t('arrangement.keyLabel')}</dt>
-                    <dd className="font-medium">{arrangement.defaultKey ?? '—'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted">{t('arrangement.tempoLabel')}</dt>
-                    <dd className="font-medium">{arrangement.defaultBpm ?? '—'}</dd>
-                  </div>
+                <dl className="flex flex-wrap gap-x-8 gap-y-3">
+                  {arrangement.defaultKey ? <div><dt className="text-muted">{t('arrangement.keyLabel')}</dt><dd className="font-medium">{arrangement.defaultKey}</dd></div> : null}
+                  {arrangement.defaultBpm != null ? <div><dt className="text-muted">{t('arrangement.tempoLabel')}</dt><dd className="font-medium">{arrangement.defaultBpm}</dd></div> : null}
                 </dl>
-              </section>
-              <section aria-labelledby="arrangement-music-heading" className="space-y-3">
-                <h3 id="arrangement-music-heading" className="text-sm font-semibold uppercase tracking-wide text-muted">
-                  {t('setlists.musicTitle')}
-                </h3>
-                <dl className="space-y-3">
-                  <div>
-                    <dt className="text-muted">{t('arrangement.lyricsLabel')}</dt>
-                    <dd className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl bg-surface p-3 text-sm leading-relaxed text-ink">
-                      {arrangement.lyrics?.trim() || '—'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted">{t('arrangement.chordsLabel')}</dt>
-                    <dd className="mt-1">
-                      {arrangement.chords?.trim() ? (
-                        looksLikeChordPro(arrangement.chords) ? (
-                          <ChordProView
-                            text={arrangement.chords}
-                            className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] p-3 font-sans"
-                          />
-                        ) : (
-                          <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] p-3 font-sans text-sm text-[var(--color-score-ink)]">
-                            {arrangement.chords}
-                          </pre>
-                        )
+              </section> : null}
+              {arrangement.lyrics?.trim() || arrangement.chords?.trim() || arrangement.structure?.trim() || arrangement.notes?.trim() ? <section aria-labelledby="arrangement-music-heading" className="space-y-3">
+                <h3 id="arrangement-music-heading" className="text-base font-semibold text-ink">{t('arrangement.rehearsalContentTitle')}</h3>
+                <div className={`grid min-w-0 gap-5 ${hasLyrics && hasDistinctChords ? '2xl:grid-cols-2' : 'grid-cols-1'}`}>
+                  {hasLyrics ? <div className="min-w-0">
+                    <h4 className="font-medium text-muted">{t('arrangement.lyricsLabel')}</h4>
+                    <div className="mt-2 max-h-[32rem] overflow-y-auto whitespace-pre-wrap rounded-xl border border-border-subtle bg-surface p-4 text-base leading-8 text-ink">
+                      {arrangement.lyrics}
+                    </div>
+                  </div> : null}
+                  {chordText && chordText !== arrangement.lyrics?.trim() ? <div className="min-w-0">
+                    <h4 className="font-medium text-muted">{t('arrangement.chordsDisplayLabel')}</h4>
+                    <div className="mt-2">
+                      {looksLikeChordPro(chordText) ? (
+                        <ChordProView text={chordText} className="max-h-[32rem] space-y-1 overflow-y-auto rounded-xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] p-4 font-sans" />
                       ) : (
-                        <span className="font-medium">—</span>
+                        <pre className="max-h-[32rem] overflow-y-auto whitespace-pre-wrap rounded-xl border border-[var(--color-score-border)] bg-[var(--color-score-paper)] p-4 font-sans text-sm text-[var(--color-score-ink)]">
+                          {chordText}
+                        </pre>
                       )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted">{t('arrangement.structureLabel')}</dt>
-                    <dd className="whitespace-pre-wrap font-medium">{arrangement.structure ?? '—'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted">{t('arrangement.notesLabel')}</dt>
-                    <dd className="whitespace-pre-wrap font-medium">{arrangement.notes ?? '—'}</dd>
-                  </div>
+                    </div>
+                  </div> : null}
+                </div>
+              </section> : null}
+              {arrangement.structure?.trim() || arrangement.notes?.trim() ? <details className="rounded-xl border border-border-subtle bg-surface p-4">
+                <summary className="min-h-11 cursor-pointer py-2 font-semibold text-ink">{t('arrangement.additionalDetails')}</summary>
+                <dl className="mt-3 grid gap-4 sm:grid-cols-2">
+                  {arrangement.structure?.trim() ? <div><dt className="font-medium text-muted">{t('arrangement.structureLabel')}</dt><dd className="mt-1 whitespace-pre-wrap">{arrangement.structure}</dd></div> : null}
+                  {arrangement.notes?.trim() ? <div><dt className="font-medium text-muted">{t('arrangement.notesLabel')}</dt><dd className="mt-1 whitespace-pre-wrap">{arrangement.notes}</dd></div> : null}
                 </dl>
-              </section>
+              </details> : null}
           </div>
         </aside> : null}
+
       </div>
 
-      {isOwner && arrangement && groupId ? (
-        <LrcPanel groupId={groupId} arrangement={arrangement} onApplied={setArrangement} songTitle={songTitle ?? ''} />
-      ) : null}
-
-      {!isOwner && arrangement && groupId ? <LyricsExportPanel groupId={groupId} arrangement={arrangement} disabled={false} /> : null}
+      {arrangement && groupId ? <LyricsExportPanel groupId={groupId} arrangement={arrangement} disabled={false} /> : null}
 
       {isOwner ? (
         <section
@@ -490,6 +508,67 @@ export function ArrangementDetailPage({ user, groupId, arrangementId }: { user: 
           </Button>
         </section>
       ) : null}
+      </> : null}
+
+      <GroupDialog
+        open={creatingResource}
+        onClose={() => { setCreatingResource(false); setResourceDraftDirty(false) }}
+        title={t('arrangement.addLink')}
+        description={t('arrangement.resourceDialogHint')}
+        size="lg"
+        mobileFullscreen
+        fitContent
+        confirmDiscard={resourceDraftDirty}
+        testId="arrangement-link-dialog"
+      >
+        {(requestClose) => <ResourceCreateForm
+            groupId={group.id}
+            arrangementId={arrangement.id}
+            onDirtyChange={setResourceDraftDirty}
+            onCancel={requestClose}
+            onCreated={async () => {
+              setCreatingResource(false)
+              setResourceDraftDirty(false)
+              await reloadArrangement()
+            }}
+          />}
+      </GroupDialog>
+      <GroupDialog
+        open={creatingFileResource}
+        onClose={() => { setCreatingFileResource(false); setResourceDraftDirty(false) }}
+        title={t('arrangement.uploadFile')}
+        description={t('arrangement.resourceDialogHint')}
+        size="lg"
+        mobileFullscreen
+        fitContent
+        confirmDiscard={resourceDraftDirty}
+        testId="arrangement-upload-dialog"
+      >
+        {(requestClose) => <FileResourceCreateForm
+            groupId={group.id}
+            planId={group.planId}
+            arrangementId={arrangement.id}
+            onDirtyChange={setResourceDraftDirty}
+            onCancel={requestClose}
+            onCreated={async () => {
+              setCreatingFileResource(false)
+              setResourceDraftDirty(false)
+              await reloadArrangement()
+            }}
+          />}
+      </GroupDialog>
+
+      <ConfirmDialog
+        open={confirmCancelEdit}
+        title={t('common.unsavedChanges')}
+        confirmLabel={t('common.discard')}
+        cancelLabel={t('common.cancel')}
+        pendingLabel={t('common.discard')}
+        onCancel={() => setConfirmCancelEdit(false)}
+        onConfirm={cancelArrangementEdit}
+      >
+        <p>{t('common.discardChanges')}</p>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={confirmDeleteArrangement}
@@ -633,15 +712,19 @@ function formatByteSize(bytes: number): string {
 function ArrangementEditForm({
   arrangement,
   groupId,
-  onCancel,
+  songTitle,
+  onCancelAttempt,
   onSaved,
   onConflict,
+  latestArrangement,
 }: {
   arrangement: ArrangementDetail
   groupId: string
-  onCancel: () => void
+  songTitle: string
+  onCancelAttempt: (dirty: boolean) => void
   onSaved: (arrangement: ArrangementDetail) => Promise<void>
   onConflict: () => Promise<void>
+  latestArrangement: ArrangementDetail | null
 }) {
   const [label, setLabel] = useState(arrangement.label)
   const [defaultKey, setDefaultKey] = useState(arrangement.defaultKey ?? '')
@@ -662,12 +745,37 @@ function ArrangementEditForm({
   const [composeIdea, setComposeIdea] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [reviewedLatest, setReviewedLatest] = useState(false)
+  const [editorMode, setEditorMode] = useState<ArrangementEditorMode>('lyrics')
   const { t } = useT()
+  useEffect(() => setReviewedLatest(false), [latestArrangement?.version])
   const audioTracks = useMemo(
     () => listPracticeAudioTracks(arrangement.resources, groupId, arrangement.id),
     [arrangement.resources, groupId, arrangement.id],
   )
   const composeBrief = { genre: composeGenre, key: composeKey, idea: composeIdea }
+  const editorCopy = {
+    lyrics: {
+      title: t('arrangement.editorTitleLyrics'),
+      hint: t('arrangement.editorHintLyrics'),
+    },
+    chords: {
+      title: t('arrangement.editorTitleChords'),
+      hint: t('arrangement.editorHintChords'),
+    },
+    timing: {
+      title: t('arrangement.editorTitleTiming'),
+      hint: t('arrangement.editorHintTiming'),
+    },
+  }[editorMode]
+  const hasDraftChanges = label !== arrangement.label ||
+    defaultKey !== (arrangement.defaultKey ?? '') ||
+    defaultBpm !== (arrangement.defaultBpm != null ? String(arrangement.defaultBpm) : '') ||
+    lyrics !== (arrangement.lyrics ?? '') ||
+    chords !== (arrangement.chords ?? '') ||
+    structure !== (arrangement.structure ?? '') ||
+    notes !== (arrangement.notes ?? '') ||
+    serializeChordTimingTimeline(timingTimeline) !== serializeChordTimingTimeline(parseChordTimingTimeline(arrangement.chordTimingJson))
 
   function onComposeGenerate() {
     setChords(composeChordPro(composeBrief))
@@ -716,7 +824,7 @@ function ArrangementEditForm({
     }
 
     const payload: Parameters<typeof updateArrangement>[2] = {
-      expectedVersion: arrangement.version,
+      expectedVersion: latestArrangement?.version ?? arrangement.version,
       label: label.trim(),
       defaultKey,
       lyrics,
@@ -753,20 +861,57 @@ function ArrangementEditForm({
   return (
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
       <ProblemAlert message={error} />
-      <section className="space-y-4 rounded-xl border border-border-subtle bg-surface-hover/60 p-4 sm:p-5" aria-labelledby="arrangement-details-heading">
-        <div>
-          <h3 id="arrangement-details-heading" className="font-semibold text-ink">{t('arrangement.editArrangement')}</h3>
+      {latestArrangement ? (
+        <div className="space-y-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">
+          <p className="font-semibold text-ink">{t('arrangement.latestVersionAvailable')}</p>
+          <details className="rounded-lg border border-border-subtle bg-surface p-3">
+            <summary className="min-h-11 cursor-pointer py-2 font-medium text-primary-ink">{t('arrangement.reviewLatestVersion')}</summary>
+            <dl className="max-h-72 space-y-2 overflow-y-auto pt-2">
+              {([
+                [t('arrangement.labelLabel'), latestArrangement.label],
+                [t('arrangement.keyOptional'), latestArrangement.defaultKey || '—'],
+                [t('arrangement.bpmLabel'), latestArrangement.defaultBpm == null ? '—' : String(latestArrangement.defaultBpm)],
+                [t('arrangement.lyricsLabel'), latestArrangement.lyrics || '—'],
+                [t('arrangement.chordsLabel'), latestArrangement.chords || '—'],
+                [t('arrangement.structureLabel'), latestArrangement.structure || '—'],
+                [t('arrangement.notesLabel'), latestArrangement.notes || '—'],
+              ]).map(([field, value]) => <div key={field}><dt className="font-medium text-muted">{field}</dt><dd className="whitespace-pre-wrap break-words text-ink">{value}</dd></div>)}
+            </dl>
+          </details>
+          <label className="flex min-h-11 items-center gap-2 font-medium text-ink">
+            <input type="checkbox" checked={reviewedLatest} onChange={(event) => setReviewedLatest(event.target.checked)} />
+            {t('arrangement.confirmReviewLatest')}
+          </label>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label={t('arrangement.labelLabel')}>
-            <input
-              className={fieldClass}
-              required
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              maxLength={200}
-            />
-          </Field>
+      ) : null}
+      <div role="group" aria-label={t('arrangement.editorModeLabel')} className="grid grid-cols-3 gap-1 rounded-2xl border border-border-subtle bg-surface-hover p-1.5 sm:gap-2 sm:p-2">
+        {([
+          ['lyrics', t('arrangement.editorLyrics')],
+          ['chords', t('arrangement.editorChords')],
+          ['timing', t('arrangement.editorTiming')],
+        ] as const).map(([mode, label]) => (
+          <button key={mode} className={`min-h-11 w-full min-w-0 rounded-xl px-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none sm:px-4 ${editorMode === mode ? 'bg-primary-strong text-primary-foreground shadow-sm' : 'bg-transparent text-muted hover:bg-surface hover:text-ink'}`} type="button" aria-pressed={editorMode === mode} data-testid={`arrangement-editor-mode-${mode}`} onClick={() => setEditorMode(mode)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <section className="space-y-3" aria-labelledby="arrangement-details-heading">
+        <h3 id="arrangement-details-heading" className="sr-only">{t('arrangement.editArrangement')}</h3>
+        <Field label={t('arrangement.labelLabel')}>
+          <input
+            className={fieldClass}
+            required
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            maxLength={200}
+          />
+        </Field>
+        <details className="rounded-xl border border-border-subtle bg-surface-hover/60 px-3 sm:px-4">
+          <summary className="flex min-h-12 cursor-pointer flex-col justify-center gap-0.5 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+            <span className="font-medium text-ink">{t('arrangement.optionalVersionSettings')}</span>
+            <span className="text-xs text-muted">{t('arrangement.optionalVersionSettingsHint')}</span>
+          </summary>
+          <div className="grid gap-4 border-t border-border-subtle py-3 sm:grid-cols-2">
           <Field label={t('arrangement.keyOptional')} hint={t('arrangement.clearKeyHint')}>
             <input
               className={fieldClass}
@@ -786,9 +931,10 @@ function ArrangementEditForm({
               onChange={(e) => setDefaultBpm(e.target.value)}
             />
           </Field>
-        </div>
+          </div>
+        </details>
       </section>
-      {arrangement.resources.some((resource) => resource.purpose === 'chart' && resource.kind === 'file') ? (
+      {editorMode === 'chords' && arrangement.resources.some((resource) => resource.purpose === 'chart' && resource.kind === 'file') ? (
         <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border-subtle bg-surface-hover p-4" data-testid="existing-chart-reference">
           <div className="min-w-0 space-y-1">
             <h4 className="font-semibold text-ink">{t('arrangement.existingChartTitle')}</h4>
@@ -809,6 +955,7 @@ function ArrangementEditForm({
         groupId={groupId}
         arrangementId={arrangement.id}
         arrangementLabel={label}
+        defaultKey={defaultKey}
         lyrics={lyrics}
         chords={chords}
         onLyricsChange={setLyrics}
@@ -819,7 +966,24 @@ function ArrangementEditForm({
         importFile={importFile}
         importError={importError}
         onImportFileChange={onImportChordPro}
+        mode={editorMode}
+        editorTitle={editorCopy.title}
+        editorHint={editorCopy.hint}
+        additionalLyricsImport={editorMode === 'lyrics' ? (
+          <LrcPanel
+            groupId={groupId}
+            arrangement={arrangement}
+            songTitle={songTitle}
+            onDraftImported={({ lyrics: importedLyrics, chordTimingJson }) => {
+              setLyrics(importedLyrics)
+              setChords(importedLyrics)
+              setTimingTimeline(parseChordTimingTimeline(chordTimingJson))
+              setError(null)
+            }}
+          />
+        ) : null}
       />
+      {editorMode === 'chords' ? <>
       <details className="rounded-xl border border-border-subtle bg-surface p-4" data-testid="chordpro-compose">
         <summary className="cursor-pointer font-semibold text-ink">{t('arrangement.advancedToolsTitle')}</summary>
         <div className="mt-4 space-y-4">
@@ -906,6 +1070,9 @@ function ArrangementEditForm({
           ) : null}
         </div>
       </details>
+      <details className="rounded-xl border border-border-subtle bg-surface p-4">
+        <summary className="min-h-11 cursor-pointer py-2 font-semibold text-ink">{t('arrangement.additionalDetails')}</summary>
+        <div className="mt-3 space-y-4">
       <Field label={t('arrangement.structureOptional')}>
         <textarea
           className={fieldClass}
@@ -917,14 +1084,19 @@ function ArrangementEditForm({
       <Field label={t('arrangement.notesOptional')}>
         <textarea className={fieldClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
-      <FormActions>
-        <Button type="submit" disabled={pending}>
+        </div>
+      </details>
+      </> : null}
+      <div className="sticky bottom-0 z-20 -mx-4 border-t border-border-subtle bg-surface/95 px-4 py-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] shadow-[0_-8px_20px_rgba(0,0,0,.08)] backdrop-blur sm:-mx-6 sm:px-6">
+      <div className="flex flex-nowrap items-center gap-1 sm:gap-3">
+        <Button className="px-2 text-xs sm:px-4 sm:text-sm" type="submit" disabled={pending || Boolean(latestArrangement && !reviewedLatest)}>
           {pending ? t('arrangement.saving') : t('arrangement.save')}
         </Button>
-        <Button variant="secondary" disabled={pending} onClick={onCancel}>
+        <Button className="px-2 text-xs sm:px-4 sm:text-sm" variant="secondary" disabled={pending} onClick={() => onCancelAttempt(hasDraftChanges)}>
           {t('arrangement.cancel')}
         </Button>
-      </FormActions>
+      </div>
+      </div>
     </form>
   )
 }
@@ -934,11 +1106,13 @@ function ResourceCreateForm({
   arrangementId,
   onCreated,
   onCancel,
+  onDirtyChange,
 }: {
   groupId: string
   arrangementId: string
   onCreated: () => Promise<void>
   onCancel: () => void
+  onDirtyChange: (dirty: boolean) => void
 }) {
   const [purpose, setPurpose] = useState<ResourcePurpose>('practice')
   const [label, setLabel] = useState('')
@@ -948,6 +1122,7 @@ function ResourceCreateForm({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const { t } = useT()
+  useEffect(() => onDirtyChange(Boolean(label || url || part || note)), [label, url, part, note, onDirtyChange])
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -974,8 +1149,7 @@ function ResourceCreateForm({
   }
 
   return (
-    <form className="space-y-4 border-t border-border-subtle pt-4" onSubmit={onSubmit} noValidate>
-      <h3 className="font-semibold">{t('arrangement.addLink')}</h3>
+    <form className="space-y-4" onSubmit={onSubmit} noValidate>
       <ProblemAlert message={error} />
       <Field label={t('arrangement.purposeLabel')}>
         <select
@@ -991,7 +1165,7 @@ function ResourceCreateForm({
           ))}
         </select>
       </Field>
-      <Field label={t('arrangement.labelLabel')}>
+      <Field label={t('arrangement.resourceLabelLabel')}>
         <input
           className={fieldClass}
           required
@@ -1035,12 +1209,14 @@ function FileResourceCreateForm({
   arrangementId,
   onCreated,
   onCancel,
+  onDirtyChange,
 }: {
   groupId: string
   planId: string
   arrangementId: string
   onCreated: () => Promise<void>
   onCancel: () => void
+  onDirtyChange: (dirty: boolean) => void
 }) {
   const [purpose, setPurpose] = useState<ResourcePurpose>('practice')
   const [label, setLabel] = useState('')
@@ -1050,6 +1226,7 @@ function FileResourceCreateForm({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const { t } = useT()
+  useEffect(() => onDirtyChange(Boolean(label || part || note || file)), [label, part, note, file, onDirtyChange])
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -1083,12 +1260,11 @@ function FileResourceCreateForm({
 
   return (
     <form
-      className="space-y-4 border-t border-border-subtle pt-4"
+      className="space-y-4"
       onSubmit={onSubmit}
       noValidate
       aria-busy={pending}
     >
-      <h3 className="font-semibold">{t('arrangement.uploadFile')}</h3>
       <ProblemAlert message={error} />
       {pending ? (
         <p
@@ -1115,7 +1291,7 @@ function FileResourceCreateForm({
           ))}
         </select>
       </Field>
-      <Field label={t('arrangement.labelLabel')}>
+      <Field label={t('arrangement.resourceLabelLabel')}>
         <input
           className={fieldClass}
           required
@@ -1257,7 +1433,7 @@ function ResourceEditForm({
           ))}
         </select>
       </Field>
-      <Field label={t('arrangement.labelLabel')}>
+      <Field label={t('arrangement.resourceLabelLabel')}>
         <input
           className={fieldClass}
           required
