@@ -95,19 +95,24 @@ test.describe('W6 light theme: shell contrast', () => {
     await page.goto('/account')
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
     await expect(page.getByRole('heading', { name: 'Mi cuenta', exact: true, level: 1 })).toBeVisible()
-    const cuentaNav = page
+    const accountNav = page
       .getByTestId('app-sidebar')
       .getByRole('navigation', { name: 'Secciones' })
 
-    const brand = page.getByText('Sonivo', { exact: true })
+    const brand = page.getByRole('banner').getByText('Sonivo', { exact: true }).filter({ visible: true })
     const logout = page.getByRole('button', { name: 'Cerrar sesión' })
     const title = page.getByRole('heading', { name: 'Mi cuenta', exact: true, level: 1 })
-    const activeTab = cuentaNav.getByRole('link', { name: 'Perfil' })
+    const activeTab = accountNav.getByRole('link', { name: 'Perfil' })
 
+    await expect(brand).toHaveCount(1)
     await expectReadableText(brand)
     await expectReadableText(logout)
     await expectReadableText(title)
     await expectReadableText(activeTab)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expect(brand).toHaveCount(1)
+    await expectReadableText(brand)
+    await page.setViewportSize({ width: 1280, height: 720 })
 
     await page.goto('/account/preferences')
     await page.getByRole('button', { name: 'Oscuro', exact: true }).click()
@@ -120,6 +125,9 @@ test.describe('W6 light theme: shell contrast', () => {
     await expectReadableText(logout)
     await expectReadableText(title)
     await expectReadableText(activeTab)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expect(brand).toHaveCount(1)
+    await expectReadableText(brand)
   })
 
   // Wave B (Step 1): the content palette (primary/danger actions and links) must
