@@ -279,15 +279,17 @@ export async function createSetlist(page: Page, name: string) {
   await expect(page.getByRole('heading', { name })).toBeVisible()
 }
 
-/** optionLabel is `songTitle — arrangementLabel` from the live-arrangement select. */
+/** optionLabel is `songTitle — arrangementLabel` from the add-song dialog. */
 export async function addArrangementToSetlist(page: Page, optionLabel: string) {
-  const select = page.getByLabel('Arreglo')
-  if (!(await select.isVisible())) {
+  const [songTitle, arrangementLabel] = optionLabel.split(' — ')
+  const dialog = page.getByRole('dialog', { name: 'Agregar canciones a la lista' })
+  if (!(await dialog.isVisible())) {
     await page.getByRole('button', { name: 'Agregar a la lista' }).click()
   }
-  await select.selectOption({ label: optionLabel })
-  await page.getByRole('button', { name: 'Agregar a la lista' }).click()
-  const [songTitle, arrangementLabel] = optionLabel.split(' — ')
+  const song = dialog.locator('ul[aria-label="Arreglo"] li').filter({ hasText: songTitle ?? optionLabel })
+  await song.getByRole('button').first().click()
+  await dialog.getByRole('button', { name: 'Agregar seleccionadas' }).click()
+  await dialog.getByRole('button', { name: 'Listo' }).click()
   let item = page.getByRole('listitem').filter({ hasText: songTitle ?? optionLabel })
   if (arrangementLabel) {
     item = item.filter({ hasText: arrangementLabel })

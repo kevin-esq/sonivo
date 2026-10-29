@@ -1,6 +1,6 @@
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronRight, ListMusic, Music2, Search, Star } from 'lucide-react'
+import { ArrowRight, ChevronRight, ListMusic, Music2, Search, Star } from 'lucide-react'
 import { listSetlists, type CurrentUser, type SetlistListItem } from '../api/client'
 import { cn } from '../ui/cn'
 import {
@@ -121,9 +121,13 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
 
   const showHeaderAdd = isOwner && setlists !== null && setlists.length > 0
   const searching = query.trim().length > 0
+  const recentlyUpdated = !searching && filtered?.length
+    ? [...filtered].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0]
+    : null
+  const remainingSetlists = filtered?.filter((item) => item.id !== recentlyUpdated?.id)
 
   return (
-    <section className="space-y-8" aria-labelledby="setlists-heading">
+    <section className="space-y-6 pb-16 sm:space-y-8" aria-labelledby="setlists-heading">
       <div data-testid="setlists-hero">
         <GroupPageHeader
           headingId="setlists-heading"
@@ -154,8 +158,8 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       </div>
 
       {setlists !== null && setlists.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-surface p-3 sm:p-4">
-          <div className="relative min-w-52 flex-1">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface p-2.5 sm:gap-3 sm:rounded-2xl sm:p-3">
+          <div className="relative min-w-0 flex-1 sm:min-w-52">
             <Search
               className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted"
               aria-hidden="true"
@@ -166,7 +170,7 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
             <input
               id="setlists-search"
               data-testid="setlists-search"
-              className={cn(groupFieldClass, 'pl-9')}
+              className={cn(groupFieldClass, 'min-h-11 pl-9 sm:min-h-12')}
               type="search"
               placeholder={t('schedule.setlistsSearchPlaceholder')}
               value={query}
@@ -220,9 +224,30 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
       ) : filtered && filtered.length === 0 ? (
         <GroupEmptyState title={`${t('schedule.noSetlistsPrefix')}${query.trim()}${t('schedule.noMatchSuffix')}`} />
       ) : (
-        <div>
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {filtered!.map((setlist, index) => {
+        <div className="space-y-5">
+          {recentlyUpdated ? (
+            <section aria-labelledby="setlists-resume-heading" className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+              <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-3 py-3 sm:px-5">
+                <div className="min-w-0">
+                  <h2 id="setlists-resume-heading" className="text-sm font-semibold text-ink sm:text-base">{t('schedule.setlistsResumeTitle')}</h2>
+                  <p className="hidden text-sm text-muted sm:block">{t('schedule.setlistsResumeSubtitle')}</p>
+                </div>
+                <span className="shrink-0 text-xs text-muted sm:text-sm">{t('schedule.updatedPrefix')}{formatUpdatedAt(recentlyUpdated.updatedAt, lang)}</span>
+              </div>
+              <AppLink to={routes.groupSetlist(group.id, recentlyUpdated.id)} className="group flex min-h-[76px] items-center gap-3 p-3 no-underline transition-colors hover:bg-surface-hover/60 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--group-accent)] sm:min-h-24 sm:gap-4 sm:p-5">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/12 text-primary-ink sm:h-14 sm:w-14 sm:rounded-2xl" aria-hidden="true"><ListMusic className="h-5 w-5 sm:h-6 sm:w-6" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold text-ink group-hover:text-primary-ink sm:text-lg">{recentlyUpdated.name}</span>
+                  <span className="mt-0.5 block text-xs text-muted sm:text-sm">{plural(recentlyUpdated.itemCount, t('schedule.setlistArrangementsOne'), t('schedule.setlistArrangementsMany'))}</span>
+                </span>
+                <span className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-primary-ink group-hover:bg-primary/10 sm:min-h-11 sm:gap-2 sm:px-3 sm:text-sm">{t('schedule.setlistsResumeAction')}<ArrowRight size={16} aria-hidden="true" /></span>
+              </AppLink>
+            </section>
+          ) : null}
+
+          {remainingSetlists?.length ? <div className="flex items-baseline justify-between gap-3"><h2 className="text-sm font-semibold text-ink sm:text-base">{t('schedule.setlistsAllTitle')}</h2><span className="text-xs text-muted sm:text-sm">{plural(remainingSetlists.length, t('common.setlistOne'), t('common.setlistMany'))}</span></div> : null}
+          <ul className="grid gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-3">
+            {remainingSetlists?.map((setlist, index) => {
               const Icon = setlistIcon(index)
               const empty = setlist.itemCount === 0
               return (
@@ -232,17 +257,17 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
                   <AppLink
-                  className="group flex min-h-40 items-start gap-4 rounded-2xl border border-border-subtle bg-surface p-4 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:p-5"
+                  className="group flex min-h-[76px] items-center gap-3 rounded-xl border border-border-subtle bg-surface p-3 no-underline transition duration-150 hover:border-primary/30 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--group-accent)] motion-reduce:transition-none sm:min-h-36 sm:items-start sm:gap-4 sm:rounded-2xl sm:p-4 lg:p-5"
                     to={routes.groupSetlist(group.id, setlist.id)}
                   >
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-score-hover)] text-[var(--color-score-ink-soft)]" aria-hidden="true">
-                      <Icon className="h-5 w-5" />
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary-ink sm:h-12 sm:w-12 sm:rounded-2xl" aria-hidden="true">
+                      <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-base font-semibold text-ink transition-colors group-hover:text-primary-ink">
                         {setlist.name}
                       </span>
-                      <span className="mt-0.5 block text-sm text-muted">
+                      <span className="mt-0.5 block text-xs text-muted sm:text-sm">
                         {plural(
                           setlist.itemCount,
                           t('schedule.setlistArrangementsOne'),
@@ -254,10 +279,8 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                       </span>
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-2">
-                      <ReadinessChip
-                        tone={empty ? 'neutral' : 'accent'}
-                        testId={`setlist-status-${setlist.id}`}
-                      >
+                      <span className="hidden sm:block">
+                      <ReadinessChip tone={empty ? 'neutral' : 'accent'} testId={`setlist-status-${setlist.id}`}>
                         {empty
                           ? t('schedule.setlistVacant')
                           : plural(
@@ -266,10 +289,11 @@ export function SetlistListPage({ user }: { user: CurrentUser }) {
                               t('schedule.setlistArrangementsMany'),
                             )}
                       </ReadinessChip>
+                      </span>
                       <span className="hidden text-xs text-muted sm:block">
                         {formatUpdatedAt(setlist.updatedAt, lang)}
                       </span>
-                      <ChevronRight className="h-5 w-5 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                      <ChevronRight className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5 sm:h-5 sm:w-5" aria-hidden="true" />
                     </span>
                   </AppLink>
                 </li>
