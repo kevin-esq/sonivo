@@ -32,6 +32,55 @@ async function seedLibraryAndOpenGroup(
 }
 
 test.describe('Scheduling journeys', () => {
+  test('TC-SETLIST-ORDER-01 rows slide and renumber while dragging', async ({ page }) => {
+    const stamp = Date.now()
+    const groupName = `Order Band ${stamp}`
+    const setlistName = `Order set ${stamp}`
+    const songs = [1, 2, 3].map((index) => ({
+      title: `Order song ${index} ${stamp}`,
+      arrangement: `Order version ${index} ${stamp}`,
+    }))
+
+    await register(page, uniqueEmail('setlist-order'))
+    await createGroup(page, groupName)
+    for (const song of songs) {
+      await openLibrary(page)
+      await createSong(page, song.title)
+      await openSong(page, song.title)
+      await createArrangement(page, song.arrangement)
+      await page.getByRole('link', { name: groupName, exact: true }).click()
+    }
+
+    await openSetlists(page)
+    await createSetlist(page, setlistName)
+    for (const song of songs) {
+      await addArrangementToSetlist(page, `${song.title} — ${song.arrangement}`)
+    }
+    await saveSetlistOrder(page)
+
+    const rows = page.locator('[data-setlist-item]')
+    const first = await rows.nth(0).boundingBox()
+    const third = await rows.nth(2).boundingBox()
+    expect(first).not.toBeNull()
+    expect(third).not.toBeNull()
+    const handle = page.getByRole('button', { name: 'Arrastrar ítem 3' })
+    const handleBox = await handle.boundingBox()
+    expect(handleBox).not.toBeNull()
+    await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + handleBox!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(first!.x + first!.width / 2, first!.y + first!.height / 2, { steps: 12 })
+
+    await expect.poll(async () => rows.nth(0).locator(':scope > span').first().textContent()).toBe('02')
+    await expect.poll(async () => rows.nth(1).locator(':scope > span').first().textContent()).toBe('03')
+    await expect.poll(async () => rows.nth(0).evaluate((row) => getComputedStyle(row).transform)).not.toBe('none')
+    await expect.poll(async () => rows.nth(1).evaluate((row) => getComputedStyle(row).transform)).not.toBe('none')
+    await page.mouse.up()
+
+    await expect(rows.nth(0)).toContainText(songs[2]!.title)
+    await expect(rows.nth(1)).toContainText(songs[0]!.title)
+    await expect(rows.nth(2)).toContainText(songs[1]!.title)
+  })
+
   test('TC-EVT-01 owner composes Setlist, creates Event, applies plan', async ({ page }) => {
     const email = uniqueEmail('evt-owner')
     const stamp = Date.now()
