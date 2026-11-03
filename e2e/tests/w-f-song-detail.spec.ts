@@ -74,6 +74,6 @@ test.describe('W-F song detail', () => {
     await expect(page.getByRole('heading', { name: secondArrangementLabel })).toBeVisible()
     await page.getByTestId('song-tab-lyrics').click()
     await expect(page.getByTestId('song-tabpanel')).toContainText('Otra forma de preparar esta canción')
-    await expect(page.getByRole('link', { name: 'Editar materiales' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Editar materiales' })).toBeVisible()
   })
 })

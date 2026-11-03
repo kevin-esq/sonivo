@@ -6,7 +6,9 @@ import {
   createFileResource,
   createGroup,
   createSong,
+  expectArrangementVisible,
   openLibrary,
+  openArrangementEditor,
   openPractice,
   openSong,
   register,
@@ -239,9 +241,8 @@ test.describe('Practice / karaoke thin', () => {
 
     // Go to Arrangement detail and open edit form
     // createArrangement already navigates to detail page
-    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
-    await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await expectArrangementVisible(page, arrangementLabel)
+    await openArrangementEditor(page, 'lyrics')
     await selectArrangementEditorMode(page, 'chords')
     const chordSource = page.getByTestId('arrangement-chords')
     await page.locator('details').filter({ has: chordSource }).locator('summary').click()
@@ -263,11 +264,10 @@ test.describe('Practice / karaoke thin', () => {
       await line.getByRole('button', { name: 'Guardar hora' }).click()
     }
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
-    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible({ timeout: 10000 })
+    await expectArrangementVisible(page, arrangementLabel)
 
     // Re-open edit form to verify timing marks were saved
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
-    await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await openArrangementEditor(page, 'lyrics')
     await selectArrangementEditorMode(page, 'timing')
     await expect(page.getByTestId('digitizer-studio')).toBeVisible({ timeout: 10_000 })
     for (const [index, value] of [mark1Ms, mark2Ms, mark3Ms].entries()) {
@@ -277,7 +277,7 @@ test.describe('Practice / karaoke thin', () => {
 
     // Close edit form and open Practice page
     await page.getByRole('button', { name: 'Cancelar' }).click()
-    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
+    await expectArrangementVisible(page, arrangementLabel)
 
     // Open Practice page
     await page.getByRole('link', { name: 'Practicar' }).click()

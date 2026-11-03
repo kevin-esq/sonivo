@@ -6,6 +6,7 @@ import {
   openLibrary,
   openPractice,
   openSong,
+  openArrangementEditor,
   register,
   selectArrangementEditorMode,
   uniqueEmail,
@@ -30,9 +31,7 @@ test.describe('ChordPro formats (Wave 1)', () => {
     await openSong(page, songTitle)
     await createArrangement(page, arrangementLabel)
 
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
-    await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
-    await selectArrangementEditorMode(page, 'lyrics')
+    await openArrangementEditor(page, 'chords')
     const importDropzone = page.getByTestId('arrangement-chords-import')
     await importDropzone.locator('input[type="file"]').setInputFiles({
       name: 'chords.txt',
@@ -40,15 +39,12 @@ test.describe('ChordPro formats (Wave 1)', () => {
       buffer: Buffer.from(chordProBody),
     })
     await expect(importDropzone).toContainText('chords.txt')
-    await selectArrangementEditorMode(page, 'chords')
     await expect(page.getByTestId('arrangement-chords')).toHaveValue(chordProBody)
     await page.locator('[data-testid="chordpro-compose"] summary').click()
     await expect(page.getByTestId('chords-preview')).toBeVisible()
     await expect(page.getByTestId('chords-preview')).toContainText(chordToken)
     await expect(page.getByTestId('chords-preview')).toContainText(lyricWord)
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
-    await expect(page.getByRole('button', { name: 'Editar letra y acordes' })).toBeVisible()
-
     await openPractice(page)
 
     const chordProView = page.getByTestId('practice-chordpro')
@@ -74,15 +70,12 @@ test.describe('ChordPro transpose + views (ADR-0030 P0)', () => {
     await openSong(page, songTitle)
     await createArrangement(page, arrangementLabel)
 
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
-    await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await openArrangementEditor(page, 'chords')
     await selectArrangementEditorMode(page, 'chords')
     const chordsField = page.getByTestId('arrangement-chords')
     await page.locator('details').filter({ has: chordsField }).locator('summary').click()
     await chordsField.fill(chordProBody)
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
-    await expect(page.getByRole('button', { name: 'Editar letra y acordes' })).toBeVisible()
-
     await openPractice(page)
 
     const chordProView = page.getByTestId('practice-chordpro')
@@ -116,21 +109,17 @@ test.describe('ChordPro text digitizer (ADR-0030 P1)', () => {
     await openLibrary(page)
     await createSong(page, songTitle)
     await openSong(page, songTitle)
-    await createArrangement(page, arrangementLabel)
+    await createArrangement(page, arrangementLabel, { lyrics: `${lyricWord} la` })
 
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
-    await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await openArrangementEditor(page, 'chords')
     await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
-    await page.getByTestId('digitizer-lyrics').fill(`${lyricWord} la`)
-    await selectArrangementEditorMode(page, 'chords')
+    await expect(page.getByTestId('digitizer-sheet-region')).toContainText(lyricWord)
     await page.getByTestId('digitizer-chords').fill(`${chordToken} G`)
     await page.getByTestId('digitizer-generate').click()
     await expect(page.getByTestId('arrangement-chords')).toContainText(`[${chordToken}]`)
     await expect(page.getByTestId('arrangement-chords')).toContainText(lyricWord)
     await expect(page.getByTestId('digitizer-studio')).toBeVisible()
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
-    await expect(page.getByRole('button', { name: 'Editar letra y acordes' })).toBeVisible()
-
     await openPractice(page)
     const chordProView = page.getByTestId('practice-chordpro')
     await expect(chordProView).toBeVisible()
@@ -154,8 +143,7 @@ test.describe('ChordPro compose assist (ADR-0030 P2)', () => {
     await openSong(page, songTitle)
     await createArrangement(page, arrangementLabel)
 
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
-    await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await openArrangementEditor(page, 'chords')
     await selectArrangementEditorMode(page, 'chords')
     await page.locator('[data-testid="chordpro-compose"] summary').click()
     await expect(page.getByTestId('chordpro-compose')).toBeVisible()
@@ -168,6 +156,6 @@ test.describe('ChordPro compose assist (ADR-0030 P2)', () => {
     await expect(chordsField).toContainText('{start_of_verse}')
     await expect(chordsField).toContainText(idea)
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
-    await expect(page.getByRole('button', { name: 'Editar letra y acordes' })).toBeVisible()
+    await openPractice(page)
   })
 })

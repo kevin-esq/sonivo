@@ -259,7 +259,7 @@ export function GroupSelect({
               maxHeight: rect.maxHeight,
               transform: rect.openUp ? 'translateY(-100%)' : undefined,
             }}
-            className="z-[100] overflow-y-auto rounded-xl border border-border-subtle bg-surface p-1 text-ink shadow-xl"
+            className="z-[120] overflow-y-auto rounded-xl border border-border-subtle bg-surface p-1 text-ink shadow-xl"
           >
             {options.length === 0 ? (
               <li className="px-3 py-2 text-sm text-muted" aria-disabled="true">

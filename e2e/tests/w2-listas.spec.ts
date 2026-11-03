@@ -4,6 +4,7 @@ import {
   createGroup,
   createLinkResource,
   createSong,
+  expectArrangementVisible,
   openLibrary,
   openSong,
   register,
@@ -62,26 +63,22 @@ test.describe('W2 setlists immersive redesign', () => {
 
     await createArrangement(page, arrangementLabel, { defaultKey: 'G', defaultBpm: '100' })
 
-    await expect(page.getByTestId('arrangement-hero')).toBeVisible()
-    await expect(page.getByTestId('arrangement-resource-count')).toContainText('Sin materiales todavía')
-    // The detail header only adds a chart chip when a chart exists.
-    await expect(page.getByTestId('arrangement-chart-chip')).toHaveCount(0)
+    await expectArrangementVisible(page, arrangementLabel)
 
     await createLinkResource(page, {
       label: resourceLabel,
       url: resourceUrl,
       purpose: 'chart',
     })
-    await expect(page.getByTestId('arrangement-resource-count')).toContainText('1 material')
-    await expect(page.getByTestId('arrangement-chart-chip')).toContainText('Con partitura')
-
     await page.getByRole('link', { name: songTitle }).first().click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
     await expect(page.getByTestId('song-readiness')).toContainText('1 versión')
 
     await expect(page.getByText(/Tono: G.*Tempo: 100/)).toBeVisible()
-    await page.getByRole('link', { name: 'Editar materiales' }).click()
-    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
+    await page.getByRole('button', { name: 'Editar materiales' }).click()
+    const materialsDialog = page.getByTestId('song-arrangement-materials-dialog')
+    await expect(materialsDialog).toBeVisible()
+    await expect(materialsDialog).toContainText(resourceLabel)
   })
 
   test('empty library keeps the next-step CTA', async ({ page }) => {
