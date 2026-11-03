@@ -119,7 +119,7 @@ test.describe('W10 rail: scroll, collapse, now playing', () => {
 
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 })
-      await expect(player.getByText(trackLabel, { exact: true })).toBeVisible()
+      await expect(player.getByText(trackLabel, { exact: true }).first()).toBeVisible()
       const bounds = await player.boundingBox()
       expect(bounds!.x).toBeGreaterThanOrEqual(0)
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)

@@ -202,12 +202,15 @@ export async function createArrangement(
       await page.getByRole('button', { name: 'Guardar cambios' }).click()
       await returnToArrangement(page)
     }
-    await openPractice(page)
   }
 }
 
 export async function selectArrangementEditorMode(page: Page, mode: 'lyrics' | 'chords' | 'timing') {
-  await openArrangementEditor(page, mode === 'chords' ? 'chords' : 'lyrics')
+  if (mode === 'timing') {
+    await expect(page.getByTestId('digitizer-studio')).toBeVisible()
+    return
+  }
+  await openArrangementEditor(page, mode)
 }
 
 export async function expectArrangementVisible(page: Page, label: string) {
@@ -237,10 +240,18 @@ export async function openArrangementEditor(page: Page, section: 'lyrics' | 'cho
   }
 }
 
-async function returnToArrangement(page: Page) {
+export async function returnToArrangement(page: Page) {
   if (new URL(page.url()).pathname.includes('/edit/')) {
+    await page.getByTestId('group-content-scroll').evaluate((element) => {
+      element.scrollTop = 0
+    })
     await page.getByRole('button', { name: 'Volver a editar' }).click()
     await expect(page).not.toHaveURL(/\/edit\//)
+  }
+  const editDialog = page.getByTestId('arrangement-edit-dialog')
+  if (await editDialog.isVisible().catch(() => false)) {
+    await editDialog.getByLabel('Cerrar').click()
+    await expect(editDialog).toBeHidden()
   }
 }
 
@@ -253,7 +264,12 @@ export async function openPractice(page: Page) {
   await expect(page.getByRole('heading', { name: 'Letra', exact: true })).toBeVisible()
 }
 
-async function openArrangementMaterials(page: Page) {
+async function openArrangementMaterials(page: Page): Promise<string> {
+  const currentPath = new URL(page.url()).pathname
+  const arrangementPath = currentPath.replace(/\/practice$/, '')
+  if (!/\/arrangements\/[^/]+$/.test(arrangementPath)) {
+    throw new Error('Resource flows must start from an Arrangement or its Practice page.')
+  }
   const materialsDialog = page.getByTestId('song-arrangement-materials-dialog')
   if (!(await materialsDialog.isVisible().catch(() => false))) {
     if (!(await page.getByTestId('song-hero').isVisible().catch(() => false))) {
@@ -264,13 +280,14 @@ async function openArrangementMaterials(page: Page) {
     await expect(materialsDialog).toBeVisible()
   }
   await expect(materialsDialog.getByRole('button', { name: 'Agregar enlace' })).toBeVisible()
+  return arrangementPath
 }
 
 export async function createLinkResource(
   page: Page,
   input: { label: string; url: string; purpose?: string },
 ) {
-  await openArrangementMaterials(page)
+  const arrangementPath = await openArrangementMaterials(page)
   await page.getByRole('button', { name: 'Agregar enlace' }).click()
   await expect(page.getByLabel('Tipo de material')).toBeVisible()
   await page.getByLabel('Tipo de material').selectOption(input.purpose ?? 'practice')
@@ -284,15 +301,15 @@ export async function createLinkResource(
   await expect(link).toHaveAttribute('target', '_blank')
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('song-arrangement-materials-dialog')).toHaveCount(0)
-  await page.getByRole('link', { name: 'Practicar', exact: true }).click()
-  await expect(page.getByTestId('practice-tab-estudiar')).toBeVisible()
+  await page.goto(arrangementPath)
+  await expect(page.getByTestId('arrangement-hero')).toBeVisible()
 }
 
 export async function createFileResource(
   page: Page,
   input: { label: string; filePath: string; purpose?: string },
 ) {
-  await openArrangementMaterials(page)
+  const arrangementPath = await openArrangementMaterials(page)
   const materialsDialog = page.getByTestId('song-arrangement-materials-dialog')
   await materialsDialog.getByRole('button', { name: 'Subir archivo' }).click()
   const uploadDialog = page.getByRole('dialog').filter({ has: page.getByTestId('arrangement-file-dropzone') })
@@ -308,9 +325,8 @@ export async function createFileResource(
   await expect(row.getByRole('link', { name: 'Descargar' })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('song-arrangement-materials-dialog')).toHaveCount(0)
-  await page.getByRole('link', { name: 'Practicar', exact: true }).click()
-  await expect(page.getByTestId('practice-tab-estudiar')).toBeVisible()
-  await page.getByRole('tab', { name: 'Ensayo y arreglo' }).click()
+  await page.goto(arrangementPath)
+  await expect(page.getByTestId('arrangement-hero')).toBeVisible()
 }
 
 export async function deleteSong(page: Page, title: string) {

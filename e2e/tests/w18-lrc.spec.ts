@@ -4,9 +4,11 @@ import {
   createArrangement,
   createGroup,
   createSong,
+  openArrangementEditor,
   openLibrary,
   openSong,
   register,
+  returnToArrangement,
   uniqueEmail,
 } from './helpers'
 
@@ -28,8 +30,7 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     await createSong(page, 'LRC Song')
     await openSong(page, 'LRC Song')
     await createArrangement(page, 'Acoustic')
-    await page.getByRole('button', { name: 'Editar', exact: true }).click()
-    await page.getByRole('dialog').getByRole('button', { name: /Editar letra/ }).click()
+    await openArrangementEditor(page, 'lyrics')
     await expect(page.getByTestId('arrangement-editor')).toBeVisible()
 
     // Import is an advanced option inside the lyrics editor.
@@ -89,7 +90,7 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     ])
     expect(patchResponse.ok()).toBeTruthy()
     await expect(page.getByTestId('arrangement-editor')).toBeVisible()
-    await page.getByRole('button', { name: 'Volver a editar' }).click()
+    await returnToArrangement(page)
 
     // The arrangement view provides Sonivo's lossless timed-lyrics export.
     const [download] = await Promise.all([

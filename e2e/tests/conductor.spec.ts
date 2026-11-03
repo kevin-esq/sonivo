@@ -20,6 +20,7 @@ import {
   openSetlists,
   openSong,
   register,
+  returnToArrangement,
   saveSetlistOrder,
   uniqueEmail,
   selectArrangementEditorMode,
@@ -78,6 +79,7 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
         await ownerPage.getByRole('button', { name: 'Guardar hora' }).click()
       }
       await ownerPage.getByRole('button', { name: 'Guardar cambios' }).click()
+      await returnToArrangement(ownerPage)
       await expectArrangementVisible(ownerPage, arrangementLabel)
 
       await ownerPage.getByRole('link', { name: groupName, exact: true }).click()

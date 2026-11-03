@@ -39,7 +39,7 @@ test.describe('ChordPro formats (Wave 1)', () => {
       buffer: Buffer.from(chordProBody),
     })
     await expect(importDropzone).toContainText('chords.txt')
-    await expect(page.getByTestId('arrangement-chords')).toHaveValue(chordProBody)
+    await expect(page.getByTestId('arrangement-chords')).toContainText(chordProBody)
     await page.locator('[data-testid="chordpro-compose"] summary').click()
     await expect(page.getByTestId('chords-preview')).toBeVisible()
     await expect(page.getByTestId('chords-preview')).toContainText(chordToken)
@@ -73,7 +73,6 @@ test.describe('ChordPro transpose + views (ADR-0030 P0)', () => {
     await openArrangementEditor(page, 'chords')
     await selectArrangementEditorMode(page, 'chords')
     const chordsField = page.getByTestId('arrangement-chords')
-    await page.locator('details').filter({ has: chordsField }).locator('summary').click()
     await chordsField.fill(chordProBody)
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await openPractice(page)

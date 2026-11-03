@@ -2,7 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { createArrangement, createFileResource, createGroup, createSong, openLibrary, openPractice, openSong, register, uniqueEmail } from './helpers'
+import { createArrangement, createFileResource, createGroup, createSong, openArrangementEditor, openLibrary, openPractice, openSong, register, returnToArrangement, uniqueEmail } from './helpers'
 
 test('owner imports TTML, exports Sonivo format and follows simultaneous vocals on desktop and mobile', async ({ page, request }, testInfo) => {
   test.setTimeout(120_000)
@@ -17,8 +17,7 @@ test('owner imports TTML, exports Sonivo format and follows simultaneous vocals 
   await openSong(page, songTitle)
   await createArrangement(page, 'Morning session')
   await createFileResource(page, { label: 'Original reference', purpose: 'audio', filePath: path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'practice-a.wav') })
-  await page.getByRole('button', { name: 'Editar', exact: true }).click()
-  await page.getByRole('dialog').getByRole('button', { name: /Editar letra/ }).click()
+  await openArrangementEditor(page, 'lyrics')
   await expect(page.getByTestId('arrangement-editor')).toBeVisible()
 
   await page.getByTestId('open-lyrics-dialog').click()
@@ -36,8 +35,7 @@ test('owner imports TTML, exports Sonivo format and follows simultaneous vocals 
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
   await expect(page.getByTestId('arrangement-editor')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Descargar TTML de Sonivo' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Volver a editar' }).click()
-  await page.getByRole('dialog').getByLabel('Cerrar').click()
+  await returnToArrangement(page)
   const downloadEvent = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Descargar TTML de Sonivo' }).click()
   const download = await downloadEvent
@@ -185,8 +183,7 @@ test('owner searches synced lyrics by title and selects a recording for review',
   await createSong(page, songTitle)
   await openSong(page, songTitle)
   await createArrangement(page, 'Search session')
-  await page.getByRole('button', { name: 'Editar', exact: true }).click()
-  await page.getByRole('dialog').getByRole('button', { name: /Editar letra/ }).click()
+  await openArrangementEditor(page, 'lyrics')
   await expect(page.getByTestId('arrangement-editor')).toBeVisible()
   await page.getByTestId('open-lyrics-dialog').click()
   const panel = page.getByTestId('lyric-import-options')
