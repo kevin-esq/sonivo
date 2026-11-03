@@ -2,9 +2,12 @@
 
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
-import { useParams } from 'next/navigation'
+import { useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { useAppRuntime } from '@/src/appRuntime/context'
 import { GroupHomePage } from '@/src/groups/GroupHomePage'
+import { routes } from '@/src/routing/routes'
+import type { CurrentUser } from '@/src/api/client'
 
 const GroupCalendarPage = dynamic(() => import('@/src/groups/GroupCalendarPage').then((module) => module.GroupCalendarPage))
 const GroupTasksPage = dynamic(() => import('@/src/groups/GroupTasksPage').then((module) => module.GroupTasksPage))
@@ -23,6 +26,14 @@ const PracticePage = dynamic(() => import('@/src/repertoire/PracticePage').then(
 const GroupSettingsPage = dynamic(() => import('@/src/groups/settings/pages/GroupSettingsPage').then((module) => module.GroupSettingsPage))
 const HelpPage = dynamic(() => import('@/src/help/HelpPage').then((module) => module.HelpPage))
 const LegacyRouterBridge = dynamic(() => import('@/src/routing/LegacyRouterBridge').then((module) => module.LegacyRouterBridge))
+
+function LegacyPracticeRedirect({ groupId, arrangementId, user }: { groupId: string; arrangementId: string; user: CurrentUser }) {
+  const router = useRouter()
+  useEffect(() => {
+    router.replace(routes.groupArrangement(groupId, arrangementId))
+  }, [router, groupId, arrangementId])
+  return <PracticePage user={user} groupId={groupId} arrangementId={arrangementId} />
+}
 
 function GroupRouteContentContent() {
   const { session } = useAppRuntime()
@@ -64,7 +75,16 @@ function GroupRouteContentContent() {
     return <SongDetailPage user={session.user} groupId={groupId} songId={section[1]!} />
   }
   if (section?.length === 2 && section[0] === 'arrangements') {
-    return <ArrangementDetailPage user={session.user} groupId={groupId} arrangementId={section[1]!} />
+    return <PracticePage user={session.user} groupId={groupId} arrangementId={section[1]!} />
+  }
+  if (section?.length === 3 && section[0] === 'arrangements' && section[2] === 'edit') {
+    return <PracticePage user={session.user} groupId={groupId} arrangementId={section[1]!} />
+  }
+  if (section?.length === 4 && section[0] === 'arrangements' && section[2] === 'edit') {
+    if (section[3] !== 'lyrics' && section[3] !== 'chords') {
+      return <PracticePage user={session.user} groupId={groupId} arrangementId={section[1]!} />
+    }
+    return <ArrangementDetailPage user={session.user} groupId={groupId} arrangementId={section[1]!} editorSection={section[3]} />
   }
   if (section?.length === 2 && section[0] === 'setlists') {
     return <SetlistDetailPage user={session.user} groupId={groupId} setlistId={section[1]!} />
@@ -73,7 +93,7 @@ function GroupRouteContentContent() {
     return <EventDetailPage user={session.user} groupId={groupId} eventId={section[1]!} />
   }
   if (section?.length === 3 && section[0] === 'arrangements' && section[2] === 'practice') {
-    return <PracticePage user={session.user} groupId={groupId} arrangementId={section[1]!} />
+    return <LegacyPracticeRedirect user={session.user} groupId={groupId} arrangementId={section[1]!} />
   }
   return <LegacyRouterBridge />
 }

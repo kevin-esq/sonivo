@@ -25,7 +25,10 @@ public sealed record SongCatalogItemDto(
     IReadOnlyList<string> Tags,
     bool IsFavorite,
     int ArrangementCount,
-    string? Genre = null);
+    string? Genre = null,
+    string? Album = null,
+    int? ReleaseYear = null,
+    bool HasCoverImage = false);
 
 public sealed class SearchSongsHandler
 {
@@ -108,7 +111,10 @@ public sealed class SearchSongsHandler
                 row.Song.TagList,
                 row.IsFavorite,
                 row.ArrangementCount,
-                row.Song.Genre)).ToArray(),
+                row.Song.Genre,
+                row.Song.Album,
+                row.Song.ReleaseYear,
+                row.Song.CoverImageObjectKey is not null)).ToArray(),
             result.TotalCount,
             result.Page,
             pageSize,

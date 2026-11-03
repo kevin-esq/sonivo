@@ -92,6 +92,12 @@ public class SongApiTests : IClassFixture<SonivoApiFactory>
 
         var owner = await CreateAuthenticatedClientAsync("song-search-owner@example.com", "OwnerS1!");
         var member = await CreateAuthenticatedClientAsync("song-search-member@example.com", "MemberS1!");
+        var tagDefinitions = await owner.PutAsJsonAsync($"/api/groups/{groupId}/song-tags", new
+        {
+            expectedVersion = 1,
+            tags = new[] { "worship", "morning", "evening" }
+        });
+        Assert.Equal(HttpStatusCode.OK, tagDefinitions.StatusCode);
         var firstResponse = await owner.PostAsJsonAsync($"/api/groups/{groupId}/songs", new
         {
             title = "Morning Song",

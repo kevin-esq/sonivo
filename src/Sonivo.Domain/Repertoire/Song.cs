@@ -20,9 +20,14 @@ public sealed class Song : IVersionedEntity
     public string? Attribution { get; private set; }
     public string OriginKind { get; private set; } = SongOriginKinds.Original;
     public string? Genre { get; private set; }
+    public string? Album { get; private set; }
+    public int? ReleaseYear { get; private set; }
+    public string? CoverImageObjectKey { get; private set; }
+    public string? CoverImageContentType { get; private set; }
     public string? RightsNotes { get; private set; }
     /// <summary>Normalized comma-separated tags (lowercase, trimmed, deduped). ADR-0055 W-B.</summary>
     public string? Tags { get; private set; }
+    public Guid? DefaultArrangementId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? DeletedAt { get; private set; }
@@ -35,6 +40,7 @@ public sealed class Song : IVersionedEntity
     public const int MaxTagCount = 12;
     public const int MaxTagLength = 32;
     public const int MaxGenreLength = 100;
+    public const int MaxAlbumLength = 200;
 
     public IReadOnlyList<string> TagList =>
         Tags is null ? [] : Tags.Split(',', StringSplitOptions.RemoveEmptyEntries);
@@ -48,7 +54,9 @@ public sealed class Song : IVersionedEntity
         string? rightsNotes = null,
         string? tags = null,
         Guid? id = null,
-        string? genre = null)
+        string? genre = null,
+        string? album = null,
+        int? releaseYear = null)
     {
         if (groupId == Guid.Empty)
         {
@@ -63,6 +71,8 @@ public sealed class Song : IVersionedEntity
             Attribution = NormalizeOptional(attribution, 300, nameof(attribution)),
             OriginKind = NormalizeOriginKind(originKind),
             Genre = NormalizeOptional(genre, MaxGenreLength, nameof(genre)),
+            Album = NormalizeOptional(album, MaxAlbumLength, nameof(album)),
+            ReleaseYear = NormalizeReleaseYear(releaseYear),
             RightsNotes = NormalizeOptional(rightsNotes, 2000, nameof(rightsNotes)),
             Tags = NormalizeTags(tags),
             CreatedAt = now,
@@ -79,7 +89,9 @@ public sealed class Song : IVersionedEntity
         string? tags,
         int expectedVersion,
         DateTimeOffset now,
-        string? genre = null)
+        string? genre = null,
+        string? album = null,
+        int? releaseYear = null)
     {
         EnsureNotDeleted();
         EnsureExpectedVersion(expectedVersion);
@@ -87,6 +99,8 @@ public sealed class Song : IVersionedEntity
         Attribution = NormalizeOptional(attribution, 300, nameof(attribution));
         OriginKind = NormalizeOriginKind(originKind);
         Genre = NormalizeOptional(genre, MaxGenreLength, nameof(genre));
+        Album = NormalizeOptional(album, MaxAlbumLength, nameof(album));
+        ReleaseYear = NormalizeReleaseYear(releaseYear);
         RightsNotes = NormalizeOptional(rightsNotes, 2000, nameof(rightsNotes));
         Tags = NormalizeTags(tags);
         Touch(now);
@@ -96,8 +110,45 @@ public sealed class Song : IVersionedEntity
     {
         EnsureNotDeleted();
         EnsureExpectedVersion(expectedVersion);
+        DefaultArrangementId = null;
         DeletedAt = now;
         Touch(now);
+    }
+
+    public void SetDefaultArrangement(Guid? arrangementId, int expectedVersion, DateTimeOffset now)
+    {
+        EnsureNotDeleted();
+        EnsureExpectedVersion(expectedVersion);
+        if (arrangementId == Guid.Empty)
+        {
+            throw new ArgumentException("Default arrangement id is invalid.", nameof(arrangementId));
+        }
+
+        DefaultArrangementId = arrangementId;
+        Touch(now);
+    }
+
+    public void SetCoverImage(string objectKey, string contentType, int expectedVersion, DateTimeOffset now)
+    {
+        EnsureNotDeleted();
+        EnsureExpectedVersion(expectedVersion);
+        if (string.IsNullOrWhiteSpace(objectKey)) throw new ArgumentException("Cover image key is required.", nameof(objectKey));
+        if (contentType is not ("image/jpeg" or "image/png" or "image/webp"))
+            throw new ArgumentException("Cover image type must be JPEG, PNG, or WebP.", nameof(contentType));
+        CoverImageObjectKey = objectKey;
+        CoverImageContentType = contentType;
+        Touch(now);
+    }
+
+    public string? RemoveCoverImage(int expectedVersion, DateTimeOffset now)
+    {
+        EnsureNotDeleted();
+        EnsureExpectedVersion(expectedVersion);
+        var previousKey = CoverImageObjectKey;
+        CoverImageObjectKey = null;
+        CoverImageContentType = null;
+        Touch(now);
+        return previousKey;
     }
 
     public bool IsDeleted => DeletedAt is not null;
@@ -202,5 +253,12 @@ public sealed class Song : IVersionedEntity
         }
 
         return trimmed;
+    }
+
+    private static int? NormalizeReleaseYear(int? value)
+    {
+        if (value is null) return null;
+        if (value is < 1000 or > 9999) throw new ArgumentOutOfRangeException(nameof(value), "Release year must be between 1000 and 9999.");
+        return value;
     }
 }

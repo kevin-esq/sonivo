@@ -15,7 +15,8 @@ public sealed record CreateArrangementCommand(
     string? Lyrics,
     string? Chords,
     string? Structure,
-    string? Notes);
+    string? Notes,
+    string? HarmonyJson = null);
 
 public sealed record ArrangementListItemDto(
     Guid Id,
@@ -25,7 +26,8 @@ public sealed record ArrangementListItemDto(
     int? DefaultBpm,
     int Version,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    bool IsDefault = false);
 
 public sealed record ResourceSummaryDto(
     Guid Id,
@@ -52,6 +54,7 @@ public sealed record ArrangementDetailDto(
     string? Structure,
     string? Notes,
     string? ChordTimingJson,
+    string? HarmonyJson,
     int Version,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
@@ -101,6 +104,7 @@ public sealed class CreateArrangementHandler
 
         try
         {
+            var harmonyJson = HarmonyJsonNormalizer.Normalize(command.HarmonyJson);
             var arrangement = Arrangement.Create(
                 song.GroupId,
                 song.Id,
@@ -111,7 +115,8 @@ public sealed class CreateArrangementHandler
                 command.Lyrics,
                 command.Chords,
                 command.Structure,
-                command.Notes);
+                command.Notes,
+                harmonyJson: harmonyJson);
 
             await _arrangements.AddAsync(arrangement, cancellationToken);
             if (_audit is not null)
@@ -120,6 +125,13 @@ public sealed class CreateArrangementHandler
                     command.GroupId, GroupAuditEntry.ActionArrangementCreated, arrangement.CreatedAt, actorUserId: command.UserId), cancellationToken);
             }
             await _arrangements.SaveChangesAsync(cancellationToken);
+
+            if (song.DefaultArrangementId is null)
+            {
+                song.SetDefaultArrangement(arrangement.Id, song.Version, arrangement.CreatedAt);
+                await _songs.UpdateAsync(song, cancellationToken);
+                await _songs.SaveChangesAsync(cancellationToken);
+            }
 
             return ToDetail(arrangement, []);
         }
@@ -142,6 +154,7 @@ public sealed class CreateArrangementHandler
         arrangement.Structure,
         arrangement.Notes,
         arrangement.ChordTimingJson,
+        arrangement.HarmonyJson,
         arrangement.Version,
         arrangement.CreatedAt,
         arrangement.UpdatedAt,

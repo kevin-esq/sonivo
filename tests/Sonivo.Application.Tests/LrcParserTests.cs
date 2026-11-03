@@ -118,6 +118,49 @@ public sealed class LrcParserTests
     }
 
     [Fact]
+    public void Ignores_nonstandard_metadata_tags_without_errors()
+    {
+        // Real files carry [tool:], [re:], [ve:] and arbitrary [key: value] tags.
+        var result = LrcParser.Parse(Utf8("[ ar: akari  ]\n[tool  : lrc-maker]\n[hello: world]\n[00:01.00]Hola"));
+
+        Assert.Empty(result.Errors);
+        Assert.Equal("akari", result.Metadata.Artist);
+        Assert.Equal("Hola", Assert.Single(result.Entries).Text);
+    }
+
+    [Fact]
+    public void Parses_time_tags_with_inner_whitespace()
+    {
+        var result = LrcParser.Parse(Utf8("[ 1:04.5]uno\n[02:3.4 ]dos"));
+
+        Assert.Empty(result.Errors);
+        Assert.Equal([64_500, 123_400], result.Entries.Select(e => e.AtMs));
+    }
+
+    [Fact]
+    public void Treats_a_colon_separated_fraction_as_hundredths()
+    {
+        // [01:02:03] is mm:ss:cc in the wild, not hh:mm:ss: 62.03 s.
+        var result = LrcParser.Parse(Utf8("[01:02:03]hola"));
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(62_030, Assert.Single(result.Entries).AtMs);
+    }
+
+    [Fact]
+    public void Keeps_a_timed_line_that_contains_a_colon()
+    {
+        // The metadata pattern is anchored to the whole line, so text after the
+        // time tag can contain colons without being mistaken for a tag.
+        var result = LrcParser.Parse(Utf8("[00:12.00]Hello: world"));
+
+        Assert.Empty(result.Errors);
+        var entry = Assert.Single(result.Entries);
+        Assert.Equal(12_000, entry.AtMs);
+        Assert.Equal("Hello: world", entry.Text);
+    }
+
+    [Fact]
     public void Rejects_files_over_the_size_limit()
     {
         var bytes = new byte[LrcParser.MaxBytes + 1];

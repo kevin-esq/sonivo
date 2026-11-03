@@ -50,6 +50,22 @@ export async function getGroup(groupId: string): Promise<GroupDetail> {
   return apiRequest<GroupDetail>(`/api/groups/${groupId}`)
 }
 
+export type GroupSongTags = { tags: string[]; version: number }
+
+export async function getGroupSongTags(groupId: string): Promise<GroupSongTags> {
+  return apiRequest<GroupSongTags>(`/api/groups/${encodeURIComponent(groupId)}/song-tags`)
+}
+
+export async function updateGroupSongTags(
+  groupId: string,
+  input: { expectedVersion: number; tags: string[] },
+): Promise<GroupSongTags> {
+  return apiRequest<GroupSongTags>(`/api/groups/${encodeURIComponent(groupId)}/song-tags`, {
+    method: 'PUT',
+    body: input,
+  })
+}
+
 /** Plan catalog exposed by the API (`GET /api/plans`). */
 export type PlanCatalogEntry = {
   id: string

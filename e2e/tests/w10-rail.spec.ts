@@ -88,7 +88,7 @@ test.describe('W10 rail: scroll, collapse, now playing', () => {
     await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
   })
 
-  test('now playing stays in the global player on desktop', async ({ page }) => {
+  test('global player appears only on repertoire playback surfaces', async ({ page }) => {
     test.setTimeout(180_000)
     const stamp = Date.now()
     const trackLabel = `W10 Pista ${stamp}`
@@ -108,19 +108,15 @@ test.describe('W10 rail: scroll, collapse, now playing', () => {
     })
 
     await openPractice(page)
-    const playPause = page.getByTestId('practice-play-pause')
-    await playPause.click()
-    await expect(playPause).toHaveAttribute('aria-label', 'Pausar')
-
-    const home = page.getByTestId('group-rail').getByRole('link', { name: 'Inicio', exact: true })
-    const groupPath = (await home.getAttribute('href'))!
-    await home.click()
-    await expect(page).toHaveURL(groupPath, { timeout: 30_000 })
     const player = page.getByTestId('global-player')
-    await expect(player).toBeVisible()
-    await expect(player).toContainText(trackLabel)
+    const playPause = player.getByRole('button', { name: 'Reproducir' })
+    await playPause.click()
+    await expect(player.getByRole('button', { name: 'Pausar' })).toBeVisible()
+    await expect(player.getByRole('button', { name: 'Contraer reproductor' })).toHaveCount(0)
+    await expect(player.getByRole('button', { name: 'Cerrar reproductor' })).toHaveCount(0)
     await expect(player.getByRole('slider', { name: 'Progreso de reproducción de audio' })).toBeVisible()
     await player.screenshot({ path: '../output/playwright/player-desktop-capsule.png', animations: 'disabled', style: 'nextjs-portal { visibility: hidden; }' })
+
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 })
       await expect(player.getByText(trackLabel, { exact: true })).toBeVisible()
@@ -130,44 +126,28 @@ test.describe('W10 rail: scroll, collapse, now playing', () => {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
       if (width === 390) {
         await player.screenshot({ path: '../output/playwright/player-mobile-capsule.png', animations: 'disabled', style: 'nextjs-portal { visibility: hidden; }' })
-        const profile = page.getByTestId('topbar-user-menu')
-        await profile.locator('summary').click()
-        await profile.getByRole('link', { name: 'Cuenta', exact: true }).click()
-        await expect(page).toHaveURL(/\/app\/account$/)
-        const accountMore = page.getByTestId('mobile-more')
-        await accountMore.locator('summary').click()
-        await accountMore.getByRole('link', { name: 'Preferencias', exact: true }).click()
-        await page.getByRole('button', { name: 'Claro', exact: true }).click()
-        await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
-        await page.goBack()
-        await expect(page).toHaveURL(/\/app\/account$/)
-        await page.goBack()
-        await expect(page).toHaveURL(groupPath)
-        await expect(page.getByTestId('group-topbar')).toBeVisible()
-        await expect(player).toContainText(trackLabel)
-        await player.screenshot({ path: '../output/playwright/player-mobile-capsule-light.png', animations: 'disabled', style: 'nextjs-portal { visibility: hidden; }' })
       }
     }
-    await player.getByRole('button', { name: 'Opciones del reproductor', exact: true }).click()
-    const volume = player.getByRole('textbox', { name: 'Porcentaje de volumen de audio' })
-    await volume.fill('35')
-    await volume.press('Tab')
+    await page.setViewportSize({ width: 1280, height: 844 })
+    const volume = player.getByRole('slider', { name: 'Volumen' })
+    await volume.evaluate((el) => {
+      const input = el as HTMLInputElement
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+      setter?.call(input, '0.35')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+    })
     await expect.poll(() => page.locator('audio').evaluate((audio: HTMLAudioElement) => audio.volume)).toBeCloseTo(0.35)
     await player.getByRole('button', { name: 'Retroceder 10 segundos', exact: true }).click()
     await expect(player.getByRole('slider', { name: 'Progreso de reproducción de audio' }).filter({ visible: true })).toHaveValue('0')
     await player.getByRole('button', { name: 'Adelantar 10 segundos', exact: true }).click()
     await expect.poll(() => page.locator('audio').evaluate((audio: HTMLAudioElement) => audio.currentTime)).toBeCloseTo(3)
-    await player.getByRole('button', { name: 'Contraer reproductor', exact: true }).click()
-    await expect(player.getByRole('button', { name: 'Ampliar reproductor', exact: true })).toBeVisible()
-    await player.getByRole('button', { name: 'Ampliar reproductor', exact: true }).click()
-    await page.setViewportSize({ width: 1280, height: 844 })
-    await player.screenshot({ path: '../output/playwright/player-desktop-capsule-light.png', animations: 'disabled', style: 'nextjs-portal { visibility: hidden; }' })
-    const menu = page.getByTestId('topbar-user-menu')
-    await menu.locator('summary').click()
-    await menu.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
-    await page.getByRole('dialog', { name: '¿Quieres cerrar sesión?' }).press('Escape')
-    await expect(player).toBeVisible()
-    await expect(player.getByRole('button', { name: 'Opciones del reproductor', exact: true })).toBeVisible()
+
+    const home = page.getByTestId('group-rail').getByRole('link', { name: 'Inicio', exact: true })
+    const groupPath = (await home.getAttribute('href'))!
+    await home.click()
+    await expect(page).toHaveURL(groupPath, { timeout: 30_000 })
+    await expect(player).toHaveCount(0)
   })
 
   test('mobile uses the top navigation and hides the desktop rail', async ({ page }) => {

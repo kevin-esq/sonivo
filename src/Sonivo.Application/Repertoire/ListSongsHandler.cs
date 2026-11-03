@@ -51,7 +51,10 @@ public sealed class ListSongsHandler
                 s.UpdatedAt,
                 s.TagList,
                 favoriteIds.Contains(s.Id),
-                s.Genre))
+                s.Genre,
+                s.Album,
+                s.ReleaseYear,
+                s.CoverImageObjectKey is not null))
             .ToList();
     }
 }

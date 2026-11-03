@@ -1,10 +1,19 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState, useRef } from 'react'
+import type { ChordTimingTimeline } from './chordTiming'
 
 export interface Track {
   id: string
   title: string
   artist?: string
   url: string
+  userId?: string
+  groupId?: string
+  songId?: string
+  arrangementId?: string
+  practiceUrl?: string
+  lyrics?: string
+  timingTimeline?: ChordTimingTimeline
+  audioOptions?: Array<{ id: string; title: string; url: string; arrangementLabel?: string }>
 }
 
 export type AudioPlaybackError = 'unsupported' | 'unavailable'
@@ -13,8 +22,10 @@ interface AudioPlayerContextType {
   currentTrack: Track | null
   isPlaying: boolean
   progress: number
+  seekVersion: number
   duration: number
   volume: number
+  playbackRate: number
   playbackError: AudioPlaybackError | null
   playTrack: (track: Track) => void
   /** Loads a paused track (no autoplay); used by surfaces such as Practice. */
@@ -24,6 +35,7 @@ interface AudioPlayerContextType {
   seek: (seconds: number) => void
   getCurrentTime: () => number
   setVolume: (vol: number) => void
+  setPlaybackRate: (rate: number) => void
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined)
@@ -32,11 +44,14 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
   const [progress, setProgress] = useState<number>(0)
+  const [seekVersion, setSeekVersion] = useState(0)
   const [duration, setDuration] = useState<number>(0)
   const [volume, setVolumeState] = useState<number>(0.8)
+  const [playbackRate, setPlaybackRateState] = useState(1)
   const [playbackError, setPlaybackError] = useState<AudioPlaybackError | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const playbackAttemptRef = useRef(0)
+  const getCurrentTime = useCallback(() => audioRef.current?.currentTime ?? 0, [])
 
   const beginPlayback = (audio: HTMLAudioElement) => {
     const attempt = ++playbackAttemptRef.current
@@ -60,6 +75,10 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     if (audioRef.current) audioRef.current.volume = volume
   }, [volume])
 
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = playbackRate
+  }, [playbackRate])
+
   const playTrack = (track: Track) => {
     setCurrentTrack(track)
     setIsPlaying(false)
@@ -71,6 +90,10 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }
 
   const loadTrack = (track: Track) => {
+    if (currentTrack?.id === track.id && currentTrack.url === track.url) {
+      setCurrentTrack(track)
+      return
+    }
     setCurrentTrack(track)
     setIsPlaying(false)
     setProgress(0)
@@ -100,12 +123,18 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     if (audioRef.current) {
       audioRef.current.currentTime = seconds
       setProgress(seconds)
+      setSeekVersion(version => version + 1)
     }
   }
 
   const setVolume = (vol: number) => {
     setVolumeState(vol)
     if (audioRef.current) audioRef.current.volume = vol
+  }
+
+  const setPlaybackRate = (rate: number) => {
+    if (!Number.isFinite(rate)) return
+    setPlaybackRateState(Math.max(0.1, Math.min(2, rate)))
   }
 
   const closeTrack = () => {
@@ -128,16 +157,19 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         currentTrack,
         isPlaying,
         progress,
+        seekVersion,
         duration,
         volume,
+        playbackRate,
         playbackError,
         playTrack,
         loadTrack,
         togglePlay,
         closeTrack,
         seek,
-        getCurrentTime: () => audioRef.current?.currentTime ?? progress,
+        getCurrentTime,
         setVolume,
+        setPlaybackRate,
       }}
     >
       {children}

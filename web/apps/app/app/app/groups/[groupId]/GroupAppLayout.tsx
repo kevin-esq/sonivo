@@ -58,7 +58,7 @@ function GroupAppLayoutContent({ children }: { children: ReactNode }) {
       >
         <ErrorBoundary resetKey={pathname} navigationMode="next">{children}</ErrorBoundary>
       </GroupWorkspace>
-      <AuthenticatedPlayer active />
+      <AuthenticatedPlayer active pathname={pathname} />
     </>
   )
 }

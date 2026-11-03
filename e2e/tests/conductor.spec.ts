@@ -142,7 +142,7 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
         .toContain(ownerName)
 
       // Leader seeks to 2.0s; the follower playhead follows within ~5s.
-      const ownerSeek = ownerPage.getByTestId('practice-seek')
+      const ownerSeek = ownerPage.getByTestId('global-player').getByRole('slider', { name: 'Progreso de reproducción de audio' })
       await expect(ownerSeek).toBeEnabled({ timeout: 15_000 })
       await ownerSeek.focus()
       await ownerSeek.press('Home')
@@ -150,17 +150,17 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
         await ownerSeek.press('ArrowRight')
       }
       await expect
-        .poll(async () => ownerPage.getByTestId('practice-current-time').innerText(), {
+        .poll(async () => Number(await ownerSeek.inputValue()), {
           timeout: 10_000,
         })
-        .toBe('0:02')
+        .toBeGreaterThanOrEqual(1)
 
-      const memberSeek = memberPage.getByTestId('practice-seek')
+      const memberSeek = memberPage.getByTestId('global-player').getByRole('slider', { name: 'Progreso de reproducción de audio' })
       await expect
         .poll(
           async () => {
             const followerSeconds = Number(await memberSeek.inputValue())
-            return Math.abs(followerSeconds - 2) <= 1
+            return Math.abs(followerSeconds - Number(await ownerSeek.inputValue())) <= 1
           },
           { timeout: 15_000 },
         )

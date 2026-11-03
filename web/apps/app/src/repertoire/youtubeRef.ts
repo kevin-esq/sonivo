@@ -63,16 +63,14 @@ export function youTubeNocookieEmbedUrl(videoId: string): string {
   return `${YOUTUBE_NOCOOKIE_EMBED_HOST}/embed/${videoId}`
 }
 
-export type YouTubeReferenceLike = {
-  purpose: string
+export type YouTubeLinkLike = {
   kind: string
   url: string | null
 }
 
-/** True for link Resources with purpose=reference and a parseable videoId. */
-export function isYouTubeReference(resource: YouTubeReferenceLike): boolean {
+/** True for any link Resource with a parseable YouTube videoId. */
+export function isYouTubeLink(resource: YouTubeLinkLike): boolean {
   return (
-    resource.purpose === 'reference' &&
     resource.kind === 'link' &&
     parseYouTubeVideoId(resource.url) != null
   )

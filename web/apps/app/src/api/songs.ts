@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from './http'
+import { ApiError, apiRequest, apiUpload } from './http'
 import type { ResourceSummary } from './resources'
 
 export type SongOriginKind = 'original' | 'cover' | 'other'
@@ -8,6 +8,9 @@ export type SongListItem = {
   title: string
   attribution: string | null
   genre: string | null
+  album: string | null
+  releaseYear: number | null
+  hasCoverImage: boolean
   originKind: SongOriginKind
   version: number
   createdAt: string
@@ -19,6 +22,22 @@ export type SongListItem = {
 export type SongDetail = SongListItem & {
   rightsNotes: string | null
   arrangementCount: number
+}
+
+export function songCoverImageUrl(groupId: string, songId: string, version?: number): string {
+  const path = `/api/groups/${encodeURIComponent(groupId)}/songs/${encodeURIComponent(songId)}/cover`
+  return version == null ? path : `${path}?v=${version}`
+}
+
+export function uploadSongCoverImage(groupId: string, songId: string, file: File, expectedVersion: number): Promise<SongDetail> {
+  return apiUpload<SongDetail>(`${songCoverImageUrl(groupId, songId)}?expectedVersion=${expectedVersion}`, file)
+}
+
+export function removeSongCoverImage(groupId: string, songId: string, expectedVersion: number): Promise<SongDetail> {
+  return apiRequest<SongDetail>(songCoverImageUrl(groupId, songId), {
+    method: 'DELETE',
+    body: { expectedVersion },
+  })
 }
 
 export type SongCatalogPage = {
@@ -62,6 +81,16 @@ export type ArrangementListItem = {
   version: number
   createdAt: string
   updatedAt: string
+  isDefault: boolean
+}
+
+export async function setDefaultArrangement(
+  groupId: string, songId: string, arrangementId: string, expectedVersion: number,
+): Promise<SongDetail> {
+  return apiRequest<SongDetail>(`/api/groups/${encodeURIComponent(groupId)}/songs/${encodeURIComponent(songId)}/default-arrangement`, {
+    method: 'PUT',
+    body: { arrangementId, expectedVersion },
+  })
 }
 
 export type ArrangementDetail = ArrangementListItem & {
@@ -71,6 +100,8 @@ export type ArrangementDetail = ArrangementListItem & {
   notes: string | null
   /** ADR-0031: JSON array of `{ lineIndex, atMs }` or null when unset. */
   chordTimingJson: string | null
+  /** Versioned harmony editor state; separate from the ChordPro lyric sheet. */
+  harmonyJson: string | null
   resources: ResourceSummary[]
 }
 
@@ -85,6 +116,8 @@ export async function createSong(
     originKind: SongOriginKind
     attribution?: string | null
     genre?: string | null
+    album?: string | null
+    releaseYear?: number | null
     rightsNotes?: string | null
     tags?: string[]
   },
@@ -108,6 +141,9 @@ export async function updateSong(
     originKind?: SongOriginKind | null
     attribution?: string | null
     genre?: string | null
+    album?: string | null
+    releaseYear?: number | null
+    clearReleaseYear?: boolean
     rightsNotes?: string | null
     tags?: string[]
   },
@@ -149,6 +185,7 @@ export async function createArrangement(
     chords?: string | null
     structure?: string | null
     notes?: string | null
+    harmonyJson?: string | null
   },
 ): Promise<ArrangementDetail> {
   return apiRequest<ArrangementDetail>(
@@ -164,6 +201,18 @@ export async function getArrangement(
   return apiRequest<ArrangementDetail>(
     `/api/groups/${groupId}/arrangements/${arrangementId}`,
   )
+}
+
+export async function convertChordSheetToChordPro(
+  groupId: string,
+  arrangementId: string,
+  text: string,
+): Promise<string> {
+  const result = await apiRequest<{ chords: string }>(
+    `/api/groups/${groupId}/arrangements/${arrangementId}/chordpro/convert`,
+    { method: 'POST', body: { text } },
+  )
+  return result.chords
 }
 
 export type LrcPreview = {
@@ -186,8 +235,8 @@ export type LrcPreview = {
 
 export type LyricsLookupCandidate = { source: string; recordId: number; title: string; artist: string; album: string | null; duration: number; content: string }
 
-export function lookupArrangementLyrics(groupId: string, arrangementId: string, input: { title: string; artist: string; duration?: number }): Promise<LyricsLookupCandidate> {
-  return apiRequest<LyricsLookupCandidate>(`/api/groups/${groupId}/arrangements/${arrangementId}/lyrics/lookup`, { method: 'POST', body: input })
+export function lookupArrangementLyrics(groupId: string, arrangementId: string, input: { title: string; artist?: string; album?: string }): Promise<LyricsLookupCandidate[]> {
+  return apiRequest<LyricsLookupCandidate[]>(`/api/groups/${groupId}/arrangements/${arrangementId}/lyrics/lookup`, { method: 'POST', body: input })
 }
 
 /** Preview only: the API never persists on import (ADR-0050). */
@@ -237,6 +286,8 @@ export async function updateArrangement(
     notes?: string | null
     /** null omits; "" / "[]" clears; valid JSON array replaces (T-SYNC-01). */
     chordTimingJson?: string | null
+    /** Versioned harmony editor state; null omits and an empty string clears. */
+    harmonyJson?: string | null
   },
 ): Promise<ArrangementDetail> {
   return apiRequest<ArrangementDetail>(

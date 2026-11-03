@@ -3,9 +3,9 @@ import type { CSSProperties } from 'react'
 import { useRailPresence } from '../shell/railPresence'
 import { useT } from '../i18n'
 import { fetchFeatures } from '../api/client'
-import { parseChordPro } from './chordPro'
-import { activeChordLineIndex, type ChordTimingMark, type ChordTimingTimeline } from './chordTiming'
-import { InstrumentalCue, StageLine, isBackingVocalLine } from './StageModePanel'
+import { backingVocalParentLineIndex, isBackingVocalLine, parseChordPro } from './chordPro'
+import { activeChordLineIndex, fillWordTimingGapsForDisplay, isBackingVocalVisible, type ChordTimingMark, type ChordTimingTimeline } from './chordTiming'
+import { InstrumentalCue, StageLine } from './StageModePanel'
 import {
   parseStageDisplayMessage,
   stageDisplayChannelName,
@@ -51,11 +51,45 @@ export function StageOutputPage({
   const scrollFrameRef = useRef<number | null>(null)
   const scrollFrameTimeRef = useRef(0)
   const lines = useMemo(() => (text.trim() ? parseChordPro(text).lines : null), [text])
+  const displayWordMarks = useMemo(() => fillWordTimingGapsForDisplay(timingTimeline.wordMarks), [timingTimeline.wordMarks])
+  const hasLyricMarks = timingMarks.length > 0 || displayWordMarks.length > 0 || timingTimeline.instrumentals.length > 0
   const plainLines = useMemo(() => text.split('\n'), [text])
   const activeIndex = state.activeIndex ?? state.wordFocus?.lineIndex ?? (timingMarks.length ? activeChordLineIndex(timingMarks, 0) : null)
+  const activeLineIndexes = state.activeIndexes ?? (activeIndex != null ? [activeIndex] : [])
   const focusedIndex = state.instrumentalProgress != null
     ? state.cursor
     : state.autoFollow && activeIndex != null ? activeIndex : state.cursor
+  const syncLyricDepth = useCallback(() => {
+    const rows = lineRefs.current.map(line => line?.querySelector<HTMLElement>('.synced-lyric-row')).filter((row): row is HTMLElement => row != null)
+    const focused = rows.find(row => row.dataset.activeLine === 'true') ?? (!state.autoFollow || !hasLyricMarks
+      ? lineRefs.current[focusedIndex]?.querySelector<HTMLElement>('.synced-lyric-row')
+      : null)
+    if (!focused) {
+      for (const row of rows) {
+        row.style.setProperty('--lyric-line-opacity', hasLyricMarks ? '0.86' : '1')
+        row.style.setProperty('--lyric-line-blur', hasLyricMarks ? '2.7px' : '0px')
+      }
+      return
+    }
+    const focusedBounds = focused.getBoundingClientRect()
+    const focusedCenter = (focusedBounds.top + focusedBounds.bottom) / 2
+    const step = rows
+      .filter(row => row !== focused)
+      .map(row => Math.abs((row.getBoundingClientRect().top + row.getBoundingClientRect().bottom) / 2 - focusedCenter))
+      .filter(distance => distance > 0)
+      .sort((left, right) => left - right)[0] ?? Math.max(focusedBounds.height, state.fontSize)
+    for (const row of rows) {
+      if (row === focused || row.dataset.activeLine === 'true') {
+        row.style.setProperty('--lyric-line-opacity', '1')
+        row.style.setProperty('--lyric-line-blur', '0px')
+        continue
+      }
+      const bounds = row.getBoundingClientRect()
+      const depth = Math.min(1, Math.abs((bounds.top + bounds.bottom) / 2 - focusedCenter) / step / 4)
+      row.style.setProperty('--lyric-line-opacity', String(1 - depth * 0.3))
+      row.style.setProperty('--lyric-line-blur', `${depth * 6}px`)
+    }
+  }, [focusedIndex, hasLyricMarks, state.autoFollow, state.fontSize])
   const completedWord = useMemo(
     () => state.completedWord,
     [state.completedWord?.lineIndex, state.completedWord?.wordIndex],
@@ -122,6 +156,18 @@ export function StageOutputPage({
       const message = parseStageDisplayMessage(event.data, sessionId)
       if (!message) return
       if (message.type === 'state') setState(message.state)
+      if (message.type === 'frame') {
+        for (const word of message.wordFocuses ?? []) {
+          const line = lineRefs.current[word.lineIndex]
+          const element = line?.querySelector<HTMLElement>(`[data-synced-word="${word.wordIndex}"]`)
+          if (!element) continue
+          element.style.backgroundPosition = `${100 - word.progress * 100}% 0`
+          element.style.setProperty('--lyric-glow-radius', `${1.5 + word.progress * 3.5}px`)
+          element.dataset.wordProgress = word.progress.toFixed(3)
+        }
+        const cue = scrollRef.current?.querySelector<HTMLElement>('[data-instrumental-progress]')
+        if (cue && message.instrumentalProgress != null) cue.style.width = `${message.instrumentalProgress * 100}%`
+      }
       if (message.type === 'closed') window.close()
     }
     channel.addEventListener('message', onMessage)
@@ -157,7 +203,23 @@ export function StageOutputPage({
 
   useLayoutEffect(() => {
     syncCenteredLine()
-  }, [syncCenteredLine, state.fontSize])
+    syncLyricDepth()
+  }, [syncCenteredLine, syncLyricDepth, state.fontSize])
+
+  useEffect(() => {
+    const container = scrollRef.current
+    if (!container) return
+    let frame = 0
+    const update = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(syncLyricDepth)
+    }
+    container.addEventListener('scroll', update, { passive: true })
+    return () => {
+      cancelAnimationFrame(frame)
+      container.removeEventListener('scroll', update)
+    }
+  }, [syncLyricDepth])
 
   useEffect(() => {
     let frame = 0
@@ -206,8 +268,16 @@ export function StageOutputPage({
         <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col justify-center gap-y-5 text-left leading-snug sm:gap-y-7">
           <div ref={topSpacerRef} aria-hidden="true" className="shrink-0" />
           {lines
-            ? lines.map((line, index) => (
-                <div key={index}>
+            ? lines.map((line, index) => {
+                const backing = isBackingVocalLine(line)
+                const parentLineIndex = backing ? backingVocalParentLineIndex(lines, index) : null
+                const ownMarks = timingMarks.some(mark => mark.lineIndex === index) || displayWordMarks.some(mark => mark.lineIndex === index)
+                const hasMarks = timingMarks.length > 0 || displayWordMarks.length > 0 || timingTimeline.instrumentals.length > 0
+                const backingVisible = !backing || isBackingVocalVisible(index, parentLineIndex, activeLineIndexes, ownMarks, state.autoFollow, hasMarks)
+                const parentActive = backing && !ownMarks && parentLineIndex != null && activeLineIndexes.includes(parentLineIndex)
+                return (
+                <div key={index} aria-hidden={backing && !backingVisible} data-backing-visible={backing ? backingVisible : undefined} className={backing ? `grid transition-[grid-template-rows,opacity,margin] duration-300 motion-reduce:transition-none ${backingVisible ? 'grid-rows-[1fr]' : 'grid-rows-[0fr] -my-5 opacity-0 sm:-my-7'}` : undefined}>
+                  <div className={backing ? 'min-h-0 overflow-hidden' : undefined}>
                   {state.instrumentalProgress != null && focusedIndex === index ? <InstrumentalCue progress={state.instrumentalProgress} /> : null}
                   <div ref={(node) => { lineRefs.current[index] = node }}>
                     <StageLine
@@ -215,18 +285,22 @@ export function StageOutputPage({
                       hideChords={!state.showChords}
                       showLyrics={state.showLyrics}
                       index={index}
-                      active={state.instrumentalProgress == null && state.autoFollow && (state.activeIndexes?.includes(index) ?? activeIndex === index)}
-                      focused={state.instrumentalProgress == null && (focusedIndex === index || (state.autoFollow && !!state.activeIndexes?.includes(index)))}
+                      active={state.instrumentalProgress == null && state.autoFollow && (activeLineIndexes.includes(index) || parentActive)}
+                      focused={state.autoFollow
+                        ? state.instrumentalProgress == null && (focusedIndex === index || activeLineIndexes.includes(index) || parentActive)
+                        : focusedIndex === index}
                       distance={index - focusedIndex}
                       backing={isBackingVocalLine(line)}
                       waitingForVocal={state.instrumentalProgress != null && focusedIndex === index}
-                      wordMarks={state.autoFollow ? timingTimeline.wordMarks : NO_WORD_MARKS}
+                      wordMarks={state.autoFollow ? displayWordMarks : NO_WORD_MARKS}
                       wordFocus={state.wordFocuses?.find(word => word.lineIndex === index) ?? (state.wordFocus?.lineIndex === index ? state.wordFocus : null)}
                       completedWord={state.completedWords ? state.completedWords.find(word => word.lineIndex === index) ?? null : completedWord}
                     />
                   </div>
                 </div>
-              ))
+                </div>
+                )
+              })
             : plainLines.map((line, index) => (
                 <div
                   key={index}

@@ -1,9 +1,11 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { AppLink } from '../routing/AppLink'
 import {
   AudioLines,
   BookOpen,
+  ChevronUp,
   Disc3,
+  Ellipsis,
   FileText,
   Headphones,
   Link2,
@@ -95,21 +97,56 @@ export function FormActions({ children }: { children: ReactNode }) {
 
 export function PageBreadcrumb({ items }: { items: { to?: string; label: string }[] }) {
   const { t } = useT()
+  const [expanded, setExpanded] = useState(false)
+  const isCollapsible = items.length > 3
+
   return (
-    <nav aria-label={t('a11y.breadcrumb')} className="text-sm text-muted">
-      <ol className="flex flex-wrap items-center gap-1">
+    <nav aria-label={t('a11y.breadcrumb')} className="min-w-0 text-sm text-muted">
+      <ol className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5">
+        {isCollapsible && !expanded ? (
+          <li className="flex items-center sm:hidden">
+            <button
+              type="button"
+              aria-label={t('a11y.breadcrumbShowPath')}
+              aria-expanded={expanded}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-primary-ink hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              onClick={() => setExpanded(true)}
+            >
+              <Ellipsis className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </li>
+        ) : null}
         {items.map((item, index) => (
-          <li key={`${item.label}-${index}`} className="flex items-center gap-1">
+          <li
+            key={`${item.label}-${index}`}
+            className={cn(
+              'flex min-w-0 items-center gap-1',
+              isCollapsible && !expanded && index < items.length - 2 && 'hidden sm:flex',
+            )}
+          >
             {index > 0 ? <span aria-hidden="true">/</span> : null}
             {item.to ? (
-              <AppLink className="inline-flex min-h-11 items-center font-medium text-primary-ink no-underline hover:underline" to={item.to}>
+              <AppLink className="inline-flex min-h-11 max-w-[min(40vw,18rem)] items-center truncate font-medium text-primary-ink no-underline hover:underline sm:max-w-none" title={item.label} to={item.to}>
                 {item.label}
               </AppLink>
             ) : (
-              <span>{item.label}</span>
+              <span aria-current="page" className="max-w-[min(40vw,18rem)] truncate sm:max-w-none" title={item.label}>{item.label}</span>
             )}
           </li>
         ))}
+        {isCollapsible && expanded ? (
+          <li className="flex items-center gap-1 sm:hidden">
+            <button
+              type="button"
+              aria-label={t('a11y.breadcrumbHidePath')}
+              aria-expanded={true}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-primary-ink hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              onClick={() => setExpanded(false)}
+            >
+              <ChevronUp className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </li>
+        ) : null}
       </ol>
     </nav>
   )

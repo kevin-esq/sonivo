@@ -40,12 +40,14 @@ public class SoftDeleteSongApiTests : IClassFixture<SonivoApiFactory>
         var group = await CreateGroupAsync(client, "Delete Band");
         var song = await CreateSongAsync(client, group.Id, "To Delete");
         var arr = await CreateArrangementAsync(client, group.Id, song.Id, "Live");
+        var currentSong = await client.GetFromJsonAsync<SongResponse>($"/api/groups/{group.Id}/songs/{song.Id}")
+            ?? throw new InvalidOperationException("Missing song after arrangement creation");
 
         var delete = await client.SendAsync(new HttpRequestMessage(
             HttpMethod.Delete,
             $"/api/groups/{group.Id}/songs/{song.Id}")
         {
-            Content = JsonContent.Create(new { expectedVersion = 1 })
+            Content = JsonContent.Create(new { expectedVersion = currentSong.Version })
         });
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
 

@@ -8,7 +8,8 @@ import { Button, buttonVariants } from '../ui/button'
 import { cn } from '../ui/cn'
 import { memo, type CSSProperties, type ReactNode } from 'react'
 import { useRailPresence } from '../shell/railPresence'
-import { parseChordPro, type ChordProLine } from './chordPro'
+import { backingVocalParentLineIndex, isBackingVocalLine, parseChordPro, type ChordProLine } from './chordPro'
+import { SyncedLyricText } from './SyncedLyricText'
 import { useAudioPlayer } from './AudioPlayerContext'
 import {
   activeChordWordLineIndexes,
@@ -17,11 +18,15 @@ import {
   chordWordPresentation,
   activeChordWord,
   activeInstrumental,
+  EMPTY_CHORD_TIMELINE,
+  fillWordTimingGapsForDisplay,
+  isBackingVocalVisible,
   type ChordTimingMark,
   type ChordTimingTimeline,
   type ChordWordTimingMark,
 } from './chordTiming'
 import { parseStageDisplayMessage, stageDisplayChannelName, type StageDisplayState } from './stageDisplaySync'
+import { useLyricFrameUpdates, useLyricPlayback } from './useLyricPlayback'
 
 const MIN_FONT = 20
 const MAX_FONT = 120
@@ -58,10 +63,6 @@ function toStageLines(text: string): ChordProLine[] | null {
 
 type StageWordCursor = { lineIndex: number; wordIndex: number }
 
-export function isBackingVocalLine(line: ChordProLine): boolean {
-  return line.kind === 'lyric' && /^\([^()]+\)$/.test(line.segments.map(segment => segment.lyric).join('').trim())
-}
-
 export function InstrumentalCue({ progress }: { progress: number }) {
   const { t } = useT()
   return (
@@ -78,7 +79,7 @@ export function InstrumentalCue({ progress }: { progress: number }) {
         <Music2 className="h-6 w-6" />
       </span>
       <span className="h-1.5 min-w-16 max-w-32 flex-1 overflow-hidden rounded-full bg-white/15" aria-hidden="true">
-        <span className="block h-full rounded-full bg-[var(--brand-primary)] transition-[width] duration-100 motion-reduce:transition-none" style={{ width: `${progress * 100}%` }} />
+        <span data-instrumental-progress className="block h-full rounded-full bg-[var(--brand-primary)] transition-[width] duration-100 motion-reduce:transition-none" style={{ width: `${progress * 100}%` }} />
       </span>
     </div>
   )
@@ -99,6 +100,8 @@ export const StageLine = memo(function StageLine({
   distance = 0,
   backing = false,
   waitingForVocal = false,
+  isPlaying = false,
+  getCurrentTime,
 }: {
   line: ChordProLine
   hideChords: boolean
@@ -114,6 +117,8 @@ export const StageLine = memo(function StageLine({
   distance?: number
   backing?: boolean
   waitingForVocal?: boolean
+  isPlaying?: boolean
+  getCurrentTime?: () => number
 }) {
   const { t } = useT()
   if (line.kind === 'empty') {
@@ -146,66 +151,6 @@ export const StageLine = memo(function StageLine({
 
   const hasChord = !hideChords && line.segments.some((segment) => segment.chord != null && segment.chord.length > 0)
 
-  let wordIndex = 0
-  const lineWordMarks = wordMarks.filter((mark) => mark.lineIndex === index)
-  const markByWord = new Map(lineWordMarks.map((mark) => [mark.wordIndex, mark]))
-
-  function nearestTimedWordMs(targetWordIndex: number): number | null {
-    let nearest: ChordWordTimingMark | null = null
-    for (const mark of lineWordMarks) {
-      if (nearest == null || Math.abs(mark.wordIndex - targetWordIndex) < Math.abs(nearest.wordIndex - targetWordIndex)) {
-        nearest = mark
-      }
-    }
-    return nearest?.startMs ?? null
-  }
-
-  function renderSegment(text: string) {
-    return (text.match(/\s+|\S+/g) ?? []).map((part, partIndex) => {
-      if (/^\s+$/.test(part)) return <span key={`space-${partIndex}`}>{part}</span>
-      const currentWordIndex = wordIndex++
-      const mark = markByWord.get(currentWordIndex)
-      const activeByFocus = wordFocus?.lineIndex === index && wordFocus.wordIndex === currentWordIndex
-      const completed = mark != null && completedWord?.lineIndex === index && currentWordIndex <= completedWord.wordIndex
-      const progress = activeByFocus ? wordFocus.progress : 0
-      const seekMs = mark?.startMs ?? lineSeekMs ?? nearestTimedWordMs(currentWordIndex)
-      const wordClass = completed
-        ? 'text-[color-mix(in_srgb,var(--brand-primary)_68%,white)]'
-        : 'text-white'
-      const fillPercent = Math.round(progress * 1000) / 10
-      const sweepEdgeStart = Math.max(0, fillPercent - 2)
-      const sweepEdgeEnd = Math.min(100, fillPercent + 2)
-      const word = <span
-        className={cn('inline transition-colors duration-200 motion-reduce:transition-none', wordClass)}
-        data-stage-word={currentWordIndex}
-        data-word-progress={activeByFocus ? progress.toFixed(3) : undefined}
-        style={activeByFocus ? {
-          backgroundImage: `linear-gradient(90deg, color-mix(in srgb, var(--brand-primary) 68%, white) 0%, color-mix(in srgb, var(--brand-primary) 68%, white) ${sweepEdgeStart}%, color-mix(in srgb, var(--brand-primary) 38%, white) ${fillPercent}%, white ${sweepEdgeEnd}%, white 100%)`,
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          color: 'transparent',
-          WebkitTextFillColor: 'transparent',
-        } : undefined}
-      >
-        {part}
-      </span>
-      return onSeek && seekMs != null
-        ? (
-            <button
-              key={`word-${currentWordIndex}`}
-              type="button"
-              className="inline cursor-pointer rounded-sm border-0 bg-transparent p-0 text-left text-inherit hover:underline hover:decoration-[var(--brand-primary)] hover:underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary)]"
-              style={{ font: 'inherit', lineHeight: 'inherit' }}
-              aria-label={t('stage.seekWord', { word: part })}
-              onClick={() => onSeek(seekMs / 1000)}
-            >
-              {word}
-            </button>
-          )
-        : <span key={`word-${currentWordIndex}`}>{word}</span>
-    })
-  }
-
   return (
     <div
       data-stage-line={index}
@@ -213,7 +158,7 @@ export const StageLine = memo(function StageLine({
       data-backing-vocal={backing ? 'true' : undefined}
       style={{
         fontSize: backing ? '0.72em' : undefined,
-        opacity: focused
+        '--lyric-line-opacity': focused
           ? (backing ? 0.82 : 1)
           : distance < 0
             ? Math.max(0.24, 0.96 - Math.abs(distance) * 0.22)
@@ -223,35 +168,37 @@ export const StageLine = memo(function StageLine({
         '--lyric-line-blur': `${focused
           ? 0
           : distance < 0
-            ? Math.min(6, Math.min(Math.abs(distance), 1) * 2.8 + Math.max(0, Math.abs(distance) - 1) * 1.1)
-            : Math.min(5, Math.min(distance, 1) * 2.2 + Math.max(0, distance - 1) * 1.15)}px`,
+            ? Math.min(6, 0.75 + Math.min(Math.abs(distance), 1) * 2.8 + Math.max(0, Math.abs(distance) - 1) * 1.1)
+            : Math.min(5, 0.75 + Math.min(distance, 1) * 2.2 + Math.max(0, distance - 1) * 1.15)}px`,
       } as CSSProperties}
       className={cn(
-        'flex w-full flex-wrap items-end justify-center gap-x-0 text-center leading-[1.3] font-semibold tracking-[-0.025em]',
+        'synced-lyric-row flex w-full flex-wrap items-end justify-center gap-x-0 text-center leading-[1.3] font-semibold tracking-[-0.025em]',
         '[filter:blur(var(--lyric-line-blur))] transition-[filter,opacity,color] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:[filter:none] motion-reduce:transition-none',
       )}
     >
-      {line.segments.map((segment, segmentIndex) => (
-        <span key={segmentIndex} className="inline-block max-w-full whitespace-pre-wrap [overflow-wrap:anywhere]">
-          {hasChord ? (
-            <span className="block font-semibold text-white" style={{ fontSize: '0.7em', color: 'color-mix(in srgb, var(--brand-primary) 58%, white)' }}>
-              {segment.chord && segment.chord.length > 0 ? segment.chord : '\u00A0'}
-            </span>
-          ) : null}
-          {showLyrics ? <span
-            className="block font-semibold text-white"
-            style={focused ? { textShadow: '0 2px 18px rgba(0,0,0,.12)' } : undefined}
-          >
-            {segment.lyric.length > 0 ? renderSegment(segment.lyric) : '\u00A0'}
-          </span> : null}
-        </span>
-      ))}
+      <SyncedLyricText
+        line={line}
+        lineIndex={index}
+        wordMarks={wordMarks}
+        activeWord={wordFocus}
+        completedWord={completedWord}
+        lineSeekMs={lineSeekMs}
+        variant="stage"
+        showChords={hasChord}
+        showLyrics={showLyrics}
+        focused={focused}
+        activeLine={active}
+        isPlaying={isPlaying}
+        getCurrentTime={getCurrentTime}
+        onWordSeek={onSeek}
+        wordLabel={(_, word) => t('stage.seekWord', { word })}
+      />
     </div>
   )
 }, (previous, next) => previous.line === next.line && previous.hideChords === next.hideChords && previous.index === next.index &&
   previous.active === next.active && previous.focused === next.focused && previous.distance === next.distance && previous.backing === next.backing && previous.waitingForVocal === next.waitingForVocal && previous.showLyrics === next.showLyrics &&
   previous.wordMarks === next.wordMarks && previous.lineSeekMs === next.lineSeekMs && previous.onSeek === next.onSeek &&
-  previous.wordFocus?.lineIndex === next.wordFocus?.lineIndex && previous.wordFocus?.wordIndex === next.wordFocus?.wordIndex && previous.wordFocus?.progress === next.wordFocus?.progress &&
+  previous.wordFocus?.lineIndex === next.wordFocus?.lineIndex && previous.wordFocus?.wordIndex === next.wordFocus?.wordIndex && previous.wordFocus?.progress === next.wordFocus?.progress && previous.isPlaying === next.isPlaying &&
   previous.completedWord?.lineIndex === next.completedWord?.lineIndex && previous.completedWord?.wordIndex === next.completedWord?.wordIndex)
 
 /**
@@ -261,6 +208,8 @@ export const StageLine = memo(function StageLine({
  * ChordPro parser and ADR-0031 timing marks; nothing is persisted on the server.
  */
 export function StageModePanel({
+  initialOpen = false,
+  onInitialOpen,
   text,
   timingMarks,
   timingTimeline,
@@ -284,6 +233,8 @@ export function StageModePanel({
   openTestId = 'stage-open',
   openLabel,
 }: {
+  initialOpen?: boolean
+  onInitialOpen?: () => void
   text: string
   timingMarks: ChordTimingMark[]
   timingTimeline?: ChordTimingTimeline
@@ -308,11 +259,12 @@ export function StageModePanel({
   openLabel?: string
 }) {
   const { t } = useT()
-  const { getCurrentTime, playbackError } = useAudioPlayer()
+  const { getCurrentTime, playbackError, seekVersion } = useAudioPlayer()
   const { brandTokens } = useRailPresence()
   const reducedMotion = usePrefersReducedMotion()
   const [enabled, setEnabled] = useState(false)
   const [open, setOpen] = useState(false)
+  const initialOpenHandled = useRef(false)
   const [showChords, setShowChords] = useState(false)
   const [showLyrics, setShowLyrics] = useState(true)
   const [moreOpen, setMoreOpen] = useState(false)
@@ -323,7 +275,6 @@ export function StageModePanel({
   const [scrolling, setScrolling] = useState(false)
   const [cursor, setCursor] = useState(0)
   const [lineDistances, setLineDistances] = useState<number[]>([])
-  const [stageTimeMs, setStageTimeMs] = useState(currentMs)
   const [wakeStatus, setWakeStatus] = useState<'idle' | 'active' | 'unsupported' | 'denied'>('idle')
   const [displayStatus, setDisplayStatus] = useState<'idle' | 'opening' | 'connected' | 'manual' | 'unavailable' | 'blocked'>('idle')
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -342,11 +293,22 @@ export function StageModePanel({
   const displayChannelRef = useRef<BroadcastChannel | null>(null)
   const displaySessionRef = useRef<string | null>(null)
   const displayPlacementRef = useRef<'automatic' | 'manual'>('automatic')
-  const audioClockRef = useRef(getCurrentTime)
-  audioClockRef.current = getCurrentTime
   const nextScrollBehaviorRef = useRef<ScrollBehavior | null>(null)
-  const previousReportedTimeRef = useRef(currentMs)
   const updateCursorFromManualScrollRef = useRef<() => void>(() => undefined)
+  const sourceLyricTimeline = timingTimeline ?? EMPTY_CHORD_TIMELINE
+  const displayWordMarks = useMemo(() => fillWordTimingGapsForDisplay(sourceLyricTimeline.wordMarks), [sourceLyricTimeline.wordMarks])
+  const lyricTimeline = useMemo(() => displayWordMarks === sourceLyricTimeline.wordMarks
+    ? sourceLyricTimeline
+    : { ...sourceLyricTimeline, wordMarks: displayWordMarks }, [displayWordMarks, sourceLyricTimeline])
+  const lyricPlayback = useLyricPlayback({
+    timeline: lyricTimeline,
+    isPlaying,
+    enabled: open,
+    fallbackMs: currentMs,
+    seekVersion,
+    getCurrentTime,
+  })
+  const stageTimeMs = lyricPlayback.timeMs
 
   const measureLineDistances = useCallback((focusedLineIndex: number) => {
     const focusedLine = lineRefs.current[focusedLineIndex]
@@ -408,34 +370,7 @@ export function StageModePanel({
     }
   }, [moreOpen])
 
-  useEffect(() => {
-    if (Math.abs(currentMs - previousReportedTimeRef.current) > 350) {
-      nextScrollBehaviorRef.current = 'auto'
-    }
-    previousReportedTimeRef.current = currentMs
-    setStageTimeMs(currentMs)
-  }, [currentMs])
-
-  // HTMLMediaElement timeupdate is intentionally low frequency (often only
-  // four times per second). Sample the real audio clock while Stage is visible
-  // so word fills advance smoothly without rerendering the full Practice page.
-  useEffect(() => {
-    if (!open || !hasAudio || !isPlaying) return
-    let frame = 0
-    let lastUpdate = 0
-    const sampleAudioClock = (now: number) => {
-      if (now - lastUpdate >= 1000 / 60) {
-        const nextTimeMs = Math.max(0, audioClockRef.current() * 1000)
-        setStageTimeMs((previous) => Math.abs(previous - nextTimeMs) >= 8 ? nextTimeMs : previous)
-        lastUpdate = now
-      }
-      frame = requestAnimationFrame(sampleAudioClock)
-    }
-    frame = requestAnimationFrame(sampleAudioClock)
-    return () => cancelAnimationFrame(frame)
-  }, [hasAudio, isPlaying, open])
-
-  const wordMarks = timingTimeline?.wordMarks ?? []
+  const wordMarks = displayWordMarks
   const instrumentalIntervals = timingTimeline?.instrumentals ?? []
   const hasMarks = timingMarks.length > 0 || wordMarks.length > 0 || instrumentalIntervals.length > 0
   const isWarmup = displayMode === 'warmup'
@@ -492,6 +427,34 @@ export function StageModePanel({
     : inferredIntroActive
       ? { type: 'instrumental' as const, startMs: 0, endMs: firstLyricMarkMs }
       : null
+  useLyricFrameUpdates({
+    timeline: lyricTimeline,
+    isPlaying,
+    enabled: open && (displayStatus === 'connected' || displayStatus === 'manual'),
+    getCurrentTime,
+    onFrame: timeMs => {
+      const channel = displayChannelRef.current
+      const sessionId = displaySessionRef.current
+      if (channel && sessionId && !displayWindowRef.current?.closed) {
+        const words = chordWordPresentation(wordMarks, timeMs).active
+        const explicitBreak = activeInstrumental(instrumentalIntervals, timeMs)
+        const introProgress = !explicitBreak && Number.isFinite(firstLyricMarkMs) && firstLyricMarkMs >= 2000 && timeMs < firstLyricMarkMs
+          ? clamp(timeMs / firstLyricMarkMs, 0, 1)
+          : null
+        channel.postMessage({
+          type: 'frame',
+          sessionId,
+          wordFocuses: words,
+          instrumentalProgress: explicitBreak?.progress ?? introProgress,
+        })
+      }
+      const cue = scrollRef.current?.querySelector<HTMLElement>('[data-instrumental-progress]')
+      if (cue && activeInstrumentalInterval) {
+        const fraction = clamp((timeMs - activeInstrumentalInterval.startMs) / (activeInstrumentalInterval.endMs - activeInstrumentalInterval.startMs), 0, 1)
+        cue.style.width = `${fraction * 100}%`
+      }
+    },
+  })
   const instrumentalAnchorIndex = activeInstrumentalInterval
     ? (() => {
         const nextMarks = [
@@ -637,6 +600,13 @@ export function StageModePanel({
     }
   }, [])
 
+  useEffect(() => {
+    if (!initialOpen || !enabled || initialOpenHandled.current) return
+    initialOpenHandled.current = true
+    openStage()
+    onInitialOpen?.()
+  }, [enabled, initialOpen, onInitialOpen])
+
   // Follow the timing marks while the audio plays (default when marks exist).
   useLayoutEffect(() => {
     if (!open || !autoFollow) return
@@ -654,7 +624,6 @@ export function StageModePanel({
   const seekFromStage = useCallback((seconds: number, lineIndex?: number) => {
     const targetSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
     nextScrollBehaviorRef.current = 'auto'
-    setStageTimeMs(targetSeconds * 1000)
     if (lineIndex != null) {
       setAutoFollow(true)
       setCursor(lineIndex)
@@ -1158,21 +1127,29 @@ export function StageModePanel({
               <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col justify-center gap-y-6 text-left leading-snug sm:gap-y-9">
                 <div ref={topSpacerRef} aria-hidden="true" className="shrink-0" />
                 {stageContent ?? (lines
-                  ? lines.map((line, index) => (
-                      <div key={index}>
-                        {activeBreak && instrumentalAnchorIndex === index ? <InstrumentalCue progress={activeBreak.progress} /> : null}
-                        <div ref={(node) => {
-                          lineRefs.current[index] = node
-                        }}>
+                  ? lines.map((line, index) => {
+                      const backing = isBackingVocalLine(line)
+                      const parentLineIndex = backing ? backingVocalParentLineIndex(lines, index) : null
+                      const ownMarks = timingMarks.some(mark => mark.lineIndex === index) || wordMarks.some(mark => mark.lineIndex === index)
+                      const backingVisible = !backing || isBackingVocalVisible(index, parentLineIndex, activeIndexes, ownMarks, autoFollow, hasMarks)
+                      const parentActive = backing && !ownMarks && parentLineIndex != null && activeIndexes.includes(parentLineIndex)
+                      const lineActive = activeIndexes.includes(index) || wordPresentation.active.some(word => word.lineIndex === index) || parentActive
+                      return (
+                      <div key={index} aria-hidden={backing && !backingVisible} data-backing-visible={backing ? backingVisible : undefined} className={backing ? cn('grid transition-[grid-template-rows,opacity,margin] duration-300 motion-reduce:transition-none', backingVisible ? 'grid-rows-[1fr]' : 'grid-rows-[0fr] -my-6 opacity-0 sm:-my-9') : undefined}>
+                        <div className={backing ? 'min-h-0 overflow-hidden' : undefined}>
+                          {activeBreak && instrumentalAnchorIndex === index ? <InstrumentalCue progress={activeBreak.progress} /> : null}
+                          <div ref={(node) => {
+                            lineRefs.current[index] = node
+                          }}>
                           <StageLine
                           line={line}
                           hideChords={!showChords}
                           showLyrics={showLyrics}
                           index={index}
-                          active={autoFollow && (activeIndexes.includes(index) || wordPresentation.active.some(word => word.lineIndex === index))}
-                          focused={autoFollow && (activeBreak || (hasMarks && beforeFirstLyricMark))
-                            ? false
-                            : ((!autoFollow || !hasMarks) ? focusedIndex === index : activeIndexes.includes(index) || wordPresentation.active.some(word => word.lineIndex === index))}
+                          active={autoFollow && lineActive}
+                          focused={autoFollow
+                            ? ((!hasMarks) ? focusedIndex === index : !(activeBreak || beforeFirstLyricMark) && lineActive)
+                            : focusedIndex === index}
                           distance={lineDistances[index] ?? index - focusedIndex}
                           backing={isBackingVocalLine(line)}
                           waitingForVocal={Boolean(activeBreak && instrumentalAnchorIndex === index)}
@@ -1181,10 +1158,14 @@ export function StageModePanel({
                           wordFocus={wordPresentation.active.find(word => word.lineIndex === index) ?? null}
                           completedWord={completedWordsByLine.get(index) ?? null}
                           onSeek={hasAudio ? lineSeekHandlers[index] : undefined}
+                          isPlaying={isPlaying}
+                          getCurrentTime={getCurrentTime}
                           />
+                          </div>
                         </div>
                       </div>
-                    ))
+                      )
+                    })
                   : text.split('\n').map((lineText, index) => (
                       <div
                         key={index}

@@ -34,14 +34,16 @@ public class SoftDeleteSongCascadeTests
         var deletedBefore = await db.Arrangements.IgnoreQueryFilters().SingleAsync(a => a.Id == deletedId);
         var deletedVersionBefore = deletedBefore.Version;
         var deletedAtBefore = deletedBefore.DeletedAt;
+        var songBefore = await db.Songs.IgnoreQueryFilters().SingleAsync(s => s.Id == songId);
+        var expectedSongVersion = songBefore.Version;
 
         await new SoftDeleteSongHandler(access, songs, arrangements, new EfUnitOfWork(db), clock)
-            .HandleAsync(new SoftDeleteSongCommand(owner, groupId, songId, 1), CancellationToken.None);
+            .HandleAsync(new SoftDeleteSongCommand(owner, groupId, songId, songBefore.Version), CancellationToken.None);
 
         Assert.Null(await db.Songs.FirstOrDefaultAsync(s => s.Id == songId));
         var song = await db.Songs.IgnoreQueryFilters().SingleAsync(s => s.Id == songId);
         Assert.NotNull(song.DeletedAt);
-        Assert.Equal(2, song.Version);
+        Assert.Equal(expectedSongVersion + 1, song.Version);
 
         Assert.Null(await db.Arrangements.FirstOrDefaultAsync(a => a.Id == liveId));
         var live = await db.Arrangements.IgnoreQueryFilters().SingleAsync(a => a.Id == liveId);
@@ -121,7 +123,7 @@ public class SoftDeleteSongCascadeTests
         Assert.NotNull(trackedSong);
         var trackedLive = await arrangements.ListLiveTrackedBySongAsync(group.Id, song.Id, CancellationToken.None);
         var now = DateTimeOffset.UtcNow;
-        trackedSong.SoftDelete(song.Version, now);
+        trackedSong.SoftDelete(trackedSong.Version, now);
         foreach (var arrangement in trackedLive)
         {
             arrangement.SoftDelete(arrangement.Version, now);
@@ -130,7 +132,7 @@ public class SoftDeleteSongCascadeTests
         await using (var db2 = new SonivoDbContext(options))
         {
             var concurrent = await db2.Arrangements.SingleAsync(a => a.Id == live.Id);
-            concurrent.Update("Concurrent edit", null, 120, null, null, null, null, null, concurrent.Version, now.AddSeconds(1));
+            concurrent.Update("Concurrent edit", null, 120, null, null, null, null, null, null, concurrent.Version, now.AddSeconds(1));
             await db2.SaveChangesAsync();
         }
 
@@ -206,12 +208,15 @@ public class SoftDeleteSongCascadeTests
         var priorRow = await db.Arrangements.IgnoreQueryFilters().SingleAsync(a => a.Id == prior.Id);
         var priorVersion = priorRow.Version;
         var priorDeletedAt = priorRow.DeletedAt;
+        var songBefore = await songs.GetByIdAsync(group.Id, song.Id, CancellationToken.None);
+        Assert.NotNull(songBefore);
+        var expectedSongVersion = songBefore.Version;
 
         await new SoftDeleteSongHandler(access, songs, arrangements, new EfUnitOfWork(db), clock)
-            .HandleAsync(new SoftDeleteSongCommand(owner, group.Id, song.Id, song.Version), CancellationToken.None);
+            .HandleAsync(new SoftDeleteSongCommand(owner, group.Id, song.Id, songBefore.Version), CancellationToken.None);
 
         Assert.Null(await db.Songs.FirstOrDefaultAsync(s => s.Id == song.Id));
-        Assert.Equal(2, (await db.Songs.IgnoreQueryFilters().SingleAsync(s => s.Id == song.Id)).Version);
+        Assert.Equal(expectedSongVersion + 1, (await db.Songs.IgnoreQueryFilters().SingleAsync(s => s.Id == song.Id)).Version);
         Assert.Null(await db.Arrangements.FirstOrDefaultAsync(a => a.Id == live.Id));
         Assert.Equal(2, (await db.Arrangements.IgnoreQueryFilters().SingleAsync(a => a.Id == live.Id)).Version);
 

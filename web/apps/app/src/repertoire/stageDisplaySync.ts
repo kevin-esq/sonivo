@@ -18,6 +18,7 @@ export type StageDisplayState = {
 export type StageDisplayMessage =
   | { type: 'ready' | 'closed'; sessionId: string }
   | { type: 'state'; sessionId: string; state: StageDisplayState }
+  | { type: 'frame'; sessionId: string; wordFocuses: StageDisplayState['wordFocuses']; instrumentalProgress: number | null }
 
 export function stageDisplayChannelName(sessionId: string): string {
   return `sonivo:stage-display:${sessionId}`
@@ -30,11 +31,24 @@ export function isStageDisplaySessionId(value: string | null): value is string {
 export function parseStageDisplayMessage(value: unknown, sessionId: string): StageDisplayMessage | null {
   if (typeof value !== 'object' || value === null) return null
   const message = value as Record<string, unknown>
-  if (message.sessionId !== sessionId || (message.type !== 'ready' && message.type !== 'closed' && message.type !== 'state')) {
+  if (message.sessionId !== sessionId || (message.type !== 'ready' && message.type !== 'closed' && message.type !== 'state' && message.type !== 'frame')) {
     return null
   }
   if (message.type === 'ready' || message.type === 'closed') {
     return { type: message.type, sessionId }
+  }
+
+  if (message.type === 'frame') {
+    const validFrameWords = (value: unknown) => Array.isArray(value) && value.length <= 2000 && value.every(entry => {
+      if (typeof entry !== 'object' || entry === null) return false
+      const word = entry as Record<string, unknown>
+      return typeof word.lineIndex === 'number' && Number.isSafeInteger(word.lineIndex) && word.lineIndex >= 0 &&
+        typeof word.wordIndex === 'number' && Number.isSafeInteger(word.wordIndex) && word.wordIndex >= 0 &&
+        typeof word.progress === 'number' && Number.isFinite(word.progress) && word.progress >= 0 && word.progress <= 1
+    })
+    const progress = message.instrumentalProgress
+    if (!validFrameWords(message.wordFocuses) || !(progress === null || (typeof progress === 'number' && Number.isFinite(progress) && progress >= 0 && progress <= 1))) return null
+    return { type: 'frame', sessionId, wordFocuses: message.wordFocuses as StageDisplayState['wordFocuses'], instrumentalProgress: progress as number | null }
   }
 
   const state = message.state

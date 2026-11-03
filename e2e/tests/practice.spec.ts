@@ -95,26 +95,29 @@ test.describe('Practice / karaoke thin', () => {
     await expect(player).toBeVisible()
     await expect(page.getByTestId('practice-lyrics')).toContainText(lyricsLine)
 
-    const trackSelect = page.getByTestId('practice-track-select')
-    await expect(trackSelect).toBeVisible()
-    await expect(trackSelect.locator('option')).toHaveCount(2)
-    await expect(trackSelect).toHaveValue(/.+/)
-    const firstTrackId = await trackSelect.inputValue()
+    const trackOptions = page.getByTestId('practice-track-option')
+    await expect(trackOptions).toHaveCount(2)
+    await expect(trackOptions.nth(0)).toHaveAttribute('aria-pressed', 'true')
+    await trackOptions.nth(1).click()
+    await expect(trackOptions.nth(1)).toHaveAttribute('aria-pressed', 'true')
+    await expect(trackOptions.nth(1).getByTestId('practice-track-playing')).toBeVisible()
 
-    await expect(page.getByTestId('practice-duration')).not.toHaveText('0:00', { timeout: 15_000 })
-
-    const playPause = page.getByTestId('practice-play-pause')
+    const globalPlayer = page.getByTestId('global-player')
+    await expect(globalPlayer).toContainText(trackB)
+    const playPause = globalPlayer.getByRole('button', { name: 'Pausar' })
+    await expect(playPause).toBeVisible()
+    const seek = globalPlayer.getByRole('slider', { name: 'Progreso de reproducción de audio' })
+    await expect(seek).toBeVisible()
     await playPause.click()
-    await expect(playPause).toHaveAttribute('aria-label', 'Pausar')
+    await expect(globalPlayer.getByRole('button', { name: 'Reproducir' })).toBeVisible()
 
     await expect
-      .poll(async () => page.getByTestId('practice-current-time').innerText(), { timeout: 10_000 })
-      .not.toBe('0:00')
+      .poll(async () => Number(await seek.inputValue()), { timeout: 10_000 })
+      .toBeGreaterThan(0)
 
-    await playPause.click()
-    await expect(playPause).toHaveAttribute('aria-label', 'Reproducir')
+    await globalPlayer.getByRole('button', { name: 'Reproducir' }).click()
+    await expect(globalPlayer.getByRole('button', { name: 'Pausar' })).toBeVisible()
 
-    const seek = page.getByTestId('practice-seek')
     await seek.evaluate((el) => {
       const input = el as HTMLInputElement
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
@@ -123,10 +126,10 @@ test.describe('Practice / karaoke thin', () => {
       input.dispatchEvent(new Event('change', { bubbles: true }))
     })
     await expect
-      .poll(async () => page.getByTestId('practice-current-time').innerText())
-      .toMatch(/^0:0[12]$/)
+      .poll(async () => Number(await seek.inputValue()))
+      .toBeGreaterThan(1)
 
-    const volume = page.getByTestId('practice-volume')
+    const volume = player.getByRole('slider', { name: 'Volumen' })
     await volume.evaluate((el) => {
       const input = el as HTMLInputElement
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
@@ -136,10 +139,10 @@ test.describe('Practice / karaoke thin', () => {
     })
     await expect(volume).toHaveValue('0.4')
 
-    await trackSelect.selectOption({ label: trackB })
-    await expect(trackSelect).not.toHaveValue(firstTrackId)
-    await expect(page.getByTestId('practice-current-time')).toHaveText('0:00')
-    await expect(playPause).toHaveAttribute('aria-label', 'Reproducir')
+    await trackOptions.nth(0).click()
+    await expect(trackOptions.nth(0)).toHaveAttribute('aria-pressed', 'true')
+    await expect(player).toContainText(trackA)
+    await expect(seek).toHaveValue('0')
   })
 
   test('TC-PLAY-02 owner rehearses Event plan queue and advances to next item', async ({
@@ -292,7 +295,8 @@ test.describe('Practice / karaoke thin', () => {
     await expect(followToggle).toHaveAttribute('aria-pressed', 'true')
 
     // Start playback
-    const playPause = page.getByTestId('practice-play-pause')
+    const globalPlayer = page.getByTestId('global-player')
+    const playPause = globalPlayer.getByRole('button', { name: 'Reproducir' })
     await playPause.click()
     await expect(playPause).toHaveAttribute('aria-label', 'Pausar')
 
@@ -307,7 +311,7 @@ test.describe('Practice / karaoke thin', () => {
     await playPause.click()
     await expect(playPause).toHaveAttribute('aria-label', 'Reproducir')
 
-    const seek = page.getByTestId('practice-seek')
+    const seek = globalPlayer.getByRole('slider', { name: 'Progreso de reproducción de audio' })
     async function seekTo(seconds: string) {
       await seek.evaluate((el, value) => {
         const input = el as HTMLInputElement

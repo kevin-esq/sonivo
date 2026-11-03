@@ -56,6 +56,11 @@ The owner's hosted Neon MCP uses global Codex OAuth configuration. It is optiona
 - `ponytail-review` and `headroom-context` — authored for Sonivo. Headroom use is conditional on the connector being available and on the content being safe to send externally.
 - No application code, package, or runtime dependency was added. The manually copied skills are source-pinned in the inventory and intentionally are not `skills-lock.json` entries.
 
+### CODE GRAPH — PROJECT-LOCAL (owner-authorized 2026-11-01)
+
+- `graphify` skill and local hook installed in this worktree with Graphify 0.8.22. Graph generation was attempted; the installed CLI did not produce `graphify-out/graph.json`, so graph querying remains unverified.
+- Project outputs and hook configuration are local worktree artifacts. No runtime dependency was added.
+
 ### DEVICE / GIT WORKFLOWS — PROJECT-LOCAL — AUTHORIZED (ADR-0099, user-authorized 2026-10-20)
 
 - `android` — community `@us-all/android-mcp@1.14.4`; app/UI/emulator writes enabled for testing; arbitrary ADB shell disabled; categories limited to `device,apps,ui,logcat,emulator`. Package source and execution boundary reviewed; requires ADB on `PATH` and Node.js 22+.

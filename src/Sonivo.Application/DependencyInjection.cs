@@ -42,6 +42,8 @@ public static class DependencyInjection
         services.AddScoped<ProcessPaymentWebhookHandler>();
         services.AddScoped<StartCheckoutHandler>();
         services.AddScoped<UpdateGroupHandler>();
+        services.AddScoped<GetGroupSongTagsHandler>();
+        services.AddScoped<UpdateGroupSongTagsHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
         services.AddScoped<ListMembersHandler>();
         services.AddScoped<PresenceHeartbeatHandler>();
@@ -63,10 +65,15 @@ public static class DependencyInjection
         services.AddScoped<SetSongFavoriteHandler>();
         services.AddScoped<GetSongHandler>();
         services.AddScoped<UpdateSongHandler>();
+        services.AddScoped<UploadSongCoverHandler>();
+        services.AddScoped<RemoveSongCoverHandler>();
+        services.AddScoped<GetSongCoverHandler>();
         services.AddScoped<SoftDeleteSongHandler>();
         services.AddScoped<CreateArrangementHandler>();
+        services.AddScoped<SetDefaultArrangementHandler>();
         services.AddScoped<ListArrangementsHandler>();
         services.AddScoped<GetArrangementHandler>();
+        services.AddScoped<ConvertChordSheetHandler>();
         services.AddScoped<UpdateArrangementHandler>();
         services.AddScoped<SoftDeleteArrangementHandler>();
         services.AddScoped<CreateLinkResourceHandler>();

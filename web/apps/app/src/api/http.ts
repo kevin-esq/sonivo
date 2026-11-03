@@ -1,5 +1,6 @@
 import {
   ApiError,
+  apiBlob,
   apiRequest,
   apiUpload,
   clearCsrfToken,
@@ -7,7 +8,7 @@ import {
 } from '@sonivo/api-client/client'
 import type { I18nKey } from '../i18n'
 
-export { ApiError, apiRequest, apiUpload, clearCsrfToken, ensureCsrfToken }
+export { ApiError, apiBlob, apiRequest, apiUpload, clearCsrfToken, ensureCsrfToken }
 
 /** Map normalized API failures to localized product copy. */
 export function problemDetail(error: unknown, t: (key: I18nKey) => string): string {

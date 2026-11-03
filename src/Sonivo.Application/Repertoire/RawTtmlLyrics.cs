@@ -9,7 +9,9 @@ public static class RawTtmlLyrics
     public static LrcConversion? ConvertIfPresent(string? body)
     {
         if (string.IsNullOrWhiteSpace(body)) return null;
-        var trimmed = body.AsSpan().TrimStart();
+        var trimmed = body.AsSpan();
+        if (!trimmed.IsEmpty && trimmed[0] == '\uFEFF') trimmed = trimmed[1..];
+        trimmed = trimmed.TrimStart();
         if (!trimmed.StartsWith("<tt", StringComparison.Ordinal) &&
             !trimmed.StartsWith("<?xml", StringComparison.Ordinal)) return null;
 

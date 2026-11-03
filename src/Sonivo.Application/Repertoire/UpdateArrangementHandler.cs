@@ -6,7 +6,7 @@ using Sonivo.Domain.Common;
 namespace Sonivo.Application.Repertoire;
 
 /// <summary>
-/// PATCH semantics: null Label/DefaultKey/Lyrics/Chords/Structure/Notes/DefaultBpm/ChordTimingJson
+/// PATCH semantics: null Label/DefaultKey/Lyrics/Chords/Structure/Notes/DefaultBpm/ChordTimingJson/HarmonyJson
 /// keep current values. Non-null optional strings are applied (whitespace-only → null in the domain).
 /// ChordTimingJson: null omits; "" / "[]" / whitespace clears marks; valid JSON array replaces;
 /// malformed → <see cref="ValidationException"/>. DefaultBpm: null means omit (cannot clear an
@@ -24,7 +24,8 @@ public sealed record UpdateArrangementCommand(
     string? Structure,
     string? Notes,
     string? ChordTimingJson,
-    int ExpectedVersion);
+    int ExpectedVersion,
+    string? HarmonyJson = null);
 
 public sealed class UpdateArrangementHandler
 {
@@ -81,6 +82,9 @@ public sealed class UpdateArrangementHandler
         string? chordTimingJson = command.ChordTimingJson is null
             ? arrangement.ChordTimingJson
             : ChordTimingJsonNormalizer.Normalize(command.ChordTimingJson);
+        string? harmonyJson = command.HarmonyJson is null
+            ? arrangement.HarmonyJson
+            : HarmonyJsonNormalizer.Normalize(command.HarmonyJson);
         var importedTtml = RawTtmlLyrics.ConvertIfPresent(command.Chords) ?? RawTtmlLyrics.ConvertIfPresent(command.Lyrics);
         if (importedTtml is not null)
         {
@@ -103,6 +107,7 @@ public sealed class UpdateArrangementHandler
                 structure,
                 notes,
                 chordTimingJson,
+                harmonyJson,
                 command.ExpectedVersion,
                 _clock.UtcNow);
         }

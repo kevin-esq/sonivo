@@ -48,7 +48,8 @@ export const routes = {
   groupHelp: (groupId: string) => `${groupBase(groupId)}/help`,
   groupSong: (groupId: string, songId: string) => `${groupBase(groupId)}/songs/${encodeURIComponent(songId)}`,
   groupArrangement: (groupId: string, arrangementId: string) => `${groupBase(groupId)}/arrangements/${encodeURIComponent(arrangementId)}`,
-  groupPractice: (groupId: string, arrangementId: string) => `${groupBase(groupId)}/arrangements/${encodeURIComponent(arrangementId)}/practice`,
+  groupArrangementEdit: (groupId: string, arrangementId: string, section?: 'lyrics' | 'chords') => `${groupBase(groupId)}/arrangements/${encodeURIComponent(arrangementId)}/edit${section ? `/${section}` : ''}`,
+  groupPractice: (groupId: string, arrangementId: string) => `${groupBase(groupId)}/arrangements/${encodeURIComponent(arrangementId)}`,
   groupSettings: (groupId: string) => `${groupBase(groupId)}/settings`,
 } as const
 

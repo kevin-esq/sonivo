@@ -11,7 +11,7 @@ import type { ResourceSummary } from '../api/client'
  * API, no keys, no IFrame API / enablejsapi, no autoplay.
  */
 
-export function ReferenceEmbed({ resource }: { resource: ResourceSummary }) {
+export function ReferenceEmbed({ resource, showLabel = true }: { resource: ResourceSummary; showLabel?: boolean }) {
   const { t } = useT()
   const externalUrl = safeExternalResourceUrl(resource.url)
   const videoId = externalUrl ? parseYouTubeVideoId(externalUrl) : null
@@ -19,7 +19,7 @@ export function ReferenceEmbed({ resource }: { resource: ResourceSummary }) {
   if (videoId == null) {
     return (
       <div className="space-y-1" data-testid="reference-link">
-        <p className="text-sm font-semibold text-ink">{resource.label}</p>
+        {showLabel ? <p className="text-sm font-semibold text-ink">{resource.label}</p> : null}
         {resource.url ? (
           externalUrl ? (
             <a
@@ -39,9 +39,9 @@ export function ReferenceEmbed({ resource }: { resource: ResourceSummary }) {
   }
 
   return (
-    <div className="space-y-2" data-testid="reference-embed">
-      <p className="text-sm font-semibold text-ink">{resource.label}</p>
-      <div className="aspect-video w-full max-w-2xl overflow-hidden rounded-xl border border-border-subtle bg-black">
+    <div className="mx-auto w-full space-y-2" data-testid="reference-embed">
+      {showLabel ? <p className="text-sm font-semibold text-ink">{resource.label}</p> : null}
+      <div className="aspect-video w-full overflow-hidden rounded-xl border border-border-subtle bg-black">
         <iframe
           className="h-full w-full"
           data-testid="reference-iframe"

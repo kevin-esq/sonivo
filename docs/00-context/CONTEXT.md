@@ -2,11 +2,14 @@
 
 Durable high-level project context.
 
-**Rich lyrics authorized 2026-10-21:** ADR-0100/0101 add Sonivo-owned lyric handling with native TTML interchange, TTML/Enhanced LRC/provider-payload import, real word timing, line ends and overlapping vocal lines, reviewed Owner-triggered LRCLIB lookup, and native/classic/ChordPro/print exports. Existing Arrangement persistence and Practice firewalls remain; no automated alignment or scoring. Scope: [`PHASE-LYRICS-INTEROPERABILITY-SPEC.md`](../03-architecture/PHASE-LYRICS-INTEROPERABILITY-SPEC.md).
+**Rich lyrics authorized 2026-10-21; title-first lookup amended 2026-11-01:** ADR-0100/0101 add Sonivo-owned lyric handling with native TTML interchange, TTML/Enhanced LRC/provider-payload import, real word timing, line ends and overlapping vocal lines, reviewed Owner-triggered LRCLIB lookup, and native/classic/ChordPro/print exports. ADR-0107 allows LRCLIB search by title with optional artist/album refinements and selectable synced recordings. Existing Arrangement persistence and Practice firewalls remain; no automated alignment or scoring. Scope: [`PHASE-LYRICS-INTEROPERABILITY-SPEC.md`](../03-architecture/PHASE-LYRICS-INTEROPERABILITY-SPEC.md).
 
 **Agent tooling authorized 2026-10-28:** ADR-0103 adds project-local `caveman`, `ponytail`, `ponytail-review`, and `headroom-context` skills. RTK OSS and the Headroom MCP are optional owner-level aids; neither is a Sonivo runtime or contributor dependency. Inventory and provenance: [`../tooling/SKILLS-INVENTORY.md`](../tooling/SKILLS-INVENTORY.md).
 
-**Last updated:** 2026-10-28 (ADR-0106: Song library presentation)
+**Harmony progression editor authorized 2026-11-02:** ADR-0108 adds a full-screen, Sonivo-owned chord progression editor to Arrangement editing. Versioned harmony state remains separate from ChordPro and uses Arrangement Group authorization/version concurrency. It includes local audio preview; it does not create MIDI or connect to Audiotool.
+**Group default version authorized 2026-11-02:** ADR-0109 supersedes ADR-0025's no-preferred-Arrangement clause. `Song.DefaultArrangementId` selects a shared, live Arrangement for automatic selection; owners change it with Song concurrency. Existing Setlist/Event selections stay explicit.
+**Song metadata and tags authorized 2026-11-02:** ADR-0110 adds optional Song album, release year, uploaded cover image, and Owner-managed Group tag definitions. Existing Song tags are backfilled into the Group catalog; Song editors select only configured tags. Arrangement-specific musical details remain unchanged.
+**Last updated:** 2026-11-02 (ADR-0110: Song catalog metadata and Owner-managed tags)
 **Song library presentation:** ADR-0106 (2026-10-27) amends ADR-0055 W-B to use the owner-selected responsive list-first library. Existing song search, favorite, filter, sort, pagination, domain and authorization contracts remain unchanged.
 **Native mobile:** ADR-0093 authorizes native Kotlin/Compose and Swift/SwiftUI clients in `mobile/android` and `mobile/ios`, using Media3 and AVPlayer. ADR-0094 authorizes OIDC Authorization Code + PKCE, OpenIddict, and bearer validation; client/server implementation and deployment configuration are tracked in [`../03-architecture/PHASE-MOBILE-NATIVE-SPEC.md`](../03-architecture/PHASE-MOBILE-NATIVE-SPEC.md).
 **Development tooling:** ADR-0099 adds project-local Android device-control and GitKraken MCP servers in root `opencode.json`. Android writes are enabled for app testing while arbitrary ADB shell is disabled; GitKraken starts read-only. GitKraken account authentication remains local to the developer.
@@ -76,8 +79,8 @@ Knowledge navigation: [`INDEX.md`](INDEX.md) · Current task/checkpoint: [`../..
 4. Song = identity; Arrangement = playable aggregate; Resources on Arrangement (ADR-0007, 0008, 0014).
 5. Song may have zero Arrangements (ADR-0017). Song create does **not** require an Arrangement (**ADR-0025 ACCEPTED**).
 6. Resource purpose: `chart`\|`lyrics`\|`audio`\|`click`\|`reference`\|`practice`\|`other`; required Label; optional free-text Part (ADR-0017 revised by **ADR-0024 ACCEPTED**).  
-   13a. Song Title duplicates ALLOWED; Attribution free text; OriginKind `original`\|`cover`\|`other`; Arrangement Label required; no `IsDefault`; Key free text; BPM optional int 1–400; lyrics/chords/structure/notes plain text; Song soft-delete cascades live Arr soft-delete with Song `expectedVersion` / one tx / 409 on conflict (**ADR-0025 ACCEPTED**).
-   13b. Song Genre is optional nullable free text, max 100 characters, distinct from Tags and RightsNotes (**ADR-0104 ACCEPTED**).
+   13a. Song Title duplicates ALLOWED; Attribution free text; OriginKind `original`\|`cover`\|`other`; Arrangement Label required; shared `Song.DefaultArrangementId` (**ADR-0109**); Key free text; BPM optional int 1–400; lyrics/chords/structure/notes plain text; Song soft-delete cascades live Arr soft-delete with Song `expectedVersion` / one tx / 409 on conflict (**ADR-0025 ACCEPTED**).
+   13b. Song Genre is optional nullable free text, max 100 characters, distinct from Tags and RightsNotes (**ADR-0104 ACCEPTED**). Album and release year are optional Song metadata; optional cover art is a bounded blob. Tags are selected from the Group Owner's configured catalog, with existing values backfilled (**ADR-0110**).
 7. Setlist = reusable template; apply = copy to EventSetlistItems; `sourceSetlistId` provenance only (ADR-0016, 0017).
 8. Duplicate Arrangement appearances ALLOWED (ADR-0016).
 9. Event types: `rehearsal`\|`performance`\|`other`; cancel + soft-hide (ADR-0016).
@@ -106,7 +109,7 @@ Knowledge navigation: [`INDEX.md`](INDEX.md) · Current task/checkpoint: [`../..
 1. Responsive web; organizer desktop-first; member mobile-usable.
 2. Spanish-first UI with full English translation (es default, explicit switch; ADR-0043 ACCEPTED).
 3. Song create does not require an Arrangement (ADR-0025); optional convenience “Song + initial Arrangement” use-case only.
-4. Progressive UI may hide Arrangement chrome when only one Arrangement exists (**count-based**, not `IsDefault` — ADR-0025).
+4. Progressive UI may hide Arrangement chrome when only one Arrangement exists (**count-based**, independent of the Group default — ADR-0025/0109).
 5. Soft-delete + later blob GC acceptable.
 6. Soft-deleting a Song soft-deletes its **live** Arrangements in the same Application transaction (ADR-0025); SetlistItems remain; Event history uses copied labels.
 

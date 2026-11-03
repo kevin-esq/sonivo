@@ -23,6 +23,7 @@ public sealed class Group : IVersionedEntity
     public string? ScheduledPlanId { get; private set; }
     /// <summary>Current path slug (ADR-0048 D1). Null only for rows awaiting backfill.</summary>
     public string? Slug { get; private set; }
+    public string? SongTagDefinitions { get; private set; }
     /// <summary>
     /// Set the first (and only) time the Owner changes the slug. Null means the
     /// auto-generated slug is still changeable; non-null means the slug is final.
@@ -151,6 +152,29 @@ public sealed class Group : IVersionedEntity
 
     /// <summary>True while the auto-generated slug can still be changed once.</summary>
     public bool CanChangeSlug => SlugConfirmedAt is null;
+
+    public const int MaxSongTagCount = 50;
+    public const int MaxSongTagLength = 32;
+    public IReadOnlyList<string> SongTagList => SongTagDefinitions is null
+        ? []
+        : SongTagDefinitions.Split(',', StringSplitOptions.RemoveEmptyEntries);
+
+    public void SetSongTagDefinitions(IEnumerable<string> values, int expectedVersion, DateTimeOffset now)
+    {
+        EnsureNotDeleted();
+        EnsureExpectedVersion(expectedVersion);
+        var tags = values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim().ToLowerInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var exceedsCatalogLimit = tags.Length > MaxSongTagCount && tags.Length > SongTagList.Count;
+        if (exceedsCatalogLimit || tags.Any(tag => tag.Length > MaxSongTagLength || tag.Contains(',')))
+            throw new ArgumentException("Song tags must be unique, 32 characters or fewer, with at most 50 tags.", nameof(values));
+
+        SongTagDefinitions = tags.Length == 0 ? null : string.Join(',', tags);
+        Touch(now);
+    }
 
     /// <summary>
     /// Changes the slug once. Returns the previous slug so the caller can keep it

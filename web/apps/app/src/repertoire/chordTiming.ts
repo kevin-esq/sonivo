@@ -13,6 +13,47 @@ export type ChordWordTimingMark = {
   endMs: number
 }
 
+const displayWordMarkCache = new WeakMap<ChordWordTimingMark[], ChordWordTimingMark[]>()
+
+/** Spread missing lyric words only across explicit, time-bounded gaps for display. */
+export function fillWordTimingGapsForDisplay(marks: ChordWordTimingMark[]): ChordWordTimingMark[] {
+  const cached = displayWordMarkCache.get(marks)
+  if (cached) return cached
+
+  const byLine = new Map<number, ChordWordTimingMark[]>()
+  for (const mark of marks) {
+    const line = byLine.get(mark.lineIndex) ?? []
+    line.push(mark)
+    byLine.set(mark.lineIndex, line)
+  }
+
+  const inferred: ChordWordTimingMark[] = []
+  for (const [lineIndex, line] of byLine) {
+    line.sort((left, right) => left.wordIndex - right.wordIndex)
+    for (let index = 1; index < line.length; index++) {
+      const previous = line[index - 1]!
+      const next = line[index]!
+      const missingWords = next.wordIndex - previous.wordIndex - 1
+      const gapMs = next.startMs - previous.endMs
+      if (missingWords < 1 || gapMs <= 0) continue
+      for (let offset = 0; offset < missingWords; offset++) {
+        inferred.push({
+          lineIndex,
+          wordIndex: previous.wordIndex + offset + 1,
+          startMs: previous.endMs + gapMs * offset / missingWords,
+          endMs: previous.endMs + gapMs * (offset + 1) / missingWords,
+        })
+      }
+    }
+  }
+
+  const result = inferred.length
+    ? [...marks, ...inferred].sort((left, right) => left.startMs - right.startMs || left.lineIndex - right.lineIndex || left.wordIndex - right.wordIndex)
+    : marks
+  displayWordMarkCache.set(marks, result)
+  return result
+}
+
 export type InstrumentalTimingInterval = {
   type: 'instrumental'
   startMs: number
@@ -25,12 +66,43 @@ export type ChordTimingTimeline = {
   instrumentals: InstrumentalTimingInterval[]
 }
 
+export function isBackingVocalVisible(
+  lineIndex: number,
+  parentLineIndex: number | null,
+  activeLineIndexes: number[],
+  hasOwnMarks: boolean,
+  followLyrics: boolean,
+  hasMarks: boolean,
+): boolean {
+  if (!followLyrics || !hasMarks) return true
+  if (activeLineIndexes.includes(lineIndex)) return true
+  return !hasOwnMarks && parentLineIndex != null && activeLineIndexes.includes(parentLineIndex)
+}
+
 type ChordTimingEntry = ChordTimingMark | ChordWordTimingMark | InstrumentalTimingInterval
 
 export const EMPTY_CHORD_TIMELINE: ChordTimingTimeline = {
   lineMarks: [],
   wordMarks: [],
   instrumentals: [],
+}
+
+export function formatChordTimestamp(milliseconds: number): string {
+  const seconds = milliseconds / 1000
+  const minutes = Math.floor(seconds / 60)
+  const remainder = seconds - minutes * 60
+  const precision = milliseconds % 1000 === 0 ? 0 : 1
+  return `${minutes}:${remainder.toFixed(precision).padStart(precision ? 4 : 2, '0')}`
+}
+
+export function parseChordTimestamp(value: string): number | null {
+  const match = /^(?:(\d+):)?(\d{1,2})(?:[.,](\d{1,3}))?$/.exec(value.trim())
+  if (!match) return null
+  const minutes = Number(match[1] ?? 0)
+  const seconds = Number(match[2])
+  const fraction = Number((match[3] ?? '').padEnd(3, '0'))
+  if (seconds >= 60 && match[1] != null) return null
+  return (minutes * 60 + seconds) * 1000 + fraction
 }
 
 /** Split ChordPro body the same way the mark editor and parser do. */
@@ -165,17 +237,64 @@ export function activeChordLineIndexes(marks: ChordTimingMark[], currentMs: numb
 
 export function chordWordPresentation(marks: ChordWordTimingMark[], currentMs: number) {
   const active: Array<{ lineIndex: number; wordIndex: number; progress: number }> = []
-  const completedByLine = new Map<number, { lineIndex: number; wordIndex: number }>()
   if (!Number.isFinite(currentMs) || currentMs < 0) return { active, completed: [] }
-  for (const mark of marks) {
-    if (mark.startMs <= currentMs && currentMs < mark.endMs) {
-      active.push({ lineIndex: mark.lineIndex, wordIndex: mark.wordIndex, progress: (currentMs - mark.startMs) / (mark.endMs - mark.startMs) })
-    } else if (mark.endMs <= currentMs) {
-      const previous = completedByLine.get(mark.lineIndex)
-      if (!previous || mark.wordIndex > previous.wordIndex) completedByLine.set(mark.lineIndex, { lineIndex: mark.lineIndex, wordIndex: mark.wordIndex })
+  const completed: Array<{ lineIndex: number; wordIndex: number }> = []
+  for (const line of wordLineSummaries(marks)) {
+    const lineMarks = line.marks
+    if (!line.monotonic) {
+      let completedWordIndex = -1
+      for (const mark of lineMarks) {
+        if (mark.startMs <= currentMs && currentMs < mark.endMs) {
+          active.push({ lineIndex: mark.lineIndex, wordIndex: mark.wordIndex, progress: (currentMs - mark.startMs) / (mark.endMs - mark.startMs) })
+        } else if (mark.endMs <= currentMs) completedWordIndex = Math.max(completedWordIndex, mark.wordIndex)
+      }
+      if (completedWordIndex >= 0) completed.push({ lineIndex: line.lineIndex, wordIndex: completedWordIndex })
+      continue
+    }
+    let low = 0
+    let high = lineMarks.length
+    while (low < high) {
+      const middle = (low + high) >>> 1
+      if (lineMarks[middle]!.endMs <= currentMs) low = middle + 1
+      else high = middle
+    }
+    if (low > 0) completed.push({ lineIndex: line.lineIndex, wordIndex: lineMarks[low - 1]!.wordIndex })
+
+    let activeIndex = low
+    while (activeIndex < lineMarks.length && lineMarks[activeIndex]!.startMs <= currentMs) {
+      const mark = lineMarks[activeIndex++]!
+      if (currentMs < mark.endMs) active.push({ lineIndex: mark.lineIndex, wordIndex: mark.wordIndex, progress: (currentMs - mark.startMs) / (mark.endMs - mark.startMs) })
     }
   }
-  return { active, completed: [...completedByLine.values()] }
+  return { active, completed }
+}
+
+type WordLineSummary = { lineIndex: number; firstStartMs: number; lastEndMs: number; nextStartMs?: number; monotonic: boolean; marks: ChordWordTimingMark[] }
+const wordLineSummaryCache = new WeakMap<ChordWordTimingMark[], WordLineSummary[]>()
+
+function wordLineSummaries(marks: ChordWordTimingMark[]): WordLineSummary[] {
+  const cached = wordLineSummaryCache.get(marks)
+  if (cached) return cached
+  const byLine = new Map<number, WordLineSummary>()
+  for (const mark of marks) {
+    const line = byLine.get(mark.lineIndex)
+    if (!line) byLine.set(mark.lineIndex, { lineIndex: mark.lineIndex, firstStartMs: mark.startMs, lastEndMs: mark.endMs, monotonic: true, marks: [mark] })
+    else {
+      line.marks.push(mark)
+      line.firstStartMs = Math.min(line.firstStartMs, mark.startMs)
+      line.lastEndMs = Math.max(line.lastEndMs, mark.endMs)
+    }
+  }
+  for (const line of byLine.values()) {
+    line.marks.sort((left, right) => left.startMs - right.startMs || left.wordIndex - right.wordIndex)
+    line.monotonic = line.marks.every((mark, index) => index === 0 || (
+      mark.endMs >= line.marks[index - 1]!.endMs && mark.wordIndex > line.marks[index - 1]!.wordIndex
+    ))
+  }
+  const summaries = [...byLine.values()].sort((left, right) => left.firstStartMs - right.firstStartMs || left.lineIndex - right.lineIndex)
+  summaries.forEach((line, index) => { line.nextStartMs = summaries[index + 1]?.firstStartMs })
+  wordLineSummaryCache.set(marks, summaries)
+  return summaries
 }
 
 /** Keep a word-timed lyric line active through the gap before the next line starts. */
@@ -186,34 +305,26 @@ export function activeChordWordLineIndexes(
 ): number[] {
   if (!Number.isFinite(currentMs) || currentMs < 0 || marks.length === 0) return []
 
-  const marksByLine = new Map<number, ChordWordTimingMark[]>()
-  for (const mark of marks) {
-    const lineMarks = marksByLine.get(mark.lineIndex) ?? []
-    lineMarks.push(mark)
-    marksByLine.set(mark.lineIndex, lineMarks)
-  }
+  const summaries = wordLineSummaries(marks)
+  const lineTimingByIndex = new Map(timingLineMarks.map(mark => [mark.lineIndex, mark]))
 
   const activeLines: number[] = []
-  for (const [lineIndex, lineWordMarks] of marksByLine) {
-    const lineEndMark = timingLineMarks.find(mark => mark.lineIndex === lineIndex && mark.endMs !== undefined)
-    if (lineEndMark?.endMs !== undefined) {
-      if (lineEndMark.atMs <= currentMs && currentMs < lineEndMark.endMs) activeLines.push(lineIndex)
+  for (const line of summaries) {
+    const lineMark = lineTimingByIndex.get(line.lineIndex)
+    if (lineMark?.endMs !== undefined) {
+      const lineStartMs = lineMark.atMs
+      if (lineStartMs <= currentMs && currentMs < lineMark.endMs) activeLines.push(line.lineIndex)
       continue
     }
 
-    const firstWordStartMs = Math.min(...lineWordMarks.map(mark => mark.startMs))
-    if (currentMs < firstWordStartMs) continue
-    const lastWordEndMs = Math.max(...lineWordMarks.map(mark => mark.endMs))
-    if (currentMs < lastWordEndMs) {
-      activeLines.push(lineIndex)
+    if (currentMs < line.firstStartMs) continue
+    if (currentMs < line.lastEndMs) {
+      activeLines.push(line.lineIndex)
       continue
     }
 
-    const nextOtherLineStartMs = marks
-      .filter(mark => mark.lineIndex !== lineIndex && mark.startMs >= lastWordEndMs)
-      .reduce((next, mark) => Math.min(next, mark.startMs), Number.POSITIVE_INFINITY)
-    if (Number.isFinite(nextOtherLineStartMs) && currentMs < nextOtherLineStartMs) {
-      activeLines.push(lineIndex)
+    if (line.nextStartMs !== undefined && currentMs < line.nextStartMs) {
+      activeLines.push(line.lineIndex)
     }
   }
 

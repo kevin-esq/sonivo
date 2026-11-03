@@ -16,6 +16,10 @@ public sealed class SongConfiguration : IEntityTypeConfiguration<Song>
         builder.Property(x => x.Attribution).HasMaxLength(300);
         builder.Property(x => x.OriginKind).IsRequired().HasMaxLength(32);
         builder.Property(x => x.Genre).HasMaxLength(Song.MaxGenreLength);
+        builder.Property(x => x.Album).HasMaxLength(Song.MaxAlbumLength);
+        builder.Property(x => x.CoverImageObjectKey).HasMaxLength(512);
+        builder.Property(x => x.CoverImageContentType).HasMaxLength(64);
+        builder.Property(x => x.ReleaseYear);
         builder.Property(x => x.RightsNotes).HasMaxLength(2000);
         builder.Property(x => x.Tags).HasMaxLength(500);
         builder.Property(x => x.Version).IsConcurrencyToken();
@@ -25,6 +29,11 @@ public sealed class SongConfiguration : IEntityTypeConfiguration<Song>
         builder.HasOne<Domain.Tenancy.Group>()
             .WithMany()
             .HasForeignKey(x => x.GroupId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Arrangement>()
+            .WithMany()
+            .HasForeignKey(x => new { x.GroupId, x.Id, x.DefaultArrangementId })
+            .HasPrincipalKey(x => new { x.GroupId, x.SongId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -39,6 +48,7 @@ public sealed class ArrangementConfiguration : IEntityTypeConfiguration<Arrangem
         builder.Property(x => x.DefaultKey).HasMaxLength(32);
         builder.Property(x => x.DefaultBpm);
         builder.Property(x => x.ChordTimingJson).HasColumnType("text");
+        builder.Property(x => x.HarmonyJson).HasColumnType("text");
         builder.Property(x => x.Version).IsConcurrencyToken();
         builder.HasIndex(x => new { x.GroupId, x.Id }).IsUnique();
         builder.HasIndex(x => x.GroupId);

@@ -4,13 +4,14 @@ import { useEffect } from 'react'
 import { useAudioPlayer } from '../repertoire/AudioPlayerContext'
 import { PersistentGlobalPlayer } from './PersistentGlobalPlayer'
 
-/** Keeps audio visible for authenticated sessions and stops playback on logout. */
-export function AuthenticatedPlayer({ active }: { active: boolean }) {
+/** Shows playback controls on repertoire audio surfaces and closes them elsewhere. */
+export function AuthenticatedPlayer({ active, pathname }: { active: boolean; pathname: string }) {
   const { closeTrack } = useAudioPlayer()
+  const playbackArea = /^\/app\/(?:groups\/[^/]+|g\/[^/]+)\/(?:library|songs\/[^/]+|arrangements\/[^/]+)(?:\/.*)?\/?$/.test(pathname)
   useEffect(() => {
-    if (!active) closeTrack()
-    // closeTrack is intentionally read only when the session changes.
+    if (!active || !playbackArea) closeTrack()
+    // closeTrack is needed only when session or playback-area state changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
-  return active ? <PersistentGlobalPlayer /> : null
+  }, [active, playbackArea])
+  return active && playbackArea ? <PersistentGlobalPlayer /> : null
 }

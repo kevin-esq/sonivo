@@ -73,9 +73,9 @@ All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (G
 | Update Song | PATCH | `.../songs/{songId}` | Owner | `expectedVersion` required | 200 | 401, 403, 404, 400, 409 |
 | Soft-delete Song | DELETE | `.../songs/{songId}` | Owner | Body `{ expectedVersion }`; cascade live Arrs (ADR-0025 §8a) | 204 | 401, 403, 404, 400, 409 |
 | List Arrangements | GET | `.../songs/{songId}/arrangements` | Member | Live only; order CreatedAt | 200 | 401, 404 |
-| Create Arrangement | POST | `.../songs/{songId}/arrangements` | Owner | Label required; no IsDefault | 201 | 401, 403, 404, 400 |
-| Get Arrangement | GET | `.../arrangements/{arrangementId}` | Member | Includes resource summaries | 200 | 401, 404 |
-| Update Arrangement | PATCH | `.../arrangements/{arrangementId}` | Owner | `expectedVersion` required | 200 | 401, 403, 404, 400, 409 |
+| Create Arrangement | POST | `.../songs/{songId}/arrangements` | Owner | Label required; no IsDefault; optional `harmonyJson` v1 | 201 | 401, 403, 404, 400 |
+| Get Arrangement | GET | `.../arrangements/{arrangementId}` | Member | Includes resource summaries and optional `harmonyJson` | 200 | 401, 404 |
+| Update Arrangement | PATCH | `.../arrangements/{arrangementId}` | Owner | `expectedVersion` required; optional `harmonyJson` v1 | 200 | 401, 403, 404, 400, 409 |
 | Soft-delete Arrangement | DELETE | `.../arrangements/{arrangementId}` | Owner | Body `{ expectedVersion }`; Resources left | 204 | 401, 403, 404, 400, 409 |
 | List Resources | GET | `.../arrangements/{arrangementId}/resources` | Member | Link + file metadata (no bytes) | 200 | 401, 404 |
 | Create link Resource | POST | `.../arrangements/{arrangementId}/resources` | Owner | JSON `kind=link`; `url` must be a well-formed absolute HTTP(S) URL without embedded credentials; reject JSON `kind=file` | 201 | 401, 403, 404, 400 |

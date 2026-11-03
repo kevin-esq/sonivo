@@ -451,6 +451,9 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("GroupId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("HarmonyJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("Label")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -555,15 +558,29 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Sonivo.Domain.Repertoire.Song", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Album")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Attribution")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<string>("CoverImageContentType")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("CoverImageObjectKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DefaultArrangementId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
@@ -579,6 +596,9 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
+
+                    b.Property<int?>("ReleaseYear")
+                        .HasColumnType("integer");
 
                     b.Property<string>("RightsNotes")
                         .HasMaxLength(2000)
@@ -606,6 +626,8 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("GroupId", "Id")
                         .IsUnique();
+
+                    b.HasIndex("GroupId", "Id", "DefaultArrangementId");
 
                     b.ToTable("Songs", null, t =>
                         {
@@ -989,6 +1011,9 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset?>("SlugConfirmedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SongTagDefinitions")
+                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset?>("TrialEndsAt")
                         .HasColumnType("timestamp with time zone");
@@ -1593,6 +1618,12 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .HasForeignKey("GroupId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Sonivo.Domain.Repertoire.Arrangement", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId", "Id", "DefaultArrangementId")
+                        .HasPrincipalKey("GroupId", "SongId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Sonivo.Domain.Repertoire.SongFavorite", b =>
