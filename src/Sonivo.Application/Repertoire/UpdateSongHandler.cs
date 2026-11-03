@@ -19,7 +19,10 @@ public sealed record UpdateSongCommand(
     string? RightsNotes,
     int ExpectedVersion,
     string? Tags = null,
-    string? Genre = null);
+    string? Genre = null,
+    string? Album = null,
+    int? ReleaseYear = null,
+    bool ClearReleaseYear = false);
 
 public sealed class UpdateSongHandler
 {
@@ -40,7 +43,7 @@ public sealed class UpdateSongHandler
 
     public async Task<SongDetailDto> HandleAsync(UpdateSongCommand command, CancellationToken cancellationToken)
     {
-        await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.SongEdit, cancellationToken);
+        var (group, _) = await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.SongEdit, cancellationToken);
 
         var song = await _songs.GetByIdAsync(command.GroupId, command.SongId, cancellationToken);
         if (song is null)
@@ -62,10 +65,13 @@ public sealed class UpdateSongHandler
         var rightsNotes = command.RightsNotes ?? song.RightsNotes;
         var tags = command.Tags ?? song.Tags;
         var genre = command.Genre ?? song.Genre;
+        var album = command.Album ?? song.Album;
+        var releaseYear = command.ClearReleaseYear ? null : command.ReleaseYear ?? song.ReleaseYear;
+        if (command.Tags is not null) CreateSongHandler.EnsureDefinedTags(command.Tags, group.SongTagList);
 
         try
         {
-            song.Update(title, attribution, originKind, rightsNotes, tags, command.ExpectedVersion, _clock.UtcNow, genre);
+            song.Update(title, attribution, originKind, rightsNotes, tags, command.ExpectedVersion, _clock.UtcNow, genre, album, releaseYear);
         }
         catch (ArgumentException ex)
         {

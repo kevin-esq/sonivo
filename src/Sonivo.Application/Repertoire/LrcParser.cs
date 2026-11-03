@@ -12,7 +12,7 @@ public sealed record LrcEntry(int LineIndex, int AtMs, string Text, int? EndMs =
 public sealed record LyricWord(int LineIndex, int WordIndex, int StartMs, int EndMs);
 public sealed record LyricInstrumental(int StartMs, int EndMs);
 
-/// <summary>[ti]/[ar]/[al]/[by]/[offset] tags.</summary>
+/// <summary>[ti]/[ar]/[al]/[by]/[offset] tags. Unknown tags are ignored, not rejected.</summary>
 public sealed record LrcMetadata(string? Title, string? Artist, string? Album, string? By, int OffsetMs);
 
 public sealed record LrcParseResult(
@@ -117,6 +117,10 @@ public static partial class LrcParser
                     case "offset":
                         if (int.TryParse(value, out var parsed)) offsetMs = parsed;
                         else errors.Add(new LrcError(lineNumber, "offset is not an integer"));
+                        break;
+                    default:
+                        // Non-standard tags ([tool:], [re:], [ve:], [hello:]) are valid
+                        // metadata in the wild; keep them out of the error list.
                         break;
                 }
 
@@ -241,10 +245,10 @@ public static partial class LrcParser
         }
     }
 
-    [GeneratedRegex(@"\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]")]
+    [GeneratedRegex(@"\[\s*(\d{1,3})\s*:\s*(\d{1,2})(?:\s*[.:]\s*(\d{1,3}))?\s*\]")]
     private static partial Regex TimeTagRegex();
 
-    [GeneratedRegex(@"^\[(ti|ar|al|by|offset):(.*)\]$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^\[\s*([A-Za-z][A-Za-z0-9_.-]*)\s*:\s*(.*?)\s*\]$")]
     private static partial Regex MetaTagRegex();
 }
 

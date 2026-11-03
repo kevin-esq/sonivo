@@ -1,6 +1,94 @@
+.persistent-player__capsule,
+.persistent-player__desktop-card {
+  position: relative;
+  isolation: isolate;
+}
+.persistent-player__capsule::after,
+.persistent-player__desktop-card::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from -90deg, var(--brand-primary) 0deg var(--player-progress-angle), transparent var(--player-progress-angle) 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--brand-primary) 42%, transparent));
+  content: '';
+  pointer-events: none;
+}
+@property --player-progress-angle {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
+}
 .persistent-player__capsule {
-  box-shadow: 0 12px 36px -14px color-mix(in srgb, var(--color-shell-foreground) 28%, transparent);
-  animation: player-arrive 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  box-shadow: 0 12px 36px -14px color-mix(in srgb, var(--color-shell-foreground) 28%, transparent), 0 0 22px -12px color-mix(in srgb, var(--brand-primary) 62%, transparent);
+  animation: player-arrive 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: transform 340ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out;
+  touch-action: none;
+}
+.persistent-player__desktop-card {
+  animation: player-arrive 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: border-color 180ms ease-out, box-shadow 180ms ease-out;
+}
+.persistent-player__desktop-card:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 34%, var(--color-shell-border));
+}
+.player-cover,
+.now-playing-artwork {
+  background:
+    radial-gradient(ellipse at 28% 24%, color-mix(in srgb, var(--brand-primary) 88%, white), transparent 50%),
+    linear-gradient(145deg, color-mix(in srgb, var(--brand-primary) 76%, #161126), #171522 72%);
+}
+.now-playing-artwork {
+  background: color-mix(in srgb, var(--brand-primary) 18%, var(--color-shell));
+  box-shadow: none;
+}
+.now-playing-overlay { isolation: isolate; background: var(--color-shell); }
+.now-playing-overlay::before {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  background: none;
+  content: '';
+  pointer-events: none;
+}
+.persistent-player__capsule--dragging { transition: none; }
+.now-playing-overlay { transition: transform 340ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease-out, border-radius 340ms ease-out; }
+.now-playing-overlay--dragging { transition: none; }
+.now-playing-swipe-surface { touch-action: none; }
+.now-playing-swipe-handle { touch-action: none; }
+.now-playing-panel { animation: player-panel-enter 300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.synced-lyric-row {
+  border-radius: 1rem;
+  opacity: var(--lyric-line-opacity, 1);
+  filter: blur(var(--lyric-line-blur, 0px));
+  transition: background-color 220ms ease-out, filter 480ms cubic-bezier(0.22, 1, 0.36, 1), opacity 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.synced-lyric-row[data-stage-line] { opacity: var(--lyric-line-opacity, 1); }
+.synced-lyric-row[data-lyric-depth="focused"] { opacity: 1; filter: blur(0); }
+.synced-lyric-row:has(:focus-visible) {
+  background-color: color-mix(in srgb, var(--brand-primary) 7%, var(--color-shell));
+}
+.synced-lyric-row:has(:focus-visible) { filter: blur(0); opacity: 1; }
+.synced-lyric-row:has(:focus-visible) p { filter: blur(0); opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+  .synced-lyric-row:hover {
+    background-color: color-mix(in srgb, var(--brand-primary) 7%, var(--color-shell));
+  }
+  .synced-lyric-row:hover { filter: blur(0); opacity: 1; }
+  .synced-lyric-row:hover > p,
+  .synced-lyric-row:hover p { filter: blur(0); opacity: 1; }
+}
+.lyrics-word-active {
+  filter: brightness(1.02) drop-shadow(0 1px 2px color-mix(in srgb, var(--brand-primary) 48%, transparent)) drop-shadow(0 0 var(--lyric-glow-radius, 3px) color-mix(in srgb, var(--brand-primary) 34%, transparent));
+  transition: filter 180ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lyrics-word-active { transition: none; }
 }
 .persistent-player__wave-control:focus-within {
   outline: 2px solid var(--brand-primary);
@@ -16,6 +104,20 @@
   background: transparent;
   cursor: pointer;
   border-radius: 8px;
+}
+.persistent-player__volume-input::-webkit-inner-spin-button,
+.persistent-player__volume-input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+.persistent-player__volume-input { -moz-appearance: textfield; }
+.persistent-player__range--vertical {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
 }
 .persistent-player__range:focus-visible {
   outline: 2px solid var(--brand-primary);
@@ -46,11 +148,39 @@
   border-radius: 50%;
   background: var(--brand-primary);
 }
+.persistent-player__range--vertical::-webkit-slider-runnable-track {
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(to top, var(--brand-primary) var(--player-fill), var(--color-border-subtle) var(--player-fill));
+}
+.persistent-player__range--vertical::-moz-range-track {
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(to top, var(--brand-primary) var(--player-fill), var(--color-border-subtle) var(--player-fill));
+}
 .persistent-player__range:disabled { cursor: default; opacity: 0.5; }
 @keyframes player-arrive {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes player-panel-enter {
+  from { opacity: 0; transform: translateY(0.5rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .persistent-player__capsule { animation: none; }
+  .persistent-player__capsule { animation: none; transition: none; }
+  .persistent-player__desktop-card { animation: none; transition: none; }
+  .persistent-player__capsule::after,
+  .persistent-player__desktop-card::after { transition: none; }
+  .now-playing-overlay { transition: none; }
+  .now-playing-panel { animation: none; }
+  .synced-lyric-row { transition: none; }
+}
+@media (max-height: 620px) and (max-width: 767px) {
+  .now-playing-swipe-surface { touch-action: pan-y; }
+}
+@media (min-width: 768px) {
+  .persistent-player__desktop-card {
+    box-shadow: 0 22px 56px -22px color-mix(in srgb, var(--color-shell-foreground) 46%, transparent), 0 8px 22px -14px color-mix(in srgb, var(--color-shell-foreground) 38%, transparent);
+  }
 }

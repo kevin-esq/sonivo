@@ -28,14 +28,28 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     await createSong(page, 'LRC Song')
     await openSong(page, 'LRC Song')
     await createArrangement(page, 'Acoustic')
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
+    await page.getByRole('button', { name: 'Editar', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: /Editar letra/ }).click()
     await expect(page.getByTestId('arrangement-editor')).toBeVisible()
 
     // Import is an advanced option inside the lyrics editor.
-    await page.locator('details[aria-labelledby="lrc-heading"] summary').click()
+    await page.getByTestId('open-lyrics-dialog').click()
+    const addLyricsDialog = page.getByTestId('lyric-import-options')
+    await page.route('**/lyrics/lookup', async (route) => route.fulfill({
+      status: 404,
+      contentType: 'application/problem+json',
+      body: '{}',
+    }))
+    await addLyricsDialog.getByRole('button', { name: 'Buscar', exact: true }).click()
+    const missingResponse = page.waitForResponse(response => response.url().includes('/lyrics/lookup'))
+    await addLyricsDialog.getByRole('button', { name: 'Buscar letra' }).click()
+    expect((await missingResponse).status()).toBe(404)
+    await expect(addLyricsDialog.getByRole('status')).toContainText('Letra sincronizada no encontrada')
+    await expect(addLyricsDialog.getByRole('alert')).toHaveCount(0)
+    await addLyricsDialog.getByRole('button', { name: 'Archivo' }).click()
 
     // A realistic file: metadata tags, chords inside a line and a repeated mark.
-    const lrcDropzone = page.getByTestId('lrc-file-dropzone')
+    const lrcDropzone = addLyricsDialog.getByTestId('lrc-file-dropzone')
     await expect(lrcDropzone).toBeVisible()
     await lrcDropzone.locator('input[type="file"]').setInputFiles({
       name: 'practice.lrc',
@@ -47,49 +61,45 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     // Preview: assert the conversion the server returned.
     const [previewResponse] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/lyrics/import-lrc')),
-      page.getByRole('button', { name: 'Previsualizar' }).click(),
+      addLyricsDialog.getByRole('button', { name: 'Revisar importación' }).click(),
     ])
     expect(previewResponse.ok()).toBeTruthy()
     const preview = await previewResponse.json()
     expect(preview.lyrics).toBe('Hola\n[Am]Dos\nDos otra vez')
     expect(preview.markCount).toBe(3)
     expect(preview.errors).toEqual([])
-    await expect(page.getByText(/3 marcas/)).toBeVisible()
+    await expect(addLyricsDialog.getByText(/3 marcas/)).toBeVisible()
 
     // Offset: the UI offset is ADDED to the marks (12000 + 1000 = 13000).
-    await page.getByLabel('Desfase (ms)').fill('1000')
+    await addLyricsDialog.getByLabel('Desfase (ms)').fill('1000')
     const [offsetResponse] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/lyrics/import-lrc')),
-      page.getByRole('button', { name: 'Previsualizar' }).click(),
+      addLyricsDialog.getByRole('button', { name: 'Revisar importación' }).click(),
     ])
     const offsetPreview = await offsetResponse.json()
     expect(offsetPreview.chordTimingJson).toContain('"atMs":13000')
 
     // Applying updates the editor draft; the explicit save persists it.
-    await page.getByRole('button', { name: 'Aplicar a la letra' }).click()
-    await expect(page.getByRole('button', { name: 'Aplicar a la letra' })).toBeHidden()
+    await addLyricsDialog.getByRole('button', { name: 'Añadir al borrador' }).click()
+    await expect(addLyricsDialog).toBeHidden()
 
     const [patchResponse] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/arrangements/') && r.request().method() === 'PATCH'),
       page.getByRole('button', { name: 'Guardar cambios' }).click(),
     ])
     expect(patchResponse.ok()).toBeTruthy()
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
     await expect(page.getByTestId('arrangement-editor')).toBeVisible()
-    await page.locator('details[aria-labelledby="lrc-heading"] summary').click()
+    await page.getByRole('button', { name: 'Volver a editar' }).click()
 
-    // Export downloads a .lrc file containing the timestamps.
+    // The arrangement view provides Sonivo's lossless timed-lyrics export.
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Exportar .lrc' }).click(),
+      page.getByRole('button', { name: 'Descargar TTML de Sonivo' }).click(),
     ])
-    expect(download.suggestedFilename()).toMatch(/\.lrc$/)
+    expect(download.suggestedFilename()).toMatch(/\.ttml$/)
 
-    // Read the real exported file: the offset must be baked into the timestamps.
+    // The native document retains timing and Sonivo metadata.
     const exported = readFileSync((await download.path())!, 'utf8')
-    console.log(`EXPORTED_LRC_START\n${exported}EXPORTED_LRC_END`)
-    expect(exported).toContain('[00:13.00]Hola')
-    expect(exported).toContain('[00:16.50][Am]Dos')
-    await page.getByRole('button', { name: 'Cancelar' }).click()
+    expect(exported).toContain('sonivo:version="1"')
   })
 })

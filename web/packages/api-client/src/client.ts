@@ -81,6 +81,25 @@ export async function apiRequest<T>(
   return (await response.json()) as T
 }
 
+export async function apiBlob(path: string): Promise<Blob> {
+  const response = await fetch(path, {
+    credentials: 'include',
+    headers: { Accept: '*/*' },
+  })
+
+  if (!response.ok) {
+    let body: unknown
+    try {
+      body = await response.json()
+    } catch {
+      body = undefined
+    }
+    throw new ApiError(`Request failed: ${response.status}`, response.status, body)
+  }
+
+  return response.blob()
+}
+
 /** Multipart upload (branding logo/banner): the browser sets the boundary, so no Content-Type. */
 export async function apiUpload<T>(path: string, file: File, field = 'file'): Promise<T> {
   const form = new FormData()
@@ -762,6 +781,10 @@ export type SongListItem = {
   id: string
   title: string
   attribution: string | null
+  genre: string | null
+  album: string | null
+  releaseYear: number | null
+  hasCoverImage: boolean
   originKind: SongOriginKind
   version: number
   createdAt: string
@@ -808,6 +831,7 @@ export type ArrangementListItem = {
   version: number
   createdAt: string
   updatedAt: string
+  isDefault: boolean
 }
 
 export type ArrangementDetail = ArrangementListItem & {
@@ -832,6 +856,9 @@ export async function createSong(
     title: string
     originKind: SongOriginKind
     attribution?: string | null
+    genre?: string | null
+    album?: string | null
+    releaseYear?: number | null
     rightsNotes?: string | null
     tags?: string[]
   },
@@ -854,6 +881,10 @@ export async function updateSong(
     title?: string | null
     originKind?: SongOriginKind | null
     attribution?: string | null
+    genre?: string | null
+    album?: string | null
+    releaseYear?: number | null
+    clearReleaseYear?: boolean
     rightsNotes?: string | null
     tags?: string[]
   },
@@ -861,6 +892,22 @@ export async function updateSong(
   return apiRequest<SongDetail>(`/api/groups/${groupId}/songs/${songId}`, {
     method: 'PATCH',
     body: input,
+  })
+}
+
+export function songCoverImageUrl(groupId: string, songId: string, version?: number): string {
+  const path = `/api/groups/${encodeURIComponent(groupId)}/songs/${encodeURIComponent(songId)}/cover`
+  return version == null ? path : `${path}?v=${version}`
+}
+
+export function uploadSongCoverImage(groupId: string, songId: string, file: File, expectedVersion: number): Promise<SongDetail> {
+  return apiUpload<SongDetail>(`${songCoverImageUrl(groupId, songId)}?expectedVersion=${expectedVersion}`, file)
+}
+
+export function removeSongCoverImage(groupId: string, songId: string, expectedVersion: number): Promise<SongDetail> {
+  return apiRequest<SongDetail>(songCoverImageUrl(groupId, songId), {
+    method: 'DELETE',
+    body: { expectedVersion },
   })
 }
 

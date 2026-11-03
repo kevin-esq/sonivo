@@ -59,8 +59,8 @@ public sealed class GetArrangementHandler
         var detail = CreateArrangementHandler.ToDetail(arrangement, resources);
         try
         {
-            var importedTtml = RawTtmlLyrics.ConvertIfPresent(
-                string.IsNullOrWhiteSpace(detail.Chords) ? detail.Lyrics : detail.Chords);
+            var importedTtml = RawTtmlLyrics.ConvertIfPresent(detail.Lyrics)
+                ?? RawTtmlLyrics.ConvertIfPresent(detail.Chords);
             return importedTtml is null ? detail : detail with
             {
                 Lyrics = importedTtml.Lyrics,

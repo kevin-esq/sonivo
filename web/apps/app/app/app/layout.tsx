@@ -55,7 +55,7 @@ export default function ProductLayout({ children }: { children: ReactNode }) {
       <AppShell user={session.user} onLogout={onLogout} navigationMode="next">
         <ErrorBoundary resetKey={pathname} navigationMode="next">{children}</ErrorBoundary>
       </AppShell>
-      <AuthenticatedPlayer active />
+      <AuthenticatedPlayer active pathname={pathname} />
     </>
   )
 }

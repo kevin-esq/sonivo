@@ -1,6 +1,6 @@
 # DOMAIN-MODEL.md — Sonivo
 
-Domain model for MVP. **ACCEPTED** ADRs 0005–0008, 0012–0014, Phase 1 **0015–0018**, persistence/security **0019–0023**, rehearsal Resources **0024**, Song/Arrangement fields **0025**.
+Domain model for MVP. **ACCEPTED** ADRs 0005–0008, 0012–0014, Phase 1 **0015–0018**, persistence/security **0019–0023**, rehearsal Resources **0024**, Song/Arrangement fields **0025**, and harmony progression editor **0108**.
 
 Conflict reading order (ACCEPTED): **0025 > 0024 > 0023 > 0022 > … > 0018 > 0017 > 0016 > 0015**.
 
@@ -55,8 +55,13 @@ Song
 ├── GroupId
 ├── Title          (required, non-blank; duplicates within Group ALLOWED)
 ├── Attribution    (optional free text)
+├── Album          (optional)
+├── ReleaseYear    (optional)
+├── CoverImage     (optional blob reference)
 ├── OriginKind     (original | cover | other)
 ├── RightsNotes    (optional free text)
+├── Tags           (selected from Group definitions; ADR-0110)
+├── DefaultArrangementId? (Group-wide; ADR-0109)
 ├── Version
 └── DeletedAt      (soft-delete)
 ```
@@ -75,6 +80,7 @@ Arrangement
 ├── DefaultBpm         (optional int 1–400)
 ├── Lyrics             (optional plain text)
 ├── Chords             (optional plain text)
+├── HarmonyJson        (optional versioned progression state; ADR-0108)
 ├── Structure          (optional plain text)
 ├── Notes              (optional plain text)
 ├── Resources[]        (ADR-0024)
@@ -82,8 +88,9 @@ Arrangement
 └── DeletedAt
 ```
 
-- Identity = `ArrangementId`. **No `IsDefault`.** UI lists by Label; Setlist/Event pick ArrangementId explicitly.  
+- Identity = `ArrangementId`. `Song.DefaultArrangementId` optionally selects the Group-wide default; it must reference an Arrangement belonging to the same Song and Group (ADR-0109). Setlist/Event keep explicit ArrangementId selections.
 - Soft-delete Arr → Resources remain; Setlist/Event FKs remain; cannot **add** deleted Arr to Setlist; Apply fails if template has deleted Arr. **No restore MVP.**  
+- `HarmonyJson` stores progression sections, bars, chord durations, meter, scale, genre label, and accompaniment settings. It remains separate from ChordPro and uses the existing Group-scoped Arrangement API and version concurrency (ADR-0108).
 - Edits mutate live library in place; past Events do not rewrite (0018). No version history; Duplicate Arrangement = FUTURE.
 
 ### Responsibility matrix
@@ -127,7 +134,7 @@ Resource
 | First-class Part entity | REJECTED MVP (0024) |
 | Arrangement version history | FUTURE |
 | Song title uniqueness | **ALLOW duplicates (0025)** |
-| IsDefault | **OUT OF MVP (0025)** |
+| Group-wide default Arrangement | ACCEPTED (0109) |
 
 ---
 
@@ -137,7 +144,7 @@ Resource
 | ---------- | --- | ------ |
 | Songs / multi-Arr / Labels / Key / BPM / lyrics/chords/structure/notes / Resources | Yes | — |
 | Arrangement duplication / version history | No | Yes / maybe |
-| IsDefault / preferred Arrangement | No | Maybe |
+| Group-wide default Arrangement | Yes (0109) | — |
 | Transposition / notation / structured sections / tags | No | Maybe |
 | Search | List/filter | Full search |
 | Soft-delete restore | No | Maybe |

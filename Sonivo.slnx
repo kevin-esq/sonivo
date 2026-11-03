@@ -11,4 +11,7 @@
     <Project Path="tests/Sonivo.Domain.Tests/Sonivo.Domain.Tests.csproj" />
     <Project Path="tests/Sonivo.Integration.Tests/Sonivo.Integration.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Sonivo.LyricsMigration/Sonivo.LyricsMigration.csproj" />
+  </Folder>
 </Solution>

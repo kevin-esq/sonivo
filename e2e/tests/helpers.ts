@@ -153,9 +153,6 @@ export async function createSong(page: Page, title: string) {
     }
     await expect(dialog).toBeVisible({ timeout: 2000 })
     await dialog.getByLabel('Título').fill(title, { timeout: 3000 })
-    await dialog.getByRole('button', { name: 'Más datos (opcional)' }).click({ timeout: 3000 })
-    await dialog.getByRole('combobox', { name: 'Tipo de canción' }).click({ timeout: 3000 })
-    await page.getByRole('option', { name: 'Propia', exact: true }).click({ timeout: 3000 })
     await dialog.getByRole('button', { name: 'Continuar' }).click({ timeout: 3000 })
     await dialog.getByRole('button', { name: 'Omitir audio' }).click({ timeout: 3000 })
     await dialog.getByRole('button', { name: 'Continuar' }).click({ timeout: 3000 })

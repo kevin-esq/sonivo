@@ -2092,6 +2092,32 @@ app.MapGet("/api/groups/{groupId:guid}", async (
 .WithName("GetGroup")
 .RequireAuthorization();
 
+app.MapGet("/api/groups/{groupId:guid}/song-tags", async (
+    Guid groupId, ClaimsPrincipal principal, UserManager<ApplicationUser> users,
+    GetGroupSongTagsHandler handler, CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    var result = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
+    return Results.Ok(new { tags = result.Tags, version = result.Version });
+})
+.WithName("GetGroupSongTags")
+.RequireAuthorization();
+
+app.MapPut("/api/groups/{groupId:guid}/song-tags", async (
+    Guid groupId, UpdateGroupSongTagsRequest request, ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users, UpdateGroupSongTagsHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    var result = await handler.HandleAsync(new UpdateGroupSongTagsCommand(
+        userId.Value, groupId, request.ExpectedVersion, request.Tags ?? []), cancellationToken);
+    return Results.Ok(new { tags = result.Tags, version = result.Version });
+})
+.WithName("UpdateGroupSongTags")
+.RequireAuthorization();
+
 app.MapGet("/api/groups/by-slug/{slug}", async (
     string slug,
     ClaimsPrincipal principal,
@@ -4696,7 +4722,9 @@ app.MapPost("/api/groups/{groupId:guid}/songs", async (
             request.OriginKind ?? string.Empty,
             request.RightsNotes,
             request.Tags is null ? null : string.Join(',', request.Tags),
-            request.Genre),
+            request.Genre,
+            request.Album,
+            request.ReleaseYear),
         cancellationToken);
 
     return Results.Created($"/api/groups/{groupId}/songs/{created.Id}", ToSongDetailResponse(created));
@@ -4750,12 +4778,85 @@ app.MapPatch("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
             request.RightsNotes,
             request.ExpectedVersion,
             request.Tags is null ? null : string.Join(',', request.Tags),
-            request.Genre),
+            request.Genre,
+            request.Album,
+            request.ReleaseYear,
+            request.ClearReleaseYear),
         cancellationToken);
 
     return Results.Ok(ToSongDetailResponse(updated));
 })
 .WithName("UpdateSong")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/songs/{songId:guid}/cover", async (
+    Guid groupId, Guid songId, int expectedVersion, HttpRequest httpRequest,
+    ClaimsPrincipal principal, UserManager<ApplicationUser> users,
+    UploadSongCoverHandler handler, CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    if (!httpRequest.HasFormContentType)
+        return Results.Problem(detail: "Multipart form is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    var file = (await httpRequest.ReadFormAsync(cancellationToken)).Files.GetFile("file");
+    if (file is null || file.Length <= 0)
+        return Results.Problem(detail: "Cover image file is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    if (!SongCoverImageConstraints.IsAllowed(file.ContentType))
+        return Results.Problem(detail: "Cover image must be JPEG, PNG, or WebP.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    var (stream, error) = await ReadValidatedBrandingImageAsync(file, cancellationToken);
+    if (error is not null) return error;
+    if (!IsSongCoverImageSignature(stream!.ToArray(), file.ContentType))
+    {
+        await stream.DisposeAsync();
+        return Results.Problem(detail: "Cover image content does not match its declared type.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+    }
+    await using (stream!)
+    {
+        var result = await handler.HandleAsync(new UploadSongCoverCommand(
+            userId.Value, groupId, songId, expectedVersion, file.ContentType, file.Length, stream!), cancellationToken);
+        return Results.Ok(ToSongDetailResponse(result));
+    }
+})
+.WithName("UploadSongCoverImage")
+.RequireAuthorization()
+.RequireRateLimiting("group-upload")
+.WithMetadata(new RequestSizeLimitAttribute(3 * 1024 * 1024));
+
+app.MapDelete("/api/groups/{groupId:guid}/songs/{songId:guid}/cover", async (
+    Guid groupId, Guid songId, [FromBody] SoftDeleteSongRequest request, ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users, RemoveSongCoverHandler handler, CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    var result = await handler.HandleAsync(userId.Value, groupId, songId, request.ExpectedVersion, cancellationToken);
+    return Results.Ok(ToSongDetailResponse(result));
+})
+.WithName("RemoveSongCoverImage")
+.RequireAuthorization();
+
+app.MapGet("/api/groups/{groupId:guid}/songs/{songId:guid}/cover", async (
+    Guid groupId, Guid songId, ClaimsPrincipal principal, UserManager<ApplicationUser> users,
+    GetSongCoverHandler handler, CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    var content = await handler.HandleAsync(userId.Value, groupId, songId, cancellationToken);
+    return content is null ? Results.NotFound() : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
+})
+.WithName("GetSongCoverImage")
+.RequireAuthorization();
+
+app.MapPut("/api/groups/{groupId:guid}/songs/{songId:guid}/default-arrangement", async (
+    Guid groupId, Guid songId, SetDefaultArrangementRequest request, ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users, SetDefaultArrangementHandler handler, CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    var result = await handler.HandleAsync(new SetDefaultArrangementCommand(
+        userId.Value, groupId, songId, request.ArrangementId, request.ExpectedVersion), cancellationToken);
+    return Results.Ok(ToSongDetailResponse(result));
+})
+.WithName("SetDefaultArrangement")
 .RequireAuthorization();
 
 app.MapDelete("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
@@ -4832,7 +4933,8 @@ app.MapPost("/api/groups/{groupId:guid}/songs/{songId:guid}/arrangements", async
             request.Lyrics,
             request.Chords,
             request.Structure,
-            request.Notes),
+            request.Notes,
+            request.HarmonyJson),
         cancellationToken);
 
     return Results.Created(
@@ -4890,7 +4992,8 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", asy
             request.Structure,
             request.Notes,
             request.ChordTimingJson,
-            request.ExpectedVersion),
+            request.ExpectedVersion,
+            request.HarmonyJson),
         cancellationToken);
 
     return Results.Ok(ToArrangementDetailResponse(updated));
@@ -4900,6 +5003,7 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", asy
 
 // ---------- .lrc import / export (ADR-0050). Flag: Features:Lrc (default off). ----------
 app.MapLyricsLookup();
+app.MapChordProEndpoints();
 app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/import-lrc", async (
     Guid groupId,
     Guid arrangementId,
@@ -6075,6 +6179,15 @@ static bool IsKnownImageSignature(ReadOnlySpan<byte> b) =>
     (b.Length >= 12 && b[0] == (byte)'R' && b[1] == (byte)'I' && b[2] == (byte)'F' && b[3] == (byte)'F'
      && b[8] == (byte)'W' && b[9] == (byte)'E' && b[10] == (byte)'B' && b[11] == (byte)'P');
 
+static bool IsSongCoverImageSignature(ReadOnlySpan<byte> bytes, string contentType) => contentType switch
+{
+    "image/jpeg" => bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF,
+    "image/png" => bytes.Length >= 8 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
+        && bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A,
+    "image/webp" => bytes.Length >= 12 && bytes[..4].SequenceEqual("RIFF"u8) && bytes[8..12].SequenceEqual("WEBP"u8),
+    _ => false
+};
+
 // SECURITY-AUDIT-2026-10 (B8): the EF InMemory provider does not support
 // transactions (tests use UseInMemoryDatabase=true) — explicit transactions
 // only against the real PostgreSQL provider.
@@ -6253,6 +6366,9 @@ static object ToSongListResponse(SongListItemDto song) => new
     attribution = song.Attribution,
     originKind = song.OriginKind,
     genre = song.Genre,
+    album = song.Album,
+    releaseYear = song.ReleaseYear,
+    hasCoverImage = song.HasCoverImage,
     version = song.Version,
     createdAt = song.CreatedAt,
     updatedAt = song.UpdatedAt,
@@ -6267,6 +6383,9 @@ static object ToSongDetailResponse(SongDetailDto song) => new
     attribution = song.Attribution,
     originKind = song.OriginKind,
     genre = song.Genre,
+    album = song.Album,
+    releaseYear = song.ReleaseYear,
+    hasCoverImage = song.HasCoverImage,
     rightsNotes = song.RightsNotes,
     version = song.Version,
     createdAt = song.CreatedAt,
@@ -6285,7 +6404,8 @@ static object ToArrangementListResponse(ArrangementListItemDto arrangement) => n
     defaultBpm = arrangement.DefaultBpm,
     version = arrangement.Version,
     createdAt = arrangement.CreatedAt,
-    updatedAt = arrangement.UpdatedAt
+    updatedAt = arrangement.UpdatedAt,
+    isDefault = arrangement.IsDefault
 };
 
 static object ToArrangementDetailResponse(ArrangementDetailDto arrangement) => new
@@ -6300,6 +6420,7 @@ static object ToArrangementDetailResponse(ArrangementDetailDto arrangement) => n
     structure = arrangement.Structure,
     notes = arrangement.Notes,
     chordTimingJson = arrangement.ChordTimingJson,
+    harmonyJson = arrangement.HarmonyJson,
     version = arrangement.Version,
     createdAt = arrangement.CreatedAt,
     updatedAt = arrangement.UpdatedAt,
@@ -6542,6 +6663,7 @@ internal sealed record UpdateGroupBrandingRequest(
     bool ShowSonivoCredit);
 internal sealed record CreateInvitationRequest(string? Email);
 internal sealed record UpdateGroupRequest(string? Name, int ExpectedVersion);
+internal sealed record UpdateGroupSongTagsRequest(int ExpectedVersion, string[]? Tags);
 internal sealed record ChangeMemberRoleRequest(string? Role);
 internal sealed record SetMemberAccessRequest(bool? Enabled);
 internal sealed record SetMusicalRoleRequest(string? MusicalRole);
@@ -6553,7 +6675,11 @@ internal sealed record CreateSongRequest(
     string? OriginKind,
     string? RightsNotes,
     string[]? Tags = null,
-    string? Genre = null);
+    string? Genre = null,
+    string? Album = null,
+    int? ReleaseYear = null);
+internal sealed record SetDefaultArrangementRequest(Guid ArrangementId, int ExpectedVersion);
+
 internal sealed record UpdateSongRequest(
     string? Title,
     string? Attribution,
@@ -6561,7 +6687,10 @@ internal sealed record UpdateSongRequest(
     string? RightsNotes,
     int ExpectedVersion,
     string[]? Tags = null,
-    string? Genre = null);
+    string? Genre = null,
+    string? Album = null,
+    int? ReleaseYear = null,
+    bool ClearReleaseYear = false);
 internal sealed record SoftDeleteSongRequest(int ExpectedVersion);
 internal sealed record CreateArrangementRequest(
     string? Label,
@@ -6570,7 +6699,8 @@ internal sealed record CreateArrangementRequest(
     string? Lyrics,
     string? Chords,
     string? Structure,
-    string? Notes);
+    string? Notes,
+    string? HarmonyJson = null);
 internal sealed record UpdateArrangementRequest(
     string? Label,
     string? DefaultKey,
@@ -6580,7 +6710,8 @@ internal sealed record UpdateArrangementRequest(
     string? Structure,
     string? Notes,
     string? ChordTimingJson,
-    int ExpectedVersion);
+    int ExpectedVersion,
+    string? HarmonyJson = null);
 internal sealed record SoftDeleteArrangementRequest(int ExpectedVersion);
 internal sealed record CreateLinkResourceRequest(
     string? Kind,

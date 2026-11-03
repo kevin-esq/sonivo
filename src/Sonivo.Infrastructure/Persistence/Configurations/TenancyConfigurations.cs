@@ -13,6 +13,7 @@ public sealed class GroupConfiguration : IEntityTypeConfiguration<Group>
         builder.ToTable("Groups");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Name).IsRequired();
+        builder.Property(x => x.SongTagDefinitions).HasColumnType("text");
         builder.Property(x => x.Slug).HasMaxLength(GroupSlug.MaxLength);
         builder.Property(x => x.PlanId).IsRequired().HasMaxLength(16).HasDefaultValue(PlanCatalog.DefaultPlanId);
         builder.Property(x => x.BillingStatus).IsRequired().HasMaxLength(16).HasDefaultValue(BillingStatuses.Active);

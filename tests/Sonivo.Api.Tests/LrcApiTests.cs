@@ -160,7 +160,7 @@ public class LrcApiTests : IClassFixture<SonivoApiFactory>
 
         var response = await owner.PostAsJsonAsync(
             $"/api/groups/{arrangement.GroupId}/arrangements/{arrangement.Id}/lyrics/import-lrc",
-            new { content = "[00:12.00Sin corchete\n[aa:bb]No numerico" });
+            new { content = "[00:12.00Sin corchete\nbasura" });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var preview = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -169,6 +169,23 @@ public class LrcApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(1, errors[0].GetProperty("line").GetInt32());
         Assert.Equal("no time mark", errors[0].GetProperty("reason").GetString());
         Assert.Equal(2, errors[1].GetProperty("line").GetInt32());
+    }
+
+    [Fact]
+    public async Task Nonstandard_metadata_tags_are_accepted_without_errors()
+    {
+        // Real files carry [tool:], [re:], [ve:] and padded time tags.
+        var (owner, _) = await CreateUserAsync("lrc-tags@example.com");
+        var (_, arrangement) = await SeedSongAndArrangementAsync(owner, "LRC Tags");
+
+        var response = await owner.PostAsJsonAsync(
+            $"/api/groups/{arrangement.GroupId}/arrangements/{arrangement.Id}/lyrics/import-lrc",
+            new { content = "[tool: lrc-maker]\n[re: mixer]\n[ 1:04.5]Uno" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var preview = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Empty(preview.GetProperty("errors").EnumerateArray());
+        Assert.Contains("Uno", preview.GetProperty("lyrics").GetString());
     }
 
     [Fact]
@@ -256,31 +273,42 @@ public class LrcApiTests : IClassFixture<SonivoApiFactory>
     }
 
     [Fact]
-    public async Task Owner_can_review_a_verified_provider_match_without_persisting_it()
+    public async Task Owner_can_search_by_title_and_review_multiple_synced_matches_without_persisting_them()
     {
         var (owner, _) = await CreateUserAsync("lookup-owner@example.com");
         var (_, ids) = await SeedSongAndArrangementAsync(owner, "Provider preview");
         using var configured = _lrc.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
-            services.AddHttpClient("lyrics-lrclib").ConfigurePrimaryHttpMessageHandler(() => new LyricsProviderHandler())));
+            services.AddHttpClient("lyrics-lrclib").ConfigurePrimaryHttpMessageHandler(() => new LyricsSearchProviderHandler())));
         using var client = await LoginAsync(configured, "lookup-owner@example.com");
         var path = $"/api/groups/{ids.GroupId}/arrangements/{ids.Id}";
-        var result = await client.PostAsJsonAsync(path + "/lyrics/lookup", new { title = "Original light", artist = "Test artist", duration = 120 });
+        var result = await client.PostAsJsonAsync(path + "/lyrics/lookup", new { title = "Original light" });
         Assert.Equal(HttpStatusCode.OK, result.StatusCode);
-        var candidate = await result.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("LRCLIB", candidate.GetProperty("source").GetString());
-        Assert.Equal("[00:01.00]Original light", candidate.GetProperty("content").GetString());
+        var candidates = await result.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(JsonValueKind.Array, candidates.ValueKind);
+        Assert.Equal(2, candidates.GetArrayLength());
+        Assert.Equal("LRCLIB", candidates[0].GetProperty("source").GetString());
+        Assert.Equal("[00:01.00]Original light", candidates[0].GetProperty("content").GetString());
+        Assert.Equal("Cover artist", candidates[1].GetProperty("artist").GetString());
         var arrangement = await client.GetFromJsonAsync<JsonElement>(path);
         Assert.Equal(JsonValueKind.Null, arrangement.GetProperty("lyrics").ValueKind);
     }
 
-    private sealed class LyricsProviderHandler : HttpMessageHandler
+    private sealed class LyricsSearchProviderHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Assert.Equal("lrclib.net", request.RequestUri!.Host);
+            Assert.Equal("/api/search", request.RequestUri.AbsolutePath);
+            Assert.Contains("track_name=Original%20light", request.RequestUri.Query);
+            Assert.DoesNotContain("artist_name=", request.RequestUri.Query);
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = JsonContent.Create(new { id = 7, trackName = "Original light", artistName = "Test artist", albumName = "Test album", duration = 120, instrumental = false, syncedLyrics = "[00:01.00]Original light" })
+                Content = JsonContent.Create(new object[]
+                {
+                    new { id = 7, trackName = "Original light", artistName = "Test artist", albumName = "Test album", duration = 120, instrumental = false, syncedLyrics = "[00:01.00]Original light" },
+                    new { id = 8, trackName = "Original light", artistName = "Cover artist", albumName = "Morning versions", duration = 132, instrumental = false, syncedLyrics = "[00:02.00]Original light acoustic" },
+                    new { id = 9, trackName = "Original light", artistName = "Unsynced artist", albumName = "Unreleased", duration = (int?)null, instrumental = false, syncedLyrics = (string?)null, plainLyrics = "Original light" },
+                })
             });
         }
     }
@@ -341,7 +369,7 @@ public class LrcApiTests : IClassFixture<SonivoApiFactory>
             var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
             var arrangement = await db.Arrangements.SingleAsync(item => item.Id == ids.Id);
             arrangement.Update(arrangement.Label, arrangement.DefaultKey, arrangement.DefaultBpm,
-                xml, null, arrangement.Structure, arrangement.Notes, null, arrangement.Version, DateTimeOffset.UtcNow);
+                xml, null, arrangement.Structure, arrangement.Notes, null, null, arrangement.Version, DateTimeOffset.UtcNow);
             await db.SaveChangesAsync();
         }
 
@@ -362,7 +390,7 @@ public class LrcApiTests : IClassFixture<SonivoApiFactory>
             var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
             var arrangement = await db.Arrangements.SingleAsync(item => item.Id == ids.Id);
             arrangement.Update(arrangement.Label, arrangement.DefaultKey, arrangement.DefaultBpm,
-                xml, null, arrangement.Structure, arrangement.Notes, null, arrangement.Version, DateTimeOffset.UtcNow);
+                xml, null, arrangement.Structure, arrangement.Notes, null, null, arrangement.Version, DateTimeOffset.UtcNow);
             await db.SaveChangesAsync();
         }
 

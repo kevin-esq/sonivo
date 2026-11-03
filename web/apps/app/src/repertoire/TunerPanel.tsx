@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { Volume2 } from 'lucide-react'
 import { Button } from '../ui/button'
+import { fieldClass } from '../ui/field'
 import { useT, type I18nKey } from '../i18n'
 import {
   TUNER_FRAME_SIZE,
@@ -21,12 +23,17 @@ import { TUNER_WORKLET_NAME, TUNER_WORKLET_SOURCE } from './tunerWorklet'
  */
 
 type TunerStatus = 'closed' | 'requesting' | 'active' | 'denied' | 'error'
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+const REFERENCE_NOTES = Array.from({ length: 45 }, (_, index) => {
+  const midi = index + 40
+  return { midi, label: `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}` }
+})
 
 function centsLabel(
   cents: number,
   t: (key: I18nKey, params?: Record<string, string | number>) => string,
 ): string {
-  if (cents === 0) return t('practice.tuner.inTune')
+  if (Math.abs(cents) <= 5) return t('practice.tuner.inTune')
   return cents > 0
     ? t('practice.tuner.sharp', { cents })
     : t('practice.tuner.flat', { cents })
@@ -37,18 +44,23 @@ export function TunerPanel() {
   const [status, setStatus] = useState<TunerStatus>('closed')
   const [note, setNote] = useState<TunerNote | null>(null)
   const [freqHz, setFreqHz] = useState<number | null>(null)
+  const [targetMidi, setTargetMidi] = useState(69)
   const [hearingSound, setHearingSound] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [referenceError, setReferenceError] = useState<string | null>(null)
 
   const streamRef = useRef<MediaStream | null>(null)
   const contextRef = useRef<AudioContext | null>(null)
   const nodesRef = useRef<{ disconnect: () => void } | null>(null)
   const rafRef = useRef<number | null>(null)
   const bufferRef = useRef<Float32Array>(new Float32Array(0))
+  const smoothedFrequencyRef = useRef<number | null>(null)
+  const referenceToneRef = useRef<{ context: AudioContext; oscillator: OscillatorNode } | null>(null)
   const statusRef = useRef<TunerStatus>('closed')
   statusRef.current = status
 
   function stopAudio() {
+    stopReferenceTone()
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current)
       rafRef.current = null
@@ -73,6 +85,18 @@ export function TunerPanel() {
       void ctx.close().catch(() => undefined)
     }
     bufferRef.current = new Float32Array(0)
+  }
+
+  function stopReferenceTone() {
+    const tone = referenceToneRef.current
+    referenceToneRef.current = null
+    if (!tone) return
+    try {
+      tone.oscillator.stop()
+    } catch {
+      /* already stopped */
+    }
+    void tone.context.close().catch(() => undefined)
   }
 
   useEffect(() => {
@@ -105,7 +129,17 @@ export function TunerPanel() {
         if (frame) {
           const rms = computeRms(frame)
           setHearingSound(rms >= TUNER_SILENCE_RMS)
-          const hz = detectPitch(frame, sampleRate)
+          const detectedHz = detectPitch(frame, sampleRate)
+          const previousHz = smoothedFrequencyRef.current
+          const jumpInCents = previousHz == null || detectedHz == null
+            ? Infinity
+            : Math.abs(1200 * Math.log2(detectedHz / previousHz))
+          const hz = detectedHz == null
+            ? null
+            : previousHz != null && jumpInCents < 100
+              ? previousHz * 0.7 + detectedHz * 0.3
+              : detectedHz
+          smoothedFrequencyRef.current = hz
           setFreqHz(hz)
           setNote(hz == null ? null : frequencyToNote(hz))
         }
@@ -119,6 +153,7 @@ export function TunerPanel() {
     setError(null)
     setNote(null)
     setFreqHz(null)
+    smoothedFrequencyRef.current = null
     setHearingSound(false)
     setStatus('requesting')
 
@@ -247,11 +282,49 @@ export function TunerPanel() {
     setStatus('closed')
     setNote(null)
     setFreqHz(null)
+    smoothedFrequencyRef.current = null
     setHearingSound(false)
     setError(null)
   }
 
+  async function playReferenceTone() {
+    setReferenceError(null)
+    stopReferenceTone()
+    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!Ctor) {
+      setReferenceError(t('practice.tuner.referenceFailed'))
+      return
+    }
+    let contextToClose: AudioContext | null = null
+    try {
+      const context = new Ctor()
+      contextToClose = context
+      if (context.state === 'suspended') await context.resume()
+      const oscillator = context.createOscillator()
+      const gain = context.createGain()
+      const now = context.currentTime
+      oscillator.type = 'sine'
+      oscillator.frequency.value = 440 * 2 ** ((targetMidi - 69) / 12)
+      gain.gain.setValueAtTime(0.0001, now)
+      gain.gain.exponentialRampToValueAtTime(0.16, now + 0.025)
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.75)
+      oscillator.connect(gain).connect(context.destination)
+      oscillator.onended = () => {
+        if (referenceToneRef.current?.oscillator === oscillator) referenceToneRef.current = null
+        void context.close().catch(() => undefined)
+      }
+      referenceToneRef.current = { context, oscillator }
+      oscillator.start(now)
+      oscillator.stop(now + 0.76)
+    } catch {
+      if (contextToClose) void contextToClose.close().catch(() => undefined)
+      setReferenceError(t('practice.tuner.referenceFailed'))
+    }
+  }
+
   const open = status === 'requesting' || status === 'active'
+  const targetCents = freqHz == null ? null : Math.round(1200 * Math.log2(freqHz / (440 * 2 ** ((targetMidi - 69) / 12))))
+  const targetNote = REFERENCE_NOTES.find((item) => item.midi === targetMidi)?.label ?? 'A4'
 
   return (
     <div className="space-y-3" data-testid="tuner-panel">
@@ -277,6 +350,19 @@ export function TunerPanel() {
         {t('practice.tuner.hint')}
       </p>
 
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="space-y-1 text-sm font-medium text-ink" htmlFor="tuner-reference-note">
+          <span className="block">{t('practice.tuner.targetNote')}</span>
+          <select id="tuner-reference-note" className={fieldClass} value={targetMidi} onChange={(event) => setTargetMidi(Number(event.target.value))}>
+            {REFERENCE_NOTES.map((item) => <option key={item.midi} value={item.midi}>{item.label}</option>)}
+          </select>
+        </label>
+        <Button variant="secondary" size="sm" onClick={() => void playReferenceTone()}>
+          <Volume2 className="mr-2 h-4 w-4" aria-hidden="true" />{t('practice.tuner.playReference')}
+        </Button>
+      </div>
+      {referenceError ? <p role="alert" className="text-sm text-error-ink">{referenceError}</p> : null}
+
       {open || status === 'denied' || status === 'error' ? (
         <div
           className="space-y-2 rounded-xl border border-border-subtle bg-surface-hover p-4"
@@ -296,9 +382,10 @@ export function TunerPanel() {
               <p className="text-sm text-muted" data-testid="tuner-hz">
                 {freqHz != null ? `${freqHz.toFixed(1)} Hz` : t('practice.tuner.listening')}
               </p>
+              <p className="text-sm text-muted">{t('practice.tuner.reference', { note: targetNote })}</p>
               <p className="text-sm text-muted" data-testid="tuner-cents">
-                {note
-                  ? centsLabel(note.cents, t)
+                {note && targetCents != null
+                  ? centsLabel(targetCents, t)
                   : hearingSound
                     ? t('practice.tuner.noClearPitch')
                     : t('practice.tuner.silence')}
@@ -307,8 +394,8 @@ export function TunerPanel() {
                 className="relative h-2 w-full max-w-xs overflow-hidden rounded-full bg-surface-hover"
                 role="img"
                 aria-label={
-                  note
-                    ? t('practice.tuner.deviation', { value: centsLabel(note.cents, t) })
+                  note && targetCents != null
+                    ? t('practice.tuner.deviation', { value: centsLabel(targetCents, t) })
                     : t('practice.tuner.noReading')
                 }
               >
@@ -316,10 +403,10 @@ export function TunerPanel() {
                   className="absolute left-1/2 top-0 h-full w-0.5 bg-slate-400"
                   aria-hidden="true"
                 />
-                {note ? (
+                {note && targetCents != null ? (
                   <div
                     className="absolute top-0 h-full w-2 rounded-full bg-primary"
-                    style={{ left: `calc(${50 + note.cents}% - 4px)` }}
+                    style={{ left: `calc(${50 + Math.max(-50, Math.min(50, targetCents))}% - 4px)` }}
                     aria-hidden="true"
                   />
                 ) : null}

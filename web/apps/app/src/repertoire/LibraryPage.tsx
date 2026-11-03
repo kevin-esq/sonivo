@@ -1,6 +1,6 @@
 import { routes } from '../routing/routes'
 import { useEffect, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Heart, Library, Music2, Pencil, Search, SlidersHorizontal } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Heart, Library, Music2, Pencil, Play, Search, SlidersHorizontal } from 'lucide-react'
 import { getSong, searchSongs, setSongFavorite, type CurrentUser, type SongCatalogPage, type SongDetail } from '../api/client'
 import { useT, type I18nKey } from '../i18n'
 import {
@@ -410,6 +410,19 @@ export function LibraryPage({ user }: { user: CurrentUser }) {
                     {song.arrangementCount === 0 ? t('song.noArrangementsTitle') : plural(song.arrangementCount, t('song.versionsOne'), t('song.versionsMany'))}
                   </span>
                 </AppLink>
+                {song.arrangementCount > 0 ? (
+                  <GroupButton
+                    variant="secondary"
+                    size="sm"
+                    className="h-11 shrink-0 px-2.5 sm:px-3"
+                    aria-label={t('song.practiceArrangement')}
+                    title={t('song.practiceArrangement')}
+                    onClick={() => navigate(`${routes.groupSong(group.id, song.id)}?practice=true`)}
+                  >
+                    <Play className="h-4 w-4" aria-hidden="true" />
+                    <span className="sr-only sm:not-sr-only">{t('song.practiceArrangement')}</span>
+                  </GroupButton>
+                ) : null}
                 <button
                   type="button"
                   aria-label={song.isFavorite ? t('songs.removeFavorite', { title: song.title }) : t('songs.addFavorite', { title: song.title })}

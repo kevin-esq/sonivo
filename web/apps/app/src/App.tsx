@@ -1,6 +1,5 @@
 import { useAppRuntime } from './appRuntime/context'
 import { AppRouter } from './AppRouter'
-import { AuthenticatedPlayer } from './shell/AuthenticatedPlayer'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 
 export default function App() {
@@ -25,7 +24,6 @@ export default function App() {
         onUserChange={onUserChange}
         onAuthSuccess={onAuthSuccess}
       />
-      <AuthenticatedPlayer active={session.status === 'authenticated'} />
     </ErrorBoundary>
   )
 }

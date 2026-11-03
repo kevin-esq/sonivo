@@ -1,13 +1,15 @@
 import { routes } from '../routing/routes'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AppLink } from '../routing/AppLink'
 import { useGroupShell } from '../shell/GroupShellContext'
 import {
   getArrangement,
   getEvent,
   getSong,
+  listArrangements,
   updateArrangement,
   type ArrangementDetail,
+  type ArrangementListItem,
   type CurrentUser,
   type EventDetail,
   type EventPlanItem,
@@ -24,7 +26,7 @@ import { ConductorPanel } from './ConductorPanel'
 import { ReferenceEmbed } from './ReferenceEmbed'
 import { TunerPanel } from './TunerPanel'
 import { AudioDigitizer } from './AudioDigitizer'
-import { isYouTubeReference } from './youtubeRef'
+import { isYouTubeLink } from './youtubeRef'
 import {
   readConductorFollow,
   writeConductorFollow,
@@ -56,9 +58,14 @@ import {
   useGroupContext,
 } from './ui'
 import { Button } from '../ui/button'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Skeleton } from '../ui/skeleton'
 import { cn } from '../ui/cn'
 import { useT } from '../i18n'
+import { ArrangementVersionDialog } from './ArrangementVersionDialog'
+import { GroupDialog } from '../groups/ui'
+import { ArrangementDetailPage } from './ArrangementDetailPage'
+import { PracticeMaterials } from './PracticeMaterials'
 
 type PracticeTab = 'estudiar' | 'calentar' | 'avanzado' | 'afinar'
 
@@ -126,8 +133,8 @@ function QueueSkeleton() {
 }
 
 export function PracticePage({ user, groupId, arrangementId, search: currentSearch = '' }: { user: CurrentUser; groupId?: string; arrangementId?: string; search?: string }) {
-  const { search, navigate } = useGroupShell()
-  const activeSearch = currentSearch || search
+  const { search, navigate, navigationMode } = useGroupShell()
+  const activeSearch = (currentSearch || search).replace(/^\?/, '')
   const searchParams = new URLSearchParams(activeSearch)
   const eventId = searchParams.get('eventId')
   const planItemId = searchParams.get('item')
@@ -135,15 +142,23 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const stageOutputRequested = searchParams.get('stageOutput') === '1'
   const stageSessionId = searchParams.get('stageSession')
+  const stageModeRequested = searchParams.get('stageMode') === 'true'
   const { t } = useT()
   const audioPlayer = useAudioPlayer()
   const { group, error: groupError } = useGroupContext(groupId, user.id)
   const isOwner = canManageContentRole(group?.role)
   const [arrangement, setArrangement] = useState<ArrangementDetail | null | undefined>(undefined)
+  const [practiceArrangements, setPracticeArrangements] = useState<ArrangementListItem[]>([])
+  const [versionPickerOpen, setVersionPickerOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editDialogSection, setEditDialogSection] = useState<'details' | 'materials' | null>(null)
+  const [isDesktopViewport, setIsDesktopViewport] = useState<boolean | null>(null)
+  const [editDialogDirty, setEditDialogDirty] = useState(false)
   const [songTitle, setSongTitle] = useState<string | null>(null)
   const [songAttribution, setSongAttribution] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tracks, setTracks] = useState<PracticeAudioSource[]>([])
+  const [songAudioTracks, setSongAudioTracks] = useState<Array<PracticeAudioSource & { arrangementLabel: string }>>([])
   const [eventDetail, setEventDetail] = useState<EventDetail | null | undefined>(
     eventId ? undefined : null,
   )
@@ -158,6 +173,18 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
   const [metronomePulse, setMetronomePulse] = useState(false)
   const [audioSeconds, setAudioSeconds] = useState(0)
   const [reloadNonce, setReloadNonce] = useState(0)
+
+  useEffect(() => {
+    const viewport = window.matchMedia('(min-width: 768px)')
+    const updateViewport = () => setIsDesktopViewport(viewport.matches)
+    updateViewport()
+    viewport.addEventListener('change', updateViewport)
+    return () => viewport.removeEventListener('change', updateViewport)
+  }, [])
+  const timingTimeline = useMemo(
+    () => parseChordTimingTimeline(arrangement?.chordTimingJson),
+    [arrangement?.chordTimingJson],
+  )
   // ADR-0036 conductor follow (Event rooms only).
   const conductor = useConductorRoom(eventId)
   const [followDirector, setFollowDirector] = useState(false)
@@ -166,6 +193,34 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
   const audioPlayingRef = useRef(false)
   const sendPositionRef = useRef(conductor.sendPosition)
   sendPositionRef.current = conductor.sendPosition
+
+  useEffect(() => {
+    const syncEditDialog = () => setEditDialogOpen(window.location.hash === '#edit')
+    syncEditDialog()
+    window.addEventListener('hashchange', syncEditDialog)
+    return () => window.removeEventListener('hashchange', syncEditDialog)
+  }, [])
+
+  function openEditDialog() {
+    setEditDialogOpen(true)
+    setEditDialogSection(null)
+    setEditDialogDirty(false)
+    navigate(`${routes.groupPractice(groupId ?? '', arrangementId ?? '')}${activeSearch ? `?${activeSearch}` : ''}#edit`)
+  }
+
+  function openMaterialsEditor() {
+    setEditDialogOpen(true)
+    setEditDialogSection('materials')
+    setEditDialogDirty(false)
+    navigate(`${routes.groupPractice(groupId ?? '', arrangementId ?? '')}${activeSearch ? `?${activeSearch}` : ''}#edit`)
+  }
+
+  function closeEditDialog() {
+    setEditDialogOpen(false)
+    setEditDialogSection(null)
+    setEditDialogDirty(false)
+    navigate(`${routes.groupPractice(groupId ?? '', arrangementId ?? '')}${activeSearch ? `?${activeSearch}` : ''}`)
+  }
 
   useEffect(() => {
     setSemitoneOffset(0)
@@ -192,12 +247,31 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
       setSongTitle(null)
       setSongAttribution(null)
       setTracks([])
+      setSongAudioTracks([])
+      setPracticeArrangements([])
       setError(null)
       try {
         const result = await getArrangement(groupId!, arrangementId!)
         if (cancelled) return
         setArrangement(result)
         setTracks(listPracticeAudioTracks(result.resources, groupId!, arrangementId!))
+        if (!eventId) {
+          try {
+            const versions = await listArrangements(groupId!, result.songId)
+            if (!cancelled) setPracticeArrangements(versions)
+            const audioByArrangement = await Promise.all(versions.map(async (version) => {
+              const detail = version.id === result.id ? result : await getArrangement(groupId!, version.id)
+              return listPracticeAudioTracks(detail.resources, groupId!, version.id)
+                .map((track) => ({ ...track, arrangementLabel: version.label }))
+            }))
+            if (!cancelled) setSongAudioTracks(audioByArrangement.flat())
+          } catch {
+            if (!cancelled) {
+              setPracticeArrangements([])
+              setSongAudioTracks(listPracticeAudioTracks(result.resources, groupId!, result.id).map((track) => ({ ...track, arrangementLabel: result.label })))
+            }
+          }
+        }
         try {
           const song = await getSong(groupId!, result.songId)
           if (!cancelled) {
@@ -220,7 +294,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
     return () => {
       cancelled = true
     }
-  }, [groupId, arrangementId, group, reloadNonce])
+  }, [groupId, arrangementId, eventId, group, reloadNonce])
 
   useEffect(() => {
     if (!groupId || !group || !eventId) {
@@ -342,8 +416,11 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
   // Narrowed after early returns above — capture for nested handlers (TS).
   const liveGroup = group
   const liveArrangement = arrangement
+  const stageSearchParams = new URLSearchParams(searchParams)
+  stageSearchParams.set('tab', 'estudiar')
+  stageSearchParams.set('stageMode', 'true')
+  const stagePracticeUrl = `${routes.groupPractice(liveGroup.id, liveArrangement.id)}?${stageSearchParams.toString()}`
 
-  const arrangementHref = routes.groupArrangement(liveGroup.id, liveArrangement.id)
   const songHref = routes.groupSong(liveGroup.id, liveArrangement.songId)
   const queueItems = eventDetail?.items ?? []
   const queueItem =
@@ -365,7 +442,6 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
       ? tryTransposeDefaultKey(liveArrangement.defaultKey, semitoneOffset)
       : null
   const hideChords = viewMode === 'singer'
-  const timingTimeline = parseChordTimingTimeline(liveArrangement.chordTimingJson)
   const timingMarks = timingTimeline.lineMarks
   // ADR-0037 T-FX-02: reference links; YouTube ones embed via nocookie iframe.
   const referenceResources = liveArrangement.resources.filter(
@@ -379,7 +455,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
   // no file audio and only a YouTube reference to play from, the toggle is
   // disabled with an explanation instead of promising sync it cannot keep.
   const youTubeOnlyPractice =
-    tracks.length === 0 && referenceResources.some((r) => isYouTubeReference(r))
+    tracks.length === 0 && referenceResources.some((r) => isYouTubeLink(r))
   // Conductor follow drives the same highlight path: when the Member follows
   // the director, the broadcast position moves playhead + highlight even when
   // the local "Seguir letra" toggle is off. Without audio tracks the
@@ -421,6 +497,12 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
   function setFollowAlongPersist(enabled: boolean) {
     setFollowAlong(enabled)
     writePracticeFollowAlong(liveGroup.id, liveArrangement.id, enabled)
+  }
+
+  function selectPracticeArrangement(nextArrangementId: string) {
+    if (!groupId || nextArrangementId === arrangementId) return
+    const query = searchParams.toString()
+    navigate(`${routes.groupPractice(groupId, nextArrangementId)}${query ? `?${query}` : ''}`)
   }
 
   function setTabPersist(next: PracticeTab) {
@@ -476,15 +558,10 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
         { to: routes.group(liveGroup.id), label: liveGroup.name },
         { to: routes.groupLibrary(liveGroup.id), label: t('practice.library') },
         { to: songHref, label: songTitle ?? t('practice.songFallback') },
-        { to: arrangementHref, label: liveArrangement.label },
-        { label: t('practice.kicker') },
+        { label: displayLabel },
       ]
 
-  const visibleBreadcrumbItems = tab === 'calentar'
-    ? eventId
-      ? [breadcrumbItems[2], breadcrumbItems[3]]
-      : [breadcrumbItems[3], breadcrumbItems[4]]
-    : breadcrumbItems
+  const visibleBreadcrumbItems = breadcrumbItems
 
   const tabLabels: Record<PracticeTab, string> = {
     estudiar: t('practice.tabs.estudiar'),
@@ -499,56 +576,83 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
   }
 
   return (
-    <section className={cn(tab === 'calentar' ? 'space-y-5 sm:space-y-8' : 'space-y-8')} aria-labelledby="practice-heading">
-      <div className={cn(
-        'sonivo-score-header',
-        tab === 'calentar' ? 'space-y-3 p-4 sm:space-y-4 sm:p-8' : 'space-y-4 p-5 sm:p-8',
-      )}>
+    <section className="space-y-5 sm:space-y-7" aria-labelledby="practice-heading">
+      <div className="sonivo-score-header relative isolate space-y-5 overflow-hidden p-5 sm:space-y-6 sm:p-8 xl:p-9">
         <PageBreadcrumb items={visibleBreadcrumbItems} />
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="min-w-0 space-y-2">
-            <p className={cn('text-sm font-medium uppercase tracking-wide text-muted', tab === 'calentar' && 'hidden')}>
-              {eventId ? t('practice.rehearsePlan') : t('practice.kicker')}
-            </p>
-            <h1 id="practice-heading" className="sonivo-page-title text-[var(--color-score-ink)]">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="min-w-0 space-y-4">
+            {eventId ? (
+              <p className={cn('text-xs font-semibold uppercase tracking-[0.14em] text-muted', tab === 'calentar' && 'invisible')} aria-hidden={tab === 'calentar'}>{t('practice.rehearsePlan')}</p>
+            ) : null}
+            <h1 id="practice-heading" className="sonivo-page-title break-words text-4xl leading-[1.05] tracking-tight text-[var(--color-score-ink)] sm:text-5xl xl:text-6xl">
               {displayTitle}
             </h1>
-            <p className="text-base font-medium text-[var(--color-score-ink-soft)]">{displayLabel}</p>
-            <p className="text-sm text-[var(--color-score-muted)]">
-              {liveArrangement.defaultKey
-                ? `${t('practice.keyPrefix')}${liveArrangement.defaultKey}`
-                : t('practice.keyEmpty')}
-              {' · '}
-              {liveArrangement.defaultBpm != null
-                ? `${t('practice.tempoPrefix')}${liveArrangement.defaultBpm}${t('practice.bpmSuffix')}`
-                : t('practice.tempoEmpty')}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {sourceBody && tab !== 'calentar' ? (
-              <StageModePanel
-                text={displayBody}
-                timingMarks={timingMarks}
-                timingTimeline={timingTimeline}
-                currentMs={highlightMs}
-                title={displayTitle}
-                subtitle={songAttribution?.trim() || displayLabel}
-                hasAudio={tracks.length > 0}
-                isPlaying={audioPlayer.isPlaying}
-                progress={audioPlayer.progress}
-                duration={audioPlayer.duration}
-                onTogglePlayback={() => void audioPlayer.togglePlay()}
-                onSeek={audioPlayer.seek}
-                groupId={liveGroup.id}
-                arrangementId={liveArrangement.id}
-                volume={audioPlayer.volume}
-                onVolumeChange={audioPlayer.setVolume}
-              />
+            {!eventId && practiceArrangements.length > 1 ? (
+              <button
+                id="practice-arrangement-picker"
+                type="button"
+                aria-label={`${t('practice.versionSelector')}: ${liveArrangement.label}`}
+                aria-haspopup="dialog"
+                aria-expanded={versionPickerOpen}
+                data-testid="practice-arrangement-picker"
+                onClick={() => setVersionPickerOpen(true)}
+                className="relative flex min-h-14 w-full max-w-md items-center gap-3 rounded-xl border-2 border-[var(--color-score-ink)] bg-transparent px-4 pb-2 pt-3 text-left text-[var(--color-score-ink)] shadow-sm transition-[border-color,box-shadow,background-color] hover:border-[var(--brand-primary)] hover:bg-[var(--color-score-paper-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary)] motion-reduce:transition-none"
+              >
+                <span className="absolute -top-2 left-3 bg-[var(--color-score-paper)] px-1.5 text-sm font-medium text-[var(--color-score-ink)]">
+                  {t('practice.activeVersion')}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-base font-semibold">{liveArrangement.label}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-[var(--color-score-muted)]" aria-hidden="true" />
+              </button>
+            ) : displayLabel !== displayTitle ? (
+              <p className="text-base font-medium text-[var(--color-score-ink-soft)]">{displayLabel}</p>
             ) : null}
-            {isOwner && tab !== 'calentar' ? (
-              <AppLink className="inline-flex min-h-11 items-center rounded-lg border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-ink no-underline transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" to={arrangementHref}>
-                {t('practice.editLyrics')}
-              </AppLink>
+            {liveArrangement.defaultKey || liveArrangement.defaultBpm != null ? (
+              <p className="text-sm text-[var(--color-score-muted)]">
+                {liveArrangement.defaultKey ? `${t('practice.keyPrefix')}${liveArrangement.defaultKey}` : null}
+                {liveArrangement.defaultKey && liveArrangement.defaultBpm != null ? ' · ' : null}
+                {liveArrangement.defaultBpm != null
+                  ? `${t('practice.tempoPrefix')}${liveArrangement.defaultBpm}${t('practice.bpmSuffix')}`
+                  : null}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {sourceBody ? (
+              <div className={tab === 'calentar' ? 'invisible' : undefined} aria-hidden={tab === 'calentar'}>
+                <StageModePanel
+                  initialOpen={stageModeRequested && tab !== 'calentar'}
+                  onInitialOpen={() => {
+                    const params = new URLSearchParams(searchParams)
+                    params.delete('stageMode')
+                    const query = params.toString()
+                    const nextUrl = `${routes.groupPractice(groupId ?? '', arrangementId ?? '')}${query ? `?${query}` : ''}`
+                    if (navigationMode === 'next') window.history.replaceState(null, '', nextUrl)
+                    else navigate(nextUrl, { replace: true })
+                  }}
+                  text={displayBody}
+                  timingMarks={timingMarks}
+                  timingTimeline={timingTimeline}
+                  currentMs={highlightMs}
+                  title={displayTitle}
+                  subtitle={songAttribution?.trim() || displayLabel}
+                  hasAudio={tracks.length > 0}
+                  isPlaying={audioPlayer.isPlaying}
+                  progress={audioPlayer.progress}
+                  duration={audioPlayer.duration}
+                  onTogglePlayback={() => void audioPlayer.togglePlay()}
+                  onSeek={audioPlayer.seek}
+                  groupId={liveGroup.id}
+                  arrangementId={liveArrangement.id}
+                  volume={audioPlayer.volume}
+                  onVolumeChange={audioPlayer.setVolume}
+                />
+              </div>
+            ) : null}
+            {isOwner ? (
+              <Button variant="secondary" onClick={openEditDialog}>
+                {t('arrangement.editMusic')}
+              </Button>
             ) : null}
           </div>
         </div>
@@ -585,7 +689,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
       ) : null}
 
       <div
-        className="grid grid-cols-2 gap-1 rounded-2xl border border-[var(--color-score-border)] bg-[var(--color-score-soft)] p-1.5 sm:grid-cols-4"
+        className="flex min-w-0 gap-2 overflow-x-auto border-b border-[var(--color-score-border)]"
         role="tablist"
         aria-label={t('practice.tabs.label')}
       >
@@ -600,12 +704,12 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
             tabIndex={tab === id ? 0 : -1}
             ref={(element) => { tabRefs.current[tabOrder.indexOf(id)] = element }}
             data-testid={`practice-tab-${id}`}
-            data-tab-surface="score"
+            data-tab-surface="practice"
             className={cn(
-              'sonivo-tab-trigger min-h-12 rounded-xl',
+              'sonivo-tab-trigger min-h-12 shrink-0 rounded-none border-0 border-b-2 bg-transparent px-4 text-sm shadow-none sm:text-base',
               tab === id
-                ? ''
-                : 'text-[var(--color-score-muted)] hover:bg-[var(--color-score-paper-soft)] hover:text-[var(--color-score-ink)]',
+                ? 'border-[var(--brand-primary)] text-[var(--brand-primary)]'
+                : 'border-transparent text-[var(--color-score-muted)] hover:bg-transparent hover:text-[var(--color-score-ink)]',
             )}
             onClick={() => setTabPersist(id)}
             onKeyDown={(event) => {
@@ -652,14 +756,29 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
 
       {tracks.length > 0 ? (
         <PracticePlayer
+          key={`practice-player-${liveArrangement.id}`}
           groupId={liveGroup.id}
+          userId={user.id}
+          songId={liveArrangement.songId}
           arrangementId={liveArrangement.id}
+          practiceUrl={stagePracticeUrl}
+          artist={songAttribution ?? undefined}
+          lyrics={displayBody}
+          timingTimeline={timingTimeline}
           tracks={tracks}
+          songAudioTracks={songAudioTracks}
           onCurrentTimeChange={handleAudioTime}
           onPlayingChange={handleAudioPlaying}
           followSeekMs={!isOwner && followDirector ? followSeekMs : null}
         />
       ) : null}
+
+      <PracticeMaterials
+        key={`practice-materials-${liveArrangement.id}`}
+        groupId={liveGroup.id}
+        arrangementId={liveArrangement.id}
+        resources={liveArrangement.resources}
+      />
 
       {referenceResources.length > 0 ? (
         <section className="space-y-4" aria-labelledby="practice-reference-heading">
@@ -793,14 +912,6 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
               <EmptyPanel
                 title={t('practice.noLyricsTitle')}
                 description={t('practice.noLyricsBody')}
-                action={
-                  <AppLink
-                    className="font-semibold text-primary-ink no-underline hover:underline"
-                    to={arrangementHref}
-                  >
-                    {t('practice.viewArrangement')}
-                  </AppLink>
-                }
               />
             )
           }
@@ -855,8 +966,8 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
           aria-labelledby="practice-tab-avanzado"
           data-testid="practice-panel-avanzado"
         >
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4">
-            <span className="text-sm font-medium text-ink">{t('practice.metronomeTitle')}</span>
+          <section className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4" aria-labelledby="practice-metronome-heading">
+            <h2 id="practice-metronome-heading" className="text-sm font-semibold text-ink">{t('practice.metronomeTitle')}</h2>
             <input
               type="number"
               className={cn(fieldClass, 'w-20')}
@@ -880,7 +991,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
                 ? t('practice.metronomeStop')
                 : t('practice.metronomeStart')}
             </Button>
-          </div>
+          </section>
 
           <div className="space-y-1">
             <h2 className="text-lg font-semibold tracking-tight text-ink">
@@ -903,7 +1014,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
             <p>
               <AppLink
                 className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                to={arrangementHref}
+                to={routes.groupArrangementEdit(liveGroup.id, liveArrangement.id, 'lyrics')}
                 data-testid="practice-advanced-timing-link"
               >
                 {t('practice.avanzado.timingLink')}
@@ -923,13 +1034,9 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
             </h3>
             <p className="text-sm text-muted">{t('practice.avanzado.digitizeHint')}</p>
             <p>
-              <AppLink
-                className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                to={arrangementHref}
-                data-testid="practice-advanced-digitize-link"
-              >
+              <Button onClick={openMaterialsEditor} data-testid="practice-advanced-digitize-link">
                 {t('practice.avanzado.digitizeLink')}
-              </AppLink>
+              </Button>
             </p>
             {isOwner ? (
               digitizableResources.length > 0 ? (
@@ -962,11 +1069,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
           lastPositionMs={conductor.lastPosition?.position.positionMs ?? null}
           lastSentPositionMs={conductor.lastSentPositionMs}
             />
-          ) : (
-            <p className="text-sm text-muted" data-testid="practice-advanced-conductor-hint">
-              {t('practice.avanzado.conductorHint')}
-            </p>
-          )}
+          ) : null}
         </div>
       ) : null}
 
@@ -986,23 +1089,16 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
         </section>
       ) : null}
 
-      <p>
-        {eventId ? (
+      {eventId ? (
+        <p>
           <AppLink
             className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             to={routes.groupEvent(group.id, eventId)}
           >
             {t('practice.backToEvent')}
           </AppLink>
-        ) : (
-          <AppLink
-            className="inline-flex min-h-11 items-center font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            to={arrangementHref}
-          >
-            {t('practice.backToArrangement')}
-          </AppLink>
-        )}
-      </p>
+        </p>
+      ) : null}
 
       <ConfirmDialog
         open={confirmSaveTone}
@@ -1019,6 +1115,89 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
           {effectiveKeyHint ? `${t('practice.saveToneBodyKey')}${effectiveKeyHint}` : ''}{t('practice.saveToneBodySuffix')}
         </p>
       </ConfirmDialog>
+
+      {!eventId && practiceArrangements.length > 1 ? (
+        <ArrangementVersionDialog
+          arrangements={practiceArrangements}
+          selectedArrangementId={liveArrangement.id}
+          open={versionPickerOpen}
+          onClose={() => setVersionPickerOpen(false)}
+          onSelect={selectPracticeArrangement}
+          title={t('practice.versionSelector')}
+          description={t('practice.versionPickerHint')}
+          optionLabel={(label) => t('practice.selectVersion', { label })}
+          testId="practice-arrangement-picker-dialog"
+          optionTestIdPrefix="practice-arrangement"
+        />
+      ) : null}
+
+      {isOwner && group && arrangement ? (
+        <GroupDialog
+          open={editDialogOpen}
+          onClose={closeEditDialog}
+          title={editDialogSection === 'details' ? t('arrangement.editDetails') : editDialogSection === 'materials' ? t('arrangement.resourcesTitle') : t('arrangement.editArrangement')}
+          description={editDialogSection === 'details' ? t('arrangement.editDetailsHint') : editDialogSection === 'materials' ? t('arrangement.resourcesHint') : t('arrangement.editMusicHint')}
+          size={editDialogSection ? 'xl' : 'md'}
+          mobileFullscreen={editDialogSection !== null}
+          fitContent
+          confirmDiscard={editDialogDirty}
+          testId="arrangement-edit-dialog"
+        >
+          {editDialogSection ? (
+            <ArrangementDetailPage
+              user={user}
+              groupId={liveGroup.id}
+              arrangementId={liveArrangement.id}
+              editorSection={editDialogSection}
+              embeddedEditor
+              onEmbeddedBack={() => {
+                setEditDialogSection(null)
+                setEditDialogDirty(false)
+                setReloadNonce((value) => value + 1)
+              }}
+              onEmbeddedDirtyChange={setEditDialogDirty}
+              onEmbeddedSaved={async (next) => {
+                setArrangement(next)
+                setEditDialogDirty(false)
+                setReloadNonce((value) => value + 1)
+                setEditDialogSection(null)
+              }}
+            />
+          ) : <nav aria-label={t('arrangement.editArrangement')}>
+            <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface">
+              {([
+                ['details', t('arrangement.editDetails'), t('arrangement.editDetailsHint')],
+                ['lyrics', t('arrangement.editorTitleLyrics'), t('arrangement.editorHintLyrics')],
+                ['chords', t('arrangement.editorTitleChords'), t('arrangement.editorHintChords')],
+                ['materials', t('arrangement.resourcesTitle'), t('arrangement.editMaterialsHint')],
+              ] as const).map(([section, title, hint]) => (
+                <li key={section}>
+                  <button
+                    type="button"
+                    className="group flex min-h-20 w-full items-center justify-between gap-4 px-4 py-4 text-left text-ink transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 sm:px-5"
+                    disabled={isDesktopViewport !== true && (section === 'lyrics' || section === 'chords')}
+                    onClick={() => {
+                      if (section === 'details' || section === 'materials') {
+                        setEditDialogSection(section)
+                      } else {
+                        const returnQuery = new URLSearchParams({ editReturn: 'practice', editReturnSearch: activeSearch }).toString()
+                        navigate(`${routes.groupArrangementEdit(group.id, arrangement.id, section)}?${returnQuery}`)
+                      }
+                    }}
+                  >
+                    <span className="min-w-0 space-y-1">
+                      <span className="block font-semibold">{title}</span>
+                      <span className="block text-sm text-muted">{hint}</span>
+                    </span>
+                    <ChevronRight className="h-5 w-5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {isDesktopViewport === false ? <p className="mt-3 text-sm text-muted" role="status">{t('arrangement.editorDesktopOnly')}</p> : null}
+          </nav>}
+        </GroupDialog>
+      ) : null}
 
     </section>
   )

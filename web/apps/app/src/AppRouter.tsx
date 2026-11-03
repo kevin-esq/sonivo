@@ -21,6 +21,7 @@ import { BrandLockup } from "./brand/SonivoMark";
 import { GuestAuthRoute } from "./shell/AuthScreen";
 import { PublicChrome, SessionScreen } from "./shell/GroupsChrome";
 import { AppShell } from "./shell/AppShell";
+import { AuthenticatedPlayer } from './shell/AuthenticatedPlayer'
 import { useAuth, type AuthContext } from "./shell/authContext";
 import { GroupWorkspace } from "./shell/GroupWorkspace";
 import { useGroupShellIsProvidedByNext } from './shell/GroupShellContext'
@@ -423,13 +424,16 @@ function AppLayout() {
   const ctx = useAuth();
   const location = useLocation();
   return (
-    <AppShell user={ctx.user} onLogout={ctx.onLogout}>
-      {/* A broken page must not take the shell down: contain it per route so
-          the rail, top bar and navigation stay usable. */}
-      <ErrorBoundary resetKey={location.pathname}>
-        <Outlet context={ctx} />
-      </ErrorBoundary>
-    </AppShell>
+    <>
+      <AppShell user={ctx.user} onLogout={ctx.onLogout}>
+        {/* A broken page must not take the shell down: contain it per route so
+            the rail, top bar and navigation stay usable. */}
+        <ErrorBoundary resetKey={location.pathname}>
+          <Outlet context={ctx} />
+        </ErrorBoundary>
+      </AppShell>
+      <AuthenticatedPlayer active pathname={location.pathname} />
+    </>
   );
 }
 
@@ -441,18 +445,21 @@ function GroupLayout() {
   const nextOwnsShell = useGroupShellIsProvidedByNext()
   if (nextOwnsShell) return <Outlet context={ctx} />
   return (
-    <GroupWorkspace
-      user={ctx.user}
-      onLogout={ctx.onLogout}
-      groupId={groupId ?? ''}
-      pathname={location.pathname}
-      search={location.search}
-      navigate={(to, options) => navigate(to, options)}
-    >
-      <ErrorBoundary resetKey={location.pathname}>
-        <Outlet context={ctx} />
-      </ErrorBoundary>
-    </GroupWorkspace>
+    <>
+      <GroupWorkspace
+        user={ctx.user}
+        onLogout={ctx.onLogout}
+        groupId={groupId ?? ''}
+        pathname={location.pathname}
+        search={location.search}
+        navigate={(to, options) => navigate(to, options)}
+      >
+        <ErrorBoundary resetKey={location.pathname}>
+          <Outlet context={ctx} />
+        </ErrorBoundary>
+      </GroupWorkspace>
+      <AuthenticatedPlayer active pathname={location.pathname} />
+    </>
   );
 }
 
@@ -501,13 +508,22 @@ function ArrangementDetailPageR() {
   const params = useParams()
   const { user } = useAuth()
   if (!params.groupId || !params.arrangementId) return null
-  return <ArrangementDetailPage user={user} groupId={params.groupId} arrangementId={params.arrangementId} />
+  if (params.editorSection !== 'lyrics' && params.editorSection !== 'chords') {
+    return <PracticePage user={user} groupId={params.groupId} arrangementId={params.arrangementId} />
+  }
+  return <ArrangementDetailPage user={user} groupId={params.groupId} arrangementId={params.arrangementId} editorSection={params.editorSection} />
 }
-function LegacyGroupPracticePageR() {
+function PracticePageR() {
   const params = useParams()
   const { user } = useAuth()
   if (!params.groupId || !params.arrangementId) return null
   return <PracticePage user={user} groupId={params.groupId} arrangementId={params.arrangementId} />
+}
+function LegacyGroupPracticePageR() {
+  const params = useParams()
+  const location = useLocation()
+  if (!params.groupId || !params.arrangementId) return null
+  return <Navigate replace to={`${routes.groupArrangement(params.groupId, params.arrangementId)}${location.search}${location.hash}`} />
 }
 const GroupSettingsPageR = withUser(GroupSettingsPage)
 
@@ -595,6 +611,10 @@ export function AppRouter({
             <Route path="songs/:songId" element={<SongDetailPageR />} />
             <Route
               path="arrangements/:arrangementId"
+              element={<PracticePageR />}
+            />
+            <Route
+              path="arrangements/:arrangementId/edit/:editorSection?"
               element={<ArrangementDetailPageR />}
             />
             <Route

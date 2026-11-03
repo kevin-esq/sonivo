@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import type { CSSProperties, FormEvent, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '../../ui/cn'
@@ -30,6 +30,7 @@ const FOCUSABLE =
  */
 const openLayers: symbol[] = []
 let documentOverflowBeforeFirstLayer: string | null = null
+let appScrollersBeforeFirstLayer: Array<{ element: HTMLElement; overflowY: string }> = []
 
 function enterLayer(): symbol {
   const layer = Symbol('group-dialog')
@@ -37,6 +38,11 @@ function enterLayer(): symbol {
   if (openLayers.length === 1) {
     documentOverflowBeforeFirstLayer = document.documentElement.style.overflow
     document.documentElement.style.overflow = 'hidden'
+    const appScrollers = document.querySelectorAll<HTMLElement>('.app-shell__main, [data-testid="group-content-scroll"]')
+    for (const appScroller of appScrollers) {
+      appScrollersBeforeFirstLayer.push({ element: appScroller, overflowY: appScroller.style.overflowY })
+      appScroller.style.overflowY = 'hidden'
+    }
   }
   return layer
 }
@@ -47,6 +53,10 @@ function leaveLayer(layer: symbol): void {
   if (openLayers.length === 0 && documentOverflowBeforeFirstLayer !== null) {
     document.documentElement.style.overflow = documentOverflowBeforeFirstLayer
     documentOverflowBeforeFirstLayer = null
+    for (const appScroller of appScrollersBeforeFirstLayer) {
+      appScroller.element.style.overflowY = appScroller.overflowY
+    }
+    appScrollersBeforeFirstLayer = []
   }
 }
 
@@ -98,11 +108,17 @@ export function GroupDialog({
   const layerRef = useRef<symbol | null>(null)
   const titleId = useId()
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null)
+  const [portalStyle, setPortalStyle] = useState<CSSProperties>({})
   const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const attachAnchor = useCallback((anchor: HTMLSpanElement | null) => {
     if (!anchor) return
-    // Escape animated/clipped page containers while retaining group theme tokens.
-    setPortalRoot(anchor.closest<HTMLElement>('.group-workspace') ?? document.body)
+    const workspace = anchor.closest<HTMLElement>('.group-workspace')
+    // Escape the workspace stacking context; copy its local theme overrides to the body portal.
+    if (workspace) {
+      const variables = Object.fromEntries(Array.from(workspace.style).filter(name => name.startsWith('--')).map((name) => [name, workspace.style.getPropertyValue(name)]))
+      setPortalStyle(variables as CSSProperties)
+    }
+    setPortalRoot(document.body)
   }, [])
 
   useEffect(() => {
@@ -233,7 +249,7 @@ export function GroupDialog({
   const overlay = (
     <div
       className={cn(
-        'fixed inset-0 z-[100] flex justify-center overflow-y-auto overscroll-contain bg-neutral-dark/60',
+        'fixed inset-0 z-[110] flex justify-center overflow-hidden bg-neutral-dark/60',
         // A "sheet" owns the whole viewport on phones (where a 6xl panel would
         // still be ~360px wide and cramp its content) and becomes a centered
         // dialog from `sm` upwards.
@@ -241,6 +257,7 @@ export function GroupDialog({
           ? 'items-stretch p-0 sm:items-center sm:p-4 sm:py-10'
           : 'items-start p-4 py-10 sm:items-center',
       )}
+      style={{ ...portalStyle, zIndex: 110 }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && isTopMost()) requestClose()
       }}
@@ -253,11 +270,11 @@ export function GroupDialog({
         tabIndex={-1}
         data-testid={testId}
         className={cn(
-          'relative w-full border-border-subtle bg-surface text-ink shadow-2xl outline-none',
+          'relative w-full overflow-hidden border-border-subtle bg-surface text-ink shadow-2xl outline-none',
           mobileFullscreen
-            ? 'h-[100dvh] rounded-none border-0 sm:h-auto sm:max-h-[85dvh] sm:rounded-2xl sm:border ' +
+            ? 'h-[100dvh] max-h-none rounded-none border-0 sm:h-auto sm:max-h-[85dvh] sm:rounded-2xl sm:border ' +
                 RESPONSIVE_SIZE_CLASS[size]
-            : 'rounded-2xl border ' + SIZE_CLASS[size],
+            : 'max-h-[85dvh] rounded-2xl border ' + SIZE_CLASS[size],
         )}
       >
         <div className={cn('flex flex-col', mobileFullscreen ? 'h-[100dvh] sm:h-auto sm:max-h-[85dvh]' : 'max-h-[85dvh]')}>

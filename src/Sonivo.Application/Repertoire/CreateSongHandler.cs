@@ -15,7 +15,9 @@ public sealed record CreateSongCommand(
     string OriginKind,
     string? RightsNotes,
     string? Tags = null,
-    string? Genre = null);
+    string? Genre = null,
+    string? Album = null,
+    int? ReleaseYear = null);
 
 public sealed record SongListItemDto(
     Guid Id,
@@ -27,7 +29,10 @@ public sealed record SongListItemDto(
     DateTimeOffset UpdatedAt,
     IReadOnlyList<string> Tags,
     bool IsFavorite = false,
-    string? Genre = null);
+    string? Genre = null,
+    string? Album = null,
+    int? ReleaseYear = null,
+    bool HasCoverImage = false);
 
 public sealed record SongDetailDto(
     Guid Id,
@@ -41,7 +46,10 @@ public sealed record SongDetailDto(
     int ArrangementCount,
     IReadOnlyList<string> Tags,
     bool IsFavorite = false,
-    string? Genre = null);
+    string? Genre = null,
+    string? Album = null,
+    int? ReleaseYear = null,
+    bool HasCoverImage = false);
 
 public sealed class CreateSongHandler
 {
@@ -61,6 +69,7 @@ public sealed class CreateSongHandler
     public async Task<SongDetailDto> HandleAsync(CreateSongCommand command, CancellationToken cancellationToken)
     {
         var (group, _) = await _access.RequirePermissionAsync(command.GroupId, command.UserId, GroupPermissions.SongCreate, cancellationToken);
+        EnsureDefinedTags(command.Tags, group.SongTagList);
         PlanLimitGuard.EnsureWithinLimit(
             group.PlanId,
             PlanMetric.Songs,
@@ -76,7 +85,9 @@ public sealed class CreateSongHandler
                 command.Attribution,
                 command.RightsNotes,
                 command.Tags,
-                genre: command.Genre);
+                genre: command.Genre,
+                album: command.Album,
+                releaseYear: command.ReleaseYear);
 
             await _songs.AddAsync(song, cancellationToken);
             if (_audit is not null)
@@ -106,5 +117,17 @@ public sealed class CreateSongHandler
         arrangementCount,
         song.TagList,
         isFavorite,
-        song.Genre);
+        song.Genre,
+        song.Album,
+        song.ReleaseYear,
+        song.CoverImageObjectKey is not null);
+
+    internal static void EnsureDefinedTags(string? tags, IReadOnlyList<string> definitions)
+    {
+        if (string.IsNullOrWhiteSpace(tags)) return;
+        var allowed = definitions.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(tag => !allowed.Contains(tag)))
+            throw new ValidationException("Song tags must be selected from the group's defined tags.");
+    }
 }

@@ -9,6 +9,10 @@ Distinguish: **PRESENT** (on disk) · **AUTHORIZED** (Sonivo allowlist) · **DEF
 
 ## AUTHORIZED allowlist (binding)
 
+### CODE GRAPH — PROJECT-LOCAL (owner-authorized 2026-11-01)
+
+`graphify` — installed to this worktree using Graphify 0.8.22. Local hook is configured; graph build/query is not verified because the installed CLI did not emit the graph artifact.
+
 ### CORE — PROJECT-LOCAL
 
 `grill-with-docs` · `domain-modeling` · `to-spec` · `to-tickets` · `tdd` · `implement` · `code-review` · `diagnosing-bugs` · `codebase-design`

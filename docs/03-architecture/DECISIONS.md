@@ -6,6 +6,89 @@ Architecture Decision Records.
 
 Only **ACCEPTED** ADRs bind implementation. Newest first.
 
+## ADR-0109 — Group-wide default arrangement
+
+- **Status:** **ACCEPTED** — owner chose a shared group default on 2026-11-02.
+- **Supersedes:** ADR-0025 only where it prohibits a preferred Arrangement.
+- **Related:** ADR-0017 (Songs may have zero Arrangements), ADR-0025 (Song and Arrangement identity), ADR-0079 (Group tenancy).
+
+### Decision
+
+1. Store nullable `Song.DefaultArrangementId`. It identifies one live Arrangement belonging to that Song and Group; it is shared by all Group members.
+2. Backfill existing Songs to their oldest live Arrangement by `CreatedAt`, then `Id`. Leave Songs without live Arrangements unset. When the first Arrangement is created, select it automatically.
+3. Only Group Owners may change the default. The API requires Song `expectedVersion`, validates Arrangement ownership and Group on the server, and returns 409 for concurrency conflicts.
+4. Deleting the selected Arrangement promotes the oldest remaining live Arrangement, or clears the value when none remain. Song deletion clears the pointer while preserving the existing soft-delete cascade.
+5. Use the default for automatic version selection and label it in version lists. Explicit Arrangement IDs in Practice, Setlists, and Events remain authoritative.
+6. Enforce that the referenced Arrangement belongs to the same Song and Group with a nullable composite FK. Live status remains an Application invariant because soft-delete state is not part of the FK.
+
+### Consequences
+
+- Song-level selection is shared and concurrency-controlled without adding an `IsDefault` flag to every Arrangement.
+- Songs may still exist with no Arrangements. Existing explicit Setlist/Event selections do not change.
+
+## ADR-0110 — Song catalog metadata and Owner-managed tags
+
+- **Status:** **ACCEPTED** — owner authorized Song album/year/cover metadata and administrator-defined Song tags on 2026-11-02.
+- **Related:** ADR-0005 (Group tenancy), ADR-0007 (Song identity), ADR-0055 W-B (Song tags), ADR-0104 (Song genre).
+
+### Decision
+
+1. Add optional `Song.Album` (200 characters), `Song.ReleaseYear` (1000–9999), and one uploaded cover image. Store the image in the existing blob store; accept JPEG, PNG, or WebP up to 2 MiB. Cover reads require the caller's Song view permission; upload/removal require Song edit permission.
+2. Each Group has one normalized list of Song tag definitions, configured by the Group Owner. Song creation/editing selects only from that list; members cannot type arbitrary Song tags. Keep the existing limit of 12 tags per Song and 32 characters per tag. New catalogs allow 50 definitions; migration preserves larger existing catalogs, which Owners can reduce but not grow while above 50.
+3. Backfill each Group's tag definitions from its existing live Song tags so current assignments remain selectable. The Owner cannot remove a definition while any live Song uses it.
+4. Album, release year, and cover belong to Song identity. Key, tempo, lyrics, chords, structure, notes, and resources remain Arrangement-specific.
+5. Expose tag definitions through Group-scoped member-read and Owner-write API routes. Server validation is authoritative for catalog updates and Song writes.
+
+### Consequences
+
+- Song details can show album, year, and cover art without adding Song-level resources or mixing them with Arrangement materials.
+- Existing tags remain intact and become Group-managed options. Owners can add labels to the catalog; Song editors can only select configured labels.
+
+---
+
+## ADR-0108 — Arrangement harmony progression editor
+
+- **Status:** **ACCEPTED** — owner authorized direct integration of the reference chord-progression editor into the Sonivo worktree on 2026-11-02.
+- **Related:** ADR-0025 (Arrangement fields), ADR-0028 (ChordPro).
+
+### Context
+
+The owner wants a full-screen progression workspace inside the authenticated Arrangement editor. The reference site exposes the app but no public source repository or source license was found. Sonivo's Arrangement model stores key, BPM, lyrics, ChordPro, and timing, but not progression bars, scale, meter, or accompaniment configuration.
+
+### Decision
+
+1. Implement a Sonivo-owned progression editor from the visible interaction model; do not embed the hosted site or copy its compiled bundle. Keep all code in Sonivo's frontend and backend.
+2. Persist versioned progression state in nullable `Arrangement.HarmonyJson`. Keep chord symbols separate from `Arrangement.Chords` / ChordPro. Reuse `DefaultKey` and `DefaultBpm` for key and tempo.
+3. Version 1 stores scale, meter, genre label, named sections, bars with chord slots and duration ticks, and local accompaniment track settings. Validate JSON shape, bounds, track enums, and per-bar duration against meter on the server.
+4. Use existing Group-scoped Arrangement create/detail/PATCH routes, server authorization, and `expectedVersion`; add only an optional nullable field and additive database migration.
+5. Open chord editing as a viewport-filling workspace that covers the shared app shell. Back returns to the originating Practice route when `editReturn=practice` is present; otherwise it returns to the Arrangement editor menu. Unsaved changes retain the existing discard confirmation.
+6. Provide local Web Audio preview for chord, piano, lead, bass, guitar, and drum patterns. This does not create MIDI or Audiotool projects. DAW sync, progression libraries, and the hosted service's proprietary generators remain outside this integration.
+
+### Consequences
+
+- Progression edits persist independently from lyrics and ChordPro while retaining Arrangement tenancy and concurrency behavior.
+- The screen follows the reference's progression grid and settings, but uses Sonivo's route, API, session, authorization, and save lifecycle.
+- The integration has no HarmonyEditor runtime dependency and does not claim source-level parity with the hosted editor.
+
+---
+
+## ADR-0107 — Title-first LRCLIB recording search
+
+- **Status:** **ACCEPTED** — owner explicitly requested title-only search with selectable recordings after the existing lookup failed, 2026-11-01.
+- **Amends:** ADR-0100, clause 4 only.
+- **Spec:** [`PHASE-LYRICS-INTEROPERABILITY-SPEC.md`](PHASE-LYRICS-INTEROPERABILITY-SPEC.md).
+
+### Decision
+
+1. Search LRCLIB's documented `/api/search` endpoint with a required track title. Artist and album are optional refinements.
+2. Return selectable synced-lyrics recordings. Exclude results without valid synced lyrics and retain fixed-origin, response-size, timeout, rate-limit, and Group Owner authorization safeguards.
+3. Choosing a result only places it into the existing lyric review/import draft. Applying and saving remain separate explicit Owner actions; no provider result is persisted automatically.
+4. Keep LRCLIB as the only provider. Do not add schema, dependencies, provider proxies, or automatic matching.
+
+### Consequences
+
+Title-only searches can show alternate recordings, while optional metadata narrows results. Owners select the correct recording before reviewing its lyrics.
+
 ## ADR-0106 — List-first Song library presentation
 
 - **Status:** **ACCEPTED** — owner selected Storybook proposal C and explicitly authorized applying it to the product on 2026-10-27.
@@ -182,7 +265,13 @@ The Owner supplied Apple line-timed TTML and requested the best lyric interopera
 2. Add optional `endMs` to legacy line marks. Allow concurrent vocal intervals on different lyric lines, while rejecting overlapping words on the same line and instrumental/vocal conflicts. Existing marks and versioned Arrangement persistence remain valid; no table or migration is needed.
 3. Stage uses the audio clock and renders every concurrently active line/word. Reduced motion, keyboard seeking and same-browser display validation remain mandatory. Voice identity, translations and syllable-only effects may be reported as unsupported rather than silently claimed lossless.
 4. Allow explicit Owner-initiated lookup through documented public provider contracts. Initially use LRCLIB, exact title/artist metadata and optional album/duration. Return a reviewable candidate; never overwrite an Arrangement automatically. Fixed provider origins, bounded responses/timeouts, cancellation and unchanged Group authorization apply. Do not scrape cookies/tokens or integrate undocumented proxy endpoints.
-5. Reimplement general techniques independently with platform libraries. No copied third-party code/assets, GPL/AGPL dependency, cloud LLM, automated alignment, microphone, scoring, offline media download or external audio transport is authorized.
+5. This clause is temporarily superseded for the specifically authorized HarmonyDB port below. Other third-party assets and code still require license review. Cloud LLM, automated alignment, microphone, scoring, offline media download and external audio transport remain out of scope.
+
+### Temporary Sonivo × HarmonyDB integration authorization (2026-11-01)
+
+The owner explicitly authorizes this worktree integration to supersede clause 5 above only for selected HarmonyDB musical-domain code. Port the representation and tonal analysis code into Sonivo-owned backend modules; do not add a HarmonyDB runtime/package dependency. Preserve the upstream LGPL-2.1 license and copyright notices for copied or adapted files, document provenance, and keep modifications under compatible terms. No HarmonyDB database, service, API, identity, tenancy, or deployment subsystem is included. Sonivo Song/Arrangement persistence, Group authorization, validation, and frontend ownership remain authoritative. This temporary authorization does not expand Practice into scoring, cloud AI, automated alignment, or external media transport.
+
+This integration adds the HarmonyDB-derived pitch-class transposer to Sonivo's domain layer and makes it available through the existing ChordPro frontend transpose operation. The UI remains inside Arrangement chord editing, uses existing Arrangement save/version behavior, and adds no API or schema contract. The copied algorithm retains attribution and LGPL-2.1 notice in `src/Sonivo.Domain/Repertoire/THIRD-PARTY-NOTICES.md`.
 
 ### Alternatives and consequences
 
@@ -4160,6 +4249,9 @@ Sonivo is not church-first; worship is a supported segment. Core language stays 
 
 | ADR  | Title                                           | Status       |
 | ---- | ----------------------------------------------- | ------------ |
+| 0110 | Song catalog metadata and Owner-managed tags   | **ACCEPTED** |
+| 0108 | Arrangement harmony progression editor         | **ACCEPTED** |
+| 0107 | Title-first LRCLIB recording search             | **ACCEPTED** |
 | 0103 | Agent response and context workflow skills      | **ACCEPTED** |
 | 0102 | Neon agent access for project work              | **ACCEPTED** |
 | 0101 | Sonivo-owned lyric document and portable exports | **ACCEPTED** |

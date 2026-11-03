@@ -2,7 +2,11 @@
  * Thin ChordPro detect + parse for Arrangement.Chords / Lyrics (ADR-0028).
  * Transpose (ADR-0030 P0) mutates chord tokens inside `[]` only.
  * Unknown directives are kept as soft display lines.
+ *
+ * Recognition of real chord tokens is delegated to `chordSymbols` (MIT
+ * `chord-symbol`); the spelling/transpose rules here stay Sonivo-owned.
  */
+import { isChordSymbol } from './chordSymbols'
 
 /** Sharp-preferring chromatic names (Am +1 → A#m). Flats only when the source root used a flat. */
 const SHARP_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const
@@ -68,6 +72,18 @@ export type ChordProLine =
 
 export type ChordProDocument = {
   lines: ChordProLine[]
+}
+
+export function isBackingVocalLine(line: ChordProLine): boolean {
+  return line.kind === 'lyric' && /^\([^()]+\)$/.test(line.segments.map(segment => segment.lyric).join('').trim())
+}
+
+export function backingVocalParentLineIndex(lines: ChordProLine[], lineIndex: number): number | null {
+  for (let index = lineIndex - 1; index >= 0; index--) {
+    const line = lines[index]
+    if (line?.kind === 'lyric' && !isBackingVocalLine(line)) return index
+  }
+  return null
 }
 
 const CHORD_BRACKET = /\[[^\]]+\]/
@@ -224,4 +240,347 @@ export function tryTransposeDefaultKey(
   const root = normalizeRoot(match[1] ?? '')
   if (!(root in NOTE_INDEX)) return null
   return transposeChordToken(trimmed, semitones)
+}
+
+/* ------------------------------------------------------------------ */
+/* Source editor: highlighting, completion, and syntax validation      */
+/* ------------------------------------------------------------------ */
+
+/** Directives the reader understands. Unknown `{name}` becomes a soft warning. */
+const KNOWN_DIRECTIVES = new Set<string>([
+  'album', 'artist', 'bridge', 'capo', 'cb', 'c', 'chorus', 'chordfont', 'chordsize',
+  'ci', 'col', 'columns', 'comment', 'comment_box', 'comment_italic', 'composer',
+  'copyright', 'cs', 'cf', 'duration', 'define', 'end_of_bridge', 'end_of_chorus',
+  'end_of_grid', 'end_of_tab', 'end_of_verse', 'eob', 'eoc', 'eot', 'eov', 'g',
+  'grid', 'highlight', 'image', 'key', 'label', 'labels', 'lyricist', 'margin',
+  'musicpath', 'new_page', 'new_song', 'ng', 'no_grid', 'np', 'ns', 'pagesize',
+  'pagetype', 'select', 'sorttitle', 'soc', 'sot', 'sov', 'start_of_bridge',
+  'start_of_chorus', 'start_of_grid', 'start_of_tab', 'start_of_verse', 'st', 't',
+  'tempo', 'textfont', 'textsize', 'tf', 'time', 'title', 'toc', 'transpose',
+  'ts', 'verse', 'year',
+])
+
+/** `{c: ...}` and friends render as comments rather than structural directives. */
+const COMMENT_DIRECTIVES = new Set(['c', 'comment', 'ci', 'comment_italic', 'cb', 'comment_box'])
+
+export type ChordProSpanKind = 'text' | 'chord' | 'comment' | 'directive' | 'error'
+
+export type ChordProSpan = {
+  kind: ChordProSpanKind
+  text: string
+}
+
+/** Split one source line into highlighted spans. Unclosed `[`/`{` become error spans. */
+export function tokenizeChordProLine(line: string): ChordProSpan[] {
+  const spans: ChordProSpan[] = []
+  let plain = ''
+  let index = 0
+
+  const flush = () => {
+    if (!plain) return
+    spans.push({ kind: 'text', text: plain })
+    plain = ''
+  }
+
+  while (index < line.length) {
+    const char = line[index]
+    if (char === '[') {
+      const end = line.indexOf(']', index + 1)
+      flush()
+      if (end === -1) {
+        spans.push({ kind: 'error', text: line.slice(index) })
+        return spans
+      }
+      spans.push({ kind: 'chord', text: line.slice(index, end + 1) })
+      index = end + 1
+      continue
+    }
+    if (char === '{') {
+      const end = line.indexOf('}', index + 1)
+      flush()
+      if (end === -1) {
+        spans.push({ kind: 'error', text: line.slice(index) })
+        return spans
+      }
+      const name = line.slice(index + 1, end).split(':')[0]?.trim().toLowerCase() ?? ''
+      spans.push({ kind: COMMENT_DIRECTIVES.has(name) ? 'comment' : 'directive', text: line.slice(index, end + 1) })
+      index = end + 1
+      continue
+    }
+    plain += char
+    index += 1
+  }
+  flush()
+  return spans
+}
+
+export type ChordProIssueCode =
+  | 'unclosedChord'
+  | 'unexpectedChordClose'
+  | 'unclosedDirective'
+  | 'unexpectedDirectiveClose'
+  | 'emptyChord'
+  | 'unknownDirective'
+  | 'unexpectedSectionEnd'
+  | 'unclosedSection'
+  | 'duplicateMetadata'
+  | 'nonCanonicalChord'
+  | 'unrecognizedChord'
+
+/**
+ * Tokens that look like a chord attempt (root A–G plus chord-ish characters) but
+ * are not arbitrary markers like `N.C.`, `D.C.`, `x2` or `%`. Used so the
+ * validator can flag real typos without warning on customary notation.
+ */
+const CHORD_LIKE_TOKEN = /^[A-Ga-g][#b]?[A-Za-z0-9+#b()/]{0,7}$/
+
+/** `{start_of_x}` / `{sx}` shorthand to a canonical section name. */
+const SECTION_STARTS: Record<string, string> = {
+  start_of_verse: 'verse',
+  sov: 'verse',
+  start_of_chorus: 'chorus',
+  soc: 'chorus',
+  start_of_bridge: 'bridge',
+  sob: 'bridge',
+  start_of_tab: 'tab',
+  sot: 'tab',
+  start_of_grid: 'grid',
+}
+
+/** `{end_of_x}` / `{ex}` shorthand to a canonical section name. */
+const SECTION_ENDS: Record<string, string> = {
+  end_of_verse: 'verse',
+  eov: 'verse',
+  end_of_chorus: 'chorus',
+  eoc: 'chorus',
+  end_of_bridge: 'bridge',
+  eob: 'bridge',
+  end_of_tab: 'tab',
+  eot: 'tab',
+  end_of_grid: 'grid',
+}
+
+export type ChordProIssue = {
+  /** 1-based line number. */
+  line: number
+  /** 1-based column of the offending character. */
+  column: number
+  severity: 'error' | 'warning'
+  code: ChordProIssueCode
+  /** Directive name for `unknownDirective`. */
+  detail?: string
+}
+
+/** Directives that should appear at most once per song. */
+const SINGLE_VALUE_METADATA = new Set<string>([
+  'title', 't', 'artist', 'composer', 'lyricist', 'album', 'year', 'key',
+  'tempo', 'capo', 'time', 'duration', 'copyright', 'sorttitle', 'label',
+])
+
+/** Suffixes the canonicalizer understands; anything else is treated as lyric text. */
+const KNOWN_CHORD_QUALITIES = new Set<string>([
+  '', 'm', 'min', 'minor', 'mi', 'maj', 'major', 'dim', 'aug', 'sus', 'sus2',
+  'sus4', 'add9', '5', '6', '7', '9', '11', '13', 'm6', 'm7', 'm9', 'm11',
+  'm13', 'maj7', 'maj9', 'm7b5', '7b5', 'dim7', 'aug7', '69', '7sus4',
+])
+
+function canonicalChordPart(value: string): string | null {
+  const match = /^([A-Ga-g][#b]?)(.*)$/.exec(value)
+  if (!match) return null
+  const rawRoot = match[1] ?? ''
+  const root = `${rawRoot.charAt(0).toUpperCase()}${rawRoot.slice(1)}`
+  const rawSuffix = match[2] ?? ''
+  if (!KNOWN_CHORD_QUALITIES.has(rawSuffix.toLowerCase())) return null
+  const suffix = rawSuffix.toLowerCase()
+  const mapped = suffix === 'min' || suffix === 'minor' || suffix === 'mi'
+    ? 'm'
+    : suffix === 'maj' || suffix === 'major' ? '' : suffix
+  return `${root}${mapped}`
+}
+
+/**
+ * Canonical spelling of a chord token (`am` → `Am`, `Cmin` → `Cm`), or `null`
+ * when the token is already canonical or is not a recognizable chord.
+ */
+export function canonicalChordToken(token: string): string | null {
+  const trimmed = token.trim()
+  if (!trimmed) return null
+  const slash = trimmed.indexOf('/')
+  const main = slash >= 0 ? trimmed.slice(0, slash) : trimmed
+  const bass = slash >= 0 ? trimmed.slice(slash + 1) : ''
+  const canonicalMain = canonicalChordPart(main)
+  const canonicalBass = bass ? canonicalChordPart(bass) : null
+  if (canonicalMain === null && canonicalBass === null) return null
+  const result = `${canonicalMain ?? main}${bass ? `/${canonicalBass ?? bass}` : ''}`
+  return result === trimmed ? null : result
+}
+
+/**
+ * Structural ChordPro check: unbalanced brackets/braces, empty `[]`, unknown
+ * directives, unclosed sections, repeated single-value metadata, and
+ * non-canonical chord spellings. It never rewrites the source; callers map the
+ * codes to localized copy.
+ */
+export function validateChordProSource(text: string): ChordProIssue[] {
+  const issues: ChordProIssue[] = []
+  const lines = text.replace(/\r\n?/g, '\n').split('\n')
+  const openSections: Array<{ name: string; line: number; column: number }> = []
+  const seenMetadata = new Map<string, number>()
+
+  lines.forEach((line, lineIndex) => {
+    let chordStart = -1
+    let directiveStart = -1
+
+    for (let column = 0; column < line.length; column += 1) {
+      const char = line[column]
+
+      if (chordStart >= 0) {
+        if (char === ']') {
+          const inner = line.slice(chordStart + 1, column)
+          if (column === chordStart + 1) {
+            issues.push({ line: lineIndex + 1, column: chordStart + 1, severity: 'warning', code: 'emptyChord' })
+          } else {
+            for (const token of inner.trim().split(/\s+/)) {
+              const canonical = canonicalChordToken(token)
+              if (canonical) {
+                issues.push({ line: lineIndex + 1, column: chordStart + 1, severity: 'warning', code: 'nonCanonicalChord', detail: canonical })
+              } else if (CHORD_LIKE_TOKEN.test(token) && !isChordSymbol(token)) {
+                issues.push({ line: lineIndex + 1, column: chordStart + 1, severity: 'warning', code: 'unrecognizedChord', detail: token })
+              }
+            }
+          }
+          chordStart = -1
+        }
+        continue
+      }
+
+      if (directiveStart >= 0) {
+        if (char === '}') {
+          const inner = line.slice(directiveStart + 1, column)
+          const separator = inner.indexOf(':')
+          const name = (separator >= 0 ? inner.slice(0, separator) : inner).trim().toLowerCase()
+          const value = separator >= 0 ? inner.slice(separator + 1).trim() : ''
+          if (name && !KNOWN_DIRECTIVES.has(name) && !name.startsWith('x_')) {
+            issues.push({ line: lineIndex + 1, column: directiveStart + 1, severity: 'warning', code: 'unknownDirective', detail: name })
+          }
+          if (name && value && SINGLE_VALUE_METADATA.has(name)) {
+            const firstLine = seenMetadata.get(name)
+            if (firstLine !== undefined) {
+              issues.push({ line: lineIndex + 1, column: directiveStart + 1, severity: 'warning', code: 'duplicateMetadata', detail: name })
+            } else {
+              seenMetadata.set(name, lineIndex + 1)
+            }
+          }
+          const closing = SECTION_ENDS[name]
+          if (closing) {
+            const top = openSections[openSections.length - 1]
+            if (top?.name === closing) openSections.pop()
+            else issues.push({ line: lineIndex + 1, column: directiveStart + 1, severity: 'warning', code: 'unexpectedSectionEnd', detail: closing })
+          } else {
+            const opening = SECTION_STARTS[name]
+            if (opening) openSections.push({ name: opening, line: lineIndex + 1, column: directiveStart + 1 })
+          }
+          directiveStart = -1
+        }
+        continue
+      }
+
+      if (char === '[') chordStart = column
+      else if (char === ']') issues.push({ line: lineIndex + 1, column: column + 1, severity: 'error', code: 'unexpectedChordClose' })
+      else if (char === '{') directiveStart = column
+      else if (char === '}') issues.push({ line: lineIndex + 1, column: column + 1, severity: 'error', code: 'unexpectedDirectiveClose' })
+    }
+
+    if (chordStart >= 0) issues.push({ line: lineIndex + 1, column: chordStart + 1, severity: 'error', code: 'unclosedChord' })
+    if (directiveStart >= 0) issues.push({ line: lineIndex + 1, column: directiveStart + 1, severity: 'error', code: 'unclosedDirective' })
+  })
+
+  for (const section of openSections) {
+    issues.push({ line: section.line, column: section.column, severity: 'warning', code: 'unclosedSection', detail: section.name })
+  }
+
+  return issues
+}
+
+/** Chord tokens already used in the source, split out of `[Am G]` groups. */
+export function existingChordTokens(text: string): string[] {
+  const tokens: string[] = []
+  const re = /\[([^\]]*)\]/g
+  let match: RegExpExecArray | null
+  while ((match = re.exec(text)) !== null) {
+    const inner = (match[1] ?? '').trim()
+    if (inner) tokens.push(...inner.split(/\s+/))
+  }
+  return tokens
+}
+
+/**
+ * The chord token the caret currently sits in, i.e. the text after the nearest
+ * unclosed `[` on the same line. Returns `null` when the caret is outside a bracket.
+ */
+export function chordContextAt(text: string, cursor: number): { start: number; partial: string } | null {
+  const bounded = Math.max(0, Math.min(cursor, text.length))
+  const lineStart = text.lastIndexOf('\n', Math.max(0, bounded - 1)) + 1
+  const open = text.lastIndexOf('[', Math.max(0, bounded - 1))
+  if (open < lineStart) return null
+  const close = text.indexOf(']', open + 1)
+  if (close !== -1 && close < bounded) return null
+  return { start: open + 1, partial: text.slice(open + 1, bounded) }
+}
+
+const CHORD_SUFFIXES = ['', 'm', '7', 'maj7', 'm7', 'm6', 'm7b5', 'dim', 'aug', 'sus2', 'sus4', 'add9', '6', '9', 'm9', '11', '13']
+
+const NOTE_SPELLINGS = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B']
+
+/**
+ * Chord name completions for the token being typed. In-key suggestions come
+ * first, then chords already present, then a generated root/suffix pool.
+ * Supports slash chords (`Am/G`) by completing the bass note too.
+ */
+export function chordCompletionCandidates(
+  partial: string,
+  options: { key?: string | null; existing?: string[]; limit?: number } = {},
+): string[] {
+  const trimmed = partial.trim()
+  if (!trimmed) return []
+  const limit = options.limit ?? 8
+  const needle = trimmed.toLowerCase()
+
+  const pool: string[] = [...chordSuggestionsForKey(options.key), ...(options.existing ?? [])]
+  for (const note of NOTE_SPELLINGS) {
+    for (const suffix of CHORD_SUFFIXES) {
+      pool.push(`${note}${suffix}`)
+    }
+  }
+
+  const seen = new Set<string>()
+  const matches: string[] = []
+  const push = (candidate: string) => {
+    const normalized = candidate.toLowerCase()
+    if (seen.has(normalized)) return
+    seen.add(normalized)
+    matches.push(candidate)
+  }
+
+  const slashIndex = needle.indexOf('/')
+  if (slashIndex >= 0) {
+    const mainNeedle = needle.slice(0, slashIndex)
+    const bassNeedle = needle.slice(slashIndex + 1)
+    const mains = pool.filter((candidate) => candidate.toLowerCase().startsWith(mainNeedle))
+    const basses = NOTE_SPELLINGS.filter((note) => note.toLowerCase().startsWith(bassNeedle))
+    for (const main of mains) {
+      for (const bass of basses) {
+        push(`${main}/${bass}`)
+        if (matches.length >= limit) return matches
+      }
+    }
+    return matches
+  }
+
+  for (const candidate of pool) {
+    const normalized = candidate.toLowerCase()
+    if (normalized.startsWith(needle) && normalized !== needle) push(candidate)
+    if (matches.length >= limit) break
+  }
+  return matches
 }

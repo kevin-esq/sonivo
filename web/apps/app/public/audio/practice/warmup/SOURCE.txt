@@ -1,4 +1,4 @@
-Meta Piano samples for the local vocal warm-up cue
+Meta Piano samples for the local vocal warm-up cue and harmony editor keyboard
 
 Source: Meta Open Sound, Meta Piano
 Repository: https://github.com/facebookincubator/Meta-open-sound

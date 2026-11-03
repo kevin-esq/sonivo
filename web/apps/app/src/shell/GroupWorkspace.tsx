@@ -462,7 +462,7 @@ export function GroupWorkspace({
                 data-testid="group-content"
         className="group-content-panel m-3 flex-1 rounded-2xl bg-surface text-ink"
               >
-              <div className={`px-5 py-6 md:px-8 ${currentTrack ? 'pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-32' : 'pb-8'}`}>
+              <div className={`px-5 py-6 md:px-8 ${currentTrack ? 'pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-48' : 'pb-8'}`}>
                 {group === null ? (
                   <div className="space-y-3">
                     <p role="alert" className="text-error-ink">

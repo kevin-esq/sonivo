@@ -56,6 +56,7 @@ import { GroupIntegrationsPanel } from '../components/GroupIntegrationsPanel'
 import { GroupPlanUsagePanel } from '../components/GroupPlanUsagePanel'
 import { GroupDangerZonePanel } from '../components/GroupDangerZonePanel'
 import { GroupGeneralSettingsPanel } from '../components/GroupGeneralSettingsPanel'
+import { GroupSongTagsPanel } from '../components/GroupSongTagsPanel'
 import { BrandingHeaderPreview } from '../components/BrandingHeaderPreview'
 import { BrandingComponentPreview } from '../components/BrandingComponentPreview'
 import {
@@ -618,6 +619,7 @@ export function GroupSettingsPage({ user, groupId: routeGroupId }: { user: Curre
       <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`} tabIndex={0}>
       {/* General tab */}
       {activeTab === 'general' ? (
+        <div className="space-y-6">
         <GroupGeneralSettingsPanel
           isOwner={isOwner}
           renameName={renameName}
@@ -629,6 +631,8 @@ export function GroupSettingsPage({ user, groupId: routeGroupId }: { user: Curre
           isBrandingFieldLocked={locked}
           onDraftChange={patchDraft}
         />
+        <GroupSongTagsPanel groupId={groupId} isOwner={isOwner} />
+        </div>
       ) : null}
 
       {/* Branding tab */}

@@ -68,7 +68,8 @@ public sealed class ListArrangementsHandler
                 arrangement.DefaultBpm,
                 arrangement.Version,
                 arrangement.CreatedAt,
-                arrangement.UpdatedAt));
+                arrangement.UpdatedAt,
+                song.DefaultArrangementId == arrangement.Id));
         }
 
         return visible;

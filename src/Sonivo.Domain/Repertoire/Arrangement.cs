@@ -24,6 +24,7 @@ public sealed class Arrangement : IVersionedEntity
     /// Owner-authored ChordPro line timing marks as JSON text (ADR-0031). Null = no marks.
     /// </summary>
     public string? ChordTimingJson { get; private set; }
+    public string? HarmonyJson { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? DeletedAt { get; private set; }
@@ -46,7 +47,8 @@ public sealed class Arrangement : IVersionedEntity
         string? chords = null,
         string? structure = null,
         string? notes = null,
-        Guid? id = null)
+        Guid? id = null,
+        string? harmonyJson = null)
     {
         if (groupId == Guid.Empty)
         {
@@ -70,6 +72,7 @@ public sealed class Arrangement : IVersionedEntity
             Chords = NormalizeOptional(chords, MaxBodyLength, nameof(chords)),
             Structure = NormalizeOptional(structure, MaxBodyLength, nameof(structure)),
             Notes = NormalizeOptional(notes, MaxBodyLength, nameof(notes)),
+            HarmonyJson = NormalizeOptional(harmonyJson, MaxBodyLength, nameof(harmonyJson)),
             CreatedAt = now,
             UpdatedAt = now,
             Version = 1
@@ -85,6 +88,7 @@ public sealed class Arrangement : IVersionedEntity
         string? structure,
         string? notes,
         string? chordTimingJson,
+        string? harmonyJson,
         int expectedVersion,
         DateTimeOffset now)
     {
@@ -99,6 +103,7 @@ public sealed class Arrangement : IVersionedEntity
         Notes = NormalizeOptional(notes, MaxBodyLength, nameof(notes));
         // Pre-validated/normalized by Application (or null to clear). Length-checked here.
         ChordTimingJson = NormalizeOptional(chordTimingJson, MaxBodyLength, nameof(chordTimingJson));
+        HarmonyJson = NormalizeOptional(harmonyJson, MaxBodyLength, nameof(harmonyJson));
         Touch(now);
     }
 
