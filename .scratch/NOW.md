@@ -4,12 +4,12 @@
 
 **Updated:** 2026-11-03
 **Authorization:** Owner requested that remaining CI failures be inspected and fixed, with commit, push, and PR update authorized.
-**Implementation:** IN PROGRESS. Run `41653816885` failed with 26 tests, 2 skipped, and 94 passed. Most failures came from the shared editor-return helper clicking a control covered by editor content; two resource helpers navigated to an invalid post-modal state. Commit `05b0964` changes the helpers to return through the arrangement route and keep the current route after closing materials.
-**Validation:** Playwright discovery lists 122 tests; `git diff --check` passed. Full browser execution is pending CI. Local browser execution is unavailable because the worktree shares incomplete `node_modules` through a junction.
+**Implementation:** IN PROGRESS. Run `41653816885` failed with 26 tests, 2 skipped, and 94 passed. Most failures came from the shared editor-return helper clicking a control covered by editor content. Run `41771963245` then exposed stale expectations: the canonical Arrangement route renders Practice, not the old Arrangement hero. The follow-up returns to Practice after editor and materials flows.
+**Validation:** Playwright discovery lists 122 tests; `git diff --check` passed. Backend, frontend, security, and CodeQL passed on `41771963245`; Playwright failed on the stale route expectation. Follow-up CI is required. Local browser execution is unavailable because the worktree shares incomplete `node_modules` through a junction.
 **Human approval:** APPROVED for commit, push, and PR update.
 **Git checkpoint:** COMMITTED.
 **Remote:** PUSHED; PR [#315](https://github.com/kevin-esq/sonivo/pull/315) is open against `develop`.
-**CI:** RUNNING on commit `05b0964315f2bd401e7c6c1765a321d51a5e6c4c`.
+**CI:** FOLLOW-UP REQUIRED after run `41771963245` failed on commit `dc71560db04fadadd8f734233593a29b41d3a457`.
 
 ## T-SONG-METADATA-TAGS — Song details and managed tag catalog
 
