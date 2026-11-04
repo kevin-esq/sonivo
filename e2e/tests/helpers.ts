@@ -243,13 +243,23 @@ export async function returnToArrangement(page: Page) {
   const arrangementPath = currentUrl.pathname.replace(/\/edit\/(?:lyrics|chords)$/, '')
   if (arrangementPath !== currentUrl.pathname) {
     await page.goto(`${currentUrl.origin}${arrangementPath}`)
-    await expect(page.getByTestId('practice-tab-estudiar')).toBeVisible()
+  } else {
+    const arrangementLink = page.getByRole('navigation', { name: 'Ruta' }).locator('a[href*="/arrangements/"]').last()
+    if (await arrangementLink.isVisible().catch(() => false)) {
+      await arrangementLink.click()
+    } else if (currentUrl.hash.startsWith('#edit/')) {
+      currentUrl.hash = ''
+      currentUrl.search = ''
+      await page.goto(currentUrl.toString())
+    }
   }
+  await expect(page.getByRole('tab', { name: 'Ensayo y arreglo', exact: true })).toBeVisible()
   const editDialog = page.getByTestId('arrangement-edit-dialog')
   if (await editDialog.isVisible().catch(() => false)) {
     await editDialog.getByLabel('Cerrar').click()
     await expect(editDialog).toBeHidden()
   }
+  await page.getByRole('tab', { name: 'Ensayo y arreglo', exact: true }).click()
 }
 
 export async function openPractice(page: Page) {

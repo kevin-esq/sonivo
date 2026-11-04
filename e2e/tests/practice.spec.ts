@@ -245,6 +245,7 @@ test.describe('Practice / karaoke thin', () => {
       await expect(chordSource).toContainText(line)
     }
 
+    await openArrangementEditor(page, 'lyrics')
     await selectArrangementEditorMode(page, 'timing')
 
     // Timing marks are edited inline in the ChordPro studio.
