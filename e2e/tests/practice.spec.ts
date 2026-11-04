@@ -130,15 +130,11 @@ test.describe('Practice / karaoke thin', () => {
       .poll(async () => Number(await seek.inputValue()))
       .toBeGreaterThan(1)
 
-    const volume = globalPlayer.locator('input[type="range"][aria-label="Volumen"]:visible').first()
-    await volume.evaluate((el) => {
-      const input = el as HTMLInputElement
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
-      setter?.call(input, '0.4')
-      input.dispatchEvent(new Event('input', { bubbles: true }))
-      input.dispatchEvent(new Event('change', { bubbles: true }))
-    })
-    await expect(volume).toHaveValue('0.4')
+    const volume = globalPlayer.getByRole('spinbutton', { name: 'Porcentaje de volumen de audio' })
+    await volume.fill('40')
+    await volume.press('Enter')
+    await expect(volume).toHaveValue('40')
+    await expect.poll(() => page.locator('audio').evaluate((audio: HTMLAudioElement) => audio.volume)).toBeCloseTo(0.4)
 
     await trackOptions.nth(0).click()
     await expect(trackOptions.nth(0)).toHaveAttribute('aria-pressed', 'true')

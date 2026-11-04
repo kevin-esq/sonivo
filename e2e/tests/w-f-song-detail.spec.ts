@@ -46,8 +46,9 @@ test.describe('W-F song detail', () => {
     await page.getByRole('link', { name: songTitle }).first().click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
 
-    const versionChoice = page.getByRole('button', { name: new RegExp(arrangementLabel) })
-    const secondVersionChoice = page.getByRole('button', { name: new RegExp(secondArrangementLabel) })
+    const versionCards = page.locator('section[aria-labelledby="arrangements-heading"] ul > li > button')
+    const versionChoice = versionCards.filter({ hasText: arrangementLabel })
+    const secondVersionChoice = versionCards.filter({ hasText: secondArrangementLabel })
     await versionChoice.click()
     await expect(versionChoice).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()

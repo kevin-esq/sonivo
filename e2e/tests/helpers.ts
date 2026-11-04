@@ -218,18 +218,9 @@ export async function expectArrangementVisible(page: Page, label: string) {
 }
 
 export async function openArrangementEditor(page: Page, section: 'lyrics' | 'chords' = 'lyrics') {
-  const expose = async (testId: string) => {
-    const field = page.getByTestId(testId)
-    const disclosure = page.locator('details').filter({ has: field })
-    if (!(await field.isVisible().catch(() => false)) && await disclosure.count()) {
-      await disclosure.locator('summary').click()
-    }
-    await expect(field).toBeVisible()
-  }
   const path = new URL(page.url()).pathname
   if (path.endsWith(`/edit/${section}`)) {
     await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
-    await expose(section === 'lyrics' ? 'digitizer-lyrics' : 'digitizer-chords')
     return
   }
   if (path.includes('/edit/')) await returnToArrangement(page)
@@ -242,11 +233,8 @@ export async function openArrangementEditor(page: Page, section: 'lyrics' | 'cho
   await dialog.getByRole('button', { name: section === 'lyrics' ? /Editar letra/ : /Editar acordes/ }).click()
   await expect(page).toHaveURL(new RegExp(`/edit/${section}(?:[?#]|$)`))
   await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
-  if (section === 'lyrics') {
-    await expose('digitizer-lyrics')
-  } else {
+  if (section === 'chords') {
     await expect(page.getByTestId('arrangement-chords')).toBeVisible()
-    await expose('digitizer-chords')
   }
 }
 

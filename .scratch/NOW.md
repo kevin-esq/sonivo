@@ -4,12 +4,12 @@
 
 **Updated:** 2026-11-04
 **Authorization:** Owner requested that remaining CI failures be inspected and fixed, with commit, push, and PR update authorized.
-**Implementation:** IN PROGRESS. Runs `41653816885` and `41771963245` exposed helper and route assumptions; run `41780342475` passed 107 tests, skipped 2, and failed 13. This follow-up opens collapsed lyric/chord disclosures, enters the Practice Advanced tab before digitizer checks, targets the global volume control, waits for playback progress before pausing, selects versions from the current Song cards, and checks Song deletion inside its edit dialog. Removed obsolete non-Event conductor-hint expectations and duplicate hidden `arrangement-editor` test IDs from assertions. Product behavior and APIs are unchanged.
-**Validation:** Playwright discovery lists all 122 tests; `git diff --check` passed. Backend, frontend, security, and CodeQL passed on run `41780342475`; Playwright failed on the 13 stale test interactions above. Local E2E execution is unavailable: API/Next are not running on ports 5171/5173 and local dependencies lack several app packages. App TypeScript check reports pre-existing generated-route/API-client mismatches plus missing CodeMirror and chord packages; no application source was changed.
+**Implementation:** IN PROGRESS. Runs `41653816885`, `41771963245`, and `41780342475` exposed helper and route assumptions. The first follow-up, `41821169049`, found that clicking collapsed editor disclosures triggered scrolling and left controls unstable; its version-card query also matched a default-version action. This correction leaves disclosure state alone except in the one ChordPro test that needs its hidden chord field, uses the volume percentage input, and scopes version-card locators to the Arrangement list. Product behavior and APIs are unchanged.
+**Validation:** Playwright discovery lists all 122 tests; `git diff --check` passed. Backend, frontend, security, and CodeQL passed on run `41821169049`; Playwright failed on test interactions described above. Local E2E execution is unavailable: API/Next are not running on ports 5171/5173 and local dependencies lack several app packages. App TypeScript check reports pre-existing generated-route/API-client mismatches plus missing CodeMirror and chord packages; no application source was changed.
 **Human approval:** APPROVED for commit, push, and PR update.
 **Git checkpoint:** COMMITTED.
 **Remote:** PUSHED; PR [#315](https://github.com/kevin-esq/sonivo/pull/315) is open against `develop`.
-**CI:** FOLLOW-UP REQUIRED after run `41780342475` failed on commit `c136b55af17cff007dd9fa1e8a83618e328d068f`; current test fixes need a new CI run.
+**CI:** FOLLOW-UP REQUIRED after run `41821169049` failed on commit `5212bb44d81c2f29c7737294af6253f1757b3791`; this correction needs a new CI run.
 
 ## T-SONG-METADATA-TAGS — Song details and managed tag catalog
 

@@ -113,6 +113,9 @@ test.describe('ChordPro text digitizer (ADR-0030 P1)', () => {
     await openArrangementEditor(page, 'chords')
     await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
     await expect(page.getByTestId('digitizer-sheet-region')).toContainText(lyricWord)
+    await page.locator('details').filter({ has: page.getByTestId('digitizer-chords') }).evaluateAll((elements) => {
+      for (const element of elements) (element as HTMLDetailsElement).open = true
+    })
     await page.getByTestId('digitizer-chords').fill(`${chordToken} G`)
     await page.getByTestId('digitizer-generate').click()
     await expect(page.getByTestId('arrangement-chords')).toContainText(`[${chordToken}]`)
