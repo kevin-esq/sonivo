@@ -4,12 +4,12 @@
 
 **Updated:** 2026-11-04
 **Authorization:** Owner requested that remaining CI failures be inspected and fixed, with commit, push, and PR update authorized.
-**Implementation:** IN PROGRESS. Runs `41653816885`, `41771963245`, and `41780342475` exposed helper and route assumptions. The first follow-up, `41821169049`, found that clicking collapsed editor disclosures triggered scrolling and left controls unstable; its version-card query also matched a default-version action. This correction leaves disclosure state alone except in the one ChordPro test that needs its hidden chord field, uses the volume percentage input, and scopes version-card locators to the Arrangement list. Product behavior and APIs are unchanged.
-**Validation:** Playwright discovery lists all 122 tests; `git diff --check` passed. Backend, frontend, security, and CodeQL passed on run `41821169049`; Playwright failed on test interactions described above. Local E2E execution is unavailable: API/Next are not running on ports 5171/5173 and local dependencies lack several app packages. App TypeScript check reports pre-existing generated-route/API-client mismatches plus missing CodeMirror and chord packages; no application source was changed.
+**Implementation:** IN PROGRESS. Runs `41653816885`, `41771963245`, `41780342475`, `41821169049`, and `41837355304` exposed helper assumptions and real interaction defects. The latest run failed 9 Playwright tests: the full-page editor was clipped by the Group shell scroll container; ChordPro assertions expected line breaks in CodeMirror `textContent`; the digitizer unmounted during its post-save refresh; and the conductor journey exceeded the default timeout. The follow-up portals full-page editors to `document.body`, preserves loaded Arrangement state during same-route refresh, asserts ChordPro lines independently, and allows 120 seconds for the two-user conductor journey. No API or data contract changed.
+**Validation:** Latest remote run `41837355304` passed Frontend, Backend, Security, and CodeQL; Playwright had 111 passed, 2 skipped, and 9 failed. Local Playwright discovery lists 122 tests and `git diff --check` passes. App TypeScript remains blocked by existing missing CodeMirror/Chord packages and generated route/API-client mismatches; API/Next are not running on ports 5171/5173, so browser journeys were not run locally.
 **Human approval:** APPROVED for commit, push, and PR update.
 **Git checkpoint:** COMMITTED.
 **Remote:** PUSHED; PR [#315](https://github.com/kevin-esq/sonivo/pull/315) is open against `develop`.
-**CI:** FOLLOW-UP REQUIRED after run `41821169049` failed on commit `5212bb44d81c2f29c7737294af6253f1757b3791`; this correction needs a new CI run.
+**CI:** FOLLOW-UP REQUIRED after run `41837355304` failed on commit `b029425bde356c2a1e3e97cf129ed7e528209b62`; corrected interactions are committed on the PR branch and need a new CI run.
 
 ## T-SONG-METADATA-TAGS — Song details and managed tag catalog
 

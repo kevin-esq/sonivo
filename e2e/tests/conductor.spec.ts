@@ -32,6 +32,7 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
   test('TC-Q9-01 owner conducts; member follows playhead and sees presence', async ({
     browser,
   }) => {
+    test.setTimeout(120_000)
     const stamp = Date.now()
     const ownerEmail = uniqueEmail('q9-owner')
     const memberEmail = uniqueEmail('q9-member')

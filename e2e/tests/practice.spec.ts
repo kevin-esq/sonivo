@@ -241,7 +241,9 @@ test.describe('Practice / karaoke thin', () => {
     await selectArrangementEditorMode(page, 'chords')
     const chordSource = page.getByTestId('arrangement-chords')
     // Verify chords field has content (3 lines)
-    await expect(chordSource).toContainText(chordProBody)
+    for (const line of chordProBody.split('\n')) {
+      await expect(chordSource).toContainText(line)
+    }
 
     await selectArrangementEditorMode(page, 'timing')
 
