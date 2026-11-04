@@ -38,7 +38,7 @@ test('owner imports TTML, exports Sonivo format and follows simultaneous vocals 
   await openPractice(page)
   const globalPlayer = page.getByTestId('global-player')
   await expect(globalPlayer).toBeVisible()
-  await globalPlayer.locator('[data-player-expand]').click()
+  await globalPlayer.locator('[data-player-expand]:visible').first().click()
   const fullPlayer = page.getByTestId('global-player-fullscreen')
   await expect(fullPlayer).toBeVisible()
   await expect(fullPlayer.locator('[data-lyric-line-seek]')).toHaveCount(3)

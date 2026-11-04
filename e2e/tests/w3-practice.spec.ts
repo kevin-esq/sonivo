@@ -30,8 +30,6 @@ test.describe('W3 Practice progressive disclosure', () => {
     await openPractice(page)
 
     const baseUrl = page.url()
-    expect(baseUrl).not.toMatch(/[?&]tab=/)
-
     // Default tab is Estudiar with lyrics visible.
     const estudiarTab = page.getByTestId('practice-tab-estudiar')
     await expect(estudiarTab).toBeVisible()

@@ -4,12 +4,12 @@
 
 **Updated:** 2026-11-04
 **Authorization:** Owner requested that remaining CI failures be inspected and fixed, with commit, push, and PR update authorized.
-**Implementation:** IN PROGRESS. Run `41886941071` on `c01f55e` passed Backend, Frontend, Security, and CodeQL; Playwright had 115 passed, 2 skipped, and 5 failed. The return helper selected the advanced Practice tab instead of Estudiar, floating player covered two controls, and export assertions targeted a button absent from the current Practice UI. The correction returns to Estudiar, scrolls covered controls into view, and verifies the authenticated TTML export endpoint directly. No API or data contract changed.
-**Validation:** `npm test -- --list` lists all 122 tests; `git diff --check` passes. A local six-test Playwright run stopped at account setup because the API returned `test-confirm failed: 401`; the API on port 5171 belongs to another worktree and lacks the E2E test hook. Remote CI must validate this correction.
+**Implementation:** IN PROGRESS. Run `41886941071` on `c01f55e` had 115 passed, 2 skipped, and 5 failed. Run `41895234910` on `4f85d01` passed Backend, Frontend, Security, and CodeQL; Playwright had 117 passed, 2 skipped, and 3 failed. Remaining failures: a 3-second audio fixture ends before the playback assertion, a responsive player selector matches three buttons, and W3 asserts the obsolete absence of `tab=estudiar`. Follow-up uses a longer existing audio fixture and stable play/pause locator, scopes the player selector to a visible control, and removes that obsolete URL assertion. No API or data contract changed.
+**Validation:** `npm test -- --list` lists all 122 tests. `git diff --check` passes. The latest remote run confirms 117 passed, 2 skipped, and 3 failed. Local Playwright cannot authenticate: API on port 5171 belongs to another worktree and returns `test-confirm failed: 401` without the E2E test hook. Remote CI must validate this correction.
 **Human approval:** APPROVED for commit, push, and PR update.
 **Git checkpoint:** COMMITTED.
 **Remote:** PUSHED; PR [#315](https://github.com/kevin-esq/sonivo/pull/315) is open against `develop`.
-**CI:** FOLLOW-UP REQUIRED after run `41886941071` failed on commit `c01f55ed44a528bf348d6c0cd0bd942080ed3a4c`; this correction needs a new CI run.
+**CI:** FOLLOW-UP REQUIRED after run `41895234910` failed on commit `4f85d015f0eedd420ecb562f3b05e5ee8874fcf0`; this correction needs a new CI run.
 
 ## T-SONG-METADATA-TAGS — Song details and managed tag catalog
 

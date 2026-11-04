@@ -231,7 +231,7 @@ test.describe('Practice / karaoke thin', () => {
     await createArrangement(page, arrangementLabel, { lyrics: allLyrics, chords: chordProBody })
     await createFileResource(page, {
       label: `Audio Sync ${stamp}`,
-      filePath: path.join(fixturesDir, 'practice-a.wav'),
+      filePath: path.join(fixturesDir, 'practice-speech.wav'),
       purpose: 'audio',
     })
 
@@ -296,7 +296,7 @@ test.describe('Practice / karaoke thin', () => {
 
     // Start playback
     const globalPlayer = page.getByTestId('global-player')
-    const playPause = globalPlayer.getByRole('button', { name: 'Reproducir' })
+    const playPause = globalPlayer.getByRole('button', { name: /^(Reproducir|Pausar)$/ })
     await playPause.click()
     await expect(playPause).toHaveAttribute('aria-label', 'Pausar')
 
