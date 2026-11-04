@@ -21,6 +21,7 @@ test.describe('Phase 4 product completion', () => {
     await expect(page.getByRole('link', { name: 'Invita a las personas y asigna sus roles' }))
       .toHaveAttribute('href', `/app/groups/${groupId}/people`)
     await page.getByRole('link', { name: 'Añade canciones y arreglos a la biblioteca' }).click()
+    await expect(page).toHaveURL(/\/library(?:[?#]|$)/)
     await createSong(page, `First song ${Date.now()}`)
 
     await page.goto(`/groups/${groupId}`)
