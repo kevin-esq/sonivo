@@ -4,12 +4,12 @@
 
 **Updated:** 2026-11-04
 **Authorization:** Owner requested that remaining CI failures be inspected and fixed, with commit, push, and PR update authorized.
-**Implementation:** IN PROGRESS. Commit `821bda3` corrected three earlier Playwright failures. Run `41901865610` then passed 118 tests, skipped 2, and failed 2: rich lyrics expected a completed prior line to be orange despite the intended blur; W3 appended duplicate `tab` query values, so the first value won. The older pasted run with 9 failures predates that head and is superseded by this latest run. The current patch checks the prior line's blur and replaces query parameters with `URLSearchParams.set`. No API or data contract changed.
-**Validation:** `npm test -- --list` lists all 122 tests; `git diff --check` passes. Local Playwright remains unavailable because the API on port 5171 belongs to another worktree and returns `test-confirm failed: 401` without the E2E test hook. Push will trigger full remote CI.
+**Implementation:** IN PROGRESS. Commit `821bda3` corrected earlier Playwright failures. Run `41901865610` passed 118 tests, skipped 2, and failed 2: rich lyrics expected orange where the prior line is intentionally blurred; W3 appended a duplicate `tab` parameter. Commit `0c1a4c0` corrected those checks. Run `41908405645` passed Backend and Frontend, with 118 Playwright passes, 2 skips, 1 failure, and 1 flaky test. The failure was a mobile lyrics locator matching desktop and mobile panels; the flake exposed `createSong` retrying a non-idempotent creation flow and producing duplicate songs. Current patch scopes mobile lyrics to the visible panel and removes retries around song creation. No API or data contract changed.
+**Validation:** `npm test -- --list` lists all 122 tests; `git diff --check` passes. Local Playwright remains unavailable because the API on port 5171 belongs to another worktree and returns `test-confirm failed: 401` without the E2E test hook. New remote CI must validate this patch.
 **Human approval:** APPROVED for commit, push, and PR update.
 **Git checkpoint:** COMMITTED.
 **Remote:** PUSHED; PR [#315](https://github.com/kevin-esq/sonivo/pull/315) is open against `develop`.
-**CI:** FOLLOW-UP REQUIRED after run `41901865610` failed on commit `821bda3a70dafb1fecc8ffdc76f2c526217d55e6`; current patch needs a new CI run.
+**CI:** FOLLOW-UP REQUIRED after run `41908405645` failed on commit `0c1a4c0fadc284b7c41754792282c517719935a9`; current patch needs a new CI run.
 
 ## T-SONG-METADATA-TAGS — Song details and managed tag catalog
 

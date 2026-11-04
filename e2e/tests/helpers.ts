@@ -145,28 +145,23 @@ async function openCreateDialogAndFill(
 
 export async function createSong(page: Page, title: string) {
   // The create-song flow is a wizard: Details → Audio → Version → Review.
-  // The whole run is retried as one unit so a mid-flight re-render cannot leave
-  // the dialog half-filled.
-  await expect(async () => {
-    const dialog = page.getByRole('dialog')
-    if (!(await dialog.isVisible().catch(() => false))) {
-      await page.getByRole('button', { name: 'Agregar canción' }).first().click()
-    }
-    await expect(dialog).toBeVisible({ timeout: 2000 })
-    await dialog.getByLabel('Título').fill(title, { timeout: 3000 })
-    await dialog.getByRole('button', { name: 'Continuar' }).click({ timeout: 3000 })
-    await dialog.getByRole('button', { name: 'Omitir audio' }).click({ timeout: 3000 })
-    await dialog.getByRole('button', { name: 'Continuar' }).click({ timeout: 3000 })
-    await dialog.getByRole('button', { name: 'Crear canción' }).click({ timeout: 3000 })
-    await dialog.getByRole('link', { name: 'Abrir canción' }).click({ timeout: 5000 })
-  }).toPass({ timeout: 30000 })
+  // Create once: retrying the POST flow can create duplicate songs.
+  await page.getByRole('button', { name: 'Agregar canción' }).first().click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await dialog.getByLabel('Título').fill(title)
+  await dialog.getByRole('button', { name: 'Continuar' }).click()
+  await dialog.getByRole('button', { name: 'Omitir audio' }).click()
+  await dialog.getByRole('button', { name: 'Continuar' }).click()
+  await dialog.getByRole('button', { name: 'Crear canción' }).click()
+  await dialog.getByRole('link', { name: 'Abrir canción' }).click()
   await page.getByTestId('group-rail').getByRole('link', { name: 'Canciones', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
-  await expect(page.getByRole('link', { name: title })).toBeVisible()
+  await expect(page.getByRole('link', { name: title }).first()).toBeVisible()
 }
 
 export async function openSong(page: Page, title: string) {
-  await page.getByRole('link', { name: title }).click()
+  await page.getByRole('link', { name: title }).first().click()
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
 }
 

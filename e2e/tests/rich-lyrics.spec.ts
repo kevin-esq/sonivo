@@ -55,7 +55,7 @@ test('owner imports TTML, exports Sonivo format and follows simultaneous vocals 
   await expect.poll(() => previousLyricLine.evaluate(element => getComputedStyle(element).filter)).toMatch(/blur\((?!0px\))/)
   await page.setViewportSize({ width: 390, height: 844 })
   await fullPlayer.getByRole('button', { name: 'Letra', exact: true }).click()
-  const mobileLyrics = fullPlayer.locator('[data-player-scrollable][data-player-lyrics-scrollable]')
+  const mobileLyrics = fullPlayer.locator('[data-player-scrollable][data-player-lyrics-scrollable]:visible').first()
   await expect(mobileLyrics).toHaveCSS('padding-top', '0px')
   await expect(mobileLyrics).toHaveCSS('padding-bottom', '0px')
   await page.keyboard.press('Escape')
