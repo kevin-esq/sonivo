@@ -6,6 +6,7 @@ import {
   createSong,
   openArrangementEditor,
   openLibrary,
+  openLyricsImportDialog,
   openSong,
   register,
   returnToArrangement,
@@ -34,8 +35,7 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
 
     // Import is an advanced option inside the lyrics editor.
-    await page.getByTestId('open-lyrics-dialog').click()
-    const addLyricsDialog = page.getByTestId('lyric-import-options')
+    const addLyricsDialog = await openLyricsImportDialog(page)
     await page.route('**/lyrics/lookup', async (route) => route.fulfill({
       status: 404,
       contentType: 'application/problem+json',
@@ -45,7 +45,7 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     const missingResponse = page.waitForResponse(response => response.url().includes('/lyrics/lookup'))
     await addLyricsDialog.getByRole('button', { name: 'Buscar letra' }).click()
     expect((await missingResponse).status()).toBe(404)
-    await expect(addLyricsDialog.getByRole('status')).toContainText('Letra sincronizada no encontrada')
+    await expect(addLyricsDialog.getByRole('status').filter({ hasText: 'Letra sincronizada no encontrada' })).toBeVisible()
     await expect(addLyricsDialog.getByRole('alert')).toHaveCount(0)
     await addLyricsDialog.getByRole('button', { name: 'Archivo' }).click()
 

@@ -253,7 +253,8 @@ test.describe('Practice / karaoke thin', () => {
     // Set timing marks from the current playhead, then enter exact fixture times.
     for (const [index, value] of [mark1Ms, mark2Ms, mark3Ms].entries()) {
       const line = page.getByTestId(`digitizer-line-${index}`)
-      await line.getByRole('button', { name: 'Marcar tiempo' }).click()
+      await page.getByTestId(`digitizer-select-line-${index}`).click()
+      await page.getByRole('button', { name: 'Marcar inicio del renglón' }).click()
       await line.getByRole('button', { name: 'Editar hora' }).click()
       const [whole, fraction] = String(value / 1000).split('.')
       await page.getByLabel(`Inicio del renglón ${index + 1}`).fill(`0:${whole!.padStart(2, '0')}${fraction ? `.${fraction}` : ''}`)
@@ -276,7 +277,7 @@ test.describe('Practice / karaoke thin', () => {
     await expectArrangementVisible(page, arrangementLabel)
 
     // Open Practice page
-    await page.getByRole('link', { name: 'Practicar' }).click()
+    await openPractice(page)
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
 
     // Wait for arrangement data to load (ChordPro body renders ChordProView)

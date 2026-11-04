@@ -156,7 +156,8 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
     await selectArrangementEditorMode(page, 'timing')
     for (const [line, timestamp] of [[0, '0:00.5'], [1, '0:01.5']] as const) {
       const lineEditor = page.getByTestId(`digitizer-line-${line}`)
-      await lineEditor.getByRole('button', { name: 'Añadir hora' }).click()
+      await page.getByTestId(`digitizer-select-line-${line}`).click()
+      await page.getByRole('button', { name: 'Marcar inicio del renglón' }).click()
       await page.getByLabel(`Inicio del renglón ${line + 1}`).fill(timestamp)
       await lineEditor.getByRole('button', { name: 'Guardar hora' }).click()
     }

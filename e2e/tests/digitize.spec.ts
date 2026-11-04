@@ -7,6 +7,7 @@ import {
   createGroup,
   createSong,
   openLibrary,
+  openPractice,
   openSong,
   register,
   uniqueEmail,
@@ -65,7 +66,7 @@ test.describe('Audio digitizer thin (Whisper)', () => {
     await expect(page.getByTestId('digitize-success')).toBeVisible({ timeout: 30_000 })
 
     // Saved marks flow into the existing follow-along path (ADR-0031).
-    await page.getByRole('link', { name: 'Practicar' }).click()
+    await openPractice(page)
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
     await expect(page.getByTestId('practice-chordpro')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('practice-follow-along')).toBeVisible()
@@ -128,7 +129,7 @@ test.describe('Audio digitizer thin (Whisper)', () => {
     await expect(page.getByTestId('digitize-success')).toBeVisible({ timeout: 30_000 })
 
     // Saved marks flow into the existing follow-along path (ADR-0031).
-    await page.getByRole('link', { name: 'Practicar' }).click()
+    await openPractice(page)
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
     await expect(page.getByTestId('practice-chordpro')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('practice-follow-along')).toBeVisible()

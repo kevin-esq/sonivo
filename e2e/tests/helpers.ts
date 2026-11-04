@@ -258,7 +258,20 @@ export async function openPractice(page: Page) {
     await page.getByRole('link', { name: 'Practicar', exact: true }).click()
   }
   await expect(page.getByTestId('practice-tab-estudiar')).toBeVisible()
+  await page.getByTestId('practice-tab-estudiar').click()
   await expect(page.getByRole('heading', { name: 'Letra', exact: true })).toBeVisible()
+}
+
+export async function openLyricsImportDialog(page: Page) {
+  const dialog = page.getByTestId('lyric-import-options')
+  try {
+    await page.getByTestId('open-lyrics-dialog').click({ timeout: 5_000 })
+  } catch (error) {
+    // The portal can cover its trigger before Playwright completes click checks.
+    if (!(await dialog.isVisible().catch(() => false))) throw error
+  }
+  await expect(dialog).toBeVisible()
+  return dialog
 }
 
 async function openArrangementMaterials(page: Page): Promise<string> {

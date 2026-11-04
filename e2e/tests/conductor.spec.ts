@@ -74,7 +74,8 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
       await expect(ownerPage.getByTestId('digitizer-studio')).toBeVisible({ timeout: 10_000 })
       for (const [index, time] of ['00:00.500', '00:01.500', '00:02.500'].entries()) {
         const line = ownerPage.getByTestId(`digitizer-line-${index}`)
-        await line.getByRole('button', { name: 'Marcar tiempo' }).click()
+        await ownerPage.getByTestId(`digitizer-select-line-${index}`).click()
+        await ownerPage.getByRole('button', { name: 'Marcar inicio del renglón' }).click()
         await line.getByRole('button', { name: 'Editar hora' }).click()
         await ownerPage.getByRole('textbox', { name: `Inicio del renglón ${index + 1}` }).fill(time)
         await ownerPage.getByRole('button', { name: 'Guardar hora' }).click()

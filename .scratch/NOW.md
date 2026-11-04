@@ -4,12 +4,12 @@
 
 **Updated:** 2026-11-04
 **Authorization:** Owner requested that remaining CI failures be inspected and fixed, with commit, push, and PR update authorized.
-**Implementation:** IN PROGRESS. Runs `41653816885`, `41771963245`, `41780342475`, `41821169049`, and `41837355304` exposed helper assumptions and real interaction defects. The latest run failed 9 Playwright tests: the full-page editor was clipped by the Group shell scroll container; ChordPro assertions expected line breaks in CodeMirror `textContent`; the digitizer unmounted during its post-save refresh; and the conductor journey exceeded the default timeout. The follow-up portals full-page editors to `document.body`, preserves loaded Arrangement state during same-route refresh, asserts ChordPro lines independently, and allows 120 seconds for the two-user conductor journey. No API or data contract changed.
-**Validation:** Latest remote run `41837355304` passed Frontend, Backend, Security, and CodeQL; Playwright had 111 passed, 2 skipped, and 9 failed. Local Playwright discovery lists 122 tests and `git diff --check` passes. App TypeScript remains blocked by existing missing CodeMirror/Chord packages and generated route/API-client mismatches; API/Next are not running on ports 5171/5173, so browser journeys were not run locally.
+**Implementation:** IN PROGRESS. Run `41863320222` on `c868039` passed Frontend, Backend, Security, and CodeQL; Playwright had 112 passed, 2 skipped, and 8 failed. Remaining failures came from outdated timing controls, an obsolete Practice link assumption, mobile resizing that unmounted the desktop-only editor, and ambiguous status selectors. The fix uses current controls and Practice tabs, keeps title lookup on its supported editor viewport, scopes the not-found status, and recognizes the importer dialog when its portal covers the trigger during Playwright's click checks. No API or data contract changed.
+**Validation:** `npm test -- --list` listed all 122 tests. A local six-test Playwright run stopped at account setup because the API returned `test-confirm failed: 401`; the API on port 5171 belongs to another worktree and lacks the E2E test hook. `git diff --check` passed. Remote CI rerun is required after this patch.
 **Human approval:** APPROVED for commit, push, and PR update.
 **Git checkpoint:** COMMITTED.
 **Remote:** PUSHED; PR [#315](https://github.com/kevin-esq/sonivo/pull/315) is open against `develop`.
-**CI:** FOLLOW-UP REQUIRED after run `41837355304` failed on commit `b029425bde356c2a1e3e97cf129ed7e528209b62`; corrected interactions are committed on the PR branch and need a new CI run.
+**CI:** FOLLOW-UP REQUIRED after run `41863320222` failed on commit `c868039f44d6e1bcbbdfd2ecea4fbd67efc66291`; this correction needs a new CI run.
 
 ## T-SONG-METADATA-TAGS — Song details and managed tag catalog
 

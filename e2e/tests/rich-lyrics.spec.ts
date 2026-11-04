@@ -2,7 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { createArrangement, createFileResource, createGroup, createSong, openArrangementEditor, openLibrary, openPractice, openSong, register, returnToArrangement, uniqueEmail } from './helpers'
+import { createArrangement, createFileResource, createGroup, createSong, openArrangementEditor, openLibrary, openLyricsImportDialog, openPractice, openSong, register, returnToArrangement, uniqueEmail } from './helpers'
 
 test('owner imports TTML, exports Sonivo format and follows simultaneous vocals on desktop and mobile', async ({ page, request }, testInfo) => {
   test.setTimeout(120_000)
@@ -20,18 +20,17 @@ test('owner imports TTML, exports Sonivo format and follows simultaneous vocals 
   await openArrangementEditor(page, 'lyrics')
   await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
 
-  await page.getByTestId('open-lyrics-dialog').click()
-  const panel = page.getByTestId('lyric-import-options')
+  const panel = await openLyricsImportDialog(page)
   await expect(page.getByRole('button', { name: 'Descargar TTML de Sonivo' })).toHaveCount(0)
   await panel.getByRole('button', { name: 'Pegar texto' }).click()
   await panel.getByLabel('Pegar letras o contenido del proveedor').fill('<tt xmlns="http://www.w3.org/ns/ttml"><body><div><p begin="00:00.100" end="00:01.500">Que un <span begin="00:00.100" end="00:00.800">día</span></p><p begin="00:00.300" end="00:00.900"><span begin="00:00.300" end="00:00.900">(Oh)</span></p><p begin="00:02.000" end="00:02.800"><span begin="00:02.000" end="00:02.200">We</span> keep <span begin="00:02.400" end="00:02.800">rising</span></p></div></body></tt>')
   const previewResponse = page.waitForResponse(response => response.url().includes('/lyrics/import-lrc'))
-  await panel.getByRole('button', { name: 'Previsualizar' }).click()
+  await panel.getByRole('button', { name: 'Revisar importación' }).click()
   const preview = await (await previewResponse).json()
   expect(preview.wordCount).toBe(4)
   expect(preview.errors).toEqual([])
-  await panel.getByRole('button', { name: 'Aplicar a la letra' }).click()
-  await expect(panel.getByRole('button', { name: 'Aplicar a la letra' })).toBeHidden()
+  await panel.getByRole('button', { name: 'Añadir al borrador' }).click()
+  await expect(panel.getByRole('button', { name: 'Añadir al borrador' })).toBeHidden()
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
   await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Descargar TTML de Sonivo' })).toHaveCount(0)
@@ -185,8 +184,7 @@ test('owner searches synced lyrics by title and selects a recording for review',
   await createArrangement(page, 'Search session')
   await openArrangementEditor(page, 'lyrics')
   await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
-  await page.getByTestId('open-lyrics-dialog').click()
-  const panel = page.getByTestId('lyric-import-options')
+  const panel = await openLyricsImportDialog(page)
   await expect(panel.getByRole('button', { name: 'Archivo' })).toBeVisible()
   await expect(panel.getByRole('button', { name: 'Pegar texto' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Descargar TTML de Sonivo' })).toHaveCount(0)
@@ -198,11 +196,8 @@ test('owner searches synced lyrics by title and selects a recording for review',
       { source: 'LRCLIB', recordId: 102, title: 'Title lookup', artist: 'Artist Two', album: 'Second album', duration: 135, content: '[00:01.00]Second synced result' },
     ]),
   }))
-  await page.setViewportSize({ width: 390, height: 844 })
   await panel.getByRole('button', { name: 'Buscar', exact: true }).click()
   const lookupDialog = panel
-  const dialogBounds = await lookupDialog.boundingBox()
-  expect(dialogBounds).toMatchObject({ x: 0, y: 0, width: 390, height: 844 })
   await lookupDialog.getByLabel('Título de la grabación').fill('Title lookup')
   const lookupResponse = page.waitForResponse(response => response.url().includes('/lyrics/lookup'))
   await lookupDialog.getByRole('button', { name: 'Buscar letra' }).click()
