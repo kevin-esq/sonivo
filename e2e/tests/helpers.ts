@@ -241,12 +241,11 @@ export async function openArrangementEditor(page: Page, section: 'lyrics' | 'cho
 }
 
 export async function returnToArrangement(page: Page) {
-  if (new URL(page.url()).pathname.includes('/edit/')) {
-    await page.getByTestId('group-content-scroll').evaluate((element) => {
-      element.scrollTop = 0
-    })
-    await page.getByRole('button', { name: 'Volver a editar' }).click()
-    await expect(page).not.toHaveURL(/\/edit\//)
+  const currentUrl = new URL(page.url())
+  const arrangementPath = currentUrl.pathname.replace(/\/edit\/(?:lyrics|chords)$/, '')
+  if (arrangementPath !== currentUrl.pathname) {
+    await page.goto(`${currentUrl.origin}${arrangementPath}`)
+    await expect(page.getByTestId('arrangement-hero')).toBeVisible()
   }
   const editDialog = page.getByTestId('arrangement-edit-dialog')
   if (await editDialog.isVisible().catch(() => false)) {
@@ -264,7 +263,7 @@ export async function openPractice(page: Page) {
   await expect(page.getByRole('heading', { name: 'Letra', exact: true })).toBeVisible()
 }
 
-async function openArrangementMaterials(page: Page): Promise<string> {
+async function openArrangementMaterials(page: Page) {
   const currentPath = new URL(page.url()).pathname
   const arrangementPath = currentPath.replace(/\/practice$/, '')
   if (!/\/arrangements\/[^/]+$/.test(arrangementPath)) {
@@ -280,14 +279,13 @@ async function openArrangementMaterials(page: Page): Promise<string> {
     await expect(materialsDialog).toBeVisible()
   }
   await expect(materialsDialog.getByRole('button', { name: 'Agregar enlace' })).toBeVisible()
-  return arrangementPath
 }
 
 export async function createLinkResource(
   page: Page,
   input: { label: string; url: string; purpose?: string },
 ) {
-  const arrangementPath = await openArrangementMaterials(page)
+  await openArrangementMaterials(page)
   await page.getByRole('button', { name: 'Agregar enlace' }).click()
   await expect(page.getByLabel('Tipo de material')).toBeVisible()
   await page.getByLabel('Tipo de material').selectOption(input.purpose ?? 'practice')
@@ -301,15 +299,13 @@ export async function createLinkResource(
   await expect(link).toHaveAttribute('target', '_blank')
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('song-arrangement-materials-dialog')).toHaveCount(0)
-  await page.goto(arrangementPath)
-  await expect(page.getByTestId('arrangement-hero')).toBeVisible()
 }
 
 export async function createFileResource(
   page: Page,
   input: { label: string; filePath: string; purpose?: string },
 ) {
-  const arrangementPath = await openArrangementMaterials(page)
+  await openArrangementMaterials(page)
   const materialsDialog = page.getByTestId('song-arrangement-materials-dialog')
   await materialsDialog.getByRole('button', { name: 'Subir archivo' }).click()
   const uploadDialog = page.getByRole('dialog').filter({ has: page.getByTestId('arrangement-file-dropzone') })
@@ -325,8 +321,6 @@ export async function createFileResource(
   await expect(row.getByRole('link', { name: 'Descargar' })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('song-arrangement-materials-dialog')).toHaveCount(0)
-  await page.goto(arrangementPath)
-  await expect(page.getByTestId('arrangement-hero')).toBeVisible()
 }
 
 export async function deleteSong(page: Page, title: string) {
