@@ -4,12 +4,12 @@
 
 **Updated:** 2026-11-04
 **Authorization:** Owner requested that remaining CI failures be inspected and fixed, with commit, push, and PR update authorized.
-**Implementation:** IN PROGRESS. Run `41878961082` on `6b48db3` passed Backend, Frontend, Security, and CodeQL; Playwright had 117 passed, 2 skipped, and 3 failed. The remaining failures showed two stale editor transitions (timing controls opened from the chords page) and returns that left tests on the Practice tab, hiding arrangement export controls. The current correction reopens the lyrics editor before timing edits and returns to the arrangement's `Ensayo y arreglo` tab. No API or data contract changed.
+**Implementation:** IN PROGRESS. Run `41886941071` on `c01f55e` passed Backend, Frontend, Security, and CodeQL; Playwright had 115 passed, 2 skipped, and 5 failed. The return helper selected the advanced Practice tab instead of Estudiar, floating player covered two controls, and export assertions targeted a button absent from the current Practice UI. The correction returns to Estudiar, scrolls covered controls into view, and verifies the authenticated TTML export endpoint directly. No API or data contract changed.
 **Validation:** `npm test -- --list` lists all 122 tests; `git diff --check` passes. A local six-test Playwright run stopped at account setup because the API returned `test-confirm failed: 401`; the API on port 5171 belongs to another worktree and lacks the E2E test hook. Remote CI must validate this correction.
 **Human approval:** APPROVED for commit, push, and PR update.
 **Git checkpoint:** COMMITTED.
 **Remote:** PUSHED; PR [#315](https://github.com/kevin-esq/sonivo/pull/315) is open against `develop`.
-**CI:** FOLLOW-UP REQUIRED after run `41878961082` failed on commit `6b48db31fa70df9b8c42e2120acba9823181edca`; this correction needs a new CI run.
+**CI:** FOLLOW-UP REQUIRED after run `41886941071` failed on commit `c01f55ed44a528bf348d6c0cd0bd942080ed3a4c`; this correction needs a new CI run.
 
 ## T-SONG-METADATA-TAGS — Song details and managed tag catalog
 

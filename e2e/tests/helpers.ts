@@ -241,25 +241,21 @@ export async function openArrangementEditor(page: Page, section: 'lyrics' | 'cho
 export async function returnToArrangement(page: Page) {
   const currentUrl = new URL(page.url())
   const arrangementPath = currentUrl.pathname.replace(/\/edit\/(?:lyrics|chords)$/, '')
+  const returnSearch = currentUrl.searchParams.get('editReturnSearch') || 'tab=estudiar'
   if (arrangementPath !== currentUrl.pathname) {
-    await page.goto(`${currentUrl.origin}${arrangementPath}`)
-  } else {
-    const arrangementLink = page.getByRole('navigation', { name: 'Ruta' }).locator('a[href*="/arrangements/"]').last()
-    if (await arrangementLink.isVisible().catch(() => false)) {
-      await arrangementLink.click()
-    } else if (currentUrl.hash.startsWith('#edit/')) {
-      currentUrl.hash = ''
-      currentUrl.search = ''
-      await page.goto(currentUrl.toString())
-    }
+    await page.goto(`${currentUrl.origin}${arrangementPath}?${returnSearch}`)
+  } else if (currentUrl.hash.startsWith('#edit')) {
+    currentUrl.hash = ''
+    await page.goto(currentUrl.toString())
   }
-  await expect(page.getByRole('tab', { name: 'Ensayo y arreglo', exact: true })).toBeVisible()
+  const studyTab = page.getByTestId('practice-tab-estudiar')
+  await expect(studyTab).toBeVisible()
   const editDialog = page.getByTestId('arrangement-edit-dialog')
   if (await editDialog.isVisible().catch(() => false)) {
     await editDialog.getByLabel('Cerrar').click()
     await expect(editDialog).toBeHidden()
   }
-  await page.getByRole('tab', { name: 'Ensayo y arreglo', exact: true }).click()
+  if (await studyTab.getAttribute('aria-selected') !== 'true') await studyTab.click()
 }
 
 export async function openPractice(page: Page) {
@@ -282,6 +278,14 @@ export async function openLyricsImportDialog(page: Page) {
   }
   await expect(dialog).toBeVisible()
   return dialog
+}
+
+export async function exportArrangementLyrics(page: Page, format: 'ttml') {
+  const match = new URL(page.url()).pathname.match(/\/groups\/([^/]+)\/arrangements\/([^/]+)/)
+  expect(match).not.toBeNull()
+  const response = await page.request.get(`/api/groups/${match![1]}/arrangements/${match![2]}/lyrics/export.${format}`)
+  expect(response.ok()).toBeTruthy()
+  return response.text()
 }
 
 async function openArrangementMaterials(page: Page): Promise<string> {

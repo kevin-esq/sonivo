@@ -83,6 +83,7 @@ test.describe('ChordPro transpose + views (ADR-0030 P0)', () => {
     await expect(chordProView).toContainText(lyricWord)
 
     await expect(page.getByTestId('practice-transpose-up')).toBeVisible()
+    await page.getByTestId('practice-transpose-up').evaluate(element => element.scrollIntoView({ block: 'center' }))
     await page.getByTestId('practice-transpose-up').click()
     await expect(page.getByTestId('practice-transpose-offset')).toContainText('+1')
     // Sharp-preferring convention: Am +1 → A#m (not Bbm)

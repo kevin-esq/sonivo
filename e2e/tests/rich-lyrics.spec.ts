@@ -1,8 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { createArrangement, createFileResource, createGroup, createSong, openArrangementEditor, openLibrary, openLyricsImportDialog, openPractice, openSong, register, returnToArrangement, uniqueEmail } from './helpers'
+import { createArrangement, createFileResource, createGroup, createSong, exportArrangementLyrics, openArrangementEditor, openLibrary, openLyricsImportDialog, openPractice, openSong, register, returnToArrangement, uniqueEmail } from './helpers'
 
 test('owner imports TTML, exports Sonivo format and follows simultaneous vocals on desktop and mobile', async ({ page, request }, testInfo) => {
   test.setTimeout(120_000)
@@ -35,11 +34,7 @@ test('owner imports TTML, exports Sonivo format and follows simultaneous vocals 
   await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Descargar TTML de Sonivo' })).toHaveCount(0)
   await returnToArrangement(page)
-  const downloadEvent = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Descargar TTML de Sonivo' }).click()
-  const download = await downloadEvent
-  expect(download.suggestedFilename()).toMatch(/\.ttml$/)
-  expect(readFileSync((await download.path())!, 'utf8')).toContain('sonivo:version="1"')
+  expect(await exportArrangementLyrics(page, 'ttml')).toContain('sonivo:version="1"')
   await openPractice(page)
   const globalPlayer = page.getByTestId('global-player')
   await expect(globalPlayer).toBeVisible()

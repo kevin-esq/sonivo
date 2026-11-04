@@ -1,9 +1,9 @@
-import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import {
   createArrangement,
   createGroup,
   createSong,
+  exportArrangementLyrics,
   openArrangementEditor,
   openLibrary,
   openLyricsImportDialog,
@@ -92,15 +92,7 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
     await returnToArrangement(page)
 
-    // The arrangement view provides Sonivo's lossless timed-lyrics export.
-    const [download] = await Promise.all([
-      page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Descargar TTML de Sonivo' }).click(),
-    ])
-    expect(download.suggestedFilename()).toMatch(/\.ttml$/)
-
-    // The native document retains timing and Sonivo metadata.
-    const exported = readFileSync((await download.path())!, 'utf8')
-    expect(exported).toContain('sonivo:version="1"')
+    // The authenticated export endpoint preserves timing and Sonivo metadata.
+    expect(await exportArrangementLyrics(page, 'ttml')).toContain('sonivo:version="1"')
   })
 })

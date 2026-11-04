@@ -100,6 +100,7 @@ test.describe('Practice / karaoke thin', () => {
     const trackOptions = page.getByTestId('practice-track-option')
     await expect(trackOptions).toHaveCount(2)
     await expect(trackOptions.nth(0)).toHaveAttribute('aria-pressed', 'true')
+    await trackOptions.nth(1).evaluate(element => element.scrollIntoView({ block: 'center' }))
     await trackOptions.nth(1).click()
     await expect(trackOptions.nth(1)).toHaveAttribute('aria-pressed', 'true')
     await expect(trackOptions.nth(1).getByTestId('practice-track-playing')).toBeVisible()
@@ -289,6 +290,7 @@ test.describe('Practice / karaoke thin', () => {
     await expect(followToggle).toBeVisible()
 
     // Enable "Seguir letra"
+    await followToggle.evaluate(element => element.scrollIntoView({ block: 'center' }))
     await followToggle.click()
     await expect(followToggle).toHaveAttribute('aria-pressed', 'true')
 
