@@ -47,9 +47,8 @@ test.describe('Audio digitizer thin (Whisper)', () => {
       purpose: 'audio',
     })
 
-    // Advanced audio tools are deliberately disclosed on demand; members
-    // never see drafts (the API is Owner-only too).
-    await page.locator('details').filter({ has: page.getByTestId('audio-digitizer') }).locator('summary').click()
+    // Audio digitizing is available from Practice's Advanced tab to Owners.
+    await page.getByTestId('practice-tab-avanzado').click()
     await expect(page.getByTestId('audio-digitizer')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Digitalizar audio' })).toBeVisible()
 
@@ -106,7 +105,7 @@ test.describe('Audio digitizer thin (Whisper)', () => {
       purpose: 'audio',
     })
 
-    await page.locator('details').filter({ has: page.getByTestId('audio-digitizer') }).locator('summary').click()
+    await page.getByTestId('practice-tab-avanzado').click()
     await expect(page.getByTestId('audio-digitizer')).toBeVisible()
     await page.getByTestId('digitize-start').click()
 

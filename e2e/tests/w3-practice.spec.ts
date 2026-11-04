@@ -46,7 +46,7 @@ test.describe('W3 Practice progressive disclosure', () => {
     )
     await expect(page.getByTestId('practice-lyrics')).toContainText(lyricsLine)
 
-    // Avanzado reveals timing/mapping/digitizer entry points (+ conductor hint outside events).
+    // Avanzado reveals timing and digitizer entry points. Conductor needs an Event.
     await page.getByTestId('practice-tab-avanzado').click()
     await expect(page.getByTestId('practice-tab-avanzado')).toHaveAttribute(
       'aria-selected',
@@ -54,7 +54,7 @@ test.describe('W3 Practice progressive disclosure', () => {
     )
     await expect(page.getByTestId('practice-advanced-timing-link')).toBeVisible()
     await expect(page.getByTestId('practice-advanced-digitize-link')).toBeVisible()
-    await expect(page.getByTestId('practice-advanced-conductor-hint')).toBeVisible()
+    await expect(page.getByTestId('practice-advanced-conductor-hint')).toHaveCount(0)
     await expect(page).toHaveURL(/tab=avanzado/)
 
     // Afinar renders the tuner.

@@ -31,7 +31,7 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     await openSong(page, 'LRC Song')
     await createArrangement(page, 'Acoustic')
     await openArrangementEditor(page, 'lyrics')
-    await expect(page.getByTestId('arrangement-editor')).toBeVisible()
+    await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
 
     // Import is an advanced option inside the lyrics editor.
     await page.getByTestId('open-lyrics-dialog').click()
@@ -89,7 +89,7 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
       page.getByRole('button', { name: 'Guardar cambios' }).click(),
     ])
     expect(patchResponse.ok()).toBeTruthy()
-    await expect(page.getByTestId('arrangement-editor')).toBeVisible()
+    await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
     await returnToArrangement(page)
 
     // The arrangement view provides Sonivo's lossless timed-lyrics export.

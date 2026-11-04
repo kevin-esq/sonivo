@@ -110,13 +110,12 @@ test.describe('Practice / karaoke thin', () => {
     await expect(playPause).toBeVisible()
     const seek = globalPlayer.getByRole('slider', { name: 'Progreso de reproducción de audio' })
     await expect(seek).toBeVisible()
-    await playPause.click()
-    await expect(globalPlayer.getByRole('button', { name: 'Reproducir' })).toBeVisible()
-
     await expect
       .poll(async () => Number(await seek.inputValue()), { timeout: 10_000 })
       .toBeGreaterThan(0)
 
+    await playPause.click()
+    await expect(globalPlayer.getByRole('button', { name: 'Reproducir' })).toBeVisible()
     await globalPlayer.getByRole('button', { name: 'Reproducir' }).click()
     await expect(globalPlayer.getByRole('button', { name: 'Pausar' })).toBeVisible()
 
@@ -131,7 +130,7 @@ test.describe('Practice / karaoke thin', () => {
       .poll(async () => Number(await seek.inputValue()))
       .toBeGreaterThan(1)
 
-    const volume = player.getByRole('slider', { name: 'Volumen' })
+    const volume = globalPlayer.locator('input[type="range"][aria-label="Volumen"]:visible').first()
     await volume.evaluate((el) => {
       const input = el as HTMLInputElement
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
