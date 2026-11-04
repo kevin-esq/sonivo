@@ -4,12 +4,12 @@
 
 **Updated:** 2026-11-04
 **Authorization:** Owner requested that remaining CI failures be inspected and fixed, with commit, push, and PR update authorized.
-**Implementation:** IN PROGRESS. Run `41886941071` on `c01f55e` had 115 passed, 2 skipped, and 5 failed. Run `41895234910` on `4f85d01` passed Backend, Frontend, Security, and CodeQL; Playwright had 117 passed, 2 skipped, and 3 failed. Remaining failures: a 3-second audio fixture ends before the playback assertion, a responsive player selector matches three buttons, and W3 asserts the obsolete absence of `tab=estudiar`. Follow-up uses a longer existing audio fixture and stable play/pause locator, scopes the player selector to a visible control, and removes that obsolete URL assertion. No API or data contract changed.
-**Validation:** `npm test -- --list` lists all 122 tests. `git diff --check` passes. The latest remote run confirms 117 passed, 2 skipped, and 3 failed. Local Playwright cannot authenticate: API on port 5171 belongs to another worktree and returns `test-confirm failed: 401` without the E2E test hook. Remote CI must validate this correction.
+**Implementation:** IN PROGRESS. Commit `821bda3` corrected three earlier Playwright failures. Run `41901865610` then passed 118 tests, skipped 2, and failed 2: rich lyrics expected a completed prior line to be orange despite the intended blur; W3 appended duplicate `tab` query values, so the first value won. The older pasted run with 9 failures predates that head and is superseded by this latest run. The current patch checks the prior line's blur and replaces query parameters with `URLSearchParams.set`. No API or data contract changed.
+**Validation:** `npm test -- --list` lists all 122 tests; `git diff --check` passes. Local Playwright remains unavailable because the API on port 5171 belongs to another worktree and returns `test-confirm failed: 401` without the E2E test hook. Push will trigger full remote CI.
 **Human approval:** APPROVED for commit, push, and PR update.
 **Git checkpoint:** COMMITTED.
 **Remote:** PUSHED; PR [#315](https://github.com/kevin-esq/sonivo/pull/315) is open against `develop`.
-**CI:** FOLLOW-UP REQUIRED after run `41895234910` failed on commit `4f85d015f0eedd420ecb562f3b05e5ee8874fcf0`; this correction needs a new CI run.
+**CI:** FOLLOW-UP REQUIRED after run `41901865610` failed on commit `821bda3a70dafb1fecc8ffdc76f2c526217d55e6`; current patch needs a new CI run.
 
 ## T-SONG-METADATA-TAGS — Song details and managed tag catalog
 
