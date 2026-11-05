@@ -46,12 +46,11 @@ test.describe('W-F song detail', () => {
     await page.getByRole('link', { name: songTitle }).first().click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
 
-    await page.getByRole('button', { name: /(?:Cambiar|Elegir) versión/ }).click()
-    const versionChoice = page.getByRole('button', { name: `Consultar materiales de ${arrangementLabel}` })
-    const secondVersionChoice = page.getByRole('button', { name: `Consultar materiales de ${secondArrangementLabel}` })
-    await expect(versionChoice).toHaveAttribute('aria-pressed', 'false')
+    const versionCards = page.locator('section[aria-labelledby="arrangements-heading"] ul > li > button')
+    const versionChoice = versionCards.filter({ hasText: arrangementLabel })
+    const secondVersionChoice = versionCards.filter({ hasText: secondArrangementLabel })
     await versionChoice.click()
-    await expect(page.getByTestId('song-arrangement-picker')).toBeHidden()
+    await expect(versionChoice).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
 
     // Tabs: Letra / Acordes / Notas / Archivos.
@@ -67,13 +66,11 @@ test.describe('W-F song detail', () => {
     await page.getByTestId('song-tab-files').click()
     await expect(page.getByTestId('song-tabpanel')).toContainText(`W-F Guia ${stamp}`)
 
-    await page.getByRole('button', { name: /(?:Cambiar|Elegir) versión/ }).click()
-    await expect(versionChoice).toHaveAttribute('aria-pressed', 'true')
     await secondVersionChoice.click()
-    await expect(page.getByTestId('song-arrangement-picker')).toBeHidden()
+    await expect(secondVersionChoice).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByRole('heading', { name: secondArrangementLabel })).toBeVisible()
     await page.getByTestId('song-tab-lyrics').click()
     await expect(page.getByTestId('song-tabpanel')).toContainText('Otra forma de preparar esta canción')
-    await expect(page.getByRole('link', { name: 'Editar materiales' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Editar materiales' })).toBeVisible()
   })
 })

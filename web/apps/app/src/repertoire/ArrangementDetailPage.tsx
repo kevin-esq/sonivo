@@ -1,5 +1,6 @@
 import { routes } from '../routing/routes'
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { FormEvent } from 'react'
 import {
   convertChordSheetToChordPro,
@@ -1046,7 +1047,9 @@ function ArrangementEditForm({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [reviewedLatest, setReviewedLatest] = useState(false)
+  const [portalReady, setPortalReady] = useState(false)
   const { t } = useT()
+  useEffect(() => setPortalReady(true), [])
   useEffect(() => setReviewedLatest(false), [latestArrangement?.version])
   const audioTracks = useMemo(
     () => listPracticeAudioTracks(arrangement.resources, groupId, arrangement.id),
@@ -1164,7 +1167,7 @@ function ArrangementEditForm({
     }
   }
 
-  return (
+  const form = (
     <form className={section !== 'details' ? 'fixed inset-0 z-[100] flex h-dvh flex-col gap-0 overflow-y-auto bg-canvas pb-24 text-ink' : 'space-y-4'} onSubmit={onSubmit} noValidate>
       {section === 'lyrics' ? <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border-subtle bg-surface px-4 py-3 sm:px-6">
         <Button type="button" variant="secondary" onClick={() => onCancelAttempt(hasDraftChanges)}>{t('arrangement.cancel')}</Button>
@@ -1308,6 +1311,8 @@ function ArrangementEditForm({
       )}
     </form>
   )
+  if (section === 'details') return form
+  return portalReady ? createPortal(form, document.body) : null
 }
 
 function ResourceCreateForm({

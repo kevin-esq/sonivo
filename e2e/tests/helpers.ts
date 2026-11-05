@@ -136,7 +136,8 @@ async function openCreateDialogAndFill(
     if (opts.option) {
       // The custom GroupSelect can be detached by a route-transition re-render
       // too, so selecting the option is part of the retried unit.
-      await page.getByRole('combobox', { name: opts.option.label }).click({ timeout: 3000 })
+      const select = page.getByRole('combobox', { name: opts.option.label })
+      await select.click({ timeout: 3000 })
       await page.getByRole('option', { name: opts.option.name, exact: true }).click({ timeout: 3000 })
     }
   }).toPass({ timeout: 30000 })
@@ -144,28 +145,23 @@ async function openCreateDialogAndFill(
 
 export async function createSong(page: Page, title: string) {
   // The create-song flow is a wizard: Details → Audio → Version → Review.
-  // The whole run is retried as one unit so a mid-flight re-render cannot leave
-  // the dialog half-filled.
-  await expect(async () => {
-    const dialog = page.getByRole('dialog')
-    if (!(await dialog.isVisible().catch(() => false))) {
-      await page.getByRole('button', { name: 'Agregar canción' }).first().click()
-    }
-    await expect(dialog).toBeVisible({ timeout: 2000 })
-    await dialog.getByLabel('Título').fill(title, { timeout: 3000 })
-    await dialog.getByRole('button', { name: 'Continuar' }).click({ timeout: 3000 })
-    await dialog.getByRole('button', { name: 'Omitir audio' }).click({ timeout: 3000 })
-    await dialog.getByRole('button', { name: 'Continuar' }).click({ timeout: 3000 })
-    await dialog.getByRole('button', { name: 'Crear canción' }).click({ timeout: 3000 })
-    await dialog.getByRole('link', { name: 'Abrir canción' }).click({ timeout: 5000 })
-  }).toPass({ timeout: 30000 })
+  // Create once: retrying the POST flow can create duplicate songs.
+  await page.getByRole('button', { name: 'Agregar canción' }).first().click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await dialog.getByLabel('Título').fill(title)
+  await dialog.getByRole('button', { name: 'Continuar' }).click()
+  await dialog.getByRole('button', { name: 'Omitir audio' }).click()
+  await dialog.getByRole('button', { name: 'Continuar' }).click()
+  await dialog.getByRole('button', { name: 'Crear canción' }).click()
+  await dialog.getByRole('link', { name: 'Abrir canción' }).click()
   await page.getByTestId('group-rail').getByRole('link', { name: 'Canciones', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
-  await expect(page.getByRole('link', { name: title })).toBeVisible()
+  await expect(page.getByRole('link', { name: title }).first()).toBeVisible()
 }
 
 export async function openSong(page: Page, title: string) {
-  await page.getByRole('link', { name: title }).click()
+  await page.getByRole('link', { name: title }).first().click()
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
 }
 
@@ -186,43 +182,133 @@ export async function createArrangement(
     await page.getByLabel('Velocidad de la canción (BPM, opcional)').fill(options.defaultBpm)
   }
   await page.getByRole('button', { name: 'Crear versión' }).click()
-  // Create navigates to the new arrangement detail.
-  await expect(page.getByRole('heading', { name: label })).toBeVisible()
+  await expectArrangementVisible(page, label)
 
   if (options?.lyrics || options?.chords) {
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
-    await expect(page.getByTestId('arrangement-editor')).toBeVisible()
-    if (options?.lyrics) {
+    if (options.lyrics) {
+      await openArrangementEditor(page, 'lyrics')
       await page.getByTestId('digitizer-lyrics').fill(options.lyrics)
+      await page.getByRole('button', { name: 'Guardar cambios' }).click()
+      await returnToArrangement(page)
     }
-    if (options?.chords) {
-      await page.getByTestId('arrangement-editor-mode-chords').click()
-      const chordsField = page.getByTestId('arrangement-chords')
-      await page.locator('details').filter({ has: chordsField }).locator('summary').click()
-      await chordsField.fill(options.chords)
+    if (options.chords) {
+      await openArrangementEditor(page, 'chords')
+      await page.getByTestId('arrangement-chords').fill(options.chords)
+      await page.getByRole('button', { name: 'Guardar cambios' }).click()
+      await returnToArrangement(page)
     }
-    await page.getByRole('button', { name: 'Guardar cambios' }).click()
-    await expect(page.getByRole('button', { name: 'Editar letra y acordes' })).toBeVisible()
   }
 }
 
 export async function selectArrangementEditorMode(page: Page, mode: 'lyrics' | 'chords' | 'timing') {
-  await page.getByTestId(`arrangement-editor-mode-${mode}`).click()
+  if (mode === 'timing') {
+    await expect(page.getByTestId('digitizer-studio')).toBeVisible()
+    return
+  }
+  await openArrangementEditor(page, mode)
+}
+
+export async function expectArrangementVisible(page: Page, label: string) {
+  await expect(page.getByRole('navigation', { name: 'Ruta' }).getByText(label, { exact: true })).toBeVisible()
+}
+
+export async function openArrangementEditor(page: Page, section: 'lyrics' | 'chords' = 'lyrics') {
+  const path = new URL(page.url()).pathname
+  if (path.endsWith(`/edit/${section}`)) {
+    await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
+    return
+  }
+  if (path.includes('/edit/')) await returnToArrangement(page)
+
+  const dialog = page.getByTestId('arrangement-edit-dialog')
+  if (!(await dialog.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Editar', exact: true }).click()
+  }
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: section === 'lyrics' ? /Editar letra/ : /Editar acordes/ }).click()
+  await expect(page).toHaveURL(new RegExp(`/edit/${section}(?:[?#]|$)`))
+  await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
+  if (section === 'chords') {
+    await expect(page.getByTestId('arrangement-chords')).toBeVisible()
+  }
+}
+
+export async function returnToArrangement(page: Page) {
+  const currentUrl = new URL(page.url())
+  const arrangementPath = currentUrl.pathname.replace(/\/edit\/(?:lyrics|chords)$/, '')
+  const returnSearch = currentUrl.searchParams.get('editReturnSearch') || 'tab=estudiar'
+  if (arrangementPath !== currentUrl.pathname) {
+    await page.goto(`${currentUrl.origin}${arrangementPath}?${returnSearch}`)
+  } else if (currentUrl.hash.startsWith('#edit')) {
+    currentUrl.hash = ''
+    await page.goto(currentUrl.toString())
+  }
+  const studyTab = page.getByTestId('practice-tab-estudiar')
+  await expect(studyTab).toBeVisible()
+  const editDialog = page.getByTestId('arrangement-edit-dialog')
+  if (await editDialog.isVisible().catch(() => false)) {
+    await editDialog.getByLabel('Cerrar').click()
+    await expect(editDialog).toBeHidden()
+  }
+  if (await studyTab.getAttribute('aria-selected') !== 'true') await studyTab.click()
 }
 
 export async function openPractice(page: Page) {
-  await page.getByRole('link', { name: 'Practicar' }).click()
-  await expect(page).toHaveURL(/\/practice(?:$|[?#])/)
+  await returnToArrangement(page)
+  if (await page.getByRole('link', { name: 'Practicar', exact: true }).isVisible().catch(() => false)) {
+    await page.getByRole('link', { name: 'Practicar', exact: true }).click()
+  }
   await expect(page.getByTestId('practice-tab-estudiar')).toBeVisible()
+  await page.getByTestId('practice-tab-estudiar').click()
   await expect(page.getByRole('heading', { name: 'Letra', exact: true })).toBeVisible()
+}
+
+export async function openLyricsImportDialog(page: Page) {
+  const dialog = page.getByTestId('lyric-import-options')
+  try {
+    await page.getByTestId('open-lyrics-dialog').click({ timeout: 5_000 })
+  } catch (error) {
+    // The portal can cover its trigger before Playwright completes click checks.
+    if (!(await dialog.isVisible().catch(() => false))) throw error
+  }
+  await expect(dialog).toBeVisible()
+  return dialog
+}
+
+export async function exportArrangementLyrics(page: Page, format: 'ttml') {
+  const match = new URL(page.url()).pathname.match(/\/groups\/([^/]+)\/arrangements\/([^/]+)/)
+  expect(match).not.toBeNull()
+  const response = await page.request.get(`/api/groups/${match![1]}/arrangements/${match![2]}/lyrics/export.${format}`)
+  expect(response.ok()).toBeTruthy()
+  return response.text()
+}
+
+async function openArrangementMaterials(page: Page): Promise<string> {
+  const currentPath = new URL(page.url()).pathname
+  const arrangementPath = currentPath.replace(/\/practice$/, '')
+  if (!/\/arrangements\/[^/]+$/.test(arrangementPath)) {
+    throw new Error('Resource flows must start from an Arrangement or its Practice page.')
+  }
+  const materialsDialog = page.getByTestId('song-arrangement-materials-dialog')
+  if (!(await materialsDialog.isVisible().catch(() => false))) {
+    if (!(await page.getByTestId('song-hero').isVisible().catch(() => false))) {
+      await page.getByRole('navigation', { name: 'Ruta' }).getByRole('link').nth(2).click()
+      await expect(page.getByTestId('song-hero')).toBeVisible()
+    }
+    await page.getByRole('button', { name: 'Editar materiales' }).click()
+    await expect(materialsDialog).toBeVisible()
+  }
+  await expect(materialsDialog.getByRole('button', { name: 'Agregar enlace' })).toBeVisible()
+  return arrangementPath
 }
 
 export async function createLinkResource(
   page: Page,
   input: { label: string; url: string; purpose?: string },
 ) {
+  const arrangementPath = await openArrangementMaterials(page)
   await page.getByRole('button', { name: 'Agregar enlace' }).click()
-  await expect(page.getByRole('heading', { name: 'Agregar enlace' })).toBeVisible()
+  await expect(page.getByLabel('Tipo de material')).toBeVisible()
   await page.getByLabel('Tipo de material').selectOption(input.purpose ?? 'practice')
   await page.getByLabel('Nombre del material', { exact: true }).fill(input.label)
   await page.getByLabel('URL').fill(input.url)
@@ -232,30 +318,45 @@ export async function createLinkResource(
   await expect(link).toBeVisible()
   await expect(link).toHaveAttribute('href', input.url)
   await expect(link).toHaveAttribute('target', '_blank')
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('song-arrangement-materials-dialog')).toHaveCount(0)
+  await page.goto(arrangementPath)
+  await expect(page.getByTestId('practice-tab-estudiar')).toBeVisible()
 }
 
 export async function createFileResource(
   page: Page,
   input: { label: string; filePath: string; purpose?: string },
 ) {
-  await page.getByRole('button', { name: 'Subir archivo' }).click()
-  await expect(page.getByRole('heading', { name: 'Subir archivo' })).toBeVisible()
-  await page.getByLabel('Tipo de material').selectOption(input.purpose ?? 'practice')
-  await page.getByLabel('Nombre del material', { exact: true }).fill(input.label)
-  await page.getByTestId('arrangement-file-dropzone').locator('input[type="file"]').setInputFiles(input.filePath)
-  await expect(page.getByTestId('arrangement-file-dropzone')).toContainText(path.basename(input.filePath))
-  await page.getByTestId('arrangement-upload-dialog').getByRole('button', { name: 'Subir archivo' }).click()
+  const arrangementPath = await openArrangementMaterials(page)
+  const materialsDialog = page.getByTestId('song-arrangement-materials-dialog')
+  await materialsDialog.getByRole('button', { name: 'Subir archivo' }).click()
+  const uploadDialog = page.getByRole('dialog').filter({ has: page.getByTestId('arrangement-file-dropzone') })
+  await expect(uploadDialog).toBeVisible()
+  const uploadForm = uploadDialog.locator('form').filter({ has: page.getByTestId('arrangement-file-dropzone') })
+  await uploadForm.getByLabel('Tipo de material').selectOption(input.purpose ?? 'practice')
+  await uploadForm.getByLabel('Nombre del material', { exact: true }).fill(input.label)
+  await uploadForm.getByTestId('arrangement-file-dropzone').locator('input[type="file"]').setInputFiles(input.filePath)
+  await expect(uploadForm.getByTestId('arrangement-file-dropzone')).toContainText(path.basename(input.filePath))
+  await uploadForm.getByRole('button', { name: 'Subir archivo' }).click()
   const row = page.getByRole('listitem').filter({ hasText: input.label })
   await expect(row.getByText(input.label, { exact: true })).toBeVisible()
   await expect(row.getByRole('link', { name: 'Descargar' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('song-arrangement-materials-dialog')).toHaveCount(0)
+  await page.goto(arrangementPath)
+  await expect(page.getByTestId('practice-tab-estudiar')).toBeVisible()
 }
 
 export async function deleteSong(page: Page, title: string) {
-  await page.getByRole('button', { name: 'Eliminar canción' }).click()
-  const dialog = page.getByRole('dialog', { name: '¿Eliminar canción?' })
-  await expect(dialog).toBeVisible()
-  await dialog.getByLabel('Título de la canción').fill(title)
-  await dialog.getByRole('button', { name: 'Eliminar canción' }).click()
+  await page.getByRole('button', { name: 'Editar canción' }).click()
+  const editDialog = page.getByTestId('song-edit-dialog')
+  await expect(editDialog).toBeVisible()
+  await editDialog.getByTestId('danger-zone').getByRole('button', { name: 'Eliminar canción' }).click()
+  const confirmation = page.getByTestId('song-delete-confirmation')
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByLabel('Título de la canción').fill(title)
+  await confirmation.getByRole('button', { name: 'Eliminar canción' }).click()
   await expect(page.getByRole('heading', { name: 'Canciones' })).toBeVisible()
   await expect(page.getByRole('link', { name: title })).toHaveCount(0)
 }

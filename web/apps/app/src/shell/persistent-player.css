@@ -174,7 +174,7 @@
   .persistent-player__desktop-card::after { transition: none; }
   .now-playing-overlay { transition: none; }
   .now-playing-panel { animation: none; }
-  .synced-lyric-row { transition: none; }
+  .synced-lyric-row { filter: none; transition: none; }
 }
 @media (max-height: 620px) and (max-width: 767px) {
   .now-playing-swipe-surface { touch-action: pan-y; }

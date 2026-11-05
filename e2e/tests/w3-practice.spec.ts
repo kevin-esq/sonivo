@@ -30,8 +30,6 @@ test.describe('W3 Practice progressive disclosure', () => {
     await openPractice(page)
 
     const baseUrl = page.url()
-    expect(baseUrl).not.toMatch(/[?&]tab=/)
-
     // Default tab is Estudiar with lyrics visible.
     const estudiarTab = page.getByTestId('practice-tab-estudiar')
     await expect(estudiarTab).toBeVisible()
@@ -46,7 +44,7 @@ test.describe('W3 Practice progressive disclosure', () => {
     )
     await expect(page.getByTestId('practice-lyrics')).toContainText(lyricsLine)
 
-    // Avanzado reveals timing/mapping/digitizer entry points (+ conductor hint outside events).
+    // Avanzado reveals timing and digitizer entry points. Conductor needs an Event.
     await page.getByTestId('practice-tab-avanzado').click()
     await expect(page.getByTestId('practice-tab-avanzado')).toHaveAttribute(
       'aria-selected',
@@ -54,7 +52,7 @@ test.describe('W3 Practice progressive disclosure', () => {
     )
     await expect(page.getByTestId('practice-advanced-timing-link')).toBeVisible()
     await expect(page.getByTestId('practice-advanced-digitize-link')).toBeVisible()
-    await expect(page.getByTestId('practice-advanced-conductor-hint')).toBeVisible()
+    await expect(page.getByTestId('practice-advanced-conductor-hint')).toHaveCount(0)
     await expect(page).toHaveURL(/tab=avanzado/)
 
     // Afinar renders the tuner.
@@ -67,8 +65,9 @@ test.describe('W3 Practice progressive disclosure', () => {
     await expect(page.getByTestId('tuner-panel')).toBeVisible()
 
     // ?tab=avanzado deep-link lands directly on Avanzado.
-    const separator = baseUrl.includes('?') ? '&' : '?'
-    await page.goto(`${baseUrl}${separator}tab=avanzado`)
+    const advancedUrl = new URL(baseUrl)
+    advancedUrl.searchParams.set('tab', 'avanzado')
+    await page.goto(advancedUrl.toString())
     await expect(page.getByTestId('practice-tab-avanzado')).toHaveAttribute(
       'aria-selected',
       'true',
@@ -76,7 +75,9 @@ test.describe('W3 Practice progressive disclosure', () => {
     await expect(page.getByTestId('practice-advanced-timing-link')).toBeVisible()
 
     // Unknown tab values fall back to Estudiar.
-    await page.goto(`${baseUrl}${separator}tab=curioso`)
+    const unknownTabUrl = new URL(baseUrl)
+    unknownTabUrl.searchParams.set('tab', 'curioso')
+    await page.goto(unknownTabUrl.toString())
     await expect(page.getByTestId('practice-tab-estudiar')).toHaveAttribute(
       'aria-selected',
       'true',

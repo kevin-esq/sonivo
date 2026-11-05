@@ -1,12 +1,15 @@
-import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import {
   createArrangement,
   createGroup,
   createSong,
+  exportArrangementLyrics,
+  openArrangementEditor,
   openLibrary,
+  openLyricsImportDialog,
   openSong,
   register,
+  returnToArrangement,
   uniqueEmail,
 } from './helpers'
 
@@ -28,13 +31,11 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     await createSong(page, 'LRC Song')
     await openSong(page, 'LRC Song')
     await createArrangement(page, 'Acoustic')
-    await page.getByRole('button', { name: 'Editar', exact: true }).click()
-    await page.getByRole('dialog').getByRole('button', { name: /Editar letra/ }).click()
-    await expect(page.getByTestId('arrangement-editor')).toBeVisible()
+    await openArrangementEditor(page, 'lyrics')
+    await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
 
     // Import is an advanced option inside the lyrics editor.
-    await page.getByTestId('open-lyrics-dialog').click()
-    const addLyricsDialog = page.getByTestId('lyric-import-options')
+    const addLyricsDialog = await openLyricsImportDialog(page)
     await page.route('**/lyrics/lookup', async (route) => route.fulfill({
       status: 404,
       contentType: 'application/problem+json',
@@ -44,7 +45,7 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
     const missingResponse = page.waitForResponse(response => response.url().includes('/lyrics/lookup'))
     await addLyricsDialog.getByRole('button', { name: 'Buscar letra' }).click()
     expect((await missingResponse).status()).toBe(404)
-    await expect(addLyricsDialog.getByRole('status')).toContainText('Letra sincronizada no encontrada')
+    await expect(addLyricsDialog.getByRole('status').filter({ hasText: 'Letra sincronizada no encontrada' })).toBeVisible()
     await expect(addLyricsDialog.getByRole('alert')).toHaveCount(0)
     await addLyricsDialog.getByRole('button', { name: 'Archivo' }).click()
 
@@ -88,18 +89,10 @@ test.describe('W18 .lrc import, preview, offset, apply and export', () => {
       page.getByRole('button', { name: 'Guardar cambios' }).click(),
     ])
     expect(patchResponse.ok()).toBeTruthy()
-    await expect(page.getByTestId('arrangement-editor')).toBeVisible()
-    await page.getByRole('button', { name: 'Volver a editar' }).click()
+    await expect(page.getByTestId('chordpro-digitizer')).toBeVisible()
+    await returnToArrangement(page)
 
-    // The arrangement view provides Sonivo's lossless timed-lyrics export.
-    const [download] = await Promise.all([
-      page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Descargar TTML de Sonivo' }).click(),
-    ])
-    expect(download.suggestedFilename()).toMatch(/\.ttml$/)
-
-    // The native document retains timing and Sonivo metadata.
-    const exported = readFileSync((await download.path())!, 'utf8')
-    expect(exported).toContain('sonivo:version="1"')
+    // The authenticated export endpoint preserves timing and Sonivo metadata.
+    expect(await exportArrangementLyrics(page, 'ttml')).toContain('sonivo:version="1"')
   })
 })

@@ -4,7 +4,9 @@ import {
   createGroup,
   createLinkResource,
   createSong,
+  expectArrangementVisible,
   openLibrary,
+  openArrangementEditor,
   openPractice,
   openSong,
   register,
@@ -149,19 +151,18 @@ test.describe('Practice extras: tuner + YouTube reference (T-FX-01–02)', () =>
 
     // Timing marks (no file audio): follow-along must stay disabled on
     // YouTube-sourced Practice with an explanation.
-    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
+    await expectArrangementVisible(page, arrangementLabel)
+    await openArrangementEditor(page, 'lyrics')
     await selectArrangementEditorMode(page, 'timing')
     for (const [line, timestamp] of [[0, '0:00.5'], [1, '0:01.5']] as const) {
       const lineEditor = page.getByTestId(`digitizer-line-${line}`)
-      await lineEditor.getByRole('button', { name: 'Añadir hora' }).click()
+      await page.getByTestId(`digitizer-select-line-${line}`).click()
+      await page.getByRole('button', { name: 'Marcar inicio del renglón' }).click()
       await page.getByLabel(`Inicio del renglón ${line + 1}`).fill(timestamp)
       await lineEditor.getByRole('button', { name: 'Guardar hora' }).click()
     }
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
-    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible({
-      timeout: 10_000,
-    })
+    await expectArrangementVisible(page, arrangementLabel)
 
     await openPractice(page)
 

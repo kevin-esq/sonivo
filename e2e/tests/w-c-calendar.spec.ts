@@ -15,19 +15,25 @@ test.describe('W-C group calendar', () => {
     const stamp = Date.now()
     const groupA = `W-C Cal A ${stamp}`
     const groupB = `W-C Cal B ${stamp}`
+    const firstEventDate = new Date()
+    firstEventDate.setDate(firstEventDate.getDate() + 3)
+    const secondEventDate = new Date(firstEventDate)
+    secondEventDate.setDate(secondEventDate.getDate() + 1)
+    const toDateTimeLocal = (date: Date) =>
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T19:00`
 
     await createGroup(page, groupA)
     const idA = page.url().match(/\/groups\/([0-9a-f-]+)/i)?.[1]
     expect(idA).toBeTruthy()
 
     await openEvents(page)
-    await createEvent(page, { title: `W-C Evento A ${stamp}`, startsAt: '2026-10-15T19:00' })
+    await createEvent(page, { title: `W-C Evento A ${stamp}`, startsAt: toDateTimeLocal(firstEventDate) })
 
     // A second group with its own event must never leak into group A's calendar.
     await page.goto('/groups')
     await createGroup(page, groupB)
     await openEvents(page)
-    await createEvent(page, { title: `W-C Evento B ${stamp}`, startsAt: '2026-10-16T19:00' })
+    await createEvent(page, { title: `W-C Evento B ${stamp}`, startsAt: toDateTimeLocal(secondEventDate) })
 
     await page.goto(`/groups/${idA}/calendar`)
     await expect(page.getByRole('heading', { name: 'Calendario' })).toBeVisible()

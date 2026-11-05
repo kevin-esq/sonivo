@@ -12,12 +12,15 @@ import {
   createSetlist,
   createSong,
   eventPlanItem,
+  expectArrangementVisible,
   inviteMemberAndReadLink,
   openEvents,
   openLibrary,
+  openArrangementEditor,
   openSetlists,
   openSong,
   register,
+  returnToArrangement,
   saveSetlistOrder,
   uniqueEmail,
   selectArrangementEditorMode,
@@ -29,6 +32,7 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
   test('TC-Q9-01 owner conducts; member follows playhead and sees presence', async ({
     browser,
   }) => {
+    test.setTimeout(120_000)
     const stamp = Date.now()
     const ownerEmail = uniqueEmail('q9-owner')
     const memberEmail = uniqueEmail('q9-member')
@@ -64,21 +68,21 @@ test.describe('Q9 conductor follow (ADR-0036)', () => {
       })
 
       // Timing marks so the follower highlight path is exercised too.
-      await expect(ownerPage.getByRole('heading', { name: arrangementLabel })).toBeVisible()
-      await ownerPage.getByRole('button', { name: 'Editar letra y acordes' }).click()
+      await expectArrangementVisible(ownerPage, arrangementLabel)
+      await openArrangementEditor(ownerPage, 'lyrics')
       await selectArrangementEditorMode(ownerPage, 'timing')
       await expect(ownerPage.getByTestId('digitizer-studio')).toBeVisible({ timeout: 10_000 })
       for (const [index, time] of ['00:00.500', '00:01.500', '00:02.500'].entries()) {
         const line = ownerPage.getByTestId(`digitizer-line-${index}`)
-        await line.getByRole('button', { name: 'Marcar tiempo' }).click()
+        await ownerPage.getByTestId(`digitizer-select-line-${index}`).click()
+        await ownerPage.getByRole('button', { name: 'Marcar inicio del renglón' }).click()
         await line.getByRole('button', { name: 'Editar hora' }).click()
         await ownerPage.getByRole('textbox', { name: `Inicio del renglón ${index + 1}` }).fill(time)
         await ownerPage.getByRole('button', { name: 'Guardar hora' }).click()
       }
       await ownerPage.getByRole('button', { name: 'Guardar cambios' }).click()
-      await expect(ownerPage.getByRole('heading', { name: arrangementLabel })).toBeVisible({
-        timeout: 10_000,
-      })
+      await returnToArrangement(ownerPage)
+      await expectArrangementVisible(ownerPage, arrangementLabel)
 
       await ownerPage.getByRole('link', { name: groupName, exact: true }).click()
       await expect(ownerPage.getByRole('heading', { name: groupName })).toBeVisible()

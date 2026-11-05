@@ -6,7 +6,9 @@ import {
   createFileResource,
   createGroup,
   createSong,
+  expectArrangementVisible,
   openLibrary,
+  openArrangementEditor,
   openPractice,
   openSong,
   register,
@@ -98,6 +100,7 @@ test.describe('Practice / karaoke thin', () => {
     const trackOptions = page.getByTestId('practice-track-option')
     await expect(trackOptions).toHaveCount(2)
     await expect(trackOptions.nth(0)).toHaveAttribute('aria-pressed', 'true')
+    await trackOptions.nth(1).evaluate(element => element.scrollIntoView({ block: 'center' }))
     await trackOptions.nth(1).click()
     await expect(trackOptions.nth(1)).toHaveAttribute('aria-pressed', 'true')
     await expect(trackOptions.nth(1).getByTestId('practice-track-playing')).toBeVisible()
@@ -108,13 +111,12 @@ test.describe('Practice / karaoke thin', () => {
     await expect(playPause).toBeVisible()
     const seek = globalPlayer.getByRole('slider', { name: 'Progreso de reproducción de audio' })
     await expect(seek).toBeVisible()
-    await playPause.click()
-    await expect(globalPlayer.getByRole('button', { name: 'Reproducir' })).toBeVisible()
-
     await expect
       .poll(async () => Number(await seek.inputValue()), { timeout: 10_000 })
       .toBeGreaterThan(0)
 
+    await playPause.click()
+    await expect(globalPlayer.getByRole('button', { name: 'Reproducir' })).toBeVisible()
     await globalPlayer.getByRole('button', { name: 'Reproducir' }).click()
     await expect(globalPlayer.getByRole('button', { name: 'Pausar' })).toBeVisible()
 
@@ -129,15 +131,11 @@ test.describe('Practice / karaoke thin', () => {
       .poll(async () => Number(await seek.inputValue()))
       .toBeGreaterThan(1)
 
-    const volume = player.getByRole('slider', { name: 'Volumen' })
-    await volume.evaluate((el) => {
-      const input = el as HTMLInputElement
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
-      setter?.call(input, '0.4')
-      input.dispatchEvent(new Event('input', { bubbles: true }))
-      input.dispatchEvent(new Event('change', { bubbles: true }))
-    })
-    await expect(volume).toHaveValue('0.4')
+    const volume = globalPlayer.getByRole('spinbutton', { name: 'Porcentaje de volumen de audio' })
+    await volume.fill('40')
+    await volume.press('Enter')
+    await expect(volume).toHaveValue('40')
+    await expect.poll(() => page.locator('audio').evaluate((audio: HTMLAudioElement) => audio.volume)).toBeCloseTo(0.4)
 
     await trackOptions.nth(0).click()
     await expect(trackOptions.nth(0)).toHaveAttribute('aria-pressed', 'true')
@@ -233,21 +231,22 @@ test.describe('Practice / karaoke thin', () => {
     await createArrangement(page, arrangementLabel, { lyrics: allLyrics, chords: chordProBody })
     await createFileResource(page, {
       label: `Audio Sync ${stamp}`,
-      filePath: path.join(fixturesDir, 'practice-a.wav'),
+      filePath: path.join(fixturesDir, 'practice-speech.wav'),
       purpose: 'audio',
     })
 
     // Go to Arrangement detail and open edit form
     // createArrangement already navigates to detail page
-    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
-    await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await expectArrangementVisible(page, arrangementLabel)
+    await openArrangementEditor(page, 'lyrics')
     await selectArrangementEditorMode(page, 'chords')
     const chordSource = page.getByTestId('arrangement-chords')
-    await page.locator('details').filter({ has: chordSource }).locator('summary').click()
     // Verify chords field has content (3 lines)
-    await expect(chordSource).toHaveValue(chordProBody)
+    for (const line of chordProBody.split('\n')) {
+      await expect(chordSource).toContainText(line)
+    }
 
+    await openArrangementEditor(page, 'lyrics')
     await selectArrangementEditorMode(page, 'timing')
 
     // Timing marks are edited inline in the ChordPro studio.
@@ -256,18 +255,18 @@ test.describe('Practice / karaoke thin', () => {
     // Set timing marks from the current playhead, then enter exact fixture times.
     for (const [index, value] of [mark1Ms, mark2Ms, mark3Ms].entries()) {
       const line = page.getByTestId(`digitizer-line-${index}`)
-      await line.getByRole('button', { name: 'Marcar tiempo' }).click()
+      await page.getByTestId(`digitizer-select-line-${index}`).click()
+      await page.getByRole('button', { name: 'Marcar inicio del renglón' }).click()
       await line.getByRole('button', { name: 'Editar hora' }).click()
       const [whole, fraction] = String(value / 1000).split('.')
       await page.getByLabel(`Inicio del renglón ${index + 1}`).fill(`0:${whole!.padStart(2, '0')}${fraction ? `.${fraction}` : ''}`)
       await line.getByRole('button', { name: 'Guardar hora' }).click()
     }
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
-    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible({ timeout: 10000 })
+    await expectArrangementVisible(page, arrangementLabel)
 
     // Re-open edit form to verify timing marks were saved
-    await page.getByRole('button', { name: 'Editar letra y acordes' }).click()
-    await expect(page.getByRole('heading', { name: 'Editar letra y acordes' })).toBeVisible()
+    await openArrangementEditor(page, 'lyrics')
     await selectArrangementEditorMode(page, 'timing')
     await expect(page.getByTestId('digitizer-studio')).toBeVisible({ timeout: 10_000 })
     for (const [index, value] of [mark1Ms, mark2Ms, mark3Ms].entries()) {
@@ -277,10 +276,10 @@ test.describe('Practice / karaoke thin', () => {
 
     // Close edit form and open Practice page
     await page.getByRole('button', { name: 'Cancelar' }).click()
-    await expect(page.getByRole('heading', { name: arrangementLabel })).toBeVisible()
+    await expectArrangementVisible(page, arrangementLabel)
 
     // Open Practice page
-    await page.getByRole('link', { name: 'Practicar' }).click()
+    await openPractice(page)
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
 
     // Wait for arrangement data to load (ChordPro body renders ChordProView)
@@ -291,12 +290,13 @@ test.describe('Practice / karaoke thin', () => {
     await expect(followToggle).toBeVisible()
 
     // Enable "Seguir letra"
+    await followToggle.evaluate(element => element.scrollIntoView({ block: 'center' }))
     await followToggle.click()
     await expect(followToggle).toHaveAttribute('aria-pressed', 'true')
 
     // Start playback
     const globalPlayer = page.getByTestId('global-player')
-    const playPause = globalPlayer.getByRole('button', { name: 'Reproducir' })
+    const playPause = globalPlayer.getByRole('button', { name: /^(Reproducir|Pausar)$/ })
     await playPause.click()
     await expect(playPause).toHaveAttribute('aria-label', 'Pausar')
 

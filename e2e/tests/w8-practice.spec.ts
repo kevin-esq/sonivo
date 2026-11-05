@@ -69,20 +69,24 @@ test.describe('W8 practice + destructive affordances', () => {
     await expect(page.getByTestId('practice-advanced-digitize-empty')).toBeVisible()
     await expect(page.getByTestId('audio-digitizer')).toHaveCount(0)
 
-    // Song detail: the danger zone owns the delete; the facts sidebar does not.
+    // Song deletion lives in the Song edit dialog, separate from Song facts.
     await page
       .getByRole('navigation', { name: 'Ruta' })
       .getByRole('link', { name: songTitle })
       .click()
     await expect(page.getByRole('heading', { name: songTitle })).toBeVisible()
-    const songDanger = page.getByTestId('danger-zone')
+    await page.getByRole('button', { name: 'Editar canción' }).click()
+    const songEditDialog = page.getByTestId('song-edit-dialog')
+    await expect(songEditDialog).toBeVisible()
+    const songDanger = songEditDialog.getByTestId('danger-zone')
     await expect(songDanger).toBeVisible()
     await expect(songDanger.getByRole('button', { name: 'Eliminar canción' })).toBeVisible()
     await expect(
       page.getByTestId('song-facts').getByRole('button', { name: 'Eliminar canción' }),
     ).toHaveCount(0)
-    // Exactly one page-level button keeps the deleteSong helper strict-mode safe.
-    await expect(page.getByRole('button', { name: 'Eliminar canción' })).toHaveCount(1)
+    await expect(songEditDialog.getByRole('button', { name: 'Eliminar canción' })).toHaveCount(1)
+    await songEditDialog.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(songEditDialog).toBeHidden()
 
     // Event detail: the danger zone owns the cancel; the hero does not.
     await openEvents(page)

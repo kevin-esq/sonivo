@@ -173,6 +173,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
   const [metronomePulse, setMetronomePulse] = useState(false)
   const [audioSeconds, setAudioSeconds] = useState(0)
   const [reloadNonce, setReloadNonce] = useState(0)
+  const loadedArrangementKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     const viewport = window.matchMedia('(min-width: 768px)')
@@ -243,17 +244,21 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
     if (!groupId || !arrangementId || !group) return
     let cancelled = false
     async function load() {
-      setArrangement(undefined)
-      setSongTitle(null)
-      setSongAttribution(null)
-      setTracks([])
-      setSongAudioTracks([])
-      setPracticeArrangements([])
+      const routeKey = `${groupId}/${arrangementId}`
+      if (loadedArrangementKeyRef.current !== routeKey) {
+        setArrangement(undefined)
+        setSongTitle(null)
+        setSongAttribution(null)
+        setTracks([])
+        setSongAudioTracks([])
+        setPracticeArrangements([])
+      }
       setError(null)
       try {
         const result = await getArrangement(groupId!, arrangementId!)
         if (cancelled) return
         setArrangement(result)
+        loadedArrangementKeyRef.current = routeKey
         setTracks(listPracticeAudioTracks(result.resources, groupId!, arrangementId!))
         if (!eventId) {
           try {
@@ -287,6 +292,7 @@ export function PracticePage({ user, groupId, arrangementId, search: currentSear
       } catch (err) {
         if (cancelled) return
         setArrangement(null)
+        loadedArrangementKeyRef.current = null
         setError(mutationErrorMessage(err, t))
       }
     }
