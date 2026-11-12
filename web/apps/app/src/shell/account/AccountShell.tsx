@@ -51,7 +51,7 @@ export function AccountShell({
                 {t('account.backToSonivo')}
               </AppLink>
               <details className="group relative">
-                <summary aria-label={t('account.userMenu')} className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-full bg-primary-strong text-sm font-semibold text-primary-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                <summary aria-label={t('account.userMenu')} data-testid="account-user-menu-toggle" className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-full bg-primary-strong text-sm font-semibold text-primary-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary">
                   {initialsOf(user.displayName?.trim() || user.email || '')}
                 </summary>
                 <div className="absolute right-0 top-full z-20 mt-2 min-w-48 rounded-xl border border-border-subtle bg-surface p-2 text-ink shadow-xl">

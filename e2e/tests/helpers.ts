@@ -70,8 +70,9 @@ export async function login(page: Page, email: string, password = testPassword) 
 
 export async function logout(page: Page) {
   // The group workspace rail no longer carries sign-out (ADR-0055); the account
-  // shell does, so navigate there before signing out.
+  // shell keeps it in the account menu.
   await page.goto('/account')
+  await page.getByTestId('account-user-menu-toggle').click()
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
   await page.getByRole('dialog', { name: '¿Quieres cerrar sesión?' }).getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
@@ -79,7 +80,20 @@ export async function logout(page: Page) {
 
 export async function createGroup(page: Page, name: string) {
   // Creation lives in a modal since the groups page refactor.
-  await page.getByRole('button', { name: 'Nuevo grupo' }).click()
+  if (await page.getByRole('button', { name: 'Nuevo grupo' }).count() === 0) {
+    await page.goto('/account/membership')
+    const startTrial = page.getByRole('button', { name: 'Iniciar prueba de Banda' })
+    const activePlan = page.getByRole('region', { name: 'Plan Banda activo' })
+    await expect(startTrial.or(activePlan)).toBeVisible()
+    if (await startTrial.isVisible()) {
+      await startTrial.click()
+      await expect(activePlan).toBeVisible()
+    }
+    await page.goto('/groups')
+  }
+  const createButton = page.getByRole('button', { name: 'Nuevo grupo' })
+  await expect(createButton).toBeVisible()
+  await createButton.click()
   await page.getByLabel('Nombre').fill(name)
   await page.getByRole('button', { name: 'Crear grupo' }).click()
   await expect(page.getByRole('heading', { name })).toBeVisible()

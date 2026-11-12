@@ -25,7 +25,7 @@ test('an account starts Banda trial before creating its first Group', async ({ p
     response.url().endsWith('/api/groups') && response.request().method() === 'POST')
   await createDialog.getByRole('button', { name: 'Crear grupo' }).click()
   const created = await createResponse
-  expect(created.status(), await created.text()).toBe(201)
+  expect(created.status()).toBe(201)
   await expect(page.getByRole('heading', { name: /Stripe Billing/ })).toBeVisible()
 
   await page.goto('/app/account/membership')

@@ -69,7 +69,7 @@ test.describe('Authentication journeys', () => {
     await logout(page)
 
     await login(page, email, testPassword)
-    await expect(page.getByText(email)).toBeVisible()
+    await expect(page.getByTestId('app-user-avatar')).toBeVisible()
 
     await logout(page)
     // A protected route still bounces guests to login (`/` is public marketing).
