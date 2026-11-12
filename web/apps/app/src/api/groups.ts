@@ -70,6 +70,7 @@ export async function updateGroupSongTags(
 export type PlanCatalogEntry = {
   id: string
   priceMonthlyMxn: number
+  priceAnnualMxn?: number | null
   trialDays: number
   trialRequiresCard: boolean
   limits: Record<string, unknown>
@@ -79,6 +80,8 @@ export type PlanCatalogEntry = {
 
 export type PlanCatalog = {
   defaultPlanId: string
+    extraGroupMonthlyMxn?: number | null
+    extraGroupAnnualMxn?: number | null
   plans: PlanCatalogEntry[]
 }
 

@@ -379,6 +379,410 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.ToTable("OpenIddictTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingAccessGrant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("GrantedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PlanId")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RevokedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("StartsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "StartsAt", "ExpiresAt", "RevokedAt");
+
+                    b.ToTable("BillingAccessGrants", (string)null);
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingAccountingOutbox", b =>
+                {
+                    b.Property<string>("Environment")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("EventId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)");
+
+                    b.HasKey("Environment", "EventId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("DeliveredAt", "NextAttemptAt");
+
+                    b.ToTable("BillingAccountingOutbox", (string)null);
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingFinancialEvent", b =>
+                {
+                    b.Property<string>("Environment")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("EventId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("AmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("DisputeId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("EventAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("InvoiceId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PaymentIntentId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("PeriodStart")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RefundId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("SubscriptionId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Environment", "EventId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("BillingFinancialEvents", (string)null);
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingOrganization", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("CancelAtPeriodEnd")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CustomerId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("ExtraGroups")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Interval")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("PastDueSince")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("PeriodEndsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PlanId")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("PrimaryGroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int?>("ScheduledExtraGroups")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ScheduledInterval")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<string>("ScheduledPlanId")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("SubscriptionId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("TrialEndsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.HasIndex("Environment", "CustomerId")
+                        .IsUnique();
+
+                    b.HasIndex("Environment", "SubscriptionId")
+                        .IsUnique();
+
+                    b.ToTable("BillingOrganizations", (string)null);
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingReferralAttribution", b =>
+                {
+                    b.Property<Guid>("ReferredOrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("QualifiedEventId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("QualifiedInvoiceId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ReferrerOrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ReferredOrganizationId");
+
+                    b.HasIndex("QualifiedEventId")
+                        .IsUnique()
+                        .HasFilter("\"QualifiedEventId\" IS NOT NULL");
+
+                    b.HasIndex("QualifiedInvoiceId")
+                        .IsUnique()
+                        .HasFilter("\"QualifiedInvoiceId\" IS NOT NULL");
+
+                    b.HasIndex("ReferrerOrganizationId");
+
+                    b.ToTable("BillingReferralAttributions", (string)null);
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingReferralCode", b =>
+                {
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("OrganizationId");
+
+                    b.HasIndex("Environment", "Code")
+                        .IsUnique();
+
+                    b.ToTable("BillingReferralCodes", (string)null);
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingReferralReward", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AppliedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Days")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("EventId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("FreeThrough")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InvoiceId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PendingReason")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("ProcessingUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ReferredOrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReferrerOrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RewardBasePeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset?>("TargetFreeThrough")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReferredOrganizationId")
+                        .IsUnique();
+
+                    b.HasIndex("ReferrerOrganizationId");
+
+                    b.HasIndex("Environment", "EventId")
+                        .IsUnique();
+
+                    b.HasIndex("Environment", "InvoiceId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "NextAttemptAt");
+
+                    b.ToTable("BillingReferralRewards", (string)null);
+                });
+
             modelBuilder.Entity("Sonivo.Domain.Notifications.Notification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -987,6 +1391,9 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("CreationBlocked")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -999,7 +1406,7 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)")
-                        .HasDefaultValue("studio");
+                        .HasDefaultValue("starter");
 
                     b.Property<string>("ScheduledPlanId")
                         .HasMaxLength(16)
@@ -1188,6 +1595,46 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.ToTable("GroupBranding", (string)null);
                 });
 
+            modelBuilder.Entity("Sonivo.Domain.Tenancy.GroupOwnershipTransfer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ExpiredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FromUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ToUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GroupOwnershipTransfers_Pending")
+                        .HasFilter("\"AcceptedAt\" IS NULL AND \"CancelledAt\" IS NULL AND \"ExpiredAt\" IS NULL");
+
+                    b.ToTable("GroupOwnershipTransfers", (string)null);
+                });
+
             modelBuilder.Entity("Sonivo.Domain.Tenancy.GroupRole", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1358,7 +1805,10 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GroupId");
+                    b.HasIndex("GroupId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Memberships_SingleOwner")
+                        .HasFilter("\"Role\" = 'Owner'");
 
                     b.HasIndex("UserId");
 
@@ -1376,7 +1826,7 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_Memberships_OwnerHasUser", "\"Role\" <> 'Owner' OR \"UserId\" IS NOT NULL");
 
-                            t.HasCheckConstraint("CK_Memberships_Role", "\"Role\" IN ('Owner', 'Manager', 'Member', 'Viewer')");
+                            t.HasCheckConstraint("CK_Memberships_Role", "\"Role\" IN ('Owner', 'Admin', 'Member', 'Viewer')");
                         });
                 });
 
@@ -1490,6 +1940,185 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Sonivo.Infrastructure.Payments.BillingAudit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "CreatedAt");
+
+                    b.ToTable("BillingAudit", (string)null);
+                });
+
+            modelBuilder.Entity("Sonivo.Infrastructure.Payments.BillingGroup", b =>
+                {
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LegacyGrantedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LegacyPlanId")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("GroupId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("BillingGroups", (string)null);
+                });
+
+            modelBuilder.Entity("Sonivo.Infrastructure.Payments.BillingInboxEvent", b =>
+                {
+                    b.Property<string>("Environment")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Id")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("AmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("CustomerId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("EventAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InvoiceId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PaymentIntentId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PaymentMethodId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("PeriodStart")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SetupIntentId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SubscriptionId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Environment", "Id");
+
+                    b.HasIndex("ProcessedAt", "NextAttemptAt");
+
+                    b.ToTable("BillingInbox", (string)null);
+                });
+
+            modelBuilder.Entity("Sonivo.Infrastructure.Payments.BillingOperation", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Result")
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BillingOperations", (string)null);
+                });
+
+            modelBuilder.Entity("Sonivo.Infrastructure.Payments.BillingTrial", b =>
+                {
+                    b.Property<Guid>("OrganizationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("EndsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("OrganizationId");
+
+                    b.ToTable("BillingTrials", (string)null);
+                });
+
             modelBuilder.Entity("Sonivo.Infrastructure.Persistence.WebhookEvent", b =>
                 {
                     b.Property<string>("EventId")
@@ -1582,6 +2211,72 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.Navigation("Application");
 
                     b.Navigation("Authorization");
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingAccessGrant", b =>
+                {
+                    b.HasOne("Sonivo.Domain.Billing.BillingOrganization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingAccountingOutbox", b =>
+                {
+                    b.HasOne("Sonivo.Domain.Billing.BillingOrganization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingFinancialEvent", b =>
+                {
+                    b.HasOne("Sonivo.Domain.Billing.BillingOrganization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingReferralAttribution", b =>
+                {
+                    b.HasOne("Sonivo.Domain.Billing.BillingOrganization", null)
+                        .WithMany()
+                        .HasForeignKey("ReferredOrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sonivo.Domain.Billing.BillingOrganization", null)
+                        .WithMany()
+                        .HasForeignKey("ReferrerOrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingReferralCode", b =>
+                {
+                    b.HasOne("Sonivo.Domain.Billing.BillingOrganization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingReferralReward", b =>
+                {
+                    b.HasOne("Sonivo.Domain.Billing.BillingOrganization", null)
+                        .WithMany()
+                        .HasForeignKey("ReferredOrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sonivo.Domain.Billing.BillingOrganization", null)
+                        .WithMany()
+                        .HasForeignKey("ReferrerOrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Sonivo.Domain.Notifications.Notification", b =>
@@ -1740,6 +2435,15 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Sonivo.Domain.Tenancy.GroupOwnershipTransfer", b =>
+                {
+                    b.HasOne("Sonivo.Domain.Tenancy.Group", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Sonivo.Domain.Tenancy.GroupRole", b =>
                 {
                     b.HasOne("Sonivo.Domain.Tenancy.Group", null)
@@ -1798,6 +2502,21 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("Sonivo.Infrastructure.Payments.BillingGroup", b =>
+                {
+                    b.HasOne("Sonivo.Domain.Tenancy.Group", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sonivo.Domain.Billing.BillingOrganization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication<System.Guid>", b =>

@@ -25,21 +25,21 @@ public class MembershipRosterTests
     {
         var person = Membership.CreatePerson(Guid.NewGuid(), "Ana", Now);
 
-        Assert.Throws<ArgumentException>(() => person.AssignRole(MembershipRoles.Owner));
+        Assert.Throws<InvalidOperationException>(() => person.AssignRole(MembershipRoles.Owner));
     }
 
     [Fact]
-    public void Claiming_an_account_grants_access_and_allows_owner()
+    public void Claiming_an_account_grants_access_but_does_not_allow_direct_owner_promotion()
     {
         var person = Membership.CreatePerson(Guid.NewGuid(), "Ana", Now);
         var userId = Guid.NewGuid();
 
         person.ClaimAccount(userId);
-        person.AssignRole(MembershipRoles.Owner);
+        Assert.Throws<InvalidOperationException>(() => person.AssignRole(MembershipRoles.Owner));
 
         Assert.Equal(userId, person.UserId);
         Assert.True(person.HasAccess);
-        Assert.True(person.IsOwner);
+        Assert.False(person.IsOwner);
     }
 
     [Fact]

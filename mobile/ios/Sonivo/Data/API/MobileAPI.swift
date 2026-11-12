@@ -30,15 +30,6 @@ struct MobileGroupUsage: Decodable {
     let storageBytes: MobileUsageMetric
 }
 
-struct MobilePlanOption: Decodable, Identifiable {
-    let id: String
-    var name: String { id }
-}
-
-struct MobilePlanCatalog: Decodable {
-    let plans: [MobilePlanOption]
-}
-
 struct MobilePaymentProvider: Decodable {
     let provider: String
     let configured: Bool
@@ -280,7 +271,6 @@ final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentati
     @Published private(set) var destinationItems: [MobileDataItem] = []
     @Published private(set) var groupUsageItems: [MobileDataItem] = []
     @Published private(set) var planUsageByGroup: [UUID: MobileGroupUsage] = [:]
-    @Published private(set) var planOptions: [MobilePlanOption] = []
     @Published private(set) var paymentProvider: MobilePaymentProvider?
     @Published private(set) var globalCalendarEvents: [MobileCalendarEvent] = []
     @Published private(set) var downloadedResourceURL: URL?
@@ -450,9 +440,7 @@ final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentati
         defer { isLoading = false }
         do {
             if groups.isEmpty { try await loadGroups() }
-            let catalogData = try await request(MobileEndpoints.planCatalog)
             let providerData = try await request(MobileEndpoints.paymentProvider)
-            let catalog = try JSONDecoder().decode(MobilePlanCatalog.self, from: catalogData)
             let provider = try JSONDecoder().decode(MobilePaymentProvider.self, from: providerData)
             var usage: [UUID: MobileGroupUsage] = [:]
             for group in groups {
@@ -461,54 +449,10 @@ final class MobileAPI: NSObject, ObservableObject, ASWebAuthenticationPresentati
                     usage[group.id] = value
                 }
             }
-            planOptions = catalog.plans
             paymentProvider = provider
             planUsageByGroup = usage
             lastErrorKey = nil
         } catch { apply(error) }
-    }
-
-    func updatePlan(groupID: UUID, planID: String) async {
-        guard let body = try? JSONSerialization.data(withJSONObject: ["action": "assign", "planId": planID]) else { return }
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            _ = try await request(MobileEndpoints.groupPlan(groupID), method: "PUT", body: body)
-            let data = try await request(MobileEndpoints.groupUsage(groupID))
-            if let value = try? JSONDecoder().decode(MobileGroupUsage.self, from: data) {
-                planUsageByGroup[groupID] = value
-            }
-            lastErrorKey = nil
-        } catch { apply(error) }
-    }
-
-    func startGroupCheckout(groupID: UUID, planID: String) async -> URL? {
-        guard let webBase = configuration.webBaseURL,
-              let successURL = URL(string: "app/plans", relativeTo: webBase)?.appending(queryItems: [URLQueryItem(name: "checkout", value: "success")]),
-              let cancelURL = URL(string: "app/plans", relativeTo: webBase)?.appending(queryItems: [URLQueryItem(name: "checkout", value: "cancelled")]),
-              let body = try? JSONSerialization.data(withJSONObject: [
-                "planId": planID,
-                "successUrl": successURL.absoluteString,
-                "cancelUrl": cancelURL.absoluteString,
-              ]) else {
-            lastErrorKey = "plans.web_configuration_required"
-            return nil
-        }
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            let data = try await request(MobileEndpoints.groupCheckout(groupID), method: "POST", body: body)
-            let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-            guard let rawURL = payload?["url"] as? String,
-                  let url = URL(string: rawURL), url.scheme == "https" else {
-                throw MobileAPIError.invalidResponse
-            }
-            lastErrorKey = nil
-            return url
-        } catch {
-            apply(error)
-            return nil
-        }
     }
 
     func loadGlobalCalendar(from: Date, to: Date) async {

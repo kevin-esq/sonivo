@@ -73,6 +73,26 @@ public class GroupUseCaseTests
     }
 
     [Fact]
+    public async Task Billing_read_only_allows_reads_exports_and_billing_but_blocks_group_writes()
+    {
+        var store = new FakeGroupStore();
+        var owner = Guid.NewGuid();
+        var group = Group.Create("Read Only", Now);
+        group.EnterReadOnly(Now);
+        await store.AddAsync(group, Membership.CreateOwner(group.Id, owner, Now), CancellationToken.None);
+        var access = new GroupAccessService(store);
+
+        await access.RequireMemberAsync(group.Id, owner, CancellationToken.None);
+        await access.RequireOwnerForExportAsync(group.Id, owner, CancellationToken.None);
+        await access.RequireOwnerForBillingAsync(group.Id, owner, CancellationToken.None);
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            access.RequireOwnerAsync(group.Id, owner, CancellationToken.None));
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            access.RequireResourcePermissionAsync(group.Id, owner, GroupPermissions.SongEdit,
+                "song", Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [Fact]
     public async Task UpdateGroup_member_throws_forbidden()
     {
         var store = new FakeGroupStore();

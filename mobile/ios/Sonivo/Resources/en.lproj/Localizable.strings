@@ -201,6 +201,7 @@
 "plans.billing_status" = "Billing status";
 "plans.provider.sandbox" = "Sandbox payment provider";
 "plans.provider.manual" = "Plan is managed manually";
+"plans.provider.stripe" = "Payments with Stripe";
 "plans.provider_unavailable" = "The payment provider is not configured.";
 "plans.no_groups" = "You do not belong to any groups yet.";
 "plans.groups_title" = "Your group plans";

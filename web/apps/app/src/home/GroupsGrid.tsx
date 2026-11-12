@@ -73,7 +73,7 @@ function HomeGroupCard({ group, navigationMode }: { group: GroupSummary; navigat
   );
 }
 
-export function GroupsGrid({ groups, navigationMode = 'legacy' }: { groups: GroupSummary[] | null; navigationMode?: NavigationMode }) {
+export function GroupsGrid({ groups, navigationMode = 'legacy', canCreateGroup }: { groups: GroupSummary[] | null; navigationMode?: NavigationMode; canCreateGroup: boolean }) {
   const { t } = useT();
 
   if (groups === null) {
@@ -113,13 +113,13 @@ export function GroupsGrid({ groups, navigationMode = 'legacy' }: { groups: Grou
           <p className="font-semibold text-ink">{t("groups.emptyTitle")}</p>
           <p className="max-w-md text-sm text-muted">{t("groups.empty")}</p>
         </div>
-        <AppLink
+        {canCreateGroup ? <AppLink
           mode={navigationMode}
           to={navigationMode === 'next' ? `${routes.groups}?create=1` : routes.groups}
           className="inline-flex min-h-11 items-center rounded-xl bg-primary-strong px-4 text-sm font-semibold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           {t("groups.emptyCta")}
-        </AppLink>
+        </AppLink> : <AppLink mode={navigationMode} to={routes.join} className="inline-flex min-h-11 items-center rounded-xl bg-primary-strong px-4 text-sm font-semibold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('home.quickJoin')}</AppLink>}
       </div>
     );
   }

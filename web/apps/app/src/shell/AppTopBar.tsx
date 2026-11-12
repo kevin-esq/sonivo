@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CalendarDays, Search, X } from "lucide-react";
+import { CalendarDays, CircleHelp, LogOut, Search, UserRound, X } from "lucide-react";
 import type { CurrentUser } from "../api/client";
 import { useT } from "../i18n";
 import { routes } from "../routing/routes";
@@ -42,16 +42,29 @@ export function AppTopBar({
 }) {
   const { t } = useT();
   const searchToggleRef = useRef<HTMLButtonElement>(null);
+  const accountMenuRef = useRef<HTMLDetailsElement>(null);
   const [searchFocused, setSearchFocused] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   useEffect(() => {
     if (searchOpen) document.getElementById(GLOBAL_SEARCH_INPUT_ID)?.focus();
   }, [searchOpen]);
+  useEffect(() => {
+    function dismissAccountMenu(event: PointerEvent) {
+      if (accountMenuRef.current?.open && !accountMenuRef.current.contains(event.target as Node)) {
+        accountMenuRef.current.open = false;
+      }
+    }
+    document.addEventListener('pointerdown', dismissAccountMenu);
+    return () => document.removeEventListener('pointerdown', dismissAccountMenu);
+  }, []);
   return (
     <header className={cn("app-shell-header sticky top-0 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] bg-shell lg:grid-cols-[16rem_minmax(0,1fr)_auto]", searchFocused || notificationsOpen ? "z-[60]" : "z-40")} onKeyDown={(event) => {
       if (event.key === "Escape" && searchOpen) {
         onSearchOpenChange(false);
         searchToggleRef.current?.focus();
+      } else if (event.key === "Escape" && accountMenuRef.current?.open) {
+        accountMenuRef.current.open = false;
+        accountMenuRef.current.querySelector('summary')?.focus();
       }
     }}>
       <ShellHeaderBrand pinned={pinned} onToggle={onToggleSidebar}>
@@ -89,12 +102,28 @@ export function AppTopBar({
           <CalendarDays className="h-5 w-5" aria-hidden="true" />
         </AppLink>
         <NotificationBell scope="account" onOpenChange={setNotificationsOpen} />
-        <AppLink mode={navigationMode} to={routes.account} aria-label={t("app.userMenu")} data-testid="app-user-avatar" className="grid min-h-11 min-w-11 place-items-center rounded-full bg-primary-strong text-xs font-bold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
-          {initialsOf(user)}
-        </AppLink>
+        <details ref={accountMenuRef} className="relative" data-testid="topbar-user-menu">
+          <summary aria-label={t('app.userMenu')} data-testid="app-user-avatar" className="grid min-h-11 min-w-11 cursor-pointer list-none place-items-center rounded-full bg-primary-strong text-xs font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary [&::-webkit-details-marker]:hidden">
+            {initialsOf(user)}
+          </summary>
+          <nav aria-label={t('app.userMenu')} className="absolute right-0 top-full z-50 mt-2 w-56 rounded-2xl border border-shell-border bg-surface p-1 text-ink shadow-xl">
+            <AppLink mode={navigationMode} to={routes.account} onClick={() => { if (accountMenuRef.current) accountMenuRef.current.open = false }} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-ink no-underline hover:bg-surface-hover focus-visible:bg-surface-hover">
+              <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {t('account.title')}
+            </AppLink>
+            <AppLink mode={navigationMode} to={routes.help} onClick={() => { if (accountMenuRef.current) accountMenuRef.current.open = false }} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-ink no-underline hover:bg-surface-hover focus-visible:bg-surface-hover">
+              <CircleHelp className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {t('sidebar.help')}
+            </AppLink>
+            <button type="button" onClick={() => { if (accountMenuRef.current) accountMenuRef.current.open = false; onLogout() }} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-xl border-t border-shell-border px-3 text-left text-sm font-medium text-error-ink hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {t('chrome.logout')}
+            </button>
+          </nav>
+        </details>
       </div>
       {!searchOpen ? (
-        <MobileSectionNav items={sidebarSections[0].items.map((item) => ({ id: item.id, label: t(item.labelKey), icon: item.icon, to: item.to, end: item.end }))} label={t("app.sections")} className="col-span-2 lg:hidden" action={<MobileMoreMenu items={sidebarSections.slice(1).flatMap((section) => section.items).map((item) => ({ id: item.id, label: t(item.labelKey), icon: item.icon, to: item.to, end: item.end }))} onLogout={onLogout} />} />
+        <MobileSectionNav items={sidebarSections[0].items.map((item) => ({ id: item.id, label: t(item.labelKey), icon: item.icon, to: item.to, end: item.end }))} label={t("app.sections")} className="col-span-2 lg:hidden" action={<MobileMoreMenu items={sidebarSections.slice(1).flatMap((section) => section.items).map((item) => ({ id: item.id, label: t(item.labelKey), icon: item.icon, to: item.to, end: item.end }))} />} />
       ) : null}
     </header>
   );

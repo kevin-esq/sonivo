@@ -42,6 +42,7 @@ import { SessionScreen } from "./GroupsChrome";
 import { safeNextPath } from "../tenancy/safeNextPath";
 import { useT } from "../i18n";
 import { cn } from "../ui/cn";
+import { isReferralCode, pendingReferralCodeKey } from "../lib/referral";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** ADR-0047: `handle@slug`; the slug never contains a dot, so this cannot be an email. */
@@ -73,7 +74,18 @@ export function GuestAuthRoute({
   const searchParams = useSearchParams();
   const router = useRouter();
   const { t } = useT();
-  const next = safeNextPath(searchParams.get("next"));
+  const referral = searchParams.get("referral");
+  const referralCode = isReferralCode(referral) ? referral : null;
+  const next = safeNextPath(searchParams.get("next"))
+    ?? (referralCode ? routes.accountMembership : null);
+  useEffect(() => {
+    if (!referralCode) return;
+    try {
+      window.localStorage.setItem(pendingReferralCodeKey, referralCode);
+    } catch {
+      // The referral can still be entered manually if browser storage is unavailable.
+    }
+  }, [referralCode]);
   useEffect(() => {
     if (user) router.replace(next ?? routes.home);
   }, [user, next, router]);
@@ -84,7 +96,7 @@ export function GuestAuthRoute({
     return <SessionScreen message={t("auth.checkingSession")} />;
   }
   return (
-    <AuthScreen mode={mode} next={next} onSuccess={onSuccess} brand={brand} />
+    <AuthScreen mode={mode} next={next} referralCode={referralCode} onSuccess={onSuccess} brand={brand} />
   );
 }
 
@@ -373,11 +385,13 @@ function ResendBlock({ initialEmail }: { initialEmail: string }) {
 function AuthScreen({
   mode,
   next,
+  referralCode,
   onSuccess,
   brand = null,
 }: {
   mode: "login" | "register";
   next: string | null;
+  referralCode: string | null;
   onSuccess: (user: CurrentUser) => void;
   brand?: PublicBranding | null;
 }) {
@@ -411,7 +425,10 @@ function AuthScreen({
   const passkeySupported =
     typeof window !== "undefined" && "PublicKeyCredential" in window;
 
-  const nextQuery = next ? `?next=${encodeURIComponent(next)}` : "";
+  const authParams = new URLSearchParams();
+  if (next) authParams.set("next", next);
+  if (referralCode) authParams.set("referral", referralCode);
+  const nextQuery = authParams.size ? `?${authParams}` : "";
   const otherModeTo = `${mode === "login" ? routes.register : routes.login}${nextQuery}`;
 
   const step =

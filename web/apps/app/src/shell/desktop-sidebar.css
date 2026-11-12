@@ -61,9 +61,7 @@
 .desktop-sidebar nav > div:nth-child(3) { --sidebar-reveal-delay: 70ms; }
 .desktop-sidebar nav > div:nth-child(4) { --sidebar-reveal-delay: 85ms; }
 .desktop-sidebar nav > div:nth-child(5) { --sidebar-reveal-delay: 100ms; }
-.desktop-sidebar nav a,
-.desktop-sidebar__footer > a,
-.desktop-sidebar__footer > button {
+.desktop-sidebar nav a {
   gap: 1rem;
   padding-left: 1rem;
   padding-right: 1rem;
@@ -71,13 +69,10 @@
   overflow: hidden;
   transition: width 320ms var(--sidebar-ease), background-color 150ms ease-out;
 }
-.desktop-sidebar[data-collapsed='true'] nav a,
-.desktop-sidebar[data-collapsed='true'] .desktop-sidebar__footer > a,
-.desktop-sidebar[data-collapsed='true'] .desktop-sidebar__footer > button {
+.desktop-sidebar[data-collapsed='true'] nav a {
   width: 3rem;
   transition-duration: 200ms, 150ms;
 }
-.desktop-sidebar__footer > a[data-testid='nav-user-card'] { padding-left: 0.5rem; }
 .desktop-sidebar__heading { height: 1.75rem; }
 .desktop-sidebar__section-short {
   opacity: 0;
@@ -92,8 +87,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .desktop-sidebar-slot, .desktop-sidebar, .desktop-sidebar__label, .desktop-sidebar__section-short,
-  .desktop-sidebar nav a, .desktop-sidebar__footer > a,
-  .desktop-sidebar__footer > button { transition: none; }
+  .desktop-sidebar nav a { transition: none; }
   .desktop-sidebar__label { transform: none; }
 }
 

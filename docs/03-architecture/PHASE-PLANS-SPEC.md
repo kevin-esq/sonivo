@@ -1,5 +1,7 @@
 # PHASE-PLANS-SPEC — Planes y personalización
 
+**Billing amendment (2026-11-04):** ADR-0112 amends account billing ownership and member/group limits. Stripe lifecycle and prices remain governed by ADR-0111 and [Stripe billing spec](PHASE-STRIPE-BILLING-SPEC.md). Existing personalization scope remains governed by its accepted ADRs.
+
 **Status:** ACCEPTED (definition authorized 2026-10-05 by the owner: "esto definí" + "autorizo todo").
 **Date:** 2026-10-05
 **Type:** product + architecture spec. **Placeholder v0.1:** all prices, limits and values are
@@ -33,7 +35,7 @@ This is the single source of truth for plans, limits and personalization. The en
 | **Monthly** | $99 MXN | $199 MXN | $499 MXN |
 | **Annual (≈2 months free)** | $990 MXN | $1,990 MXN | $4,990 MXN |
 | **For whom** | Small band / personal project | Band or ministry that meets often | Orgs with several groups (churches, music schools, academies) |
-| Members | 3 | 15 | Unlimited |
+| Members per Group | 2 | 4 | 15 |
 | Groups | 1 | 1 | Up to 3 included |
 | **Extra group** | n/a | n/a | +$150 MXN/mo |
 | Songs | 50 | 500 | Unlimited |
@@ -77,7 +79,7 @@ This is the single source of truth for plans, limits and personalization. The en
 ## 3. Plan detail
 
 ### 3.1 Starter ($99 MXN/mo)
-- Hard limits: 3 members, 1 group, 50 songs, 5 setlists, 10 events/month, 1 GB.
+- Hard limits: 2 members per Group, 1 Group per account, 50 songs, 5 setlists, 10 events/month, 1 GB.
 - Features: library, resources, audio, tasks/kanban, calendar.
 - Roles: basic (Owner, Member).
 - History: basic (last 30 days, placeholder).
@@ -88,7 +90,7 @@ This is the single source of truth for plans, limits and personalization. The en
 - Support: email.
 
 ### 3.2 Pro ($199 MXN/mo)
-- Hard limits: 15 members, 1 group, 500 songs, 50 setlists, unlimited events, 10 GB.
+- Hard limits: 4 members per Group, 1 Group per account, 500 songs, 50 setlists, unlimited events, 10 GB.
 - Everything in Starter, plus stats and full history.
 - Roles: advanced (custom roles with per-module permissions).
 - Personalization: **Basic** (§5).
@@ -98,9 +100,9 @@ This is the single source of truth for plans, limits and personalization. The en
 
 ### 3.3 Studio ($499 MXN/mo)
 - Groups: up to 3 included; each extra group +$150 MXN/mo (placeholder). No "Studio+" tier at launch.
-- Limits: members/songs/setlists/events unlimited (fair use). 50 GB shared per organization
+- Limits: 15 members per Group; songs/setlists/events unlimited (fair use). 50 GB shared per account
   (placeholder; decide whether it grows per extra group).
-- Organization: Studio represents an organization with several groups (a church, a music school).
+- Account billing: Studio represents one account with several groups (a church, a music school).
   Five unrelated bands are five customers, not one organization. Enforced as a business rule in the
   terms, not a technical lock.
 - Features: everything in Pro, plus centralized group administration (organization view and shared

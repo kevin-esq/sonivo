@@ -75,7 +75,7 @@ public sealed class ExportGroupHandler
 
     public async Task<GroupExport> HandleAsync(ExportGroupQuery query, CancellationToken cancellationToken)
     {
-        await _access.RequireOwnerAsync(query.GroupId, query.ActorUserId, cancellationToken);
+        await _access.RequireOwnerForExportAsync(query.GroupId, query.ActorUserId, cancellationToken);
         var group = await _groups.GetByIdAsync(query.GroupId, cancellationToken)
             ?? throw new NotFoundException("Group not found.");
 

@@ -15,7 +15,7 @@ type QuickAction = {
 };
 
 /** The action cards under the greeting (ADR-0053 addendum: create + join only). */
-export function QuickActions({ navigate }: { navigate: (to: string) => void }) {
+export function QuickActions({ navigate, canCreateGroup }: { navigate: (to: string) => void; canCreateGroup: boolean }) {
   const { t } = useT();
 
   const actions: QuickAction[] = [
@@ -39,7 +39,7 @@ export function QuickActions({ navigate }: { navigate: (to: string) => void }) {
 
   return (
     <ul className="home-quick-actions grid gap-3 sm:grid-cols-2">
-      {actions.map((action) => {
+      {actions.filter(action => action.id !== 'create' || canCreateGroup).map((action) => {
         const Icon = action.icon;
         return (
           <li key={action.id} className="h-full">

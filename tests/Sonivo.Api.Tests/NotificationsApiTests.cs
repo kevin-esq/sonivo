@@ -286,6 +286,7 @@ public sealed class NotificationsOnFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Development");
         builder.UseSetting("UseInMemoryDatabase", "true");
         builder.UseSetting("InMemoryDatabaseName", _dbName);
+        builder.UseSetting("Payments:Provider", "manual");
         builder.UseSetting("ConnectionStrings:Default", "Host=unused;Database=unused;Username=unused;Password=unused");
         builder.UseSetting("Email:Endpoint", "");
         builder.UseSetting("Email:ApiKey", "");

@@ -54,7 +54,6 @@ const JoinGroupPage = named(
   () => import("./tenancy/LegacyJoinGroupPageAdapter"),
   "LegacyJoinGroupPageAdapter",
 );
-const PlansPage = named(() => import("./plans/PlansPage"), "PlansPage");
 const HelpPage = named(() => import("./help/HelpPage"), "HelpPage");
 const AccountNotificationsPage = named(
   () => import("./notifications/AccountNotificationsPage"),
@@ -146,6 +145,10 @@ const SettingsMembershipPage = named(
   () => import("./shell/settings/SettingsPages"),
   "SettingsMembershipPage",
 );
+const AccountOverviewPage = named(
+  () => import('./shell/account/AccountOverviewPage'),
+  'AccountOverviewPage',
+);
 
 function GroupHelpPage() {
   const { groupId } = useParams()
@@ -160,6 +163,11 @@ function BrandedLoginRoute({ user, onSuccess }: { user: CurrentUser | null | und
 function SettingsProfileRoute() {
   const { user, onUserChange } = useAuth()
   return <SettingsProfilePage user={user} onUserChange={onUserChange} />
+}
+
+function AccountOverviewRoute() {
+  const { user } = useAuth()
+  return <AccountOverviewPage displayName={user.displayName?.trim() || user.email || ''} />
 }
 
 // ---------- Utilities ----------
@@ -566,9 +574,10 @@ export function AppRouter({
             <Route path={routes.groups} element={<GroupsPageWithActions />} />
             <Route path={routes.join} element={<JoinGroupPage />} />
             <Route path={routes.calendar} element={<CalendarPage />} />
-            <Route path={routes.plans} element={<PlansPage />} />
+            <Route path={routes.plans} element={<Navigate to={routes.accountMembership} replace />} />
             <Route path={routes.help} element={<HelpPage />} />
-            <Route path={routes.account} element={<SettingsProfileRoute />} />
+            <Route path={routes.account} element={<AccountOverviewRoute />} />
+            <Route path={routes.accountProfile} element={<SettingsProfileRoute />} />
             <Route
               path={routes.accountPreferences}
               element={<CuentaPreferencesPage />}

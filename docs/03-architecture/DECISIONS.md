@@ -6,6 +6,175 @@ Architecture Decision Records.
 
 Only **ACCEPTED** ADRs bind implementation. Newest first.
 
+## ADR-0117 — Plan entitlement required to create Groups
+
+- **Status:** **ACCEPTED** — owner confirmed the no-plan creation rule on 2026-11-12.
+- **Amends:** ADR-0113 trial onboarding and ADR-0112 Group capacity enforcement.
+- **Scope:** Group creation eligibility; Group membership, billing authority, and permissions stay unchanged.
+
+### Decision
+
+1. There is no permanent free plan. In Stripe billing mode, an account without a currently valid paid subscription, active Banda trial, or active internal access grant cannot create a Group. The existing seven-day payment grace remains valid entitlement under ADR-0111.
+2. A user without eligible Group-creation access may still accept an invitation and join an existing Group. Joining does not grant billing ownership, Group ownership, or extra permissions.
+3. Start the one-time 14-day Banda trial from Account Membership before the account has any Group. Eligibility remains once per billing owner and is not reset by creating another Billing Organization. The trial has the same no-card and no-automatic-charge terms already accepted in ADR-0113.
+4. A Billing Organization may exist before its first Group. Bind the first Group as its primary Group when creation succeeds; keep billing records independent from Group authorization.
+5. Enforce entitlement and capacity in the server transaction. Hiding creation controls in the client is only a usability measure.
+
+### Consequences and limits
+
+- Make `BillingOrganizations.PrimaryGroupId` nullable through an additive migration. Do not delete or rewrite existing billing or Group data.
+- The migration rollback cannot restore a required Group link while any pre-Group Billing Organization exists; fail safely rather than deleting such billing data.
+- After the trial is used or expires, an account with no eligible access may join a Group but cannot create one. Self-serve purchase without any owned Group remains unavailable unless a future account-level Checkout flow is separately approved.
+- This creation gate applies to Stripe billing mode. Other payment providers keep their current behavior until they have account-level entitlement checks.
+- Existing Groups and their membership permissions remain unchanged. Do not infer billing access from Group membership.
+
+---
+
+## ADR-0116 — In-app subscription payment method management
+
+- **Status:** **ACCEPTED** — owner requested native card management in Sonivo on 2026-11-06.
+- **Amends:** ADR-0111 hosted Customer Portal use for payment-method updates; Checkout remains hosted.
+- **Scope:** Add and replace the default card for an existing Stripe subscription.
+
+### Decision
+
+1. Render Stripe Payment Element inside Sonivo Membership. Do not redirect to Stripe Customer Portal to add or replace a card.
+2. Create a server-authorized SetupIntent with `usage=off_session`; Stripe.js collects card data directly. Sonivo never receives or stores PAN or CVC.
+3. Permit this flow only for the Billing Organization Owner and existing active, past-due, or unpaid subscriptions. Exclude trials so adding a card cannot silently enable trial-end conversion.
+4. After Stripe confirms setup, the backend retrieves and validates the SetupIntent against the current Stripe Customer, Billing Organization metadata, and card type. Then set the Customer invoice default and Subscription default. A signed webhook provides retryable reconciliation.
+5. Saving a card does not create an invoice or charge immediately. Explain that Stripe may use it for future renewals and outstanding payment recovery.
+6. Keep Checkout hosted for new subscriptions. Do not alter plan, price, renewal, cancellation, or Group permissions when changing a card.
+
+### Consequences
+
+- Add Stripe.js origins to the existing Content Security Policy and configure the environment-matched publishable key.
+- Apply an additive migration for SetupIntent webhook correlation before deploying.
+- Existing Customer Portal endpoints may remain for compatibility, but the Membership payment-method control must use the embedded flow.
+
+---
+
+## ADR-0115 — Referral rewards, temporary plan access, and accounting administration boundary
+
+- **Status:** **ACCEPTED** — owner confirmed the referral reward, 12-month accumulated reward cap, grant scope, and accounting responsibility on 2026-11-05.
+- **Amends:** ADR-0111/0113 billing operations only; Group tenancy and authorization stay unchanged.
+- **Scope:** Referral rewards, staff-issued temporary plan access, and accounting event delivery.
+
+### Decision
+
+1. A referral reward belongs to the referring Billing Organization. After a referred Billing Organization completes its first successful paid invoice, grant the referrer 30 free days by moving the next Stripe renewal 30 days later. A trial or zero-amount invoice does not qualify.
+2. Referral attribution and reward are idempotent per referred Billing Organization and Stripe invoice/event. No self-referral. Stripe's verified webhook state, not a return URL or client claim, qualifies a reward.
+3. Limit each referrer's accumulated, unconsumed referral reward to 12 months (360 days, in 30-day awards). If there is no active paid subscription whose renewal can safely move, keep the reward pending; do not invent a cash equivalent or silently change an unrelated subscription schedule. Pending-reward expiry and redemption ordering remain **OPEN QUESTION** and gate live referral rewards.
+4. Internal Sonivo platform administrators may grant a selected plan to a Billing Organization until an explicit UTC expiry, with a required reason. Grants are auditable and revocable. They never create or modify a Stripe subscription, invoice, payment, Group membership, or Group permission.
+5. A temporary grant overrides the Organization's effective plan only until expiry; afterward access returns to Stripe-confirmed entitlement and existing retention rules. Group stays the authorization and isolation boundary.
+6. The payment provider is the only payment and recurring-renewal authority. Sonivo is the entitlement and referral authority. The system of administration receives accounting records from Sonivo; it does not initiate subscriptions, charge customers, renew them, or grant product access.
+7. Accounting delivery uses durable, idempotent, retryable events with stable internal and provider IDs. Do not send credentials or card data. Do not transmit records until the system-of-administration contract is configured.
+
+### Consequences and open gates
+
+- The signup link uses `/auth/register?referral={code}`. The web client preserves the code through registration/login and pre-fills it in Membership; attribution still requires explicit submission to the API before the first paid invoice.
+- Pending-reward expiry/redemption, platform-admin bootstrap, event payload/schema, and reconciliation remain open before live rollout.
+- The 30-day reward changes Stripe's next renewal only after a verified paid invoice. For a subscription without an attached Schedule, set `trial_end` to the safely verified future end plus 30 days and `proration_behavior=none`; verify the provider readback before marking the reward applied. An attached Schedule stays pending for review. Stripe documents that `trial_end` resets the billing-cycle anchor: [Update a subscription](https://docs.stripe.com/api/subscriptions/update).
+- Refunds and disputes follow ADR-0111's manual-review rule; they do not trigger automatic refunds or silently erase accounting history.
+- No system-of-administration credentials, endpoint, company mapping, production migration, or live payment action is authorized by this ADR.
+
+---
+
+## ADR-0112 — Account plan with group entitlements
+
+- **Status:** **SUPERSEDED** by ADR-0113 for commercial plan terms, trial, quota certainty, expiry, retention, and Group ownership/lifecycle.
+- **Amends:** ADR-0111 billing ownership, group linking and plan capacity; security and Stripe lifecycle controls remain.
+
+### Decision
+
+1. The account owner pays for one Stripe subscription covering eligible Groups owned by that same account.
+2. Starter and Pro include one Group. Studio includes three Groups; add-ons cover more. Creating a Group never grants paid access. Group and member capacities are checked server-side against Stripe-confirmed account entitlement.
+3. Member limits remain per Group: Starter 2, Pro 4, Studio 15. Roles and permissions remain Group-scoped; billing never grants Group access.
+4. Existing subscriptions, trials and explicit legacy grants are never silently merged or moved. Owners may link eligible unpaid Groups, subject to same-owner and capacity checks.
+5. Existing subscriptions remain attached to their billing container. Migration requires a separate owner-confirmed flow; no duplicate charge or subscription merge happens automatically.
+6. Group remains the only authorization tenant. Account ownership scopes billing and quotas only.
+
+### Consequences
+
+- Plans UI shows account billing and Group-scoped usage separately.
+- Stripe state remains authoritative; webhook inbox, idempotency and audit controls remain.
+- Group creation, membership access, and Group writes remain server-authorized and capacity-checked.
+
+---
+
+## ADR-0113 — Final plans, single Group Owner, and retention lifecycle
+
+- **Status:** **ACCEPTED** — owner supplied final product decisions and selected the oldest existing Owner for Groups with multiple Owners on 2026-11-05.
+- **Amends:** ADR-0013, ADR-0051, ADR-0071/0072, ADR-0111/0112.
+- **Scope:** billing contract, Group ownership, Group lifecycle, and space retention. Group remains the authorization tenant.
+
+### Decision
+
+1. Paid plans are Dúo (Starter), Banda (Pro), and Estudio (Studio), localized by interface language. Monthly prices are MXN 99, 199, and 499. No annual price or discount is offered until separately decided. No permanent free plan exists.
+2. The 14-day trial is Banda only, with identical Banda entitlements, no Estudio benefits, no required payment card, and no automatic charge or conversion. One trial is allowed per Billing Organization.
+3. Current code quotas remain provisional hypotheses. They must not be presented as validated or used for production pricing claims without product validation.
+4. Billing Organization owns subscription and account-level quotas only. Group remains the authorization and data-isolation boundary. Payment, billing administration, or Organization membership never grants Group access.
+5. Every Group has exactly one Owner. New Groups assign the creator. For existing Groups with multiple Owners, migration retains the earliest Owner by `Membership.CreatedAt`, then `Membership.Id` as a deterministic tie-breaker; other Owners become Members. Never promote an Admin automatically.
+6. Admin is a distinct Group role. Its current permission set matches the former Manager role; it never receives Owner-only capabilities. Existing Manager roles migrate to Admin without adding permissions. Multiple Admins are allowed.
+7. Ownership transfer is Owner-initiated, explicit, accepted by an existing Group member, and atomic. On acceptance, the recipient becomes the sole Owner and the former Owner becomes Member. Removal, demotion, or disablement of the sole Owner requires a completed transfer.
+8. Owner account deletion, inactivation, or lost access does not promote another member. Recovery requires support verification and an audit record. The support verification procedure is an operational launch gate.
+9. At trial/subscription expiry, after any existing documented failed-payment grace period, the Organization becomes read-only/export-only for 90 days. Keep Groups, memberships, permissions, and content; block product writes and new access, while preserving security/privacy actions and authorized exports. A paid subscription before the deadline restores editing subject to plan quotas. Do not charge automatically.
+10. At the 90-day deadline, permanently purge Groups and their content/files without deleting global user accounts or unrelated Organizations/Groups. Billing records remain separate and require an approved retention policy. Purges must be idempotent and re-applied after backup restoration so purged data cannot revive.
+11. Group states are separate: Active; Archived (hidden from active list, recoverable, retains permissions/data and counts toward quota); Trash (recoverable for 30 days, then permanent purge); and Billing Read-only (does not archive or delete Groups). Only Owner may archive, restore, trash, or permanently delete. Restore requires quota. Groups over a downgraded quota are never moved/deleted automatically; excess Groups remain visible and read-only until resolved.
+12. Manual permanent Group deletion requires a clear data-loss summary and explicit confirmation. Group purge includes memberships, roles, grants, invites, settings, repertoire, arrangements, setlists, events, tasks, history, resources, and blobs. Do not promise legal deletion timelines until legal obligations and backup handling are verified.
+
+### Consequences and rollout gates
+
+- Stripe configuration is the default provider path. Missing credentials fail closed; manual plan assignment cannot provide unbilled access in Stripe mode.
+- API clients must retain Group membership/permission checks. Billing Organization is not a tenant.
+- Schema/data migrations must preserve content and deterministically demote duplicate Owners. Do not run a data migration on a persistent environment without a verified backup and restore procedure.
+- Permanent purge requires file-store deletion, durable purge tombstones, backup-restore replay, and adversarial tests. Until these pass, production expiry/purge remains disabled.
+- Financial-table RLS stays behind the existing Phase 4.2 gates. Live charges remain disabled until financial RLS, constrained runtime role, fiscal readiness, and explicit activation pass.
+- Current quota values, financial-record retention, legal obligations, backup replay automation, and support recovery operations remain launch gates. This ADR makes no legal or market claim.
+
+### Supersession
+
+ADR-0013 is superseded for Owner cardinality and Group deletion lifecycle. ADR-0051 is superseded for the `Manager` role name and Owner cardinality; its exact non-Owner permission boundaries remain. ADR-0111/0112 are superseded for plan terms, trial, expiration, and retention. ADR-0079 remains binding for Group tenancy; ADR-0086 and Phase 4.2 remain binding for RLS rollout.
+
+---
+
+## ADR-0111 — Stripe subscriptions and explicit billing ownership
+
+- **Status:** **SUPERSEDED** — billing model amended by ADR-0112.
+- **Amends:** ADR-0071/0072/0073/0075. Stripe is the payment provider; Group remains the only tenant.
+- **Spec:** [Stripe billing implementation](PHASE-STRIPE-BILLING-SPEC.md).
+
+### Decision
+
+Use Stripe Billing, hosted Checkout and Customer Portal through the monolith. The account owner's Billing Organization owns billing; titular must remain Owner of every linked Group. Monthly Starter/Pro/Studio prices are MXN 99/199/499; annual prices are 990/1990/4990, tax inclusive. Studio includes three Groups and 50 GiB shared storage; extra Groups cost MXN 150 monthly or 1500 annually. One fourteen-day trial per titular. Starter/Pro require no card; Studio requires card and explicit renewal consent. Upgrades require confirmed payment; downgrades/cancellation take effect at period end. Seven days of nonpayment grace precede blocked creation and loss of premium benefits. Existing content remains editable/deletable; no billing-based account suspension.
+
+Preserve explicit Group-bound legacy grants. Unknown external prices fail closed. Manual paid-plan assignment is unavailable with Stripe. Verified webhooks enter a durable PostgreSQL inbox; workers reconcile authoritative provider state. Financial changes use idempotency and audit records. No broker or LLM handles payments. Production charging remains disabled pending separate fiscal/provider readiness and rollout approval.
+
+---
+
+## ADR-0114 — Subscription-qualified Group ownership transfer and launch cleanup
+
+- **Status:** **ACCEPTED** for subscription-qualified transfer and five-day launch notice; the trial exception was confirmed by the Owner on 2026-11-05.
+- **Amends:** ADR-0113 transfer eligibility and initial unbilled-Group rollout.
+- **Scope:** ownership transfer billing link and one-time cleanup of existing Groups without active paid coverage.
+
+### Decision
+
+1. Ownership transfer acceptance requires the recipient to own an active Stripe subscription with available Group capacity. A trial alone does not qualify for ownership transfer unless the Owner separately decides otherwise.
+2. On acceptance, move only the Group's billing link to the recipient's eligible Billing Organization in the same database transaction as the sole-Owner transfer. Do not move, cancel, or charge the former Owner's subscription.
+3. A former payer must retain account-scoped access to view their Billing Organizations and open the Stripe Customer Portal, even when transferred Groups leave their account. Billing ownership grants no Group access.
+4. Before the one-time launch cleanup, notify each existing Group Owner whose Group has neither active paid coverage nor an active Banda trial. Start a five-day deadline only after the notice is sent successfully. An active Banda trial exempts that Group and cancels a pending cleanup deadline.
+5. If the deadline expires without paid coverage or an active Banda trial, permanently delete the affected Group and its associated data/files. Do not delete the User account or unrelated Groups. Do not send notices, run the cleanup, or apply its migration until the operator has verified backup restoration and the file-deletion path.
+6. This five-day migration cleanup applies only to the one-time existing-Group launch transition. Normal trial/subscription expiry retains its separate 90-day read-only/export period. Normal Group trash retains its separate 30-day restore period.
+
+### Consequences
+
+- Subscription transfer requires an active, capacity-eligible account; it cannot silently inherit the payer's contract.
+- Account-level billing management must work without Group membership. It does not authorize data reads or Group mutations.
+- The launch cleanup is destructive and remains disabled until notice delivery, verified backup/restore, dependent-row deletion, and blob deletion are demonstrated.
+- Whether a trial qualifies as a subscription for ownership transfer remains an open product question; current implementation requires a paid active subscription.
+
+---
+
 ## ADR-0109 — Group-wide default arrangement
 
 - **Status:** **ACCEPTED** — owner chose a shared group default on 2026-11-02.
@@ -2229,7 +2398,7 @@ applied dynamically without breaking AA contrast.
 
 ## ADR-0051 — Group roles: Owner | Manager | Member | Viewer + musical role
 
-- **Status:** **ACCEPTED** — user-authorized 2026-10-01 (white-label program, phase 4.4). Supersedes the `Owner|Member`-only role list of ADR-0012.
+- **Status:** **SUPERSEDED** by ADR-0113 for the Manager role name and Owner cardinality. Its exact non-Owner permission boundaries remain binding.
 - **Date:** 2026-10-01
 - **See:** [`PHASE-WHITELABEL-SPEC.md`](PHASE-WHITELABEL-SPEC.md) §4.4/§5.
 
@@ -3851,7 +4020,7 @@ EF: Arrangements table with FKs; own concurrency. APIs may nest create under son
 
 ## ADR-0013 — Group ownership & lifecycle
 
-- **Status:** ACCEPTED
+- **Status:** **SUPERSEDED** by ADR-0113 for Owner cardinality and Group deletion lifecycle.
 - **Accepted:** 2026-09-15 (Phase 0.5)
 - **Depends on:** ADR-0005, ADR-0012
 
@@ -4249,6 +4418,7 @@ Sonivo is not church-first; worship is a supported segment. Core language stays 
 
 | ADR  | Title                                           | Status       |
 | ---- | ----------------------------------------------- | ------------ |
+| 0116 | In-app subscription payment method management  | **ACCEPTED** |
 | 0110 | Song catalog metadata and Owner-managed tags   | **ACCEPTED** |
 | 0108 | Arrangement harmony progression editor         | **ACCEPTED** |
 | 0107 | Title-first LRCLIB recording search             | **ACCEPTED** |

@@ -1,6 +1,7 @@
 using Sonivo.Application.Abstractions;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Billing;
+using Sonivo.Domain.Billing.Payments;
 
 namespace Sonivo.Application.Billing;
 
@@ -22,17 +23,21 @@ public sealed class UpdateGroupPlanHandler
     private readonly GroupAccessService _access;
     private readonly IGroupStore _groups;
     private readonly IClock _clock;
+    private readonly IPaymentProvider? _provider;
 
-    public UpdateGroupPlanHandler(GroupAccessService access, IGroupStore groups, IClock clock)
+    public UpdateGroupPlanHandler(GroupAccessService access, IGroupStore groups, IClock clock, IPaymentProvider? provider = null)
     {
         _access = access;
         _groups = groups;
         _clock = clock;
+        _provider = provider;
     }
 
     public async Task<GroupPlanStateDto> HandleAsync(UpdateGroupPlanCommand command, CancellationToken cancellationToken)
     {
         var (group, _) = await _access.RequireOwnerAsync(command.GroupId, command.UserId, cancellationToken);
+        if (_provider?.Kind == PaymentProviderKind.Stripe)
+            throw new ForbiddenException("billing-manual-assignment-disabled");
         var now = _clock.UtcNow;
 
         try

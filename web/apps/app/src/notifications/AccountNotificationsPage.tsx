@@ -3,6 +3,7 @@
 import { routes } from '../routing/routes'
 import { useT } from '../i18n'
 import { NotificationInbox } from './NotificationInbox'
+import { AccountSettingsLayout } from '../shell/account/AccountSettingsLayout'
 
 /**
  * routes.accountNotifications — the account inbox (security/credentials). Distinct
@@ -11,12 +12,12 @@ import { NotificationInbox } from './NotificationInbox'
 export function AccountNotificationsPage({ navigationMode = 'legacy' }: { navigationMode?: 'legacy' | 'next' } = {}) {
   const { t } = useT()
   return (
-    <div className="space-y-4">
-      <header className="space-y-1.5">
-        <h1 className="sonivo-page-title text-ink">{t('notifications.accountTitle')}</h1>
-        <p className="text-muted">{t('notifications.accountSubtitle')}</p>
-      </header>
+    <AccountSettingsLayout
+      active="notifications"
+      title={t('notifications.accountTitle')}
+      description={t('notifications.accountSubtitle')}
+    >
       <NotificationInbox scope="account" navigationMode={navigationMode} />
-    </div>
+    </AccountSettingsLayout>
   )
 }

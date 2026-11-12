@@ -283,6 +283,7 @@
     <string name="calendar_events">Eventos</string>
     <string name="plans_billing_status">Status da cobrança</string>
     <string name="plans_provider_manual">Plano gerenciado manualmente</string>
+    <string name="plans_provider_stripe">Pagamentos com Stripe</string>
     <string name="plans_provider_sandbox">Provedor de pagamentos de teste</string>
     <string name="plans_provider_unavailable">O provedor de pagamentos não está configurado.</string>
     <string name="plans_no_groups">Você ainda não pertence a nenhum grupo.</string>

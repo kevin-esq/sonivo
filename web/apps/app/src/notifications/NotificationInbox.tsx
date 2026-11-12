@@ -77,6 +77,12 @@ export function NotificationInbox({
   const [inbox, setInbox] = useState<Inbox | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [accountFilter, setAccountFilter] = useState<'all' | 'security' | 'groups'>('all')
+  const visibleItems = inbox?.items.filter((item) => {
+    if (scope !== 'account' || accountFilter === 'all') return true
+    const securityItem = item.kind === 'password_changed' || item.kind === 'passkey_added' || item.kind === 'passkey_removed'
+    return accountFilter === 'security' ? securityItem : !securityItem
+  }) ?? []
 
   // Live refresh: the server pushes when a new notification lands for this user.
   useNotificationsLive(() => setReloadKey((key) => key + 1))
@@ -139,33 +145,43 @@ export function NotificationInbox({
         </p>
       ) : null}
 
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-muted">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border-subtle bg-surface px-4 py-3">
+        <p className="text-sm font-medium text-muted">
           {inbox && inbox.unreadCount > 0 ? t('notifications.unread', { count: inbox.unreadCount }) : t('notifications.allRead')}
         </p>
         {inbox && inbox.unreadCount > 0 ? (
           <button
             type="button"
             onClick={() => void onReadAll()}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-ink hover:underline"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-primary-ink hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
-            <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            <CheckCheck className="h-4 w-4" aria-hidden="true" />
             {t('notifications.markAll')}
           </button>
         ) : null}
       </div>
 
+      {scope === 'account' ? (
+        <div className="flex flex-wrap gap-2" role="group" aria-label={t('notifications.filterLabel')}>
+          {(['all', 'security', 'groups'] as const).map((filter) => (
+            <button key={filter} type="button" aria-pressed={accountFilter === filter} onClick={() => setAccountFilter(filter)} className={`min-h-11 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none ${accountFilter === filter ? 'border-primary bg-primary text-primary-foreground' : 'border-border-subtle bg-surface text-muted hover:bg-surface-hover hover:text-ink'}`}>
+              {t(filter === 'all' ? 'notifications.filterAll' : filter === 'security' ? 'notifications.filterSecurity' : 'notifications.filterGroups')}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {inbox === null ? (
         <p aria-live="polite" className="text-sm text-muted">
           {t('notifications.loading')}
         </p>
-      ) : inbox.items.length === 0 ? (
-        <p className="rounded-xl border border-border-subtle bg-surface px-4 py-3 text-sm text-muted">
-          {t('notifications.empty')}
+      ) : visibleItems.length === 0 ? (
+        <p className="rounded-2xl border border-border-subtle bg-surface px-4 py-8 text-center text-sm text-muted">
+          {inbox.items.length === 0 ? t('notifications.empty') : t('notifications.filterEmpty')}
         </p>
       ) : (
         <ul className="space-y-2">
-          {inbox.items.map((notification) => {
+          {visibleItems.map((notification) => {
             const meta = kindMeta(notification.kind)
             const Icon = meta.icon
             const to = kindLink(notification)
@@ -191,7 +207,7 @@ export function NotificationInbox({
               </>
             )
             const classes = cn(
-              'flex items-start gap-3 rounded-xl border px-3 py-2.5 no-underline transition-colors',
+              scope === 'account' ? 'flex items-start gap-3 rounded-2xl border px-4 py-3.5 no-underline transition-colors' : 'flex items-start gap-3 rounded-xl border px-3 py-2.5 no-underline transition-colors',
               notification.readAt
                 ? 'border-border-subtle bg-surface'
                 : 'border-primary/25 bg-primary/5 hover:bg-primary/10',

@@ -21,18 +21,18 @@ public class PlanLimitGuardTests
     [Fact]
     public void Starter_limits_members_setlists_and_events()
     {
-        Assert.Equal(5, PlanLimitGuard.LimitFor("starter", PlanMetric.Members));
+        Assert.Equal(2, PlanLimitGuard.LimitFor("starter", PlanMetric.Members));
         Assert.Equal(5, PlanLimitGuard.LimitFor("starter", PlanMetric.Setlists));
         Assert.Equal(10, PlanLimitGuard.LimitFor("starter", PlanMetric.EventsPerMonth));
     }
 
     [Fact]
-    public void Studio_has_no_countable_limits()
+    public void Studio_limits_members_but_not_content_counts()
     {
         Assert.Null(PlanLimitGuard.LimitFor("studio", PlanMetric.Songs));
         Assert.Null(PlanLimitGuard.LimitFor("studio", PlanMetric.Setlists));
         Assert.Null(PlanLimitGuard.LimitFor("studio", PlanMetric.EventsPerMonth));
-        Assert.Null(PlanLimitGuard.LimitFor("studio", PlanMetric.Members));
+        Assert.Equal(15, PlanLimitGuard.LimitFor("studio", PlanMetric.Members));
 
         // Never throws when unlimited, regardless of count.
         PlanLimitGuard.EnsureWithinLimit("studio", PlanMetric.Songs, 1_000_000);

@@ -49,6 +49,7 @@ import { cn } from "../ui/cn";
 import { fieldClass } from "../ui/field";
 import { useToast } from "../ui/toast";
 import { parseInviteToken } from "../tenancy/inviteToken";
+import { useGroupCreationAvailability } from '../plans/useGroupCreationAvailability'
 
 /* ================================================================== */
 /* Types and integration contract                                    */
@@ -901,6 +902,7 @@ export function GroupsPage({
   initialCreate?: boolean
 }) {
   const { t, lang } = useT();
+  const { canCreateGroup, loading: groupCreationLoading } = useGroupCreationAvailability()
   const searchId = useId();
 
   const [groups, setGroups] = useState<GroupCardData[] | null>(null);
@@ -920,11 +922,7 @@ export function GroupsPage({
     null,
   );
 
-  const [dialog, setDialog] = useState<DialogState>(() =>
-    ((location.state as { create?: boolean } | null)?.create || initialCreate || new URLSearchParams(location.search).get('create') === '1')
-      ? { type: "create" }
-      : null,
-  );
+  const [dialog, setDialog] = useState<DialogState>(null);
   const { showToast } = useToast();
   const { copy } = useCopyToClipboard();
 
@@ -936,6 +934,14 @@ export function GroupsPage({
       navigate(`${location.pathname}${location.hash}`, { replace: true, state: location.state })
     }
   }, [location.hash, location.pathname, location.search, location.state, navigate, navigationMode])
+
+  useEffect(() => {
+    const requested = (location.state as { create?: boolean } | null)?.create
+      || initialCreate || new URLSearchParams(location.search).get('create') === '1'
+    if (!requested || groupCreationLoading) return
+    if (canCreateGroup) setDialog({ type: 'create' })
+    else navigate(routes.accountMembership)
+  }, [canCreateGroup, groupCreationLoading, initialCreate, location.search, location.state, navigate])
 
   useEffect(() => {
     let cancelled = false;
@@ -1161,6 +1167,10 @@ export function GroupsPage({
           <p className="max-w-lg text-sm text-shell-foreground/70">
             {t("groups.subtitle")}
           </p>
+          {!groupCreationLoading && !canCreateGroup ? <div className="space-y-1 text-sm text-muted">
+            <p>{t('billing.activePlanRequired')}</p>
+            <AppLink mode={navigationMode} to={routes.accountMembership} className="font-semibold text-primary-ink no-underline hover:underline">{t('billing.explorePlans')}</AppLink>
+          </div> : null}
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           {/* Discrete secondary: join with a link. */}
@@ -1174,14 +1184,14 @@ export function GroupsPage({
             {t("groups.join")}
           </Button>
           {/* Primary action. */}
-          <Button
+          {canCreateGroup ? <Button
             type="button"
             className="w-full justify-center sm:w-auto"
             onClick={() => setDialog({ type: "create" })}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             {t("groups.new")}
-          </Button>
+          </Button> : null}
         </div>
       </header>
 
@@ -1216,9 +1226,9 @@ export function GroupsPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={() => setDialog({ type: "create" })}>
+            {canCreateGroup ? <Button type="button" onClick={() => setDialog({ type: "create" })}>
               {t("groups.emptyCta")}
-            </Button>
+            </Button> : <AppLink mode={navigationMode} to={routes.accountMembership} className="inline-flex min-h-11 items-center rounded-xl bg-primary-strong px-4 text-sm font-semibold text-primary-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('billing.explorePlans')}</AppLink>}
             <Button
               type="button"
               variant="outline"

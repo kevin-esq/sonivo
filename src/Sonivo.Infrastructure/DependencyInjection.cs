@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Sonivo.Application.Abstractions;
+using Sonivo.Application.Billing;
 using Sonivo.Application.Realtime;
 using Sonivo.Domain.Billing.Payments;
 using Sonivo.Infrastructure.Blobs;
@@ -31,6 +32,7 @@ public static class DependencyInjection
         var useInMemory = configuration.GetValue("UseInMemoryDatabase", false);
 
         services.AddScoped<GroupChangeInterceptor>();
+        services.AddScoped<BillingWriteInterceptor>();
         services.AddScoped<IGroupDatabaseScope, EfGroupDatabaseScope>();
         services.AddScoped<IGroupDataOperation, EfGroupDataOperation>();
         // Default no-op real-time transport; the API replaces it with SignalR.
@@ -39,6 +41,8 @@ public static class DependencyInjection
         {
             // Cross-user real time: one interceptor broadcasts group data changes.
             options.AddInterceptors(sp.GetRequiredService<GroupChangeInterceptor>());
+            if (string.Equals(configuration["Payments:Provider"], "stripe", StringComparison.OrdinalIgnoreCase))
+                options.AddInterceptors(sp.GetRequiredService<BillingWriteInterceptor>());
             if (useInMemory)
             {
                 options.UseInMemoryDatabase(
@@ -78,6 +82,7 @@ public static class DependencyInjection
         services.AddScoped<IGroupBrandingStore, EfGroupBrandingStore>();
         services.AddScoped<IAccountAuditStore, EfAccountAuditStore>();
         services.AddScoped<IMembershipStore, EfMembershipStore>();
+        services.AddScoped<IGroupOwnershipTransferStore, EfGroupOwnershipTransferStore>();
         services.AddScoped<IGroupAuditStore, EfGroupAuditStore>();
         services.AddScoped<INotificationStore, EfNotificationStore>();
         services.AddScoped<IGroupRoleStore, EfGroupRoleStore>();
@@ -132,7 +137,16 @@ public static class DependencyInjection
         // invoice-based flow with no gateway; "sandbox" is a signed test gateway.
         // Secrets come from configuration only and are never logged.
         var paymentsProvider = configuration["Payments:Provider"];
-        if (string.Equals(paymentsProvider, "sandbox", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(paymentsProvider, "stripe", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton<StripeBillingGateway>();
+            services.AddSingleton<IPaymentProvider>(sp => sp.GetRequiredService<StripeBillingGateway>());
+            services.AddScoped<StripeBillingService>();
+            services.AddScoped<IBillingService>(sp => sp.GetRequiredService<StripeBillingService>());
+            services.AddScoped<IBillingPolicy, BillingProjection>();
+            services.AddHostedService<BillingWorker>();
+        }
+        else if (string.Equals(paymentsProvider, "sandbox", StringComparison.OrdinalIgnoreCase))
         {
             services.AddSingleton<IPaymentProvider>(_ => new SandboxPaymentProvider(
                 configuration["Payments:WebhookSecret"] ?? string.Empty,

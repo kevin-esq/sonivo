@@ -25,11 +25,14 @@ public class UsageApiTests : IClassFixture<SonivoApiFactory>
         var group = await created.Content.ReadFromJsonAsync<GroupResponse>();
         Assert.NotNull(group);
 
+        var assignment = await client.PutAsJsonAsync($"/api/groups/{group.Id}/plan", new { action = "assign", planId = "studio" });
+        Assert.Equal(HttpStatusCode.OK, assignment.StatusCode);
+
         var usage = await client.GetFromJsonAsync<UsageResponse>($"/api/groups/{group.Id}/usage");
         Assert.NotNull(usage);
         Assert.Equal("studio", usage.PlanId);
         Assert.Equal(1, usage.Members.Used);
-        Assert.Null(usage.Members.Limit); // Studio: unlimited
+        Assert.Equal(15, usage.Members.Limit); // Studio member limit is per Group.
         Assert.Equal(0, usage.Songs.Used);
         Assert.Null(usage.Songs.Limit);
         Assert.Equal(0, usage.Setlists.Used);
@@ -52,7 +55,7 @@ public class UsageApiTests : IClassFixture<SonivoApiFactory>
         var usage = await client.GetFromJsonAsync<UsageResponse>($"/api/groups/{group.Id}/usage");
         Assert.NotNull(usage);
         Assert.Equal("starter", usage.PlanId);
-        Assert.Equal(5, usage.Members.Limit);
+        Assert.Equal(2, usage.Members.Limit);
 
         var trial = await client.PutAsJsonAsync($"/api/groups/{group.Id}/plan", new { action = "trial", planId = "pro" });
         Assert.Equal(HttpStatusCode.OK, trial.StatusCode);

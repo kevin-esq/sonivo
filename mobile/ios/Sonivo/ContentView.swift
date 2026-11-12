@@ -888,14 +888,13 @@ private struct ProfileDestinationContent: View {
 
 private struct PlansDestinationContent: View {
     @ObservedObject var api: MobileAPI
-    @State private var selectedPlanIDs: [UUID: String] = [:]
 
     var body: some View {
         List {
             Section("plans.billing_status") {
                 if let provider = api.paymentProvider {
-                    Text(LocalizedStringKey(provider.provider == "sandbox" ? "plans.provider.sandbox" : "plans.provider.manual"))
-                    if provider.provider == "sandbox" && !provider.configured {
+                    Text(LocalizedStringKey(provider.provider == "stripe" ? "plans.provider.stripe" : provider.provider == "sandbox" ? "plans.provider.sandbox" : "plans.provider.manual"))
+                    if (provider.provider == "sandbox" || provider.provider == "stripe") && !provider.configured {
                         Text("plans.provider_unavailable").font(.caption).foregroundStyle(.secondary)
                     }
                 } else if api.isLoading {
@@ -923,26 +922,7 @@ private struct PlansDestinationContent: View {
                             if let scheduled = usage.scheduledPlanId {
                                 LabeledContent("plans.scheduled_plan", value: planName(scheduled))
                             }
-                            if group.role.lowercased() == "owner" {
-                                Picker("plans.choose_plan", selection: planSelection(group.id, current: usage.planId)) {
-                                    ForEach(api.planOptions) { plan in Text(LocalizedStringKey("plans.name.\(plan.id)")).tag(plan.id) }
-                                }
-                                Button("plans.assign_plan") {
-                                    Task { await api.updatePlan(groupID: group.id, planID: selectedPlanIDs[group.id] ?? usage.planId) }
-                                }
-                                .disabled(api.isLoading || (selectedPlanIDs[group.id] ?? usage.planId) == usage.planId)
-                                if api.paymentProvider?.provider == "sandbox", api.paymentProvider?.configured == true {
-                                    Button("plans.checkout") {
-                                        Task {
-                                            guard let url = await api.startGroupCheckout(groupID: group.id, planID: selectedPlanIDs[group.id] ?? usage.planId) else { return }
-                                            await UIApplication.shared.open(url)
-                                        }
-                                    }
-                                    .disabled(api.isLoading)
-                                }
-                            } else {
-                                Text("plans.read_only").font(.caption).foregroundStyle(.secondary)
-                            }
+                            Text("plans.read_only").font(.caption).foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 4)
                     } else if api.isLoading {
@@ -951,15 +931,8 @@ private struct PlansDestinationContent: View {
                 }
             }
             if let errorKey = api.lastErrorKey { Text(LocalizedStringKey(errorKey)).foregroundStyle(.red) }
-            Section {
-                Text("plans.provisional_note").font(.caption).foregroundStyle(.secondary)
-            }
         }
         .task { await api.loadPlanOverview() }
-    }
-
-    private func planSelection(_ groupID: UUID, current: String) -> Binding<String> {
-        Binding(get: { selectedPlanIDs[groupID] ?? current }, set: { selectedPlanIDs[groupID] = $0 })
     }
 
     private func planName(_ id: String) -> String {

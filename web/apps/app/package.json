@@ -27,6 +27,8 @@
     "@sonivo/i18n": "*",
     "@sonivo/routes": "*",
     "@sonivo/ui": "*",
+    "@stripe/react-stripe-js": "^7.0.1",
+    "@stripe/stripe-js": "^10.2.1",
     "chord-symbol": "^4.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

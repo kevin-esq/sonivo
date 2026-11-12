@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { LogOut, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { useT } from '../i18n'
 import { AppNavLink } from '../routing/AppLink'
 import type { MobileSectionItem } from './MobileSectionNav'
 
-export function MobileMoreMenu({ items, onLogout }: { items: MobileSectionItem[]; onLogout?: () => void }) {
+export function MobileMoreMenu({ items }: { items: MobileSectionItem[] }) {
   const { t } = useT()
   const ref = useRef<HTMLDetailsElement>(null)
   useEffect(() => {
@@ -33,12 +33,6 @@ export function MobileMoreMenu({ items, onLogout }: { items: MobileSectionItem[]
             {item.label}
           </AppNavLink>
         ))}
-        {onLogout ? (
-          <button type="button" onClick={() => { if (ref.current) ref.current.open = false; onLogout() }} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-xl border-t border-shell-border px-3 text-sm font-medium text-error-ink hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-            <LogOut className="h-4 w-4" aria-hidden="true" />
-            {t('chrome.logout')}
-          </button>
-        ) : null}
       </nav>
     </details>
   )

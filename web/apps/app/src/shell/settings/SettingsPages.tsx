@@ -1,70 +1,37 @@
 'use client'
 
 import { routes } from '../../routing/routes'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Mail, PencilLine, UserRound } from 'lucide-react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
-  BarChart3,
-  Bell,
-  Clock,
-  CreditCard,
-  KeyRound,
-  Languages,
-  Mail,
-  Palette,
-  ShieldCheck,
-  UserRound,
-  Users,
-} from 'lucide-react'
-import {
-  fetchTwoFactorStatus,
   listMyGroups,
   problemDetail,
   updateProfile,
   type CurrentUser,
   type GroupSummary,
-  type TwoFactorStatus,
 } from '../../api/client'
 import { useT } from '../../i18n'
-import { useTheme } from '../../brand/theme'
 import { AppLink } from '../../routing/AppLink'
 import { Button } from '../../ui/button'
 import { fieldClass } from '../../ui/field'
-import { formatMembershipRole, isOwnerRole } from '../../repertoire/ui'
-import { AccountCard } from '../account/AccountCard'
-import { AccountRow } from '../account/AccountRow'
 import { ProfileHeader } from '../account/ProfileHeader'
-import { IdentitySessionsCard } from '../account/IdentitySessionsCard'
+import { AccountCard } from '../account/AccountCard'
+import { AccountSettingsLayout } from '../account/AccountSettingsLayout'
+import { PlansPage } from '../../plans/PlansPage'
 
 const isOwner = (role: string) => String(role).toLowerCase() === 'owner'
 
-function deviceTimeZone(): string {
-  try {
-    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const offset = new Intl.DateTimeFormat('en', { timeZoneName: 'shortOffset' })
-      .formatToParts(new Date())
-      .find((part) => part.type === 'timeZoneName')?.value
-    return offset ? `${offset} · ${zone}` : zone
-  } catch {
-    return ''
-  }
-}
-
 export function SettingsProfilePage({ user, onUserChange }: { user: CurrentUser; onUserChange: (user: CurrentUser) => void }) {
-  const { t, lang } = useT()
-  const { theme } = useTheme()
+  const { t } = useT()
   const [groups, setGroups] = useState<GroupSummary[] | null>(null)
   const [groupsFailed, setGroupsFailed] = useState(false)
-  const [status, setStatus] = useState<TwoFactorStatus | null>(null)
-  const [statusLoaded, setStatusLoaded] = useState(false)
   const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     setGroups(null)
     setGroupsFailed(false)
-    setStatus(null)
-    setStatusLoaded(false)
     void listMyGroups()
       .then((result) => {
         if (!cancelled) setGroups(result)
@@ -74,16 +41,6 @@ export function SettingsProfilePage({ user, onUserChange }: { user: CurrentUser;
           setGroups([])
           setGroupsFailed(true)
         }
-      })
-    void fetchTwoFactorStatus()
-      .then((result) => {
-        if (!cancelled) {
-          setStatus(result)
-          setStatusLoaded(true)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setStatusLoaded(true)
       })
     return () => {
       cancelled = true
@@ -95,21 +52,11 @@ export function SettingsProfilePage({ user, onUserChange }: { user: CurrentUser;
     : (groups ?? []).some((group) => isOwner(group.role))
       ? t('profile.roleOwner')
       : t('profile.roleMember')
-  const timeZone = useMemo(() => deviceTimeZone(), [])
-  const languageLabel = lang === 'es'
-    ? t('account.spanish')
-    : lang === 'pt'
-      ? t('account.portuguese')
-      : t('account.english')
-  const themeLabel = theme === 'dark' ? t('account.themeDark') : t('account.themeLight')
   const name = user.displayName?.trim() || user.email || ''
 
   return (
-    <div className="account-profile-page space-y-6">
-      <header className="space-y-1.5">
-        <h1 className="sonivo-page-title text-ink">{t('profile.title')}</h1>
-        <p className="text-muted">{t('profile.subtitle')}</p>
-      </header>
+    <AccountSettingsLayout active="profile" title={t('profile.title')} description={t('profile.subtitle')}>
+      <div className="account-profile-page space-y-6">
 
       {user.managedByGroupId ? (
         <p
@@ -123,90 +70,28 @@ export function SettingsProfilePage({ user, onUserChange }: { user: CurrentUser;
 
       <ProfileHeader user={user} roleLabel={roleLabel} onEdit={() => setEditing(true)} />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-4">
-          <AccountCard title={t('profile.sectionPersonal')}>
-            <AccountRow
-              icon={UserRound}
-              title={t('profile.name')}
-              subtitle={name}
-              onClick={() => setEditing(true)}
-            />
-            <AccountRow
-              icon={Mail}
-              title={t('profile.email')}
-              subtitle={user.email ?? '—'}
-              onClick={() => setEditing(true)}
-            />
-            <AccountRow
-              icon={Languages}
-              title={t('account.language')}
-              subtitle={languageLabel}
-              to={routes.accountPreferences}
-            />
-            <AccountRow icon={Clock} title={t('profile.timezone')} subtitle={timeZone} disabled />
-          </AccountCard>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <AccountCard title={t('profile.sectionPlan')}>
-              <p className="px-2 py-1 text-sm text-muted">{t('membership.planNote')}</p>
-              <div className="px-2 pt-2">
-                <Button variant="secondary" disabled className="w-full">
-                  {t('profile.managePlan')}
-                </Button>
-              </div>
-            </AccountCard>
-
-            <AccountCard title={t('profile.sectionUsage')}>
-              <AccountRow icon={BarChart3} title={t('profile.usageByGroup')} subtitle={t('profile.usageByGroupHint')} to={routes.plans} />
-            </AccountCard>
+      <AccountCard title={t('profile.information')} className="p-0">
+        <dl className="divide-y divide-border-subtle">
+          <div className="flex min-h-16 items-center gap-3 px-4 py-3 sm:px-5">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary-ink"><UserRound className="h-5 w-5" aria-hidden="true" /></span>
+            <div className="min-w-0 flex-1">
+              <dt className="text-xs font-medium text-muted">{t('profile.fullName')}</dt>
+              <dd className="truncate text-sm font-semibold text-ink">{name}</dd>
+            </div>
+            <Button variant="ghost" onClick={() => setEditing(true)} aria-label={t('profile.edit')}><PencilLine className="h-4 w-4" aria-hidden="true" /></Button>
           </div>
-        </div>
-
-        <div className="space-y-4">
-          <AccountCard title={t('security.title')}>
-            <AccountRow
-              icon={KeyRound}
-              title={t('security.passwordLabel')}
-              subtitle={t('profile.passwordHint')}
-              to={routes.accountSecurity}
-            />
-            <AccountRow
-              icon={ShieldCheck}
-              title={t('profile.twoFactor')}
-              subtitle={statusLoaded
-                ? status
-                  ? status.enabled ? t('profile.twoFactorOn') : t('profile.twoFactorOff')
-                  : t('profile.twoFactorUnknown')
-                : t('profile.twoFactorLoading')}
-              to={routes.accountSecurity}
-            />
-          </AccountCard>
-          <IdentitySessionsCard />
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <AccountCard title={t('profile.sectionNotifications')}>
-              <AccountRow icon={Mail} title={t('profile.emailNotifications')} subtitle={t('profile.emailNotificationsHint')} />
-              <AccountRow icon={Bell} title={t('profile.inAppNotifications')} subtitle={t('profile.inAppNotificationsHint')} to={routes.accountNotifications} />
-            </AccountCard>
-
-            <AccountCard title={t('account.preferences')}>
-              <AccountRow
-                icon={Palette}
-                title={t('profile.appearance')}
-                subtitle={themeLabel}
-                to={routes.accountPreferences}
-              />
-              <AccountRow
-                icon={Languages}
-                title={t('account.language')}
-                subtitle={languageLabel}
-                to={routes.accountPreferences}
-              />
-            </AccountCard>
+          <div className="flex min-h-16 items-center gap-3 px-4 py-3 sm:px-5">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary-ink"><Mail className="h-5 w-5" aria-hidden="true" /></span>
+            <div className="min-w-0 flex-1">
+              <dt className="text-xs font-medium text-muted">{t('profile.email')}</dt>
+              <dd className="truncate text-sm font-semibold text-ink">{user.email || '—'}</dd>
+            </div>
+            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${user.emailConfirmed ? 'bg-success/10 text-success-ink' : 'bg-warning/10 text-warning-ink'}`}>
+              {t(user.emailConfirmed ? 'profile.emailVerified' : 'profile.emailUnverified')}
+            </span>
           </div>
-        </div>
-      </div>
+        </dl>
+      </AccountCard>
 
       {editing ? (
         <EditProfileDialog
@@ -219,7 +104,8 @@ export function SettingsProfilePage({ user, onUserChange }: { user: CurrentUser;
           }}
         />
       ) : null}
-    </div>
+      </div>
+    </AccountSettingsLayout>
   )
 }
 
@@ -381,105 +267,12 @@ export function SettingsTeamPage() {
   )
 }
 
-/**
- * routes.accountMembership — account-level membership. Billing/subscription is not a
- * group-owned concern (ADR-0055) and the group centre no longer hosts a
- * "Membership" tab; this page owns the plan summary and the user's group
- * memberships. No real billing UI yet (ADR firewall: no billing).
- */
+/** Billing and plan limits are managed here at account scope. */
 export function SettingsMembershipPage() {
   const { t } = useT()
-  const [groups, setGroups] = useState<GroupSummary[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    void listMyGroups()
-      .then((result) => {
-        if (!cancelled) setGroups(result)
-      })
-      .catch((err) => {
-        if (!cancelled) setError(problemDetail(err, t))
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   return (
-    <div className="space-y-6">
-      <header className="space-y-1.5">
-        <h1 className="sonivo-page-title text-ink">{t('membership.title')}</h1>
-        <p className="text-muted">{t('membership.subtitle')}</p>
-      </header>
-
-      <AccountCard title={t('membership.planTitle')}>
-        <p className="px-2 py-1 text-sm text-muted">{t('membership.planNote')}</p>
-        <AccountRow icon={CreditCard} title={t('profile.managePlan')} subtitle={t('profile.planOverview')} to={routes.plans} />
-      </AccountCard>
-
-      <section aria-labelledby="membresia-groups-heading" className="space-y-3">
-        <div className="space-y-1">
-          <h2 id="membresia-groups-heading" className="flex items-center gap-2 text-xl font-semibold text-ink">
-            <Users className="h-5 w-5 text-primary-ink" aria-hidden="true" />
-            {t('membership.groupsTitle')}
-          </h2>
-          <p className="text-sm text-muted">{t('membership.groupsSubtitle')}</p>
-        </div>
-
-        {error ? (
-          <p role="alert" className="text-sm text-error-ink">
-            {error}
-          </p>
-        ) : null}
-
-        {groups === null && !error ? (
-          <p aria-live="polite" className="text-sm text-muted">
-            {t('membership.loading')}
-          </p>
-        ) : groups && groups.length > 0 ? (
-          <ul className="space-y-2">
-            {groups.map((group) => (
-              <li
-                key={group.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-ink">{group.name}</p>
-                  <p className="text-xs text-muted">
-                    {t('membership.roleLabel')}: {formatMembershipRole(group.role, t)}
-                    {typeof group.memberCount === 'number'
-                      ? ` · ${group.memberCount === 1
-                          ? t('groups.membersOne')
-                          : t('groups.members', { count: group.memberCount })}`
-                      : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  {isOwnerRole(group.role) ? (
-                    <AppLink
-                      to={routes.groupPeople(group.id)}
-                      className="text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                    >
-                      {t('membership.manageMembers')}
-                    </AppLink>
-                  ) : null}
-                  <AppLink
-                    to={routes.group(group.id)}
-                    className="text-sm font-semibold text-primary-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                  >
-                    {t('membership.openGroup')}
-                  </AppLink>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="rounded-xl border border-border-subtle bg-surface p-4 text-sm text-muted">
-            {t('membership.empty')}
-          </div>
-        )}
-      </section>
-    </div>
+    <AccountSettingsLayout active="membership" title={t('membership.title')} description={t('membership.subtitle')}>
+      <PlansPage navigationMode="next" embedded />
+    </AccountSettingsLayout>
   )
 }

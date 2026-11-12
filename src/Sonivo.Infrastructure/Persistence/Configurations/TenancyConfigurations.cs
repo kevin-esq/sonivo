@@ -65,18 +65,34 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
             .HasForeignKey(x => new { x.GroupId, x.GroupRoleId })
             .HasPrincipalKey(x => new { x.GroupId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
-        builder.HasIndex(x => x.GroupId);
+        builder.HasIndex(x => x.GroupId).HasDatabaseName("IX_Memberships_GroupId");
         builder.HasIndex(x => x.UserId);
+        builder.HasIndex(x => x.GroupId).IsUnique()
+            .HasDatabaseName("UX_Memberships_SingleOwner")
+            .HasFilter("\"Role\" = 'Owner'");
         builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Restrict);
         builder.ToTable(t => t.HasCheckConstraint(
             "CK_Memberships_Role",
-            $"\"Role\" IN ('{MembershipRoles.Owner}', '{MembershipRoles.Manager}', '{MembershipRoles.Member}', '{MembershipRoles.Viewer}')"));
+            $"\"Role\" IN ('{MembershipRoles.Owner}', '{MembershipRoles.Admin}', '{MembershipRoles.Member}', '{MembershipRoles.Viewer}')"));
         builder.ToTable(t => t.HasCheckConstraint(
             "CK_Memberships_OwnerHasUser",
             "\"Role\" <> 'Owner' OR \"UserId\" IS NOT NULL"));
+    }
+}
+
+public sealed class GroupOwnershipTransferConfiguration : IEntityTypeConfiguration<GroupOwnershipTransfer>
+{
+    public void Configure(EntityTypeBuilder<GroupOwnershipTransfer> builder)
+    {
+        builder.ToTable("GroupOwnershipTransfers");
+        builder.HasKey(x => x.Id);
+        builder.HasOne<Group>().WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.GroupId).IsUnique()
+            .HasDatabaseName("UX_GroupOwnershipTransfers_Pending")
+            .HasFilter("\"AcceptedAt\" IS NULL AND \"CancelledAt\" IS NULL AND \"ExpiredAt\" IS NULL");
     }
 }
 

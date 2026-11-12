@@ -1,10 +1,10 @@
 'use client'
 
-import { SettingsProfilePage } from '@/src/shell/settings/SettingsPages'
+import { AccountOverviewPage } from '@/src/shell/account/AccountOverviewPage'
 import { useAppRuntime } from '@/src/appRuntime/context'
 
 export default function ProductAccountPage() {
-  const { session, onUserChange } = useAppRuntime()
+  const { session } = useAppRuntime()
   if (session.status !== 'authenticated') return null
-  return <SettingsProfilePage user={session.user} onUserChange={onUserChange} />
+  return <AccountOverviewPage displayName={session.user.displayName?.trim() || session.user.email || ''} />
 }

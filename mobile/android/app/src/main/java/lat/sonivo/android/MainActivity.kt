@@ -433,8 +433,6 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
     var morePageData by remember { mutableStateOf<List<NativeDataItem>>(emptyList()) }
     var groupUsageRows by remember { mutableStateOf<List<NativeDataItem>>(emptyList()) }
     var planUsageRows by remember { mutableStateOf<Map<String, List<NativeDataItem>>>(emptyMap()) }
-    var planOptions by remember { mutableStateOf<List<String>>(emptyList()) }
-    var selectedPlans by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var paymentProviderKind by remember { mutableStateOf("manual") }
     var paymentProviderConfigured by remember { mutableStateOf(false) }
     var calendarGroupFilters by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -1239,8 +1237,6 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                                                 val token = session.accessToken() ?: error("No access token")
                                                 if (page == "plans") {
                                                     if (groups.isEmpty()) groups = withContext(Dispatchers.IO) { api.listGroups(token) }
-                                                    val catalog = JSONObject(withContext(Dispatchers.IO) { api.get(ApiEndpoints.PLAN_CATALOG, token) })
-                                                    planOptions = (0 until (catalog.optJSONArray("plans")?.length() ?: 0)).mapNotNull { catalog.getJSONArray("plans").optJSONObject(it)?.optString("id")?.takeIf(String::isNotBlank) }
                                                     val provider = JSONObject(withContext(Dispatchers.IO) { api.get(ApiEndpoints.PAYMENT_PROVIDER, token) })
                                                     paymentProviderKind = provider.optString("provider", "manual")
                                                     paymentProviderConfigured = provider.optBoolean("configured")
@@ -1365,8 +1361,8 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                                                 }
                                             }
                                             destination.id == "plans" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 16.dp)) {
-                                                Text(stringResource(if (paymentProviderKind == "sandbox" && paymentProviderConfigured) R.string.plans_provider_sandbox else R.string.plans_provider_manual), style = MaterialTheme.typography.bodyMedium)
-                                                if (paymentProviderKind == "sandbox" && !paymentProviderConfigured) Text(stringResource(R.string.plans_provider_unavailable), style = MaterialTheme.typography.bodySmall)
+                                                Text(stringResource(if (paymentProviderKind == "stripe") R.string.plans_provider_stripe else if (paymentProviderKind == "sandbox" && paymentProviderConfigured) R.string.plans_provider_sandbox else R.string.plans_provider_manual), style = MaterialTheme.typography.bodyMedium)
+                                                if ((paymentProviderKind == "sandbox" || paymentProviderKind == "stripe") && !paymentProviderConfigured) Text(stringResource(R.string.plans_provider_unavailable), style = MaterialTheme.typography.bodySmall)
                                                 if (groups.isEmpty()) Text(stringResource(R.string.plans_no_groups))
                                                 groups.forEach { group ->
                                                     val usage = planUsageRows[group.id].orEmpty()
@@ -1374,47 +1370,10 @@ private fun SonivoApp(incomingGroupSlug: State<String?>, incomingGroupLinkVersio
                                                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                                                             Text(group.name, style = MaterialTheme.typography.titleMedium)
                                                             usage.forEach { row -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(row.title, style = MaterialTheme.typography.bodySmall); Text(row.detail, style = MaterialTheme.typography.bodySmall) } }
-                                                            if (group.role.equals("Owner", ignoreCase = true)) {
-                                                                var planMenuExpanded by remember(group.id) { mutableStateOf(false) }
-                                                                Box {
-                                                                    OutlinedButton(onClick = { planMenuExpanded = true }) { Text(stringResource(planNameResource(selectedPlans[group.id] ?: usage.firstOrNull { it.id == "planId" }?.detail ?: "starter"))) }
-                                                                    androidx.compose.material3.DropdownMenu(expanded = planMenuExpanded, onDismissRequest = { planMenuExpanded = false }) {
-                                                                        planOptions.forEach { plan -> androidx.compose.material3.DropdownMenuItem(text = { Text(stringResource(planNameResource(plan))) }, onClick = { selectedPlans = selectedPlans + (group.id to plan); planMenuExpanded = false }) }
-                                                                    }
-                                                                }
-                                                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                                    OutlinedButton(enabled = !morePageLoading && selectedPlans[group.id] != null && selectedPlans[group.id] != usage.firstOrNull { it.id == "planId" }?.detail, onClick = {
-                                                                        scope.launch {
-                                                                            morePageLoading = true
-                                                                            runCatching {
-                                                                                val currentToken = session.accessToken() ?: error("No access token")
-                                                                                withContext(Dispatchers.IO) { api.putJson(ApiEndpoints.groupPlan(group.id), JSONObject().put("action", "assign").put("planId", selectedPlans[group.id]), currentToken) }
-                                                                                planUsageRows = planUsageRows + (group.id to nativePlanUsageRows(context, withContext(Dispatchers.IO) { api.get(ApiEndpoints.groupUsage(group.id), currentToken) }))
-                                                                            }.onFailure { error = "request" }
-                                                                            morePageLoading = false
-                                                                        }
-                                                                    }) { Text(stringResource(R.string.plans_assign)) }
-                                                                    if (paymentProviderKind == "sandbox" && paymentProviderConfigured) OutlinedButton(enabled = !morePageLoading && BuildConfig.WEB_BASE_URL.isNotBlank(), onClick = {
-                                                                        scope.launch {
-                                                                            runCatching {
-                                                                                val currentToken = session.accessToken() ?: error("No access token")
-                                                                                val base = BuildConfig.WEB_BASE_URL.trimEnd('/')
-                                                                                if (!base.startsWith("https://")) error("Missing web URL")
-                                                                                val body = JSONObject().put("planId", selectedPlans[group.id] ?: usage.firstOrNull { it.id == "planId" }?.detail).put("successUrl", "$base/app/plans?checkout=success").put("cancelUrl", "$base/app/plans?checkout=cancelled")
-                                                                                val result = JSONObject(withContext(Dispatchers.IO) { api.postJson(ApiEndpoints.groupCheckout(group.id), body, currentToken) })
-                                                                                val checkout = Uri.parse(result.optString("url"))
-                                                                                if (checkout.scheme != "https") error("Invalid checkout URL")
-                                                                                context.startActivity(Intent(Intent.ACTION_VIEW, checkout))
-                                                                            }.onFailure { error = "request" }
-                                                                        }
-                                                                    }) { Text(stringResource(R.string.plans_checkout)) }
-                                                                }
-                                                            } else Text(stringResource(R.string.plans_read_only), style = MaterialTheme.typography.bodySmall)
+                                                            Text(stringResource(R.string.plans_read_only), style = MaterialTheme.typography.bodySmall)
                                                         }
                                                     }
                                                 }
-                                                if (BuildConfig.WEB_BASE_URL.isBlank() && paymentProviderKind == "sandbox" && paymentProviderConfigured) Text(stringResource(R.string.plans_web_configuration_required), color = MaterialTheme.colorScheme.error)
-                                                Text(stringResource(R.string.plans_provisional_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                             }
                                             destination.id == "groupCalendar" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 16.dp)) {
                                                 val periodCalendar = java.util.Calendar.getInstance().apply {

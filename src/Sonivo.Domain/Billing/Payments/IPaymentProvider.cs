@@ -9,7 +9,8 @@ namespace Sonivo.Domain.Billing.Payments;
 public enum PaymentProviderKind
 {
     Manual = 0,
-    Sandbox = 1
+    Sandbox = 1,
+    Stripe = 2
 }
 
 /// <summary>Inputs to open a hosted checkout for a plan change.</summary>

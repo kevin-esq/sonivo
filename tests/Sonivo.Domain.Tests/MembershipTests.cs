@@ -22,6 +22,42 @@ public class MembershipTests
         Assert.Throws<ArgumentException>(() => membership.AssignRole("Guest"));
     }
 
+    [Fact]
+    public void Manager_requests_migrate_to_admin_without_changing_permissions()
+    {
+        var membership = Membership.CreateMember(Guid.NewGuid(), Guid.NewGuid(), Now);
+        membership.AssignRole(MembershipRoles.Manager);
+
+        Assert.Equal(MembershipRoles.Admin, membership.Role);
+        Assert.True(membership.CanManageContent);
+        Assert.True(membership.CanParticipate);
+    }
+
+    [Fact]
+    public void Owner_role_cannot_be_assigned_without_transfer_acceptance()
+    {
+        var membership = Membership.CreateMember(Guid.NewGuid(), Guid.NewGuid(), Now);
+        Assert.Throws<InvalidOperationException>(() => membership.AssignRole(MembershipRoles.Owner));
+    }
+
+    [Fact]
+    public void Only_transfer_recipient_becomes_owner_and_former_owner_becomes_member()
+    {
+        var groupId = Guid.NewGuid();
+        var oldOwner = Membership.CreateOwner(groupId, Guid.NewGuid(), Now);
+        var newOwner = Membership.CreateMember(groupId, Guid.NewGuid(), Now);
+        oldOwner.AssignGroupRole(Guid.NewGuid());
+        newOwner.AssignGroupRole(Guid.NewGuid());
+
+        oldOwner.RelinquishOwnership();
+        newOwner.AcceptOwnershipTransfer();
+
+        Assert.Equal(MembershipRoles.Member, oldOwner.Role);
+        Assert.Null(oldOwner.GroupRoleId);
+        Assert.Equal(MembershipRoles.Owner, newOwner.Role);
+        Assert.Null(newOwner.GroupRoleId);
+    }
+
     [Theory]
     [InlineData(MembershipRoles.Owner, true, true)]
     [InlineData(MembershipRoles.Manager, true, true)]
@@ -29,8 +65,12 @@ public class MembershipTests
     [InlineData(MembershipRoles.Viewer, false, false)]
     public void Section_permissions_follow_the_role(string role, bool canManage, bool canParticipate)
     {
-        var membership = Membership.CreateMember(Guid.NewGuid(), Guid.NewGuid(), Now);
-        membership.AssignRole(role);
+        var groupId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var membership = role == MembershipRoles.Owner
+            ? Membership.CreateOwner(groupId, userId, Now)
+            : Membership.CreateMember(groupId, userId, Now);
+        if (role != MembershipRoles.Owner) membership.AssignRole(role);
 
         Assert.Equal(canManage, membership.CanManageContent);
         Assert.Equal(canParticipate, membership.CanParticipate);

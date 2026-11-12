@@ -75,6 +75,7 @@ public sealed class ListMembersHandler
     private static int RoleRank(string role) => role switch
     {
         MembershipRoles.Owner => 0,
+        MembershipRoles.Admin => 1,
         MembershipRoles.Manager => 1,
         MembershipRoles.Member => 2,
         MembershipRoles.Viewer => 3,
@@ -142,11 +143,7 @@ public sealed class RemoveMemberHandler
 
         if (target.IsOwner)
         {
-            var owners = await _memberships.CountOwnersAsync(command.GroupId, cancellationToken);
-            if (owners <= 1)
-            {
-                throw new ConflictException("Cannot remove the last Owner.");
-            }
+            throw new ConflictException("ownership-transfer-required");
         }
 
         await _memberships.RemoveAsync(target, cancellationToken);
@@ -203,8 +200,6 @@ public sealed class ChangeMemberRoleHandler
     private readonly GroupAccessService _access;
     private readonly IMembershipStore _memberships;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IAccountAuditStore? _audit;
-    private readonly IManagedAccountNotifier? _notifier;
     private readonly IGroupAuditStore? _groupAudit;
     private readonly IClock? _clock;
     private readonly ILogger<ChangeMemberRoleHandler>? _logger;
@@ -214,8 +209,6 @@ public sealed class ChangeMemberRoleHandler
         IMembershipStore memberships,
         IUnitOfWork unitOfWork,
         ILogger<ChangeMemberRoleHandler>? logger = null,
-        IAccountAuditStore? audit = null,
-        IManagedAccountNotifier? notifier = null,
         IGroupAuditStore? groupAudit = null,
         IClock? clock = null)
     {
@@ -223,8 +216,6 @@ public sealed class ChangeMemberRoleHandler
         _memberships = memberships;
         _unitOfWork = unitOfWork;
         _logger = logger;
-        _audit = audit;
-        _notifier = notifier;
         _groupAudit = groupAudit;
         _clock = clock;
     }
@@ -233,6 +224,7 @@ public sealed class ChangeMemberRoleHandler
     {
         await _access.RequireOwnerAsync(command.GroupId, command.ActorUserId, cancellationToken);
         var role = command.Role?.Trim() ?? string.Empty;
+        role = MembershipRoles.Normalize(role);
         if (!MembershipRoles.IsValid(role))
         {
             throw new ValidationException(
@@ -246,16 +238,11 @@ public sealed class ChangeMemberRoleHandler
             throw new NotFoundException("Member not found.");
         }
 
-        if (target.IsOwner && role != MembershipRoles.Owner)
-        {
-            var owners = await _memberships.CountOwnersAsync(command.GroupId, cancellationToken);
-            if (owners <= 1)
-            {
-                throw new ConflictException("Cannot demote the last Owner.");
-            }
-        }
+        if (role == MembershipRoles.Owner)
+            throw new ValidationException("ownership-transfer-required");
+        if (target.IsOwner)
+            throw new ConflictException("ownership-transfer-required");
 
-        var wasOwner = target.IsOwner;
         var previousRole = target.Role;
         try
         {
@@ -281,29 +268,6 @@ public sealed class ChangeMemberRoleHandler
                     metadata: role),
                 cancellationToken);
             await _groupAudit.SaveChangesAsync(cancellationToken);
-        }
-
-        // F3: a new Owner inherits the group's reset power over its managed
-        // accounts — audit it and notify the affected members (ADR-0047 §13).
-        if (!wasOwner && role == MembershipRoles.Owner && target.UserId is { } newOwnerId)
-        {
-            if (_audit is not null)
-            {
-                await _audit.AddAsync(
-                    AccountAudit.Create(
-                        AccountAudit.ActionOwnerTransferred,
-                        _clock?.UtcNow ?? DateTimeOffset.UtcNow,
-                        actorUserId: command.ActorUserId,
-                        targetUserId: newOwnerId,
-                        groupId: command.GroupId),
-                    cancellationToken);
-                await _audit.SaveChangesAsync(cancellationToken);
-            }
-
-            if (_notifier is not null)
-            {
-                await _notifier.NotifyOwnerChangedAsync(command.GroupId, newOwnerId, cancellationToken);
-            }
         }
 
         _logger?.LogWarning(
