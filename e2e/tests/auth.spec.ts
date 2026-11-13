@@ -52,7 +52,7 @@ test.describe('Authentication journeys', () => {
     // After out-of-band confirmation the same credentials sign in.
     await testConfirmUser(page, email)
     await login(page, email, testPassword)
-    await expect(page.getByText(email)).toBeVisible()
+    await expect(page.getByTestId('app-user-avatar')).toBeVisible()
   })
 
   test('forgot-password is always accepted', async ({ page }) => {

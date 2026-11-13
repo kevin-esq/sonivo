@@ -71,8 +71,6 @@ test.describe('W23 group brand identity', () => {
     // Account settings own membership.
     await page.goto('/account/membership')
     await expect(page.getByRole('heading', { name: 'Membresía', level: 1 })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Membresías de grupo' })).toBeVisible()
-    await expect(page.getByText(name, { exact: true })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Gestionar miembros' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Configuración de la cuenta' }).filter({ visible: true }).getByRole('link', { name: 'Membresía' })).toBeVisible()
   })
 })

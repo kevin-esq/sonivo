@@ -91,7 +91,7 @@ test.describe('Two-factor authentication', () => {
     await page.getByLabel('Código de 6 dígitos').fill(totpCode(manualKey))
     await page.getByRole('button', { name: 'Verificar' }).click()
     await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible()
-    await expect(page.getByText(email)).toBeVisible()
+    await expect(page.getByTestId('app-user-avatar')).toBeVisible()
 
     // Determinism guard for this spec's helper (runs before navigation asserts above matter).
     expect(totpCode(manualKey)).toMatch(/^\d{6}$/)

@@ -79,19 +79,34 @@ export async function logout(page: Page) {
 }
 
 export async function createGroup(page: Page, name: string) {
-  // Creation lives in a modal since the groups page refactor.
-  if (await page.getByRole('button', { name: 'Nuevo grupo' }).count() === 0) {
-    await page.goto('/account/membership')
-    const startTrial = page.getByRole('button', { name: 'Iniciar prueba de Banda' })
-    const activePlan = page.getByRole('region', { name: 'Plan Banda activo' })
-    await expect(startTrial.or(activePlan)).toBeVisible()
-    if (await startTrial.isVisible()) {
-      await startTrial.click()
-      await expect(activePlan).toBeVisible()
-    }
+  const createButton = page.getByRole('button', { name: 'Nuevo grupo' })
+  const provider = await page.evaluate(async () => {
+    const response = await fetch('/api/payments/provider', { credentials: 'include' })
+    if (!response.ok) return null
+    return (await response.json() as { provider?: string }).provider ?? null
+  })
+
+  if (provider === 'stripe') {
+    // Trial setup belongs to this fixture; the billing journey tests the UI flow separately.
+    await page.evaluate(async () => {
+      const organizationsResponse = await fetch('/api/billing/organizations', { credentials: 'include' })
+      if (!organizationsResponse.ok) throw new Error(`billing organizations failed: ${organizationsResponse.status}`)
+      const organizations = await organizationsResponse.json() as Array<{ canCreate: boolean }>
+      if (organizations.some(organization => organization.canCreate)) return
+
+      const csrfResponse = await fetch('/api/auth/csrf', { credentials: 'include' })
+      if (!csrfResponse.ok) throw new Error(`csrf failed: ${csrfResponse.status}`)
+      const { token } = await csrfResponse.json() as { token: string }
+      const trialResponse = await fetch('/api/billing/organizations/trial', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+        body: JSON.stringify({ planId: 'pro' }),
+      })
+      if (!trialResponse.ok) throw new Error(`Banda trial setup failed: ${trialResponse.status}`)
+    })
     await page.goto('/groups')
   }
-  const createButton = page.getByRole('button', { name: 'Nuevo grupo' })
   await expect(createButton).toBeVisible()
   await createButton.click()
   await page.getByLabel('Nombre').fill(name)

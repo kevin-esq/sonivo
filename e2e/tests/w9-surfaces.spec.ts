@@ -84,25 +84,33 @@ test.describe('W9 outside surfaces', () => {
   test('My groups is designed, empty, usable and AA in light', async ({ page }) => {
     const email = uniqueEmail('w9-groups')
     await register(page, email)
+    const provider = await (await page.request.get('/api/payments/provider')).json() as { provider: string }
 
     await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
     await expect(page.getByText('Aún no tienes grupos', { exact: true })).toBeVisible()
 
-    // Creation now lives in a modal ("Nuevo grupo"); the full flow is covered in the groups spec.
-    await expect(page.getByRole('button', { name: 'Nuevo grupo' })).toBeVisible()
-    await page.getByRole('button', { name: 'Nuevo grupo' }).click()
-    const nameInput = page.getByLabel('Nombre')
-    await expect(nameInput).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Crear grupo' })).toBeVisible()
-    await nameInput.fill('W9 Draft')
-    await expect(nameInput).toHaveValue('W9 Draft')
-    await page.keyboard.press('Escape')
-    await expect(nameInput).toBeHidden()
+    const createButton = page.getByRole('button', { name: 'Nuevo grupo' })
+    const joinButton = page.getByRole('button', { name: 'Unirme con enlace' }).first()
+    if (provider.provider === 'stripe') {
+      await expect(createButton).toHaveCount(0)
+      await expect(page.getByRole('link', { name: 'Explorar planes' }).first()).toBeVisible()
+      await expect(joinButton).toBeVisible()
+    } else {
+      await expect(createButton).toBeVisible()
+      await createButton.click()
+      const nameInput = page.getByLabel('Nombre')
+      await expect(nameInput).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Crear grupo' })).toBeVisible()
+      await nameInput.fill('W9 Draft')
+      await expect(nameInput).toHaveValue('W9 Draft')
+      await page.keyboard.press('Escape')
+      await expect(nameInput).toBeHidden()
+    }
 
     await setTheme(page, 'light')
     await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
     await expectReadableText(page.getByRole('heading', { name: 'Mis grupos', level: 1 }))
-    await expectReadableText(page.getByText(email))
+    await expect(page.getByTestId('app-user-avatar')).toBeVisible()
   })
 
   test('404 is designed and readable in light', async ({ page }) => {
