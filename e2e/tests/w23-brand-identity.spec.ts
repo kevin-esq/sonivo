@@ -18,17 +18,23 @@ test.describe('W23 group brand identity', () => {
     await createGroup(page, name)
     const groupId = new URL(page.url()).pathname.split('/').filter(Boolean).pop()
     expect(groupId).toBeTruthy()
+    const group = await (await page.request.get(`/api/groups/${groupId}`)).json() as {
+      capabilities: { accent: boolean }
+    }
 
-    // Save a dark-green brand primary through the same API the editor uses.
-    await page.evaluate(async (id: string) => {
-      const csrf = await (await fetch('/api/auth/csrf', { credentials: 'include' })).json()
-      await fetch(`/api/groups/${id}/branding`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf.token },
-        body: JSON.stringify({ expectedVersion: 0, accentHex: '#0a5c2e', showSonivoCredit: true }),
-      })
-    }, groupId!)
+    if (group.capabilities.accent) {
+      const updateStatus = await page.evaluate(async (id: string) => {
+        const csrf = await (await fetch('/api/auth/csrf', { credentials: 'include' })).json()
+        const response = await fetch(`/api/groups/${id}/branding`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf.token },
+          body: JSON.stringify({ expectedVersion: 0, accentHex: '#0a5c2e', showSonivoCredit: true }),
+        })
+        return response.status
+      }, groupId!)
+      expect(updateStatus).toBe(200)
+    }
 
     await page.goto(`/groups/${groupId}`)
     const shell = page.getByTestId('grupo-shell')
@@ -38,7 +44,7 @@ test.describe('W23 group brand identity', () => {
       .poll(() =>
         shell.evaluate((el) => getComputedStyle(el).getPropertyValue('--color-primary').trim()),
       )
-      .toBe('#0a5c2e')
+      .toBe(group.capabilities.accent ? '#0a5c2e' : '#8366f1')
 
     for (const theme of ['light', 'dark'] as const) {
       await page.evaluate((value) => window.localStorage.setItem('sonivo:theme', value), theme)
@@ -49,10 +55,10 @@ test.describe('W23 group brand identity', () => {
       await page.goto(`/groups/${groupId}/library`)
       const addSong = page.getByRole('button', { name: 'Agregar canción' })
       await expect(addSong).toBeVisible()
-      // Content action uses the group colour, not the Sonivo default violet (#8366f1).
+      // Content action uses the group colour when allowed; otherwise it retains Sonivo violet.
       await expect
         .poll(() => addSong.evaluate((el) => getComputedStyle(el).backgroundColor))
-        .toBe('rgb(10, 92, 46)')
+        .toBe(group.capabilities.accent ? 'rgb(10, 92, 46)' : 'rgb(131, 102, 241)')
     }
   })
 

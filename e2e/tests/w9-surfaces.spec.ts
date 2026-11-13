@@ -161,10 +161,13 @@ test.describe('W9 outside surfaces', () => {
     // "Sin portada" exists, is selectable, and round-trips through the server.
     const noCover = editor.getByRole('button', { name: 'Sin portada', exact: true })
     await expect(noCover).toBeVisible()
-    // The save button stays disabled until the draft differs from the server
-    // state, and a brand-new group already has no cover — so make a second,
-    // independent change (an accent swatch) to keep the draft dirty.
-    await editor.getByRole('button', { name: 'Esmeralda', exact: true }).first().click()
+    // Save a preset, then choose no cover and verify that change persists.
+    await editor.getByRole('button', { name: 'Onda sonora', exact: true }).click()
+    await page
+      .getByTestId('brand-unsaved-bar')
+      .getByRole('button', { name: /Guardar identidad|Save identity/ })
+      .click()
+    await expect(page.getByText(/Identidad guardada|Identity saved/)).toBeVisible()
     await noCover.click()
     await expect(noCover).toHaveAttribute('aria-pressed', 'true')
     await page
