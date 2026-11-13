@@ -94,15 +94,14 @@ test.describe('W6 light theme: shell contrast', () => {
 
     await page.goto('/account')
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
-    await expect(page.getByRole('heading', { name: 'Mi cuenta', exact: true, level: 1 })).toBeVisible()
-    const accountNav = page
-      .getByTestId('app-sidebar')
-      .getByRole('navigation', { name: 'Secciones' })
+    const title = page.getByRole('heading', { name: /^Hola,/, level: 1 })
+    await expect(title).toBeVisible()
+    const accountNav = page.getByRole('navigation', { name: 'Configuración de la cuenta' }).filter({ visible: true })
 
     const brand = page.getByRole('banner').getByText('Sonivo', { exact: true }).filter({ visible: true })
+    await page.getByTestId('account-user-menu-toggle').click()
     const logout = page.getByRole('button', { name: 'Cerrar sesión' })
-    const title = page.getByRole('heading', { name: 'Mi cuenta', exact: true, level: 1 })
-    const activeTab = accountNav.getByRole('link', { name: 'Perfil' })
+    const activeTab = accountNav.getByRole('link', { name: 'Cuenta', exact: true })
 
     await expect(brand).toHaveCount(1)
     await expectReadableText(brand)
@@ -120,6 +119,7 @@ test.describe('W6 light theme: shell contrast', () => {
 
     await page.goto('/account')
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark')
+    await page.getByTestId('account-user-menu-toggle').click()
 
     await expectReadableText(brand)
     await expectReadableText(logout)
@@ -136,6 +136,7 @@ test.describe('W6 light theme: shell contrast', () => {
   test('content actions and links meet AA in light and dark', async ({ page }) => {
     const email = uniqueEmail('w6content')
     await register(page, email)
+    await createGroup(page, `W6 contraste ${Date.now()}`)
 
     await page.goto('/account/preferences')
     await page.getByRole('button', { name: 'Claro', exact: true }).click()

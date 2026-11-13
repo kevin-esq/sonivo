@@ -187,6 +187,8 @@ jobs:
           # T-AU-01: E2E-only mailbox bypass (POST /api/auth/test/confirm).
           # Never set in prod; the endpoint 404s when the flag is absent.
           Auth__EnableTestHook: "true"
+          # Existing product journeys run without billing; Stripe journeys use a separate API below.
+          Payments__Provider: manual
         run: |
           nohup dotnet run --project src/Sonivo.Api --no-launch-profile --urls http://127.0.0.1:5171 > /tmp/sonivo-api.log 2>&1 &
           echo $! > /tmp/sonivo-api.pid
@@ -221,6 +223,31 @@ jobs:
           # potentially trustworthy origin).
           SONIVO_E2E_BASE_URL: http://localhost:5173
         run: npm test
+      - name: Start Stripe billing API
+        env:
+          Auth__EnableTestHook: "true"
+          Payments__Provider: stripe
+        run: |
+          nohup dotnet run --project src/Sonivo.Api --no-launch-profile --urls http://127.0.0.1:5172 > /tmp/sonivo-billing-api.log 2>&1 &
+          echo $! > /tmp/sonivo-billing-api.pid
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:5172/api/health >/dev/null; then
+              echo "Stripe billing API ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Stripe billing API failed to start"; cat /tmp/sonivo-billing-api.log; exit 1
+      - name: Run Stripe billing Playwright journeys
+        working-directory: e2e
+        env:
+          CI: true
+          API_ORIGIN: http://127.0.0.1:5172
+          NEXT_DIST_DIR: .next-billing-e2e
+          SONIVO_E2E_BILLING_STRIPE: "1"
+          SONIVO_E2E_PORT: "5180"
+          SONIVO_E2E_BASE_URL: http://localhost:5180
+        run: npx playwright test tests/billing-stripe.spec.ts
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v7

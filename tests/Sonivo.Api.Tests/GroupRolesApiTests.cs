@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure.Identity;
 using Sonivo.Infrastructure.Persistence;
@@ -123,7 +125,7 @@ public class GroupRolesApiTests : IDisposable
         Assert.Contains(audit!.Items, e =>
             e.Action == GroupAuditEntry.ActionRoleChanged
             && e.TargetUserId == memberId
-            && e.Metadata == "Manager");
+            && e.Metadata == MembershipRoles.Admin);
     }
 
     [Fact]
@@ -147,6 +149,66 @@ public class GroupRolesApiTests : IDisposable
         var demote = await owner.PostAsJsonAsync(
             $"/api/groups/{group.Id}/members/{ownerId}/role", new { role = "Manager" });
         Assert.Equal(HttpStatusCode.Conflict, demote.StatusCode);
+    }
+
+    [Fact]
+    public async Task Ownership_moves_only_after_the_invited_member_accepts()
+    {
+        var owner = await CreateAuthenticatedClientAsync("transfer-owner@example.com");
+        var group = await CreateGroupAsync(owner, "Transfer Band");
+        var recipient = await CreateMemberClientAsync(group.Id, MembershipRoles.Admin, "transfer-recipient@example.com");
+        var recipientId = await GetUserIdAsync("transfer-recipient@example.com");
+        var currentOwnerId = await GetUserIdAsync("transfer-owner@example.com");
+
+        using (var sourceBillingScope = _factory.Services.CreateScope())
+        {
+            var sourceBillingDb = sourceBillingScope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            var sourceBilling = BillingOrganization.Create(currentOwnerId, group.Id, DateTimeOffset.UtcNow);
+            sourceBillingDb.BillingOrganizations.Add(sourceBilling);
+            sourceBillingDb.BillingGroups.Add(new() { GroupId = group.Id, OrganizationId = sourceBilling.Id });
+            await sourceBillingDb.SaveChangesAsync();
+        }
+
+        var requested = await owner.PostAsJsonAsync($"/api/groups/{group.Id}/ownership-transfer",
+            new { targetUserId = recipientId });
+        Assert.Equal(HttpStatusCode.Accepted, requested.StatusCode);
+        var transfer = await requested.Content.ReadFromJsonAsync<OwnershipTransferResponse>();
+        Assert.NotNull(transfer);
+        Assert.Equal(currentOwnerId, transfer.FromUserId);
+        Assert.Equal(recipientId, transfer.ToUserId);
+        Assert.True(transfer.ExpiresAt > DateTimeOffset.UtcNow);
+
+        var blockedDirectPromotion = await owner.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/members/{recipientId}/role", new { role = "Owner" });
+        Assert.Equal(HttpStatusCode.BadRequest, blockedDirectPromotion.StatusCode);
+
+        var unsubscribedAcceptance = await recipient.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/ownership-transfer/{transfer.Id}/accept", new { });
+        Assert.Equal(HttpStatusCode.Conflict, unsubscribedAcceptance.StatusCode);
+
+        using (var billingScope = _factory.Services.CreateScope())
+        {
+            var billingDb = billingScope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            var now = DateTimeOffset.UtcNow;
+            var billing = BillingOrganization.Create(recipientId, group.Id, now);
+            billing.ApplySubscription("sub_transfer_test", PlanCatalog.Studio, "month", "active",
+                now.AddDays(30), null, false, 0, now);
+            billingDb.BillingOrganizations.Add(billing);
+            await billingDb.SaveChangesAsync();
+        }
+
+        var accepted = await recipient.PostAsJsonAsync(
+            $"/api/groups/{group.Id}/ownership-transfer/{transfer.Id}/accept", new { });
+        Assert.Equal(HttpStatusCode.NoContent, accepted.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+        Assert.Equal(MembershipRoles.Member, (await db.Memberships.SingleAsync(x => x.GroupId == group.Id && x.UserId == currentOwnerId)).Role);
+        Assert.Equal(MembershipRoles.Owner, (await db.Memberships.SingleAsync(x => x.GroupId == group.Id && x.UserId == recipientId)).Role);
+        Assert.True(await db.AccountAudits.AnyAsync(x =>
+            x.Action == AccountAudit.ActionOwnerTransferred && x.GroupId == group.Id));
+        Assert.Equal(recipientId, (await db.BillingOrganizations.SingleAsync(x => x.Id ==
+            db.BillingGroups.Where(y => y.GroupId == group.Id).Select(y => y.OrganizationId).Single())).OwnerUserId);
     }
 
     [Fact]
@@ -1123,6 +1185,8 @@ public class GroupRolesApiTests : IDisposable
     private sealed record SongIdResponse(Guid Id);
     private sealed record ArrangementIdResponse(Guid Id);
     private sealed record ResourceIdResponse(Guid Id);
+    private sealed record OwnershipTransferResponse(Guid Id, Guid GroupId, Guid FromUserId, Guid ToUserId,
+        DateTimeOffset RequestedAt, DateTimeOffset ExpiresAt);
 
 
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password = "Password1")

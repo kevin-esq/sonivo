@@ -32,17 +32,10 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".next-e2e/types/**/*.ts",
-    ".next-songs-ui-live/types/**/*.ts",
-    ".next-songs-ui-mobile-player/types/**/*.ts",
-    ".next-songs-ui-practice-fix/types/**/*.ts",
-    ".next-songs-ui-worktree/types/**/*.ts",
     ".next/types/**/*.ts",
     ".storybook/**/*.ts",
     ".storybook/**/*.tsx",
-    "next-env.d.ts",
-    ".next-preview/types/**/*.ts",
-    ".next-live-lyrics/types/**/*.ts"
+    "next-env.d.ts"
   ],
   "exclude": [
     "node_modules"

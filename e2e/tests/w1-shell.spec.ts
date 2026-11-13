@@ -18,22 +18,16 @@ test.describe('W1 shell: group vs account', () => {
     await expect(page.getByTestId('rail-settings')).toBeVisible()
 
     await page.goto('/account')
-    await expect(page.getByRole('heading', { name: 'Mi cuenta' })).toBeVisible()
-    const cuentaNav = page
-      .getByTestId('app-sidebar')
-      .getByRole('navigation', { name: 'Secciones' })
+    await expect(page.getByRole('heading', { name: /^Hola,/ })).toBeVisible()
+    await expect(page.getByTestId('app-sidebar')).toHaveCount(0)
+    const cuentaNav = page.getByRole('navigation', { name: 'Configuración de la cuenta' }).filter({ visible: true })
     for (const tab of ['Perfil', 'Preferencias']) {
       await expect(cuentaNav.getByRole('link', { name: tab })).toBeVisible()
     }
-    // Both App-shell entry points open the existing account notification inbox.
-    await expect(cuentaNav.getByTestId('nav-notifications')).toHaveAttribute('href', '/app/account/notifications')
-    await expect(page.getByTestId('app-notifications')).toHaveAttribute('aria-expanded', 'false')
-    await expect(page.getByTestId('nav-membership')).toBeVisible()
+    await expect(cuentaNav.getByRole('link', { name: 'Notificaciones' })).toHaveAttribute('href', '/app/account/notifications')
+    await expect(cuentaNav.getByRole('link', { name: 'Membresía' })).toBeVisible()
 
-    await page.getByTestId('app-notifications').click()
-    await expect(page.getByTestId('account-notifications-panel')).toBeVisible()
-    await page.getByTestId('app-notifications').press('Escape')
-    await cuentaNav.getByTestId('nav-notifications').click()
+    await cuentaNav.getByRole('link', { name: 'Notificaciones' }).click()
     await expect(page).toHaveURL(/\/app\/account\/notifications$/)
     await expect(page.getByRole('heading', { name: 'Notificaciones de la cuenta' })).toBeVisible()
   })
@@ -63,12 +57,15 @@ test.describe('W1 shell: group vs account', () => {
   test('language switcher flips chrome strings es<->en', async ({ page }) => {
     await register(page, uniqueEmail('w1lang'))
     await page.goto('/account/preferences')
-    await page.getByRole('button', { name: 'Inglés' }).click()
-    const enNav = page.getByRole('navigation', { name: 'Sections' })
-    await expect(enNav.getByRole('link', { name: 'My groups' })).toBeVisible()
-    await page.getByRole('button', { name: 'Spanish', exact: true }).click()
+    const language = page.getByLabel('Idioma')
+    await language.selectOption('en')
+    const enNav = page.getByRole('navigation', { name: 'Account settings' }).filter({ visible: true })
+    await expect(enNav.getByRole('link', { name: 'Profile' })).toBeVisible()
+    await expect(enNav.getByRole('link', { name: 'Security' })).toBeVisible()
+    await page.getByLabel('Language').selectOption('es')
+    const esNav = page.getByRole('navigation', { name: 'Configuración de la cuenta' }).filter({ visible: true })
     await expect(
-      page.getByRole('navigation', { name: 'Secciones' }).getByRole('link', { name: 'Mis grupos' }),
+      esNav.getByRole('link', { name: 'Perfil' }),
     ).toBeVisible()
   })
 })

@@ -23,7 +23,7 @@ public class PlansApiTests : IClassFixture<SonivoApiFactory>
         var catalog = await client.GetFromJsonAsync<PlanCatalogResponse>("/api/plans");
 
         Assert.NotNull(catalog);
-        Assert.Equal("studio", catalog.DefaultPlanId);
+        Assert.Equal("starter", catalog.DefaultPlanId);
         Assert.Equal(3, catalog.Plans.Count);
         Assert.Contains(catalog.Plans, p => p.Id == "starter");
         Assert.Contains(catalog.Plans, p => p.Id == "pro");
@@ -51,10 +51,9 @@ public class PlansApiTests : IClassFixture<SonivoApiFactory>
 
         var fetched = await client.GetFromJsonAsync<GroupResponse>($"/api/groups/{group.Id}");
         Assert.NotNull(fetched);
-        // Default plan keeps full brand capabilities so existing groups don't regress.
-        Assert.Equal("studio", fetched.PlanId);
-        Assert.True(fetched.Capabilities.Accent);
-        Assert.True(fetched.Capabilities.RemovePoweredBy);
+        Assert.Equal("starter", fetched.PlanId);
+        Assert.False(fetched.Capabilities.Accent);
+        Assert.False(fetched.Capabilities.RemovePoweredBy);
     }
 
     private static async Task<HttpClient> CreateAuthenticatedClientAsync(

@@ -11,6 +11,7 @@ import { ErrorBoundary } from '@/src/ui/ErrorBoundary'
 import { Button } from '@/src/ui/button'
 import { routes } from '@/src/routing/routes'
 import { useT } from '@/src/i18n'
+import { AccountShell } from '@/src/shell/account/AccountShell'
 
 export default function ProductLayout({ children }: { children: ReactNode }) {
   const { session, onLogout, onRetry } = useAppRuntime()
@@ -49,6 +50,15 @@ export default function ProductLayout({ children }: { children: ReactNode }) {
   if (!usesLegacyRouteBridge && session.user.mustChangePassword) return <MustChangePassword onDone={onRetry} />
 
   if (usesLegacyRouteBridge) return <>{children}</>
+
+  if (pathname === routes.account || pathname.startsWith(`${routes.account}/`)) {
+    return (
+      <AccountShell user={session.user} onLogout={onLogout}>
+        <ErrorBoundary resetKey={pathname} navigationMode="next">{children}</ErrorBoundary>
+      </AccountShell>
+    )
+  }
+
 
   return (
     <>

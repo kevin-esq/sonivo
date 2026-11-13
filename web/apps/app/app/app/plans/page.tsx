@@ -1,9 +1,10 @@
-import { PlansPage } from '@/src/plans/PlansPage'
+import { redirect } from 'next/navigation'
+import { routes } from '@/src/routing/routes'
 
 export const metadata = {
   robots: { index: false, follow: false },
 }
 
 export default function ProductPlansPage() {
-  return <PlansPage navigationMode="next" />
+  redirect(routes.accountMembership)
 }

@@ -22,6 +22,7 @@ using Sonivo.Application;
 using Sonivo.Application.Abstractions;
 using System.Text;
 using Sonivo.Application.Billing;
+using Sonivo.Api.Billing;
 using Sonivo.Application.Billing.Payments;
 using Sonivo.Domain.Billing;
 using Sonivo.Domain.Billing.Payments;
@@ -40,9 +41,11 @@ using Sonivo.Domain.Tenancy;
 using Sonivo.Domain.Notifications;
 using Sonivo.Api.Auth;
 using Sonivo.Api.Repertoire;
+using Sonivo.Api.Tenancy;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Blobs;
 using Sonivo.Infrastructure.Identity;
+using Sonivo.Infrastructure.Payments;
 using Sonivo.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -183,6 +186,7 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+    options.AddPolicy("platform-admin", policy => policy.RequireRole("PlatformAdmin"));
 });
 builder.Services.AddAntiforgery(options =>
 {
@@ -250,6 +254,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy(MobileAuthenticationSetup.AuthorizationPolicy, http => PerIp(http, 30));
     options.AddPolicy(MobileAuthenticationSetup.TokenPolicy, http => PerIp(http, 60));
     options.AddPolicy("payment-webhook", http => PerIp(http, 30));
+    options.AddPolicy("billing", http => PerIp(http, 30));
     // SECURITY-AUDIT-2026-10 (B11): previously unlimited surfaces — uploads
     // (branding + file resources + LRC import), invite acceptance, digitize
     // starts (expensive) and GDPR-style exports.
@@ -441,12 +446,12 @@ app.Use(async (context, next) =>
 {
     context.Response.Headers.TryAdd("Content-Security-Policy",
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline'; " +
+        "script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.js.stripe.com; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data: https://i.ytimg.com; " +
-        "frame-src 'self' https://www.youtube-nocookie.com; " +
-        "connect-src 'self'; " +
+        "frame-src 'self' https://www.youtube-nocookie.com https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com; " +
+        "connect-src 'self' https://api.stripe.com https://*.stripe.com; " +
         "frame-ancestors 'none'; " +
         "base-uri 'self'; " +
         "form-action 'self'; " +
@@ -553,6 +558,8 @@ app.Use(async (context, next) =>
 // middleware (above) so the redeem POST is validated like every other unsafe
 // method — no .DisableAntiforgery() exemption.
 app.MapSessionHandoffEndpoints();
+app.MapBillingEndpoints();
+app.MapGroupOwnershipTransferEndpoints();
 
 // SECURITY-AUDIT-2026-10 (C8): cross-origin WebSocket handshakes are rejected.
 // SameSite=Lax cookies already block browser cross-site handshakes; this is
@@ -2403,7 +2410,7 @@ app.MapGet("/api/payments/provider", (IPaymentProvider provider) =>
         Results.Ok(new
         {
             provider = provider.Kind.ToString().ToLowerInvariant(),
-            configured = provider.IsConfigured
+            configured = provider is StripeBillingGateway stripe ? stripe.CanWrite : provider.IsConfigured
         }))
     .WithName("GetPaymentProvider")
     .RequireAuthorization();
@@ -2449,6 +2456,12 @@ app.MapPost("/api/payments/webhook", async (
     }
 
     var payload = Encoding.UTF8.GetString(payloadBuffer.GetBuffer(), 0, totalBytes);
+    if (provider.Kind == PaymentProviderKind.Stripe)
+    {
+        var billing = http.RequestServices.GetRequiredService<IBillingService>();
+        var accepted = await billing.ReceiveAsync(payload, http.Request.Headers["Stripe-Signature"].ToString(), cancellationToken);
+        return accepted ? Results.Ok(new { received = true }) : Results.BadRequest(new { error = "invalid-signature" });
+    }
     var signature = http.Request.Headers["X-Sonivo-Signature"].ToString();
     var result = await handler.HandleAsync(payload, signature, cancellationToken);
 
@@ -2464,12 +2477,22 @@ app.MapPost("/api/payments/webhook", async (
 // client falls back to manual/invoice assignment.
 app.MapPost("/api/groups/{groupId:guid}/billing/checkout", async (
     Guid groupId,
-    CheckoutRequestDto request,
+    CheckoutRequestDto? request,
     ClaimsPrincipal principal,
     UserManager<ApplicationUser> users,
     StartCheckoutHandler handler,
+    IPaymentProvider provider,
+    HttpContext http,
     CancellationToken cancellationToken) =>
 {
+    if (request is null)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["request"] = ["A checkout selection is required."]
+        });
+    }
+
     var userId = await RequireUserIdAsync(principal, users);
     if (userId is null)
     {
@@ -2486,6 +2509,20 @@ app.MapPost("/api/groups/{groupId:guid}/billing/checkout", async (
 
     try
     {
+        if (provider.Kind == PaymentProviderKind.Stripe)
+        {
+            if (!request.RecurringConsent)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["recurringConsent"] = ["Explicit recurring billing consent is required."]
+                });
+            }
+            var billing = http.RequestServices.GetRequiredService<IBillingService>();
+            var session = await billing.CheckoutAsync(userId.Value, groupId,
+                new BillingCommand(request.OperationId ?? string.Empty, new(request.PlanId!, request.Interval ?? "month", request.ExtraGroups), request.RecurringConsent), cancellationToken);
+            return Results.Ok(new { url = session.Url });
+        }
         var result = await handler.HandleAsync(
             new StartCheckoutCommand(
                 userId.Value,
@@ -2500,12 +2537,20 @@ app.MapPost("/api/groups/{groupId:guid}/billing/checkout", async (
     {
         return Results.Problem(
             title: "payment-not-configured",
-            detail: "No hay una pasarela de pago configurada.",
+            detail: "No payment provider is configured.",
+            statusCode: StatusCodes.Status409Conflict);
+    }
+    catch (ValidationException exception) when (exception.Message is "billing-not-configured" or "billing-charging-disabled")
+    {
+        return Results.Problem(
+            title: "payment-not-configured",
+            detail: "No payment provider is configured.",
             statusCode: StatusCodes.Status409Conflict);
     }
 })
 .WithName("StartGroupCheckout")
-.RequireAuthorization();
+.RequireAuthorization()
+.RequireRateLimiting("billing");
 
 app.MapPut("/api/groups/{groupId:guid}/branding", async (
     Guid groupId,
@@ -6253,10 +6298,13 @@ static object ToGroupBySlugResponse(GroupBySlugResult result) => new
 static object ToPlanCatalogResponse(PlanCatalogDto catalog) => new
 {
     defaultPlanId = catalog.DefaultPlanId,
+    extraGroupMonthlyMxn = catalog.ExtraGroupMonthlyMxn,
+    extraGroupAnnualMxn = catalog.ExtraGroupAnnualMxn,
     plans = catalog.Plans.Select(plan => new
     {
         id = plan.Id,
         priceMonthlyMxn = plan.PriceMonthlyMxn,
+        priceAnnualMxn = plan.PriceAnnualMxn,
         trialDays = plan.TrialDays,
         trialRequiresCard = plan.TrialRequiresCard,
         limits = plan.Limits,
@@ -6633,7 +6681,8 @@ internal sealed record RegenerateRecoveryCodesRequest(string? Password);
 internal sealed record CreateGroupRequest(string? Name);
 internal sealed record UpdateGroupPlanRequest(string? Action, string? PlanId);
 
-internal sealed record CheckoutRequestDto(string? PlanId, string? SuccessUrl, string? CancelUrl);
+internal sealed record CheckoutRequestDto(string? PlanId, string? SuccessUrl, string? CancelUrl,
+    string? OperationId = null, string? Interval = null, int ExtraGroups = 0, bool RecurringConsent = false);
 internal sealed record ChangeGroupSlugRequest(string? Slug);
 internal sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 internal sealed record UpdateProfileRequest(string? DisplayName);

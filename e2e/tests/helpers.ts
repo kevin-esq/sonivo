@@ -70,16 +70,45 @@ export async function login(page: Page, email: string, password = testPassword) 
 
 export async function logout(page: Page) {
   // The group workspace rail no longer carries sign-out (ADR-0055); the account
-  // shell does, so navigate there before signing out.
+  // shell keeps it in the account menu.
   await page.goto('/account')
+  await page.getByTestId('account-user-menu-toggle').click()
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
   await page.getByRole('dialog', { name: '¿Quieres cerrar sesión?' }).getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
 }
 
 export async function createGroup(page: Page, name: string) {
-  // Creation lives in a modal since the groups page refactor.
-  await page.getByRole('button', { name: 'Nuevo grupo' }).click()
+  const createButton = page.getByRole('button', { name: 'Nuevo grupo' })
+  const provider = await page.evaluate(async () => {
+    const response = await fetch('/api/payments/provider', { credentials: 'include' })
+    if (!response.ok) return null
+    return (await response.json() as { provider?: string }).provider ?? null
+  })
+
+  if (provider === 'stripe') {
+    // Trial setup belongs to this fixture; the billing journey tests the UI flow separately.
+    await page.evaluate(async () => {
+      const organizationsResponse = await fetch('/api/billing/organizations', { credentials: 'include' })
+      if (!organizationsResponse.ok) throw new Error(`billing organizations failed: ${organizationsResponse.status}`)
+      const organizations = await organizationsResponse.json() as Array<{ canCreate: boolean }>
+      if (organizations.some(organization => organization.canCreate)) return
+
+      const csrfResponse = await fetch('/api/auth/csrf', { credentials: 'include' })
+      if (!csrfResponse.ok) throw new Error(`csrf failed: ${csrfResponse.status}`)
+      const { token } = await csrfResponse.json() as { token: string }
+      const trialResponse = await fetch('/api/billing/organizations/trial', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+        body: JSON.stringify({ planId: 'pro' }),
+      })
+      if (!trialResponse.ok) throw new Error(`Banda trial setup failed: ${trialResponse.status}`)
+    })
+    await page.goto('/groups')
+  }
+  await expect(createButton).toBeVisible()
+  await createButton.click()
   await page.getByLabel('Nombre').fill(name)
   await page.getByRole('button', { name: 'Crear grupo' }).click()
   await expect(page.getByRole('heading', { name })).toBeVisible()

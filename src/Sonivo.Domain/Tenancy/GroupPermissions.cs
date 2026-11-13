@@ -154,7 +154,7 @@ public static class GroupPermissions
     public static IReadOnlySet<string> BaseRolePermissions(string role) => role switch
     {
         GroupRole.SystemOwner => new HashSet<string>(All, StringComparer.Ordinal),
-        GroupRole.SystemManager => new HashSet<string>(
+        GroupRole.SystemManager or MembershipRoles.Manager => new HashSet<string>(
             new[]
             {
                 SongView, SongCreate, SongEdit, SongDelete,

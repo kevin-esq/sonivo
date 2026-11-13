@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Tenancy;
+using Sonivo.Application.Billing;
 
 namespace Sonivo.Application.Tenancy;
 
@@ -22,19 +24,22 @@ public sealed class GroupAccessService
     private readonly IResourceGrantStore? _grants;
     private readonly ILogger<GroupAccessService>? _logger;
     private readonly IGroupDatabaseScope? _databaseScope;
+    private readonly IBillingPolicy? _billing;
 
     public GroupAccessService(
         IGroupStore store,
         IGroupRoleStore? roles = null,
         IResourceGrantStore? grants = null,
         ILogger<GroupAccessService>? logger = null,
-        IGroupDatabaseScope? databaseScope = null)
+        IGroupDatabaseScope? databaseScope = null,
+        IBillingPolicy? billing = null)
     {
         _store = store;
         _roles = roles;
         _grants = grants;
         _logger = logger;
         _databaseScope = databaseScope;
+        _billing = billing;
     }
 
     public async Task<(Group Group, Membership Membership)> RequireMemberAsync(
@@ -60,6 +65,7 @@ public sealed class GroupAccessService
             throw new NotFoundException("Group not found.");
         }
 
+        if (_billing is not null) await _billing.ProjectAsync(group, cancellationToken);
         return (group, membership);
     }
 
@@ -146,6 +152,8 @@ public sealed class GroupAccessService
             throw new ForbiddenException($"Permission required: {permission}");
         }
 
+        EnsureWritable(group, permission);
+
         return (group, membership);
     }
 
@@ -155,9 +163,10 @@ public sealed class GroupAccessService
         string permission,
         CancellationToken cancellationToken)
     {
-        var (_, membership) = await RequireMemberAsync(groupId, userId, cancellationToken);
+        var (group, membership) = await RequireMemberAsync(groupId, userId, cancellationToken);
         var effective = await EffectivePermissionsAsync(membership, groupId, cancellationToken);
-        return effective.Contains(permission);
+        return effective.Contains(permission) && (group.BillingStatus != BillingStatuses.ReadOnly
+            || CanUseWhileReadOnly(permission));
     }
 
     /// <summary>
@@ -249,6 +258,7 @@ public sealed class GroupAccessService
         }
 
         var (group, membership) = await RequireMemberAsync(groupId, userId, cancellationToken);
+        EnsureWritable(group, permission);
         var effective = await EffectivePermissionsAsync(membership, groupId, cancellationToken);
         var inheritedRead = false;
         foreach (var (resourceType, resourceId) in path)
@@ -322,6 +332,20 @@ public sealed class GroupAccessService
         CancellationToken cancellationToken)
         => RequirePermissionAsync(groupId, userId, GroupPermissions.ManageGroup, cancellationToken);
 
+    /// <summary>Owner gate for billing and export operations that must remain available after expiry.</summary>
+    public async Task<(Group Group, Membership Membership)> RequireOwnerForBillingAsync(
+        Guid groupId, Guid userId, CancellationToken cancellationToken)
+    {
+        var result = await RequireMemberAsync(groupId, userId, cancellationToken);
+        if (!result.Membership.IsOwner) throw new ForbiddenException("Group owner required.");
+        return result;
+    }
+
+    /// <summary>Owner-only export remains available while a Group is billing-read-only.</summary>
+    public Task<(Group Group, Membership Membership)> RequireOwnerForExportAsync(
+        Guid groupId, Guid userId, CancellationToken cancellationToken)
+        => RequireOwnerForBillingAsync(groupId, userId, cancellationToken);
+
     /// <summary>
     /// Content management. Maps to the narrowest content-write capability a
     /// Manager holds and a Member does not, so behaviour is identical to the
@@ -364,6 +388,7 @@ public sealed class GroupAccessService
         CancellationToken cancellationToken)
     {
         var (group, membership) = await RequireMemberAsync(groupId, userId, cancellationToken);
+        EnsureWritable(group, permission);
 
         var effective = await EffectivePermissionsAsync(membership, groupId, cancellationToken);
         var held = effective.Contains(permission);
@@ -448,4 +473,13 @@ public sealed class GroupAccessService
             permission);
         throw new ForbiddenException($"Permission required: {permission}");
     }
+
+    private static void EnsureWritable(Group group, string permission)
+    {
+        if (group.BillingStatus == BillingStatuses.ReadOnly && !CanUseWhileReadOnly(permission))
+            throw new ConflictException("billing-read-only");
+    }
+
+    private static bool CanUseWhileReadOnly(string permission)
+        => GroupPermissions.IsReadCapability(permission) || permission == GroupPermissions.ExportGroup;
 }

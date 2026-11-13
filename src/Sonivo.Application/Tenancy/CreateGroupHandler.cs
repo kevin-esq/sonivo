@@ -27,15 +27,18 @@ public sealed class CreateGroupHandler
     private readonly IGroupStore _store;
     private readonly IClock _clock;
     private readonly IGroupDatabaseScope? _databaseScope;
+    private readonly Sonivo.Application.Billing.IBillingPolicy? _billing;
 
     public CreateGroupHandler(
         IGroupStore store,
         IClock clock,
-        IGroupDatabaseScope? databaseScope = null)
+        IGroupDatabaseScope? databaseScope = null,
+        Sonivo.Application.Billing.IBillingPolicy? billing = null)
     {
         _store = store;
         _clock = clock;
         _databaseScope = databaseScope;
+        _billing = billing;
     }
 
     public async Task<GroupDto> HandleAsync(CreateGroupCommand command, CancellationToken cancellationToken)
@@ -50,6 +53,7 @@ public sealed class CreateGroupHandler
             var now = _clock.UtcNow;
             var slug = await AllocateSlugAsync(command.Name, cancellationToken);
             var group = Group.Create(command.Name, now, slug: slug);
+            if (_billing is not null) await _billing.InitializeAsync(group, command.UserId, cancellationToken);
             if (_databaseScope is not null)
             {
                 await _databaseScope.SetGroupForBootstrapAsync(group.Id, cancellationToken);

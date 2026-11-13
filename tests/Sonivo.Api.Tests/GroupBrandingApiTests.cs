@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure.Identity;
 using Sonivo.Infrastructure.Persistence;
@@ -31,6 +32,12 @@ public class GroupBrandingApiTests : IClassFixture<SonivoApiFactory>, IClassFixt
         var group = await (await client.PostAsJsonAsync("/api/groups", new { name = "Brand Band" }))
             .Content.ReadFromJsonAsync<GroupDtoResponse>();
         Assert.NotNull(group);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            db.Groups.Single(x => x.Id == group.Id).AssignPlan(PlanCatalog.Studio, DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        }
 
         var initial = await client.GetFromJsonAsync<BrandingResponse>($"/api/groups/{group.Id}/branding");
         Assert.NotNull(initial);

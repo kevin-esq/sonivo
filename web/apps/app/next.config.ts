@@ -6,6 +6,8 @@ import { legacyGroupRouteRedirects, legacyRouteRedirects, routes } from './src/r
 // staging parity bridge: the .NET host serves that export at the same origin.
 const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:5171'
 const isExport = process.env.NEXT_EXPORT === '1'
+// Next development hot reload evaluates generated scripts; production CSP stays strict.
+const developmentScriptSource = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''
 
 const nextConfig: NextConfig = {
   // Allow isolated browser checks to keep their build output separate from the
@@ -47,6 +49,7 @@ const nextConfig: NextConfig = {
             { key: 'X-Frame-Options', value: 'DENY' },
             { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
             { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+            { key: 'Content-Security-Policy', value: `default-src 'self'; script-src 'self' 'unsafe-inline'${developmentScriptSource} https://js.stripe.com https://*.js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://i.ytimg.com; frame-src 'self' https://www.youtube-nocookie.com https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com; connect-src 'self' https://api.stripe.com https://*.stripe.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'` },
             { key: 'Strict-Transport-Security', value: 'max-age=31536000' },
           ],
         },

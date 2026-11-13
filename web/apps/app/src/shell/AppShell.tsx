@@ -66,8 +66,6 @@ export function AppShell({
       />
       <div className="flex min-h-0 flex-1">
       <AppSidebar
-        user={user}
-        onLogout={onLogout}
         navigationMode={navigationMode}
         sidebar={sidebar}
       />

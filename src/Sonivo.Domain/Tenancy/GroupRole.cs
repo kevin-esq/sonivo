@@ -10,7 +10,7 @@ namespace Sonivo.Domain.Tenancy;
 public sealed class GroupRole
 {
     public const string SystemOwner = "Owner";
-    public const string SystemManager = "Manager";
+    public const string SystemManager = MembershipRoles.Admin;
     public const string SystemMember = "Member";
     public const string SystemViewer = "Viewer";
 

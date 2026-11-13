@@ -18,6 +18,18 @@ public class PlanCatalogTests
         Assert.False(PlanCatalog.IsKnown(null));
     }
 
+    [Fact]
+    public void Default_catalog_plan_is_not_the_studio_tier()
+        => Assert.Equal(PlanCatalog.Starter, PlanCatalog.DefaultPlanId);
+
+    [Fact]
+    public void Account_plan_limits_match_the_approved_group_and_member_tiers()
+    {
+        Assert.Equal((2, 1), (PlanCatalog.Get(PlanCatalog.Starter).Limits.Members, PlanCatalog.Get(PlanCatalog.Starter).Limits.Groups));
+        Assert.Equal((4, 1), (PlanCatalog.Get(PlanCatalog.Pro).Limits.Members, PlanCatalog.Get(PlanCatalog.Pro).Limits.Groups));
+        Assert.Equal((15, 3), (PlanCatalog.Get(PlanCatalog.Studio).Limits.Members, PlanCatalog.Get(PlanCatalog.Studio).Limits.Groups));
+    }
+
     [Theory]
     [InlineData(PlanCatalog.Starter, BrandingLevel.None, false, false, false)]
     [InlineData(PlanCatalog.Pro, BrandingLevel.Basic, true, false, false)]
@@ -35,11 +47,11 @@ public class PlanCatalogTests
     }
 
     [Fact]
-    public void Unknown_plan_falls_back_to_the_default()
+    public void Unknown_plan_falls_back_to_starter_without_premium_access()
     {
-        Assert.Equal(PlanCatalog.DefaultPlanId, PlanCatalog.Get("nope").Id);
+        Assert.Equal(PlanCatalog.Starter, PlanCatalog.Get("nope").Id);
         Assert.Equal(
-            PlanCatalog.BrandingCapabilitiesFor(PlanCatalog.DefaultPlanId),
+            PlanCatalog.BrandingCapabilitiesFor(PlanCatalog.Starter),
             PlanCatalog.BrandingCapabilitiesFor("nope"));
     }
 

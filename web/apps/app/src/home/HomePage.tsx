@@ -16,10 +16,12 @@ import { ActivityRail } from "./ActivityRail";
 import { GroupsGrid } from "./GroupsGrid";
 import { QuickActions } from "./QuickActions";
 import { AppLink, type NavigationMode } from '../routing/AppLink'
+import { useGroupCreationAvailability } from '../plans/useGroupCreationAvailability'
 
 /** Inicio dashboard (ADR-0053): greeting, quick actions, groups and activity. */
 export function HomePage({ user, navigationMode = 'legacy', navigate }: { user: CurrentUser; navigationMode?: NavigationMode; navigate: (to: string) => void }) {
   const { t } = useT();
+  const { canCreateGroup } = useGroupCreationAvailability()
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
   const [activity, setActivity] = useState<UpcomingActivity[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export function HomePage({ user, navigationMode = 'legacy', navigate }: { user: 
         <p className="text-ink/80">{t("home.subtitle")}</p>
       </header>
 
-      <QuickActions navigate={navigate} />
+      <QuickActions navigate={navigate} canCreateGroup={canCreateGroup} />
 
       {error ? (
         <div
@@ -99,7 +101,7 @@ export function HomePage({ user, navigationMode = 'legacy', navigate }: { user: 
               {t("home.viewAll")} →
             </AppLink>
           </div>
-          <GroupsGrid groups={groups} navigationMode={navigationMode} />
+          <GroupsGrid groups={groups} navigationMode={navigationMode} canCreateGroup={canCreateGroup} />
         </section>
 
         <ActivityRail items={activity} navigationMode={navigationMode} />

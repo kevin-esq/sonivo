@@ -88,7 +88,7 @@ public sealed class Membership
 
     public bool IsOwner => Role == MembershipRoles.Owner;
 
-    public bool IsManager => Role == MembershipRoles.Manager;
+    public bool IsManager => Role is MembershipRoles.Admin or MembershipRoles.Manager;
 
     public bool IsViewer => Role == MembershipRoles.Viewer;
 
@@ -123,12 +123,29 @@ public sealed class Membership
                 $"Role must be one of {string.Join(", ", MembershipRoles.All)}.", nameof(role));
         }
 
-        if (role == MembershipRoles.Owner && UserId is null)
+        role = MembershipRoles.Normalize(role);
+        if (role == MembershipRoles.Owner)
         {
-            throw new ArgumentException("An Owner must have an account.", nameof(role));
+            throw new InvalidOperationException("Owner role changes require an accepted ownership transfer.");
         }
 
         Role = role;
+    }
+
+    public void AcceptOwnershipTransfer()
+    {
+        if (UserId is null || !AccessEnabled)
+            throw new InvalidOperationException("Only an active account member can accept ownership.");
+        Role = MembershipRoles.Owner;
+        GroupRoleId = null;
+    }
+
+    public void RelinquishOwnership()
+    {
+        if (!IsOwner)
+            throw new InvalidOperationException("Only the current Owner can relinquish ownership.");
+        Role = MembershipRoles.Member;
+        GroupRoleId = null;
     }
 
     /// <summary>Links the roster row to an Identity account (claim / link).</summary>
@@ -234,7 +251,7 @@ public sealed class Membership
             Id = id ?? Guid.NewGuid(),
             GroupId = groupId,
             UserId = userId,
-            Role = role,
+            Role = role == MembershipRoles.Manager ? MembershipRoles.Admin : role,
             CreatedAt = now
         };
     }

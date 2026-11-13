@@ -17,6 +17,14 @@ public sealed class Group : IVersionedEntity
     /// until a payment provider is wired; managed manually.
     /// </summary>
     public string BillingStatus { get; private set; } = BillingStatuses.Active;
+    public bool CreationBlocked { get; private set; }
+
+    public void ProjectBilling(string planId, string status, DateTimeOffset? trialEndsAt, string? scheduledPlanId, bool creationBlocked)
+    {
+        EnsureKnownPlan(planId);
+        PlanId = planId; BillingStatus = status; TrialEndsAt = trialEndsAt;
+        ScheduledPlanId = scheduledPlanId; CreationBlocked = creationBlocked;
+    }
     /// <summary>End of the 14-day trial, when <see cref="BillingStatus"/> is Trialing.</summary>
     public DateTimeOffset? TrialEndsAt { get; private set; }
     /// <summary>Plan to apply at the end of the paid period (downgrade/extra-group).</summary>

@@ -30,6 +30,7 @@ This is the Obsidian entry point for durable project knowledge. It is a navigati
 - [PostgreSQL RLS research](../03-architecture/POSTGRESQL-RLS-RESEARCH.md)
 - [Media upload research](../03-architecture/MEDIA-UPLOAD-RESEARCH-2026-10.md)
 - [Plan-aware media upload specification](../03-architecture/PHASE-MEDIA-UPLOADS-SPEC.md)
+- [Financial OSS, skills, MCPs, and Stripe research](../03-architecture/FINANCIAL-TOOLING-RESEARCH-2026-11.md) — research and adoption proposal; not an accepted architecture decision.
 - [Tooling policy](../tooling/TOOLING-AUDIT.md)
 
 ## Product design

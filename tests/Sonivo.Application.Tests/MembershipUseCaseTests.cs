@@ -58,7 +58,7 @@ public class MembershipUseCaseTests
     }
 
     [Fact]
-    public async Task Remove_other_owner_when_two_owners_succeeds()
+    public async Task Remove_other_owner_when_two_owners_conflicts_and_preserves_both_owners()
     {
         var (groups, memberships, owner, groupId) = await SeedOwnerOnlyAsync();
         var other = Guid.NewGuid();
@@ -66,11 +66,12 @@ public class MembershipUseCaseTests
         await groups.AddMembershipAsync(memberships.Rows.Single(m => m.UserId == other), CancellationToken.None);
         var uow = new FakeUnitOfWork();
 
-        await new RemoveMemberHandler(new GroupAccessService(groups), memberships, uow)
-            .HandleAsync(new RemoveMemberCommand(owner, groupId, other), CancellationToken.None);
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            new RemoveMemberHandler(new GroupAccessService(groups), memberships, uow)
+                .HandleAsync(new RemoveMemberCommand(owner, groupId, other), CancellationToken.None));
 
-        Assert.DoesNotContain(memberships.Rows, m => m.UserId == other);
-        Assert.Equal(1, uow.SaveCount);
+        Assert.Contains(memberships.Rows, m => m.UserId == other && m.IsOwner);
+        Assert.Equal(0, uow.SaveCount);
     }
 
     [Fact]
@@ -83,18 +84,19 @@ public class MembershipUseCaseTests
     }
 
     [Fact]
-    public async Task Promote_member_to_owner()
+    public async Task Promote_member_to_owner_requires_an_accepted_transfer()
     {
         var (groups, memberships, _, owner, member, groupId) = await SeedOwnerAndMemberAsync();
         var uow = new FakeUnitOfWork();
 
-        await new ChangeMemberRoleHandler(new GroupAccessService(groups), memberships, uow)
-            .HandleAsync(
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            new ChangeMemberRoleHandler(new GroupAccessService(groups), memberships, uow)
+                .HandleAsync(
                 new ChangeMemberRoleCommand(owner, groupId, member, MembershipRoles.Owner),
-                CancellationToken.None);
+                CancellationToken.None));
 
-        Assert.Equal(MembershipRoles.Owner, memberships.Rows.Single(m => m.UserId == member).Role);
-        Assert.Equal(1, uow.SaveCount);
+        Assert.Equal(MembershipRoles.Member, memberships.Rows.Single(m => m.UserId == member).Role);
+        Assert.Equal(0, uow.SaveCount);
     }
 
     [Fact]

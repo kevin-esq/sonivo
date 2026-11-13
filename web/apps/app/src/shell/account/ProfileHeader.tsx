@@ -22,9 +22,9 @@ export function ProfileHeader({
   const { t } = useT();
   const name = user.displayName?.trim() || user.email || "";
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm sm:flex-row sm:items-center">
+    <section className="relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-border-subtle bg-gradient-to-br from-primary/10 via-surface to-surface p-5 shadow-sm sm:flex-row sm:items-center sm:p-6">
       <span
-        className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-primary-strong text-xl font-bold text-primary-foreground"
+        className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-primary-strong text-2xl font-bold text-primary-foreground shadow-md ring-4 ring-surface"
         aria-hidden="true"
       >
         {initialsOf(user)}

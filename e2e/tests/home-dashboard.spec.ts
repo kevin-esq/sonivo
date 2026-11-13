@@ -63,49 +63,46 @@ test.describe('Home dashboard (ADR-0053)', () => {
     await expect(page.getByRole('main').getByRole('heading', { name: groupName })).toBeVisible()
   })
 
-  test('sidebar exposes notifications and the join route', async ({ page }) => {
+  test('notifications and account stay in the header while joining stays in navigation', async ({ page }) => {
     await register(page, uniqueEmail('home-nav'))
     await page.goto('/home')
 
-    // Membership remains an account route; notification access uses the existing account inbox.
-    // Membership is no longer group-owned: it lives in account settings, so the
-    // old billing placeholder is now the real /account/membership route.
-    await expect(page.getByTestId('nav-notifications')).toHaveAttribute('href', '/app/account/notifications')
-    await expect(page.getByTestId('nav-membership')).toBeVisible()
+    await expect(page.getByTestId('nav-notifications')).toHaveCount(0)
+    await expect(page.getByTestId('nav-membership')).toHaveCount(0)
+    await expect(page.getByTestId('app-notifications')).toBeVisible()
+    await page.getByTestId('topbar-user-menu').locator('summary').click()
+    await page.getByTestId('topbar-user-menu').getByRole('link', { name: 'Cuenta' }).click()
+    await expect(page).toHaveURL(/\/app\/account$/)
+    await expect(page.getByRole('navigation', { name: 'Configuración de la cuenta' }).filter({ visible: true }).getByRole('link', { name: 'Membresía' })).toBeVisible()
+    await page.goto('/home')
 
-    await page.getByTestId('nav-notifications').click()
-    await expect(page).toHaveURL(/\/app\/account\/notifications$/)
-    await expect(page.getByRole('heading', { name: 'Notificaciones de la cuenta' })).toBeVisible()
-
+    await page.getByTestId('app-notifications').click()
+    await expect(page.getByTestId('account-notifications-panel')).toBeVisible()
+    await page.goto('/home')
     await page.getByTestId('nav-join').click()
-    await expect(page).toHaveURL(/\/join$/)
+    await expect(page).toHaveURL(/\/app\/join$/)
     await expect(page.getByRole('heading', { name: 'Unirse a grupo' })).toBeVisible()
   })
 
   test('limits "Tu próxima actividad" to the next 5 events', async ({ page }) => {
     await register(page, uniqueEmail('home-limit'))
-    await page.evaluate(async () => {
+    await createGroup(page, 'Limit Band')
+    const groupId = new URL(page.url()).pathname.split('/').pop() ?? ''
+    expect(groupId).toBeTruthy()
+    await page.evaluate(async (id: string) => {
       const csrf = await (await fetch('/api/auth/csrf', { credentials: 'include' })).json()
       const headers = { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf.token }
-      const group = await (
-        await fetch('/api/groups', {
-          method: 'POST',
-          credentials: 'include',
-          headers,
-          body: JSON.stringify({ name: 'Limit Band' }),
-        })
-      ).json()
       for (let index = 1; index <= 6; index += 1) {
         const date = new Date()
         date.setDate(date.getDate() + index)
-        await fetch(`/api/groups/${group.id}/events`, {
+        await fetch(`/api/groups/${id}/events`, {
           method: 'POST',
           credentials: 'include',
           headers,
           body: JSON.stringify({ title: `Evento ${index}`, type: 'rehearsal', startsAt: date.toISOString() }),
         })
       }
-    })
+    }, groupId)
 
     await page.goto('/home')
     await expect(page.getByTestId('home-activity-item')).toHaveCount(5)

@@ -201,6 +201,7 @@
 "plans.billing_status" = "Status da cobrança";
 "plans.provider.sandbox" = "Provedor de pagamentos de teste";
 "plans.provider.manual" = "Plano gerenciado manualmente";
+"plans.provider.stripe" = "Pagamentos com Stripe";
 "plans.provider_unavailable" = "O provedor de pagamentos não está configurado.";
 "plans.no_groups" = "Você ainda não pertence a nenhum grupo.";
 "plans.groups_title" = "Planos dos seus grupos";

@@ -8,6 +8,8 @@ using Sonivo.Domain.Scheduling;
 using Sonivo.Domain.Tasks;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure.Identity;
+using Sonivo.Domain.Billing;
+using Sonivo.Infrastructure.Payments;
 
 namespace Sonivo.Infrastructure.Persistence;
 
@@ -39,6 +41,19 @@ public DbSet<ResourceGrant> ResourceGrants => Set<ResourceGrant>();
     public DbSet<Rsvp> Rsvps => Set<Rsvp>();
     public DbSet<GroupTask> Tasks => Set<GroupTask>();
     public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();
+    public DbSet<BillingOrganization> BillingOrganizations => Set<BillingOrganization>();
+    public DbSet<BillingAccessGrant> BillingAccessGrants => Set<BillingAccessGrant>();
+    public DbSet<BillingReferralCode> BillingReferralCodes => Set<BillingReferralCode>();
+    public DbSet<BillingReferralAttribution> BillingReferralAttributions => Set<BillingReferralAttribution>();
+    public DbSet<BillingReferralReward> BillingReferralRewards => Set<BillingReferralReward>();
+    public DbSet<BillingFinancialEvent> BillingFinancialEvents => Set<BillingFinancialEvent>();
+    public DbSet<BillingAccountingOutbox> BillingAccountingOutbox => Set<BillingAccountingOutbox>();
+    public DbSet<BillingGroup> BillingGroups => Set<BillingGroup>();
+    public DbSet<BillingTrial> BillingTrials => Set<BillingTrial>();
+    public DbSet<GroupOwnershipTransfer> GroupOwnershipTransfers => Set<GroupOwnershipTransfer>();
+    public DbSet<BillingOperation> BillingOperations => Set<BillingOperation>();
+    public DbSet<BillingInboxEvent> BillingInbox => Set<BillingInboxEvent>();
+    public DbSet<BillingAudit> BillingAudit => Set<BillingAudit>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)

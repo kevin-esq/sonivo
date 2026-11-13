@@ -84,25 +84,33 @@ test.describe('W9 outside surfaces', () => {
   test('My groups is designed, empty, usable and AA in light', async ({ page }) => {
     const email = uniqueEmail('w9-groups')
     await register(page, email)
+    const provider = await (await page.request.get('/api/payments/provider')).json() as { provider: string }
 
     await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
     await expect(page.getByText('Aún no tienes grupos', { exact: true })).toBeVisible()
 
-    // Creation now lives in a modal ("Nuevo grupo"); the full flow is covered in the groups spec.
-    await expect(page.getByRole('button', { name: 'Nuevo grupo' })).toBeVisible()
-    await page.getByRole('button', { name: 'Nuevo grupo' }).click()
-    const nameInput = page.getByLabel('Nombre')
-    await expect(nameInput).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Crear grupo' })).toBeVisible()
-    await nameInput.fill('W9 Draft')
-    await expect(nameInput).toHaveValue('W9 Draft')
-    await page.keyboard.press('Escape')
-    await expect(nameInput).toBeHidden()
+    const createButton = page.getByRole('button', { name: 'Nuevo grupo' })
+    const joinButton = page.getByRole('button', { name: 'Unirme con enlace' }).first()
+    if (provider.provider === 'stripe') {
+      await expect(createButton).toHaveCount(0)
+      await expect(page.getByRole('link', { name: 'Explorar planes' }).first()).toBeVisible()
+      await expect(joinButton).toBeVisible()
+    } else {
+      await expect(createButton).toBeVisible()
+      await createButton.click()
+      const nameInput = page.getByLabel('Nombre')
+      await expect(nameInput).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Crear grupo' })).toBeVisible()
+      await nameInput.fill('W9 Draft')
+      await expect(nameInput).toHaveValue('W9 Draft')
+      await page.keyboard.press('Escape')
+      await expect(nameInput).toBeHidden()
+    }
 
     await setTheme(page, 'light')
     await expect(page.getByRole('heading', { name: 'Mis grupos', level: 1 })).toBeVisible()
     await expectReadableText(page.getByRole('heading', { name: 'Mis grupos', level: 1 }))
-    await expectReadableText(page.getByText(email))
+    await expect(page.getByTestId('app-user-avatar')).toBeVisible()
   })
 
   test('404 is designed and readable in light', async ({ page }) => {
@@ -126,6 +134,9 @@ test.describe('W9 outside surfaces', () => {
     await createGroup(page, `W9 Ajustes ${Date.now()}`)
     const groupId = new URL(page.url()).pathname.split('/').filter(Boolean).pop()
     expect(groupId).toBeTruthy()
+    const group = await (await page.request.get(`/api/groups/${groupId}`)).json() as {
+      capabilities: { icon: boolean }
+    }
 
     await page.goto(`/groups/${groupId}/settings`)
     await expect(page.getByRole('heading', { name: 'Ajustes del grupo' })).toBeVisible()
@@ -153,10 +164,25 @@ test.describe('W9 outside surfaces', () => {
     // "Sin portada" exists, is selectable, and round-trips through the server.
     const noCover = editor.getByRole('button', { name: 'Sin portada', exact: true })
     await expect(noCover).toBeVisible()
-    // The save button stays disabled until the draft differs from the server
-    // state, and a brand-new group already has no cover — so make a second,
-    // independent change (an accent swatch) to keep the draft dirty.
-    await editor.getByRole('button', { name: 'Esmeralda', exact: true }).first().click()
+    if (!group.capabilities.icon) {
+      await expect(noCover).toBeDisabled()
+      await expect(editor.getByRole('button', { name: 'Onda sonora', exact: true })).toBeDisabled()
+      const branding = await (await page.request.get(`/api/groups/${groupId}/branding`)).json() as {
+        coverKind: string | null
+        coverValue: string | null
+      }
+      expect(branding.coverKind).toBeNull()
+      expect(branding.coverValue).toBeNull()
+      return
+    }
+
+    // Save a preset, then choose no cover and verify that change persists.
+    await editor.getByRole('button', { name: 'Onda sonora', exact: true }).click()
+    await page
+      .getByTestId('brand-unsaved-bar')
+      .getByRole('button', { name: /Guardar identidad|Save identity/ })
+      .click()
+    await expect(page.getByText(/Identidad guardada|Identity saved/)).toBeVisible()
     await noCover.click()
     await expect(noCover).toHaveAttribute('aria-pressed', 'true')
     await page

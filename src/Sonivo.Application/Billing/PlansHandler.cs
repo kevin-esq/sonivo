@@ -10,9 +10,11 @@ public sealed record PlanDto(
     bool TrialRequiresCard,
     PlanLimits Limits,
     PlanFeatures Features,
-    BrandingCapabilities Capabilities);
+    BrandingCapabilities Capabilities,
+    long? PriceAnnualMxn = null);
 
-public sealed record PlanCatalogDto(string DefaultPlanId, IReadOnlyList<PlanDto> Plans);
+public sealed record PlanCatalogDto(string DefaultPlanId, IReadOnlyList<PlanDto> Plans,
+    long? ExtraGroupMonthlyMxn = null, long? ExtraGroupAnnualMxn = null);
 
 /// <summary>
 /// Returns the entitlements catalog (single source of truth). Read-only, no

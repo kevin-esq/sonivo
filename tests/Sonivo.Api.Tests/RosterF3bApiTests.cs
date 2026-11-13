@@ -191,7 +191,7 @@ public class RosterF3bApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<
     }
 
     [Fact]
-    public async Task Promoting_a_member_to_owner_is_audited()
+    public async Task Promoting_a_member_to_owner_requires_an_accepted_transfer()
     {
         var email = "f3b-transfer@example.com";
         var owner = await CreateAuthenticatedClientAsync(_factory, "f3b-transfer-owner@example.com");
@@ -205,11 +205,11 @@ public class RosterF3bApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<
         var promote = await owner.PostAsJsonAsync(
             $"/api/groups/{group.Id}/members/{provisioned!.UserId}/role",
             new { role = "Owner" });
-        Assert.Equal(HttpStatusCode.NoContent, promote.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, promote.StatusCode);
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
-        Assert.True(await db.AccountAudits.AnyAsync(
+        Assert.False(await db.AccountAudits.AnyAsync(
             a => a.Action == AccountAudit.ActionOwnerTransferred && a.GroupId == group.Id));
     }
 

@@ -31,6 +31,23 @@ GRANT SELECT, INSERT ON TABLE
 
 GRANT SELECT, INSERT, UPDATE ON TABLE public."Notifications" TO sonivo_app;
 
+GRANT SELECT, INSERT, UPDATE ON TABLE
+    public."BillingOrganizations",
+    public."BillingGroups",
+    public."BillingTrials",
+    public."BillingOperations",
+    public."BillingInbox" TO sonivo_app;
+GRANT SELECT, INSERT ON TABLE public."BillingAudit" TO sonivo_app;
+GRANT SELECT, INSERT, UPDATE ON TABLE
+    public."BillingAccessGrants",
+    public."BillingReferralAttributions",
+    public."BillingReferralRewards",
+    public."GroupOwnershipTransfers" TO sonivo_app;
+GRANT SELECT, INSERT ON TABLE
+    public."BillingFinancialEvents",
+    public."BillingReferralCodes",
+    public."BillingAccountingOutbox" TO sonivo_app;
+
 -- The mobile OIDC server reads registered clients and persists authorization
 -- and token state. Scopes are read-only; client registration is idempotently
 -- created/updated by the API when mobile authentication is enabled.

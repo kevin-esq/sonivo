@@ -101,11 +101,8 @@ public static class PlanCatalog
     public const string Pro = "pro";
     public const string Studio = "studio";
 
-    /// <summary>
-    /// Placeholder default until billing exists: existing groups keep their full
-    /// brand capabilities (Studio/Advanced) so nothing regresses on rollout.
-    /// </summary>
-    public const string DefaultPlanId = Studio;
+    /// <summary>Lowest-tier projection for legacy/missing plan ids; access still requires a grant.</summary>
+    public const string DefaultPlanId = Starter;
 
     public static readonly IReadOnlyDictionary<string, PlanDefinition> Plans =
         new Dictionary<string, PlanDefinition>(StringComparer.Ordinal)
@@ -113,9 +110,9 @@ public static class PlanCatalog
             [Starter] = new(
                 Starter,
                 PriceMonthlyMxn: 99,
-                TrialDays: 14,
+                TrialDays: 0,
                 TrialRequiresCard: false,
-                Limits: new PlanLimits(Members: 5, Groups: 1, Songs: 50, Setlists: 5, EventsPerMonth: 10, StorageGb: 1, StorageScope: "group"),
+                Limits: new PlanLimits(Members: 2, Groups: 1, Songs: 50, Setlists: 5, EventsPerMonth: 10, StorageGb: 1, StorageScope: "group"),
                 Features: new PlanFeatures(RolesLevel: "basic", HistoryLevel: "basic", Stats: false, Support: "email", Branding: BrandingLevel.None, RemovePoweredBy: false)),
 
             [Pro] = new(
@@ -123,15 +120,15 @@ public static class PlanCatalog
                 PriceMonthlyMxn: 199,
                 TrialDays: 14,
                 TrialRequiresCard: false,
-                Limits: new PlanLimits(Members: 15, Groups: 1, Songs: 500, Setlists: 50, EventsPerMonth: null, StorageGb: 10, StorageScope: "group"),
+                Limits: new PlanLimits(Members: 4, Groups: 1, Songs: 500, Setlists: 50, EventsPerMonth: null, StorageGb: 10, StorageScope: "group"),
                 Features: new PlanFeatures(RolesLevel: "advanced", HistoryLevel: "full", Stats: true, Support: "priority", Branding: BrandingLevel.Basic, RemovePoweredBy: false)),
 
             [Studio] = new(
                 Studio,
                 PriceMonthlyMxn: 499,
-                TrialDays: 14,
-                TrialRequiresCard: true,
-                Limits: new PlanLimits(Members: null, Groups: 3, Songs: null, Setlists: null, EventsPerMonth: null, StorageGb: 50, StorageScope: "organization"),
+                TrialDays: 0,
+                TrialRequiresCard: false,
+                Limits: new PlanLimits(Members: 15, Groups: 3, Songs: null, Setlists: null, EventsPerMonth: null, StorageGb: 50, StorageScope: "organization"),
                 Features: new PlanFeatures(RolesLevel: "advanced", HistoryLevel: "full", Stats: true, Support: "priority", Branding: BrandingLevel.Advanced, RemovePoweredBy: true))
         };
 
@@ -140,7 +137,7 @@ public static class PlanCatalog
 
     /// <summary>Resolves a plan id, falling back to the default for unknown/legacy ids.</summary>
     public static PlanDefinition Get(string? planId) =>
-        IsKnown(planId) ? Plans[planId!] : Plans[DefaultPlanId];
+        IsKnown(planId) ? Plans[planId!] : Plans[Starter];
 
     public static BrandingCapabilities BrandingCapabilitiesFor(string? planId) =>
         Get(planId).BrandingCapabilities;

@@ -283,6 +283,7 @@
     <string name="calendar_events">Events</string>
     <string name="plans_billing_status">Billing status</string>
     <string name="plans_provider_manual">Plan is managed manually</string>
+    <string name="plans_provider_stripe">Payments with Stripe</string>
     <string name="plans_provider_sandbox">Sandbox payment provider</string>
     <string name="plans_provider_unavailable">The payment provider is not configured.</string>
     <string name="plans_no_groups">You do not belong to any groups yet.</string>
