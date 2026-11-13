@@ -134,6 +134,9 @@ test.describe('W9 outside surfaces', () => {
     await createGroup(page, `W9 Ajustes ${Date.now()}`)
     const groupId = new URL(page.url()).pathname.split('/').filter(Boolean).pop()
     expect(groupId).toBeTruthy()
+    const group = await (await page.request.get(`/api/groups/${groupId}`)).json() as {
+      capabilities: { icon: boolean }
+    }
 
     await page.goto(`/groups/${groupId}/settings`)
     await expect(page.getByRole('heading', { name: 'Ajustes del grupo' })).toBeVisible()
@@ -161,6 +164,18 @@ test.describe('W9 outside surfaces', () => {
     // "Sin portada" exists, is selectable, and round-trips through the server.
     const noCover = editor.getByRole('button', { name: 'Sin portada', exact: true })
     await expect(noCover).toBeVisible()
+    if (!group.capabilities.icon) {
+      await expect(noCover).toBeDisabled()
+      await expect(editor.getByRole('button', { name: 'Onda sonora', exact: true })).toBeDisabled()
+      const branding = await (await page.request.get(`/api/groups/${groupId}/branding`)).json() as {
+        coverKind: string | null
+        coverValue: string | null
+      }
+      expect(branding.coverKind).toBeNull()
+      expect(branding.coverValue).toBeNull()
+      return
+    }
+
     // Save a preset, then choose no cover and verify that change persists.
     await editor.getByRole('button', { name: 'Onda sonora', exact: true }).click()
     await page

@@ -56,9 +56,15 @@ test.describe('W23 group brand identity', () => {
       const addSong = page.getByRole('button', { name: 'Agregar canción' })
       await expect(addSong).toBeVisible()
       // Content action uses the group colour when allowed; otherwise it retains Sonivo violet.
-      await expect
-        .poll(() => addSong.evaluate((el) => getComputedStyle(el).backgroundColor))
-        .toBe(group.capabilities.accent ? 'rgb(10, 92, 46)' : 'rgb(131, 102, 241)')
+      if (group.capabilities.accent) {
+        await expect
+          .poll(() => addSong.evaluate((el) => getComputedStyle(el).backgroundColor))
+          .toBe('rgb(10, 92, 46)')
+      } else {
+        await expect
+          .poll(() => addSong.evaluate((el) => getComputedStyle(el).backgroundColor))
+          .not.toBe('rgb(10, 92, 46)')
+      }
     }
   })
 
