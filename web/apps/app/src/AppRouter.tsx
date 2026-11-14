@@ -21,6 +21,7 @@ import { BrandLockup } from "./brand/SonivoMark";
 import { GuestAuthRoute } from "./shell/AuthScreen";
 import { PublicChrome, SessionScreen } from "./shell/GroupsChrome";
 import { AppShell } from "./shell/AppShell";
+import { AccountShell } from './shell/account/AccountShell'
 import { AuthenticatedPlayer } from './shell/AuthenticatedPlayer'
 import { useAuth, type AuthContext } from "./shell/authContext";
 import { GroupWorkspace } from "./shell/GroupWorkspace";
@@ -431,6 +432,16 @@ function RequireAuth({
 function AppLayout() {
   const ctx = useAuth();
   const location = useLocation();
+  const isAccountRoute = location.pathname === routes.account || location.pathname.startsWith(`${routes.account}/`)
+  if (isAccountRoute) {
+    return (
+      <AccountShell user={ctx.user} onLogout={ctx.onLogout} navigationMode="legacy">
+        <ErrorBoundary resetKey={location.pathname}>
+          <Outlet context={ctx} />
+        </ErrorBoundary>
+      </AccountShell>
+    )
+  }
   return (
     <>
       <AppShell user={ctx.user} onLogout={ctx.onLogout}>
