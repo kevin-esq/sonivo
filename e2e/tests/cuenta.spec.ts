@@ -2,6 +2,32 @@ import { expect, test } from '@playwright/test'
 import { register, uniqueEmail } from './helpers'
 
 test.describe('Account settings', () => {
+  test('account navigation stays in its isolated shell across tabs', async ({ page }) => {
+    await register(page, uniqueEmail('account-shell'))
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/app/account/membership')
+
+    const accountNavigation = page.getByRole('navigation', { name: 'Configuración de la cuenta' }).filter({ visible: true })
+    await expect(page.getByRole('heading', { name: 'Membresía', level: 1 })).toBeVisible()
+    await expect(page.getByTestId('app-sidebar')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Volver a Sonivo' })).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Buscar' })).toHaveCount(0)
+    await expect(accountNavigation.getByRole('link', { name: 'Perfil' })).toBeVisible()
+
+    for (const [label, heading] of [
+      ['Perfil', 'Mi cuenta'],
+      ['Seguridad', 'Seguridad'],
+      ['Preferencias', 'Preferencias'],
+      ['Notificaciones de la cuenta', 'Notificaciones de la cuenta'],
+      ['Membresía', 'Membresía'],
+    ]) {
+      await accountNavigation.getByRole('link', { name: label, exact: true }).click()
+      await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()
+      await expect(page.getByTestId('app-sidebar')).toHaveCount(0)
+      await expect(page.getByRole('navigation', { name: 'Configuración de la cuenta' }).filter({ visible: true })).toBeVisible()
+    }
+  })
+
   test('overview links to separate profile, security, preferences and membership pages', async ({ page }) => {
     await register(page, uniqueEmail('account'))
     await page.goto('/account')

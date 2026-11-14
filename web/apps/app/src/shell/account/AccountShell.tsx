@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import type { CurrentUser } from '../../api/client'
 import { useT } from '../../i18n'
-import { AppLink, AppNavigationProvider } from '../../routing/AppLink'
+import { AppLink, AppNavigationProvider, type NavigationMode } from '../../routing/AppLink'
 import { routes } from '../../routing/routes'
 import { Button } from '../../ui/button'
-import { NextBrandLockup } from '../../brand/NextBrandLockup'
+import { BrandLockup } from '../../brand/SonivoMark'
 
 function initialsOf(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -15,15 +15,17 @@ export function AccountShell({
   user,
   onLogout,
   children,
+  navigationMode = 'next',
 }: {
   user: CurrentUser
   onLogout: () => void
   children: ReactNode
+  navigationMode?: NavigationMode
 }) {
   const { t } = useT()
 
   return (
-    <AppNavigationProvider mode="next">
+    <AppNavigationProvider mode={navigationMode}>
       <div className="min-h-screen bg-canvas text-ink">
         <a
           href="#main"
@@ -34,7 +36,7 @@ export function AccountShell({
         <header className="border-b border-border-subtle bg-shell">
           <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-4 sm:gap-8">
-              <NextBrandLockup to={routes.home} />
+              <BrandLockup to={routes.home} />
               <span aria-hidden="true" className="hidden h-7 w-px bg-shell-border sm:block" />
               <span className="truncate text-sm font-semibold text-shell-foreground sm:text-base">
                 {t('account.title')}
