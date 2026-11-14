@@ -8,15 +8,6 @@ namespace Sonivo.Infrastructure.Persistence;
 
 public sealed class EfGroupOwnershipTransferStore(SonivoDbContext db) : IGroupOwnershipTransferStore
 {
-    public async Task LockGroupAsync(Guid groupId, CancellationToken cancellationToken)
-    {
-        if (!db.Database.IsNpgsql()) return;
-        if (db.Database.CurrentTransaction is null)
-            throw new InvalidOperationException("Ownership transfer requires a transaction.");
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT pg_advisory_xact_lock(hashtextextended({groupId.ToString()}, 0))", cancellationToken);
-    }
-
     public Task<GroupOwnershipTransfer?> FindPendingAsync(Guid groupId, CancellationToken cancellationToken)
         => db.GroupOwnershipTransfers.SingleOrDefaultAsync(x => x.GroupId == groupId
             && x.AcceptedAt == null && x.CancelledAt == null && x.ExpiredAt == null, cancellationToken);

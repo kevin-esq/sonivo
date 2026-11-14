@@ -59,6 +59,11 @@ public sealed class BillingProjection(SonivoDbContext db, IClock clock, StripeBi
                 && x.StartsAt <= now && now < x.ExpiresAt)
             .OrderByDescending(x => x.ExpiresAt).FirstOrDefaultAsync(ct);
 
+    internal static Task<DateTimeOffset?> LatestAccessGrantExpiryAsync(SonivoDbContext db, Guid organizationId,
+        CancellationToken ct)
+        => db.BillingAccessGrants.Where(x => x.OrganizationId == organizationId && x.RevokedAt == null)
+            .Select(x => (DateTimeOffset?)x.ExpiresAt).MaxAsync(ct);
+
     internal static void Apply(Group group, BillingGroup link, BillingOrganization organization, DateTimeOffset now,
         BillingAccessGrant? grant = null)
     {

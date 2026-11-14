@@ -83,9 +83,20 @@ public sealed class BillingWriteInterceptor(IClock clock) : SaveChangesIntercept
                 await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({existingLink.OrganizationId.ToString()}, 0))", ct);
             }
             var existingOrganization = await db.BillingOrganizations.SingleAsync(x => x.Id == existingLink.OrganizationId, ct);
-            var group = await db.Groups.SingleAsync(x => x.Id == id, ct);
+            var group = await db.Groups.IgnoreQueryFilters().SingleAsync(x => x.Id == id, ct);
             var activeGrant = await BillingProjection.ActiveGrantAsync(db, existingOrganization.Id, clock.UtcNow, ct);
             BillingProjection.Apply(group, existingLink, existingOrganization, clock.UtcNow, activeGrant);
+            var groupEntry = db.ChangeTracker.Entries<Group>().SingleOrDefault(x => x.Entity.Id == id);
+            var restoring = groupEntry is not null
+                && (groupEntry.Property(x => x.DeletedAt).OriginalValue is not null && group.DeletedAt is null
+                    || groupEntry.Property(x => x.ArchivedAt).OriginalValue is not null && group.ArchivedAt is null);
+            if (restoring)
+            {
+                var groupCount = await db.BillingGroups.CountAsync(x => x.OrganizationId == existingOrganization.Id, ct);
+                var capacity = activeGrant is null ? existingOrganization.GroupCapacity(clock.UtcNow)
+                    : PlanCatalog.Get(activeGrant.PlanId).Limits.Groups ?? int.MaxValue;
+                if (groupCount > capacity) throw new ConflictException("billing-group-limit");
+            }
             if (group.BillingStatus == BillingStatuses.ReadOnly) throw new ConflictException("billing-read-only");
             if (group.CreationBlocked) throw new ConflictException("billing-creation-blocked");
             var limits = PlanCatalog.Get(group.PlanId).Limits;

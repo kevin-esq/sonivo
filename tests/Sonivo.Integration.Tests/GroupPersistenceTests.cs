@@ -1,9 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Scheduling;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure;
+using Sonivo.Infrastructure.Payments;
 using Sonivo.Infrastructure.Persistence;
 using Xunit.Abstractions;
 
@@ -114,6 +117,96 @@ public class GroupPersistenceTests
         Assert.Null(await db.Groups.FirstOrDefaultAsync(g => g.Id == created.Id));
         Assert.NotNull(await db.Groups.IgnoreQueryFilters().FirstOrDefaultAsync(g => g.Id == created.Id));
         _output.WriteLine("PostgreSQL integration executed successfully.");
+    }
+
+    [Fact]
+    public async Task Postgres_stripe_billing_allows_restore_from_trash()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("SONIVO_TEST_PG");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            _output.WriteLine("SKIPPED: SONIVO_TEST_PG is not configured.");
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var options = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(connectionString)
+            .AddInterceptors(new BillingWriteInterceptor(new FixedClock(now)))
+            .Options;
+        await using var db = new SonivoDbContext(options);
+        await db.Database.MigrateAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
+        var ownerId = Guid.NewGuid();
+        await EnsureBareIdentityUserAsync(db, ownerId);
+        var group = Group.Create($"Trash restore {Guid.NewGuid():N}", now);
+        var organization = BillingOrganization.Create(ownerId, group.Id, now);
+        organization.ApplySubscription("sub_restore_test", PlanCatalog.Pro, "month", "active",
+            now.AddMonths(1), null, false, 0, now);
+        db.Groups.Add(group);
+        db.Memberships.Add(Membership.CreateOwner(group.Id, ownerId, now));
+        db.BillingOrganizations.Add(organization);
+        db.BillingGroups.Add(new BillingGroup { GroupId = group.Id, OrganizationId = organization.Id });
+        await db.SaveChangesAsync();
+
+        group.SoftDelete(group.Version, now.AddSeconds(1));
+        await db.SaveChangesAsync();
+        group.RestoreFromTrash(group.Version, now.AddDays(1));
+        await db.SaveChangesAsync();
+
+        Assert.True(await db.Groups.AnyAsync(x => x.Id == group.Id));
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task Postgres_stripe_billing_blocks_trash_restore_when_account_is_over_quota()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("SONIVO_TEST_PG");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            _output.WriteLine("SKIPPED: SONIVO_TEST_PG is not configured.");
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var ownerId = Guid.NewGuid();
+        var activeGroup = Group.Create($"Active {Guid.NewGuid():N}", now);
+        var trashedGroup = Group.Create($"Trashed {Guid.NewGuid():N}", now);
+        trashedGroup.SoftDelete(trashedGroup.Version, now.AddSeconds(1));
+        var organization = BillingOrganization.Create(ownerId, activeGroup.Id, now);
+        organization.ApplySubscription($"sub_over_quota_{Guid.NewGuid():N}", PlanCatalog.Starter, "month", "active",
+            now.AddMonths(1), null, false, 0, now);
+
+        var seedOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+        await using (var seed = new SonivoDbContext(seedOptions))
+        {
+            await seed.Database.MigrateAsync();
+            await EnsureBareIdentityUserAsync(seed, ownerId);
+            seed.Groups.AddRange(activeGroup, trashedGroup);
+            seed.Memberships.AddRange(
+                Membership.CreateOwner(activeGroup.Id, ownerId, now),
+                Membership.CreateOwner(trashedGroup.Id, ownerId, now));
+            seed.BillingOrganizations.Add(organization);
+            seed.BillingGroups.AddRange(
+                new BillingGroup { GroupId = activeGroup.Id, OrganizationId = organization.Id },
+                new BillingGroup { GroupId = trashedGroup.Id, OrganizationId = organization.Id });
+            await seed.SaveChangesAsync();
+        }
+
+        var options = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(connectionString)
+            .AddInterceptors(new BillingWriteInterceptor(new FixedClock(now.AddDays(2))))
+            .Options;
+        await using var db = new SonivoDbContext(options);
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var restored = await db.Groups.IgnoreQueryFilters().SingleAsync(x => x.Id == trashedGroup.Id);
+        restored.RestoreFromTrash(restored.Version, now.AddDays(2));
+
+        await Assert.ThrowsAsync<ConflictException>(() => db.SaveChangesAsync());
+        await transaction.RollbackAsync();
     }
 
     [Fact]
@@ -250,5 +343,10 @@ public class GroupPersistenceTests
 INSERT INTO ""AspNetUsers"" (""Id"", ""UserName"", ""NormalizedUserName"", ""Email"", ""NormalizedEmail"", ""EmailConfirmed"", ""PasswordHash"", ""SecurityStamp"", ""ConcurrencyStamp"", ""PhoneNumberConfirmed"", ""TwoFactorEnabled"", ""LockoutEnabled"", ""AccessFailedCount"", ""DisplayName"")
 VALUES ({userId}, {email}, {normalized}, {email}, {normalized}, TRUE, 'x', 'stamp', 'conc', FALSE, FALSE, FALSE, 0, {displayName})
 ON CONFLICT (""Id"") DO NOTHING;");
+    }
+
+    private sealed class FixedClock(DateTimeOffset utcNow) : Sonivo.Application.Abstractions.IClock
+    {
+        public DateTimeOffset UtcNow { get; } = utcNow;
     }
 }

@@ -36,6 +36,76 @@ public sealed class BillingOrganizationTests
         Assert.Throws<InvalidOperationException>(() => organization.StartTrial(PlanCatalog.Pro, Now.AddDays(30), Now));
     }
 
+    [Fact]
+    public void Retention_deadline_starts_when_trial_access_ends()
+    {
+        var organization = BillingOrganization.Create(Guid.NewGuid(), Guid.NewGuid(), Now);
+        organization.StartTrial(PlanCatalog.Pro, Now.AddDays(14), Now);
+
+        Assert.Null(organization.RetentionEndsAt(Now.AddDays(13)));
+        Assert.Equal(Now.AddDays(104), organization.RetentionEndsAt(Now.AddDays(14)));
+    }
+
+    [Fact]
+    public void Retention_deadline_starts_after_past_due_grace()
+    {
+        var organization = BillingOrganization.Create(Guid.NewGuid(), Guid.NewGuid(), Now);
+        organization.ApplySubscription("sub_1", PlanCatalog.Pro, "month", "past_due", Now.AddMonths(1), null, false, 0, Now);
+
+        Assert.Null(organization.RetentionEndsAt(Now.AddDays(6)));
+        Assert.Equal(Now.AddDays(97), organization.RetentionEndsAt(Now.AddDays(7)));
+    }
+
+    [Fact]
+    public void Retention_deadline_is_ninety_days_after_paid_period_end()
+    {
+        var organization = BillingOrganization.Create(Guid.NewGuid(), Guid.NewGuid(), Now);
+        organization.ApplySubscription("sub_1", PlanCatalog.Pro, "month", "active", Now.AddDays(30), null, false, 0, Now);
+
+        Assert.Equal(Now.AddDays(120), organization.RetentionEndsAt(Now.AddDays(30)));
+    }
+
+    [Fact]
+    public void Retention_deadline_includes_the_latest_non_revoked_access_grant()
+    {
+        var organization = BillingOrganization.Create(Guid.NewGuid(), Guid.NewGuid(), Now);
+        organization.StartTrial(PlanCatalog.Pro, Now.AddDays(14), Now);
+
+        Assert.Equal(Now.AddDays(120), organization.RetentionEndsAt(Now.AddDays(14), Now.AddDays(30)));
+        Assert.Equal(Now.AddDays(104), organization.RetentionEndsAt(Now.AddDays(14)));
+    }
+
+    [Fact]
+    public void Old_trial_and_access_grant_do_not_expire_an_active_subscription()
+    {
+        var createdAt = Now.AddDays(-200);
+        var organization = BillingOrganization.Create(Guid.NewGuid(), Guid.NewGuid(), createdAt);
+        organization.StartTrial(PlanCatalog.Pro, createdAt.AddDays(14), createdAt);
+        organization.ApplySubscription("sub_1", PlanCatalog.Pro, "month", "active", Now.AddDays(30), null,
+            false, 0, Now.AddDays(-1));
+
+        Assert.Null(organization.RetentionEndsAt(Now, Now.AddDays(-120)));
+    }
+
+    [Fact]
+    public void Retention_never_purges_active_subscription_with_missing_period_end()
+    {
+        var organization = BillingOrganization.Create(Guid.NewGuid(), Guid.NewGuid(), Now);
+        organization.ApplySubscription("sub_1", PlanCatalog.Pro, "month", "active", null, null, false, 0, Now);
+
+        Assert.Null(organization.RetentionEndsAt(Now.AddYears(1)));
+    }
+
+    [Fact]
+    public void Scheduled_cancellation_retains_data_until_paid_period_ends()
+    {
+        var organization = BillingOrganization.Create(Guid.NewGuid(), Guid.NewGuid(), Now);
+        organization.ApplySubscription("sub_1", PlanCatalog.Pro, "month", "canceled", Now.AddDays(30), null, true, 0, Now);
+
+        Assert.Null(organization.RetentionEndsAt(Now.AddDays(29)));
+        Assert.Equal(Now.AddDays(120), organization.RetentionEndsAt(Now.AddDays(30)));
+    }
+
     [Theory]
     [InlineData(PlanCatalog.Starter)]
     [InlineData(PlanCatalog.Studio)]

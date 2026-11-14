@@ -4,6 +4,7 @@ import type { FormEvent, ReactNode } from "react";
 import {
   BookOpen,
   CalendarDays,
+  Archive,
   ChevronDown,
   ChevronRight,
   Clock,
@@ -26,9 +27,15 @@ import {
 import type { LucideIcon } from "lucide-react";
 import {
   createGroup,
+  archiveGroup,
+  listMyGroupLifecycle,
   listMyGroups,
+  permanentlyDeleteTrashedGroup,
   problemDetail,
+  restoreArchivedGroup,
+  restoreTrashedGroup,
   type CurrentUser,
+  type GroupLifecycleSummary,
   type GroupSummary,
 } from "../api/client";
 import { useT } from "../i18n";
@@ -923,6 +930,12 @@ export function GroupsPage({
   );
 
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [lifecycleOpen, setLifecycleOpen] = useState(false);
+  const [lifecycleGroups, setLifecycleGroups] = useState<GroupLifecycleSummary[] | null>(null);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  const [lifecycleBusyId, setLifecycleBusyId] = useState<string | null>(null);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<GroupLifecycleSummary | null>(null);
+  const successfulPurgeClose = useRef(false);
   const { showToast } = useToast();
   const { copy } = useCopyToClipboard();
 
@@ -1033,6 +1046,33 @@ export function GroupsPage({
     }
   }
 
+  async function openLifecycle() {
+    setLifecycleOpen(true);
+    setLifecycleGroups(null);
+    setLifecycleError(null);
+    try {
+      setLifecycleGroups(await listMyGroupLifecycle());
+    } catch (err) {
+      setLifecycleError(problemDetail(err, t));
+    }
+  }
+
+  async function restoreLifecycleGroup(group: GroupLifecycleSummary) {
+    setLifecycleBusyId(group.id);
+    setLifecycleError(null);
+    try {
+      if (group.status === 'archived') await restoreArchivedGroup(group.id, group.version);
+      else await restoreTrashedGroup(group.id, group.version);
+      setLifecycleGroups((current) => current?.filter((item) => item.id !== group.id) ?? []);
+      setReloadKey((key) => key + 1);
+      notify('ok', t('groups.lifecycleRestored'));
+    } catch (err) {
+      setLifecycleError(problemDetail(err, t));
+    } finally {
+      setLifecycleBusyId(null);
+    }
+  }
+
   function menuFor(group: GroupCardData): MenuItem[] {
     const base = routes.group(group.id);
     const owner = isOwner(group);
@@ -1082,6 +1122,20 @@ export function GroupsPage({
           label: t("group.settings"),
           icon: Settings,
           to: `${base}/settings`,
+        },
+        {
+          key: "archive",
+          label: t("groups.archive"),
+          icon: Archive,
+          onSelect: async () => {
+            try {
+              await archiveGroup(group.id, group.version);
+              setGroups((prev) => prev?.filter((item) => item.id !== group.id) ?? prev);
+              notify('ok', t('groups.archivedSuccess'));
+            } catch (err) {
+              notify('error', problemDetail(err, t));
+            }
+          },
         },
         {
           key: "delete",
@@ -1173,6 +1227,10 @@ export function GroupsPage({
           </div> : null}
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <Button type="button" variant="outline" className="w-full justify-center sm:w-auto" onClick={() => void openLifecycle()}>
+            <Archive className="h-4 w-4" aria-hidden="true" />
+            {t('groups.lifecycle')}
+          </Button>
           {/* Discrete secondary: join with a link. */}
           <Button
             type="button"
@@ -1519,6 +1577,67 @@ export function GroupsPage({
             }}
           />
         ) : null}
+      </Modal>
+
+      <Modal
+        open={lifecycleOpen}
+        onClose={() => setLifecycleOpen(false)}
+        title={t('groups.lifecycleTitle')}
+        closeLabel={t('groups.close')}
+      >
+        {lifecycleError ? <p role="alert" className="text-sm text-error-ink">{lifecycleError}</p> : null}
+        {lifecycleGroups === null && !lifecycleError ? <p className="text-sm text-muted">{t('groups.loading')}</p> : null}
+        {lifecycleGroups?.length === 0 ? <p className="text-sm text-muted">{t('groups.lifecycleEmpty')}</p> : null}
+        {lifecycleGroups?.length ? <ul className="max-h-[60vh] space-y-2 overflow-y-auto">
+          {lifecycleGroups.map((group) => {
+            const restoreExpired = group.status === 'trash' && !!group.trashExpiresAt
+              && Date.parse(group.trashExpiresAt) <= Date.now();
+            return <li key={group.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-subtle p-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{group.name}</p>
+                <p className="text-xs text-muted">{restoreExpired
+                  ? t('groups.restoreExpired')
+                  : t(group.status === 'trash' ? 'groups.inTrashUntil' : 'groups.archivedLabel', group.status === 'trash' ? { date: group.trashExpiresAt ? new Date(group.trashExpiresAt).toLocaleDateString(lang) : '' } : {})}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!restoreExpired ? <Button type="button" variant="outline" disabled={lifecycleBusyId !== null} onClick={() => void restoreLifecycleGroup(group)}>
+                  {lifecycleBusyId === group.id ? t('dashboard.working') : t('groups.restore')}
+                </Button> : null}
+                {group.status === 'trash' && group.canPermanentlyDelete ? <Button type="button" variant="outline" className="text-error-ink" disabled={lifecycleBusyId !== null} onClick={() => { setLifecycleOpen(false); setPermanentDeleteTarget(group) }}>
+                  {t('groups.permanentDelete')}
+                </Button> : null}
+              </div>
+            </li>
+          })}
+        </ul> : null}
+      </Modal>
+
+      <Modal
+        open={permanentDeleteTarget !== null}
+        onClose={() => {
+          const successful = successfulPurgeClose.current;
+          successfulPurgeClose.current = false;
+          setPermanentDeleteTarget(null);
+          if (!successful) setLifecycleOpen(true);
+        }}
+        title={t('groups.permanentDeleteTitle')}
+        closeLabel={t('groups.close')}
+      >
+        {permanentDeleteTarget ? <ConfirmForm
+          body={t('groups.permanentDeleteBody', { name: permanentDeleteTarget.name })}
+          confirmLabel={t('groups.permanentDeleteConfirm')}
+          pendingLabel={t('dashboard.deleting')}
+          t={t}
+          onCancel={() => { setPermanentDeleteTarget(null); setLifecycleOpen(true) }}
+          onConfirm={async () => {
+            await permanentlyDeleteTrashedGroup(permanentDeleteTarget.id, permanentDeleteTarget.version);
+            setLifecycleGroups((current) => current?.filter((item) => item.id !== permanentDeleteTarget.id) ?? []);
+            successfulPurgeClose.current = true;
+            setPermanentDeleteTarget(null);
+            setReloadKey((key) => key + 1);
+            notify('ok', t('groups.permanentDeleteSuccess'));
+          }}
+        /> : null}
       </Modal>
 
       <Modal

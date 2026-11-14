@@ -2,6 +2,13 @@
 -- New tables/sequences stay inaccessible until their reviewed grants are added.
 BEGIN;
 
+DO $$
+BEGIN
+    EXECUTE format('REVOKE CREATE, TEMPORARY ON DATABASE %I FROM PUBLIC', current_database());
+    EXECUTE format('REVOKE CREATE, TEMPORARY ON DATABASE %I FROM sonivo_app', current_database());
+    EXECUTE format('GRANT CONNECT ON DATABASE %I TO sonivo_app', current_database());
+END $$;
+
 REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM sonivo_app;
 REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM sonivo_app;
 
@@ -24,12 +31,12 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
     public."Rsvps",
     public."Tasks" TO sonivo_app;
 
-GRANT SELECT, INSERT ON TABLE
+GRANT SELECT, INSERT, DELETE ON TABLE
     public."AccountAudit",
-    public."GroupAuditLog",
-    public."WebhookEvents" TO sonivo_app;
+    public."GroupAuditLog" TO sonivo_app;
+GRANT SELECT, INSERT ON TABLE public."WebhookEvents" TO sonivo_app;
 
-GRANT SELECT, INSERT, UPDATE ON TABLE public."Notifications" TO sonivo_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public."Notifications" TO sonivo_app;
 
 GRANT SELECT, INSERT, UPDATE ON TABLE
     public."BillingOrganizations",
@@ -37,12 +44,14 @@ GRANT SELECT, INSERT, UPDATE ON TABLE
     public."BillingTrials",
     public."BillingOperations",
     public."BillingInbox" TO sonivo_app;
+GRANT DELETE ON TABLE public."BillingGroups" TO sonivo_app;
 GRANT SELECT, INSERT ON TABLE public."BillingAudit" TO sonivo_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public."BillingLegacyGroupNotices" TO sonivo_app;
 GRANT SELECT, INSERT, UPDATE ON TABLE
     public."BillingAccessGrants",
     public."BillingReferralAttributions",
-    public."BillingReferralRewards",
-    public."GroupOwnershipTransfers" TO sonivo_app;
+    public."BillingReferralRewards" TO sonivo_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public."GroupOwnershipTransfers" TO sonivo_app;
 GRANT SELECT, INSERT ON TABLE
     public."BillingFinancialEvents",
     public."BillingReferralCodes",

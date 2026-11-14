@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sonivo.Application.Abstractions;
+using Sonivo.Domain.Billing;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure.Persistence;
 
@@ -36,6 +37,7 @@ public sealed class EfGroupStore : IGroupStore
                 m => m.GroupId,
                 g => g.Id,
                 (m, g) => new { Membership = m, Group = g })
+            .Where(x => x.Group.ArchivedAt == null)
             .OrderBy(x => x.Group.Name)
             // Two-step projection: each correlated aggregate is computed once per group, then
             // combined in memory, instead of repeating the same subquery inside nested conditionals.
@@ -92,6 +94,29 @@ public sealed class EfGroupStore : IGroupStore
 
     public Task<Group?> GetByIdAsync(Guid groupId, CancellationToken cancellationToken)
         => _db.Groups.FirstOrDefaultAsync(g => g.Id == groupId, cancellationToken);
+
+    public Task<Group?> GetLifecycleGroupForOwnerAsync(Guid groupId, Guid userId, CancellationToken cancellationToken)
+        => _db.Memberships
+            .Where(m => m.GroupId == groupId && m.UserId == userId
+                && m.Role == MembershipRoles.Owner && m.AccessDisabledAt == null)
+            .Join(_db.Groups.IgnoreQueryFilters(), m => m.GroupId, g => g.Id, (_, g) => g)
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<GroupLifecycleListItem>> ListLifecycleForOwnerAsync(
+        Guid userId, CancellationToken cancellationToken)
+        => await _db.Memberships.AsNoTracking()
+            .Where(m => m.UserId == userId && m.Role == MembershipRoles.Owner && m.AccessDisabledAt == null)
+            .Join(_db.Groups.IgnoreQueryFilters().AsNoTracking(), m => m.GroupId, g => g.Id, (_, g) => g)
+            .Where(g => g.ArchivedAt != null || g.DeletedAt != null)
+            .OrderBy(g => g.Name)
+            .Select(g => new GroupLifecycleListItem(
+                g.Id,
+                g.Name,
+                g.DeletedAt != null ? "trash" : "archived",
+                g.ArchivedAt,
+                g.TrashExpiresAt,
+                g.Version))
+            .ToListAsync(cancellationToken);
 
     public Task<Group?> GetBySlugAsync(string slug, CancellationToken cancellationToken)
         => _db.Groups.FirstOrDefaultAsync(g => g.Slug == slug, cancellationToken);

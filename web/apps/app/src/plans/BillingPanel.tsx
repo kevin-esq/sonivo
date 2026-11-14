@@ -131,6 +131,7 @@ export function BillingPanel({ groupId, groups, catalog, usage, initialSummary, 
         </div>
       </div>
       <p className="mt-4 border-t border-border-subtle pt-3 text-sm text-muted">{t(summary.canCreate ? 'billing.preserveContent' : 'billing.readOnlyRetention')}</p>
+      {summary.dataRetentionEndsAt && !summary.canCreate ? <p className="text-sm font-medium text-muted">{t('billing.dataRetentionDeadline', { date: new Date(summary.dataRetentionEndsAt).toLocaleDateString(lang) })}</p> : null}
       {billing.failed ? <p role="alert" className="mt-3 text-sm text-error-ink">{t('billing.error')}</p> : null}
     </section>
 

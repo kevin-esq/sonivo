@@ -2,6 +2,8 @@
 
 **Status:** ACCEPTED, 2026-11-03; product amendments ADR-0113/0114 (2026-11-05) and ADR-0116 (2026-11-06). **Implementation baseline:** `bdc766e`, `feature/stripe-billing`.
 
+**Delivery update (2026-11-14):** T-BILL-08 lifecycle code, localized UI, additive migrations, and local PostgreSQL/API/browser coverage are implemented in `feature/plans-org-lifecycle`. Migrations were applied only to isolated local test databases. Production retention and purge remain disabled until backup restore, tombstone replay, object deletion, and runtime-principal gates pass. Stripe Checkout was not exercised in this delivery.
+
 **Operational amendment:** ADR-0114 (2026-11-05) requires a recipient-owned active paid subscription with capacity before Group ownership transfer. The Group billing link moves atomically; the former payer's subscription stays separate and remains account-manageable. For the one-time launch cleanup, notify existing Groups without paid coverage or an active Banda trial; start five days after successful notice delivery. Active Banda trial exempts the Group. Permanent cleanup stays disabled until verified backup restore and file deletion.
 
 **Group creation amendment:** ADR-0117 (2026-11-12) requires a valid paid entitlement, active Banda trial, or active internal access grant before creating a Group in Stripe billing mode; the existing seven-day payment grace remains valid entitlement. Users without one may still join existing Groups. Start the no-card, no-auto-charge Banda trial from Account Membership before creating the first Group. A Billing Organization may have no PrimaryGroupId until the first Group is created; assign it atomically with Group creation. Server checks remain authoritative.
@@ -27,7 +29,7 @@ On accepting a transfer, the recipient must own an active paid subscription with
 5. **BILL-05:** shared Studio membership/capacity, storage enforcement, trial and change flows.
 6. **BILL-06:** existing web plans/membership UI, localized states, native read compatibility.
 7. **BILL-07:** PostgreSQL/API/Playwright and external sandbox proof, operational runbook and review.
-8. **BILL-08:** final plan/trial contract, single Owner/Admin role migration and subscription-qualified transfer, Group archive/trash/restore/purge, five-day unbilled legacy launch cleanup, 90-day Organization read-only/export/purge, file deletion, and backup-replay design. Production purge stays disabled until backup restore and tombstone replay are proven.
+8. **BILL-08:** final plan/trial contract, single Owner/Admin role migration and subscription-qualified transfer, Group archive/trash/restore/purge, five-day unbilled legacy launch cleanup, 90-day Organization read-only/export/purge, file deletion, and backup-replay design. **Implementation complete locally.** Production purge stays disabled until backup restore and tombstone replay are proven.
 
 Use TDD at approved domain/Application/API/PostgreSQL/browser boundaries. Each ticket requires exact validation results. Never claim unavailable external sandbox tests passed. New subscriptions require explicit consent; return URLs do not activate plans. Refund/dispute events produce review records, never automatic refunds. Credentials and fiscal certificates never enter git. Do not run data-changing migrations against persistent environments without a verified backup and restore procedure. Do not bypass Phase 4.2 RLS gates.
 

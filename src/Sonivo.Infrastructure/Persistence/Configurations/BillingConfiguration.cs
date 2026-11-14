@@ -161,3 +161,15 @@ public sealed class BillingAuditConfiguration : IEntityTypeConfiguration<Billing
         b.HasIndex(x => new { x.OrganizationId, x.CreatedAt });
     }
 }
+
+public sealed class BillingLegacyGroupNoticeConfiguration : IEntityTypeConfiguration<BillingLegacyGroupNotice>
+{
+    public void Configure(EntityTypeBuilder<BillingLegacyGroupNotice> b)
+    {
+        b.ToTable("BillingLegacyGroupNotices");
+        b.HasKey(x => x.GroupId);
+        b.HasIndex(x => new { x.SentAt, x.NextAttemptAt });
+        b.HasIndex(x => x.PurgeAt);
+        b.HasOne<Group>().WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Restrict);
+    }
+}

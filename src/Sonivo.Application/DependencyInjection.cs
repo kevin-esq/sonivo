@@ -45,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<GetGroupSongTagsHandler>();
         services.AddScoped<UpdateGroupSongTagsHandler>();
         services.AddScoped<SoftDeleteGroupHandler>();
+        services.AddScoped<GroupLifecycleHandlers>();
         services.AddScoped<ListMembersHandler>();
         services.AddScoped<PresenceHeartbeatHandler>();
         services.AddScoped<ListRosterHandler>();

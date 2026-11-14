@@ -40,6 +40,8 @@ public sealed class Group : IVersionedEntity
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? DeletedAt { get; private set; }
+    public DateTimeOffset? ArchivedAt { get; private set; }
+    public DateTimeOffset? TrashExpiresAt { get; private set; }
     public int Version { get; private set; }
 
     public ICollection<Membership> Memberships { get; private set; } = new List<Membership>();
@@ -226,10 +228,41 @@ public sealed class Group : IVersionedEntity
         EnsureNotDeleted();
         EnsureExpectedVersion(expectedVersion);
         DeletedAt = now;
+        ArchivedAt = null;
+        TrashExpiresAt = now.AddDays(30);
         Touch(now);
     }
 
     public bool IsDeleted => DeletedAt is not null;
+    public bool IsArchived => ArchivedAt is not null && !IsDeleted;
+
+    public void Archive(int expectedVersion, DateTimeOffset now)
+    {
+        EnsureNotDeleted();
+        EnsureExpectedVersion(expectedVersion);
+        if (ArchivedAt is not null) throw new InvalidOperationException("Group is already archived.");
+        ArchivedAt = now;
+        Touch(now);
+    }
+
+    public void RestoreFromArchive(int expectedVersion, DateTimeOffset now)
+    {
+        EnsureNotDeleted();
+        EnsureExpectedVersion(expectedVersion);
+        if (ArchivedAt is null) throw new InvalidOperationException("Group is not archived.");
+        ArchivedAt = null;
+        Touch(now);
+    }
+
+    public void RestoreFromTrash(int expectedVersion, DateTimeOffset now)
+    {
+        EnsureExpectedVersion(expectedVersion);
+        if (!IsDeleted || TrashExpiresAt is null || TrashExpiresAt <= now)
+            throw new InvalidOperationException("Group is not recoverable from trash.");
+        DeletedAt = null;
+        TrashExpiresAt = null;
+        Touch(now);
+    }
 
     private void Touch(DateTimeOffset now)
     {
