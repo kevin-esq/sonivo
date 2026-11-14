@@ -10,6 +10,7 @@ public sealed class GroupOwnershipTransferHandlers(
     GroupAccessService access,
     IMembershipStore memberships,
     IGroupOwnershipTransferStore transfers,
+    IGroupOperationLock groupLock,
     IGroupDataOperation data,
     IUnitOfWork unitOfWork,
     IGroupAuditStore audit,
@@ -30,8 +31,8 @@ public sealed class GroupOwnershipTransferHandlers(
     public Task<OwnershipTransferDto> RequestAsync(Guid userId, Guid groupId, Guid targetUserId, CancellationToken ct)
         => data.ExecuteAsUserAsync(userId, async token =>
         {
+            await groupLock.LockAsync(groupId, token);
             await access.RequireOwnerAsync(groupId, userId, token);
-            await transfers.LockGroupAsync(groupId, token);
             var target = await memberships.GetForUpdateAsync(groupId, targetUserId, token)
                 ?? throw new NotFoundException("Member not found.");
             if (!target.AccessEnabled || target.IsOwner) throw new ConflictException("ownership-transfer-target-invalid");
@@ -51,7 +52,7 @@ public sealed class GroupOwnershipTransferHandlers(
         await data.ExecuteAsUserAsync(userId, async token =>
         {
             await access.RequireMemberAsync(groupId, userId, token);
-            await transfers.LockGroupAsync(groupId, token);
+            await groupLock.LockAsync(groupId, token);
             var transfer = await transfers.GetForUpdateAsync(groupId, transferId, token)
                 ?? throw new NotFoundException("Ownership transfer not found.");
             if (transfer.ToUserId != userId || transfer.ExpireIfDue(clock.UtcNow) || !transfer.IsPending)
@@ -85,8 +86,8 @@ public sealed class GroupOwnershipTransferHandlers(
     public Task CancelAsync(Guid userId, Guid groupId, Guid transferId, CancellationToken ct)
         => data.ExecuteAsUserAsync(userId, async token =>
         {
+            await groupLock.LockAsync(groupId, token);
             await access.RequireOwnerAsync(groupId, userId, token);
-            await transfers.LockGroupAsync(groupId, token);
             var transfer = await transfers.GetForUpdateAsync(groupId, transferId, token)
                 ?? throw new NotFoundException("Ownership transfer not found.");
             try { transfer.Cancel(userId, clock.UtcNow); }

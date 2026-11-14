@@ -11,7 +11,7 @@ namespace Sonivo.Infrastructure.Blobs;
 // Object keys reuse the existing ObjectKey scheme unchanged (resources/{id}).
 // Reads/writes stay server-side behind the AuthZ'd GET .../content proxy:
 // no public buckets, no presigned reads, no browser-direct PUT, no CORS.
-public sealed class R2BlobStore : IBlobStore, IByteRangeBlobStore
+public sealed class R2BlobStore : IBlobStore, IByteRangeBlobStore, IBlobKeyLister
 {
     private readonly IAmazonS3 _client;
 
@@ -137,6 +137,24 @@ public sealed class R2BlobStore : IBlobStore, IByteRangeBlobStore
     public async Task DeleteAsync(string objectKey, CancellationToken cancellationToken)
     {
         await _client.DeleteObjectAsync(BucketName, objectKey, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<string>> ListKeysAsync(string prefix, CancellationToken cancellationToken)
+    {
+        var keys = new List<string>();
+        string? continuationToken = null;
+        do
+        {
+            var response = await _client.ListObjectsV2Async(new ListObjectsV2Request
+            {
+                BucketName = BucketName,
+                Prefix = prefix,
+                ContinuationToken = continuationToken
+            }, cancellationToken);
+            keys.AddRange(response.S3Objects.Select(item => item.Key));
+            continuationToken = response.IsTruncated == true ? response.NextContinuationToken : null;
+        } while (continuationToken is not null);
+        return keys;
     }
 
     private sealed class ResponseOwnedStream : Stream

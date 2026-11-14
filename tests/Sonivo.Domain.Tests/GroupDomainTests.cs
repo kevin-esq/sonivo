@@ -53,6 +53,50 @@ public class GroupDomainTests
         Assert.True(group.IsDeleted);
         Assert.Equal(2, group.Version);
         Assert.Equal(Now.AddHours(1), group.DeletedAt);
+        Assert.Equal(Now.AddDays(30).AddHours(1), group.TrashExpiresAt);
+        Assert.Null(group.ArchivedAt);
+    }
+
+    [Fact]
+    public void Archive_and_restore_preserve_data_and_increment_version()
+    {
+        var group = Group.Create("Band", Now);
+        group.Archive(expectedVersion: 1, Now.AddHours(1));
+
+        Assert.True(group.IsArchived);
+        Assert.Equal(Now.AddHours(1), group.ArchivedAt);
+        Assert.Equal(2, group.Version);
+
+        group.RestoreFromArchive(expectedVersion: 2, Now.AddHours(2));
+
+        Assert.False(group.IsArchived);
+        Assert.Null(group.ArchivedAt);
+        Assert.Equal(3, group.Version);
+    }
+
+    [Fact]
+    public void Trash_restore_is_allowed_only_within_30_days()
+    {
+        var group = Group.Create("Band", Now);
+        group.SoftDelete(expectedVersion: 1, Now);
+
+        group.RestoreFromTrash(expectedVersion: 2, Now.AddDays(29));
+
+        Assert.False(group.IsDeleted);
+        Assert.Null(group.TrashExpiresAt);
+        Assert.Equal(3, group.Version);
+    }
+
+    [Fact]
+    public void Trash_restore_rejects_expired_or_stale_group()
+    {
+        var expired = Group.Create("Expired", Now);
+        expired.SoftDelete(expectedVersion: 1, Now);
+        Assert.Throws<InvalidOperationException>(() => expired.RestoreFromTrash(2, Now.AddDays(30)));
+
+        var stale = Group.Create("Stale", Now);
+        stale.SoftDelete(expectedVersion: 1, Now);
+        Assert.Throws<ConcurrencyConflictException>(() => stale.RestoreFromTrash(1, Now.AddDays(1)));
     }
 
     [Fact]

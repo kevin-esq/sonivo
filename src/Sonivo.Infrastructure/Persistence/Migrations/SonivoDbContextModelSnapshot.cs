@@ -543,6 +543,38 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.ToTable("BillingFinancialEvents", (string)null);
                 });
 
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingLegacyGroupNotice", b =>
+                {
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ExemptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("PurgeAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("GroupId");
+
+                    b.HasIndex("PurgeAt");
+
+                    b.HasIndex("SentAt", "NextAttemptAt");
+
+                    b.ToTable("BillingLegacyGroupNotices", (string)null);
+                });
+
             modelBuilder.Entity("Sonivo.Domain.Billing.BillingOrganization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1381,6 +1413,9 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("BillingStatus")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1422,6 +1457,9 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.Property<string>("SongTagDefinitions")
                         .HasColumnType("text");
 
+                    b.Property<DateTimeOffset?>("TrashExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("TrialEndsAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1437,6 +1475,10 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.HasIndex("Slug")
                         .IsUnique()
                         .HasFilter("\"Slug\" IS NOT NULL");
+
+                    b.HasIndex("TrashExpiresAt")
+                        .HasDatabaseName("IX_Groups_TrashExpiresAt")
+                        .HasFilter("\"TrashExpiresAt\" IS NOT NULL");
 
                     b.ToTable("Groups", (string)null);
                 });
@@ -2236,6 +2278,15 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     b.HasOne("Sonivo.Domain.Billing.BillingOrganization", null)
                         .WithMany()
                         .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sonivo.Domain.Billing.BillingLegacyGroupNotice", b =>
+                {
+                    b.HasOne("Sonivo.Domain.Tenancy.Group", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

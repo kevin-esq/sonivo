@@ -31,6 +31,7 @@ public sealed partial class StripeBillingService(
                     .Select(x => x.GroupId).ToListAsync(token);
                 var now = clock.UtcNow;
                 var grant = await BillingProjection.ActiveGrantAsync(db, organization.Id, now, token);
+                var retentionGrantEnd = await BillingProjection.LatestAccessGrantExpiryAsync(db, organization.Id, token);
                 summaries.Add(new BillingSummary(organization.Id, true, grant?.PlanId ?? organization.EffectivePlan(now),
                     grant is null ? organization.Status : "temporary_grant",
                     organization.Interval, organization.PeriodEndsAt, organization.TrialEndsAt,
@@ -39,7 +40,7 @@ public sealed partial class StripeBillingService(
                         && organization.Status is not ("canceled" or "incomplete_expired"),
                     !subscriptionUsed && !trialUsed && organization.SubscriptionId is null
                         && organization.Status == "inactive" && organization.TrialEndsAt is null,
-                    grant?.ExpiresAt));
+                    grant?.ExpiresAt, organization.RetentionEndsAt(now, retentionGrantEnd)));
             }
             return (IReadOnlyList<BillingSummary>)summaries;
         }, ct);
@@ -221,6 +222,7 @@ public sealed partial class StripeBillingService(
         var groups = manage ? await db.BillingGroups.Where(x => x.OrganizationId == organization.Id).Select(x => x.GroupId).ToListAsync(token) : [groupId];
         var legacy = link.LegacyPlanId is not null && organization.SubscriptionId is null && organization.TrialEndsAt is null;
         var grant = await BillingProjection.ActiveGrantAsync(db, organization.Id, clock.UtcNow, token);
+        var retentionGrantEnd = await BillingProjection.LatestAccessGrantExpiryAsync(db, organization.Id, token);
         return new BillingSummary(organization.Id, manage, grant?.PlanId ?? organization.EffectivePlan(clock.UtcNow),
             grant is null ? organization.Status : "temporary_grant", organization.Interval,
             organization.PeriodEndsAt, organization.TrialEndsAt, organization.CancelAtPeriodEnd,
@@ -228,7 +230,7 @@ public sealed partial class StripeBillingService(
             organization.SubscriptionId is not null && organization.Status is not ("canceled" or "incomplete_expired"),
             manage && organization.SubscriptionId is null && organization.Status == "inactive"
                 && !await db.BillingTrials.AnyAsync(x => x.OrganizationId == organization.Id, token),
-            grant?.ExpiresAt);
+            grant?.ExpiresAt, organization.RetentionEndsAt(clock.UtcNow, retentionGrantEnd));
     }, ct);
 
     private Task<T> MutateAsync<T>(Guid userId, Guid groupId, string kind, string operationId, object input,
@@ -412,12 +414,13 @@ public sealed partial class StripeBillingService(
         var groupIds = await db.BillingGroups.Where(x => x.OrganizationId == organization.Id)
             .Select(x => x.GroupId).ToListAsync(ct);
         var grant = await BillingProjection.ActiveGrantAsync(db, organization.Id, now, ct);
+        var retentionGrantEnd = await BillingProjection.LatestAccessGrantExpiryAsync(db, organization.Id, ct);
         return new BillingSummary(organization.Id, true, grant?.PlanId ?? organization.EffectivePlan(now),
             grant is null ? organization.Status : "temporary_grant", organization.Interval,
             organization.PeriodEndsAt, organization.TrialEndsAt, organization.CancelAtPeriodEnd,
             grant is not null || organization.CanCreate(now), false, organization.ExtraGroups,
             organization.ScheduledPlanId, groupIds, organization.SubscriptionId is not null,
-            false, grant?.ExpiresAt);
+            false, grant?.ExpiresAt, organization.RetentionEndsAt(now, retentionGrantEnd));
     }
 
     private sealed record StoredQuote(BillingSelection Selection, int Version, DateTimeOffset CreatedAt, long ProrationDate);

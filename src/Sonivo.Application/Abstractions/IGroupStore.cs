@@ -8,6 +8,10 @@ public interface IGroupStore
     Task AddMembershipAsync(Membership membership, CancellationToken cancellationToken);
     Task<IReadOnlyList<GroupListItem>> ListForUserAsync(Guid userId, CancellationToken cancellationToken);
     Task<Group?> GetByIdAsync(Guid groupId, CancellationToken cancellationToken);
+    Task<Group?> GetLifecycleGroupForOwnerAsync(Guid groupId, Guid userId, CancellationToken cancellationToken) =>
+        Task.FromResult<Group?>(null);
+    Task<IReadOnlyList<GroupLifecycleListItem>> ListLifecycleForOwnerAsync(Guid userId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<GroupLifecycleListItem>>([]);
     Task<Group?> GetBySlugAsync(string slug, CancellationToken cancellationToken) =>
         Task.FromResult<Group?>(null);
     /// <summary>Resolves the current slug or a reserved historical slug to its Group.</summary>
@@ -21,6 +25,15 @@ public interface IGroupStore
     Task UpdateAsync(Group group, CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
+
+public sealed record GroupLifecycleListItem(
+    Guid Id,
+    string Name,
+    string Status,
+    DateTimeOffset? ArchivedAt,
+    DateTimeOffset? TrashExpiresAt,
+    int Version,
+    bool CanPermanentlyDelete = false);
 
 public sealed record GroupListItem(
     Guid Id,

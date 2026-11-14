@@ -20,6 +20,10 @@ public sealed class GroupAuditEntry
     public const string ActionGroupRoleUpdated = "group_role_updated";
     public const string ActionGroupRoleDeleted = "group_role_deleted";
     public const string ActionGroupRoleAssigned = "group_role_assigned";
+    public const string ActionGroupArchived = "group_archived";
+    public const string ActionGroupRestored = "group_restored";
+    public const string ActionGroupTrashed = "group_trashed";
+    public const string ActionGroupRestoredFromTrash = "group_restored_from_trash";
     public const string ActionResourceGrantChanged = "resource_grant_changed";
     public const string ActionGroupReportExported = "group_report_exported";
     public const string ActionTaskCreated = "task_created";

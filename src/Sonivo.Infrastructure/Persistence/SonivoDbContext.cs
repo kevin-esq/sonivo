@@ -54,6 +54,7 @@ public DbSet<ResourceGrant> ResourceGrants => Set<ResourceGrant>();
     public DbSet<BillingOperation> BillingOperations => Set<BillingOperation>();
     public DbSet<BillingInboxEvent> BillingInbox => Set<BillingInboxEvent>();
     public DbSet<BillingAudit> BillingAudit => Set<BillingAudit>();
+    public DbSet<BillingLegacyGroupNotice> BillingLegacyGroupNotices => Set<BillingLegacyGroupNotice>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)

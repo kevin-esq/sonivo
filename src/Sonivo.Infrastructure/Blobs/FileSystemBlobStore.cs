@@ -25,7 +25,7 @@ public sealed class BlobsOptions
 /// small <c>.meta</c> sidecar (content type + byte size). Best-effort delete.
 /// Object keys are path-sanitized: no traversal outside the root.
 /// </summary>
-public sealed class FileSystemBlobStore : IBlobStore
+public sealed class FileSystemBlobStore : IBlobStore, IBlobKeyLister
 {
     private readonly string _root;
 
@@ -83,6 +83,19 @@ public sealed class FileSystemBlobStore : IBlobStore
         TryDelete(path);
         TryDelete(MetaPath(path));
         return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<string>> ListKeysAsync(string prefix, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var directory = Path.GetDirectoryName(PathFor(prefix + "placeholder"))!;
+        if (!Directory.Exists(directory)) return Task.FromResult<IReadOnlyList<string>>([]);
+        IReadOnlyList<string> keys = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+            .Where(path => !path.EndsWith(".meta", StringComparison.Ordinal))
+            .Select(path => Path.GetRelativePath(_root, path).Replace(Path.DirectorySeparatorChar, '/'))
+            .Where(key => key.StartsWith(prefix, StringComparison.Ordinal))
+            .ToArray();
+        return Task.FromResult(keys);
     }
 
     internal string PathFor(string objectKey)

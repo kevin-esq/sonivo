@@ -7,7 +7,8 @@ public sealed record BillingCommand(string OperationId, BillingSelection Selecti
 public sealed record BillingSummary(Guid OrganizationId, bool CanManage, string PlanId, string Status,
     string Interval, DateTimeOffset? PeriodEndsAt, DateTimeOffset? TrialEndsAt, bool CancelAtPeriodEnd,
     bool CanCreate, bool LegacyAccess, int ExtraGroups, string? ScheduledPlanId, IReadOnlyList<Guid> GroupIds,
-    bool HasSubscription = false, bool CanStartTrial = false, DateTimeOffset? TemporaryAccessEndsAt = null);
+    bool HasSubscription = false, bool CanStartTrial = false, DateTimeOffset? TemporaryAccessEndsAt = null,
+    DateTimeOffset? DataRetentionEndsAt = null);
 public sealed record BillingLink(string Url);
 public sealed record PaymentMethodSetup(string ClientSecret, string PublishableKey);
 public sealed record BillingPaymentMethod(string Brand, string Last4, long ExpMonth, long ExpYear);

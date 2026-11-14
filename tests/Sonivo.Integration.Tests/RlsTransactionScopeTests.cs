@@ -782,18 +782,22 @@ public sealed class RlsTransactionScopeTests
             Assert.True(await HasTablePrivilegeAsync(db, "AccountAudit", "SELECT"));
             Assert.True(await HasTablePrivilegeAsync(db, "AccountAudit", "INSERT"));
             Assert.False(await HasTablePrivilegeAsync(db, "AccountAudit", "UPDATE"));
-            Assert.False(await HasTablePrivilegeAsync(db, "AccountAudit", "DELETE"));
+            Assert.True(await HasTablePrivilegeAsync(db, "AccountAudit", "DELETE"));
 
             Assert.True(await HasTablePrivilegeAsync(db, "GroupAuditLog", "SELECT"));
             Assert.True(await HasTablePrivilegeAsync(db, "GroupAuditLog", "INSERT"));
             Assert.False(await HasTablePrivilegeAsync(db, "GroupAuditLog", "UPDATE"));
-            Assert.False(await HasTablePrivilegeAsync(db, "GroupAuditLog", "DELETE"));
+            Assert.True(await HasTablePrivilegeAsync(db, "GroupAuditLog", "DELETE"));
 
             Assert.True(await HasTablePrivilegeAsync(db, "Notifications", "UPDATE"));
-            Assert.False(await HasTablePrivilegeAsync(db, "Notifications", "DELETE"));
+            Assert.True(await HasTablePrivilegeAsync(db, "Notifications", "DELETE"));
             Assert.True(await HasTablePrivilegeAsync(db, "WebhookEvents", "INSERT"));
             Assert.False(await HasTablePrivilegeAsync(db, "WebhookEvents", "UPDATE"));
             Assert.False(await HasTablePrivilegeAsync(db, "WebhookEvents", "DELETE"));
+            Assert.True(await HasTablePrivilegeAsync(db, "BillingLegacyGroupNotices", "SELECT"));
+            Assert.True(await HasTablePrivilegeAsync(db, "BillingLegacyGroupNotices", "INSERT"));
+            Assert.True(await HasTablePrivilegeAsync(db, "BillingLegacyGroupNotices", "UPDATE"));
+            Assert.True(await HasTablePrivilegeAsync(db, "BillingLegacyGroupNotices", "DELETE"));
 
             foreach (var privilege in new[] { "SELECT", "INSERT", "UPDATE", "DELETE" })
             {

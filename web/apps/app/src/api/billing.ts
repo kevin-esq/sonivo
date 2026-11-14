@@ -42,6 +42,7 @@ export type BillingSummary = {
   periodEndsAt: string | null; trialEndsAt: string | null; cancelAtPeriodEnd: boolean
   canCreate: boolean; legacyAccess: boolean; extraGroups: number; scheduledPlanId: string | null; groupIds: string[]
   hasSubscription: boolean; canStartTrial: boolean; temporaryAccessEndsAt: string | null
+  dataRetentionEndsAt?: string | null
 }
 export const getBillingOrganizations = () => apiRequest<BillingSummary[]>('/api/billing/organizations')
 export const startAccountTrial = (planId: string) => apiRequest<BillingSummary>(

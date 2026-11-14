@@ -133,6 +133,62 @@ public class GroupApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<Grou
         var list = await client.GetFromJsonAsync<List<GroupListResponse>>("/api/groups");
         Assert.NotNull(list);
         Assert.DoesNotContain(list, g => g.Id == created.Id);
+
+        var lifecycle = await client.GetFromJsonAsync<List<GroupLifecycleResponse>>("/api/groups/lifecycle");
+        Assert.NotNull(lifecycle);
+        var trashed = Assert.Single(lifecycle, g => g.Id == created.Id);
+        Assert.Equal("trash", trashed.Status);
+        Assert.Equal(DateTimeOffset.UtcNow.Date.AddDays(30), trashed.TrashExpiresAt!.Value.UtcDateTime.Date);
+
+        var restore = await client.PostAsJsonAsync($"/api/groups/{created.Id}/trash/restore", new { expectedVersion = 2 });
+        Assert.Equal(HttpStatusCode.NoContent, restore.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/groups/{created.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Archive_hides_from_active_list_and_owner_can_restore()
+    {
+        var client = await CreateAuthenticatedClientAsync("owner-archive@example.com");
+        var create = await client.PostAsJsonAsync("/api/groups", new { name = "Archived band" });
+        var group = await create.Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(group);
+
+        var archive = await client.PostAsJsonAsync($"/api/groups/{group.Id}/archive", new { expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.NoContent, archive.StatusCode);
+        var active = await client.GetFromJsonAsync<List<GroupListResponse>>("/api/groups");
+        Assert.DoesNotContain(active!, item => item.Id == group.Id);
+        var lifecycle = await client.GetFromJsonAsync<List<GroupLifecycleResponse>>("/api/groups/lifecycle");
+        Assert.Equal("archived", Assert.Single(lifecycle!, item => item.Id == group.Id).Status);
+
+        var restore = await client.PostAsJsonAsync($"/api/groups/{group.Id}/archive/restore", new { expectedVersion = 2 });
+        Assert.Equal(HttpStatusCode.NoContent, restore.StatusCode);
+        active = await client.GetFromJsonAsync<List<GroupListResponse>>("/api/groups");
+        Assert.Contains(active!, item => item.Id == group.Id);
+    }
+
+    [Fact]
+    public async Task Member_cannot_archive_or_restore_owner_group()
+    {
+        var owner = await CreateAuthenticatedClientAsync("lifecycle-owner@example.com");
+        var create = await owner.PostAsJsonAsync("/api/groups", new { name = "Owner lifecycle" });
+        var group = await create.Content.ReadFromJsonAsync<GroupResponse>();
+        Assert.NotNull(group);
+
+        var member = await CreateAuthenticatedClientAsync("lifecycle-member@example.com");
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            var memberUser = await users.FindByEmailAsync("lifecycle-member@example.com");
+            Assert.NotNull(memberUser);
+            db.Memberships.Add(Membership.CreateMember(group.Id, memberUser.Id, DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+        }
+
+        var denied = await member.PostAsJsonAsync($"/api/groups/{group.Id}/archive", new { expectedVersion = group.Version });
+        Assert.Equal(HttpStatusCode.NotFound, denied.StatusCode);
+        var ownerLifecycle = await owner.GetFromJsonAsync<List<GroupLifecycleResponse>>("/api/groups/lifecycle");
+        Assert.DoesNotContain(ownerLifecycle!, item => item.Id == group.Id);
     }
 
     [Fact]
@@ -418,6 +474,7 @@ public class GroupApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<Grou
     private sealed record GroupResponse(Guid Id, string Name, string? Slug, int Version, string? Role);
     private sealed record GroupBySlugResponse(Guid Id, string Name, string? Slug, bool Moved, int Version, string? Role);
     private sealed record GroupListResponse(Guid Id, string Name, string Role, int Version);
+    private sealed record GroupLifecycleResponse(Guid Id, string Name, string Status, DateTimeOffset? ArchivedAt, DateTimeOffset? TrashExpiresAt, int Version);
 }
 
 public sealed class SonivoApiFactory : WebApplicationFactory<Program>

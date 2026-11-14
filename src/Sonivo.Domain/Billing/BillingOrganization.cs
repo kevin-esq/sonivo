@@ -95,6 +95,31 @@ public sealed class BillingOrganization
         _ => false
     };
 
+    public DateTimeOffset? RetentionEndsAt(DateTimeOffset now, DateTimeOffset? accessGrantExpiresAt = null)
+    {
+        if (CanCreate(now)
+            || Status == "active" && PeriodEndsAt is null
+            || Status == "trialing" && TrialEndsAt is null
+            || Status == "past_due" && PastDueSince is null)
+            return null;
+
+        DateTimeOffset? readOnlyAt = Status switch
+        {
+            "trialing" when TrialEndsAt is { } trialEnd && trialEnd <= now => trialEnd,
+            "active" when PeriodEndsAt is { } periodEnd && periodEnd <= now => periodEnd,
+            "past_due" when PastDueSince is { } pastDue && pastDue.AddDays(7) <= now => pastDue.AddDays(7),
+            "canceled" or "unpaid" or "incomplete_expired" or "paused"
+                when SubscriptionId is not null && (PeriodEndsAt is null || PeriodEndsAt <= now)
+                    => PeriodEndsAt ?? UpdatedAt,
+            _ => null
+        };
+
+        var retentionEndsAt = readOnlyAt?.AddDays(90);
+        if (accessGrantExpiresAt is { } grantExpiry && (retentionEndsAt is null || grantExpiry.AddDays(90) > retentionEndsAt))
+            retentionEndsAt = grantExpiry.AddDays(90);
+        return retentionEndsAt;
+    }
+
     public void SuspendForReview(DateTimeOffset now)
     {
         if (Status == "paused") return;

@@ -1,10 +1,12 @@
+using Sonivo.Application.Abstractions;
+
 namespace Sonivo.Api.Security;
 
 /// <summary>
 /// Holds request side effects that must run only after the request transaction
 /// commits, such as revoking users from in-memory realtime fanout.
 /// </summary>
-public sealed class PostCommitActionQueue
+public sealed class PostCommitActionQueue : IPostCommitActionQueue
 {
     private readonly List<Func<Task>> _actions = [];
     private readonly object _lock = new();

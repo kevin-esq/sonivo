@@ -17,7 +17,7 @@ permissions:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
-  ConnectionStrings__Default: Host=localhost;Port=5432;Database=sonivo_dev;Username=sonivo_app;Password=sonivo-app-dev-only
+  ConnectionStrings__Default: Host=localhost;Port=5432;Database=sonivo_plans_ci;Username=sonivo_app;Password=sonivo-app-dev-only
   ASPNETCORE_ENVIRONMENT: Development
 
 jobs:
@@ -28,13 +28,13 @@ jobs:
       postgres:
         image: postgres:16.6
         env:
-          POSTGRES_DB: sonivo_dev
+          POSTGRES_DB: sonivo_plans_ci
           POSTGRES_USER: sonivo
           POSTGRES_PASSWORD: sonivo
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U sonivo -d sonivo_dev"
+          --health-cmd "pg_isready -U sonivo -d sonivo_plans_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -50,7 +50,7 @@ jobs:
           docker run --rm --network host \
             -e PGPASSWORD=sonivo \
             -v "$PWD/scripts/db:/scripts:ro" \
-            postgres:16.6 psql -h 127.0.0.1 -U sonivo -d sonivo_dev \
+            postgres:16.6 psql -h 127.0.0.1 -U sonivo -d sonivo_plans_ci \
               -v ON_ERROR_STOP=1 -f /scripts/bootstrap-rls-roles.sql
       - name: Restore
         run: dotnet restore Sonivo.slnx
@@ -58,7 +58,7 @@ jobs:
         run: dotnet build Sonivo.slnx --no-restore --configuration Release
       - name: Apply EF migrations
         env:
-          SONIVO_MIGRATION_CONNECTION: Host=localhost;Port=5432;Database=sonivo_dev;Username=sonivo;Password=sonivo
+          SONIVO_MIGRATION_CONNECTION: Host=localhost;Port=5432;Database=sonivo_plans_ci;Username=sonivo;Password=sonivo
         run: >
           dotnet ef database update
           --project src/Sonivo.Infrastructure
@@ -68,19 +68,19 @@ jobs:
           docker run --rm --network host \
             -e PGPASSWORD=sonivo \
             -v "$PWD/scripts/db:/scripts:ro" \
-            postgres:16.6 psql -h 127.0.0.1 -U sonivo -d sonivo_dev \
+            postgres:16.6 psql -h 127.0.0.1 -U sonivo -d sonivo_plans_ci \
               -v ON_ERROR_STOP=1 -f /scripts/grant-runtime-privileges.sql
       - name: Verify constrained runtime principal
         run: |
           docker run --rm --network host \
             -e PGPASSWORD=sonivo-app-dev-only \
             -v "$PWD/scripts/db:/scripts:ro" \
-            postgres:16.6 psql -h 127.0.0.1 -U sonivo_app -d sonivo_dev \
+            postgres:16.6 psql -h 127.0.0.1 -U sonivo_app -d sonivo_plans_ci \
               -v ON_ERROR_STOP=1 -f /scripts/verify-runtime-principal.sql
       - name: Test
         env:
-          SONIVO_TEST_PG: Host=localhost;Port=5432;Database=sonivo_dev;Username=sonivo;Password=sonivo
-          SONIVO_RLS_TEST_PG: Host=localhost;Port=5432;Database=sonivo_dev;Username=sonivo_app;Password=sonivo-app-dev-only
+          SONIVO_TEST_PG: Host=localhost;Port=5432;Database=sonivo_plans_ci;Username=sonivo;Password=sonivo
+          SONIVO_RLS_TEST_PG: Host=localhost;Port=5432;Database=sonivo_plans_ci;Username=sonivo_app;Password=sonivo-app-dev-only
         run: dotnet test Sonivo.slnx --no-build --configuration Release --verbosity normal
 
   frontend:
@@ -110,13 +110,13 @@ jobs:
       postgres:
         image: postgres:16.6
         env:
-          POSTGRES_DB: sonivo_dev
+          POSTGRES_DB: sonivo_plans_ci
           POSTGRES_USER: sonivo
           POSTGRES_PASSWORD: sonivo
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U sonivo -d sonivo_dev"
+          --health-cmd "pg_isready -U sonivo -d sonivo_plans_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -139,11 +139,11 @@ jobs:
           docker run --rm --network host \
             -e PGPASSWORD=sonivo \
             -v "$PWD/scripts/db:/scripts:ro" \
-            postgres:16.6 psql -h 127.0.0.1 -U sonivo -d sonivo_dev \
+            postgres:16.6 psql -h 127.0.0.1 -U sonivo -d sonivo_plans_ci \
               -v ON_ERROR_STOP=1 -f /scripts/bootstrap-rls-roles.sql
       - name: Restore & migrate
         env:
-          SONIVO_MIGRATION_CONNECTION: Host=localhost;Port=5432;Database=sonivo_dev;Username=sonivo;Password=sonivo
+          SONIVO_MIGRATION_CONNECTION: Host=localhost;Port=5432;Database=sonivo_plans_ci;Username=sonivo;Password=sonivo
         run: |
           dotnet restore Sonivo.slnx
           dotnet ef database update --project src/Sonivo.Infrastructure --startup-project src/Sonivo.Api
@@ -152,14 +152,14 @@ jobs:
           docker run --rm --network host \
             -e PGPASSWORD=sonivo \
             -v "$PWD/scripts/db:/scripts:ro" \
-            postgres:16.6 psql -h 127.0.0.1 -U sonivo -d sonivo_dev \
+            postgres:16.6 psql -h 127.0.0.1 -U sonivo -d sonivo_plans_ci \
               -v ON_ERROR_STOP=1 -f /scripts/grant-runtime-privileges.sql
       - name: Verify constrained runtime principal
         run: |
           docker run --rm --network host \
             -e PGPASSWORD=sonivo-app-dev-only \
             -v "$PWD/scripts/db:/scripts:ro" \
-            postgres:16.6 psql -h 127.0.0.1 -U sonivo_app -d sonivo_dev \
+            postgres:16.6 psql -h 127.0.0.1 -U sonivo_app -d sonivo_plans_ci \
               -v ON_ERROR_STOP=1 -f /scripts/verify-runtime-principal.sql
       - name: Install frontend deps
         working-directory: web

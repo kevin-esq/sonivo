@@ -79,6 +79,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<IGroupStore, EfGroupStore>();
+        services.AddScoped<IGroupOperationLock, EfGroupOperationLock>();
         services.AddScoped<IGroupBrandingStore, EfGroupBrandingStore>();
         services.AddScoped<IAccountAuditStore, EfAccountAuditStore>();
         services.AddScoped<IMembershipStore, EfMembershipStore>();
@@ -105,12 +106,19 @@ public static class DependencyInjection
                 R2BlobStore.CreateClient(sp.GetRequiredService<IOptions<R2Options>>().Value));
             services.AddSingleton<R2BlobStore>();
             services.AddScoped<IBlobStore>(sp => sp.GetRequiredService<R2BlobStore>());
+            services.AddScoped<IBlobKeyLister>(sp => sp.GetRequiredService<R2BlobStore>());
         }
         else
         {
             services.AddSingleton<FileSystemBlobStore>();
             services.AddScoped<IBlobStore>(sp => sp.GetRequiredService<FileSystemBlobStore>());
+            services.AddScoped<IBlobKeyLister>(sp => sp.GetRequiredService<FileSystemBlobStore>());
         }
+        services.AddScoped<IPurgeLedger, BlobPurgeLedger>();
+        services.Configure<PurgeSafetyOptions>(configuration.GetSection(PurgeSafetyOptions.SectionName));
+        services.AddScoped<IGroupPurger, GroupPurger>();
+        services.AddScoped<LegacyGroupCleanupProcessor>();
+        services.AddHostedService<GroupPurgeReplayWorker>();
         services.AddScoped<ISetlistStore, EfSetlistStore>();
         services.AddScoped<IEventStore, EfEventStore>();
         services.AddScoped<ITaskStore, EfTaskStore>();

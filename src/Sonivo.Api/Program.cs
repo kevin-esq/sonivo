@@ -344,6 +344,7 @@ builder.Services.AddSignalR()
 // Cross-user real time (ADR-0074): broadcast group data changes to members.
 builder.Services.AddSingleton<IGroupNotifier, SignalRGroupNotifier>();
 builder.Services.AddScoped<PostCommitActionQueue>();
+builder.Services.AddScoped<IPostCommitActionQueue>(sp => sp.GetRequiredService<PostCommitActionQueue>());
 builder.Services.AddSingleton<GroupRealtimeConnectionRegistry>();
 builder.Services.AddSingleton<GroupMembershipRealtimeRevoker>();
 builder.Services.AddScoped<INotificationPublisher, SignalRNotificationPublisher>();
@@ -2078,6 +2079,84 @@ app.MapPost("/api/groups", async (
     return Results.Created($"/api/groups/{created.Id}", ToGroupResponse(created));
 })
 .WithName("CreateGroup")
+.RequireAuthorization();
+
+app.MapGet("/api/groups/lifecycle", async (
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupLifecycleHandlers handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    return Results.Ok(await handler.ListAsync(userId.Value, cancellationToken));
+})
+.WithName("ListMyGroupLifecycle")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/archive", async (
+    Guid groupId,
+    GroupLifecycleRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupLifecycleHandlers handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    await handler.ArchiveAsync(userId.Value, groupId, request.ExpectedVersion, cancellationToken);
+    return Results.NoContent();
+})
+.WithName("ArchiveGroup")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/archive/restore", async (
+    Guid groupId,
+    GroupLifecycleRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupLifecycleHandlers handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    await handler.RestoreArchiveAsync(userId.Value, groupId, request.ExpectedVersion, cancellationToken);
+    return Results.NoContent();
+})
+.WithName("RestoreArchivedGroup")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/trash/restore", async (
+    Guid groupId,
+    GroupLifecycleRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupLifecycleHandlers handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    await handler.RestoreTrashAsync(userId.Value, groupId, request.ExpectedVersion, cancellationToken);
+    return Results.NoContent();
+})
+.WithName("RestoreTrashedGroup")
+.RequireAuthorization();
+
+app.MapPost("/api/groups/{groupId:guid}/trash/purge", async (
+    Guid groupId,
+    GroupLifecycleRequest request,
+    ClaimsPrincipal principal,
+    UserManager<ApplicationUser> users,
+    GroupLifecycleHandlers handler,
+    CancellationToken cancellationToken) =>
+{
+    var userId = await RequireUserIdAsync(principal, users);
+    if (userId is null) return Results.Unauthorized();
+    await handler.PurgeTrashAsync(userId.Value, groupId, request.ExpectedVersion,
+        request.ConfirmPermanentDeletion, cancellationToken);
+    return Results.NoContent();
+})
+.WithName("PurgeTrashedGroup")
 .RequireAuthorization();
 
 app.MapGet("/api/groups/{groupId:guid}", async (
@@ -6718,6 +6797,7 @@ internal sealed record SetMemberAccessRequest(bool? Enabled);
 internal sealed record SetMusicalRoleRequest(string? MusicalRole);
 internal sealed record SetMemberDescriptionRequest(string? Description);
 internal sealed record SoftDeleteGroupRequest(int ExpectedVersion);
+internal sealed record GroupLifecycleRequest(int ExpectedVersion, bool ConfirmPermanentDeletion = false);
 internal sealed record CreateSongRequest(
     string? Title,
     string? Attribution,

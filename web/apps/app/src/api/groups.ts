@@ -12,6 +12,38 @@ export type GroupSummary = {
   lastActivityAt?: string | null
 }
 
+export type GroupLifecycleSummary = {
+  id: string
+  name: string
+  status: 'archived' | 'trash'
+  archivedAt: string | null
+  trashExpiresAt: string | null
+  version: number
+  canPermanentlyDelete?: boolean
+}
+
+export async function listMyGroupLifecycle(): Promise<GroupLifecycleSummary[]> {
+  return apiRequest<GroupLifecycleSummary[]>('/api/groups/lifecycle')
+}
+
+export async function archiveGroup(groupId: string, expectedVersion: number): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/archive`, { method: 'POST', body: { expectedVersion } })
+}
+
+export async function restoreArchivedGroup(groupId: string, expectedVersion: number): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/archive/restore`, { method: 'POST', body: { expectedVersion } })
+}
+
+export async function restoreTrashedGroup(groupId: string, expectedVersion: number): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/trash/restore`, { method: 'POST', body: { expectedVersion } })
+}
+
+export async function permanentlyDeleteTrashedGroup(groupId: string, expectedVersion: number): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/trash/purge`, {
+    method: 'POST', body: { expectedVersion, confirmPermanentDeletion: true },
+  })
+}
+
 /** Plan-gated branding capabilities returned with the group (camelCase). */
 export type BrandingCapabilities = {
   themes: boolean
