@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
   // routes are being migrated from the React Router bridge.
   eslint: { ignoreDuringBuilds: true },
   output: isExport ? 'export' : undefined,
+  trailingSlash: isExport,
   images: { unoptimized: true },
   ...(!isExport && {
     async redirects() {
