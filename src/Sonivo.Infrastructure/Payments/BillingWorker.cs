@@ -29,7 +29,7 @@ public sealed class BillingWorker(IServiceScopeFactory scopes, ILogger<BillingWo
                         var rewardIds = await db.BillingReferralRewards.AsNoTracking()
                             .Where(x => (x.Status == "pending" && x.NextAttemptAt <= DateTimeOffset.UtcNow)
                                 || (x.Status == "processing" && x.ProcessingUntil <= DateTimeOffset.UtcNow))
-                            .OrderBy(x => x.NextAttemptAt).Select(x => x.Id).Take(25).ToListAsync(stoppingToken);
+                            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => x.Id).Take(25).ToListAsync(stoppingToken);
                         foreach (var rewardId in rewardIds) await RunReferralRewardAsync(rewardId, stoppingToken);
                     }
                     var refresh = DateTimeOffset.UtcNow >= nextRefresh;

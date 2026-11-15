@@ -6,6 +6,53 @@ Architecture Decision Records.
 
 Only **ACCEPTED** ADRs bind implementation. Newest first.
 
+## ADR-0119 — Billing review skills and deferred payment tooling
+
+- **Status:** **ACCEPTED** — owner authorized existing project-local billing skills/configuration on 2026-11-14.
+- **Amends:** ADR-0002 project-local tooling allowlist.
+- **Scope:** four existing billing review skills and the disabled payment-provider MCP entry.
+
+### Decision
+
+1. Authorize `.agents/skills/stripe-best-practices`, `upgrade-stripe`, `payment-reconciliation`, and `invoice-health-check` as project-local review guidance. Preserve their pinned source commits and license files in the tooling inventory.
+2. Keep the payment-provider MCP entry disabled until sandbox OAuth is explicitly connected and validated.
+3. Skills guide reviews only. They do not authorize SDK/API-version changes, dependency updates, external account mutations, or changes to product behavior.
+
+### Consequences
+
+- Update the project skill inventory and tooling audit; do not add runtime dependencies.
+- Do not attribute this decision to ADR-0107, which governs title-first LRCLIB search.
+
+---
+
+## ADR-0118 — Signed administration API and administrative suspension
+
+- **Status:** **ACCEPTED** — owner approved the administration contract on 2026-11-14.
+- **Amends:** ADR-0115's accounting-only system-of-administration boundary and its open referral retry-order question. Payment and renewal authority remains unchanged.
+- **Scope:** machine-to-machine account queries, audited access grants, and administrative suspension.
+
+### Decision
+
+1. A separate system of administration may call Sonivo's backend only. It may list accounts with pagination; inspect one account, its plan/status/limits, associated Groups, payment events, referral state, grants, and suspension; and request/revoke grants or suspend/reactivate access.
+2. Return Owner name and email only for a requested account detail. Do not return member records, full card data, or payment credentials. Group member counts are aggregate usage only.
+3. Authorize each request with environment-specific HMAC-SHA256 keys stored in server secrets. Sign method, canonical path/query, body hash, Unix timestamp, nonce, key ID, operation ID, and asserted human-operator ID. Reject timestamps outside five minutes and repeated nonces. Allow overlapping key IDs for rotation. Make writes idempotent by operation ID and request fingerprint.
+4. Separate scopes for account read, payment read, referral read, grant read/write, and suspension. Rate-limit and audit authenticated requests. The human operator ID is asserted by the caller; Sonivo authenticates the calling service, not that human identity.
+5. Keep the API disabled by default. Do not enable it until sandbox-only credentials and the PostgreSQL isolation gate are configured and validated. Current Phase 4.2 gates still bind; this ADR does not authorize partial RLS policies or bypasses.
+6. Grants use the existing plan catalog, require a reason, last no more than 90 days, and affect only Billing Organization entitlements. They do not change Stripe, invoices, Group roles, or ownership.
+7. Administrative suspension is a persistent audited state separate from the provider subscription state. It overrides paid, trial, and grant access, leaves Group data intact, permits authorized read/export, and blocks product writes. It does not pause, cancel, or alter Stripe billing or renewal. Reactivation recalculates access from provider, trial, or grant state.
+8. No administration route may create/cancel subscriptions, initiate charges, issue refunds, change Group roles/Owners, delete data, or run purges. No direct database or payment-provider credential is given to the external service.
+9. Pending referral rewards are processed FIFO and do not expire. Refunds, disputes, and early fraud warnings require manual review; they do not automatically revoke rewards, reverse renewals, or issue refunds.
+
+### Consequences and gates
+
+- Add only forward-compatible tables/columns for request nonce, idempotency, audit, and suspension. Preserve financial history and existing Groups.
+- Keep the accounting outbox persisted but unsent; no real receiver is configured.
+- Retry pending referral rewards in FIFO order without expiry; keep refund/dispute review manual.
+- The API's database organization selector is not a substitute for RLS. Activation remains blocked until Phase 4.2 policy and PostgreSQL negative-path gates pass.
+- No staging migration or deployment is authorized by this ADR.
+
+---
+
 ## ADR-0117 — Plan entitlement required to create Groups
 
 - **Status:** **ACCEPTED** — owner confirmed the no-plan creation rule on 2026-11-12.
@@ -4418,6 +4465,10 @@ Sonivo is not church-first; worship is a supported segment. Core language stays 
 
 | ADR  | Title                                           | Status       |
 | ---- | ----------------------------------------------- | ------------ |
+| 0119 | Billing review skills and deferred payment tooling | **ACCEPTED** |
+| 0118 | Signed administration API and administrative suspension | **ACCEPTED** |
+| 0117 | Plan entitlement required to create Groups       | **ACCEPTED** |
+| 0115 | Referral rewards, grants, and accounting boundary | **ACCEPTED** |
 | 0116 | In-app subscription payment method management  | **ACCEPTED** |
 | 0110 | Song catalog metadata and Owner-managed tags   | **ACCEPTED** |
 | 0108 | Arrangement harmony progression editor         | **ACCEPTED** |

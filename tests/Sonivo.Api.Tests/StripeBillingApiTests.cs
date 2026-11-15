@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Sonivo.Domain.Billing;
 using Sonivo.Infrastructure.Persistence;
 
 namespace Sonivo.Api.Tests;
@@ -49,7 +50,6 @@ public sealed class StripeBillingApiTests
         using var factory = baseline.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("Payments:Provider", "stripe");
-            builder.UseSetting("Payments:EnableAdminGrants", "true");
             builder.UseSetting("Payments:Stripe:ApiKey", "");
             builder.UseSetting("Payments:Stripe:WebhookSecret", "");
         });
@@ -123,12 +123,10 @@ public sealed class StripeBillingApiTests
         using var repeatedReferralBody = JsonDocument.Parse(await repeatedReferralResponse.Content.ReadAsStringAsync());
         referralCode = repeatedReferralBody.RootElement.GetProperty("referralCode").GetString()!;
         Assert.Equal("ABCD-EF12-3456-7890-ABCD-EF12", referralCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await factory.CreateClient().GetAsync(
+        Assert.Equal(HttpStatusCode.NotFound, (await factory.CreateClient().GetAsync(
+            "/api/admin/v1/accounts")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(
             $"/api/admin/billing/organizations/{organizationId}/grants")).StatusCode);
-        await Csrf(client);
-        var forbiddenGrant = await client.PostAsJsonAsync($"/api/admin/billing/organizations/{organizationId}/grants",
-            new { operationId = Guid.NewGuid(), planId = "studio", expiresAt = DateTimeOffset.UtcNow.AddDays(1), reason = "test" });
-        Assert.Equal(HttpStatusCode.Forbidden, forbiddenGrant.StatusCode);
         await Csrf(client);
         var ownerPortal = await client.PostAsJsonAsync($"/api/billing/organizations/{organizationId}/portal",
             new { operationId = Guid.NewGuid().ToString() });
@@ -199,6 +197,170 @@ public sealed class StripeBillingApiTests
 
         var webhook = await client.PostAsJsonAsync("/api/payments/webhook", new { id = "evt_forged" });
         Assert.Equal(HttpStatusCode.BadRequest, webhook.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_service_requires_valid_signature_unique_nonce_and_scope()
+    {
+        const string secret = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
+        using var baseline = new SonivoApiFactory();
+        using var factory = baseline.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Payments:Provider", "stripe");
+            builder.UseSetting("Payments:Stripe:Environment", "sandbox");
+            builder.UseSetting("AdminApi:Enabled", "true");
+            builder.UseSetting("AdminApi:DatabaseIsolationReady", "true");
+            builder.UseSetting("AdminApi:Keys:test-key:Secret", secret);
+            builder.UseSetting("AdminApi:Keys:test-key:ServiceId", "test-administration");
+            builder.UseSetting("AdminApi:Keys:test-key:Scopes:0", "accounts.read");
+            builder.UseSetting("AdminApi:Keys:rotated-key:Secret", secret);
+            builder.UseSetting("AdminApi:Keys:rotated-key:ServiceId", "test-administration");
+            builder.UseSetting("AdminApi:Keys:rotated-key:Scopes:0", "accounts.read");
+        });
+        using var client = factory.CreateClient();
+        using var valid = await client.SendAsync(SignedAdminRequest("/api/admin/v1/accounts?page=1&pageSize=10", secret));
+        Assert.Equal(HttpStatusCode.OK, valid.StatusCode);
+        var response = await valid.Content.ReadAsStringAsync();
+        Assert.Equal("[]", response);
+
+        using var replay = await client.SendAsync(SignedAdminRequest(
+            "/api/admin/v1/accounts?page=1&pageSize=10", secret, nonce: "replayed-admin-nonce-00001"));
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        using var duplicateNonce = await client.SendAsync(SignedAdminRequest(
+            "/api/admin/v1/accounts?page=1&pageSize=10", secret, nonce: "replayed-admin-nonce-00001"));
+        Assert.Equal(HttpStatusCode.Unauthorized, duplicateNonce.StatusCode);
+
+        using var denied = await client.SendAsync(SignedAdminRequest(
+            "/api/admin/v1/accounts/00000000-0000-0000-0000-000000000001/payments", secret));
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+
+        using var altered = SignedAdminRequest("/api/admin/v1/accounts?page=1&pageSize=10", secret);
+        altered.RequestUri = new Uri("http://localhost/api/admin/v1/accounts?page=1&pageSize=11");
+        using var badSignature = await client.SendAsync(altered);
+        Assert.Equal(HttpStatusCode.Unauthorized, badSignature.StatusCode);
+
+        using var rotated = await client.SendAsync(SignedAdminRequest(
+            "/api/admin/v1/accounts", secret, keyId: "rotated-key"));
+        Assert.Equal(HttpStatusCode.OK, rotated.StatusCode);
+
+        using var stale = await client.SendAsync(SignedAdminRequest(
+            "/api/admin/v1/accounts", secret, timestamp: "1"));
+        Assert.Equal(HttpStatusCode.Unauthorized, stale.StatusCode);
+
+        using var alteredBody = await client.SendAsync(SignedAdminRequest(
+            "/api/admin/v1/accounts", secret, method: HttpMethod.Post,
+            signedBody: "{\"value\":1}", sentBody: "{\"value\":2}"));
+        Assert.Equal(HttpStatusCode.Unauthorized, alteredBody.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_service_audits_grants_suspension_reactivation_and_idempotent_retries()
+    {
+        const string secret = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
+        using var baseline = new SonivoApiFactory();
+        using var factory = baseline.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Payments:Provider", "stripe");
+            builder.UseSetting("Payments:Stripe:Environment", "sandbox");
+            builder.UseSetting("AdminApi:Enabled", "true");
+            builder.UseSetting("AdminApi:DatabaseIsolationReady", "true");
+            builder.UseSetting("AdminApi:Keys:test-key:Secret", secret);
+            builder.UseSetting("AdminApi:Keys:test-key:ServiceId", "test-administration");
+            builder.UseSetting("AdminApi:Keys:test-key:Scopes:0", "accounts.read");
+            builder.UseSetting("AdminApi:Keys:test-key:Scopes:1", "grants.read");
+            builder.UseSetting("AdminApi:Keys:test-key:Scopes:2", "grants.write");
+            builder.UseSetting("AdminApi:Keys:test-key:Scopes:3", "access.suspend");
+        });
+        using var client = factory.CreateClient();
+        Guid organizationId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            db.BillingOrganizations.Add(BillingOrganization.Create(Guid.NewGuid(), DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+            organizationId = await db.BillingOrganizations.Select(x => x.Id).SingleAsync();
+        }
+
+        var expiresAt = DateTimeOffset.UtcNow.AddDays(30);
+        var grantBody = JsonSerializer.Serialize(new { planId = "studio", expiresAt, reason = "Support extension" });
+        var operationId = Guid.NewGuid().ToString("D");
+        using var grantResponse = await client.SendAsync(SignedAdminRequest(
+            $"/api/admin/v1/accounts/{organizationId}/grants", secret, method: HttpMethod.Post,
+            signedBody: grantBody, operationId: operationId));
+        Assert.Equal(HttpStatusCode.OK, grantResponse.StatusCode);
+        using var grantJson = JsonDocument.Parse(await grantResponse.Content.ReadAsStringAsync());
+        var grantId = grantJson.RootElement.GetProperty("grant").GetProperty("id").GetGuid();
+
+        using var retryResponse = await client.SendAsync(SignedAdminRequest(
+            $"/api/admin/v1/accounts/{organizationId}/grants", secret, method: HttpMethod.Post,
+            signedBody: grantBody, operationId: operationId));
+        Assert.Equal(HttpStatusCode.OK, retryResponse.StatusCode);
+        using var grantsResponse = await client.SendAsync(SignedAdminRequest(
+            $"/api/admin/v1/accounts/{organizationId}/grants", secret));
+        using var grantsJson = JsonDocument.Parse(await grantsResponse.Content.ReadAsStringAsync());
+        Assert.Equal(1, grantsJson.RootElement.GetArrayLength());
+
+        var suspensionBody = JsonSerializer.Serialize(new { reason = "Manual review" });
+        using var suspendResponse = await client.SendAsync(SignedAdminRequest(
+            $"/api/admin/v1/accounts/{organizationId}/suspension", secret, method: HttpMethod.Post,
+            signedBody: suspensionBody));
+        Assert.Equal(HttpStatusCode.OK, suspendResponse.StatusCode);
+        using var accountResponse = await client.SendAsync(SignedAdminRequest(
+            $"/api/admin/v1/accounts/{organizationId}", secret));
+        using var accountJson = JsonDocument.Parse(await accountResponse.Content.ReadAsStringAsync());
+        Assert.Equal("admin_suspended", accountJson.RootElement.GetProperty("accessStatus").GetString());
+        Assert.True(accountJson.RootElement.GetProperty("suspension").GetProperty("isSuspended").GetBoolean());
+
+        using var revokeResponse = await client.SendAsync(SignedAdminRequest(
+            $"/api/admin/v1/accounts/{organizationId}/grants/{grantId}/revoke", secret,
+            method: HttpMethod.Post));
+        Assert.Equal(HttpStatusCode.OK, revokeResponse.StatusCode);
+        using var reactivateResponse = await client.SendAsync(SignedAdminRequest(
+            $"/api/admin/v1/accounts/{organizationId}/reactivation", secret, method: HttpMethod.Post,
+            signedBody: suspensionBody));
+        Assert.Equal(HttpStatusCode.OK, reactivateResponse.StatusCode);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SonivoDbContext>();
+            Assert.Equal(4, await db.BillingAdminOperations.CountAsync());
+            var actions = await db.BillingAudit.Select(x => x.Action).ToListAsync();
+            Assert.Contains("access-suspended", actions);
+            Assert.Contains("access-reactivated", actions);
+            var grant = await db.BillingAccessGrants.SingleAsync(x => x.Id == grantId);
+            Assert.NotNull(grant.RevokedAt);
+            Assert.Equal("test-administration", grant.GrantedByServiceId);
+        }
+    }
+
+    private static HttpRequestMessage SignedAdminRequest(string path, string secret, string? nonce = null,
+        string keyId = "test-key", string? timestamp = null, HttpMethod? method = null,
+        string? signedBody = null, string? sentBody = null, string? operationId = null)
+    {
+        timestamp ??= DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
+        nonce ??= $"nonce-{Guid.NewGuid():N}";
+        operationId ??= Guid.NewGuid().ToString("D");
+        const string actorId = "operator-42";
+        var queryStart = path.IndexOf('?');
+        var canonicalPath = queryStart < 0 ? path : path[..queryStart];
+        var query = queryStart < 0 ? "" : path[queryStart..];
+        var canonicalQuery = string.Join('&', query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .OrderBy(x => x.Split('=', 2)[0], StringComparer.Ordinal));
+        signedBody ??= "";
+        var bodyHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(signedBody)));
+        method ??= HttpMethod.Get;
+        var canonical = string.Join('\n', method.Method, canonicalPath, canonicalQuery, bodyHash,
+            timestamp, nonce, keyId, operationId, actorId);
+        var signature = Convert.ToBase64String(HMACSHA256.HashData(Convert.FromBase64String(secret), Encoding.UTF8.GetBytes(canonical)));
+        var request = new HttpRequestMessage(method, path);
+        if (method != HttpMethod.Get) request.Content = new StringContent(sentBody ?? signedBody, Encoding.UTF8, "application/json");
+        request.Headers.Add("X-Sonivo-Key-Id", keyId);
+        request.Headers.Add("X-Sonivo-Timestamp", timestamp);
+        request.Headers.Add("X-Sonivo-Nonce", nonce);
+        request.Headers.Add("X-Sonivo-Operation-Id", operationId);
+        request.Headers.Add("X-Sonivo-Actor-Id", actorId);
+        request.Headers.Add("X-Sonivo-Signature", signature);
+        return request;
     }
 
     private static async Task Csrf(HttpClient client)

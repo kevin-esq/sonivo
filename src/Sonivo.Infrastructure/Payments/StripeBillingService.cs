@@ -32,10 +32,14 @@ public sealed partial class StripeBillingService(
                 var now = clock.UtcNow;
                 var grant = await BillingProjection.ActiveGrantAsync(db, organization.Id, now, token);
                 var retentionGrantEnd = await BillingProjection.LatestAccessGrantExpiryAsync(db, organization.Id, token);
+                var administrativelySuspended = await db.BillingAdminSuspensions.AnyAsync(x =>
+                    x.OrganizationId == organization.Id && x.Environment == gateway.Environment && x.IsSuspended, token);
                 summaries.Add(new BillingSummary(organization.Id, true, grant?.PlanId ?? organization.EffectivePlan(now),
-                    grant is null ? organization.Status : "temporary_grant",
+                    administrativelySuspended ? BillingStatuses.AdminSuspended
+                        : grant is null ? organization.Status : "temporary_grant",
                     organization.Interval, organization.PeriodEndsAt, organization.TrialEndsAt,
-                    organization.CancelAtPeriodEnd, grant is not null || organization.CanCreate(now), false, organization.ExtraGroups,
+                    organization.CancelAtPeriodEnd, !administrativelySuspended
+                        && (grant is not null || organization.CanCreate(now)), false, organization.ExtraGroups,
                     organization.ScheduledPlanId, groups, organization.SubscriptionId is not null
                         && organization.Status is not ("canceled" or "incomplete_expired"),
                     !subscriptionUsed && !trialUsed && organization.SubscriptionId is null
@@ -223,10 +227,13 @@ public sealed partial class StripeBillingService(
         var legacy = link.LegacyPlanId is not null && organization.SubscriptionId is null && organization.TrialEndsAt is null;
         var grant = await BillingProjection.ActiveGrantAsync(db, organization.Id, clock.UtcNow, token);
         var retentionGrantEnd = await BillingProjection.LatestAccessGrantExpiryAsync(db, organization.Id, token);
+        var administrativelySuspended = await db.BillingAdminSuspensions.AnyAsync(x =>
+            x.OrganizationId == organization.Id && x.Environment == gateway.Environment && x.IsSuspended, token);
         return new BillingSummary(organization.Id, manage, grant?.PlanId ?? organization.EffectivePlan(clock.UtcNow),
-            grant is null ? organization.Status : "temporary_grant", organization.Interval,
+            administrativelySuspended ? BillingStatuses.AdminSuspended
+                : grant is null ? organization.Status : "temporary_grant", organization.Interval,
             organization.PeriodEndsAt, organization.TrialEndsAt, organization.CancelAtPeriodEnd,
-            grant is not null || !group.CreationBlocked, legacy, organization.ExtraGroups, organization.ScheduledPlanId, groups,
+            !administrativelySuspended && (grant is not null || !group.CreationBlocked), legacy, organization.ExtraGroups, organization.ScheduledPlanId, groups,
             organization.SubscriptionId is not null && organization.Status is not ("canceled" or "incomplete_expired"),
             manage && organization.SubscriptionId is null && organization.Status == "inactive"
                 && !await db.BillingTrials.AnyAsync(x => x.OrganizationId == organization.Id, token),
@@ -415,10 +422,13 @@ public sealed partial class StripeBillingService(
             .Select(x => x.GroupId).ToListAsync(ct);
         var grant = await BillingProjection.ActiveGrantAsync(db, organization.Id, now, ct);
         var retentionGrantEnd = await BillingProjection.LatestAccessGrantExpiryAsync(db, organization.Id, ct);
+        var administrativelySuspended = await db.BillingAdminSuspensions.AnyAsync(x =>
+            x.OrganizationId == organization.Id && x.Environment == gateway.Environment && x.IsSuspended, ct);
         return new BillingSummary(organization.Id, true, grant?.PlanId ?? organization.EffectivePlan(now),
-            grant is null ? organization.Status : "temporary_grant", organization.Interval,
+            administrativelySuspended ? BillingStatuses.AdminSuspended
+                : grant is null ? organization.Status : "temporary_grant", organization.Interval,
             organization.PeriodEndsAt, organization.TrialEndsAt, organization.CancelAtPeriodEnd,
-            grant is not null || organization.CanCreate(now), false, organization.ExtraGroups,
+            !administrativelySuspended && (grant is not null || organization.CanCreate(now)), false, organization.ExtraGroups,
             organization.ScheduledPlanId, groupIds, organization.SubscriptionId is not null,
             false, grant?.ExpiresAt, organization.RetentionEndsAt(now, retentionGrantEnd));
     }

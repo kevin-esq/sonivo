@@ -344,6 +344,7 @@ function billingStatusName(status: string, t: ReturnType<typeof useT>['t']): str
     case 'paused': return t('billing.status.paused')
     case 'temporary_grant': return t('billing.status.temporaryGrant')
     case 'read_only': return t('plans.status.readOnly')
+    case 'admin_suspended': return t('billing.status.adminSuspended')
     default: return t('plans.status.unknown')
   }
 }

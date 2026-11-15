@@ -255,6 +255,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy(MobileAuthenticationSetup.TokenPolicy, http => PerIp(http, 60));
     options.AddPolicy("payment-webhook", http => PerIp(http, 30));
     options.AddPolicy("billing", http => PerIp(http, 30));
+    options.AddPolicy("admin-service", http => PerIp(http, 30));
     // SECURITY-AUDIT-2026-10 (B11): previously unlimited surfaces — uploads
     // (branding + file resources + LRC import), invite acceptance, digitize
     // starts (expensive) and GDPR-style exports.
@@ -474,6 +475,7 @@ if (!app.Environment.IsDevelopment())
 app.UseRateLimiter();
 app.UseMiddleware<MobileVersionGateMiddleware>();
 app.UseAuthentication();
+app.UseMiddleware<AdminServiceAuthenticationMiddleware>();
 app.UseMiddleware<RlsRequestScopeMiddleware>();
 app.UseAuthorization();
 
@@ -524,7 +526,8 @@ app.Use(async (context, next) =>
     // the handler (with a config secret). Bearer credentials are explicit request
     // credentials rather than ambient browser cookies, so mobile bearer writes
     // do not require a browser CSRF token.
-    var isSignatureAuthedWebhook = path.Equals("/api/payments/webhook", StringComparison.OrdinalIgnoreCase);
+    var isSignatureAuthedWebhook = path.Equals("/api/payments/webhook", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/api/admin/v1/", StringComparison.OrdinalIgnoreCase);
     var isMobileProtocolRequest = mobileAuthenticationEnabled
         && (path.Equals("/connect/token", StringComparison.OrdinalIgnoreCase)
             || path.Equals("/connect/revoke", StringComparison.OrdinalIgnoreCase));
@@ -560,6 +563,7 @@ app.Use(async (context, next) =>
 // method — no .DisableAntiforgery() exemption.
 app.MapSessionHandoffEndpoints();
 app.MapBillingEndpoints();
+app.MapBillingAdministrationEndpoints();
 app.MapGroupOwnershipTransferEndpoints();
 
 // SECURITY-AUDIT-2026-10 (C8): cross-origin WebSocket handshakes are rejected.

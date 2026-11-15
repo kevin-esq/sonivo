@@ -35,4 +35,11 @@ public sealed class BillingAccessGrantTests
         Assert.Equal(Now.AddHours(1), grant.RevokedAt);
         Assert.Equal(admin, grant.RevokedByUserId);
     }
+
+    [Fact]
+    public void Grant_duration_cannot_exceed_ninety_days()
+    {
+        Assert.Throws<ArgumentException>(() => BillingAccessGrant.Create(Guid.NewGuid(), new string('a', 64),
+            Guid.NewGuid(), PlanCatalog.Pro, Now, Now.AddDays(91), "support case", Guid.NewGuid(), Now));
+    }
 }

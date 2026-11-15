@@ -76,7 +76,7 @@ export function BillingPanel({ groupId, groups, catalog, usage, initialSummary, 
   const money = (amount: number) => new Intl.NumberFormat(lang, { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(amount)
   if (!summary) return <div role="status" className="flex flex-wrap items-center gap-3">{t(billing.failed ? 'billing.error' : 'plans.loading')}<Button variant="secondary" onClick={() => void billing.retry()}>{t('billing.refresh')}</Button></div>
 
-  const planActive = summary.hasSubscription || summary.status === 'trialing' || summary.status === 'temporary_grant' || summary.legacyAccess
+  const planActive = summary.hasSubscription || summary.status === 'trialing' || summary.status === 'temporary_grant' || summary.status === 'admin_suspended' || summary.legacyAccess
   const currentPlan = catalog.plans.find(value => value.id === summary.planId)
   const currentPlanName = t(`plans.name.${summary.planId === 'pro' || summary.planId === 'studio' ? summary.planId : 'starter'}`)
   const currentGroupLimit = typeof currentPlan?.limits.groups === 'number' ? currentPlan.limits.groups : 1
@@ -245,6 +245,7 @@ function billingStatusLabel(status: string, t: ReturnType<typeof useT>['t']): st
     case 'unpaid': return t('billing.status.unpaid')
     case 'paused': return t('billing.status.paused')
     case 'temporary_grant': return t('billing.status.temporaryGrant')
+    case 'admin_suspended': return t('billing.status.adminSuspended')
     default: return t('plans.status.unknown')
   }
 }

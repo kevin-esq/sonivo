@@ -38,6 +38,7 @@ export const es = {
   "billing.status.unpaid": "Pago pendiente",
   "billing.status.paused": "En revisión",
   "billing.status.temporaryGrant": "Acceso temporal",
+  "billing.status.adminSuspended": "Solo lectura: acceso suspendido; suscripción y cobros siguen activos",
   "billing.unavailable": "Stripe no está configurado.",
   "billing.refresh": "Actualizar estado",
   "billing.legacy": "Tu grupo conserva su acceso anterior sin cobros automáticos.",

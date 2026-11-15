@@ -1,5 +1,15 @@
 # Stripe billing differential security review
 
+## Follow-up — signed administration API (2026-11-14)
+
+**Scope:** New HMAC administration routes, grant and suspension writes, projection into Group access, referral ordering, configuration gates, additive migration and runtime-principal grants. Source review, full local .NET suite, isolated PostgreSQL migration rehearsal, and local browser validation. No staging database, provider account, or live payment was accessed.
+
+**Controls:** API defaults disabled and requires a second explicit database-isolation flag, Stripe provider, and sandbox environment; Live is rejected. Requests bind method/path/canonical query/body hash/timestamp/nonce/key/operation/asserted actor; signatures use constant-time comparison, a five-minute window, unique persisted nonces, 64 KiB body bound, per-IP rate limiting, scoped permissions, no-store responses, audit, and operation idempotency. Grant writes validate the catalog, reason, 90-day ceiling, and Group capacity. Suspension is separate from provider status, overrides subscription/trial/grant access, preserves data, keeps authorized read/export, and is re-applied during provider reconciliation. Administrative routes have no payment-provider mutations.
+
+**Validation:** Release .NET suite passed 932/932 (Domain 251, Application 254, Integration 106, API 321). Focused tests cover HMAC signature and tampering, timestamp, nonce replay, scope denial, key rotation, grants, idempotent retries, suspension/reactivation, and audit. The additive migration applied to a new local PostgreSQL rehearsal database; 52 migrations are recorded, four admin tables exist, and EF reports no pending model changes. Runtime-role integration passed with reviewed table grants. The billing Playwright journeys passed 3/3 across Next.js, API, and isolated PostgreSQL; Axe reported no selector violations. TypeScript and Next production build passed. The standalone runtime verifier could not pass on the shared local PostgreSQL cluster because `sonivo_app` inherits `CONNECT` to other local databases through `PUBLIC`; no global ACL was changed. Stripe sandbox credentials were absent, so provider Checkout/webhook/renewal tests remain unrun. No charge, staging migration, or Live action occurred. Codex Security review remains pending finalization.
+
+**Gates:** Do not configure secrets or enable the API until Phase 4.2 database isolation is complete. No RLS policy is added here. `AdminApi:Enabled=false` and `AdminApi:DatabaseIsolationReady=false` remain the defaults. Staging and Live remain unchanged. A reported earlier staging state (prior billing migrations, four Groups intact, readiness 200) was not rechecked in this work.
+
 > **Current status (2026-11-14):** T-BILL-08 lifecycle implementation is locally complete. Historical 2026-11-05 findings remain below as evidence for that earlier revision; use the follow-up in this file for current lifecycle status. No staging/production migration, live charge, or Stripe Checkout was performed. Purge remains disabled pending operational safety gates.
 
 ## Follow-up — T-BILL-08 security review (2026-11-14)

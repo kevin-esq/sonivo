@@ -60,6 +60,9 @@ public sealed class BillingWriteInterceptor(IClock clock) : SaveChangesIntercept
                 var organization = db.ChangeTracker.Entries<BillingOrganization>()
                     .Select(x => x.Entity).SingleOrDefault(x => x.Id == link.OrganizationId)
                     ?? await db.BillingOrganizations.SingleAsync(x => x.Id == link.OrganizationId, ct);
+                if (await db.BillingAdminSuspensions.AnyAsync(x => x.OrganizationId == organization.Id
+                    && x.Environment == organization.Environment && x.IsSuspended, ct))
+                    throw new ConflictException("billing-administratively-suspended");
                 var ownerId = additions.OfType<Membership>().Single(x => x.GroupId == id && x.IsOwner).UserId;
                 if (organization.OwnerUserId != ownerId) throw new ConflictException("billing-owner-mismatch");
                 var groupCount = await db.BillingGroups.CountAsync(x => x.OrganizationId == organization.Id, ct);
@@ -85,7 +88,11 @@ public sealed class BillingWriteInterceptor(IClock clock) : SaveChangesIntercept
             var existingOrganization = await db.BillingOrganizations.SingleAsync(x => x.Id == existingLink.OrganizationId, ct);
             var group = await db.Groups.IgnoreQueryFilters().SingleAsync(x => x.Id == id, ct);
             var activeGrant = await BillingProjection.ActiveGrantAsync(db, existingOrganization.Id, clock.UtcNow, ct);
-            BillingProjection.Apply(group, existingLink, existingOrganization, clock.UtcNow, activeGrant);
+            var administrativelySuspended = await db.BillingAdminSuspensions.AnyAsync(x =>
+                x.OrganizationId == existingOrganization.Id && x.Environment == existingOrganization.Environment
+                && x.IsSuspended, ct);
+            BillingProjection.Apply(group, existingLink, existingOrganization, clock.UtcNow,
+                activeGrant, administrativelySuspended);
             var groupEntry = db.ChangeTracker.Entries<Group>().SingleOrDefault(x => x.Entity.Id == id);
             var restoring = groupEntry is not null
                 && (groupEntry.Property(x => x.DeletedAt).OriginalValue is not null && group.DeletedAt is null
@@ -97,7 +104,7 @@ public sealed class BillingWriteInterceptor(IClock clock) : SaveChangesIntercept
                     : PlanCatalog.Get(activeGrant.PlanId).Limits.Groups ?? int.MaxValue;
                 if (groupCount > capacity) throw new ConflictException("billing-group-limit");
             }
-            if (group.BillingStatus == BillingStatuses.ReadOnly) throw new ConflictException("billing-read-only");
+            if (BillingStatuses.IsReadOnly(group.BillingStatus)) throw new ConflictException("billing-read-only");
             if (group.CreationBlocked) throw new ConflictException("billing-creation-blocked");
             var limits = PlanCatalog.Get(group.PlanId).Limits;
             Check(limits.Songs, await db.Songs.CountAsync(x => x.GroupId == id, ct), additions.OfType<Song>().Count(x => x.GroupId == id));

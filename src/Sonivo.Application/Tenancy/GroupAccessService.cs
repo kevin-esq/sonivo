@@ -165,7 +165,7 @@ public sealed class GroupAccessService
     {
         var (group, membership) = await RequireMemberAsync(groupId, userId, cancellationToken);
         var effective = await EffectivePermissionsAsync(membership, groupId, cancellationToken);
-        return effective.Contains(permission) && (group.BillingStatus != BillingStatuses.ReadOnly
+        return effective.Contains(permission) && (!BillingStatuses.IsReadOnly(group.BillingStatus)
             || CanUseWhileReadOnly(permission));
     }
 
@@ -476,7 +476,7 @@ public sealed class GroupAccessService
 
     private static void EnsureWritable(Group group, string permission)
     {
-        if (group.BillingStatus == BillingStatuses.ReadOnly && !CanUseWhileReadOnly(permission))
+        if (BillingStatuses.IsReadOnly(group.BillingStatus) && !CanUseWhileReadOnly(permission))
             throw new ConflictException("billing-read-only");
     }
 
