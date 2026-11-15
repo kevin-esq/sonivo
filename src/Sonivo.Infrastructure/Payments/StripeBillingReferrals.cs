@@ -19,6 +19,11 @@ public sealed partial class StripeBillingService
             if (candidate is null || candidate.Status == "applied") return null;
             var now = clock.UtcNow;
             if (candidate.NextAttemptAt > now || candidate.ProcessingUntil > now) return null;
+            var earlierPending = await db.BillingReferralRewards.AnyAsync(x =>
+                x.ReferrerOrganizationId == candidate.ReferrerOrganizationId && x.Id != candidate.Id
+                && x.Status != "applied" && (x.CreatedAt < candidate.CreatedAt
+                    || x.CreatedAt == candidate.CreatedAt && x.Id.CompareTo(candidate.Id) < 0), token);
+            if (earlierPending) return null;
             await LockAsync(candidate.ReferrerOrganizationId, token);
             var busy = await db.BillingReferralRewards.AnyAsync(x => x.ReferrerOrganizationId == candidate.ReferrerOrganizationId
                 && x.Id != candidate.Id && x.Status == "processing" && x.ProcessingUntil > now, token);
@@ -113,14 +118,18 @@ public sealed partial class StripeBillingService
                 var reward = await db.BillingReferralRewards.SingleAsync(x => x.Id == claim.Id, token);
                 reward.Status = pendingReason.Length == 0 ? "applied" : "pending";
                 reward.PendingReason = pendingReason.Length == 0 ? null : pendingReason;
+                if (pendingReason == "reward-target-expired")
+                {
+                    reward.TargetFreeThrough = null;
+                    reward.RewardBasePeriodEnd = null;
+                }
                 reward.ProcessingUntil = null;
                 reward.FreeThrough = freeThrough;
                 reward.AppliedAt = pendingReason.Length == 0 ? clock.UtcNow : null;
                 reward.NextAttemptAt = pendingReason switch
                 {
                     "reward-cap" when pendingRetryAt is { } retry => retry,
-                    "reward-target-expired" => DateTimeOffset.MaxValue,
-                    "subscription-not-eligible" or "subscription-schedule-present" or "subscription-cancels-at-period-end" => clock.UtcNow.AddHours(6),
+                    "reward-target-expired" or "subscription-not-eligible" or "subscription-schedule-present" or "subscription-cancels-at-period-end" => clock.UtcNow.AddHours(6),
                     _ => clock.UtcNow
                 };
                 if (reward.NextAttemptAt < clock.UtcNow) reward.NextAttemptAt = clock.UtcNow;

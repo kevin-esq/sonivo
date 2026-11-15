@@ -1,6 +1,6 @@
 # PostgreSQL RLS research for Sonivo
 
-**Date:** 2026-10-17
+**Date:** 2026-10-17 (billing administration addendum 2026-11-14)
 **Decision:** [ADR-0086](DECISIONS.md)
 **Status:** Research complete; implementation is gated by Phase 4.2.
 
@@ -99,6 +99,7 @@ until the gated T-4.2.04–06 work.
 | `Rsvps` | Indirect through `Event.GroupId`; the row stores only `EventId` and `UserId` | Policy joins the parent Event and applies membership plus selected or multi-Group scope; writes bind the RSVP to the authenticated user |
 | `Notifications` | Recipient-owned rows with optional Group context | RLS binds every notification row to its recipient; the API additionally requires current membership to list or count a Group inbox |
 | `AccountAudit` | User-account events with optional Group attribution | Reads are target-owned; actor attribution alone grants no read visibility. Inserts are self/target-bound and Group-scoped when `GroupId` is present. |
+| Billing Organizations, subscriptions, invoices, referrals, grants, and outbox | Billing/platform records with explicit `Environment` and `OrganizationId`; not Group authorization tenants | Owner reads require verified owner identity and explicit Organization id. Administrative reads/writes require authenticated HMAC service, configured operation scope, environment, and explicit Organization id. Nonce records are service/environment scoped. No Billing RLS policy is enabled by this change; T-4.2.04–06 must review and prove the service selector before rollout. |
 | ASP.NET Identity tables, `DataProtectionKeys`, `WebhookEvents` | Platform/global | No Group policy; retain their existing least-privilege and application access rules |
 | Object/blob storage | Outside PostgreSQL rows | Existing application authorization must run before reading opaque blob keys |
 
@@ -708,3 +709,19 @@ policy. Before exposing deletion or enabling policies, verify there are no such
 rows and preserve same-Group integrity for the provenance reference. The API
 reference list now marks the deletion route as unimplemented per the closed
 spec.
+
+## Billing administration context (not yet an RLS policy)
+
+The signed billing administration service sets transaction-local
+`sonivo.billing_service_id`, `sonivo.billing_service_scope`, and
+`sonivo.billing_organization_id` only after HMAC authentication. The permission
+scope is one of the API's explicit read, grant, or suspension permissions; the
+organization selector is explicit for account operations and empty for the
+paged account list. These values are context for future narrowly scoped
+policies, not authorization by themselves. Current application checks and
+explicit `(Environment, OrganizationId)` predicates remain required.
+
+Billing RLS policies and PostgreSQL negative-path tests are still blocked by
+the Phase 4.2 gates. Keep `AdminApi:DatabaseIsolationReady=false` until those
+tests prove service identity, permission, organization isolation, and absent
+context fail closed under the constrained runtime role.

@@ -19,7 +19,9 @@ public sealed class BillingProjection(SonivoDbContext db, IClock clock, StripeBi
         }
         var organization = await db.BillingOrganizations.SingleAsync(x => x.Id == link.OrganizationId, ct);
         var grant = await ActiveGrantAsync(db, organization.Id, clock.UtcNow, ct);
-        Apply(group, link, organization, clock.UtcNow, grant);
+        var suspended = await db.BillingAdminSuspensions.AnyAsync(x => x.OrganizationId == organization.Id
+            && x.Environment == organization.Environment && x.IsSuspended, ct);
+        Apply(group, link, organization, clock.UtcNow, grant, suspended);
     }
 
     public async Task InitializeAsync(Group group, Guid ownerUserId, CancellationToken ct)
@@ -31,6 +33,8 @@ public sealed class BillingProjection(SonivoDbContext db, IClock clock, StripeBi
         var capacityReached = false;
         foreach (var candidate in candidates)
         {
+            if (await db.BillingAdminSuspensions.AnyAsync(x => x.OrganizationId == candidate.Id
+                && x.Environment == candidate.Environment && x.IsSuspended, ct)) continue;
             var grant = await ActiveGrantAsync(db, candidate.Id, clock.UtcNow, ct);
             if (grant is null && !candidate.CanCreate(clock.UtcNow)) continue;
             var capacity = grant is null ? candidate.GroupCapacity(clock.UtcNow)
@@ -65,7 +69,7 @@ public sealed class BillingProjection(SonivoDbContext db, IClock clock, StripeBi
             .Select(x => (DateTimeOffset?)x.ExpiresAt).MaxAsync(ct);
 
     internal static void Apply(Group group, BillingGroup link, BillingOrganization organization, DateTimeOffset now,
-        BillingAccessGrant? grant = null)
+        BillingAccessGrant? grant = null, bool administrativelySuspended = false)
     {
         var legacy = link.LegacyPlanId is not null && organization.SubscriptionId is null && organization.TrialEndsAt is null;
         var effectivePlan = grant?.PlanId ?? (legacy ? link.LegacyPlanId! : organization.EffectivePlan(now));
@@ -74,10 +78,11 @@ public sealed class BillingProjection(SonivoDbContext db, IClock clock, StripeBi
             || organization.SubscriptionId is not null && (capacity > 1 || organization.ExtraGroups > 0);
         var readOnly = !legacy && grant is null && (HasExpired(organization, now) || organization.Status == "inactive");
         var plan = grant?.PlanId ?? (legacy ? link.LegacyPlanId! : included ? organization.EffectivePlan(now) : PlanCatalog.Starter);
-        var status = grant is not null ? "temporary_grant" : legacy ? "legacy" : readOnly ? BillingStatuses.ReadOnly : organization.Status;
+        var status = administrativelySuspended ? BillingStatuses.AdminSuspended
+            : grant is not null ? "temporary_grant" : legacy ? "legacy" : readOnly ? BillingStatuses.ReadOnly : organization.Status;
         group.ProjectBilling(plan, status,
             organization.TrialEndsAt, organization.ScheduledPlanId,
-            grant is null && !legacy && (!included || !organization.CanCreate(now)));
+            administrativelySuspended || grant is null && !legacy && (!included || !organization.CanCreate(now)));
     }
 
     private static bool HasExpired(BillingOrganization organization, DateTimeOffset now)

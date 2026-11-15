@@ -41,6 +41,7 @@ export const en: Record<I18nKey, string> = {
   "billing.status.unpaid": "Payment due",
   "billing.status.paused": "Under review",
   "billing.status.temporaryGrant": "Temporary access",
+  "billing.status.adminSuspended": "Read-only: access suspended; subscription and billing continue",
   "billing.unavailable": "Stripe is not configured.",
   "billing.refresh": "Refresh status",
   "billing.legacy": "Your group retains its previous access without automatic charges.",

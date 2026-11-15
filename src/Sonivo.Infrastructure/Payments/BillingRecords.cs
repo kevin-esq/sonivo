@@ -54,6 +54,9 @@ public sealed class BillingAudit
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid OrganizationId { get; set; }
     public Guid? ActorUserId { get; set; }
+    public string? ActorServiceId { get; set; }
+    public string? AssertedActorId { get; set; }
+    public Guid? OperationId { get; set; }
     public string Action { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }
 }

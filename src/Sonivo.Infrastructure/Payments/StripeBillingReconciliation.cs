@@ -143,7 +143,9 @@ public sealed partial class StripeBillingService
             var group = await db.Groups.SingleOrDefaultAsync(x => x.Id == link.GroupId, ct);
             if (group is null) continue;
             var activeGrant = await BillingProjection.ActiveGrantAsync(db, organization.Id, clock.UtcNow, ct);
-            BillingProjection.Apply(group, link, organization, clock.UtcNow, activeGrant);
+            var suspended = await db.BillingAdminSuspensions.AnyAsync(x => x.OrganizationId == organization.Id
+                && x.Environment == organization.Environment && x.IsSuspended, ct);
+            BillingProjection.Apply(group, link, organization, clock.UtcNow, activeGrant, suspended);
         }
     }
 

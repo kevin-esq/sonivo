@@ -22,4 +22,6 @@ public interface IGroupDatabaseScope
         CancellationToken cancellationToken);
     Task SetHandleLoginLookupAsync(string slug, string normalizedHandle, CancellationToken cancellationToken);
     Task SetGroupSlugUniquenessLookupAsync(string slug, CancellationToken cancellationToken);
+    Task SetBillingServiceOrganizationAsync(string serviceId, string permission, Guid? organizationId,
+        CancellationToken cancellationToken);
 }

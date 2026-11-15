@@ -36,6 +36,8 @@ public sealed class BillingAccessGrantConfiguration : IEntityTypeConfiguration<B
         b.Property(x => x.PlanId).HasMaxLength(16);
         b.Property(x => x.RequestFingerprint).HasMaxLength(64);
         b.Property(x => x.Reason).HasMaxLength(500);
+        b.Property(x => x.GrantedByServiceId).HasMaxLength(100); b.Property(x => x.GrantedByActorId).HasMaxLength(200);
+        b.Property(x => x.RevokedByServiceId).HasMaxLength(100); b.Property(x => x.RevokedByActorId).HasMaxLength(200);
         b.HasOne<BillingOrganization>().WithMany().HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
         b.HasIndex(x => x.OperationId).IsUnique();
         b.HasIndex(x => new { x.OrganizationId, x.StartsAt, x.ExpiresAt, x.RevokedAt });
@@ -158,7 +160,55 @@ public sealed class BillingAuditConfiguration : IEntityTypeConfiguration<Billing
     public void Configure(EntityTypeBuilder<BillingAudit> b)
     {
         b.ToTable("BillingAudit"); b.HasKey(x => x.Id); b.Property(x => x.Action).HasMaxLength(100);
+        b.Property(x => x.ActorServiceId).HasMaxLength(100); b.Property(x => x.AssertedActorId).HasMaxLength(200);
         b.HasIndex(x => new { x.OrganizationId, x.CreatedAt });
+    }
+}
+
+public sealed class BillingAdminRequestNonceConfiguration : IEntityTypeConfiguration<BillingAdminRequestNonce>
+{
+    public void Configure(EntityTypeBuilder<BillingAdminRequestNonce> b)
+    {
+        b.ToTable("BillingAdminRequestNonces"); b.HasKey(x => new { x.Environment, x.KeyId, x.Nonce });
+        b.Property(x => x.Environment).HasMaxLength(16); b.Property(x => x.KeyId).HasMaxLength(100);
+        b.Property(x => x.Nonce).HasMaxLength(100); b.HasIndex(x => x.ExpiresAt);
+    }
+}
+
+public sealed class BillingAdminOperationConfiguration : IEntityTypeConfiguration<BillingAdminOperation>
+{
+    public void Configure(EntityTypeBuilder<BillingAdminOperation> b)
+    {
+        b.ToTable("BillingAdminOperations"); b.HasKey(x => new { x.Environment, x.OperationId });
+        b.Property(x => x.Environment).HasMaxLength(16); b.Property(x => x.RequestFingerprint).HasMaxLength(64);
+        b.Property(x => x.ServiceId).HasMaxLength(100); b.Property(x => x.AssertedActorId).HasMaxLength(200);
+        b.Property(x => x.ResultJson).HasMaxLength(4096);
+        b.HasIndex(x => new { x.Environment, x.OrganizationId, x.CreatedAt });
+    }
+}
+
+public sealed class BillingAdminSuspensionConfiguration : IEntityTypeConfiguration<BillingAdminSuspension>
+{
+    public void Configure(EntityTypeBuilder<BillingAdminSuspension> b)
+    {
+        b.ToTable("BillingAdminSuspensions"); b.HasKey(x => new { x.Environment, x.OrganizationId });
+        b.Property(x => x.Environment).HasMaxLength(16); b.Property(x => x.Reason).HasMaxLength(500);
+        b.Property(x => x.ServiceId).HasMaxLength(100); b.Property(x => x.AssertedActorId).HasMaxLength(200);
+        b.HasOne<BillingOrganization>().WithMany().HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => new { x.Environment, x.IsSuspended });
+    }
+}
+
+public sealed class BillingAdminRequestAuditConfiguration : IEntityTypeConfiguration<BillingAdminRequestAudit>
+{
+    public void Configure(EntityTypeBuilder<BillingAdminRequestAudit> b)
+    {
+        b.ToTable("BillingAdminRequestAudits"); b.HasKey(x => x.Id);
+        b.Property(x => x.Environment).HasMaxLength(16); b.Property(x => x.KeyId).HasMaxLength(100);
+        b.Property(x => x.ServiceId).HasMaxLength(100); b.Property(x => x.AssertedActorId).HasMaxLength(200);
+        b.Property(x => x.Method).HasMaxLength(10); b.Property(x => x.Path).HasMaxLength(300);
+        b.HasIndex(x => new { x.Environment, x.OrganizationId, x.StartedAt });
+        b.HasIndex(x => x.OperationId);
     }
 }
 

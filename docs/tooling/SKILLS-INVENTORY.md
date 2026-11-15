@@ -1,7 +1,9 @@
 # SKILLS-INVENTORY.md — Sonivo
 
 **Phase 0 status:** **CLOSED** (Phase 0.9, 2026-09-15)  
-**Allowlist:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, ADR-0063–0066, ADR-0099, ADR-0102, and ADR-0103)
+**Allowlist:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, ADR-0063–0066, ADR-0099, ADR-0102/0103, and ADR-0119)
+
+**ADR-0119 addition:** `stripe-best-practices`, `upgrade-stripe`, `payment-reconciliation`, `invoice-health-check` are authorized project-local skills. Each copy includes its upstream MIT license. Stripe MCP is configured disabled pending sandbox OAuth. ADR-0107 is the LRCLIB search decision, not tooling authorization.
 
 Distinguish: **PRESENT** (on disk) · **AUTHORIZED** (Sonivo allowlist) · **DEFERRED** · **REJECTED** · **USER-GLOBAL**
 
@@ -97,9 +99,9 @@ Official Neon skills for platform and Postgres workflows:
 
 ---
 
-## PRESENT project-local skills (43 directories)
+## PRESENT project-local skills (47 directories)
 
-**43** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063–0066 + ADR-0099 + ADR-0102/0103):
+**47** directories under `.agents/skills/` — all **AUTHORIZED** (ADR-0002/0039/0041 + ADR-0063–0066 + ADR-0099 + ADR-0102/0103/0119):
 
 | Directory                       | Role                 |
 | ------------------------------- | -------------------- |
@@ -146,8 +148,12 @@ Official Neon skills for platform and Postgres workflows:
 | `ponytail`                      | ENGINEERING (ADR-0103) |
 | `ponytail-review`               | REVIEW (ADR-0103)    |
 | `headroom-context`              | CONTEXT (ADR-0103)   |
+| `stripe-best-practices`         | BILLING (ADR-0119)   |
+| `upgrade-stripe`                | BILLING (ADR-0119)   |
+| `payment-reconciliation`        | BILLING (ADR-0119)   |
+| `invoice-health-check`          | BILLING (ADR-0119)   |
 
-= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions + **2** ADR-0064 security skills + **1** frontend structure + **1** ADR-0065 git governance + **1** ADR-0066 validation + **1** tenancy + **2** ADR-0102 Neon skills + **4** ADR-0103 response/context skills = **43 AUTHORIZED**.
+= **13** Matt Pocock (core) + **1** Impeccable + **8** ADR-0039 knowledge workflows + **9** ADR-0063 additions + **2** ADR-0064 security skills + **1** frontend structure + **1** ADR-0065 git governance + **1** ADR-0066 validation + **1** tenancy + **2** ADR-0102 Neon skills + **4** ADR-0103 response/context skills + **4** ADR-0119 billing review skills = **47 AUTHORIZED**.
 
 Removed skills are **not** listed as installed.
 
@@ -204,3 +210,5 @@ Graphify rule / `graphify-out/` · watermarks project rule · `product-marketing
 | `ponytail-review`         | Authored for Sonivo under ADR-0103; user-invoked and limited to over-engineering findings |
 | `headroom-context`        | Authored for Sonivo under ADR-0103; optional connector use only for non-sensitive content |
 | RTK                      | `rtk-ai/rtk` v1.1.0 `rtk-oss-x86_64-pc-windows-msvc.zip`; SHA-256 `9b076379be9d86011ca3f3a0264d0be4851da5535453a47f67fa46b4e893fbb2`; installed to owner profile, not tracked |
+| Stripe skills | `stripe/ai` commit `5091f72943e6cb4ca439c98ee4783d6085de1318`; `stripe-best-practices` and `upgrade-stripe`; MIT license retained |
+| Finance review skills | `loopfour/finance-skills` commit `6f02e8a0ac9f306a6d2d20bc3d9b7c8aec6f6065`; `payment-reconciliation` and `invoice-health-check`; MIT license retained |

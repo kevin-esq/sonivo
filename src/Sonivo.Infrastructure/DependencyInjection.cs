@@ -151,6 +151,7 @@ public static class DependencyInjection
             services.AddSingleton<IPaymentProvider>(sp => sp.GetRequiredService<StripeBillingGateway>());
             services.AddScoped<StripeBillingService>();
             services.AddScoped<IBillingService>(sp => sp.GetRequiredService<StripeBillingService>());
+            services.AddScoped<IBillingAdministrationService, BillingAdministrationService>();
             services.AddScoped<IBillingPolicy, BillingProjection>();
             services.AddHostedService<BillingWorker>();
         }

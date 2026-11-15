@@ -16,8 +16,9 @@ public sealed record BillingHistoryEntry(string Id, string? InvoiceId, string St
     string Currency, DateTimeOffset EventAt, DateTimeOffset? PeriodStart, DateTimeOffset? PeriodEnd);
 public sealed record BillingQuote(long AmountDue, string Currency, string QuoteId);
 public sealed record BillingAccessGrantSummary(Guid Id, Guid OrganizationId, string PlanId,
-    DateTimeOffset StartsAt, DateTimeOffset ExpiresAt, string Reason, Guid GrantedByUserId,
-    DateTimeOffset? RevokedAt, Guid? RevokedByUserId);
+    DateTimeOffset StartsAt, DateTimeOffset ExpiresAt, string Reason, Guid? GrantedByUserId,
+    DateTimeOffset? RevokedAt, Guid? RevokedByUserId, string? GrantedByServiceId = null,
+    string? GrantedByActorId = null, string? RevokedByServiceId = null, string? RevokedByActorId = null);
 public sealed record BillingAccessGrantCommand(Guid OperationId, string PlanId,
     DateTimeOffset ExpiresAt, string Reason);
 public sealed record BillingReferralSummary(string ReferralCode, string? AttributedToCode,
@@ -42,12 +43,6 @@ public interface IBillingService
     Task CancelAsync(Guid userId, Guid groupId, string operationId, bool cancel, CancellationToken cancellationToken);
     Task LinkGroupAsync(Guid userId, Guid groupId, Guid targetGroupId, bool link, CancellationToken cancellationToken);
     Task<bool> ReceiveAsync(string body, string signature, CancellationToken cancellationToken);
-    Task<IReadOnlyList<BillingAccessGrantSummary>> GetAccessGrantsAsync(Guid administratorId,
-        Guid organizationId, CancellationToken cancellationToken);
-    Task<BillingAccessGrantSummary> GrantAccessAsync(Guid administratorId, Guid organizationId,
-        BillingAccessGrantCommand command, CancellationToken cancellationToken);
-    Task RevokeAccessGrantAsync(Guid administratorId, Guid organizationId, Guid grantId,
-        CancellationToken cancellationToken);
     Task<BillingReferralSummary> GetReferralAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken);
     Task<BillingReferralSummary> AttributeReferralAsync(Guid userId, Guid organizationId, string referralCode,
         CancellationToken cancellationToken);

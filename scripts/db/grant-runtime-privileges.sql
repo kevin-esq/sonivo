@@ -56,6 +56,12 @@ GRANT SELECT, INSERT ON TABLE
     public."BillingFinancialEvents",
     public."BillingReferralCodes",
     public."BillingAccountingOutbox" TO sonivo_app;
+GRANT SELECT, INSERT, UPDATE ON TABLE
+    public."BillingAdminSuspensions",
+    public."BillingAdminRequestAudits" TO sonivo_app;
+GRANT SELECT, INSERT ON TABLE public."BillingAdminOperations" TO sonivo_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+    public."BillingAdminRequestNonces" TO sonivo_app;
 
 -- The mobile OIDC server reads registered clients and persists authorization
 -- and token state. Scopes are read-only; client registration is idempotently

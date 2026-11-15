@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sonivo.Application.Abstractions;
+using Sonivo.Application.Billing;
 using Sonivo.Domain.Tenancy;
 
 namespace Sonivo.Infrastructure.Persistence;
@@ -26,6 +27,24 @@ public sealed class EfGroupDatabaseScope : IGroupDatabaseScope
         }
 
         return SetLocalAsync("sonivo.user_id", userId, cancellationToken);
+    }
+
+    public Task SetBillingServiceOrganizationAsync(string serviceId, string permission, Guid? organizationId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(serviceId) || serviceId.Length > 100
+            || !BillingAdminPermissions.IsValid(permission)
+            || organizationId == Guid.Empty)
+            throw new ArgumentException("Billing service scope is invalid.");
+        return SetBillingServiceScopeAsync(serviceId, permission, organizationId, cancellationToken);
+    }
+
+    private async Task SetBillingServiceScopeAsync(string serviceId, string permission, Guid? organizationId,
+        CancellationToken cancellationToken)
+    {
+        await SetLocalAsync("sonivo.billing_service_id", serviceId, cancellationToken);
+        await SetLocalAsync("sonivo.billing_service_scope", permission, cancellationToken);
+        await SetLocalAsync("sonivo.billing_organization_id", organizationId?.ToString("D") ?? "", cancellationToken);
     }
 
     public Task SetMultiGroupReadAsync(Guid userId, CancellationToken cancellationToken)

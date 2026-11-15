@@ -1,7 +1,8 @@
 # TOOLING-AUDIT.md — Sonivo
 
 **Phase 0 status:** **CLOSED** (Phase 0.9 documentation reconciliation, 2026-09-15)  
-**Tooling policy:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, ADR-0063–0066, ADR-0099, ADR-0102, and ADR-0103)
+**Tooling policy:** **AUTHORIZED** (ADR-0002 **ACCEPTED**, extended by ADR-0039/0041, ADR-0063–0066, ADR-0099, ADR-0102/0103, and ADR-0119)
+**ADR-0119 amendment:** Four pinned billing review skills and the disabled payment-provider MCP entry are authorized for billing work. Runtime uses Stripe.net 53.1.0; no new runtime tooling was added.
 **Phase 0.9:** Documentation reconciliation only — **no** installs, uninstalls, or tooling changes.  
 **Rule:** `DOCUMENTED ≠ VERIFIED PRESENT ≠ APPROVED/AUTHORIZED` · Sonivo allowlist is binding.
 
@@ -90,9 +91,9 @@ Audit method: existing `webappsec-review` skill (two-pass) — no new skills ins
 Rejected as redundant (see [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md) §8): Security Code Scan, OWASP Dependency-Check. `System.Formats.Cbor` for the Critical C1 passkey fix: **PENDING explicit approval**.
 Findings/plan of record: [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-architecture/SECURITY-AUDIT-2026-09.md).
 
-## Project-local verified state (43 skill directories)
+## Project-local verified state (47 skill directories)
 
-**13 Matt Pocock + 1 Impeccable + 8 knowledge workflows + 9 ADR-0063 additions + 2 ADR-0064 security skills + 1 frontend structure + 1 ADR-0065 git governance + 1 ADR-0066 validation + 1 tenancy + 2 ADR-0102 Neon skills + 4 ADR-0103 response/context skills** under `.agents/skills/`:
+**13 Matt Pocock + 1 Impeccable + 8 knowledge workflows + 9 ADR-0063 additions + 2 ADR-0064 security skills + 1 frontend structure + 1 ADR-0065 git governance + 1 ADR-0066 validation + 1 tenancy + 2 ADR-0102 Neon skills + 4 ADR-0103 response/context skills + 4 ADR-0119 billing review skills** under `.agents/skills/`:
 
 `codebase-design` · `code-review` · `diagnosing-bugs` · `domain-modeling` · `grilling` · `grill-with-docs` · `impeccable` · `implement` · `prototype` · `research` · `resolving-merge-conflicts` · `tdd` · `to-spec` · `to-tickets`
 
@@ -113,6 +114,8 @@ Findings/plan of record: [`../03-architecture/SECURITY-AUDIT-2026-09.md`](../03-
 `neon` · `neon-postgres` (official `neondatabase/agent-skills`; ADR-0102)
 
 `caveman` · `ponytail` · `ponytail-review` · `headroom-context` (ADR-0103)
+
+`stripe-best-practices` · `upgrade-stripe` · `payment-reconciliation` · `invoice-health-check` (ADR-0119)
 
 `skills-lock.json` has **15** entries: 13 Matt core skills and 2 Neon skills. The eight knowledge workflows and the ADR-0063 additions are not all external packages, and the ADR-0063 Matt additions (`pr`, `writing-for-agents`) are not yet in the lock. Update the lock only via the official `skills` CLI (its hash algorithm is not plain sha256). Root `.obsidian/` vault configuration remains local and was not changed.
 

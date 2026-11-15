@@ -72,10 +72,12 @@ public static class BillingStatuses
     public const string Trialing = "trialing";
     public const string PastDue = "past_due";
     public const string ReadOnly = "read_only";
+    public const string AdminSuspended = "admin_suspended";
 
-    public static readonly IReadOnlyList<string> All = [Active, Trialing, PastDue, ReadOnly];
+    public static readonly IReadOnlyList<string> All = [Active, Trialing, PastDue, ReadOnly, AdminSuspended];
 
     public static bool IsValid(string? value) => value is not null && All.Contains(value);
+    public static bool IsReadOnly(string? value) => value is ReadOnly or AdminSuspended;
 }
 
 /// <summary>A plan definition from the single-source catalog.</summary>

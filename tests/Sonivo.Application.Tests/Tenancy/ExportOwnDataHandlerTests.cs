@@ -63,6 +63,9 @@ public sealed class ExportOwnDataHandlerTests
             CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SetHandleLoginLookupAsync(string slug, string normalizedHandle, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SetGroupSlugUniquenessLookupAsync(string slug, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task SetBillingServiceOrganizationAsync(string serviceId, string permission, Guid? organizationId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class EmptyGroupStore : IGroupStore

@@ -202,6 +202,9 @@ public class ConductorRoomAuthorizerTests
 
         public Task SetGroupSlugUniquenessLookupAsync(string slug, CancellationToken cancellationToken)
             => Task.CompletedTask;
+
+        public Task SetBillingServiceOrganizationAsync(string serviceId, string permission, Guid? organizationId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeGroupStore : IGroupStore

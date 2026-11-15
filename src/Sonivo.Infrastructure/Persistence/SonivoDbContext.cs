@@ -54,6 +54,10 @@ public DbSet<ResourceGrant> ResourceGrants => Set<ResourceGrant>();
     public DbSet<BillingOperation> BillingOperations => Set<BillingOperation>();
     public DbSet<BillingInboxEvent> BillingInbox => Set<BillingInboxEvent>();
     public DbSet<BillingAudit> BillingAudit => Set<BillingAudit>();
+    public DbSet<BillingAdminRequestNonce> BillingAdminRequestNonces => Set<BillingAdminRequestNonce>();
+    public DbSet<BillingAdminOperation> BillingAdminOperations => Set<BillingAdminOperation>();
+    public DbSet<BillingAdminSuspension> BillingAdminSuspensions => Set<BillingAdminSuspension>();
+    public DbSet<BillingAdminRequestAudit> BillingAdminRequestAudits => Set<BillingAdminRequestAudit>();
     public DbSet<BillingLegacyGroupNotice> BillingLegacyGroupNotices => Set<BillingLegacyGroupNotice>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 

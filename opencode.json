@@ -85,6 +85,11 @@
         "type": "remote",
         "url": "https://mcp.resend.com/mcp"
       },
+      "stripe": {
+        "type": "remote",
+        "url": "https://mcp.stripe.com",
+        "disabled": true
+      },
       "android": {
         "type": "local",
         "command": ["npx", "-y", "@us-all/android-mcp@1.14.4"],

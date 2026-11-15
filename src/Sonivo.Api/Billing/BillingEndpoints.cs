@@ -13,7 +13,6 @@ internal static class BillingEndpoints
     internal sealed record TrialRequest(string? PlanId);
     internal sealed record ChangeRequest(string? OperationId, BillingSelection? Selection, string? QuoteId, bool RecurringConsent = false);
     internal sealed record CancelRequest(string? OperationId, bool Cancel);
-    internal sealed record GrantRequest(string? OperationId, string? PlanId, DateTimeOffset? ExpiresAt, string? Reason);
     internal sealed record ReferralRequest(string? Code);
 
     public static void MapBillingEndpoints(this WebApplication app)
@@ -88,25 +87,6 @@ internal static class BillingEndpoints
                 ? service.AttributeReferralAsync(UserId(principal), organizationId, code, ct)
                 : throw new ValidationException("billing-referral-code-required"));
 
-        if (app.Configuration.GetValue<bool>("Payments:EnableAdminGrants"))
-        {
-            var administration = app.MapGroup("/api/admin/billing").RequireAuthorization("platform-admin")
-                .RequireRateLimiting("billing").WithTags("Billing Administration");
-            administration.MapGet("/organizations/{organizationId:guid}/grants", (Guid organizationId,
-                ClaimsPrincipal principal, IBillingService service, CancellationToken ct)
-                => service.GetAccessGrantsAsync(UserId(principal), organizationId, ct));
-            administration.MapPost("/organizations/{organizationId:guid}/grants", (Guid organizationId,
-                GrantRequest? request, ClaimsPrincipal principal, IBillingService service, CancellationToken ct)
-                => request?.OperationId is { } operationId && Guid.TryParse(operationId, out var parsed)
-                    && parsed != Guid.Empty && request.PlanId is { Length: > 0 } planId
-                    && request.ExpiresAt is { } expiresAt && request.Reason is { Length: > 0 } reason
-                        ? service.GrantAccessAsync(UserId(principal), organizationId,
-                            new(parsed, planId, expiresAt, reason), ct)
-                        : throw new ValidationException("billing-grant-request-invalid"));
-            administration.MapPost("/organizations/{organizationId:guid}/grants/{grantId:guid}/revoke",
-                (Guid organizationId, Guid grantId, ClaimsPrincipal principal, IBillingService service, CancellationToken ct)
-                    => service.RevokeAccessGrantAsync(UserId(principal), organizationId, grantId, ct));
-        }
     }
 
     private static Guid UserId(ClaimsPrincipal principal) => Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var id) && id != Guid.Empty
