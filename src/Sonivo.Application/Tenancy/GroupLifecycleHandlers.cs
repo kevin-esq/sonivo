@@ -5,11 +5,15 @@ using Sonivo.Domain.Tenancy;
 namespace Sonivo.Application.Tenancy;
 
 public sealed class GroupLifecycleHandlers(IGroupStore groups, IGroupAuditStore audit, IClock clock,
-    IGroupOperationLock groupLock, IGroupPurger? purger = null)
+    IGroupOperationLock groupLock, IGroupPurger? purger = null, IGroupDatabaseScope? databaseScope = null)
 {
     public async Task<IReadOnlyList<GroupLifecycleListItem>> ListAsync(Guid userId, CancellationToken cancellationToken)
-        => (await groups.ListLifecycleForOwnerAsync(userId, cancellationToken))
+    {
+        if (databaseScope is not null)
+            await databaseScope.SetMultiGroupReadAsync(userId, cancellationToken);
+        return (await groups.ListLifecycleForOwnerAsync(userId, cancellationToken))
             .Select(item => item with { CanPermanentlyDelete = purger?.IsEnabled == true }).ToArray();
+    }
 
     public Task ArchiveAsync(Guid userId, Guid groupId, int expectedVersion, CancellationToken cancellationToken)
         => MutateAsync(userId, groupId, expectedVersion, GroupAuditEntry.ActionGroupArchived,
@@ -29,8 +33,12 @@ public sealed class GroupLifecycleHandlers(IGroupStore groups, IGroupAuditStore 
         if (!confirmed) throw new ValidationException("Permanent deletion requires explicit confirmation.");
         if (expectedVersion <= 0) throw new ValidationException("A positive expected version is required.");
         await groupLock.LockAsync(groupId, cancellationToken);
+        if (databaseScope is not null)
+            await databaseScope.SetMultiGroupReadAsync(userId, cancellationToken);
         var group = await groups.GetLifecycleGroupForOwnerAsync(groupId, userId, cancellationToken)
             ?? throw new NotFoundException("Group not found.");
+        if (databaseScope is not null)
+            await databaseScope.SetVerifiedGroupAsync(groupId, cancellationToken);
         if (!group.IsDeleted || group.TrashExpiresAt is null)
             throw new ConflictException("Only a Group in Trash can be permanently deleted.");
         if (group.Version != expectedVersion) throw new ConflictException("Group version changed; refresh before deleting.");
@@ -43,8 +51,12 @@ public sealed class GroupLifecycleHandlers(IGroupStore groups, IGroupAuditStore 
     {
         if (expectedVersion <= 0) throw new ValidationException("A positive expected version is required.");
         await groupLock.LockAsync(groupId, cancellationToken);
+        if (databaseScope is not null)
+            await databaseScope.SetMultiGroupReadAsync(userId, cancellationToken);
         var group = await groups.GetLifecycleGroupForOwnerAsync(groupId, userId, cancellationToken)
             ?? throw new NotFoundException("Group not found.");
+        if (databaseScope is not null)
+            await databaseScope.SetVerifiedGroupAsync(groupId, cancellationToken);
 
         try
         {

@@ -95,7 +95,7 @@ public sealed class EfGroupDatabaseScope : IGroupDatabaseScope
             throw new ArgumentException("Invitation token hash is invalid.", nameof(tokenHash));
         }
 
-        return SetLocalAsync("sonivo.invitation_token_hash", tokenHash.ToUpperInvariant(), cancellationToken);
+        return SetLocalAsync("sonivo.invitation_token_hash", tokenHash, cancellationToken);
     }
 
     public Task SetPublicGroupSlugAsync(string slug, CancellationToken cancellationToken)

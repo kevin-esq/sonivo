@@ -580,7 +580,7 @@ public sealed class RlsTransactionScopeTests
                 Assert.Equal(groupId.ToString("D"), await ReadSettingAsync(db, "sonivo.group_id"));
                 Assert.Equal(groupId.ToString("D"), await ReadSettingAsync(db, "sonivo.payment_webhook_group_id"));
                 Assert.Equal(groupId.ToString("D"), await ReadSettingAsync(db, "sonivo.bootstrap_group_id"));
-                Assert.Equal(invitationTokenHash.ToUpperInvariant(),
+                Assert.Equal(invitationTokenHash,
                     await ReadSettingAsync(db, "sonivo.invitation_token_hash"));
                 Assert.Equal(lookupSlug, await ReadSettingAsync(db, "sonivo.public_group_slug"));
                 Assert.Equal(memberSlug, await ReadSettingAsync(db, "sonivo.member_group_slug"));
@@ -632,7 +632,7 @@ public sealed class RlsTransactionScopeTests
                 await scope.SetGroupSlugUniquenessLookupAsync(uniquenessSlug, CancellationToken.None);
                 Assert.False(string.IsNullOrEmpty(await ReadSettingAsync(db, "sonivo.user_id")));
                 Assert.False(string.IsNullOrEmpty(await ReadSettingAsync(db, "sonivo.group_id")));
-                Assert.Equal(invitationTokenHash.ToUpperInvariant(),
+                Assert.Equal(invitationTokenHash,
                     await ReadSettingAsync(db, "sonivo.invitation_token_hash"));
 
                 await transaction.RollbackAsync();

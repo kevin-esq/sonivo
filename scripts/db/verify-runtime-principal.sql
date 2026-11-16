@@ -148,12 +148,91 @@ BEGIN
     END IF;
 
     IF EXISTS (
+        WITH reviewed_functions(name, identity_arguments, security_definer) AS (
+            VALUES
+                ('sonivo_rls_setting_uuid', 'setting_name text', false),
+                ('sonivo_rls_is_member', 'target_group_id uuid', true),
+                ('sonivo_rls_user_is_member', 'target_user_id uuid, target_group_id uuid', true),
+                ('sonivo_rls_group_read', 'target_group_id uuid', false),
+                ('sonivo_rls_group_write', 'target_group_id uuid', false)
+        ),
+        actual_functions AS (
+            SELECT routine.oid, routine.proname AS name,
+                   pg_get_function_identity_arguments(routine.oid) AS identity_arguments,
+                   routine.prosecdef AS security_definer,
+                   owner.rolname AS owner_name,
+                   COALESCE(routine.proacl, acldefault('f', routine.proowner)) AS acl,
+                   routine.proconfig
+            FROM pg_proc AS routine
+            JOIN pg_namespace AS schema ON schema.oid = routine.pronamespace
+            JOIN pg_roles AS owner ON owner.oid = routine.proowner
+            WHERE schema.nspname = 'public'
+        )
         SELECT 1
-        FROM pg_proc AS routine
-        JOIN pg_namespace AS schema ON schema.oid = routine.pronamespace
-        WHERE schema.nspname = 'public'
+        FROM actual_functions AS actual
+        LEFT JOIN reviewed_functions AS reviewed
+          ON reviewed.name = actual.name
+         AND reviewed.identity_arguments = actual.identity_arguments
+        WHERE reviewed.name IS NULL
+           OR actual.security_definer IS DISTINCT FROM reviewed.security_definer
+           OR (actual.security_definer AND actual.owner_name <> 'sonivo_rls_reader')
+           OR (NOT actual.security_definer AND actual.owner_name IS DISTINCT FROM (
+                SELECT role.rolname
+                FROM pg_database AS database
+                JOIN pg_roles AS role ON role.oid = database.datdba
+                WHERE database.datname = current_database()
+           ))
+           OR has_function_privilege('sonivo_app', actual.oid, 'EXECUTE') IS DISTINCT FROM true
+           OR EXISTS (SELECT 1 FROM aclexplode(actual.acl) grant_entry
+                      WHERE grant_entry.grantee = 0 AND grant_entry.privilege_type = 'EXECUTE')
+           OR (actual.security_definer AND NOT ('search_path=pg_catalog, pg_temp' = ANY(actual.proconfig)))
+    ) OR EXISTS (
+        WITH reviewed_functions(name, identity_arguments) AS (
+            VALUES
+                ('sonivo_rls_setting_uuid', 'setting_name text'),
+                ('sonivo_rls_is_member', 'target_group_id uuid'),
+                ('sonivo_rls_user_is_member', 'target_user_id uuid, target_group_id uuid'),
+                ('sonivo_rls_group_read', 'target_group_id uuid'),
+                ('sonivo_rls_group_write', 'target_group_id uuid')
+        ),
+        actual_functions AS (
+            SELECT routine.proname AS name,
+                   pg_get_function_identity_arguments(routine.oid) AS identity_arguments
+            FROM pg_proc AS routine
+            JOIN pg_namespace AS schema ON schema.oid = routine.pronamespace
+            WHERE schema.nspname = 'public'
+        )
+        SELECT 1 FROM reviewed_functions AS reviewed
+        LEFT JOIN actual_functions AS actual USING (name, identity_arguments)
+        WHERE actual.name IS NULL
     ) THEN
-        RAISE EXCEPTION 'Public schema contains unreviewed routines';
+        RAISE EXCEPTION 'Public schema contains missing or unreviewed RLS routines or unsafe function grants';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sonivo_rls_reader'
+                   AND NOT rolcanlogin AND NOT rolsuper AND NOT rolbypassrls
+                   AND NOT rolcreaterole AND NOT rolcreatedb AND NOT rolreplication)
+       OR EXISTS (SELECT 1 FROM pg_auth_members
+                  WHERE roleid = (SELECT oid FROM pg_roles WHERE rolname = 'sonivo_rls_reader')
+                     OR member = (SELECT oid FROM pg_roles WHERE rolname = 'sonivo_rls_reader'))
+       OR EXISTS (SELECT 1 FROM pg_roles AS role
+                  WHERE role.oid NOT IN (
+                      (SELECT oid FROM pg_roles WHERE rolname = 'sonivo_rls_reader'),
+                      (SELECT oid FROM pg_roles WHERE rolname = current_user)
+                  )
+                    AND pg_has_role('sonivo_app', role.oid, 'MEMBER')) THEN
+        RAISE EXCEPTION 'The RLS membership helper role is missing, unsafe, or reachable through role membership';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM pg_class AS relation
+        JOIN pg_namespace AS schema ON schema.oid = relation.relnamespace
+        WHERE schema.nspname = 'public'
+          AND relation.relkind IN ('r', 'p', 'S')
+          AND relation.relowner = (SELECT oid FROM pg_roles WHERE rolname = 'sonivo_rls_reader')
+    ) THEN
+        RAISE EXCEPTION 'The RLS helper role owns an application table or sequence';
     END IF;
 
     IF EXISTS (
