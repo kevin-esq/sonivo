@@ -34,6 +34,7 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     IF setting_name NOT IN (
                         'sonivo.user_id', 'sonivo.group_id', 'sonivo.multi_group_user_id',
                         'sonivo.bootstrap_group_id', 'sonivo.payment_webhook_group_id',
+                        'sonivo.member_event_id',
                         'sonivo.managed_account_group_id', 'sonivo.managed_account_user_id'
                     ) THEN
                         RETURN NULL;
@@ -183,6 +184,12 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                     END LOOP;
                 END
                 $policies$;
+
+                CREATE POLICY rls_events_member_lookup ON public."Events"
+                    FOR SELECT TO sonivo_app
+                    USING ("Id" = public.sonivo_rls_setting_uuid('sonivo.member_event_id')
+                           AND public.sonivo_rls_user_is_member(
+                               public.sonivo_rls_setting_uuid('sonivo.user_id'), "GroupId"));
 
                 ALTER TABLE public."Groups" ENABLE ROW LEVEL SECURITY;
                 ALTER TABLE public."Groups" FORCE ROW LEVEL SECURITY;

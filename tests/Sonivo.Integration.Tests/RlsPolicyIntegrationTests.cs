@@ -6,6 +6,7 @@ using Npgsql;
 using Sonivo.Application.Repertoire;
 using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Repertoire;
+using Sonivo.Domain.Scheduling;
 using Sonivo.Domain.Tenancy;
 using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Identity;
@@ -174,6 +175,47 @@ public sealed class RlsPolicyIntegrationTests
 
         Assert.Equal(arrangement.Label, result.Label);
         Assert.Equal("Scoped lyrics", result.Lyrics);
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task Runtime_role_can_lookup_only_a_member_event_before_group_scope_is_known()
+    {
+        var ownerConnectionString = Environment.GetEnvironmentVariable("SONIVO_TEST_PG");
+        var runtimeConnectionString = Environment.GetEnvironmentVariable("SONIVO_RLS_TEST_PG");
+        if (string.IsNullOrWhiteSpace(ownerConnectionString) || string.IsNullOrWhiteSpace(runtimeConnectionString)) return;
+
+        var now = DateTimeOffset.UtcNow;
+        var memberId = Guid.NewGuid();
+        var outsiderId = Guid.NewGuid();
+        var group = Group.Create($"RLS event lookup {Guid.NewGuid():N}", now);
+        var musicalEvent = Event.Create(group.Id, "Scoped event", EventTypes.Other, now.AddDays(1), now);
+        var ownerOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(ownerConnectionString)
+            .Options;
+        await using (var ownerDb = new SonivoDbContext(ownerOptions))
+        {
+            await ownerDb.Database.MigrateAsync();
+            ownerDb.Users.AddRange(User(memberId), User(outsiderId));
+            ownerDb.Groups.Add(group);
+            ownerDb.Memberships.Add(Membership.CreateOwner(group.Id, memberId, now));
+            ownerDb.Events.Add(musicalEvent);
+            await ownerDb.SaveChangesAsync();
+        }
+
+        var runtimeOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(runtimeConnectionString)
+            .Options;
+        await using var runtimeDb = new SonivoDbContext(runtimeOptions);
+        await using var transaction = await runtimeDb.Database.BeginTransactionAsync();
+        var scope = new EfGroupDatabaseScope(runtimeDb);
+        var resolver = new EfEventGroupResolver(runtimeDb);
+        await scope.SetAuthenticatedUserAsync(memberId, CancellationToken.None);
+        await scope.SetMemberEventLookupAsync(musicalEvent.Id, CancellationToken.None);
+        Assert.Equal(group.Id, await resolver.FindGroupIdByEventIdAsync(musicalEvent.Id, CancellationToken.None));
+
+        await scope.SetAuthenticatedUserAsync(outsiderId, CancellationToken.None);
+        Assert.Null(await resolver.FindGroupIdByEventIdAsync(musicalEvent.Id, CancellationToken.None));
         await transaction.RollbackAsync();
     }
 
