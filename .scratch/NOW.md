@@ -1,5 +1,15 @@
 # NOW — current work and Git checkpoint
 
+## T-4.2 — PostgreSQL RLS policy implementation
+
+**Updated:** 2026-11-14. **Worktree:** `P:\repos\sonivo-stripe-billing`. **Branch:** `feature/postgresql-rls-phase-4-2`, based on current `origin/develop`.
+**Authorization:** Owner authorized implementation, tests, and Neon staging migration preparation/application. Neon requires a final confirmation after showing the prepared SQL and impact; no staging changes have been applied.
+**Implementation:** IN PROGRESS. Added a forward-only migration enabling and forcing RLS for 22 Group/user-owned tables; added constrained `sonivo_rls_reader` bootstrap; updated runtime-principal verification for the reviewed RLS functions; added PostgreSQL policy integration coverage and corrected the blob-cancellation fixture to create its Group under bootstrap scope.
+**Local validation:** Fresh isolated PostgreSQL 16.6 database; all EF migrations applied; runtime grants applied; verifier passes as `sonivo_app`; solution tests pass **936/936** (Domain 251, Application 254, Integration 110, API 321). Dedicated checks cover RLS catalog coverage, selected/multi-Group reads, cross-Group update denial, public slug, invitation token, and Group bootstrap. No shared Compose DB used.
+**Neon staging:** Read-only inspection found latest migration `20261114164400_AddBillingLegacyGroupNotices`, four Groups, and four Billing Organizations. `BillingAdministrationAndSuspension` is missing. No `sonivo_app` or `sonivo_rls_reader` role exists; available login `neondb_owner` has `BYPASSRLS`. Provision and verify the runtime role before applying RLS; otherwise the staging app bypasses policies. No Neon changes, data changes, Stripe changes, or deployment occurred.
+**Open gates:** T-4.2.04–07 remain incomplete: test against a copy of current staging data; exercise every public/bootstrap/invitation, hub, export, background, and retention path; verify FK/constraint behavior and pooled-connection cleanup; provision staging runtime credentials; prepare the additive Billing admin migration followed by RLS migration; then obtain confirmation before applying. Keep `AdminApi:Enabled=false` and `AdminApi:DatabaseIsolationReady=false`.
+**Git state:** Implementation IN PROGRESS. Human approval PENDING. Git checkpoint PENDING. Commit NO. Push NO. Uncommitted changes YES. CI NOT RUN. Existing untracked Storybook and build artifacts were preserved.
+
 ## T-BILL-ADMIN — signed account administration integration
 
 **Updated:** 2026-11-14. **Worktree:** `P:\repos\sonivo-stripe-billing`. **Branch:** `feature/billing-admin-integration`, based on `develop` commit `6689887` (merged billing/account baseline; prior records identify PRs #335, #337, and #338 as integrated).

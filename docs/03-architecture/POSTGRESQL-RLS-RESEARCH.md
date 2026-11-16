@@ -4,6 +4,31 @@
 **Decision:** [ADR-0086](DECISIONS.md)
 **Status:** Research complete; implementation is gated by Phase 4.2.
 
+## Implementation checkpoint — 2026-11-14
+
+The local implementation now includes a forward-only EF migration that
+enables and forces RLS on the 22 reviewed Group/user-owned tables. Billing
+Organizations, billing events, referrals, grants, and administration tables
+remain outside this policy set; Billing Organization is not an authorization
+tenant. The migration requires separate `sonivo_app` and `sonivo_rls_reader`
+roles. The runtime verifier checks the reviewed RLS functions and reader-role
+boundary.
+
+Validation on an isolated PostgreSQL 16.6 database: all **936/936** solution
+tests passed (Domain 251, Application 254, Integration 110, API 321).
+Dedicated RLS cases cover forced policy coverage, Group and
+multi-Group reads, cross-Group update denial, public slug and invitation-token
+selectors, and initial Owner bootstrap. This does not complete T-4.2.05–06.
+
+Neon staging read-only inspection on 2026-11-14 found latest migration
+`20261114164400_AddBillingLegacyGroupNotices`, four Groups, and four Billing
+Organizations. `BillingAdministrationAndSuspension` and the RLS migration are
+not applied. No `sonivo_app` or `sonivo_rls_reader` role exists; the available
+login `neondb_owner` has `BYPASSRLS`. Therefore the staging API role must be
+provisioned and verified before RLS can protect staging. No remote migration
+was applied. Do not infer safety from successful local tests or a prepared
+schema alone.
+
 ## Question
 
 Should Sonivo add PostgreSQL row-level security (RLS) on top of its existing

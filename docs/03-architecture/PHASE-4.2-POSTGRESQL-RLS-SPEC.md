@@ -5,6 +5,30 @@ supersedes the former RLS prohibition for a second tenant-isolation layer.
 **Delivery:** Security phase, ticketed and gated. No policy is enabled until
 the runtime-role and transaction-context gates pass.
 
+## Implementation checkpoint — 2026-11-14
+
+**Status:** IN PROGRESS; staging rollout remains blocked.
+
+- A local migration now enables and forces RLS for all 22 reviewed
+  Group/user-owned tables. Billing and financial tables remain excluded.
+- The migration and runtime-role verifier pass on isolated PostgreSQL 16.6.
+  The complete solution passes **936/936**: Domain 251, Application 254,
+  Integration 110, and API 321 with `sonivo_app` used for PostgreSQL tests.
+- Added policy tests cover table coverage, selected and multi-Group reads,
+  cross-Group write denial, public-slug lookup, invitation-token lookup, and
+  authenticated Group bootstrap.
+- Staging Neon currently has only through
+  `20261114164400_AddBillingLegacyGroupNotices`, four Groups, and four Billing
+  Organizations. It has no `sonivo_app` or `sonivo_rls_reader` login/role;
+  its available login `neondb_owner` has `BYPASSRLS`. Applying policies before
+  provisioning and validating the runtime role would not provide RLS isolation.
+- The additive `BillingAdministrationAndSuspension` migration is also missing
+  from staging. It must precede the RLS migration.
+- T-4.2.04–07 remain open. The isolated suite does not yet prove every
+  exceptional, background, realtime, export, FK/constraint, pooled-connection,
+  and deployment path. Do not enable the administrative API or call staging
+  secure until these gates pass.
+
 This phase supersedes the RLS exclusions in the Phase 4.0 and 4.1 specs only
 for shared-table tenant row isolation. Their product and item-access scope is
 unchanged.

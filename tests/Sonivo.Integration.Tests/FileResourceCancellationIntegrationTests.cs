@@ -46,6 +46,7 @@ public sealed class FileResourceCancellationIntegrationTests
             await using var transaction = await db.Database.BeginTransactionAsync();
             var scope = new EfGroupDatabaseScope(db);
             await scope.SetAuthenticatedUserAsync(userId, CancellationToken.None);
+            await scope.SetGroupForBootstrapAsync(group.Id, CancellationToken.None);
             db.Users.Add(new ApplicationUser
             {
                 Id = userId,
@@ -58,6 +59,9 @@ public sealed class FileResourceCancellationIntegrationTests
             });
             db.Groups.Add(group);
             db.Memberships.Add(Membership.CreateOwner(group.Id, userId, DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+
+            await scope.SetVerifiedGroupAsync(group.Id, CancellationToken.None);
             db.Songs.Add(song);
             db.Arrangements.Add(arrangement);
             await db.SaveChangesAsync();

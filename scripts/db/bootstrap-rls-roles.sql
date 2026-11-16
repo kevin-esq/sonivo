@@ -8,6 +8,22 @@ BEGIN
 END
 $$;
 
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sonivo_rls_reader') THEN
+        CREATE ROLE sonivo_rls_reader NOLOGIN;
+    END IF;
+END
+$$;
+
+ALTER ROLE sonivo_rls_reader
+    NOLOGIN
+    NOSUPERUSER
+    NOCREATEDB
+    NOCREATEROLE
+    NOREPLICATION
+    NOBYPASSRLS;
+
 ALTER ROLE sonivo_app
     LOGIN
     PASSWORD 'sonivo-app-dev-only'
