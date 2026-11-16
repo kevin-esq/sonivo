@@ -80,8 +80,24 @@ namespace Sonivo.Infrastructure.Persistence.Migrations
                         )
                 $function$;
 
+                GRANT CREATE ON SCHEMA public TO sonivo_rls_reader;
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'neondb_owner') THEN
+                        GRANT sonivo_rls_reader TO neondb_owner WITH SET TRUE;
+                    END IF;
+                END
+                $$;
                 ALTER FUNCTION public.sonivo_rls_is_member(uuid) OWNER TO sonivo_rls_reader;
                 ALTER FUNCTION public.sonivo_rls_user_is_member(uuid, uuid) OWNER TO sonivo_rls_reader;
+                REVOKE CREATE ON SCHEMA public FROM sonivo_rls_reader;
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'neondb_owner') THEN
+                        REVOKE sonivo_rls_reader FROM neondb_owner;
+                    END IF;
+                END
+                $$;
                 GRANT USAGE ON SCHEMA public TO sonivo_rls_reader;
                 GRANT SELECT ("UserId", "GroupId") ON public."Memberships" TO sonivo_rls_reader;
                 REVOKE ALL ON FUNCTION public.sonivo_rls_setting_uuid(text) FROM PUBLIC;

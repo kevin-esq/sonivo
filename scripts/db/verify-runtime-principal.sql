@@ -40,6 +40,10 @@ BEGIN
         RAISE EXCEPTION 'Connected principal % can create objects in public', current_user;
     END IF;
 
+    IF has_schema_privilege('sonivo_rls_reader', 'public', 'CREATE') THEN
+        RAISE EXCEPTION 'The RLS membership helper can create objects in public';
+    END IF;
+
     IF EXISTS (
         SELECT 1
         FROM pg_namespace AS schema
@@ -106,6 +110,8 @@ BEGIN
         FROM pg_database AS database
         WHERE database.datallowconn
           AND database.datname <> current_database()
+          -- Neon owns these reserved databases; application roles cannot remove their PUBLIC ACL.
+          AND database.datname NOT IN ('postgres', 'template0', 'template1')
           AND has_database_privilege(principal_oid, database.oid, 'CONNECT')
     ) THEN
         RAISE EXCEPTION 'Connected principal % can connect to a database outside the application database', current_user;
@@ -213,8 +219,12 @@ BEGIN
                    AND NOT rolcanlogin AND NOT rolsuper AND NOT rolbypassrls
                    AND NOT rolcreaterole AND NOT rolcreatedb AND NOT rolreplication)
        OR EXISTS (SELECT 1 FROM pg_auth_members
-                  WHERE roleid = (SELECT oid FROM pg_roles WHERE rolname = 'sonivo_rls_reader')
-                     OR member = (SELECT oid FROM pg_roles WHERE rolname = 'sonivo_rls_reader'))
+                  WHERE (roleid = (SELECT oid FROM pg_roles WHERE rolname = 'sonivo_rls_reader')
+                      OR member = (SELECT oid FROM pg_roles WHERE rolname = 'sonivo_rls_reader'))
+                    AND NOT (roleid = (SELECT oid FROM pg_roles WHERE rolname = 'sonivo_rls_reader')
+                         AND member = (SELECT oid FROM pg_roles WHERE rolname = 'neondb_owner')
+                         AND admin_option
+                         AND NOT set_option))
        OR EXISTS (SELECT 1 FROM pg_roles AS role
                   WHERE role.oid NOT IN (
                       (SELECT oid FROM pg_roles WHERE rolname = 'sonivo_rls_reader'),

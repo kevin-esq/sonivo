@@ -101,7 +101,12 @@ reviewed public-table inventory and exact per-table privilege matrix. It
 requires `session_user = current_user = sonivo_app`, so a different login
 cannot pass by using `SET ROLE`; rejects database ownership, privileges
 beyond `CONNECT` on the application database, and effective `CONNECT` to any
-other database. The dedicated local/CI bootstrap removes PostgreSQL's default
+other application database. Neon-managed `postgres`, `template0`, and
+`template1` are exempt because their `PUBLIC CONNECT` ACL is provider-owned.
+The verifier permits only Neon's non-inheriting `neondb_owner` membership edge
+to the NOLOGIN helper role; `sonivo_app` cannot inherit or assume that role.
+The helper has no schema `CREATE` privilege after function ownership transfer.
+The dedicated local/CI bootstrap removes PostgreSQL's default
 `PUBLIC` `CONNECT` on other databases and `TEMPORARY` on the application
 database. It also rejects unsupported public relation types,
 public routines, unreviewed public tables, `PUBLIC` table grants, column-level
