@@ -319,6 +319,7 @@ public sealed class ListResourcesHandler
         Guid arrangementId,
         CancellationToken cancellationToken)
     {
+        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
         {
@@ -501,6 +502,7 @@ public sealed class GetResourceHandler
         Guid resourceId,
         CancellationToken cancellationToken)
     {
+        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
         {
@@ -556,6 +558,7 @@ public sealed class GetResourceContentHandler
         long? rangeStart = null,
         long? rangeEnd = null)
     {
+        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
         var arrangement = await _arrangements.GetByIdAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
         {

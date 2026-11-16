@@ -1,8 +1,13 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
+using Sonivo.Application.Repertoire;
+using Sonivo.Application.Tenancy;
 using Sonivo.Domain.Repertoire;
 using Sonivo.Domain.Tenancy;
+using Sonivo.Infrastructure;
 using Sonivo.Infrastructure.Identity;
 using Sonivo.Infrastructure.Persistence;
 
@@ -119,8 +124,57 @@ public sealed class RlsPolicyIntegrationTests
             await setUser.ExecuteNonQueryAsync();
             await using var count = new NpgsqlCommand("SELECT count(*) FROM public.\"Songs\"", runtime, transaction);
             Assert.Equal(2L, (long)(await count.ExecuteScalarAsync())!);
+            await using var groups = new NpgsqlCommand("SELECT count(*) FROM public.\"Groups\"", runtime, transaction);
+            Assert.Equal(2L, (long)(await groups.ExecuteScalarAsync())!);
+            await using var memberships = new NpgsqlCommand("SELECT count(*) FROM public.\"Memberships\" WHERE \"UserId\" = @user_id", runtime, transaction);
+            memberships.Parameters.AddWithValue("user_id", userId);
+            Assert.Equal(2L, (long)(await memberships.ExecuteScalarAsync())!);
             await transaction.RollbackAsync();
         }
+    }
+
+    [Fact]
+    public async Task Arrangement_detail_verifies_membership_before_loading_group_scoped_rows()
+    {
+        var ownerConnectionString = Environment.GetEnvironmentVariable("SONIVO_TEST_PG");
+        var runtimeConnectionString = Environment.GetEnvironmentVariable("SONIVO_RLS_TEST_PG");
+        if (string.IsNullOrWhiteSpace(ownerConnectionString) || string.IsNullOrWhiteSpace(runtimeConnectionString)) return;
+
+        var now = DateTimeOffset.UtcNow;
+        var userId = Guid.NewGuid();
+        var group = Group.Create($"RLS arrangement {Guid.NewGuid():N}", now);
+        var song = Song.Create(group.Id, "Scoped song", SongOriginKinds.Original, now);
+        var arrangement = Arrangement.Create(group.Id, song.Id, "Scoped arrangement", now, lyrics: "Scoped lyrics");
+        var ownerOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(ownerConnectionString)
+            .Options;
+        await using (var ownerDb = new SonivoDbContext(ownerOptions))
+        {
+            await ownerDb.Database.MigrateAsync();
+            ownerDb.Users.Add(User(userId));
+            ownerDb.Groups.Add(group);
+            ownerDb.Memberships.Add(Membership.CreateOwner(group.Id, userId, now));
+            ownerDb.Songs.Add(song);
+            ownerDb.Arrangements.Add(arrangement);
+            await ownerDb.SaveChangesAsync();
+        }
+
+        var runtimeOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(runtimeConnectionString)
+            .Options;
+        await using var runtimeDb = new SonivoDbContext(runtimeOptions);
+        await using var transaction = await runtimeDb.Database.BeginTransactionAsync();
+        var scope = new EfGroupDatabaseScope(runtimeDb);
+        await scope.SetAuthenticatedUserAsync(userId, CancellationToken.None);
+        var handler = new GetArrangementHandler(
+            new GroupAccessService(new EfGroupStore(runtimeDb), databaseScope: scope),
+            new EfArrangementStore(runtimeDb));
+
+        var result = await handler.HandleAsync(userId, group.Id, arrangement.Id, CancellationToken.None);
+
+        Assert.Equal(arrangement.Label, result.Label);
+        Assert.Equal("Scoped lyrics", result.Lyrics);
+        await transaction.RollbackAsync();
     }
 
     [Fact]
@@ -134,7 +188,7 @@ public sealed class RlsPolicyIntegrationTests
         var ownerId = Guid.NewGuid();
         var group = Group.Create($"RLS public {Guid.NewGuid():N}", now);
         var unrelated = Group.Create($"RLS unrelated {Guid.NewGuid():N}", now);
-        var tokenHash = Convert.ToHexString(Guid.NewGuid().ToByteArray()).PadRight(64, 'A');
+        var tokenHash = Convert.ToHexString(Guid.NewGuid().ToByteArray()).ToLowerInvariant().PadRight(64, 'a');
         var ownerOptions = new DbContextOptionsBuilder<SonivoDbContext>()
             .UseNpgsql(ownerConnectionString)
             .Options;
@@ -172,6 +226,53 @@ public sealed class RlsPolicyIntegrationTests
             Assert.Equal(0L, (long)(await new NpgsqlCommand("SELECT count(*) FROM public.\"Memberships\"", runtime, transaction).ExecuteScalarAsync())!);
             await transaction.RollbackAsync();
         }
+    }
+
+    [Fact]
+    public async Task Runtime_role_accepts_lowercase_hashed_invitation_under_rls()
+    {
+        var ownerConnectionString = Environment.GetEnvironmentVariable("SONIVO_TEST_PG");
+        var runtimeConnectionString = Environment.GetEnvironmentVariable("SONIVO_RLS_TEST_PG");
+        if (string.IsNullOrWhiteSpace(ownerConnectionString) || string.IsNullOrWhiteSpace(runtimeConnectionString)) return;
+
+        var now = DateTimeOffset.UtcNow;
+        var ownerId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(CreateInvitationHandler.TokenByteCount)).ToLowerInvariant();
+        var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
+        var group = Group.Create($"RLS invite {Guid.NewGuid():N}", now);
+        var ownerOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(ownerConnectionString)
+            .Options;
+        await using (var ownerDb = new SonivoDbContext(ownerOptions))
+        {
+            await ownerDb.Database.MigrateAsync();
+            ownerDb.Users.AddRange(User(ownerId), User(memberId));
+            ownerDb.Groups.Add(group);
+            ownerDb.Memberships.Add(Membership.CreateOwner(group.Id, ownerId, now));
+            ownerDb.Invitations.Add(Invitation.Create(group.Id, tokenHash, ownerId, now, now.AddDays(1)));
+            await ownerDb.SaveChangesAsync();
+        }
+
+        var runtimeOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(runtimeConnectionString)
+            .Options;
+        await using var runtimeDb = new SonivoDbContext(runtimeOptions);
+        await using var transaction = await runtimeDb.Database.BeginTransactionAsync();
+        var scope = new EfGroupDatabaseScope(runtimeDb);
+        await scope.SetAuthenticatedUserAsync(memberId, CancellationToken.None);
+        var handler = new AcceptInvitationHandler(
+            new EfGroupStore(runtimeDb),
+            new EfInvitationStore(runtimeDb),
+            new EfUnitOfWork(runtimeDb),
+            new SystemClock(),
+            scope);
+
+        var result = await handler.HandleAsync(new AcceptInvitationCommand(memberId, token), CancellationToken.None);
+
+        Assert.Equal(group.Id, result.GroupId);
+        Assert.NotNull(await new EfGroupStore(runtimeDb).GetMembershipAsync(group.Id, memberId, CancellationToken.None));
+        await transaction.RollbackAsync();
     }
 
     [Fact]

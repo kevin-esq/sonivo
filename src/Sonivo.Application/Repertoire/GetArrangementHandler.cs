@@ -21,6 +21,7 @@ public sealed class GetArrangementHandler
         Guid arrangementId,
         CancellationToken cancellationToken)
     {
+        await _access.RequireMemberAsync(groupId, userId, cancellationToken);
         var arrangement = await _arrangements.GetByIdWithResourcesAsync(groupId, arrangementId, cancellationToken);
         if (arrangement is null)
         {
