@@ -1,5 +1,14 @@
 # NOW — current work and Git checkpoint
 
+## T-REPORT-01 — Harden authenticated client error reporting
+
+**Updated:** 2026-11-18. **Worktree:** `P:\repos\sonivo-report`. **Branch:** `feat/t-report-01-client-errors`.
+**Authorization:** Owner authorized this isolated ticket and one local commit; no push or PR.
+**Scope:** Harden `POST /api/client-errors`. Keep authenticated access, antiforgery, the existing `client-errors` rate limit, and 202 response. Do not log URL, Stack, or UserId. Keep accepting legacy client fields and discard them. Remove control characters from Source and Message; preserve the existing 60/500 character limits. No database, external provider, or UI.
+**Implementation:** COMPLETE. This ticket runs in its own worktree and does not alter the other worktree's ticket state.
+**Validation:** Baseline `FoundationEndpointTests` passed 3/3. The new integration test first failed on the URL leak, then passed. API tests passed 322/322; API build passed with 0 errors and 2 existing NU1510 warnings. `dotnet format` passed for the new test file; project-wide API formatting reports existing whitespace issues outside the changed lines. `git diff --check` passed.
+**Human approval:** APPROVED (owner authorized implementation and one local commit in the active task). **Git checkpoint:** COMMITTED. **Remote:** NOT PUSHED. **CI:** NOT RUN.
+
 ## T-4.2 — PostgreSQL RLS policy implementation
 
 **Updated:** 2026-11-16. **Worktree:** `P:\repos\sonivo-stripe-billing`. **Branch:** `feature/postgresql-rls-phase-4-2`; PR #340 merged as `a34ca3f`.

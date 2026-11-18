@@ -623,31 +623,24 @@ app.MapGet("/api/auth/csrf", (HttpContext http, IAntiforgery antiforgery) =>
 .WithName("GetCsrfToken")
 .AllowAnonymous();
 
-// Observability (ADR-0076): best-effort client error reporting. Authenticated so
-// the log line can be tied to a user; the payload is truncated before logging and
-// never stored, so no PII/data-retention surface is introduced.
+// Observability (ADR-0076): authenticated client error reports are best-effort.
+// Only bounded source/message values are logged; legacy URL/stack fields are discarded.
 app.MapPost("/api/client-errors", (
     ClientErrorReport request,
-    ClaimsPrincipal principal,
     ILoggerFactory loggerFactory) =>
 {
-    var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
     var logger = loggerFactory.CreateLogger("Sonivo.ClientError");
 
-    static string Trim(string? value, int max)
+    static string Sanitize(string? value, int max)
     {
         if (string.IsNullOrWhiteSpace(value)) return string.Empty;
-        var collapsed = value.Trim().Replace("\r", " ");
-        return collapsed.Length > max ? collapsed[..max] : collapsed;
+        return new string(value.Trim().Where(c => !char.IsControl(c)).Take(max).ToArray());
     }
 
     logger.LogWarning(
-        "Client error [{Source}] at {Url} (user {UserId}): {Message} | {Stack}",
-        Trim(request.Source, 60),
-        Trim(request.Url, 300),
-        userId,
-        Trim(request.Message, 500),
-        Trim(request.Stack, 4000));
+        "Client error [{Source}]: {Message}",
+        Sanitize(request.Source, 60),
+        Sanitize(request.Message, 500));
 
     return Results.Accepted();
 })
@@ -6971,7 +6964,8 @@ public partial class Program;
 
 /// <summary>
 /// Best-effort client error report (observability). All fields are untrusted
-/// client input; the endpoint truncates and logs them, and never persists them.
+/// client input; only Source and Message are normalized and logged. Legacy
+/// Stack and Url fields remain accepted and are discarded.
 /// </summary>
 public sealed record ClientErrorReport(string? Source, string? Message, string? Stack, string? Url);
 
