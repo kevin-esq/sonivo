@@ -3,7 +3,8 @@
 ## T-ARCH-PROGRAM-01 — endpoint inventory safety net (Stage 0)
 
 **Updated:** 2026-11-18. **Worktree:** P:\repos\sonivo-arch. **Branch:** feat/t-arch-program-01-dtos-helpers.
-**Stage 1 progress:** IN PROGRESS — DTO extraction followed by shared-helper extraction; two local commits authorized.
+**Stage 1 progress:** Complete. DTO move and shared-helper extraction committed in two local commits.
+**Stage 1 validation:** API suite passed 323/323, including EndpointInventoryTests. Solution build passed (10 projects, 0 errors, 2 NU1510 warnings). Inventory snapshot unchanged; git diff --check passed.
 **Authorization:** Owner authorized Stage 0, a new worktree, and one local commit; no push or PR.
 **Spec:** Owner authorization for this task; scope limited to an API endpoint inventory characterization test and its expected snapshot.
 **Scope:** Add one API integration test and a readable endpoint inventory snapshot. Assert authenticated fallback policy and API/SPA fallbacks. No product code changes or dependencies.

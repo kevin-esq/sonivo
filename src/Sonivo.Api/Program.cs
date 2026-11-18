@@ -822,7 +822,7 @@ app.MapPost("/api/auth/login", async (
             title: "Unauthorized");
     }
 
-    return Results.Ok(ToUserResponse(user));
+    return Results.Ok(ApiEndpointHelpers.ToUserResponse(user));
 })
 .WithName("Login")
 .AllowAnonymous()
@@ -911,7 +911,7 @@ app.MapPost("/api/auth/login/handle/{slug}", async (
         return AuthUniformity.InvalidLogin();
     }
 
-    return Results.Ok(ToUserResponse(user, handle: normalized));
+    return Results.Ok(ApiEndpointHelpers.ToUserResponse(user, handle: normalized));
 })
 .WithName("HandleLogin")
 .AllowAnonymous()
@@ -931,7 +931,7 @@ app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, UserManager<Applica
         return Results.Unauthorized();
     }
 
-    return Results.Ok(ToUserResponse(appUser));
+    return Results.Ok(ApiEndpointHelpers.ToUserResponse(appUser));
 })
 .WithName("GetCurrentUser")
 .RequireAuthorization();
@@ -1007,7 +1007,7 @@ app.MapPatch("/api/auth/me", async (
             result.Errors.GroupBy(e => e.Code).ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray()));
     }
 
-    return Results.Ok(ToUserResponse(appUser));
+    return Results.Ok(ApiEndpointHelpers.ToUserResponse(appUser));
 })
 .WithName("UpdateCurrentUser")
 .RequireAuthorization();
@@ -1499,7 +1499,7 @@ app.MapPost("/api/auth/2fa/challenge", async (
             title: "Unauthorized");
     }
 
-    return Results.Ok(ToUserResponse(user));
+    return Results.Ok(ApiEndpointHelpers.ToUserResponse(user));
 })
 .WithName("TwoFactorChallenge")
 .AllowAnonymous()
@@ -1542,7 +1542,7 @@ app.MapPost("/api/auth/2fa/recover", async (
             title: "Unauthorized");
     }
 
-    return Results.Ok(ToUserResponse(user));
+    return Results.Ok(ApiEndpointHelpers.ToUserResponse(user));
 })
 .WithName("TwoFactorRecover")
 .AllowAnonymous()
@@ -1909,7 +1909,7 @@ app.MapPost("/api/auth/passkeys/login-finish", async (
                 title: "Unauthorized");
         }
         await signInManager.SignInAsync(user, isPersistent: true);
-        return Results.Ok(ToUserResponse(user));
+        return Results.Ok(ApiEndpointHelpers.ToUserResponse(user));
     }
     catch (PasskeyVerifier.PasskeyVerificationException ex)
     {
@@ -1971,14 +1971,14 @@ app.MapGet("/api/groups", async (
     ListMyGroupsHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var groups = await handler.HandleAsync(userId.Value, cancellationToken);
-    return Results.Ok(groups.Select(ToGroupListResponse));
+    return Results.Ok(groups.Select(ApiEndpointHelpers.ToGroupListResponse));
 })
 .WithName("ListMyGroups")
 .RequireAuthorization();
@@ -1990,14 +1990,14 @@ app.MapGet("/api/activity/upcoming", async (
     ListUpcomingActivityHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var items = await handler.HandleAsync(userId.Value, cancellationToken);
-    return Results.Ok(items.Select(ToUpcomingActivityResponse));
+    return Results.Ok(items.Select(ApiEndpointHelpers.ToUpcomingActivityResponse));
 })
 .WithName("ListUpcomingActivity")
 .RequireAuthorization();
@@ -2011,7 +2011,7 @@ app.MapGet("/api/activity/calendar", async (
     ListCalendarEventsHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2051,7 +2051,7 @@ app.MapGet("/api/activity/calendar", async (
     }
 
     var items = await handler.HandleAsync(userId.Value, fromValue, toValue, cancellationToken);
-    return Results.Ok(items.Select(ToUpcomingActivityResponse));
+    return Results.Ok(items.Select(ApiEndpointHelpers.ToUpcomingActivityResponse));
 })
 .WithName("ListCalendarEvents")
 .RequireAuthorization();
@@ -2063,7 +2063,7 @@ app.MapPost("/api/groups", async (
     CreateGroupHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2073,7 +2073,7 @@ app.MapPost("/api/groups", async (
         new CreateGroupCommand(userId.Value, request.Name ?? string.Empty),
         cancellationToken);
 
-    return Results.Created($"/api/groups/{created.Id}", ToGroupResponse(created));
+    return Results.Created($"/api/groups/{created.Id}", ApiEndpointHelpers.ToGroupResponse(created));
 })
 .WithName("CreateGroup")
 .RequireAuthorization();
@@ -2084,7 +2084,7 @@ app.MapGet("/api/groups/lifecycle", async (
     GroupLifecycleHandlers handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     return Results.Ok(await handler.ListAsync(userId.Value, cancellationToken));
 })
@@ -2099,7 +2099,7 @@ app.MapPost("/api/groups/{groupId:guid}/archive", async (
     GroupLifecycleHandlers handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     await handler.ArchiveAsync(userId.Value, groupId, request.ExpectedVersion, cancellationToken);
     return Results.NoContent();
@@ -2115,7 +2115,7 @@ app.MapPost("/api/groups/{groupId:guid}/archive/restore", async (
     GroupLifecycleHandlers handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     await handler.RestoreArchiveAsync(userId.Value, groupId, request.ExpectedVersion, cancellationToken);
     return Results.NoContent();
@@ -2131,7 +2131,7 @@ app.MapPost("/api/groups/{groupId:guid}/trash/restore", async (
     GroupLifecycleHandlers handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     await handler.RestoreTrashAsync(userId.Value, groupId, request.ExpectedVersion, cancellationToken);
     return Results.NoContent();
@@ -2147,7 +2147,7 @@ app.MapPost("/api/groups/{groupId:guid}/trash/purge", async (
     GroupLifecycleHandlers handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     await handler.PurgeTrashAsync(userId.Value, groupId, request.ExpectedVersion,
         request.ConfirmPermanentDeletion, cancellationToken);
@@ -2163,14 +2163,14 @@ app.MapGet("/api/groups/{groupId:guid}", async (
     GetGroupHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var group = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
-    return Results.Ok(ToGroupResponse(group));
+    return Results.Ok(ApiEndpointHelpers.ToGroupResponse(group));
 })
 .WithName("GetGroup")
 .RequireAuthorization();
@@ -2179,7 +2179,7 @@ app.MapGet("/api/groups/{groupId:guid}/song-tags", async (
     Guid groupId, ClaimsPrincipal principal, UserManager<ApplicationUser> users,
     GetGroupSongTagsHandler handler, CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     var result = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
     return Results.Ok(new { tags = result.Tags, version = result.Version });
@@ -2192,7 +2192,7 @@ app.MapPut("/api/groups/{groupId:guid}/song-tags", async (
     UserManager<ApplicationUser> users, UpdateGroupSongTagsHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     var result = await handler.HandleAsync(new UpdateGroupSongTagsCommand(
         userId.Value, groupId, request.ExpectedVersion, request.Tags ?? []), cancellationToken);
@@ -2208,14 +2208,14 @@ app.MapGet("/api/groups/by-slug/{slug}", async (
     GetGroupBySlugHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var result = await handler.HandleAsync(userId.Value, slug, cancellationToken);
-    return Results.Ok(ToGroupBySlugResponse(result));
+    return Results.Ok(ApiEndpointHelpers.ToGroupBySlugResponse(result));
 })
 .WithName("GetGroupBySlug")
 .RequireAuthorization();
@@ -2235,7 +2235,7 @@ app.MapPut("/api/groups/{groupId:guid}/slug", async (
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2244,7 +2244,7 @@ app.MapPut("/api/groups/{groupId:guid}/slug", async (
     var updated = await handler.HandleAsync(
         new ChangeGroupSlugCommand(userId.Value, groupId, request.Slug ?? string.Empty),
         cancellationToken);
-    return Results.Ok(ToGroupResponse(updated));
+    return Results.Ok(ApiEndpointHelpers.ToGroupResponse(updated));
 })
 .WithName("ChangeGroupSlug")
 .RequireAuthorization();
@@ -2264,13 +2264,13 @@ app.MapGet("/api/groups/{groupId:guid}/branding", async (
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
-    return Results.Ok(ToBrandingResponse(await handler.HandleAsync(userId.Value, groupId, cancellationToken)));
+    return Results.Ok(ApiEndpointHelpers.ToBrandingResponse(await handler.HandleAsync(userId.Value, groupId, cancellationToken)));
 })
 .WithName("GetGroupBranding")
 .RequireAuthorization();
@@ -2278,7 +2278,7 @@ app.MapGet("/api/groups/{groupId:guid}/branding", async (
 // ---------- Plans / entitlements catalog (ADR-0071) ----------
 
 app.MapGet("/api/plans", (GetPlanCatalogHandler handler) =>
-        Results.Ok(ToPlanCatalogResponse(handler.Handle())))
+        Results.Ok(ApiEndpointHelpers.ToPlanCatalogResponse(handler.Handle())))
     .WithName("GetPlanCatalog")
     .RequireAuthorization();
 
@@ -2289,13 +2289,13 @@ app.MapGet("/api/groups/{groupId:guid}/usage", async (
     GetGroupUsageHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
-    return Results.Ok(ToUsageResponse(await handler.HandleAsync(userId.Value, groupId, cancellationToken)));
+    return Results.Ok(ApiEndpointHelpers.ToUsageResponse(await handler.HandleAsync(userId.Value, groupId, cancellationToken)));
 })
 .WithName("GetGroupUsage")
 .RequireAuthorization();
@@ -2308,7 +2308,7 @@ app.MapGet("/api/groups/{groupId:guid}/reports/repertoire", async (
     GroupReportsHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2328,7 +2328,7 @@ app.MapGet("/api/groups/{groupId:guid}/reports/event-responses", async (
     GroupReportsHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2359,7 +2359,7 @@ app.MapGet("/api/groups/{groupId:guid}/reports/tasks", async (
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2388,7 +2388,7 @@ app.MapGet("/api/groups/{groupId:guid}/reports/setlist-usage", async (
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2411,7 +2411,7 @@ app.MapGet("/api/groups/{groupId:guid}/reports/event-responses.csv", async (
     TimeProvider clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2466,7 +2466,7 @@ app.MapPut("/api/groups/{groupId:guid}/plan", async (
     UpdateGroupPlanHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2475,7 +2475,7 @@ app.MapPut("/api/groups/{groupId:guid}/plan", async (
     var state = await handler.HandleAsync(
         new UpdateGroupPlanCommand(userId.Value, groupId, request.Action ?? "assign", request.PlanId),
         cancellationToken);
-    return Results.Ok(ToPlanStateResponse(state));
+    return Results.Ok(ApiEndpointHelpers.ToPlanStateResponse(state));
 })
 .WithName("UpdateGroupPlan")
 .RequireAuthorization();
@@ -2569,7 +2569,7 @@ app.MapPost("/api/groups/{groupId:guid}/billing/checkout", async (
         });
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2642,7 +2642,7 @@ app.MapPut("/api/groups/{groupId:guid}/branding", async (
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2675,7 +2675,7 @@ app.MapPut("/api/groups/{groupId:guid}/branding", async (
             request.ShowSonivoCredit),
         cancellationToken);
 
-    return Results.Ok(ToBrandingResponse(updated));
+    return Results.Ok(ApiEndpointHelpers.ToBrandingResponse(updated));
 })
 .WithName("UpdateGroupBranding")
 .RequireAuthorization();
@@ -2694,7 +2694,7 @@ app.MapPost("/api/groups/{groupId:guid}/branding/logo", async (
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2713,7 +2713,7 @@ app.MapPost("/api/groups/{groupId:guid}/branding/logo", async (
     }
 
     // SECURITY-AUDIT-2026-10 (B6): bounded read + magic-byte validation.
-    var (stream, error) = await ReadValidatedBrandingImageAsync(file, cancellationToken);
+    var (stream, error) = await ApiEndpointHelpers.ReadValidatedBrandingImageAsync(file, cancellationToken);
     if (error is not null)
     {
         return error;
@@ -2724,7 +2724,7 @@ app.MapPost("/api/groups/{groupId:guid}/branding/logo", async (
         var updated = await handler.HandleAsync(
             new SetGroupLogoCommand(userId.Value, groupId, file.ContentType, file.Length, stream!),
             cancellationToken);
-        return Results.Ok(ToBrandingResponse(updated));
+        return Results.Ok(ApiEndpointHelpers.ToBrandingResponse(updated));
     }
 })
 .WithName("SetGroupLogo")
@@ -2745,7 +2745,7 @@ app.MapGet("/api/groups/{groupId:guid}/branding/logo", async (
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2773,7 +2773,7 @@ app.MapPost("/api/groups/{groupId:guid}/branding/banner", async (
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2792,7 +2792,7 @@ app.MapPost("/api/groups/{groupId:guid}/branding/banner", async (
     }
 
     // SECURITY-AUDIT-2026-10 (B6): bounded read + magic-byte validation.
-    var (stream, error) = await ReadValidatedBrandingImageAsync(file, cancellationToken);
+    var (stream, error) = await ApiEndpointHelpers.ReadValidatedBrandingImageAsync(file, cancellationToken);
     if (error is not null)
     {
         return error;
@@ -2803,7 +2803,7 @@ app.MapPost("/api/groups/{groupId:guid}/branding/banner", async (
         var updated = await handler.HandleAsync(
             new SetGroupBannerCommand(userId.Value, groupId, file.ContentType, file.Length, stream!),
             cancellationToken);
-        return Results.Ok(ToBrandingResponse(updated));
+        return Results.Ok(ApiEndpointHelpers.ToBrandingResponse(updated));
     }
 })
 .WithName("SetGroupBanner")
@@ -2824,7 +2824,7 @@ app.MapGet("/api/groups/{groupId:guid}/branding/banner", async (
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2852,7 +2852,7 @@ app.MapPost("/api/groups/{groupId:guid}/branding/favicon", async (
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -2871,7 +2871,7 @@ app.MapPost("/api/groups/{groupId:guid}/branding/favicon", async (
     }
 
     // SECURITY-AUDIT-2026-10 (B6): bounded read + magic-byte validation.
-    var (stream, error) = await ReadValidatedBrandingImageAsync(file, cancellationToken);
+    var (stream, error) = await ApiEndpointHelpers.ReadValidatedBrandingImageAsync(file, cancellationToken);
     if (error is not null)
     {
         return error;
@@ -2882,7 +2882,7 @@ app.MapPost("/api/groups/{groupId:guid}/branding/favicon", async (
         var updated = await handler.HandleAsync(
             new SetGroupFaviconCommand(userId.Value, groupId, file.ContentType, file.Length, stream!),
             cancellationToken);
-        return Results.Ok(ToBrandingResponse(updated));
+        return Results.Ok(ApiEndpointHelpers.ToBrandingResponse(updated));
     }
 })
 .WithName("SetGroupFavicon")
@@ -2903,7 +2903,7 @@ app.MapGet("/api/groups/{groupId:guid}/branding/favicon", async (
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3005,7 +3005,7 @@ app.MapGet("/g/{slug}/manifest.webmanifest", async (
     var manifest = new
     {
         name,
-        short_name = TruncateByTextElements(name, 12),
+        short_name = ApiEndpointHelpers.TruncateByTextElements(name, 12),
         start_url = $"/g/{slug}",
         scope = $"/g/{slug}",
         display = "standalone",
@@ -3032,7 +3032,7 @@ app.MapPatch("/api/groups/{groupId:guid}", async (
     UpdateGroupHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3046,7 +3046,7 @@ app.MapPatch("/api/groups/{groupId:guid}", async (
             request.ExpectedVersion),
         cancellationToken);
 
-    return Results.Ok(ToGroupResponse(updated));
+    return Results.Ok(ApiEndpointHelpers.ToGroupResponse(updated));
 })
 .WithName("UpdateGroup")
 .RequireAuthorization();
@@ -3059,7 +3059,7 @@ app.MapDelete("/api/groups/{groupId:guid}", async (
     SoftDeleteGroupHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3084,7 +3084,7 @@ app.MapGet("/api/groups/{groupId:guid}/members", async (
     ListMembersHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3118,7 +3118,7 @@ app.MapPost("/api/presence/heartbeat", async (
     PresenceHeartbeatHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3138,7 +3138,7 @@ app.MapGet("/api/groups/{groupId:guid}/tasks", async (
     ListTasksHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3162,7 +3162,7 @@ app.MapPost("/api/groups/{groupId:guid}/tasks", async (
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3206,7 +3206,7 @@ app.MapPatch("/api/groups/{groupId:guid}/tasks/{taskId:guid}", async (
     UpdateTaskHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3229,7 +3229,7 @@ app.MapPost("/api/groups/{groupId:guid}/tasks/{taskId:guid}/status", async (
     SetTaskStatusHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3252,7 +3252,7 @@ app.MapDelete("/api/groups/{groupId:guid}/tasks/{taskId:guid}", async (
     DeleteTaskHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3293,7 +3293,7 @@ app.MapGet("/api/groups/{groupId:guid}/roster", async (
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3343,7 +3343,7 @@ app.MapPost("/api/groups/{groupId:guid}/roster", async (
         return Results.NotFound();
     }
 
-    var actorId = await RequireUserIdAsync(principal, users);
+    var actorId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (actorId is null)
     {
         return Results.Unauthorized();
@@ -3361,7 +3361,7 @@ app.MapPost("/api/groups/{groupId:guid}/roster", async (
     // (every store shares the scoped SonivoDbContext, so the explicit
     // transaction covers them all). A failure mid-way must never leave an
     // orphaned Identity account.
-    await using var transaction = await BeginTransactionIfSupportedAsync(db, configuration, cancellationToken);
+    await using var transaction = await ApiEndpointHelpers.BeginTransactionIfSupportedAsync(db, configuration, cancellationToken);
     try
     {
         var now = clock.UtcNow;
@@ -3463,7 +3463,7 @@ app.MapPost("/api/groups/{groupId:guid}/roster/import", async (
         return Results.NotFound();
     }
 
-    var actorId = await RequireUserIdAsync(principal, users);
+    var actorId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (actorId is null)
     {
         return Results.Unauthorized();
@@ -3586,7 +3586,7 @@ app.MapPost("/api/groups/{groupId:guid}/roster/{memberId:guid}/reset-access", as
         return Results.NotFound();
     }
 
-    var actorId = await RequireUserIdAsync(principal, users);
+    var actorId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (actorId is null)
     {
         return Results.Unauthorized();
@@ -3673,7 +3673,7 @@ app.MapDelete("/api/groups/{groupId:guid}/roster/{memberId:guid}", async (
         return Results.NotFound();
     }
 
-    var actorId = await RequireUserIdAsync(principal, users);
+    var actorId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (actorId is null)
     {
         return Results.Unauthorized();
@@ -3696,7 +3696,7 @@ app.MapDelete("/api/groups/{groupId:guid}/roster/{memberId:guid}", async (
     // SECURITY-AUDIT-2026-10 (B8): membership removal and (when applicable)
     // account deletion commit atomically — never a membership pointing at a
     // deleted user, never an orphan account.
-    await using var transaction = await BeginTransactionIfSupportedAsync(db, configuration, cancellationToken);
+    await using var transaction = await ApiEndpointHelpers.BeginTransactionIfSupportedAsync(db, configuration, cancellationToken);
     try
     {
         if (target.UserId is { } targetUserId)
@@ -3760,7 +3760,7 @@ app.MapGet("/api/groups/{groupId:guid}/export", async (
     ExportGroupHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3819,7 +3819,7 @@ app.MapDelete("/api/groups/{groupId:guid}/members/{targetUserId:guid}", async (
     PostCommitActionQueue postCommitActions,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3847,7 +3847,7 @@ app.MapPost("/api/groups/{groupId:guid}/members/{targetUserId:guid}/role", async
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3896,7 +3896,7 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/access", asyn
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var actorId = await RequireUserIdAsync(principal, users);
+    var actorId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (actorId is null)
     {
         return Results.Unauthorized();
@@ -3961,7 +3961,7 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/musical-role"
     SetMusicalRoleHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -3985,7 +3985,7 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/description",
     SetMemberDescriptionHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4014,7 +4014,7 @@ app.MapGet("/api/groups/{groupId:guid}/audit", async (
     IGroupAuditStore audit,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4047,7 +4047,7 @@ app.MapGet("/api/account/audit", async (
     IAccountAuditStore audit,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4110,7 +4110,7 @@ app.MapGet("/api/groups/{groupId:guid}/roles", async (
     IGroupRoleStore roles,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4146,7 +4146,7 @@ app.MapPost("/api/groups/{groupId:guid}/roles", async (
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4217,7 +4217,7 @@ app.MapPatch("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4303,7 +4303,7 @@ app.MapDelete("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
     SonivoDbContext db,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4359,7 +4359,7 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/group-role", 
     SonivoDbContext db,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4444,7 +4444,7 @@ app.MapGet("/api/notifications", async (
     INotificationStore notifications,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4491,7 +4491,7 @@ app.MapPost("/api/notifications/{notificationId:guid}/read", async (
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4520,7 +4520,7 @@ app.MapPost("/api/notifications/read-all", async (
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4546,7 +4546,7 @@ app.MapGet("/api/groups/{groupId:guid}/notification-preferences", async (
     GroupAccessService access,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4572,7 +4572,7 @@ app.MapPut("/api/groups/{groupId:guid}/notification-preferences", async (
     IGroupStore groups,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4609,7 +4609,7 @@ app.MapPost("/api/groups/{groupId:guid}/leave", async (
     PostCommitActionQueue postCommitActions,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4632,7 +4632,7 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4650,7 +4650,7 @@ app.MapPost("/api/groups/{groupId:guid}/invitations", async (
 
     return Results.Created(
         $"/api/groups/{groupId}/invitations/{created.Id}",
-        ToInvitationCreatedResponse(created));
+        ApiEndpointHelpers.ToInvitationCreatedResponse(created));
 })
 .WithName("CreateInvitation")
 .RequireAuthorization();
@@ -4662,7 +4662,7 @@ app.MapGet("/api/groups/{groupId:guid}/invitations", async (
     ListInvitationsHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4692,7 +4692,7 @@ app.MapDelete("/api/groups/{groupId:guid}/invitations/{invitationId:guid}", asyn
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4719,7 +4719,7 @@ app.MapPost("/api/invitations/{token}/accept", async (
     AcceptInvitationHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4739,7 +4739,7 @@ app.MapPost("/api/invitations/{token}/accept", async (
         await users.UpdateAsync(account);
     }
 
-    return Results.Ok(ToInvitationAcceptedResponse(accepted));
+    return Results.Ok(ApiEndpointHelpers.ToInvitationAcceptedResponse(accepted));
 })
 .WithName("AcceptInvitation")
 .RequireAuthorization()
@@ -4760,7 +4760,7 @@ app.MapGet("/api/groups/{groupId:guid}/songs", async (
     int? pageSize,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4783,7 +4783,7 @@ app.MapGet("/api/groups/{groupId:guid}/songs", async (
     }
 
     var songs = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
-    return Results.Ok(songs.Select(ToSongListResponse));
+    return Results.Ok(songs.Select(ApiEndpointHelpers.ToSongListResponse));
 })
 .WithName("ListSongs")
 .RequireAuthorization();
@@ -4796,7 +4796,7 @@ app.MapPut("/api/groups/{groupId:guid}/songs/{songId:guid}/favorite", async (
     SetSongFavoriteHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     await handler.HandleAsync(userId.Value, groupId, songId, true, cancellationToken);
     return Results.NoContent();
@@ -4812,7 +4812,7 @@ app.MapDelete("/api/groups/{groupId:guid}/songs/{songId:guid}/favorite", async (
     SetSongFavoriteHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     await handler.HandleAsync(userId.Value, groupId, songId, false, cancellationToken);
     return Results.NoContent();
@@ -4828,7 +4828,7 @@ app.MapPost("/api/groups/{groupId:guid}/songs", async (
     CreateSongHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4848,7 +4848,7 @@ app.MapPost("/api/groups/{groupId:guid}/songs", async (
             request.ReleaseYear),
         cancellationToken);
 
-    return Results.Created($"/api/groups/{groupId}/songs/{created.Id}", ToSongDetailResponse(created));
+    return Results.Created($"/api/groups/{groupId}/songs/{created.Id}", ApiEndpointHelpers.ToSongDetailResponse(created));
 })
 .WithName("CreateSong")
 .RequireAuthorization();
@@ -4861,14 +4861,14 @@ app.MapGet("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
     GetSongHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var song = await handler.HandleAsync(userId.Value, groupId, songId, cancellationToken);
-    return Results.Ok(ToSongDetailResponse(song));
+    return Results.Ok(ApiEndpointHelpers.ToSongDetailResponse(song));
 })
 .WithName("GetSong")
 .RequireAuthorization();
@@ -4882,7 +4882,7 @@ app.MapPatch("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
     UpdateSongHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -4905,7 +4905,7 @@ app.MapPatch("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
             request.ClearReleaseYear),
         cancellationToken);
 
-    return Results.Ok(ToSongDetailResponse(updated));
+    return Results.Ok(ApiEndpointHelpers.ToSongDetailResponse(updated));
 })
 .WithName("UpdateSong")
 .RequireAuthorization();
@@ -4915,7 +4915,7 @@ app.MapPost("/api/groups/{groupId:guid}/songs/{songId:guid}/cover", async (
     ClaimsPrincipal principal, UserManager<ApplicationUser> users,
     UploadSongCoverHandler handler, CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     if (!httpRequest.HasFormContentType)
         return Results.Problem(detail: "Multipart form is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
@@ -4924,9 +4924,9 @@ app.MapPost("/api/groups/{groupId:guid}/songs/{songId:guid}/cover", async (
         return Results.Problem(detail: "Cover image file is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
     if (!SongCoverImageConstraints.IsAllowed(file.ContentType))
         return Results.Problem(detail: "Cover image must be JPEG, PNG, or WebP.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
-    var (stream, error) = await ReadValidatedBrandingImageAsync(file, cancellationToken);
+    var (stream, error) = await ApiEndpointHelpers.ReadValidatedBrandingImageAsync(file, cancellationToken);
     if (error is not null) return error;
-    if (!IsSongCoverImageSignature(stream!.ToArray(), file.ContentType))
+    if (!ApiEndpointHelpers.IsSongCoverImageSignature(stream!.ToArray(), file.ContentType))
     {
         await stream.DisposeAsync();
         return Results.Problem(detail: "Cover image content does not match its declared type.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
@@ -4935,7 +4935,7 @@ app.MapPost("/api/groups/{groupId:guid}/songs/{songId:guid}/cover", async (
     {
         var result = await handler.HandleAsync(new UploadSongCoverCommand(
             userId.Value, groupId, songId, expectedVersion, file.ContentType, file.Length, stream!), cancellationToken);
-        return Results.Ok(ToSongDetailResponse(result));
+        return Results.Ok(ApiEndpointHelpers.ToSongDetailResponse(result));
     }
 })
 .WithName("UploadSongCoverImage")
@@ -4947,10 +4947,10 @@ app.MapDelete("/api/groups/{groupId:guid}/songs/{songId:guid}/cover", async (
     Guid groupId, Guid songId, [FromBody] SoftDeleteSongRequest request, ClaimsPrincipal principal,
     UserManager<ApplicationUser> users, RemoveSongCoverHandler handler, CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     var result = await handler.HandleAsync(userId.Value, groupId, songId, request.ExpectedVersion, cancellationToken);
-    return Results.Ok(ToSongDetailResponse(result));
+    return Results.Ok(ApiEndpointHelpers.ToSongDetailResponse(result));
 })
 .WithName("RemoveSongCoverImage")
 .RequireAuthorization();
@@ -4959,7 +4959,7 @@ app.MapGet("/api/groups/{groupId:guid}/songs/{songId:guid}/cover", async (
     Guid groupId, Guid songId, ClaimsPrincipal principal, UserManager<ApplicationUser> users,
     GetSongCoverHandler handler, CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     var content = await handler.HandleAsync(userId.Value, groupId, songId, cancellationToken);
     return content is null ? Results.NotFound() : Results.File(content.Content, content.ContentType, enableRangeProcessing: true);
@@ -4971,11 +4971,11 @@ app.MapPut("/api/groups/{groupId:guid}/songs/{songId:guid}/default-arrangement",
     Guid groupId, Guid songId, SetDefaultArrangementRequest request, ClaimsPrincipal principal,
     UserManager<ApplicationUser> users, SetDefaultArrangementHandler handler, CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null) return Results.Unauthorized();
     var result = await handler.HandleAsync(new SetDefaultArrangementCommand(
         userId.Value, groupId, songId, request.ArrangementId, request.ExpectedVersion), cancellationToken);
-    return Results.Ok(ToSongDetailResponse(result));
+    return Results.Ok(ApiEndpointHelpers.ToSongDetailResponse(result));
 })
 .WithName("SetDefaultArrangement")
 .RequireAuthorization();
@@ -4989,7 +4989,7 @@ app.MapDelete("/api/groups/{groupId:guid}/songs/{songId:guid}", async (
     SoftDeleteSongHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5016,14 +5016,14 @@ app.MapGet("/api/groups/{groupId:guid}/songs/{songId:guid}/arrangements", async 
     ListArrangementsHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var arrangements = await handler.HandleAsync(userId.Value, groupId, songId, cancellationToken);
-    return Results.Ok(arrangements.Select(ToArrangementListResponse));
+    return Results.Ok(arrangements.Select(ApiEndpointHelpers.ToArrangementListResponse));
 })
 .WithName("ListArrangements")
 .RequireAuthorization();
@@ -5037,7 +5037,7 @@ app.MapPost("/api/groups/{groupId:guid}/songs/{songId:guid}/arrangements", async
     CreateArrangementHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5060,7 +5060,7 @@ app.MapPost("/api/groups/{groupId:guid}/songs/{songId:guid}/arrangements", async
 
     return Results.Created(
         $"/api/groups/{groupId}/arrangements/{created.Id}",
-        ToArrangementDetailResponse(created));
+        ApiEndpointHelpers.ToArrangementDetailResponse(created));
 })
 .WithName("CreateArrangement")
 .RequireAuthorization();
@@ -5073,14 +5073,14 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", async
     GetArrangementHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var arrangement = await handler.HandleAsync(userId.Value, groupId, arrangementId, cancellationToken);
-    return Results.Ok(ToArrangementDetailResponse(arrangement));
+    return Results.Ok(ApiEndpointHelpers.ToArrangementDetailResponse(arrangement));
 })
 .WithName("GetArrangement")
 .RequireAuthorization();
@@ -5094,7 +5094,7 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", asy
     UpdateArrangementHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5117,7 +5117,7 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", asy
             request.HarmonyJson),
         cancellationToken);
 
-    return Results.Ok(ToArrangementDetailResponse(updated));
+    return Results.Ok(ApiEndpointHelpers.ToArrangementDetailResponse(updated));
 })
 .WithName("UpdateArrangement")
 .RequireAuthorization();
@@ -5140,7 +5140,7 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5227,7 +5227,7 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/lyrics/
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5273,7 +5273,7 @@ app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}", as
     SoftDeleteArrangementHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5300,14 +5300,14 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resourc
     ListResourcesHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var resources = await handler.HandleAsync(userId.Value, groupId, arrangementId, cancellationToken);
-    return Results.Ok(resources.Select(ToResourceSummaryResponse));
+    return Results.Ok(resources.Select(ApiEndpointHelpers.ToResourceSummaryResponse));
 })
 .WithName("ListResources")
 .RequireAuthorization();
@@ -5319,14 +5319,14 @@ app.MapGet("/api/groups/{groupId:guid}/resources", async (
     ListGroupResourcesHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var items = await handler.HandleAsync(new ListGroupResourcesQuery(userId.Value, groupId), cancellationToken);
-    return Results.Ok(items.Select(ToGroupResourceResponse));
+    return Results.Ok(items.Select(ApiEndpointHelpers.ToGroupResourceResponse));
 })
 .WithName("ListGroupResources")
 .RequireAuthorization();
@@ -5341,7 +5341,7 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resour
     CreateFileResourceHandler fileHandler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5367,7 +5367,7 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resour
                 title: "Content Too Large");
         }
 
-        var contentType = ResolveUploadContentType(file.ContentType, file.FileName);
+        var contentType = ApiEndpointHelpers.ResolveUploadContentType(file.ContentType, file.FileName);
         await using var stream = file.OpenReadStream();
         var createdFile = await fileHandler.HandleAsync(
             new CreateFileResourceCommand(
@@ -5376,8 +5376,8 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resour
                 arrangementId,
                 form["purpose"].ToString(),
                 form["label"].ToString(),
-                NullIfWhiteSpace(form["part"].ToString()),
-                NullIfWhiteSpace(form["note"].ToString()),
+                ApiEndpointHelpers.NullIfWhiteSpace(form["part"].ToString()),
+                ApiEndpointHelpers.NullIfWhiteSpace(form["note"].ToString()),
                 file.FileName,
                 contentType,
                 file.Length,
@@ -5386,7 +5386,7 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resour
 
         return Results.Created(
             $"/api/groups/{groupId}/arrangements/{arrangementId}/resources/{createdFile.Id}",
-            ToResourceDetailResponse(createdFile));
+            ApiEndpointHelpers.ToResourceDetailResponse(createdFile));
     }
 
     var request = await httpRequest.ReadFromJsonAsync<CreateLinkResourceRequest>(cancellationToken: cancellationToken);
@@ -5413,7 +5413,7 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resour
 
     return Results.Created(
         $"/api/groups/{groupId}/arrangements/{arrangementId}/resources/{created.Id}",
-        ToResourceDetailResponse(created));
+        ApiEndpointHelpers.ToResourceDetailResponse(created));
 })
 .WithName("CreateResource")
 .RequireAuthorization()
@@ -5434,14 +5434,14 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resourc
     GetResourceHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var resource = await handler.HandleAsync(userId.Value, groupId, arrangementId, resourceId, cancellationToken);
-    return Results.Ok(ToResourceDetailResponse(resource));
+    return Results.Ok(ApiEndpointHelpers.ToResourceDetailResponse(resource));
 })
 .WithName("GetResource")
 .RequireAuthorization();
@@ -5457,7 +5457,7 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resourc
     GetResourceContentHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5484,7 +5484,7 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resourc
         rangeStart,
         rangeEnd);
 
-    return CreateResourceContentResult(content, httpContext);
+    return ApiEndpointHelpers.CreateResourceContentResult(content, httpContext);
 })
 .WithName("GetResourceContent")
 .RequireAuthorization();
@@ -5499,7 +5499,7 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resou
     UpdateLinkResourceHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5517,7 +5517,7 @@ app.MapPatch("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/resou
             request.Note),
         cancellationToken);
 
-    return Results.Ok(ToResourceDetailResponse(updated));
+    return Results.Ok(ApiEndpointHelpers.ToResourceDetailResponse(updated));
 })
 .WithName("UpdateLinkResource")
 .RequireAuthorization();
@@ -5531,7 +5531,7 @@ app.MapDelete("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/reso
     DeleteResourceHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5556,7 +5556,7 @@ app.MapPost("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/digiti
     DigitizeJobQueue queue,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5594,7 +5594,7 @@ app.MapGet("/api/groups/{groupId:guid}/arrangements/{arrangementId:guid}/digitiz
     GetDigitizeJobHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5624,14 +5624,14 @@ app.MapGet("/api/groups/{groupId:guid}/setlists", async (
     ListSetlistsHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var setlists = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
-    return Results.Ok(setlists.Select(ToSetlistListResponse));
+    return Results.Ok(setlists.Select(ApiEndpointHelpers.ToSetlistListResponse));
 })
 .WithName("ListSetlists")
 .RequireAuthorization();
@@ -5644,7 +5644,7 @@ app.MapPost("/api/groups/{groupId:guid}/setlists", async (
     CreateSetlistHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5654,7 +5654,7 @@ app.MapPost("/api/groups/{groupId:guid}/setlists", async (
         new CreateSetlistCommand(userId.Value, groupId, request.Name ?? string.Empty),
         cancellationToken);
 
-    return Results.Created($"/api/groups/{groupId}/setlists/{created.Id}", ToSetlistDetailResponse(created));
+    return Results.Created($"/api/groups/{groupId}/setlists/{created.Id}", ApiEndpointHelpers.ToSetlistDetailResponse(created));
 })
 .WithName("CreateSetlist")
 .RequireAuthorization();
@@ -5667,14 +5667,14 @@ app.MapGet("/api/groups/{groupId:guid}/setlists/{setlistId:guid}", async (
     GetSetlistHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var setlist = await handler.HandleAsync(userId.Value, groupId, setlistId, cancellationToken);
-    return Results.Ok(ToSetlistDetailResponse(setlist));
+    return Results.Ok(ApiEndpointHelpers.ToSetlistDetailResponse(setlist));
 })
 .WithName("GetSetlist")
 .RequireAuthorization();
@@ -5688,7 +5688,7 @@ app.MapPatch("/api/groups/{groupId:guid}/setlists/{setlistId:guid}", async (
     UpdateSetlistHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5703,7 +5703,7 @@ app.MapPatch("/api/groups/{groupId:guid}/setlists/{setlistId:guid}", async (
             request.ExpectedVersion),
         cancellationToken);
 
-    return Results.Ok(ToSetlistDetailResponse(updated));
+    return Results.Ok(ApiEndpointHelpers.ToSetlistDetailResponse(updated));
 })
 .WithName("UpdateSetlist")
 .RequireAuthorization();
@@ -5717,7 +5717,7 @@ app.MapPut("/api/groups/{groupId:guid}/setlists/{setlistId:guid}/items", async (
     ReplaceSetlistItemsHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5736,7 +5736,7 @@ app.MapPut("/api/groups/{groupId:guid}/setlists/{setlistId:guid}/items", async (
             items),
         cancellationToken);
 
-    return Results.Ok(ToSetlistDetailResponse(updated));
+    return Results.Ok(ApiEndpointHelpers.ToSetlistDetailResponse(updated));
 })
 .WithName("ReplaceSetlistItems")
 .RequireAuthorization();
@@ -5748,14 +5748,14 @@ app.MapGet("/api/groups/{groupId:guid}/events", async (
     ListEventsHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var events = await handler.HandleAsync(userId.Value, groupId, cancellationToken);
-    return Results.Ok(events.Select(ToEventListResponse));
+    return Results.Ok(events.Select(ApiEndpointHelpers.ToEventListResponse));
 })
 .WithName("ListEvents")
 .RequireAuthorization();
@@ -5768,7 +5768,7 @@ app.MapPost("/api/groups/{groupId:guid}/events", async (
     CreateEventHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5783,7 +5783,7 @@ app.MapPost("/api/groups/{groupId:guid}/events", async (
             request.StartsAt),
         cancellationToken);
 
-    return Results.Created($"/api/groups/{groupId}/events/{created.Id}", ToEventDetailResponse(created));
+    return Results.Created($"/api/groups/{groupId}/events/{created.Id}", ApiEndpointHelpers.ToEventDetailResponse(created));
 })
 .WithName("CreateEvent")
 .RequireAuthorization();
@@ -5796,14 +5796,14 @@ app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
     GetEventHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
     }
 
     var musicalEvent = await handler.HandleAsync(userId.Value, groupId, eventId, cancellationToken);
-    return Results.Ok(ToEventDetailResponse(musicalEvent));
+    return Results.Ok(ApiEndpointHelpers.ToEventDetailResponse(musicalEvent));
 })
 .WithName("GetEvent")
 .RequireAuthorization();
@@ -5817,7 +5817,7 @@ app.MapPatch("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
     UpdateEventHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5834,7 +5834,7 @@ app.MapPatch("/api/groups/{groupId:guid}/events/{eventId:guid}", async (
             request.ExpectedVersion),
         cancellationToken);
 
-    return Results.Ok(ToEventDetailResponse(updated));
+    return Results.Ok(ApiEndpointHelpers.ToEventDetailResponse(updated));
 })
 .WithName("UpdateEvent")
 .RequireAuthorization();
@@ -5848,7 +5848,7 @@ app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/cancel", async (
     CancelEventHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5872,7 +5872,7 @@ app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/duplicate", async 
     [FromServices] DuplicateEventHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5882,7 +5882,7 @@ app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/duplicate", async 
         new DuplicateEventCommand(userId.Value, groupId, eventId, request.ExpectedVersion),
         cancellationToken);
 
-    return Results.Ok(ToEventDetailResponse(musicalEvent));
+    return Results.Ok(ApiEndpointHelpers.ToEventDetailResponse(musicalEvent));
 })
 .WithName("DuplicateEvent")
 .RequireAuthorization();
@@ -5896,7 +5896,7 @@ app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/apply-setlist", as
     ReplaceEventPlanFromSetlistHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5912,7 +5912,7 @@ app.MapPost("/api/groups/{groupId:guid}/events/{eventId:guid}/apply-setlist", as
             request.ConfirmReplace),
         cancellationToken);
 
-    return Results.Ok(ToEventDetailResponse(musicalEvent));
+    return Results.Ok(ApiEndpointHelpers.ToEventDetailResponse(musicalEvent));
 })
 .WithName("ApplySetlistToEvent")
 .RequireAuthorization();
@@ -5926,7 +5926,7 @@ app.MapPut("/api/groups/{groupId:guid}/events/{eventId:guid}/rsvp", async (
     UpsertEventRsvpHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5954,7 +5954,7 @@ app.MapGet("/api/groups/{groupId:guid}/events/{eventId:guid}/rsvps", async (
     ListEventRsvpsHandler handler,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -5992,7 +5992,7 @@ app.MapGet("/api/groups/{groupId:guid}/calendar.ics", async (
         return Results.NotFound();
     }
 
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -6035,7 +6035,7 @@ app.MapGet("/api/groups/{groupId:guid}/members/{targetUserId:guid}/resource-gran
     IResourceGrantStore grants,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -6082,7 +6082,7 @@ app.MapPut("/api/groups/{groupId:guid}/members/{targetUserId:guid}/resource-gran
     IClock clock,
     CancellationToken cancellationToken) =>
 {
-    var userId = await RequireUserIdAsync(principal, users);
+    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
     if (userId is null)
     {
         return Results.Unauthorized();
@@ -6214,530 +6214,6 @@ if (mobileAuthenticationEnabled)
 
 app.Run();
 
-// SECURITY-AUDIT-2026-10 (B2): the user id comes from the NameIdentifier claim
-// — the must-change-password middleware already loaded and validated the user
-// once per request (and the SecurityStampValidator runs on the same pass), so
-// endpoints must not issue a second GetUserAsync round-trip for the id alone.
-static Task<Guid?> RequireUserIdAsync(ClaimsPrincipal principal, UserManager<ApplicationUser> users)
-{
-    if (principal.Identity?.IsAuthenticated != true)
-    {
-        return Task.FromResult<Guid?>(null);
-    }
-
-    var claim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-    return Task.FromResult(Guid.TryParse(claim, out var id) ? (Guid?)id : null);
-}
-
-// SECURITY-AUDIT-2026-10 (A7): single projection for every authenticated-user
-// response. Managed-account synthetic emails (@managed.invalid) are never
-// exposed, and mustChangePassword/managedByGroupId travel on EVERY login path
-// (password, handle, 2FA challenge/recover, passkey) so the SPA can gate
-// managed sessions uniformly.
-static object ToUserResponse(ApplicationUser user, string? handle = null) => new
-{
-    id = user.Id,
-    email = user.Email is { } mail && mail.EndsWith("@managed.invalid", StringComparison.Ordinal) ? null : user.Email,
-    displayName = user.DisplayName,
-    emailConfirmed = user.EmailConfirmed,
-    mustChangePassword = user.MustChangePassword,
-    managedByGroupId = user.ManagedByGroupId,
-    handle
-};
-
-// SECURITY-AUDIT-2026-10 (B6): branding image uploads must match their magic
-// bytes — the client-supplied Content-Type alone is not trustworthy. Returns
-// the validated bytes and null error, or null bytes and the rejection result.
-static async Task<(MemoryStream? Stream, IResult? Error)> ReadValidatedBrandingImageAsync(
-    IFormFile file, CancellationToken cancellationToken)
-{
-    if (file.Length <= 0 || file.Length > BrandLogoConstraints.MaxByteSize)
-    {
-        return (null, Results.Problem(
-            detail: $"Image must be 1 byte to {BrandLogoConstraints.MaxByteSize} bytes.",
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Bad Request"));
-    }
-
-    await using var raw = file.OpenReadStream();
-    using var buffer = new MemoryStream();
-    var copyBuffer = new byte[81920];
-    var total = 0;
-    int read;
-    while ((read = await raw.ReadAsync(copyBuffer, cancellationToken)) > 0)
-    {
-        total += read;
-        if (total > BrandLogoConstraints.MaxByteSize)
-        {
-            return (null, Results.Problem(
-                detail: $"Image must be {BrandLogoConstraints.MaxByteSize} bytes or fewer.",
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Bad Request"));
-        }
-        await buffer.WriteAsync(copyBuffer.AsMemory(0, read), cancellationToken);
-    }
-
-    var bytes = buffer.ToArray();
-    if (!IsKnownImageSignature(bytes))
-    {
-        return (null, Results.Problem(
-            detail: "Image content does not match its declared type.",
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Bad Request"));
-    }
-
-    return (new MemoryStream(bytes, writable: false), null);
-}
-
-static bool IsKnownImageSignature(ReadOnlySpan<byte> b) =>
-    // PNG
-    (b.Length >= 4 && b[0] == 0x89 && b[1] == (byte)'P' && b[2] == (byte)'N' && b[3] == (byte)'G') ||
-    // JPEG
-    (b.Length >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF) ||
-    // GIF87a / GIF89a
-    (b.Length >= 4 && b[0] == (byte)'G' && b[1] == (byte)'I' && b[2] == (byte)'F' && b[3] == (byte)'8') ||
-    // WebP (RIFF....WEBP)
-    (b.Length >= 12 && b[0] == (byte)'R' && b[1] == (byte)'I' && b[2] == (byte)'F' && b[3] == (byte)'F'
-     && b[8] == (byte)'W' && b[9] == (byte)'E' && b[10] == (byte)'B' && b[11] == (byte)'P');
-
-static bool IsSongCoverImageSignature(ReadOnlySpan<byte> bytes, string contentType) => contentType switch
-{
-    "image/jpeg" => bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF,
-    "image/png" => bytes.Length >= 8 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
-        && bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A,
-    "image/webp" => bytes.Length >= 12 && bytes[..4].SequenceEqual("RIFF"u8) && bytes[8..12].SequenceEqual("WEBP"u8),
-    _ => false
-};
-
-// SECURITY-AUDIT-2026-10 (B8): the EF InMemory provider does not support
-// transactions (tests use UseInMemoryDatabase=true) — explicit transactions
-// only against the real PostgreSQL provider.
-static async Task<IDbContextTransaction?> BeginTransactionIfSupportedAsync(
-    SonivoDbContext db, IConfiguration configuration, CancellationToken cancellationToken) =>
-    configuration.GetValue("UseInMemoryDatabase", false)
-        || db.Database.CurrentTransaction is not null
-        ? null
-        : await db.Database.BeginTransactionAsync(cancellationToken);
-
-// SECURITY-AUDIT-2026-10 (C7): text-element truncation so a 12-char cut can
-// never split a UTF-16 surrogate pair.
-static string TruncateByTextElements(string value, int maxElements)
-{
-    if (value.Length <= maxElements)
-    {
-        return value;
-    }
-
-    var count = 0;
-    var enumerator = StringInfo.GetTextElementEnumerator(value);
-    var end = 0;
-    while (enumerator.MoveNext())
-    {
-        count++;
-        if (count == maxElements)
-        {
-            end = enumerator.ElementIndex + enumerator.GetTextElement().Length;
-            break;
-        }
-    }
-
-    return end > 0 ? value[..end] : value;
-}
-
-static object ToGroupResponse(GroupDto group) => new
-{
-    id = group.Id,
-    name = group.Name,
-    slug = group.Slug,
-    version = group.Version,
-    role = group.Role,
-    createdAt = group.CreatedAt,
-    updatedAt = group.UpdatedAt,
-    planId = group.PlanId,
-    capabilities = group.Capabilities
-};
-
-static object ToGroupBySlugResponse(GroupBySlugResult result) => new
-{
-    id = result.Group.Id,
-    name = result.Group.Name,
-    slug = result.Group.Slug,
-    moved = result.Moved,
-    version = result.Group.Version,
-    role = result.Group.Role,
-    createdAt = result.Group.CreatedAt,
-    updatedAt = result.Group.UpdatedAt,
-    planId = result.Group.PlanId,
-    capabilities = result.Group.Capabilities
-};
-
-static object ToPlanCatalogResponse(PlanCatalogDto catalog) => new
-{
-    defaultPlanId = catalog.DefaultPlanId,
-    extraGroupMonthlyMxn = catalog.ExtraGroupMonthlyMxn,
-    extraGroupAnnualMxn = catalog.ExtraGroupAnnualMxn,
-    plans = catalog.Plans.Select(plan => new
-    {
-        id = plan.Id,
-        priceMonthlyMxn = plan.PriceMonthlyMxn,
-        priceAnnualMxn = plan.PriceAnnualMxn,
-        trialDays = plan.TrialDays,
-        trialRequiresCard = plan.TrialRequiresCard,
-        limits = plan.Limits,
-        features = plan.Features,
-        capabilities = plan.Capabilities
-    })
-};
-
-static object ToUsageResponse(GroupUsageDto usage) => new
-{
-    planId = usage.PlanId,
-    billingStatus = usage.BillingStatus,
-    trialEndsAt = usage.TrialEndsAt,
-    scheduledPlanId = usage.ScheduledPlanId,
-    members = new { used = usage.Members.Used, limit = usage.Members.Limit },
-    songs = new { used = usage.Songs.Used, limit = usage.Songs.Limit },
-    setlists = new { used = usage.Setlists.Used, limit = usage.Setlists.Limit },
-    eventsThisMonth = new { used = usage.EventsThisMonth.Used, limit = usage.EventsThisMonth.Limit },
-    storageBytes = new { used = usage.StorageBytes.Used, limit = usage.StorageBytes.Limit }
-};
-
-static object ToPlanStateResponse(GroupPlanStateDto state) => new
-{
-    planId = state.PlanId,
-    billingStatus = state.BillingStatus,
-    trialEndsAt = state.TrialEndsAt,
-    scheduledPlanId = state.ScheduledPlanId
-};
-
-static object ToBrandingResponse(GroupBrandingDto branding) => new
-{
-    groupId = branding.GroupId,
-    displayName = branding.DisplayName,
-    accentHex = branding.AccentHex,
-    secondaryHex = branding.SecondaryHex,
-    accentColorHex = branding.AccentColorHex,
-    successHex = branding.SuccessHex,
-    warningHex = branding.WarningHex,
-    errorHex = branding.ErrorHex,
-    typography = branding.Typography,
-    themeId = branding.ThemeId,
-    intensity = branding.Intensity,
-    gradientStyle = branding.GradientStyle,
-    onPrimary = branding.OnPrimary,
-    onSecondary = branding.OnSecondary,
-    onAccent = branding.OnAccent,
-    coverKind = branding.CoverKind,
-    coverValue = branding.CoverValue,
-    themeDefault = branding.ThemeDefault,
-    defaultLocale = branding.DefaultLocale,
-    welcomeText = branding.WelcomeText,
-    loginHeadline = branding.LoginHeadline,
-    tagline = branding.Tagline,
-    verse = branding.Verse,
-    hasLogo = branding.HasLogo,
-    logoUrl = branding.HasLogo ? $"/api/groups/{branding.GroupId}/branding/logo" : null,
-    hasBanner = branding.HasBanner,
-    bannerUrl = branding.HasBanner ? $"/api/groups/{branding.GroupId}/branding/banner" : null,
-    hasFavicon = branding.HasFavicon,
-    faviconUrl = branding.HasFavicon ? $"/api/groups/{branding.GroupId}/branding/favicon" : null,
-    showSonivoCredit = branding.ShowSonivoCredit,
-    version = branding.Version
-};
-
-static object ToGroupListResponse(GroupListItem item) => new
-{
-    id = item.Id,
-    name = item.Name,
-    slug = item.Slug,
-    role = item.Role,
-    version = item.Version,
-    createdAt = item.CreatedAt,
-    memberCount = item.MemberCount,
-    nextEventAt = item.NextEventAt,
-    lastActivityAt = item.LastActivityAt
-};
-
-static object ToUpcomingActivityResponse(UpcomingActivityItem item) => new
-{
-    groupId = item.GroupId,
-    groupName = item.GroupName,
-    eventId = item.EventId,
-    title = item.Title,
-    type = item.Type,
-    startsAt = item.StartsAt,
-    myResponse = item.MyResponse
-};
-
-static object ToInvitationCreatedResponse(InvitationCreatedDto invitation) => new
-{
-    id = invitation.Id,
-    token = invitation.Token,
-    expiresAt = invitation.ExpiresAt,
-    emailed = invitation.Emailed
-};
-
-static object ToInvitationAcceptedResponse(InvitationAcceptedDto accepted) => new
-{
-    groupId = accepted.GroupId,
-    role = accepted.Role
-};
-
-static object ToSongListResponse(SongListItemDto song) => new
-{
-    id = song.Id,
-    title = song.Title,
-    attribution = song.Attribution,
-    originKind = song.OriginKind,
-    genre = song.Genre,
-    album = song.Album,
-    releaseYear = song.ReleaseYear,
-    hasCoverImage = song.HasCoverImage,
-    version = song.Version,
-    createdAt = song.CreatedAt,
-    updatedAt = song.UpdatedAt,
-    tags = song.Tags,
-    isFavorite = song.IsFavorite
-};
-
-static object ToSongDetailResponse(SongDetailDto song) => new
-{
-    id = song.Id,
-    title = song.Title,
-    attribution = song.Attribution,
-    originKind = song.OriginKind,
-    genre = song.Genre,
-    album = song.Album,
-    releaseYear = song.ReleaseYear,
-    hasCoverImage = song.HasCoverImage,
-    rightsNotes = song.RightsNotes,
-    version = song.Version,
-    createdAt = song.CreatedAt,
-    updatedAt = song.UpdatedAt,
-    arrangementCount = song.ArrangementCount,
-    tags = song.Tags,
-    isFavorite = song.IsFavorite
-};
-
-static object ToArrangementListResponse(ArrangementListItemDto arrangement) => new
-{
-    id = arrangement.Id,
-    songId = arrangement.SongId,
-    label = arrangement.Label,
-    defaultKey = arrangement.DefaultKey,
-    defaultBpm = arrangement.DefaultBpm,
-    version = arrangement.Version,
-    createdAt = arrangement.CreatedAt,
-    updatedAt = arrangement.UpdatedAt,
-    isDefault = arrangement.IsDefault
-};
-
-static object ToArrangementDetailResponse(ArrangementDetailDto arrangement) => new
-{
-    id = arrangement.Id,
-    songId = arrangement.SongId,
-    label = arrangement.Label,
-    defaultKey = arrangement.DefaultKey,
-    defaultBpm = arrangement.DefaultBpm,
-    lyrics = arrangement.Lyrics,
-    chords = arrangement.Chords,
-    structure = arrangement.Structure,
-    notes = arrangement.Notes,
-    chordTimingJson = arrangement.ChordTimingJson,
-    harmonyJson = arrangement.HarmonyJson,
-    version = arrangement.Version,
-    createdAt = arrangement.CreatedAt,
-    updatedAt = arrangement.UpdatedAt,
-    resources = arrangement.Resources.Select(r => new
-    {
-        id = r.Id,
-        arrangementId = r.ArrangementId,
-        kind = r.Kind,
-        purpose = r.Purpose,
-        label = r.Label,
-        part = r.Part,
-        note = r.Note,
-        url = r.Url,
-        originalFileName = r.OriginalFileName,
-        contentType = r.ContentType,
-        byteSize = r.ByteSize,
-        createdAt = r.CreatedAt
-    })
-};
-
-static object ToGroupResourceResponse(GroupResourceListItemDto resource) => new
-{
-    id = resource.Id,
-    arrangementId = resource.ArrangementId,
-    songId = resource.SongId,
-    songTitle = resource.SongTitle,
-    arrangementLabel = resource.ArrangementLabel,
-    kind = resource.Kind,
-    purpose = resource.Purpose,
-    label = resource.Label,
-    part = resource.Part,
-    note = resource.Note,
-    url = resource.Url,
-    originalFileName = resource.OriginalFileName,
-    contentType = resource.ContentType,
-    byteSize = resource.ByteSize,
-    createdAt = resource.CreatedAt
-};
-
-static object ToResourceSummaryResponse(ResourceSummaryDto resource) => new
-{
-    id = resource.Id,
-    arrangementId = resource.ArrangementId,
-    kind = resource.Kind,
-    purpose = resource.Purpose,
-    label = resource.Label,
-    part = resource.Part,
-    note = resource.Note,
-    url = resource.Url,
-    originalFileName = resource.OriginalFileName,
-    contentType = resource.ContentType,
-    byteSize = resource.ByteSize,
-    createdAt = resource.CreatedAt
-};
-
-static object ToResourceDetailResponse(ResourceDetailDto resource) => new
-{
-    id = resource.Id,
-    arrangementId = resource.ArrangementId,
-    kind = resource.Kind,
-    purpose = resource.Purpose,
-    label = resource.Label,
-    part = resource.Part,
-    note = resource.Note,
-    url = resource.Url,
-    originalFileName = resource.OriginalFileName,
-    contentType = resource.ContentType,
-    byteSize = resource.ByteSize,
-    createdAt = resource.CreatedAt
-};
-
-static string? NullIfWhiteSpace(string? value)
-    => string.IsNullOrWhiteSpace(value) ? null : value;
-
-/// <summary>
-/// Browsers often send empty or application/octet-stream for .txt uploads; infer from extension.
-/// </summary>
-static string ResolveUploadContentType(string? declaredContentType, string? fileName)
-{
-    var mediaType = declaredContentType?.Split(';', 2)[0].Trim() ?? string.Empty;
-    if (!string.IsNullOrWhiteSpace(mediaType)
-        && !string.Equals(mediaType, "application/octet-stream", StringComparison.OrdinalIgnoreCase)
-        && ResourceFileConstraints.IsAllowedContentType(mediaType))
-    {
-        return mediaType;
-    }
-
-    var ext = Path.GetExtension(fileName ?? string.Empty).ToLowerInvariant();
-    return ext switch
-    {
-        ".pdf" => "application/pdf",
-        ".png" => "image/png",
-        ".jpg" or ".jpeg" => "image/jpeg",
-        ".webp" => "image/webp",
-        ".mp3" => "audio/mpeg",
-        ".flac" => "audio/flac",
-        ".aac" => "audio/aac",
-        ".ogg" => "audio/ogg",
-        ".wav" => "audio/wav",
-        ".m4a" or ".mp4" => "audio/mp4",
-        ".txt" => "text/plain",
-        _ => mediaType
-    };
-}
-
-static object ToSetlistListResponse(SetlistListItemDto setlist) => new
-{
-    id = setlist.Id,
-    name = setlist.Name,
-    version = setlist.Version,
-    itemCount = setlist.ItemCount,
-    createdAt = setlist.CreatedAt,
-    updatedAt = setlist.UpdatedAt
-};
-
-static object ToSetlistDetailResponse(SetlistDetailDto setlist) => new
-{
-    id = setlist.Id,
-    name = setlist.Name,
-    version = setlist.Version,
-    createdAt = setlist.CreatedAt,
-    updatedAt = setlist.UpdatedAt,
-    items = setlist.Items.Select(i => new
-    {
-        id = i.Id,
-        arrangementId = i.ArrangementId,
-        sortOrder = i.SortOrder,
-        songTitle = i.SongTitle,
-        arrangementLabel = i.ArrangementLabel
-    })
-};
-
-static object ToEventListResponse(EventListItemDto musicalEvent) => new
-{
-    id = musicalEvent.Id,
-    title = musicalEvent.Title,
-    type = musicalEvent.Type,
-    startsAt = musicalEvent.StartsAt,
-    status = musicalEvent.Status,
-    version = musicalEvent.Version,
-    createdAt = musicalEvent.CreatedAt,
-    updatedAt = musicalEvent.UpdatedAt
-};
-
-static object ToEventDetailResponse(EventDetailDto musicalEvent) => new
-{
-    id = musicalEvent.Id,
-    title = musicalEvent.Title,
-    type = musicalEvent.Type,
-    startsAt = musicalEvent.StartsAt,
-    status = musicalEvent.Status,
-    version = musicalEvent.Version,
-    createdAt = musicalEvent.CreatedAt,
-    updatedAt = musicalEvent.UpdatedAt,
-    sourceSetlistId = musicalEvent.SourceSetlistId,
-    items = musicalEvent.Items.Select(i => new
-    {
-        id = i.Id,
-        arrangementId = i.ArrangementId,
-        sortOrder = i.SortOrder,
-        displaySongTitle = i.DisplaySongTitle,
-        displayArrangementLabel = i.DisplayArrangementLabel
-    })
-};
-
-static IResult CreateResourceContentResult(ResourceContentDto content, HttpContext httpContext)
-{
-    var response = httpContext.Response;
-    if (content.RangeStart is long start && content.RangeEnd is long end)
-    {
-        response.StatusCode = StatusCodes.Status206PartialContent;
-        response.Headers.ContentRange = $"bytes {start}-{end}/{content.ByteSize}";
-        response.Headers.AcceptRanges = "bytes";
-        response.ContentLength = end - start + 1;
-        return Results.Stream(content.Content, content.ContentType, content.DownloadFileName);
-    }
-
-    if (content.SupportsByteRanges)
-    {
-        response.Headers.AcceptRanges = "bytes";
-    }
-
-    if (!content.Content.CanSeek)
-    {
-        response.ContentLength = content.ByteSize;
-    }
-
-    return Results.File(
-        content.Content,
-        content.ContentType,
-        fileDownloadName: content.DownloadFileName,
-        enableRangeProcessing: content.Content.CanSeek);
-}
 
 public sealed class AppExceptionHandler : IExceptionHandler
 {
