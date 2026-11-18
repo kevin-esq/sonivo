@@ -1,5 +1,15 @@
 # NOW — current work and Git checkpoint
 
+## T-ARCH-PROGRAM-01 — endpoint inventory safety net (Stage 0)
+
+**Updated:** 2026-11-18. **Worktree:** P:\repos\sonivo-arch. **Branch:** feat/t-arch-program-00-route-inventory.
+**Authorization:** Owner authorized Stage 0, a new worktree, and one local commit; no push or PR.
+**Spec:** Owner authorization for this task; scope limited to an API endpoint inventory characterization test and its expected snapshot.
+**Scope:** Add one API integration test and a readable endpoint inventory snapshot. Assert authenticated fallback policy and API/SPA fallbacks. No product code changes or dependencies.
+**Implementation:** COMPLETE.
+**Validation:** Baseline FoundationEndpointTests and ClientErrorReportApiTests passed 4/4. Endpoint inventory passed 1/1 and detected a deliberate health-route mutation with an added/removed-line diff; Program.cs was restored. API suite passed 323/323. Solution build passed (10 projects, 0 errors, 4 existing NU1510 warnings). git diff --check passed.
+**Human approval:** APPROVED (owner authorized implementation and one local commit in this task). **Git checkpoint:** COMMITTED. **Remote:** NOT PUSHED. **CI:** NOT RUN.
+
 ## T-REPORT-01 — Harden authenticated client error reporting
 
 **Updated:** 2026-11-18. **Worktree:** `P:\repos\sonivo-report`. **Branch:** `feat/t-report-01-client-errors`.
