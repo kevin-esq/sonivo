@@ -22,6 +22,14 @@
 **Validation:** Baseline `FoundationEndpointTests` passed 3/3. The new integration test first failed on the URL leak, then passed. API tests passed 322/322; API build passed with 0 errors and 2 existing NU1510 warnings. `dotnet format` passed for the new test file; project-wide API formatting reports existing whitespace issues outside the changed lines. `git diff --check` passed.
 **Human approval:** APPROVED (owner authorized implementation and one local commit in the active task). **Git checkpoint:** COMMITTED. **Remote:** NOT PUSHED. **CI:** NOT RUN.
 
+## T-SEC-DEPS — CBOR and Vite security fixes
+
+**Updated:** 2026-11-17. **Worktree:** `P:\repos\sonivo`.
+**Implementation:** CBOR pinned to 10.0.15 for GHSA-vmv3-wvjp-wqpj; Vite updated to 7.3.8 for GHSA-p4f5-76q4-ffq7 and prior Vite advisories. Separate branches and PRs preserve one fix per PR.
+**Validation:** API build passed with 2 NU1510 warnings (Xml and CBOR references). Local API tests had 4 `StripeBillingApiTests` failures with `InternalServerError`; CI backend tests passed on both PRs. Vite dependency resolution and app build passed. Local npm install reported 11 dependency advisories. CI SCA, Frontend, Backend, C#, and CodeQL passed for both PRs; Playwright remained pending at last check.
+**Human approval:** APPROVED for implementation, commit, push, and two PRs to `develop`. **Git checkpoint:** COMMITTED. CBOR commit `f004525`; Vite commit `cb7d1f7`. **Remote:** PUSHED. **PRs:** [#342](https://github.com/kevin-esq/sonivo/pull/342), [#343](https://github.com/kevin-esq/sonivo/pull/343), open. **Uncommitted local changes:** preserved and excluded. **CI:** Playwright pending.
+
+
 ## T-4.2 — PostgreSQL RLS policy implementation
 
 **Updated:** 2026-11-16. **Worktree:** `P:\repos\sonivo-stripe-billing`. **Branch:** `feature/postgresql-rls-phase-4-2`; PR #340 merged as `a34ca3f`.
