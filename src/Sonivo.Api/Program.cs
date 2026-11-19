@@ -4463,16 +4463,7 @@ app.MapLyricsLookup();
 app.MapChordProEndpoints();
 app.MapArrangementLyricsEndpoints();
 
-app.MapGet("/api/features", (IConfiguration configuration) => Results.Ok(new
-{
-    lrc = configuration.GetValue("Features:Lrc", false),
-    stageMode = configuration.GetValue("Features:StageMode", false),
-    groupBranding = configuration.GetValue("Features:GroupBranding", true),
-    notifications = configuration.GetValue("Features:Notifications", false),
-    managedAccounts = configuration.GetValue("Features:ManagedAccounts", false)
-}))
-.WithName("GetFeatures")
-.AllowAnonymous();
+Sonivo.Api.Features.FeatureEndpoints.MapFeatureEndpoints(app);
 
 app.MapArrangementDeleteEndpoint();
 
