@@ -7,6 +7,7 @@
 **Stage 1 validation:** API suite passed 323/323, including EndpointInventoryTests. Solution build passed (10 projects, 0 errors, 2 NU1510 warnings). Inventory snapshot unchanged; git diff --check passed.
 **Stage 2 progress:** OpenAPI JSON at 865650c and 32460d0 is identical; health/client-error and realtime mappings extracted in commits 4af6972 and 375e522. After each: solution build 10 projects, 0 errors, 3 warnings; API suite 323/323; inventory snapshot unchanged.
 **Stage 3 progress:** Task endpoints and `ToTaskResponse` extracted in commit 6f70e5e. Solution build passed (10 projects, 0 errors, 2 NU1510 warnings); API suite passed 323/323; OpenAPI documents identical at 158,605 bytes; inventory snapshot unchanged.
+**Stage 4 progress:** Extracted activity, setlist, and event/RSVP/calendar endpoint mappings in commits c01b402, 5541425, and 84de625. Solution build passed (10 projects, 0 errors, 2 NU1510 warnings); API suite passed 323/323; OpenAPI documents identical at 158,605 bytes; inventory snapshot unchanged.
 **Authorization:** Owner authorized Stage 0, a new worktree, and one local commit; no push or PR.
 **Spec:** Owner authorization for this task; scope limited to an API endpoint inventory characterization test and its expected snapshot.
 **Scope:** Add one API integration test and a readable endpoint inventory snapshot. Assert authenticated fallback policy and API/SPA fallbacks. No product code changes or dependencies.
