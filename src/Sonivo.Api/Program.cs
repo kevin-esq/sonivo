@@ -2137,185 +2137,9 @@ app.MapGet("/api/groups/{groupId:guid}/branding", async (
 
 // ---------- Plans / entitlements catalog (ADR-0071) ----------
 
-app.MapGet("/api/plans", (GetPlanCatalogHandler handler) =>
-        Results.Ok(ApiEndpointHelpers.ToPlanCatalogResponse(handler.Handle())))
-    .WithName("GetPlanCatalog")
-    .RequireAuthorization();
+app.MapPlanCatalogAndUsageEndpoints();
 
-app.MapGet("/api/groups/{groupId:guid}/usage", async (
-    Guid groupId,
-    ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users,
-    GetGroupUsageHandler handler,
-    CancellationToken cancellationToken) =>
-{
-    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
-    if (userId is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    return Results.Ok(ApiEndpointHelpers.ToUsageResponse(await handler.HandleAsync(userId.Value, groupId, cancellationToken)));
-})
-.WithName("GetGroupUsage")
-.RequireAuthorization();
-
-// ADR-0083 / Phase 4.0: aggregate reports use current Group data and are Owner-only.
-app.MapGet("/api/groups/{groupId:guid}/reports/repertoire", async (
-    Guid groupId,
-    ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users,
-    GroupReportsHandler handler,
-    CancellationToken cancellationToken) =>
-{
-    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
-    if (userId is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    return Results.Ok(await handler.GetRepertoireAsync(userId.Value, groupId, cancellationToken));
-})
-.WithName("GetGroupRepertoireReport")
-.RequireAuthorization();
-
-app.MapGet("/api/groups/{groupId:guid}/reports/event-responses", async (
-    Guid groupId,
-    DateTimeOffset? from,
-    DateTimeOffset? to,
-    ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users,
-    GroupReportsHandler handler,
-    CancellationToken cancellationToken) =>
-{
-    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
-    if (userId is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    if (from is not { } start || to is not { } end
-        || start >= end || end - start > TimeSpan.FromDays(366))
-    {
-        return Results.Problem(
-            detail: "A valid report range of up to 366 days is required.",
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Invalid report range");
-    }
-
-    return Results.Ok(await handler.GetEventResponsesAsync(
-        userId.Value, groupId, start, end, cancellationToken));
-})
-.WithName("GetGroupEventResponseReport")
-.RequireAuthorization();
-
-app.MapGet("/api/groups/{groupId:guid}/reports/tasks", async (
-    Guid groupId,
-    DateTimeOffset? from,
-    DateTimeOffset? to,
-    ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users,
-    GroupReportsHandler handler,
-    IClock clock,
-    CancellationToken cancellationToken) =>
-{
-    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
-    if (userId is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    if (from is not { } start || to is not { } end
-        || start >= end || end - start > TimeSpan.FromDays(366))
-    {
-        return Results.Problem(
-            detail: "A valid UTC report range of up to 366 days is required.",
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Invalid report range");
-    }
-
-    return Results.Ok(await handler.GetTasksAsync(
-        userId.Value, groupId, start, end, clock.UtcNow, cancellationToken));
-})
-.WithName("GetGroupTasksReport")
-.RequireAuthorization();
-
-app.MapGet("/api/groups/{groupId:guid}/reports/setlist-usage", async (
-    Guid groupId,
-    ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users,
-    GroupReportsHandler handler,
-    IClock clock,
-    CancellationToken cancellationToken) =>
-{
-    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
-    if (userId is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    return Results.Ok(await handler.GetSetlistUsageAsync(
-        userId.Value, groupId, clock.UtcNow, cancellationToken));
-})
-.WithName("GetGroupSetlistUsageReport")
-.RequireAuthorization();
-
-app.MapGet("/api/groups/{groupId:guid}/reports/event-responses.csv", async (
-    Guid groupId,
-    DateTimeOffset? from,
-    DateTimeOffset? to,
-    ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users,
-    GroupReportsHandler handler,
-    SonivoDbContext db,
-    TimeProvider clock,
-    CancellationToken cancellationToken) =>
-{
-    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
-    if (userId is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    if (from is not { } start || to is not { } end
-        || start >= end || end - start > TimeSpan.FromDays(366))
-    {
-        return Results.Problem(
-            detail: "A valid report range of up to 366 days is required.",
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Invalid report range");
-    }
-
-    var report = await handler.GetEventResponsesAsync(
-        userId.Value, groupId, start, end, cancellationToken);
-    db.GroupAuditLog.Add(GroupAuditEntry.Create(
-        groupId,
-        GroupAuditEntry.ActionGroupReportExported,
-        clock.GetUtcNow(),
-        actorUserId: userId.Value,
-        metadata: $"report=event_responses;fromUtc={start.UtcDateTime:O};toUtc={end.UtcDateTime:O}"));
-    await db.SaveChangesAsync(cancellationToken);
-
-    var csv = new StringBuilder();
-    csv.AppendLine("event_id,title,event_type,starts_at_utc,yes,no,maybe,no_response,current_member_count");
-    foreach (var row in report.Events)
-    {
-        csv.Append(row.EventId.ToString("D")).Append(',')
-            .Append(CsvExportCell.Escape(row.Title)).Append(',')
-            .Append(CsvExportCell.Escape(row.Type)).Append(',')
-            .Append(row.StartsAt.UtcDateTime.ToString("O", CultureInfo.InvariantCulture)).Append(',')
-            .Append(row.Yes.ToString(CultureInfo.InvariantCulture)).Append(',')
-            .Append(row.No.ToString(CultureInfo.InvariantCulture)).Append(',')
-            .Append(row.Maybe.ToString(CultureInfo.InvariantCulture)).Append(',')
-            .Append(row.NoResponse.ToString(CultureInfo.InvariantCulture)).Append(',')
-            .Append(report.Members.ToString(CultureInfo.InvariantCulture)).AppendLine();
-    }
-
-    var content = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true).GetBytes(csv.ToString());
-    return Results.File(content, "text/csv; charset=utf-8", $"sonivo-event-responses-{groupId:N}.csv");
-})
-.WithName("ExportGroupEventResponseReport")
-.RequireAuthorization();
+Sonivo.Api.Reports.ReportEndpoints.MapReportEndpoints(app);
 
 // Manual plan management (ADR-0073 placeholder; no payment gateway).
 app.MapPut("/api/groups/{groupId:guid}/plan", async (
@@ -2971,24 +2795,7 @@ app.MapGet("/api/groups/{groupId:guid}/members", async (
 .WithName("ListGroupMembers")
 .RequireAuthorization();
 
-// ADR-0055 W-E: best-effort presence heartbeat (throttled server-side, never authorizes).
-app.MapPost("/api/presence/heartbeat", async (
-    ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users,
-    PresenceHeartbeatHandler handler,
-    CancellationToken cancellationToken) =>
-{
-    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
-    if (userId is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    await handler.HandleAsync(new PresenceHeartbeatCommand(userId.Value, DateTimeOffset.UtcNow), cancellationToken);
-    return Results.NoContent();
-})
-.WithName("PresenceHeartbeat")
-.RequireAuthorization();
+app.MapPresenceEndpoints();
 
 app.MapTaskEndpoints();
 // Phase 4.1: roster incl. people without an account behind Features:ManagedAccounts.
@@ -4463,16 +4270,7 @@ app.MapLyricsLookup();
 app.MapChordProEndpoints();
 app.MapArrangementLyricsEndpoints();
 
-app.MapGet("/api/features", (IConfiguration configuration) => Results.Ok(new
-{
-    lrc = configuration.GetValue("Features:Lrc", false),
-    stageMode = configuration.GetValue("Features:StageMode", false),
-    groupBranding = configuration.GetValue("Features:GroupBranding", true),
-    notifications = configuration.GetValue("Features:Notifications", false),
-    managedAccounts = configuration.GetValue("Features:ManagedAccounts", false)
-}))
-.WithName("GetFeatures")
-.AllowAnonymous();
+Sonivo.Api.Features.FeatureEndpoints.MapFeatureEndpoints(app);
 
 app.MapArrangementDeleteEndpoint();
 
@@ -4595,20 +4393,3 @@ public sealed class AppExceptionHandler : IExceptionHandler
 }
 
 public partial class Program;
-
-/// <summary>
-/// Best-effort client error report (observability). All fields are untrusted
-/// client input; only Source and Message are normalized and logged. Legacy
-/// Stack and Url fields remain accepted and are discarded.
-/// </summary>
-internal static class CsvExportCell
-{
-    public static string Escape(string value)
-    {
-        var trimmed = value.TrimStart();
-        var safe = trimmed.Length > 0 && trimmed[0] is '=' or '+' or '-' or '@'
-            ? $"'{value}"
-            : value;
-        return $"\"{safe.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
-    }
-}
