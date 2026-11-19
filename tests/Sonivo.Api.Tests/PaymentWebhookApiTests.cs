@@ -106,6 +106,9 @@ public sealed class PaymentWebhookApiTests : IClassFixture<SonivoApiFactory>
     {
         var client = SandboxClient();
         HttpStatusCode lastStatus = HttpStatusCode.OK;
+        string? limitedSupportId = null;
+        string? limitedCode = null;
+        string? limitedTraceId = null;
 
         for (var attempt = 0; attempt < 31; attempt++)
         {
@@ -113,8 +116,19 @@ public sealed class PaymentWebhookApiTests : IClassFixture<SonivoApiFactory>
                 "/api/payments/webhook",
                 new StringContent("{}", Encoding.UTF8, "application/json"));
             lastStatus = response.StatusCode;
+            if (lastStatus == HttpStatusCode.TooManyRequests)
+            {
+                using var body = await response.Content.ReadFromJsonAsync<JsonDocument>();
+                limitedSupportId = body?.RootElement.GetProperty("supportId").GetString();
+                limitedCode = body?.RootElement.GetProperty("code").GetString();
+                limitedTraceId = body?.RootElement.GetProperty("traceId").GetString();
+                Assert.Equal(limitedSupportId, response.Headers.GetValues("X-Support-Id").Single());
+                Assert.Equal(limitedTraceId, response.Headers.GetValues("X-Request-Id").Single());
+            }
         }
 
         Assert.Equal(HttpStatusCode.TooManyRequests, lastStatus);
+        Assert.Equal("rate_limited", limitedCode);
+        Assert.False(string.IsNullOrWhiteSpace(limitedSupportId));
     }
 }

@@ -68,7 +68,13 @@ public sealed class StripeBillingApiTests
         var blockedCreate = await client.PostAsJsonAsync("/api/groups", new { name = "Blocked Billing Test Group" });
         Assert.Equal(HttpStatusCode.Conflict, blockedCreate.StatusCode);
         using (var blockedBody = JsonDocument.Parse(await blockedCreate.Content.ReadAsStringAsync()))
+        {
             Assert.Equal("billing-active-plan-required", blockedBody.RootElement.GetProperty("detail").GetString());
+            Assert.Equal("billing_active_plan_required", blockedBody.RootElement.GetProperty("code").GetString());
+            Assert.True(blockedCreate.Headers.TryGetValues("X-Support-Id", out var supportHeaders),
+                $"Response headers: {blockedCreate.Headers}; content headers: {blockedCreate.Content.Headers}");
+            Assert.Equal(blockedBody.RootElement.GetProperty("supportId").GetString(), supportHeaders!.Single());
+        }
 
         await Csrf(client);
         using var studioTrial = await client.PostAsJsonAsync("/api/billing/organizations/trial", new { planId = "studio" });
