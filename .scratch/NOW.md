@@ -1,5 +1,18 @@
 # NOW — current work and Git checkpoint
 
+## T-ARCH-PROGRAM-01 — endpoint inventory safety net (Stage 0)
+
+**Updated:** 2026-11-18. **Worktree:** P:\repos\sonivo-arch. **Branch:** feat/t-arch-program-01-dtos-helpers.
+**Stage 1 progress:** Complete. DTO move and shared-helper extraction committed in two local commits.
+**Stage 1 validation:** API suite passed 323/323, including EndpointInventoryTests. Solution build passed (10 projects, 0 errors, 2 NU1510 warnings). Inventory snapshot unchanged; git diff --check passed.
+**Stage 2 progress:** OpenAPI JSON at 865650c and 32460d0 is identical; health/client-error and realtime mappings extracted in commits 4af6972 and 375e522. After each: solution build 10 projects, 0 errors, 3 warnings; API suite 323/323; inventory snapshot unchanged.
+**Authorization:** Owner authorized Stage 0, a new worktree, and one local commit; no push or PR.
+**Spec:** Owner authorization for this task; scope limited to an API endpoint inventory characterization test and its expected snapshot.
+**Scope:** Add one API integration test and a readable endpoint inventory snapshot. Assert authenticated fallback policy and API/SPA fallbacks. No product code changes or dependencies.
+**Implementation:** COMPLETE.
+**Validation:** Baseline FoundationEndpointTests and ClientErrorReportApiTests passed 4/4. Endpoint inventory passed 1/1 and detected a deliberate health-route mutation with an added/removed-line diff; Program.cs was restored. API suite passed 323/323. Solution build passed (10 projects, 0 errors, 4 existing NU1510 warnings). git diff --check passed.
+**Human approval:** APPROVED (owner authorized implementation and one local commit in this task). **Git checkpoint:** COMMITTED. **Remote:** NOT PUSHED. **CI:** NOT RUN.
+
 ## T-REPORT-01 — Harden authenticated client error reporting
 
 **Updated:** 2026-11-18. **Worktree:** `P:\repos\sonivo-report`. **Branch:** `feat/t-report-01-client-errors`.
