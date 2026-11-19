@@ -2137,28 +2137,7 @@ app.MapGet("/api/groups/{groupId:guid}/branding", async (
 
 // ---------- Plans / entitlements catalog (ADR-0071) ----------
 
-app.MapGet("/api/plans", (GetPlanCatalogHandler handler) =>
-        Results.Ok(ApiEndpointHelpers.ToPlanCatalogResponse(handler.Handle())))
-    .WithName("GetPlanCatalog")
-    .RequireAuthorization();
-
-app.MapGet("/api/groups/{groupId:guid}/usage", async (
-    Guid groupId,
-    ClaimsPrincipal principal,
-    UserManager<ApplicationUser> users,
-    GetGroupUsageHandler handler,
-    CancellationToken cancellationToken) =>
-{
-    var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
-    if (userId is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    return Results.Ok(ApiEndpointHelpers.ToUsageResponse(await handler.HandleAsync(userId.Value, groupId, cancellationToken)));
-})
-.WithName("GetGroupUsage")
-.RequireAuthorization();
+app.MapPlanCatalogAndUsageEndpoints();
 
 Sonivo.Api.Reports.ReportEndpoints.MapReportEndpoints(app);
 
