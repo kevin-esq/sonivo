@@ -15,7 +15,9 @@ export function problemDetail(error: unknown, t: (key: I18nKey) => string): stri
   if (!(error instanceof ApiError)) return t('common.errorGeneral')
 
   const detail = (error.body as { detail?: unknown } | undefined)?.detail
-  if (detail === 'billing-active-plan-required') return t('billing.activePlanRequired')
+  if (error.code === 'billing_active_plan_required' || detail === 'billing-active-plan-required') {
+    return t('billing.activePlanRequired')
+  }
 
   if (error.status === 400 || error.status === 422) return t('common.errorInvalidRequest')
   if (error.status === 401) return t('common.errorAuthentication')

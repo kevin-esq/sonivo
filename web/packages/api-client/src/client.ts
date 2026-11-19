@@ -1,12 +1,19 @@
 export class ApiError extends Error {
   readonly status: number
   readonly body?: unknown
+  readonly code?: string
+  readonly supportId?: string
 
-  constructor(message: string, status: number, body?: unknown) {
+  constructor(message: string, status: number, body?: unknown, supportId?: string | null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.body = body
+    const problem = body as { code?: unknown; supportId?: unknown } | undefined
+    this.code = typeof problem?.code === 'string' ? problem.code : undefined
+    this.supportId = typeof problem?.supportId === 'string'
+      ? problem.supportId
+      : supportId ?? undefined
   }
 }
 
@@ -21,7 +28,7 @@ export async function ensureCsrfToken(): Promise<string> {
     credentials: 'include',
   })
   if (!response.ok) {
-    throw new ApiError('Failed to obtain CSRF token', response.status)
+    throw new ApiError('Failed to obtain CSRF token', response.status, undefined, response.headers.get('X-Support-Id'))
   }
 
   const data = (await response.json()) as { token: string }
@@ -71,7 +78,7 @@ export async function apiRequest<T>(
     } catch {
       body = undefined
     }
-    throw new ApiError(`Request failed: ${response.status}`, response.status, body)
+    throw new ApiError(`Request failed: ${response.status}`, response.status, body, response.headers.get('X-Support-Id'))
   }
 
   if (response.status === 204) {
@@ -94,7 +101,7 @@ export async function apiBlob(path: string): Promise<Blob> {
     } catch {
       body = undefined
     }
-    throw new ApiError(`Request failed: ${response.status}`, response.status, body)
+    throw new ApiError(`Request failed: ${response.status}`, response.status, body, response.headers.get('X-Support-Id'))
   }
 
   return response.blob()
@@ -118,7 +125,7 @@ export async function apiUpload<T>(path: string, file: File, field = 'file'): Pr
     } catch {
       body = undefined
     }
-    throw new ApiError(`Request failed: ${response.status}`, response.status, body)
+    throw new ApiError(`Request failed: ${response.status}`, response.status, body, response.headers.get('X-Support-Id'))
   }
 
   if (response.status === 204) {
@@ -1009,7 +1016,7 @@ export async function exportArrangementLrc(
     { credentials: 'include' },
   )
   if (!response.ok) {
-    throw new ApiError(`export failed (${response.status})`, response.status)
+    throw new ApiError(`export failed (${response.status})`, response.status, undefined, response.headers.get('X-Support-Id'))
   }
   return response.text()
 }
@@ -1146,7 +1153,7 @@ export async function createFileResource(
     } catch {
       body = undefined
     }
-    throw new ApiError(`Request failed: ${response.status}`, response.status, body)
+    throw new ApiError(`Request failed: ${response.status}`, response.status, body, response.headers.get('X-Support-Id'))
   }
 
   return (await response.json()) as ResourceDetail
