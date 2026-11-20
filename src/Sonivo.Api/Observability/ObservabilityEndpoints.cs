@@ -43,7 +43,8 @@ namespace Sonivo.Api.Observability
                 static string Sanitize(string? value, int max)
                 {
                     if (string.IsNullOrWhiteSpace(value)) return string.Empty;
-                    return new string(value.Trim().Where(c => !char.IsControl(c)).Take(max).ToArray());
+                    var normalized = new string(value.Trim().Where(c => !char.IsControl(c)).ToArray());
+                    return new string(ClientErrorTextRedactor.Redact(normalized).Trim().Take(max).ToArray());
                 }
 
                 logger.LogWarning(
