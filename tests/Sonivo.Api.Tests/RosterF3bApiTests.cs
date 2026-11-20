@@ -87,7 +87,7 @@ public class RosterF3bApiTests : IClassFixture<SonivoApiFactory>, IClassFixture<
                 $"/api/auth/login/handle/{slug}", new { handle, password });
             Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
             var body = await response.Content.ReadAsStringAsync();
-            Assert.Contains("Invalid credentials", body);
+            Assert.Contains("Authentication is required.", body);
             Assert.DoesNotContain(handle, body);
         }
 

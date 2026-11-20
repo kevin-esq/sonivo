@@ -86,16 +86,16 @@ public sealed class ProblemDetailsApiTests : IClassFixture<SonivoApiFactory>
     }
 
     [Fact]
-    public async Task App_exceptions_add_codes_without_changing_status_or_detail()
+    public async Task App_exceptions_return_safe_details_without_changing_status_or_code()
     {
         var cases = new (Exception Exception, int Status, string Code, string Title, string Detail)[]
         {
-            (new Sonivo.Application.Abstractions.ValidationException("validation detail"), 400, "validation_failed", "Validation failed", "validation detail"),
-            (new Sonivo.Application.Abstractions.ForbiddenException("forbidden detail"), 403, "forbidden", "Forbidden", "forbidden detail"),
-            (new Sonivo.Application.Abstractions.NotFoundException("not found detail"), 404, "not_found", "Not Found", "not found detail"),
-            (new Sonivo.Application.Abstractions.ConflictException("conflict detail"), 409, "conflict", "Conflict", "conflict detail"),
+            (new Sonivo.Application.Abstractions.ValidationException("validation detail"), 400, "validation_failed", "Validation failed", "The request is invalid."),
+            (new Sonivo.Application.Abstractions.ForbiddenException("forbidden detail"), 403, "forbidden", "Forbidden", "You are not allowed to perform this action."),
+            (new Sonivo.Application.Abstractions.NotFoundException("not found detail"), 404, "not_found", "Not Found", "The requested resource was not found."),
+            (new Sonivo.Application.Abstractions.ConflictException("conflict detail"), 409, "conflict", "Conflict", "The request conflicts with the current state."),
             (new Sonivo.Application.Abstractions.ConflictException("billing-active-plan-required"), 409, "billing_active_plan_required", "Conflict", "billing-active-plan-required"),
-            (new Sonivo.Application.Abstractions.UploadLimitException(123), 413, "payload_too_large", "Content Too Large", "File exceeds the current upload limit (123 bytes).")
+            (new Sonivo.Application.Abstractions.UploadLimitException(123), 413, "payload_too_large", "Content Too Large", "The request content exceeds the allowed size.")
         };
 
         foreach (var errorCase in cases)
@@ -155,7 +155,7 @@ public sealed class ProblemDetailsApiTests : IClassFixture<SonivoApiFactory>
         using var body = await JsonDocument.ParseAsync(stream);
         var json = body.RootElement;
         Assert.Equal("internal_error", json.GetProperty("code").GetString());
-        Assert.False(json.TryGetProperty("detail", out _));
+        Assert.Equal("An unexpected error occurred.", json.GetProperty("detail").GetString());
         Assert.DoesNotContain("private exception marker", json.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain(nameof(InvalidOperationException), json.ToString(), StringComparison.Ordinal);
         Assert.Equal("An error occurred while processing your request.", json.GetProperty("title").GetString());
@@ -182,7 +182,7 @@ public sealed class ProblemDetailsApiTests : IClassFixture<SonivoApiFactory>
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal("internal_error", json.GetProperty("code").GetString());
-        Assert.False(json.TryGetProperty("detail", out _));
+        Assert.Equal("An unexpected error occurred.", json.GetProperty("detail").GetString());
         Assert.DoesNotContain("unexpected private marker", json.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain(nameof(InvalidOperationException), json.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain(" at ", json.ToString(), StringComparison.Ordinal);
@@ -191,6 +191,91 @@ public sealed class ProblemDetailsApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(supportId, response.Headers.GetValues("X-Support-Id").Single());
         Assert.Contains(sink.Messages, message => message.Contains(supportId, StringComparison.Ordinal)
             && message.Contains(traceId, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task App_exception_message_is_logged_but_not_returned()
+    {
+        const string userValue = "user-value-test-7f21";
+        const string token = "token-test-7f21";
+        const string route = "/private/test-route-7f21";
+        var originalMessage = $"Invalid request for {userValue}; token={token}; route={route}";
+        using var sink = new CapturingLoggerProvider();
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureLogging(logging => logging.AddProvider(sink));
+            builder.ConfigureTestServices(services => services.AddTransient<IStartupFilter, ThrowingStartupFilter>());
+        });
+        using var client = await CreateAuthenticatedClientAsync(factory);
+
+        using var response = await client.GetAsync("/__test/app-error");
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var json = body.RootElement;
+        var supportId = json.GetProperty("supportId").GetString();
+        var traceId = json.GetProperty("traceId").GetString();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("validation_failed", json.GetProperty("code").GetString());
+        Assert.Equal("The request is invalid.", json.GetProperty("detail").GetString());
+        foreach (var secret in new[] { userValue, token, route, originalMessage, nameof(Sonivo.Application.Abstractions.ValidationException) })
+        {
+            Assert.DoesNotContain(secret, json.ToString(), StringComparison.Ordinal);
+        }
+        Assert.NotNull(supportId);
+        Assert.NotNull(traceId);
+        Assert.Contains(sink.Messages, message => message.Contains(originalMessage, StringComparison.Ordinal)
+            && message.Contains(supportId, StringComparison.Ordinal)
+            && message.Contains(traceId, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Direct_problem_exception_message_is_logged_but_not_returned()
+    {
+        const string permission = "private-permission-test-9b31";
+        using var sink = new CapturingLoggerProvider();
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureLogging(logging => logging.AddProvider(sink)));
+        using var client = await CreateAuthenticatedClientAsync(factory);
+
+        using var groupResponse = await client.PostAsJsonAsync("/api/groups", new { name = "Safe Error Test Band" });
+        Assert.Equal(HttpStatusCode.Created, groupResponse.StatusCode);
+        using var groupBody = JsonDocument.Parse(await groupResponse.Content.ReadAsStringAsync());
+        var groupId = groupBody.RootElement.GetProperty("id").GetGuid();
+
+        await EnsureCsrfAsync(client);
+        using var response = await client.PostAsJsonAsync($"/api/groups/{groupId}/roles", new
+        {
+            name = "Invalid Permission Role",
+            permissions = new[] { permission }
+        });
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var json = body.RootElement;
+        var supportId = json.GetProperty("supportId").GetString();
+        var traceId = json.GetProperty("traceId").GetString();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("validation_failed", json.GetProperty("code").GetString());
+        Assert.Equal("The request is invalid.", json.GetProperty("detail").GetString());
+        Assert.DoesNotContain(permission, json.ToString(), StringComparison.Ordinal);
+        Assert.NotNull(supportId);
+        Assert.NotNull(traceId);
+        Assert.Equal(supportId, response.Headers.GetValues("X-Support-Id").Single());
+        Assert.Contains(sink.Messages, message => message.Contains(permission, StringComparison.Ordinal)
+            && message.Contains(supportId, StringComparison.Ordinal)
+            && message.Contains(traceId, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Method_not_allowed_has_stable_code_and_safe_detail()
+    {
+        using var client = await CreateAuthenticatedClientAsync();
+
+        using var response = await client.GetAsync("/api/auth/logout");
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
+        Assert.Equal("method_not_allowed", body.RootElement.GetProperty("code").GetString());
+        Assert.Equal("The HTTP method is not allowed for this resource.", body.RootElement.GetProperty("detail").GetString());
     }
 
     private static void AssertProblemMetadata(HttpResponseMessage response, JsonElement body, string expectedCode)
@@ -226,6 +311,7 @@ public sealed class ProblemDetailsApiTests : IClassFixture<SonivoApiFactory>
             rememberMe = false
         });
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        await EnsureCsrfAsync(client);
         return client;
     }
 
@@ -256,8 +342,8 @@ public sealed class ProblemDetailsApiTests : IClassFixture<SonivoApiFactory>
 
             public bool IsEnabled(LogLevel logLevel) => true;
 
-            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
-                Func<TState, Exception?, string> formatter) => messages.Enqueue(formatter(state, exception));
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => messages.Enqueue($"{formatter(state, exception)} {exception}");
         }
     }
 
@@ -271,6 +357,12 @@ public sealed class ProblemDetailsApiTests : IClassFixture<SonivoApiFactory>
                 if (context.Request.Path == "/__test/unexpected-error")
                 {
                     throw new InvalidOperationException("unexpected private marker");
+                }
+
+                if (context.Request.Path == "/__test/app-error")
+                {
+                    throw new Sonivo.Application.Abstractions.ValidationException(
+                        "Invalid request for user-value-test-7f21; token=token-test-7f21; route=/private/test-route-7f21");
                 }
 
                 await nextMiddleware();

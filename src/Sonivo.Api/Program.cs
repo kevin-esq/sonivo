@@ -335,10 +335,19 @@ builder.Services.AddProblemDetails(options =>
         var code = exception is AppException appException
             ? ApiErrorSupport.GetCode(appException)
             : ApiErrorSupport.GetCode(statusCode);
-
-        if (code is not null && !context.ProblemDetails.Extensions.ContainsKey("code"))
+        if (context.ProblemDetails.Extensions.TryGetValue("code", out var existingCode)
+            && existingCode is string explicitCode)
         {
-            context.ProblemDetails.Extensions["code"] = code;
+            code = explicitCode;
+        }
+
+        if (code is not null)
+        {
+            if (!context.ProblemDetails.Extensions.ContainsKey("code"))
+            {
+                context.ProblemDetails.Extensions["code"] = code;
+            }
+            context.ProblemDetails.Detail = ApiErrorDetails.GetDetail(code);
         }
         context.ProblemDetails.Extensions["supportId"] = supportId;
         httpContext.Response.Headers.TryAdd(ApiErrorSupport.SupportIdHeader, supportId);
@@ -3041,6 +3050,7 @@ app.MapPost("/api/groups/{groupId:guid}/roster/import", async (
     IClock clock,
     IConfiguration configuration,
     ILoggerFactory loggerFactory,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     if (!configuration.GetValue("Features:ManagedAccounts", false))
@@ -3063,7 +3073,10 @@ app.MapPost("/api/groups/{groupId:guid}/roster/import", async (
     }
     catch (ValidationException ex)
     {
-        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+        loggerFactory.CreateLogger("ManagedAccounts").LogWarning(ex,
+            "Roster CSV validation failed. SupportId {SupportId} TraceId {TraceId}",
+            ApiErrorSupport.GetSupportId(httpContext), httpContext.TraceIdentifier);
+        return Results.Problem(detail: ApiErrorDetails.GetDetail("validation_failed"), statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
     }
 
     var now = clock.UtcNow;
@@ -3729,6 +3742,8 @@ app.MapPost("/api/groups/{groupId:guid}/roles", async (
     IGroupRoleStore roles,
     IGroupAuditStore audit,
     IClock clock,
+    ILoggerFactory loggerFactory,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
@@ -3763,7 +3778,10 @@ app.MapPost("/api/groups/{groupId:guid}/roles", async (
     }
     catch (ArgumentException ex)
     {
-        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+        loggerFactory.CreateLogger("Sonivo.Api.GroupRoles").LogWarning(ex,
+            "Group role validation failed. SupportId {SupportId} TraceId {TraceId}",
+            ApiErrorSupport.GetSupportId(httpContext), httpContext.TraceIdentifier);
+        return Results.Problem(detail: ApiErrorDetails.GetDetail("validation_failed"), statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
     }
 
     await roles.AddAsync(created, cancellationToken);
@@ -3800,6 +3818,8 @@ app.MapPatch("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
     IGroupRoleStore roles,
     IGroupAuditStore audit,
     IClock clock,
+    ILoggerFactory loggerFactory,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
@@ -3845,11 +3865,17 @@ app.MapPatch("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
     }
     catch (ArgumentException ex)
     {
-        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+        loggerFactory.CreateLogger("Sonivo.Api.GroupRoles").LogWarning(ex,
+            "Group role validation failed. SupportId {SupportId} TraceId {TraceId}",
+            ApiErrorSupport.GetSupportId(httpContext), httpContext.TraceIdentifier);
+        return Results.Problem(detail: ApiErrorDetails.GetDetail("validation_failed"), statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
     }
     catch (InvalidOperationException ex)
     {
-        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status409Conflict, title: "Conflict");
+        loggerFactory.CreateLogger("Sonivo.Api.GroupRoles").LogWarning(ex,
+            "Group role update conflict. SupportId {SupportId} TraceId {TraceId}",
+            ApiErrorSupport.GetSupportId(httpContext), httpContext.TraceIdentifier);
+        return Results.Problem(detail: ApiErrorDetails.GetDetail("conflict"), statusCode: StatusCodes.Status409Conflict, title: "Conflict");
     }
 
     role.Touch(clock.UtcNow);
@@ -4395,7 +4421,7 @@ public sealed class AppExceptionHandler : IExceptionHandler
                 {
                     Status = StatusCodes.Status409Conflict,
                     Title = "Conflict",
-                    Detail = "The resource was modified by another request.",
+                    Detail = ApiErrorDetails.GetDetail("conflict"),
                     Type = "https://httpstatuses.com/409",
                     Extensions = { ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier }
                 }
@@ -4415,7 +4441,7 @@ public sealed class AppExceptionHandler : IExceptionHandler
                 {
                     Status = StatusCodes.Status409Conflict,
                     Title = "Conflict",
-                    Detail = "The value already exists.",
+                    Detail = ApiErrorDetails.GetDetail("conflict"),
                     Type = "https://httpstatuses.com/409",
                     Extensions = { ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier }
                 }
@@ -4455,7 +4481,7 @@ public sealed class AppExceptionHandler : IExceptionHandler
                     400 => "Validation failed",
                     _ => "Error"
                 },
-                Detail = appException.Message,
+                Detail = ApiErrorDetails.GetDetail(ApiErrorSupport.GetCode(appException)),
                 Extensions = { ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier }
             }
         });

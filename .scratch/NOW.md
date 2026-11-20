@@ -1,5 +1,14 @@
 # NOW — current work and Git checkpoint
 
+## T-API-ERRORS-02 — fixed safe detail by error code (stage 2)
+
+**Updated:** 2026-11-19. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `feat/t-api-errors-02-safe-detail`.
+**Authorization:** Owner authorized implementation, local commits, push, and one PR; merge is not authorized.
+**Scope:** Return fixed, safe English `detail` by stable error `code`; preserve HTTP status, title, type, code, supportId, and traceId. Keep the Billing compatibility detail `billing-active-plan-required` until the web fallback is removed. Direct API Problem Details catches log exception details with supportId and traceId.
+**Implementation:** COMPLETE. Added 405 `method_not_allowed`; centralized safe details including mobile errors; replaced the four direct `Results.Problem(detail: ex.Message)` responses with fixed details and protected correlated logging. Updated API expectations that asserted old exception text. Roster row results, hub exception messages, and Application/Domain messages remain out of scope.
+**Validation:** Solution build passed (10 projects, 0 errors, 2 NU1510 warnings). API suite passed 333/333; `EndpointInventoryTests` passed in the suite. OpenAPI Development comparison was identical at 158,605 bytes (SHA-256 `70A25BF74CD3CFCE50AE15B51BD62E87B4B489E15FF87FEA1721D69BC2184310`). `git diff --check` passed. No dependencies installed.
+**Human approval:** APPROVED (owner authorized implementation, commits, push, and one PR; no merge). **Git checkpoint:** COMMITTED (`8f6c6c6`, `bb01f65`, `26dd478`). **Remote:** PUSHED to `origin/feat/t-api-errors-02-safe-detail`; [PR #370](https://github.com/kevin-esq/sonivo/pull/370) is open against `develop`; do not merge. **CI:** PENDING (Security passed; CI and CodeQL pending at last check).
+
 ## T-API-ERRORS-01 — stable API error codes and support ID (stage 1)
 
 **Updated:** 2026-11-19. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `feat/t-api-errors-01-stable-codes`.

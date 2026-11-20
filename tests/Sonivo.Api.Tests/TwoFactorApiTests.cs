@@ -74,7 +74,7 @@ public class TwoFactorApiTests : IClassFixture<GoogleAuthApiFactory>
         var verify = await client.PostAsJsonAsync("/api/auth/2fa/enroll-verify", new { code = "000000" });
         Assert.Equal(HttpStatusCode.BadRequest, verify.StatusCode);
         var body = await verify.Content.ReadAsStringAsync();
-        Assert.Contains("incorrecto", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("The request is invalid.", body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -159,7 +159,7 @@ public class TwoFactorApiTests : IClassFixture<GoogleAuthApiFactory>
             "/api/auth/2fa/challenge", new { code = "000000" });
         Assert.Equal(HttpStatusCode.Unauthorized, locked.StatusCode);
         var body = await locked.Content.ReadAsStringAsync();
-        Assert.Contains("locked", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Authentication is required.", body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -254,7 +254,7 @@ public class TwoFactorApiTests : IClassFixture<GoogleAuthApiFactory>
         var wrong = await client.PostAsJsonAsync("/api/auth/2fa/disable", new { password = "WrongPass1" });
         Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
         var wrongBody = await wrong.Content.ReadAsStringAsync();
-        Assert.Contains("contraseña", wrongBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("The request is invalid.", wrongBody, StringComparison.Ordinal);
 
         await EnsureCsrfAsync(client);
         var missing = await client.PostAsJsonAsync("/api/auth/2fa/disable", new { });
@@ -327,7 +327,7 @@ public class TwoFactorApiTests : IClassFixture<GoogleAuthApiFactory>
         var locked = await client.PostAsJsonAsync("/api/auth/2fa/disable", new { password = "WrongPass1" });
         Assert.Equal(HttpStatusCode.Unauthorized, locked.StatusCode);
         var lockedBody = await locked.Content.ReadAsStringAsync();
-        Assert.Contains("bloqueada", lockedBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Authentication is required.", lockedBody, StringComparison.Ordinal);
 
         // The shared lockout budget now also blocks password login.
         var loginClient = _factory.CreateClient(new WebApplicationFactoryClientOptions
