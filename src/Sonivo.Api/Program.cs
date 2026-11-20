@@ -335,10 +335,19 @@ builder.Services.AddProblemDetails(options =>
         var code = exception is AppException appException
             ? ApiErrorSupport.GetCode(appException)
             : ApiErrorSupport.GetCode(statusCode);
-
-        if (code is not null && !context.ProblemDetails.Extensions.ContainsKey("code"))
+        if (context.ProblemDetails.Extensions.TryGetValue("code", out var existingCode)
+            && existingCode is string explicitCode)
         {
-            context.ProblemDetails.Extensions["code"] = code;
+            code = explicitCode;
+        }
+
+        if (code is not null)
+        {
+            if (!context.ProblemDetails.Extensions.ContainsKey("code"))
+            {
+                context.ProblemDetails.Extensions["code"] = code;
+            }
+            context.ProblemDetails.Detail = ApiErrorDetails.GetDetail(code);
         }
         context.ProblemDetails.Extensions["supportId"] = supportId;
         httpContext.Response.Headers.TryAdd(ApiErrorSupport.SupportIdHeader, supportId);
@@ -4395,7 +4404,7 @@ public sealed class AppExceptionHandler : IExceptionHandler
                 {
                     Status = StatusCodes.Status409Conflict,
                     Title = "Conflict",
-                    Detail = "The resource was modified by another request.",
+                    Detail = ApiErrorDetails.GetDetail("conflict"),
                     Type = "https://httpstatuses.com/409",
                     Extensions = { ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier }
                 }
@@ -4415,7 +4424,7 @@ public sealed class AppExceptionHandler : IExceptionHandler
                 {
                     Status = StatusCodes.Status409Conflict,
                     Title = "Conflict",
-                    Detail = "The value already exists.",
+                    Detail = ApiErrorDetails.GetDetail("conflict"),
                     Type = "https://httpstatuses.com/409",
                     Extensions = { ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier }
                 }
@@ -4455,7 +4464,7 @@ public sealed class AppExceptionHandler : IExceptionHandler
                     400 => "Validation failed",
                     _ => "Error"
                 },
-                Detail = appException.Message,
+                Detail = ApiErrorDetails.GetDetail(ApiErrorSupport.GetCode(appException)),
                 Extensions = { ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier }
             }
         });

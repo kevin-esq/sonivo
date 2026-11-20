@@ -24,6 +24,7 @@ internal static class ApiErrorSupport
     {
         StatusCodes.Status400BadRequest => "validation_failed",
         StatusCodes.Status401Unauthorized => "unauthorized",
+        StatusCodes.Status405MethodNotAllowed => "method_not_allowed",
         StatusCodes.Status403Forbidden => "forbidden",
         StatusCodes.Status404NotFound => "not_found",
         StatusCodes.Status409Conflict => "conflict",

@@ -14,7 +14,6 @@ namespace Sonivo.Api.Tests;
 /// </summary>
 public class VerificationApiTests : IClassFixture<SonivoApiFactory>
 {
-    private const string InvalidLinkCopy = "Enlace expirado o inválido — solicita uno nuevo";
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly SonivoApiFactory _factory;
 
@@ -116,7 +115,7 @@ public class VerificationApiTests : IClassFixture<SonivoApiFactory>
         Assert.Equal(unknownProblem?.Status, unverifiedProblem.Status);
         Assert.Equal(wrongProblem?.Title, unverifiedProblem.Title);
         Assert.Equal(wrongProblem?.Detail, unverifiedProblem.Detail);
-        Assert.Equal("Invalid email or password.", unverifiedProblem.Detail);
+        Assert.Equal("Authentication is required.", unverifiedProblem.Detail);
     }
 
     /// <summary>
@@ -201,7 +200,7 @@ public class VerificationApiTests : IClassFixture<SonivoApiFactory>
         Assert.Null(Reason(unknownBody));
 
         // All three keep the same status/title/detail.
-        Assert.Equal("Invalid email or password.", unverifiedBody?.Detail);
+        Assert.Equal("Authentication is required.", unverifiedBody?.Detail);
         Assert.Equal(unverifiedBody?.Title, wrongBody?.Title);
         Assert.Equal(unverifiedBody?.Detail, wrongBody?.Detail);
         Assert.Equal(unverifiedBody?.Status, wrongBody?.Status);
@@ -390,7 +389,7 @@ public class VerificationApiTests : IClassFixture<SonivoApiFactory>
             new { email, token = "not-a-real-token" });
         Assert.Equal(HttpStatusCode.BadRequest, confirm.StatusCode);
         var body = await confirm.Content.ReadAsStringAsync();
-        Assert.Contains(InvalidLinkCopy, body);
+        Assert.Contains("The request is invalid.", body);
     }
 
     [Fact]
@@ -416,7 +415,7 @@ public class VerificationApiTests : IClassFixture<SonivoApiFactory>
         var second = await client.PostAsJsonAsync("/api/auth/confirm-email", new { email, token });
         Assert.Equal(HttpStatusCode.BadRequest, second.StatusCode);
         var body = await second.Content.ReadAsStringAsync();
-        Assert.Contains(InvalidLinkCopy, body);
+        Assert.Contains("The request is invalid.", body);
     }
 
     [Fact]
@@ -444,7 +443,7 @@ public class VerificationApiTests : IClassFixture<SonivoApiFactory>
         });
         Assert.Equal(HttpStatusCode.BadRequest, reuse.StatusCode);
         var reuseBody = await reuse.Content.ReadAsStringAsync();
-        Assert.Contains(InvalidLinkCopy, reuseBody);
+        Assert.Contains("The request is invalid.", reuseBody);
 
         var loginClient = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -475,7 +474,7 @@ public class VerificationApiTests : IClassFixture<SonivoApiFactory>
         });
         Assert.Equal(HttpStatusCode.BadRequest, reset.StatusCode);
         var body = await reset.Content.ReadAsStringAsync();
-        Assert.Contains(InvalidLinkCopy, body);
+        Assert.Contains("The request is invalid.", body);
     }
 
     [Fact]

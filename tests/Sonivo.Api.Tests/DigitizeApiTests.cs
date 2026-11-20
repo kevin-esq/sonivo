@@ -116,7 +116,7 @@ public class DigitizeApiTests : IClassFixture<SonivoApiFactory>
             new { resourceId = created.Id });
         Assert.Equal(HttpStatusCode.BadRequest, start.StatusCode);
         var body = await start.Content.ReadAsStringAsync();
-        Assert.Contains("enlace", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("The request is invalid.", body, StringComparison.Ordinal);
     }
 
     [Fact]
