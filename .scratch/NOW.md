@@ -1,5 +1,15 @@
 # NOW — current work and Git checkpoint
 
+## T-WEB-ERRORS-01 — rely on stable Billing code and trim client reports
+
+**Updated:** 2026-11-19. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `feat/t-web-errors-01-code-only`, based on `origin/develop` at merged PR #370.
+**Authorization:** Owner authorized this ticket, local commits, push, and one PR; merge is not authorized. Do not push until the latest `develop` CI run passes.
+**Scope:** Map Billing failures only by `billing_active_plan_required`. Stop sending URL and stack to `POST /api/client-errors`; retain Source and Message, capped at 500 characters. No API or localized copy changes.
+**Privacy review:** `ErrorEvent.message`, `Error.message`, and rejection text are sent without redaction and may include URLs, tokens, or user input. Truncation limits length, not content.
+**Implementation:** COMPLETE locally. `ApiError` still preserves `code` and `supportId`; the current localized error copy does not show `supportId`. Showing it as a support reference is a future UX idea only.
+**Validation:** Baseline web tests passed 2/2; final API-error and telemetry tests passed 3/3. `git diff --check` passed. Lint/typecheck not run because `turbo` and `tsc` are absent; no dependencies installed. Latest `develop` CI run: Frontend and Backend passed; Playwright E2E remains in progress.
+**Human approval:** APPROVED. **Git checkpoint:** COMMITTED (`a1fcae3`, `4d46793`, plus this record). **Remote:** NOT PUSHED. **CI:** PENDING.
+
 ## T-API-ERRORS-02 — fixed safe detail by error code (stage 2)
 
 **Updated:** 2026-11-19. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `feat/t-api-errors-02-safe-detail`.

@@ -14,8 +14,7 @@ export { ApiError, apiBlob, apiRequest, apiUpload, clearCsrfToken, ensureCsrfTok
 export function problemDetail(error: unknown, t: (key: I18nKey) => string): string {
   if (!(error instanceof ApiError)) return t('common.errorGeneral')
 
-  const detail = (error.body as { detail?: unknown } | undefined)?.detail
-  if (error.code === 'billing_active_plan_required' || detail === 'billing-active-plan-required') {
+  if (error.code === 'billing_active_plan_required') {
     return t('billing.activePlanRequired')
   }
 

@@ -79,7 +79,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     reportClientError({
       source: 'react',
       message: error.message || String(error),
-      stack: error.stack,
     })
   }
 

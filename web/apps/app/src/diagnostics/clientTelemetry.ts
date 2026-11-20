@@ -4,8 +4,6 @@ export type ClientErrorPayload = {
   /** Where the error came from: 'window.error', 'unhandledrejection', 'react'. */
   source: string
   message: string
-  stack?: string | null
-  url?: string
 }
 
 /**
@@ -24,8 +22,6 @@ export function reportClientError(payload: ClientErrorPayload): void {
         body: JSON.stringify({
           source: payload.source,
           message: payload.message.slice(0, 500),
-          stack: payload.stack ? payload.stack.slice(0, 4000) : null,
-          url: payload.url ?? window.location.href,
           userAgent: navigator.userAgent,
           at: new Date().toISOString(),
         }),
@@ -46,7 +42,6 @@ export function installGlobalErrorHandlers(): () => void {
     reportClientError({
       source: 'window.error',
       message: event.message || 'Unknown error',
-      stack: event.error instanceof Error ? event.error.stack : null,
     })
   }
 
@@ -61,7 +56,6 @@ export function installGlobalErrorHandlers(): () => void {
     reportClientError({
       source: 'unhandledrejection',
       message,
-      stack: reason instanceof Error ? reason.stack : null,
     })
   }
 
