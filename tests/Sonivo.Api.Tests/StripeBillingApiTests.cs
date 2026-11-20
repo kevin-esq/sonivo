@@ -69,8 +69,8 @@ public sealed class StripeBillingApiTests
         Assert.Equal(HttpStatusCode.Conflict, blockedCreate.StatusCode);
         using (var blockedBody = JsonDocument.Parse(await blockedCreate.Content.ReadAsStringAsync()))
         {
-            Assert.Equal("billing-active-plan-required", blockedBody.RootElement.GetProperty("detail").GetString());
             Assert.Equal("billing_active_plan_required", blockedBody.RootElement.GetProperty("code").GetString());
+            Assert.Equal("An active plan is required for this action.", blockedBody.RootElement.GetProperty("detail").GetString());
             Assert.True(blockedCreate.Headers.TryGetValues("X-Support-Id", out var supportHeaders),
                 $"Response headers: {blockedCreate.Headers}; content headers: {blockedCreate.Content.Headers}");
             Assert.Equal(blockedBody.RootElement.GetProperty("supportId").GetString(), supportHeaders!.Single());

@@ -13,8 +13,7 @@ internal static class ApiErrorDetails
         "rate_limited" => "Too many requests. Try again later.",
         "method_not_allowed" => "The HTTP method is not allowed for this resource.",
         "internal_error" => "An unexpected error occurred.",
-        // Remove this compatibility detail after the web client drops its legacy detail fallback.
-        "billing_active_plan_required" => "billing-active-plan-required",
+        "billing_active_plan_required" => "An active plan is required for this action.",
         "mobile_platform_required" => "A valid X-Sonivo-Platform header is required for mobile bearer requests.",
         "mobile_version_invalid" => "A valid X-Sonivo-App-Version header is required.",
         "mobile_update_required" => "Update Sonivo to continue.",
