@@ -37,15 +37,18 @@ test('apiRequest exposes stable code and support id on ApiError', async () => {
   }
 })
 
-test('billing problem uses stable code and retains legacy detail fallback', () => {
+test('billing problem relies only on stable code', () => {
   const translate = (key) => key
 
   assert.equal(
-    problemDetail(new ApiError('Request failed: 409', 409, { code: 'billing_active_plan_required' }), translate),
+    problemDetail(new ApiError('Request failed: 409', 409, {
+      code: 'billing_active_plan_required',
+      detail: 'A generic API detail',
+    }), translate),
     'billing.activePlanRequired',
   )
   assert.equal(
     problemDetail(new ApiError('Request failed: 409', 409, { detail: 'billing-active-plan-required' }), translate),
-    'billing.activePlanRequired',
+    'common.errorConflict',
   )
 })
