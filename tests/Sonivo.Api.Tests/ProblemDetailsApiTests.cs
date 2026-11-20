@@ -229,6 +229,43 @@ public sealed class ProblemDetailsApiTests : IClassFixture<SonivoApiFactory>
     }
 
     [Fact]
+    public async Task Direct_problem_exception_message_is_logged_but_not_returned()
+    {
+        const string permission = "private-permission-test-9b31";
+        using var sink = new CapturingLoggerProvider();
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureLogging(logging => logging.AddProvider(sink)));
+        using var client = await CreateAuthenticatedClientAsync(factory);
+
+        using var groupResponse = await client.PostAsJsonAsync("/api/groups", new { name = "Safe Error Test Band" });
+        Assert.Equal(HttpStatusCode.Created, groupResponse.StatusCode);
+        using var groupBody = JsonDocument.Parse(await groupResponse.Content.ReadAsStringAsync());
+        var groupId = groupBody.RootElement.GetProperty("id").GetGuid();
+
+        await EnsureCsrfAsync(client);
+        using var response = await client.PostAsJsonAsync($"/api/groups/{groupId}/roles", new
+        {
+            name = "Invalid Permission Role",
+            permissions = new[] { permission }
+        });
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var json = body.RootElement;
+        var supportId = json.GetProperty("supportId").GetString();
+        var traceId = json.GetProperty("traceId").GetString();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("validation_failed", json.GetProperty("code").GetString());
+        Assert.Equal("The request is invalid.", json.GetProperty("detail").GetString());
+        Assert.DoesNotContain(permission, json.ToString(), StringComparison.Ordinal);
+        Assert.NotNull(supportId);
+        Assert.NotNull(traceId);
+        Assert.Equal(supportId, response.Headers.GetValues("X-Support-Id").Single());
+        Assert.Contains(sink.Messages, message => message.Contains(permission, StringComparison.Ordinal)
+            && message.Contains(supportId, StringComparison.Ordinal)
+            && message.Contains(traceId, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Method_not_allowed_has_stable_code_and_safe_detail()
     {
         using var client = await CreateAuthenticatedClientAsync();

@@ -3050,6 +3050,7 @@ app.MapPost("/api/groups/{groupId:guid}/roster/import", async (
     IClock clock,
     IConfiguration configuration,
     ILoggerFactory loggerFactory,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     if (!configuration.GetValue("Features:ManagedAccounts", false))
@@ -3072,7 +3073,10 @@ app.MapPost("/api/groups/{groupId:guid}/roster/import", async (
     }
     catch (ValidationException ex)
     {
-        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+        loggerFactory.CreateLogger("ManagedAccounts").LogWarning(ex,
+            "Roster CSV validation failed. SupportId {SupportId} TraceId {TraceId}",
+            ApiErrorSupport.GetSupportId(httpContext), httpContext.TraceIdentifier);
+        return Results.Problem(detail: ApiErrorDetails.GetDetail("validation_failed"), statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
     }
 
     var now = clock.UtcNow;
@@ -3738,6 +3742,8 @@ app.MapPost("/api/groups/{groupId:guid}/roles", async (
     IGroupRoleStore roles,
     IGroupAuditStore audit,
     IClock clock,
+    ILoggerFactory loggerFactory,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
@@ -3772,7 +3778,10 @@ app.MapPost("/api/groups/{groupId:guid}/roles", async (
     }
     catch (ArgumentException ex)
     {
-        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+        loggerFactory.CreateLogger("Sonivo.Api.GroupRoles").LogWarning(ex,
+            "Group role validation failed. SupportId {SupportId} TraceId {TraceId}",
+            ApiErrorSupport.GetSupportId(httpContext), httpContext.TraceIdentifier);
+        return Results.Problem(detail: ApiErrorDetails.GetDetail("validation_failed"), statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
     }
 
     await roles.AddAsync(created, cancellationToken);
@@ -3809,6 +3818,8 @@ app.MapPatch("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
     IGroupRoleStore roles,
     IGroupAuditStore audit,
     IClock clock,
+    ILoggerFactory loggerFactory,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     var userId = await ApiEndpointHelpers.RequireUserIdAsync(principal, users);
@@ -3854,11 +3865,17 @@ app.MapPatch("/api/groups/{groupId:guid}/roles/{roleId:guid}", async (
     }
     catch (ArgumentException ex)
     {
-        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+        loggerFactory.CreateLogger("Sonivo.Api.GroupRoles").LogWarning(ex,
+            "Group role validation failed. SupportId {SupportId} TraceId {TraceId}",
+            ApiErrorSupport.GetSupportId(httpContext), httpContext.TraceIdentifier);
+        return Results.Problem(detail: ApiErrorDetails.GetDetail("validation_failed"), statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
     }
     catch (InvalidOperationException ex)
     {
-        return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status409Conflict, title: "Conflict");
+        loggerFactory.CreateLogger("Sonivo.Api.GroupRoles").LogWarning(ex,
+            "Group role update conflict. SupportId {SupportId} TraceId {TraceId}",
+            ApiErrorSupport.GetSupportId(httpContext), httpContext.TraceIdentifier);
+        return Results.Problem(detail: ApiErrorDetails.GetDetail("conflict"), statusCode: StatusCodes.Status409Conflict, title: "Conflict");
     }
 
     role.Touch(clock.UtcNow);
