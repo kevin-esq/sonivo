@@ -94,7 +94,7 @@ public sealed class ProblemDetailsApiTests : IClassFixture<SonivoApiFactory>
             (new Sonivo.Application.Abstractions.ForbiddenException("forbidden detail"), 403, "forbidden", "Forbidden", "You are not allowed to perform this action."),
             (new Sonivo.Application.Abstractions.NotFoundException("not found detail"), 404, "not_found", "Not Found", "The requested resource was not found."),
             (new Sonivo.Application.Abstractions.ConflictException("conflict detail"), 409, "conflict", "Conflict", "The request conflicts with the current state."),
-            (new Sonivo.Application.Abstractions.ConflictException("billing-active-plan-required"), 409, "billing_active_plan_required", "Conflict", "billing-active-plan-required"),
+            (new Sonivo.Application.Abstractions.ConflictException("billing-active-plan-required"), 409, "billing_active_plan_required", "Conflict", "An active plan is required for this action."),
             (new Sonivo.Application.Abstractions.UploadLimitException(123), 413, "payload_too_large", "Content Too Large", "The request content exceeds the allowed size.")
         };
 

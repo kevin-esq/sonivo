@@ -48,10 +48,16 @@ public sealed class ClientErrorReportApiTests : IClassFixture<SonivoApiFactory>
         const string urlSentinel = "https://private.example/page?access_token=URL_TOKEN_SENTINEL";
         const string stackSentinel = "STACK_TRACE_SENTINEL";
         const string payloadUserIdSentinel = "PAYLOAD_USER_ID_SENTINEL";
+        const string emailSentinel = "private.user@example.test";
+        const string bearerSentinel = "BEARER_TOKEN_SENTINEL";
+        const string jwtSentinel = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.signature_payload_token";
+        const string idSentinel = "2f3a1b4c-5d6e-7f80-9123-456789abcdef";
+        const string hexSentinel = "0123456789abcdef0123456789abcdef";
+        const string base64Sentinel = "YWJjZDEyMzQ1Njc4OWFiY2RlZjAxMjM0";
         var report = await client.PostAsJsonAsync("/api/client-errors", new
         {
             source = "window.error\r\nSOURCE_LINE_SENTINEL\t",
-            message = "MESSAGE_LINE_ONE\nMESSAGE_LINE_TWO\0",
+            message = $"MESSAGE_LINE_ONE\nMESSAGE_LINE_TWO\0 {urlSentinel}, {emailSentinel}; Bearer {bearerSentinel}; {jwtSentinel}; {idSentinel}; {hexSentinel}; {base64Sentinel}.",
             url = urlSentinel,
             stack = stackSentinel,
             userId = payloadUserIdSentinel
@@ -63,6 +69,12 @@ public sealed class ClientErrorReportApiTests : IClassFixture<SonivoApiFactory>
         Assert.DoesNotContain("URL_TOKEN_SENTINEL", reportLog, StringComparison.Ordinal);
         Assert.DoesNotContain(stackSentinel, reportLog, StringComparison.Ordinal);
         Assert.DoesNotContain(payloadUserIdSentinel, reportLog, StringComparison.Ordinal);
+        Assert.DoesNotContain(emailSentinel, reportLog, StringComparison.Ordinal);
+        Assert.DoesNotContain(bearerSentinel, reportLog, StringComparison.Ordinal);
+        Assert.DoesNotContain(jwtSentinel, reportLog, StringComparison.Ordinal);
+        Assert.DoesNotContain(idSentinel, reportLog, StringComparison.Ordinal);
+        Assert.DoesNotContain(hexSentinel, reportLog, StringComparison.Ordinal);
+        Assert.DoesNotContain(base64Sentinel, reportLog, StringComparison.Ordinal);
         Assert.DoesNotContain(authenticatedUserId!, reportLog, StringComparison.Ordinal);
         Assert.DoesNotContain('\r', reportLog);
         Assert.DoesNotContain('\n', reportLog);
@@ -70,6 +82,11 @@ public sealed class ClientErrorReportApiTests : IClassFixture<SonivoApiFactory>
         Assert.DoesNotContain('\0', reportLog);
         Assert.Contains("window.errorSOURCE_LINE_SENTINEL", reportLog, StringComparison.Ordinal);
         Assert.Contains("MESSAGE_LINE_ONEMESSAGE_LINE_TWO", reportLog, StringComparison.Ordinal);
+        Assert.Contains("[url]", reportLog, StringComparison.Ordinal);
+        Assert.Contains("[email]", reportLog, StringComparison.Ordinal);
+        Assert.Contains("[token]", reportLog, StringComparison.Ordinal);
+        Assert.Contains("[id]", reportLog, StringComparison.Ordinal);
+        Assert.Equal(4, reportLog.Split("[token]", StringSplitOptions.None).Length - 1);
 
         logs.Clear();
         var bounded = await client.PostAsJsonAsync("/api/client-errors", new

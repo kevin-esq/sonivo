@@ -68,7 +68,8 @@ test('an account without a plan can join an existing Group but cannot create one
       return { status: response.status, body: await response.json() }
     })
     expect(blockedCreate.status).toBe(409)
-    expect(blockedCreate.body.detail).toBe('billing-active-plan-required')
+    expect(blockedCreate.body.code).toBe('billing_active_plan_required')
+    expect(blockedCreate.body.detail).toBe('An active plan is required for this action.')
 
     await memberPage.goto(inviteUrl)
     await acceptInvite(memberPage)

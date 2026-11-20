@@ -1,5 +1,15 @@
 # NOW — current work and Git checkpoint
 
+## T-API-ERRORS-03 — fixed Billing detail and redact client report text
+
+**Updated:** 2026-11-20. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `feat/t-api-errors-03-billing-detail-and-redaction`, based on `origin/develop` after PR #371.
+**Authorization:** Owner authorized implementation, local commits, push, and one PR; merge is not authorized.
+**Scope:** Replace legacy Billing `detail` with fixed safe English text while preserving status/title/type/code. Redact common URL, email, token, and ID patterns from client report Source/Message before logging. Preserve normalization, 60/500 limits, discarded legacy Url/Stack/UserId, authentication, CSRF, rate limit, and 202 response.
+**Implementation:** COMPLETE. Billing clients/tests assert `billing_active_plan_required` and fixed `detail`. Client report logs redact absolute and query/fragment URLs, emails, Bearer/JWT values, GUIDs, long hex, and base64-shaped values. No dependencies added.
+**Validation:** Baseline API tests passed 5/5. Final solution build passed (10 projects, 0 errors, 2 NU1510 warnings); API suite passed 345/345, including EndpointInventoryTests; focused redaction/report tests passed 13/13; web API-error tests passed 2/2; `git diff --check` passed; endpoint inventory snapshot unchanged. Development OpenAPI matched byte-for-byte at 158,605 bytes (SHA-256 `70A25BF74CD3CFCE50AE15B51BD62E87B4B489E15FF87FEA1721D69BC2184310`). Billing Playwright E2E was not run locally.
+**Risk:** Pattern redaction does not identify names or arbitrary free text; some unusual alpha-only encoded values may not match. `Message` can still contain personal information outside recognized patterns.
+**Human approval:** APPROVED for implementation, commits, push, and one PR; merge is not authorized. **Git checkpoint:** COMMITTED (`18fac31`, `2c80e0d`, `b73b063`, `f84eb07`, plus this PR record). **Remote:** PUSHED to `origin/feat/t-api-errors-03-billing-detail-and-redaction`. **PR:** [#372](https://github.com/kevin-esq/sonivo/pull/372), open against `develop`; do not merge. **CI:** PENDING (four checks pending at last query).
+
 ## T-WEB-ERRORS-01 — rely on stable Billing code and trim client reports
 
 **Updated:** 2026-11-19. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `feat/t-web-errors-01-code-only`, based on `origin/develop` at merged PR #370.
