@@ -1,5 +1,17 @@
 # NOW — current work and Git checkpoint
 
+## T-API-ERRORS-01 — stable API error codes and support ID (stage 1)
+
+**Updated:** 2026-11-19. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `feat/t-api-errors-01-stable-codes`.
+**Authorization:** Owner authorized implementation, local commits, push, and one PR; merge is not authorized.
+**Spec:** Owner-authorized stage 1. Add stable `code` and correlated `supportId`; preserve status, title, type, and detail. Update the web client and billing marker handling. No dependency additions.
+**Scope:** API Problem Details, direct JSON error responses, correlation logs, API/web tests, and web `ApiError` fields. Mobile response codes remain unchanged. `AppException.Message` cleanup is deferred.
+**Implementation:** COMPLETE.
+**Stage 1 progress:** Backend codes and support ID are implemented. `billing_active_plan_required` is recognized with the legacy detail fallback. Unexpected HTTP exceptions return generic 500 Problem Details; support ID and trace ID are captured in the same log event. Web client exposes code/supportId.
+**Validation:** Baseline API tests passed 21/21. Final solution build passed (10 projects, 0 errors, 2 NU1510 warnings); API suite passed 330/330, including EndpointInventoryTests; endpoint inventory test passed 1/1; web tests passed 2/2; `git diff --check` passed. Development OpenAPI matched baseline commit `1b4bce3` byte-for-byte at 158,605 bytes (SHA-256 `70A25BF74CD3CFCE50AE15B51BD62E87B4B489E15FF87FEA1721D69BC2184310`). Lint and TypeScript check were unavailable because `turbo` and the TypeScript compiler are absent in this worktree; no tools or packages were installed.
+**OPEN QUESTION:** HTTP 405 method-mismatch responses have no stable code in this stage.
+**Human approval:** APPROVED (owner authorized implementation, commits, push, and one PR; no merge). **Git checkpoint:** COMMITTED (`87e8ccb`, `efa2dfb`, `22afb74`). **Remote:** PUSHED to `origin/feat/t-api-errors-01-stable-codes`. **PR:** [#369](https://github.com/kevin-esq/sonivo/pull/369), open against `develop`; do not merge. **CI:** NOT RUN locally; latest remote checks on `22afb74`: 5 passed, Playwright pending.
+
 ## T-ARCH-PROGRAM-01 — endpoint inventory safety net (Stage 0)
 
 **Updated:** 2026-11-18. **Worktree:** P:\repos\sonivo-arch. **Branch:** feat/t-arch-program-01-dtos-helpers.

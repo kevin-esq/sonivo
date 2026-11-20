@@ -32,6 +32,7 @@ using Sonivo.Application.Scheduling;
 using Sonivo.Application.Tasks;
 using Sonivo.Application.Tenancy;
 using Sonivo.Api.Realtime;
+using Sonivo.Api.Observability;
 using Sonivo.Api.Security;
 using Sonivo.Application.Realtime;
 using Sonivo.Api.Session;
@@ -327,8 +328,22 @@ builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
     {
+        var httpContext = context.HttpContext;
+        var supportId = ApiErrorSupport.GetSupportId(httpContext);
+        var statusCode = context.ProblemDetails.Status ?? httpContext.Response.StatusCode;
+        var exception = context.Exception ?? httpContext.Features.Get<IExceptionHandlerFeature>()?.Error;
+        var code = exception is AppException appException
+            ? ApiErrorSupport.GetCode(appException)
+            : ApiErrorSupport.GetCode(statusCode);
+
+        if (code is not null && !context.ProblemDetails.Extensions.ContainsKey("code"))
+        {
+            context.ProblemDetails.Extensions["code"] = code;
+        }
+        context.ProblemDetails.Extensions["supportId"] = supportId;
+        httpContext.Response.Headers.TryAdd(ApiErrorSupport.SupportIdHeader, supportId);
         context.ProblemDetails.Extensions["traceId"] =
-            context.HttpContext.TraceIdentifier;
+            httpContext.TraceIdentifier;
     };
 });
 
@@ -414,6 +429,43 @@ if (!app.Configuration.GetValue("UseInMemoryDatabase", false) && app.Configurati
 }
 
 app.UseExceptionHandler();
+var apiErrorLogger = app.Services.GetRequiredService<ILoggerFactory>()
+    .CreateLogger("Sonivo.Api.ErrorResponses");
+app.Use(async (context, next) =>
+{
+    var supportId = ApiErrorSupport.GetSupportId(context);
+    context.Response.OnStarting(static state =>
+    {
+        var (httpContext, id) = ((HttpContext Context, string Id))state;
+        if (httpContext.Response.StatusCode >= 400)
+        {
+            httpContext.Response.Headers.TryAdd(ApiErrorSupport.SupportIdHeader, id);
+        }
+        return Task.CompletedTask;
+    }, (context, supportId));
+
+    try
+    {
+        await next();
+    }
+    catch (Exception exception)
+    {
+        apiErrorLogger.LogError(exception,
+            "Request failed. SupportId {SupportId} TraceId {TraceId}",
+            supportId,
+            context.TraceIdentifier);
+        throw;
+    }
+
+    if (context.Response.StatusCode >= 400)
+    {
+        apiErrorLogger.LogWarning(
+            "Request returned error. StatusCode {StatusCode} SupportId {SupportId} TraceId {TraceId}",
+            context.Response.StatusCode,
+            supportId,
+            context.TraceIdentifier);
+    }
+});
 app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
@@ -2220,14 +2272,28 @@ app.MapPost("/api/payments/webhook", async (
     {
         var billing = http.RequestServices.GetRequiredService<IBillingService>();
         var accepted = await billing.ReceiveAsync(payload, http.Request.Headers["Stripe-Signature"].ToString(), cancellationToken);
-        return accepted ? Results.Ok(new { received = true }) : Results.BadRequest(new { error = "invalid-signature" });
+        return accepted
+            ? Results.Ok(new { received = true })
+            : Results.BadRequest(new
+            {
+                error = "invalid-signature",
+                code = "validation_failed",
+                supportId = ApiErrorSupport.GetSupportId(http),
+                traceId = http.TraceIdentifier
+            });
     }
     var signature = http.Request.Headers["X-Sonivo-Signature"].ToString();
     var result = await handler.HandleAsync(payload, signature, cancellationToken);
 
     return result.Accepted
         ? Results.Ok(new { received = true, duplicate = result.Duplicate })
-        : Results.BadRequest(new { error = result.Reason });
+        : Results.BadRequest(new
+        {
+            error = result.Reason,
+            code = "validation_failed",
+            supportId = ApiErrorSupport.GetSupportId(http),
+            traceId = http.TraceIdentifier
+        });
 })
 .WithName("ReceivePaymentWebhook")
 .AllowAnonymous()
@@ -4283,7 +4349,11 @@ if (!app.Environment.IsDevelopment())
     // SECURITY-AUDIT-2026-10 (B1): unknown /api paths must 404 as JSON, never
     // fall through to the SPA shell (which returns index.html with 200 and
     // makes client-side routing/typos indistinguishable from real 404s).
-    app.MapFallback("/api/{**path}", () => Results.NotFound(new { detail = "Not found." }))
+    app.MapFallback("/api/{**path}", (HttpContext context) =>
+    {
+        var supportId = ApiErrorSupport.GetSupportId(context);
+        return Results.NotFound(new { detail = "Not found.", code = "not_found", supportId, traceId = context.TraceIdentifier });
+    })
         .AllowAnonymous();
     // The SPA shell is public so guests can load /login, /register and the
     // marketing routes. React applies its own route guards after the shell loads.
