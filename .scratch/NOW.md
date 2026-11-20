@@ -1,5 +1,16 @@
 # NOW — current work and Git checkpoint
 
+## T-4.2.05 — PostgreSQL isolation matrix
+
+**Updated:** 2026-11-20. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `feat/t-4-2-05-isolation-matrix`, based on `origin/develop` at `0559da9`.
+**Authorization:** Owner directed continuation of the roadmap implementation and explicitly requested subagent implementation with independent review. No commit, push, PR, or merge authorized.
+**Spec:** [`PHASE-4.2-POSTGRESQL-RLS-SPEC.md`](../docs/03-architecture/PHASE-4.2-POSTGRESQL-RLS-SPEC.md) §T-4.2.05; scope is PostgreSQL isolation tests only.
+**Implementation:** COMPLETE locally. Added live tests for malformed Group scope, Resource-to-Arrangement-to-Group RLS ancestry, member Resource visibility, runtime cross-Group read/write denial, the bounded slug selector, item deny-grant and custom-role behavior through application handlers while RLS permits row access, and indistinguishable RLS rejection for foreign versus missing RSVP Event IDs. Product code, migrations, and policies unchanged.
+**Validation:** Release `RlsPolicyIntegrationTests` + `RlsTransactionScopeTests` passed 28/28 on isolated PostgreSQL 16.6 at localhost:5434; baseline passed 23/23 in Debug and Release before changes; runtime-principal verifier passed; `git diff --check` passed. No Playwright run; no frontend changes. CI reported green by owner and was not re-queried.
+**Boundaries:** The slug selector reveals the exact requested slug by design and hides unrelated Groups. No direct UNIQUE collision probe was added: it would exercise arbitrary SQL, outside ADR-0086's guarantee. Migration-role visibility is tested, while the existing runtime verifier and role-privilege test cover constrained runtime attributes and grants; no claim that the test alone validates migration operations.
+**Open gates:** T-4.2.06 public/bootstrap/realtime/export paths and T-4.2.07 production rollout remain open. Direct UNIQUE-conflict SQL is not tested because the bounded lookup is the intended application path and ADR-0086 excludes arbitrary SQL from RLS guarantees. No shared database used for final validation.
+**Human approval:** APPROVED for commit, push, and PR creation; merge not authorized. **Git checkpoint:** COMMITTED (`6e19dab`, plus this checkpoint record). **Remote:** PUSHED to `origin/feat/t-4-2-05-isolation-matrix`; [PR #373](https://github.com/kevin-esq/sonivo/pull/373) is open against `develop`. **CI:** PENDING (SCA passed; Backend, C# analysis, and Frontend build in progress at checkpoint).
+
 ## T-API-ERRORS-03 — fixed Billing detail and redact client report text
 
 **Updated:** 2026-11-20. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `feat/t-api-errors-03-billing-detail-and-redaction`, based on `origin/develop` after PR #371.
