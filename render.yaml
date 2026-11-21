@@ -26,7 +26,7 @@ services:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: SONIVO_MIGRATE_ON_START
-        value: "true"
+        value: "false"
       - key: ConnectionStrings__Default
         sync: false
       - key: PublicOrigin
