@@ -1,15 +1,25 @@
 # NOW — current work and Git checkpoint
 
+## T-4.2.06 — Public, bootstrap, realtime, and background RLS flows
+
+**Updated:** 2026-11-20. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `feat/t-4-2-06-isolation-exceptions`, based on `origin/develop` at merged T-4.2.05 commit `92dac37`.
+**Authorization:** Owner directed continuation of the remaining roadmap work, requested subagent implementation, and assigned the primary agent to audit. Commit/push/PR/merge authorization not yet given for this ticket.
+**Spec:** [`PHASE-4.2-POSTGRESQL-RLS-SPEC.md`](../docs/03-architecture/PHASE-4.2-POSTGRESQL-RLS-SPEC.md) §T-4.2.06. Initial scope: live PostgreSQL tests for bounded public, invitation, bootstrap, hub, export/report, and background paths; no product behavior or policy changes unless a failing test proves a defect.
+**Implementation:** COMPLETE locally. Added seven live PostgreSQL scenarios for public branding (current/historical/unknown slugs and public DTO fields), rejected bootstrap scope, invitation acceptance/non-enumeration, real Group and PracticeRoom hub invocations, own-data and Group repertoire reports, and digitization background execution. Primary audit fixed test setup issues and found one product defect: current-slug Group reads were allowed, but GroupBranding reads required a history row; new reversible migration adds only the matching current-slug selector.
+**Validation:** Release integration build passed (5 projects, 0 errors, 3 NU1510 warnings); Release solution build passed (10 projects, 0 errors, 3 NU1510 warnings). Focused RLS suites passed 35/35 on isolated PostgreSQL 16.6 at localhost:5434; constrained runtime-principal verifier passed; `git diff --check` passed. No shared database or Playwright used.
+**Boundaries:** Tests call actual handlers/hub methods and the hub filter, not full HTTP middleware. NotificationHub exposes no client-invokable methods and receives no separate invocation-scope test. Digitization uses fake blob/transcriber; no external storage or transcription. Owner confirms Render is current production and reports deployed `SONIVO_MIGRATE_ON_START=false`; `render.yaml` now matches. SmarterASP.NET is future. T-4.2.07 production role, rollout, observability, and forward-fix verification remain open for Render; no production database or live deployment was accessed.
+**Human approval:** PENDING. **Git checkpoint:** PENDING; no ticket commits. **Remote:** NOT PUSHED. **CI:** NOT RUN for this branch.
+
 ## T-4.2.05 — PostgreSQL isolation matrix
 
 **Updated:** 2026-11-20. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `feat/t-4-2-05-isolation-matrix`, based on `origin/develop` at `0559da9`.
-**Authorization:** Owner directed continuation of the roadmap implementation and explicitly requested subagent implementation with independent review. No commit, push, PR, or merge authorized.
+**Authorization:** Owner authorized implementation, commit, push, PR, and merge; PR #373 merged as `92dac37` on 2026-11-20.
 **Spec:** [`PHASE-4.2-POSTGRESQL-RLS-SPEC.md`](../docs/03-architecture/PHASE-4.2-POSTGRESQL-RLS-SPEC.md) §T-4.2.05; scope is PostgreSQL isolation tests only.
 **Implementation:** COMPLETE locally. Added live tests for malformed Group scope, Resource-to-Arrangement-to-Group RLS ancestry, member Resource visibility, runtime cross-Group read/write denial, the bounded slug selector, item deny-grant and custom-role behavior through application handlers while RLS permits row access, and indistinguishable RLS rejection for foreign versus missing RSVP Event IDs. Product code, migrations, and policies unchanged.
 **Validation:** Release `RlsPolicyIntegrationTests` + `RlsTransactionScopeTests` passed 28/28 on isolated PostgreSQL 16.6 at localhost:5434; baseline passed 23/23 in Debug and Release before changes; runtime-principal verifier passed; `git diff --check` passed. No Playwright run; no frontend changes. CI reported green by owner and was not re-queried.
 **Boundaries:** The slug selector reveals the exact requested slug by design and hides unrelated Groups. No direct UNIQUE collision probe was added: it would exercise arbitrary SQL, outside ADR-0086's guarantee. Migration-role visibility is tested, while the existing runtime verifier and role-privilege test cover constrained runtime attributes and grants; no claim that the test alone validates migration operations.
-**Open gates:** T-4.2.06 public/bootstrap/realtime/export paths and T-4.2.07 production rollout remain open. Direct UNIQUE-conflict SQL is not tested because the bounded lookup is the intended application path and ADR-0086 excludes arbitrary SQL from RLS guarantees. No shared database used for final validation.
-**Human approval:** APPROVED for commit, push, and PR creation; merge not authorized. **Git checkpoint:** COMMITTED (`6e19dab`, plus this checkpoint record). **Remote:** PUSHED to `origin/feat/t-4-2-05-isolation-matrix`; [PR #373](https://github.com/kevin-esq/sonivo/pull/373) is open against `develop`. **CI:** PENDING (SCA passed; Backend, C# analysis, and Frontend build in progress at checkpoint).
+**Open gates:** T-4.2.06 is complete locally and awaiting human review; T-4.2.07 production rollout remains open. Direct UNIQUE-conflict SQL is not tested because the bounded lookup is the intended application path and ADR-0086 excludes arbitrary SQL from RLS guarantees. No shared database used for final validation.
+**Human approval:** APPROVED. **Git checkpoint:** COMMITTED (`6e19dab`, `8fa3b5e`). **Remote:** PUSHED; [PR #373](https://github.com/kevin-esq/sonivo/pull/373) merged to `develop` as `92dac37`. **CI:** Security and CodeQL passed; backend CI still running at last check.
 
 ## T-API-ERRORS-03 — fixed Billing detail and redact client report text
 
