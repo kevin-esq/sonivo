@@ -1,12 +1,67 @@
 # DEPLOYMENT.md — Sonivo production topology, host map and runbooks
 
-**Status:** **FACT** for the decided topology and host map; **OPEN** until the
-owner contracts Hetzner and creates the Vercel project (no cloud account is
-provisioned by this document). Staging remains on Render (`staging.sonivo.lat`).
+**Status:** the provider map below records the accepted ADR-0069 target. Current
+operations are recorded separately below; the owner confirms Render currently
+hosts production and SmarterASP.NET is the future destination. The Vercel and
+Hetzner target remains unprovisioned.
 
 Canonical decisions: **ADR-0067** (Next.js BFF, host-based tenancy, handoff
 session) and **ADR-0069** (production topology). Related: ADR-0035 (R2),
 ADR-0049 (hosts/subdomains), ADR-0068 (email transport), ADR-0020 (CSRF).
+
+## Current operations — 2026-11-21
+
+**FACT:** The owner confirms Render currently hosts production. Render's
+`sonivo` API service tracks `develop`, auto-deploys commits, uses the repository
+`Dockerfile`, and checks `/api/health`. The latest observed live deployment is
+`d6853c0`. The owner reports `SONIVO_MIGRATE_ON_START=false`; `render.yaml`
+matches. Render's service metadata does not expose the database connection
+string, which remains unread and unrecorded. The owner confirms the API uses
+Neon branch `staging` as its current production database.
+
+**FACT:** `20261120200916_AllowCurrentSlugPublicBranding` from PR #374 is
+applied on the active database. It adds the current-slug selector to the public
+GroupBranding read policy. A Neon connection using `sonivo_app` passed the
+runtime-role verifier. After a public readiness request, `pg_stat_activity`
+showed a `sonivo_app` session behind PgBouncer; the connection string was not
+read.
+
+**FACT:** On 2026-11-21, the migration's exact `Up` SQL and matching
+`__EFMigrationsHistory` row were applied in one privileged Neon transaction.
+`dotnet ef` was not run because no local migration connection was configured.
+The `Up`/`Down` SQL and runtime verifier passed on a temporary Neon copy of the
+active database before the production transaction. That copy and its compute
+endpoint were deleted after the rehearsal. Future schema changes must use the
+separate privileged migration procedure below, not API startup.
+
+**FACT:** Owner decision on 2026-11-21: keep Render auto-deploying from
+`develop` while the main product is being completed. After the product is ready,
+move the production release flow to `main` with the required production
+configuration. This records direction; it does not change Render settings.
+
+**OPEN:** No production migration job currently gates or sequences Render's
+auto-deploy. Before the next schema change, define and enforce the release order
+so the privileged migration and runtime verification pass before production
+code depends on the new schema. Complete the `main` production configuration
+when the product is ready for publication.
+
+**FACT:** SmarterASP.NET is the future hosting destination. The backend is
+already containerized in [the root Dockerfile](../../Dockerfile); Render uses
+that image. SmarterASP.NET's official material lists Docker under Linux VPS
+plans, while its Linux shared-hosting deployment guide describes FTPS uploads
+of built output. Confirm the purchased plan before choosing the migration
+deployment mode. [Linux VPS](https://www.smarterasp.net/vps_linux), [Linux
+hosting](https://www.smarterasp.net/linux_hosting), [deployment guide](https://www.smarterasp.net/developers/deployment/).
+
+**PROPOSAL:** Keep the Docker image as the portable backend artifact. Do not
+add another container setup. Before moving to SmarterASP.NET, confirm the plan
+supports Docker and validate port binding, persistent storage, health checks,
+secret delivery, database networking, and the separate migration job. If the
+selected plan is shared Linux hosting, prepare and test a non-container publish
+path instead.
+
+ADR-0069 remains the accepted target topology until a superseding decision
+amends it. This current-operations note does not change that ADR.
 
 ---
 
@@ -353,6 +408,15 @@ parity migration; do not weaken the guard with a wildcard.
   workflow. Production schema rollout therefore remains an operator-run,
   one-shot deployment step. Do not treat the CI job or the API startup as that
   production migration job.
+- **RLS incident response (PROPOSAL):** if readiness or API requests fail after
+  a schema rollout, do not disable RLS or set `SONIVO_MIGRATE_ON_START=true`.
+  Stop further rollout. Record deployment ID, migration IDs, and the verifier's
+  secret-safe principal/policy summary. If the prior API image is compatible
+  with the applied schema, restore that image while preserving the schema. If
+  not, prepare a forward migration and test it on an isolated database copy.
+  Use Neon point-in-time restore only after an owner-approved recovery point;
+  never restore production automatically. Rehearse this path before enabling
+  RLS on the production database.
 - **R2:** create `sonivo-prod` and wire `R2__*` on the VPS; staging keeps its own
   bucket. Buckets are never shared across environments.
 - **Backups:** Neon point-in-time restore; R2 versioning/lifecycle as needed.

@@ -66,7 +66,14 @@ Notes from the UI/UX redesign wave runs:
 
 ### CI
 
-GitHub Actions (`.github/workflows/ci.yml`) starts PostgreSQL, applies migrations, runs API + Next, then Playwright.
+GitHub Actions (`.github/workflows/ci.yml`) starts ephemeral PostgreSQL 16.6,
+provisions the constrained runtime principal, applies migrations and reviewed
+table grants, runs `verify-runtime-principal.sql` as `sonivo_app`, then runs API
+tests, Next build, and Playwright. This verifies the CI database only; it does
+not prove which database Render uses or that production has the same role,
+migrations, grants, or policies. Production RLS requires the verifier to pass
+through the exact deployed runtime connection after a separately approved
+migration operation.
 
 ---
 
