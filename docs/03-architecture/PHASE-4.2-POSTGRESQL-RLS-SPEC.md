@@ -2,10 +2,11 @@
 
 **Status:** ACCEPTED — user-authorized 2026-10-17; [ADR-0086](DECISIONS.md)
 supersedes the former RLS prohibition for a second tenant-isolation layer.
-**Delivery:** Security phase, ticketed and gated. No policy is enabled until
-the runtime-role and transaction-context gates pass.
+**Delivery:** Security phase, ticketed and gated. No deployed environment is
+considered RLS-secured until runtime-role, transaction-context, policy-coverage,
+and exception-flow gates pass.
 
-## Implementation checkpoint — 2026-11-14
+## Historical implementation checkpoint — 2026-11-14
 
 **Status:** IN PROGRESS; staging rollout remains blocked.
 
@@ -32,6 +33,53 @@ the runtime-role and transaction-context gates pass.
 This phase supersedes the RLS exclusions in the Phase 4.0 and 4.1 specs only
 for shared-table tenant row isolation. Their product and item-access scope is
 unchanged.
+
+## Rollout checkpoint — 2026-11-21
+
+**Status:** Local/CI implementation gates for table inventory, transaction
+scope, policies, isolation tests, and exception flows are complete. The owner
+confirms Render production uses Neon `staging`; a Neon connection as
+`sonivo_app` passed the runtime-role verifier there. The latest migration is
+applied; production readiness returns 200. T-4.2.07 remains active for review
+of the operational checkpoint and migration procedure.
+
+- The owner confirms Render is the current production host and SmarterASP.NET
+  is a future destination. Render production uses Neon branch `staging`. The
+  Render `sonivo` service currently tracks
+  `develop`, auto-deploys commits, uses `./Dockerfile`, and serves
+  `/api/health`. The latest observed live deployment is `d6853c0`. The owner
+  reports `SONIVO_MIGRATE_ON_START=false`; `render.yaml` also sets it to false.
+- That active production database has 52 public tables. All 22 reviewed RLS tables
+  have RLS enabled and forced, with 85 policies. A read-only run of
+  `scripts/db/verify-runtime-principal.sql` through a Neon connection using
+  `sonivo_app` passed there. This does not prove Render's configured login.
+  Migration `20261120200916_AllowCurrentSlugPublicBranding` from PR #374 is
+  now recorded as the latest migration. It was applied with its exact `Up` SQL
+  and EF history row in one privileged Neon transaction, not through
+  `dotnet ef`. The same operation passed `Up`/`Down` rehearsal on an isolated
+  copy; that temporary branch and endpoint were removed afterward.
+- The Neon branch named `production` had 25 public tables, no `sonivo_app` or
+  `sonivo_rls_reader` roles, and no RLS policies when inspected. That read
+  resumed the previously archived branch; it is now `ready`. No schema or data
+  was changed. The owner confirms this branch is not Render's active database.
+- Owner decision (2026-11-21): keep Render auto-deploying `develop` while the
+  main product is being completed. Afterward, move the production release flow
+  to `main` and publish with the required production configuration. This is a
+  rollout direction; no Render settings were changed.
+- The repository has no production migration workflow that blocks or sequences
+  Render's auto-deploy. The current migration was applied manually as a
+  privileged transaction. Before the next schema change, define and enforce
+  migration and runtime-verification ordering.
+- **T-4.2.07 gate:** future migrations must use the separate privileged
+  deployment procedure in `DEPLOYMENT.md`; verify runtime principal and policy
+  coverage without exposing credentials; define migration ordering before the
+  next schema change; finish incident and recovery guidance before marking the
+  ticket complete. Production release through `main` is deferred until the
+  product is ready.
+
+The API image already exists and Render runs it as Docker. Do not enable
+migration on API startup. Future schema changes remain gated on the separate
+migration role and an approved rollout.
 
 ## Goal
 
