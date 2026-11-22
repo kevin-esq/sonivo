@@ -5,6 +5,7 @@ supersedes the former RLS prohibition for a second tenant-isolation layer.
 **Delivery:** Security phase, ticketed and gated. No deployed environment is
 considered RLS-secured until runtime-role, transaction-context, policy-coverage,
 and exception-flow gates pass.
+**Current rollout:** COMPLETE on `develop` as of 2026-11-22 (PR #378). Render deployed the merge, the startup verifier logged success, and `/api/health/ready` returned HTTP 200. Future production migrations remain an operator-run release process; the repository does not automate that gate.
 
 ## Historical implementation checkpoint — 2026-11-14
 
@@ -34,7 +35,7 @@ This phase supersedes the RLS exclusions in the Phase 4.0 and 4.1 specs only
 for shared-table tenant row isolation. Their product and item-access scope is
 unchanged.
 
-## Rollout checkpoint — 2026-11-21
+## Historical rollout checkpoint — 2026-11-21 (superseded by current status below)
 
 **Status:** Local/CI implementation gates for table inventory, transaction
 scope, policies, isolation tests, and exception flows are complete. The owner
@@ -87,9 +88,46 @@ rehearsal.
   owner review remain before closing this ticket. Production release through
   `main` is deferred until the product is ready.
 
+## Current rollout verification — 2026-11-22
+
+**FACT:** PR #378 merged to `develop` as `b31f607`. Render deployment
+`dep-dc1flam417fc73bgh2kg` is `live`. `/api/health/ready` returned HTTP 200,
+and Render application logs recorded
+`RLS runtime principal and forced-policy verification passed.` The verifier
+requires the constrained `sonivo_app` principal and complete forced-policy
+coverage; no connection string or secret was read.
+
+**FACT:** The local Release solution suite passed 979/979 with isolated
+PostgreSQL 16; the Release build passed 10 projects with 0 errors and 3
+NU1510 warnings. The four `RlsStartupVerificationTests` proved startup with
+the runtime principal, rejection when forced RLS is absent, secret-safe
+success logging, and readiness after restoring forced RLS. PR #378's backend,
+frontend, SCA, CodeQL, and Analyze checks passed. Its Playwright check was
+still running at the last query; no frontend behavior changed.
+
+**COMPLETE:** T-4.2.04 policy deployment, T-4.2.05 isolation matrix (PR #373,
+6/6 checks), T-4.2.06 public/realtime/background paths (PR #374, 6/6 checks),
+and T-4.2.07 rollout verification (PR #378) are delivered on `develop`.
+T-4.2.02 runtime-principal separation is verified against the actual Render
+configuration by the startup guard.
+
+**Operational limitation:** Render auto-deploys `develop`. Production
+migrations remain a manual, privileged pre-merge operation documented in
+[`DEPLOYMENT.md`](DEPLOYMENT.md); neither CI nor Render automatically enforces
+the order. Keep API startup migrations disabled. This manual gate is the
+current release procedure; automating it is deferred until the production
+release flow is redesigned for `main`.
+
+**Recovery boundary:** the isolated application rehearsal proved fail-closed
+startup and recovery after forced RLS was restored. Migration `Up`/`Down` was
+also rehearsed on an isolated copy for PR #374. No production fault injection,
+Render image rollback, or Neon point-in-time restore was performed. Treat
+those destructive recovery actions as operator-only; they are not prerequisites
+for the completed current RLS rollout.
+
 The API image already exists and Render runs it as Docker. Do not enable
 migration on API startup. Future schema changes remain gated on the separate
-migration role and an approved rollout.
+migration role and the manual release procedure above.
 
 ## Goal
 
@@ -151,7 +189,10 @@ does not authorize policy rollout before the other gates pass.
 
 ### T-4.2.02 — Database principal separation
 
-**Status:** IN PROGRESS — local and fresh PostgreSQL 16.6 runtime principals
+**Status:** COMPLETE as of 2026-11-22 — the production Render startup verifier
+confirmed the configured runtime principal and policy coverage. Historical
+implementation notes below describe earlier local/profile state.
+Local and fresh PostgreSQL 16.6 runtime principals
 and reviewed table grants are provisioned and verified; the full local
 CI-equivalent Release suite passed **828/828** with the constrained runtime
 role (2026-10-17). The read-only runtime verifier now checks the complete

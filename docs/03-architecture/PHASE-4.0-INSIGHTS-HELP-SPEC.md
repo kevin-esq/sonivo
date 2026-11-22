@@ -3,6 +3,7 @@
 **Status:** ACCEPTED — scope authorized by the owner on 2026-10-17; decisions in
 [ADR-0083](DECISIONS.md) and [ADR-0084](DECISIONS.md) bind.
 **Delivery:** Ticketed, vertical slices. This phase does not reopen Phases 0–3.9.
+**Completion:** COMPLETE on `develop` (PR #282); critical journey and E2E follow-up passed in PR #283 (6/6 CI checks). The accepted Phase 4.0 functional scope is delivered. The commercial parameters below remain separate open questions.
 **Commercial values:** Plan prices, trial rules, limits, and retention durations
 remain provisional/open under [PHASE-PLANS-SPEC](PHASE-PLANS-SPEC.md).
 

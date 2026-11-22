@@ -51,11 +51,18 @@ context; the resulting Render deployment is live and readiness returned 200.
 move the production release flow to `main` with the required production
 configuration. This records direction; it does not change Render settings.
 
-**OPEN:** No production migration job currently gates or sequences Render's
-auto-deploy. Before the next schema change, define and enforce the release order
-so the privileged migration and runtime verification pass before production
-code depends on the new schema. Complete the `main` production configuration
-when the product is ready for publication.
+**FACT:** No production migration job gates or sequences Render's auto-deploy.
+For the current `develop` release flow, the documented control is manual:
+apply and verify the compatible schema migration with the privileged role
+before merging API code that depends on it; keep destructive contract changes
+in a later release. Render and CI do not enforce this order.
+
+**OPEN (future release automation):** Before moving production release flow to
+`main`, decide whether to automate the privileged migration gate and add it to
+the release pipeline. Until then, release owners must follow the manual steps
+below and record migration IDs and verifier results. This is an operational
+control, not a production migration job. Complete the `main` production
+configuration when the product is ready for publication.
 
 **FACT:** SmarterASP.NET is the future hosting destination. The backend is
 already containerized in [the root Dockerfile](../../Dockerfile); Render uses
@@ -450,11 +457,12 @@ parity migration; do not weaken the guard with a wildcard.
   forward-fix migration on an isolated copy. Use Neon point-in-time restore only
   after an owner-approved recovery point and explicit assessment of the data-loss
   window; never restore production automatically. After recovery, rerun the
-  runtime verifier, readiness check, and tenant-isolation smoke checks. Before
-  closing T-4.2.07, rehearse the failure and recovery decision path on an
-  isolated database copy; no production fault injection is permitted. The
-  local recovery test validates startup denial and recovery after restoring
-  forced RLS; it does not exercise Render rollback or Neon point-in-time restore.
+  runtime verifier, readiness check, and tenant-isolation smoke checks. **FACT
+  (2026-11-22):** isolated rehearsals verified migration `Up`/`Down` for PR #374
+  and API fail-closed startup/recovery after restoring forced RLS. No production
+  fault injection, Render image rollback, or Neon point-in-time restore was
+  performed. Keep those recovery actions operator-only; verify the selected
+  procedure on a disposable copy before using it against production.
 - **R2:** create `sonivo-prod` and wire `R2__*` on the VPS; staging keeps its own
   bucket. Buckets are never shared across environments.
 - **Backups:** Neon point-in-time restore; R2 versioning/lifecycle as needed.
