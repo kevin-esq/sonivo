@@ -4,6 +4,7 @@
 amends the resource-kind scope in ADR-0082.
 **Delivery:** Ticketed security slice. The scope is limited to Song →
 Arrangement → Arrangement Resource.
+**Completion:** COMPLETE on `develop` (PR #282); resource-access critical journeys passed in PR #283 (6/6 CI checks). The accepted hierarchy, read/write enforcement, Owner controls, and real-stack verification are delivered.
 
 ## Goal
 
