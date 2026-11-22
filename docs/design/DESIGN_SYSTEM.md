@@ -1,6 +1,6 @@
 # Sonivo design system reference
 
-This is a navigation and usage guide, not a second token source. The implementation is authoritative: global tokens and themes are in `web/apps/app/src/index.css` and `web/apps/app/app/globals.css`; shared component chrome is in `web/apps/app/src/ui/shared-components.css`; reusable components live in `web/apps/app/src/ui/` and `web/apps/app/src/groups/ui/`.
+This is the implementation and usage guide for the canonical visual direction in root [`DESIGN.md`](../../DESIGN.md), not a second token source. The implementation is authoritative: global tokens and themes are in `web/apps/app/src/index.css` and `web/apps/app/app/globals.css`; shared component chrome is in `web/apps/app/src/ui/shared-components.css`; reusable components live in `web/apps/app/src/ui/` and `web/apps/app/src/groups/ui/`.
 
 ## Visual foundations
 

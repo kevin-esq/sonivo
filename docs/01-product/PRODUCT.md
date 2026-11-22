@@ -1,6 +1,6 @@
 # PRODUCT.md — Sonivo
 
-Product definition. Complements `docs/00-context/CONTEXT.md`.
+Canonical product requirements. This file complements [`CONTEXT.md`](../00-context/CONTEXT.md); root [`PRODUCT.md`](../../PRODUCT.md) supplies UI/UX redesign context and does not replace these requirements.
 
 **Status:** ACCEPTED ADRs 0001, 0005–0025. Phase 1–2.3 + 3.0–3.1 **CLOSED**. Song/Arrangement/Resource code not started (requires explicit implementation authorization).
 **Visual direction:** Defined by root [`DESIGN.md`](../../DESIGN.md) — "Apple Music immersive × Supabase precise", SonivoMark retained, light/dark day-1 (ADR-0043 ACCEPTED).

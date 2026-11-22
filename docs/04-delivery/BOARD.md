@@ -1,10 +1,12 @@
 # Delivery board
 
-**Status:** all tickets are **Backlog** proposals; none grants implementation authorization. Dependencies are blocking edges. “Risk” and “size” are initial estimates and need confirmation during ticket review.
+**Status:** ticket status is shown per row; none grants implementation authorization. Dependencies are blocking edges. “Risk” and “size” are initial estimates and need confirmation during ticket review.
+
+**T-101 overlap:** merged PR [#379](https://github.com/kevin-esq/sonivo/pull/379), merge commit `0357eb1`, already reconciled Phase 4 status across `CONTEXT.md`, `DEPLOYMENT.md`, and the RLS phase specification. T-101 records that work and covers document ownership only; no Phase 4 edits are repeated here.
 
 | ID | Phase | Title | Status | Depends on | Risk / size |
 |---|---:|---|---|---|---|
-| [T-101](tickets/T-101-doc-source-reconciliation.md) | 1 | Reconcile phase status and document ownership | Backlog | — | P0 · S · Low |
+| [T-101](tickets/T-101-doc-source-reconciliation.md) | 1 | Reconcile phase status and document ownership | In review | — | P0 · S · Low |
 | [T-102](tickets/T-102-translate-context-product.md) | 1 | Translate context/product documentation | Backlog | T-101 | P2 · M · Medium |
 | [T-103](tickets/T-103-translate-domain-architecture.md) | 1 | Translate domain/architecture documentation | Backlog | T-101 | P2 · L · High |
 | [T-104](tickets/T-104-translate-design-tooling.md) | 1 | Translate design/tooling guidance | Backlog | T-101 | P2 · M · Medium |
