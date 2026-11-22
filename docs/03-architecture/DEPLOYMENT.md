@@ -13,10 +13,12 @@ ADR-0049 (hosts/subdomains), ADR-0068 (email transport), ADR-0020 (CSRF).
 
 **FACT:** The owner confirms Render currently hosts production. Render's
 `sonivo` API service tracks `develop`, auto-deploys commits, uses the repository
-`Dockerfile`, and checks `/api/health`. PR #376 (`4f37747`) failed during Docker
-build because the embedded RLS verifier SQL was missing from the image build
-context; the last successful deployment remains PR #375 (`91ad173`). The owner
-reports `SONIVO_MIGRATE_ON_START=false`; `render.yaml`
+`Dockerfile`, and checks `/api/health`. PR #376 (`4f37747`) initially failed
+during Docker build because the embedded RLS verifier SQL was missing from the
+image build context. PR #377 (`f3d2183`) fixed the copy; Render reports that
+deployment live, and `/api/health/ready` returned HTTP 200 on 2026-11-22. The
+Production startup guard therefore passed against Render's configured database
+connection. The owner reports `SONIVO_MIGRATE_ON_START=false`; `render.yaml`
 matches. Render's service metadata does not expose the database connection
 string, which remains unread and unrecorded. The owner confirms the API uses
 Neon branch `staging` as its current production database.
@@ -36,15 +38,13 @@ active database before the production transaction. That copy and its compute
 endpoint were deleted after the rehearsal. Future schema changes must use the
 separate privileged migration procedure below, not API startup.
 
-**FACT (merged, not deployed):** PR #376 adds a Production startup check that
+**FACT (verified in staging):** PR #376 adds a Production startup check that
 runs the read-only runtime-principal and RLS-policy verifier before the API
 begins listening. Startup fails closed if the connection is not the constrained
 `sonivo_app` principal, a reviewed RLS table lacks forced RLS/policy coverage,
 or another verifier check fails. This check does not apply migrations and does
-not replace the privileged migration procedure. Its first Render build failed
-because the verifier SQL was missing from Docker's build context. The follow-up
-branch `fix/rls-startup-docker-resource` adds the SQL file to the build stage;
-verify a successful deployment and startup before treating the guard as active.
+not replace the privileged migration procedure. PR #377 fixed the Docker build
+context; the resulting Render deployment is live and readiness returned 200.
 
 **FACT:** Owner decision on 2026-11-21: keep Render auto-deploying from
 `develop` while the main product is being completed. After the product is ready,
@@ -330,12 +330,25 @@ parity migration; do not weaken the guard with a wildcard.
 
   Run the role-creation statement only when `sonivo_app` is absent. If it
   already exists, inspect and correct its attributes instead of recreating it.
-- **Production schema and principal rollout order:**
-  1. From the approved release source, a controlled one-shot deployment job
-     applies `dotnet ef database update` with `SONIVO_MIGRATION_CONNECTION`.
-     The job uses the migration/ownership credential; it is never added to the
-     API container or its `.env`.
-  2. On Sonivo's production database, remove the default `PUBLIC` temporary
+- **Production schema and principal rollout order (PROPOSAL):**
+  1. Review the migration and classify it as additive/backward compatible or
+     contract/destructive. Test `Up` and, where safe, `Down` on an isolated
+     database copy. For a contract change, split expansion and contraction into
+     separate releases; do not deploy a schema that the currently live API
+     cannot tolerate.
+  2. Before merging API code that depends on a new schema, use a controlled
+     one-shot operator job from the reviewed release source to apply
+     `dotnet ef database update` with `SONIVO_MIGRATION_CONNECTION`. Use the
+     migration/ownership credential; never add it to the API container or its
+     `.env`. Render auto-deploys `develop`, so a required migration is an
+     explicit pre-merge gate, not an API startup action.
+     If a compatible additive migration has already applied but its API PR is
+     not merged, leave the unused schema in place, record the migration, and
+     do not run `Down` automatically. Remove it only through an owner-reviewed
+     rollback after confirming no deployed code depends on it. If a migration
+     fails partway, inspect `__EFMigrationsHistory` and the actual schema before
+     any retry or `Down`; never assume the whole batch committed or rolled back.
+  3. On Sonivo's production database, remove the default `PUBLIC` temporary
      table capability and grant the runtime role access to this database while
      connected as its owner:
 
@@ -401,34 +414,47 @@ parity migration; do not weaken the guard with a wildcard.
        AND datname <> current_database()
        AND pid <> pg_backend_pid();
      ```
-  3. After migrations create the complete schema, run
+  4. After migrations create the complete schema, run
      `scripts/db/grant-runtime-privileges.sql` as a principal allowed to grant
      the reviewed DML privileges to `sonivo_app`.
-  4. Load the exact runtime connection string intended for the API from its
+  5. Load the exact runtime connection string intended for the API from its
      secret store and run `scripts/db/verify-runtime-principal.sql` through that
      connection. Its PostgreSQL `session_user` and `current_user` must both be
      `sonivo_app`; role-attribute, database-privilege, schema/ownership,
      inheritance, and migration-history checks must pass
      before API rollout.
-  5. Configure the API with that same constrained runtime credential. The
+  6. Configure the API with that same constrained runtime credential. The
      connection string uses `SSL Mode=VerifyFull`, so Npgsql verifies both the
      server certificate and host name ([Npgsql SSL guidance](https://www.npgsql.org/doc/security.html));
      never set `Trust Server Certificate=true`. Leave
      `SONIVO_MIGRATE_ON_START` unset in Production.
+  7. Merge the reviewed API change only after the privileged migration, grant
+     review, and runtime verifier pass. After Render auto-deploy, record the
+     commit and migration IDs, confirm the startup log says
+     `RLS runtime principal and forced-policy verification passed.`, and check
+     `/api/health/ready` before treating the rollout as complete.
 - **Automation status:** this repository currently has CI migration jobs for
   ephemeral PostgreSQL only; it does not contain a production migration
   workflow. Production schema rollout therefore remains an operator-run,
-  one-shot deployment step. Do not treat the CI job or the API startup as that
+  one-shot deployment step. The pre-merge ordering above is an operator gate;
+  CI does not enforce it. Do not treat the CI job or the API startup as the
   production migration job.
-- **RLS incident response (PROPOSAL):** if readiness or API requests fail after
-  a schema rollout, do not disable RLS or set `SONIVO_MIGRATE_ON_START=true`.
-  Stop further rollout. Record deployment ID, migration IDs, and the verifier's
-  secret-safe principal/policy summary. If the prior API image is compatible
-  with the applied schema, restore that image while preserving the schema. If
-  not, prepare a forward migration and test it on an isolated database copy.
-  Use Neon point-in-time restore only after an owner-approved recovery point;
-  never restore production automatically. Rehearse this path before enabling
-  RLS on the production database.
+- **RLS incident response (PROPOSAL):** if image build fails, confirm the last
+  live Render commit and readiness before retrying; do not change the database.
+  If startup verification or readiness fails after deploy, stop merges and
+  migrations. Record the deploy ID, commit, migration IDs, timestamps, and
+  secret-safe verifier output; never copy connection strings or credentials to
+  logs or tickets. Confirm the active Render deployment before taking action.
+  If the previous API image is compatible with the schema, roll back the API
+  while preserving the schema. If it is not compatible, prepare and test a
+  forward-fix migration on an isolated copy. Use Neon point-in-time restore only
+  after an owner-approved recovery point and explicit assessment of the data-loss
+  window; never restore production automatically. After recovery, rerun the
+  runtime verifier, readiness check, and tenant-isolation smoke checks. Before
+  closing T-4.2.07, rehearse the failure and recovery decision path on an
+  isolated database copy; no production fault injection is permitted. The
+  local recovery test validates startup denial and recovery after restoring
+  forced RLS; it does not exercise Render rollback or Neon point-in-time restore.
 - **R2:** create `sonivo-prod` and wire `R2__*` on the VPS; staging keeps its own
   bucket. Buckets are never shared across environments.
 - **Backups:** Neon point-in-time restore; R2 versioning/lifecycle as needed.

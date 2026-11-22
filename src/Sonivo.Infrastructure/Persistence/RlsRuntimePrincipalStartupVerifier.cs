@@ -22,6 +22,7 @@ public sealed class RlsRuntimePrincipalStartupVerifier(
             using var reader = new StreamReader(stream);
             var script = await reader.ReadToEndAsync(cancellationToken);
             await db.Database.ExecuteSqlRawAsync(script, cancellationToken);
+            logger.LogInformation("RLS runtime principal and forced-policy verification passed.");
         }
         catch (Exception exception)
         {

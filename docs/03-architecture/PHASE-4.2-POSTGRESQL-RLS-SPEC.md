@@ -39,12 +39,12 @@ unchanged.
 **Status:** Local/CI implementation gates for table inventory, transaction
 scope, policies, isolation tests, and exception flows are complete. The owner
 confirms Render production uses Neon `staging`; a Neon connection as
-`sonivo_app` passed the runtime-role verifier there. The latest migration is
-applied; production readiness returns 200. T-4.2.07 remains active for review
-of the operational checkpoint and migration procedure. PR #376 merged the
-Production startup check, but its first Render Docker build failed because the
-verifier SQL was outside the image build context. The follow-up branch
-`fix/rls-startup-docker-resource` fixes that copy; the guard is not deployed yet.
+`sonivo_app` passed the runtime-role verifier there. PR #377 corrected the
+Docker image build context; Render reports commit `f3d2183` live and
+`/api/health/ready` returned HTTP 200 on 2026-11-22. The Production startup
+verifier therefore passed against Render's configured connection. T-4.2.07
+remains open for the documented migration/recovery procedure and its isolated
+rehearsal.
 
 - The owner confirms Render is the current production host and SmarterASP.NET
   is a future destination. Render production uses Neon branch `staging`. The
@@ -75,12 +75,17 @@ verifier SQL was outside the image build context. The follow-up branch
   migration and runtime-verification ordering.
 - **T-4.2.07 gate:** future migrations must use the separate privileged
   deployment procedure in `DEPLOYMENT.md`; verify runtime principal and policy
-  coverage without exposing credentials; the branch-local Production startup
-  verifier now rejects an unsafe principal or missing forced-RLS policy before
-  listening. Define migration ordering before the next schema change; confirm
-  the guard on the deployed Render service and finish incident/recovery guidance
-  before marking the ticket complete. Production release through `main` is
-  deferred until the product is ready.
+  coverage without exposing credentials; the Production startup verifier now
+  rejects an unsafe principal or missing forced-RLS policy before listening,
+  logs a secret-safe success event, and has passed in Render after PRs #376–377.
+  An isolated PostgreSQL rehearsal confirmed unsafe-policy startup rejection
+  and readiness recovery after restoring forced RLS. The proposed deployment
+  runbook sets schema-first ordering for compatible migrations, an
+  operator-controlled pre-merge gate, and forward fixes for incompatible
+  schema. Render rollback and Neon point-in-time restore remain operator
+  runbooks, not locally simulated actions. Full solution test completion and
+  owner review remain before closing this ticket. Production release through
+  `main` is deferred until the product is ready.
 
 The API image already exists and Render runs it as Docker. Do not enable
 migration on API startup. Future schema changes remain gated on the separate

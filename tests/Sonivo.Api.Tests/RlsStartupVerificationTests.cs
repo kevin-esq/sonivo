@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace Sonivo.Api.Tests;
@@ -41,11 +43,15 @@ public sealed class RlsStartupVerificationTests
         var connectionString = Environment.GetEnvironmentVariable("SONIVO_RLS_TEST_PG");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
-        using var factory = CreateProductionFactory(connectionString);
+        using var logs = new CapturingLoggerProvider();
+        using var factory = CreateProductionFactory(connectionString, logs);
         using var client = factory.CreateClient();
         using var response = await client.GetAsync("/api/health/ready");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(logs.Messages, message =>
+            message == "RLS runtime principal and forced-policy verification passed.");
+        Assert.DoesNotContain(logs.Messages, message => message.Contains(connectionString, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -81,14 +87,65 @@ public sealed class RlsStartupVerificationTests
 
         Assert.NotNull(exception);
         Assert.Contains("RLS runtime verification failed", exception.ToString(), StringComparison.Ordinal);
+
+        using var recoveredFactory = CreateProductionFactory(runtimeConnectionString);
+        using var recoveredClient = recoveredFactory.CreateClient();
+        using var recoveredResponse = await recoveredClient.GetAsync("/api/health/ready");
+
+        Assert.Equal(HttpStatusCode.OK, recoveredResponse.StatusCode);
     }
 
-    private static WebApplicationFactory<Program> CreateProductionFactory(string connectionString) =>
+    private static WebApplicationFactory<Program> CreateProductionFactory(
+        string connectionString,
+        ILoggerProvider? loggerProvider = null) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Production");
             builder.UseSetting("UseInMemoryDatabase", "false");
             builder.UseSetting("SONIVO_MIGRATE_ON_START", "false");
             builder.UseSetting("ConnectionStrings:Default", connectionString);
+            if (loggerProvider is not null)
+            {
+                builder.ConfigureLogging(logging => logging.AddProvider(loggerProvider));
+            }
         });
+
+    private sealed class CapturingLoggerProvider : ILoggerProvider
+    {
+        private readonly ConcurrentQueue<string> _messages = new();
+
+        public IReadOnlyCollection<string> Messages => _messages.ToArray();
+
+        public ILogger CreateLogger(string categoryName) => new CapturingLogger(this, categoryName);
+
+        public void Dispose()
+        {
+        }
+
+        private void Capture(string categoryName, LogLevel logLevel, string message)
+        {
+            if (categoryName == "Sonivo.Infrastructure.Persistence.RlsRuntimePrincipalStartupVerifier"
+                && logLevel == LogLevel.Information)
+            {
+                _messages.Enqueue(message);
+            }
+        }
+
+        private sealed class CapturingLogger(CapturingLoggerProvider provider, string categoryName) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => logLevel == LogLevel.Information;
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                provider.Capture(categoryName, logLevel, formatter(state, null));
+            }
+        }
+    }
 }
