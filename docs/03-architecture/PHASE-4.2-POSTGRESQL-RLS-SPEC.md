@@ -41,7 +41,9 @@ scope, policies, isolation tests, and exception flows are complete. The owner
 confirms Render production uses Neon `staging`; a Neon connection as
 `sonivo_app` passed the runtime-role verifier there. The latest migration is
 applied; production readiness returns 200. T-4.2.07 remains active for review
-of the operational checkpoint and migration procedure.
+of the operational checkpoint and migration procedure. The local branch
+`feat/t-4-2-07-startup-verification` now adds a Production startup check that
+runs the verifier before the API listens. It is not merged or deployed.
 
 - The owner confirms Render is the current production host and SmarterASP.NET
   is a future destination. Render production uses Neon branch `staging`. The
@@ -72,10 +74,12 @@ of the operational checkpoint and migration procedure.
   migration and runtime-verification ordering.
 - **T-4.2.07 gate:** future migrations must use the separate privileged
   deployment procedure in `DEPLOYMENT.md`; verify runtime principal and policy
-  coverage without exposing credentials; define migration ordering before the
-  next schema change; finish incident and recovery guidance before marking the
-  ticket complete. Production release through `main` is deferred until the
-  product is ready.
+  coverage without exposing credentials; the branch-local Production startup
+  verifier now rejects an unsafe principal or missing forced-RLS policy before
+  listening. Define migration ordering before the next schema change; confirm
+  the guard on the deployed Render service and finish incident/recovery guidance
+  before marking the ticket complete. Production release through `main` is
+  deferred until the product is ready.
 
 The API image already exists and Render runs it as Docker. Do not enable
 migration on API startup. Future schema changes remain gated on the separate

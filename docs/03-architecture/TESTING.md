@@ -19,6 +19,15 @@ Engineering rule (AGENTS): RED → GREEN → REVIEW when implementation is appro
 
 InMemory remains a **fast API test seam**. It does **not** replace PostgreSQL integration coverage.
 
+Production startup RLS checks are covered by
+`tests/Sonivo.Api.Tests/RlsStartupVerificationTests.cs`. These tests use
+`SONIVO_TEST_PG` as the privileged owner connection and
+`SONIVO_RLS_TEST_PG` as the constrained `sonivo_app` connection to an isolated
+PostgreSQL database. They verify Production rejects InMemory, rejects the
+privileged principal, rejects a reviewed table without forced RLS, and serves
+readiness with the constrained principal. Keep these connection strings local;
+do not use production credentials in tests.
+
 ---
 
 ## Playwright policy (binding)

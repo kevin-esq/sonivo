@@ -42,4 +42,10 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\scripts\db\verify-runtime-principal.sql">
+      <LogicalName>Sonivo.Infrastructure.Persistence.verify-runtime-principal.sql</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>

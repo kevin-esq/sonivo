@@ -437,6 +437,19 @@ if (!app.Configuration.GetValue("UseInMemoryDatabase", false) && app.Configurati
     db.Database.Migrate();
 }
 
+if (app.Environment.IsProduction())
+{
+    if (app.Configuration.GetValue("UseInMemoryDatabase", false))
+    {
+        throw new InvalidOperationException("UseInMemoryDatabase is not allowed in Production.");
+    }
+
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider
+        .GetRequiredService<RlsRuntimePrincipalStartupVerifier>()
+        .VerifyAsync(CancellationToken.None);
+}
+
 app.UseExceptionHandler();
 var apiErrorLogger = app.Services.GetRequiredService<ILoggerFactory>()
     .CreateLogger("Sonivo.Api.ErrorResponses");

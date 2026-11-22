@@ -33,6 +33,7 @@ public static class DependencyInjection
 
         services.AddScoped<GroupChangeInterceptor>();
         services.AddScoped<BillingWriteInterceptor>();
+        services.AddScoped<RlsRuntimePrincipalStartupVerifier>();
         services.AddScoped<IGroupDatabaseScope, EfGroupDatabaseScope>();
         services.AddScoped<IGroupDataOperation, EfGroupDataOperation>();
         // Default no-op real-time transport; the API replaces it with SignalR.

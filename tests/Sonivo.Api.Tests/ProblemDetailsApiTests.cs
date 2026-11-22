@@ -47,9 +47,9 @@ public sealed class ProblemDetailsApiTests : IClassFixture<SonivoApiFactory>
     }
 
     [Fact]
-    public async Task Production_api_fallback_adds_code_and_support_id_without_changing_detail()
+    public async Task Nondevelopment_api_fallback_adds_code_and_support_id_without_changing_detail()
     {
-        using var factory = _factory.WithWebHostBuilder(builder => builder.UseEnvironment("Production"));
+        using var factory = _factory.WithWebHostBuilder(builder => builder.UseEnvironment("Staging"));
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync("/api/no-such-endpoint");
