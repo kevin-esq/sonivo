@@ -6,6 +6,8 @@
 
 UseNpgsql lacks EnableRetryOnFailure; RLS uses explicit transaction and transaction-local set_config. See [recommendation verification](../RECOMMENDATIONS-VERIFICATION.md) and [phase 3](../phases/PHASE-3-RESILIENCE.md).
 
+**T-401 dependency evidence:** T-401 adds PostgreSQL coverage for Group context staying transaction-local across commit and rollback on one reused backend connection, with fail-closed reads and cross-Group write denial. It does not test transient database faults or retry behavior; those remain in this ticket's scope.
+
 ## Exact scope
 
 Test faults; retry whole idempotent unit only. Preserve transaction; do not enable globally.

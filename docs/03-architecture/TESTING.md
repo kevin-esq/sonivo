@@ -28,6 +28,19 @@ privileged principal, rejects a reviewed table without forced RLS, and serves
 readiness with the constrained principal. Keep these connection strings local;
 do not use production credentials in tests.
 
+Transaction-pooler reuse is covered by
+`RlsPolicyIntegrationTests.Runtime_role_does_not_leak_group_context_across_transactions_on_reused_connection`.
+It reuses one open physical Npgsql connection across committed, rolled-back, and
+subsequent Group-scoped transactions. The test checks backend PID stability,
+fail-closed reads without context, malformed Group context, cross-Group read and
+write denial, and the constrained runtime role. This simulates the backend reuse
+relevant to transaction pooling; it does not run PgBouncer or verify a deployed
+pooler configuration. Run it with the isolated PostgreSQL owner and runtime
+connections used by CI, filtered to the test name above.
+`RlsHubInvocationIntegrationTests.Group_hub_invocation_uses_runtime_scope_and_rejects_a_nonmember`
+also verifies the SignalR transaction filter sets and clears request scope.
+It does not test two Group hub invocations on the same backend connection.
+
 ---
 
 ## Playwright policy (binding)

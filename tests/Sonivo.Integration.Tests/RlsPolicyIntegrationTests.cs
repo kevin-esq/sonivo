@@ -135,6 +135,160 @@ public sealed class RlsPolicyIntegrationTests
     }
 
     [Fact]
+    public async Task Runtime_role_does_not_leak_group_context_across_transactions_on_reused_connection()
+    {
+        var ownerConnectionString = Environment.GetEnvironmentVariable("SONIVO_TEST_PG");
+        var runtimeConnectionString = Environment.GetEnvironmentVariable("SONIVO_RLS_TEST_PG");
+        Assert.False(string.IsNullOrWhiteSpace(ownerConnectionString),
+            "SONIVO_TEST_PG must point to an isolated PostgreSQL test database.");
+        Assert.False(string.IsNullOrWhiteSpace(runtimeConnectionString),
+            "SONIVO_RLS_TEST_PG must point to the constrained runtime login on the isolated PostgreSQL test database.");
+
+        var now = DateTimeOffset.UtcNow;
+        var userA = Guid.NewGuid();
+        var userB = Guid.NewGuid();
+        var groupA = Group.Create($"RLS pooler A {Guid.NewGuid():N}", now);
+        var groupB = Group.Create($"RLS pooler B {Guid.NewGuid():N}", now);
+        var ownerOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(ownerConnectionString)
+            .Options;
+        await using (var ownerDb = new SonivoDbContext(ownerOptions))
+        {
+            await ownerDb.Database.MigrateAsync();
+            ownerDb.Users.AddRange(User(userA), User(userB));
+            ownerDb.Groups.AddRange(groupA, groupB);
+            ownerDb.Memberships.AddRange(
+                Membership.CreateOwner(groupA.Id, userA, now),
+                Membership.CreateOwner(groupB.Id, userB, now));
+            await ownerDb.SaveChangesAsync();
+        }
+
+        // Reusing one physical connection models sequential transactions on a transaction pooler's backend.
+        await using var runtime = new NpgsqlConnection(runtimeConnectionString);
+        var runtimeOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(runtime)
+            .Options;
+        await using var runtimeDb = new SonivoDbContext(runtimeOptions);
+        await runtimeDb.Database.OpenConnectionAsync();
+        var scope = new EfGroupDatabaseScope(runtimeDb);
+        var backendPid = await ReadBackendPidAsync(runtime);
+        Assert.True(await RuntimeRoleIsConstrainedAsync(runtime));
+
+        await using (var transaction = await runtimeDb.Database.BeginTransactionAsync())
+        {
+            await scope.SetAuthenticatedUserAsync(userA, CancellationToken.None);
+            await scope.SetVerifiedGroupAsync(groupA.Id, CancellationToken.None);
+            var dbTransaction = (NpgsqlTransaction)transaction.GetDbTransaction();
+            Assert.Equal(1, await CountGroupAsync(runtime, dbTransaction, groupA.Id));
+            Assert.Equal(0, await CountGroupAsync(runtime, dbTransaction, groupB.Id));
+            Assert.Equal(1, await UpdateGroupNameAsync(runtime, dbTransaction, groupA.Id));
+            Assert.Equal(0, await UpdateGroupNameAsync(runtime, dbTransaction, groupB.Id));
+            await transaction.CommitAsync();
+        }
+
+        Assert.Equal(backendPid, await ReadBackendPidAsync(runtime));
+        await AssertNoTenantContextAsync(runtime);
+        Assert.Equal(0, await CountGroupsWithoutContextAsync(runtime));
+
+        await using (var transaction = await runtimeDb.Database.BeginTransactionAsync())
+        {
+            await scope.SetAuthenticatedUserAsync(userB, CancellationToken.None);
+            await scope.SetVerifiedGroupAsync(groupB.Id, CancellationToken.None);
+            var dbTransaction = (NpgsqlTransaction)transaction.GetDbTransaction();
+            Assert.Equal(0, await CountGroupAsync(runtime, dbTransaction, groupA.Id));
+            Assert.Equal(1, await CountGroupAsync(runtime, dbTransaction, groupB.Id));
+            Assert.Equal(0, await UpdateGroupNameAsync(runtime, dbTransaction, groupA.Id));
+            Assert.Equal(1, await UpdateGroupNameAsync(runtime, dbTransaction, groupB.Id));
+            await transaction.RollbackAsync();
+        }
+
+        Assert.Equal(backendPid, await ReadBackendPidAsync(runtime));
+        await AssertNoTenantContextAsync(runtime);
+        Assert.Equal(0, await CountGroupsWithoutContextAsync(runtime));
+
+        await using (var transaction = await runtimeDb.Database.BeginTransactionAsync())
+        {
+            await scope.SetAuthenticatedUserAsync(userA, CancellationToken.None);
+            await using var setMalformedGroup = new NpgsqlCommand(
+                "SELECT set_config('sonivo.group_id', 'not-a-guid', true)",
+                runtime,
+                (NpgsqlTransaction)transaction.GetDbTransaction());
+            await setMalformedGroup.ExecuteNonQueryAsync();
+            Assert.Equal(0, await CountGroupAsync(
+                runtime,
+                (NpgsqlTransaction)transaction.GetDbTransaction(),
+                groupA.Id));
+            await transaction.CommitAsync();
+        }
+
+        await AssertNoTenantContextAsync(runtime);
+        Assert.Equal(0, await CountGroupsWithoutContextAsync(runtime));
+        await runtimeDb.Database.CloseConnectionAsync();
+    }
+
+    private static async Task<bool> RuntimeRoleIsConstrainedAsync(NpgsqlConnection connection)
+    {
+        await using var command = new NpgsqlCommand("""
+            SELECT session_user = current_user
+               AND current_user = 'sonivo_app'
+               AND NOT r.rolsuper
+               AND NOT r.rolbypassrls
+            FROM pg_catalog.pg_roles AS r
+            WHERE r.rolname = current_user
+            """, connection);
+        return (bool)(await command.ExecuteScalarAsync())!;
+    }
+
+    private static async Task<int> ReadBackendPidAsync(NpgsqlConnection connection)
+    {
+        await using var command = new NpgsqlCommand("SELECT pg_backend_pid()", connection);
+        return (int)(await command.ExecuteScalarAsync())!;
+    }
+
+    private static async Task<int> CountGroupAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        Guid groupId)
+    {
+        await using var command = new NpgsqlCommand(
+            "SELECT count(*) FROM public.\"Groups\" WHERE \"Id\" = @group_id",
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("group_id", groupId);
+        return checked((int)(long)(await command.ExecuteScalarAsync())!);
+    }
+
+    private static async Task<int> UpdateGroupNameAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        Guid groupId)
+    {
+        await using var command = new NpgsqlCommand(
+            "UPDATE public.\"Groups\" SET \"Name\" = \"Name\" WHERE \"Id\" = @group_id",
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("group_id", groupId);
+        return await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<int> CountGroupsWithoutContextAsync(NpgsqlConnection connection)
+    {
+        await using var command = new NpgsqlCommand("SELECT count(*) FROM public.\"Groups\"", connection);
+        return checked((int)(long)(await command.ExecuteScalarAsync())!);
+    }
+
+    private static async Task AssertNoTenantContextAsync(NpgsqlConnection connection)
+    {
+        await using var command = new NpgsqlCommand("""
+            SELECT current_setting('sonivo.user_id', true), current_setting('sonivo.group_id', true)
+            """, connection);
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.True(string.IsNullOrEmpty(reader.IsDBNull(0) ? null : reader.GetString(0)));
+        Assert.True(string.IsNullOrEmpty(reader.IsDBNull(1) ? null : reader.GetString(1)));
+    }
+
+    [Fact]
     public async Task Arrangement_detail_verifies_membership_before_loading_group_scoped_rows()
     {
         var ownerConnectionString = Environment.GetEnvironmentVariable("SONIVO_TEST_PG");

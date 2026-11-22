@@ -23,7 +23,7 @@
 | [T-303](tickets/T-303-database-retry-rls.md) | 3 | Prove safe database retry boundaries under RLS | Backlog | T-401 | P1 · M · High |
 | [T-304](tickets/T-304-worker-lifecycle.md) | 3 | Map worker durability and recycle behavior | Backlog | T-501 | P1 · M · High |
 | [T-305](tickets/T-305-delivery-observability.md) | 3 | Decide durable notifications and operational telemetry | Backlog | — | P2 · M · High |
-| [T-401](tickets/T-401-rls-pooler-tests.md) | 4 | Add transaction-pooler RLS regression coverage | Backlog | — | P0 · M · High |
+| [T-401](tickets/T-401-rls-pooler-tests.md) | 4 | Add transaction-pooler RLS regression coverage | In review | — | P0 · M · High |
 | [T-402](tickets/T-402-migration-release-gate.md) | 4 | Add privileged migration release gate | Backlog | T-501 | P1 · M · High |
 | [T-403](tickets/T-403-environment-secret-map.md) | 4 | Document environment and secret ownership | Backlog | T-501 | P2 · S · Medium |
 | [T-404](tickets/T-404-neon-recovery-policy.md) | 4 | Set Neon branch, backup, and restore policy | Backlog | T-501 | P1 · M · High |
