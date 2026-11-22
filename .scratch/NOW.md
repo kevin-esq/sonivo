@@ -9,7 +9,7 @@
 **FACT:** T-4.2.07 PR #378 merged as `b31f607`. Render deployment `dep-dc1flam417fc73bgh2kg` is live; readiness returned 200 and logs recorded the verifier success event. Local Release suite passed 979/979; build passed (10 projects, 0 errors, 3 NU1510 warnings). PR #378 backend, frontend, SCA, CodeQL, and Analyze checks passed; Playwright was pending at last query and no frontend behavior changed.
 **FACT:** T-4.2.04–07 rollout gates are complete; T-4.2.02 is verified against Render's actual configured principal. Migration ordering remains manual and is not enforced by CI or Render. Isolated migration `Up`/`Down` and API startup-failure/recovery rehearsals passed; production fault injection, Render image rollback, and Neon PITR were not performed.
 **Separate backlog:** 19 open Dependabot PRs target `main`; no GitHub issues are open. These dependency updates are outside this phase-closeout PR. The owner deferred the `main` cutover until the product is ready.
-**Implementation:** COMPLETE locally; documentation only. **Human approval:** APPROVED for one PR. **Git checkpoint:** PENDING. **Remote:** NOT PUSHED. **CI:** NOT RUN for this documentation PR.
+**Implementation:** COMPLETE. **Human approval:** APPROVED. **Git checkpoint:** COMMITTED (`797e9b6`). **Remote:** PUSHED; PR #379 opened against `develop`. **CI:** PENDING.
 
 ## T-4.2.06 — Public, bootstrap, realtime, and background RLS flows
 
