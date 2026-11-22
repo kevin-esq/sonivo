@@ -17,9 +17,9 @@
 **Implementation:** COMPLETE. Clarified canonical product requirements vs. redesign context and canonical visual direction vs. implementation guide. Updated T-101 and BOARD.md; no file moves, translations, or product-code changes.
 **Validation:** Relative Markdown links in changed files pass; `git diff --check` passes; `dotnet build Sonivo.slnx --no-restore` passes (10 projects, 0 errors, 4 warnings). No tests or UI builds run.
 **Human approval:** APPROVED for this documentation ticket, local commits, push, and PR creation.
-**Git checkpoint:** COMMITTED (`fbc98b1`, `e13810d`; direct-to-develop checkpoint pending). **Remote:** prior remote branch was deleted after PR #381 merged into the plan branch.
-**PR:** #381 merged into `docs/architecture-multiclient-plan`, not `develop`. This branch contains only the T-101 delta from merge base `126931c`; follow-up PR to `develop` is pending.
-**CI:** NOT RUN for the follow-up PR.
+**Git checkpoint:** COMMITTED (`fbc98b1`, `e13810d`, `cd53db6`; follow-up PR checkpoint pending). **Remote:** PUSHED to `origin/docs/t-101-doc-source-reconciliation`.
+**PR:** [#382](https://github.com/kevin-esq/sonivo/pull/382) is open against `develop`. It carries only the T-101 delta from merge base `126931c`; #381 remains merged into the plan branch only.
+**CI:** PENDING; review PR #382 checks.
 **Open question:** `docs/01-product/PRODUCT.md` still says Song/Arrangement/Resource code has not started; assess a separate status correction.
 
 ## Phase 4 closeout status reconciliation
