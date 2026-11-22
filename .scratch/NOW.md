@@ -1,5 +1,13 @@
 # NOW — current work and Git checkpoint
 
+## Proposed multi-client architecture plan
+
+**Updated:** 2026-11-22. **Worktree:** `P:\repos\sonivo-architecture-plan`. **Branch:** `docs/architecture-multiclient-plan`, based on current `origin/develop` at `0357eb1a779a5e051e89a97ec6fe05cbc6e1b36c`.
+**Authorization:** Owner requested Phase 0 analysis, documentation, ticket files, local commits, push, and one PR. No product implementation, file moves, provider changes, or PR merge are authorized.
+**Scope:** Proposed R1–R7 verification, nine phases, individual backlog tickets, six non-binding decision drafts, and index/checkpoint links. See [`docs/04-delivery/README.md`](../docs/04-delivery/README.md), [`MASTER-PLAN.md`](../docs/04-delivery/MASTER-PLAN.md), and [`BOARD.md`](../docs/04-delivery/BOARD.md).
+**Implementation:** COMPLETE for Phase 0 documents only. **Human approval:** PENDING. **Git checkpoint:** PENDING. **Commit:** NO. **Push:** NO. **Uncommitted changes:** YES. **CI:** NOT RUN.
+**Next action:** self-check links, ticket metadata/dependencies, English content, and allowed-file scope; run the explicitly requested solution build; then commit, push, and open the documentation PR. Stop after opening it.
+
 ## Phase 4 closeout status reconciliation
 
 **Updated:** 2026-11-22. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `docs/phase-4-status-reconciliation`, based on merged PR #378 (`b31f607`).
