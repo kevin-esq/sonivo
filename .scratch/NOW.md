@@ -8,8 +8,10 @@
 **Implementation:** COMPLETE locally; isolated PostgreSQL validation and CI remain pending.
 **Validation:** `dotnet restore Sonivo.slnx` passed with existing project references; no package references changed. `dotnet build Sonivo.slnx --no-restore` passed (9 projects, 0 errors, 3 existing NU1510 warnings). The final focused RLS run ended 22 passed, 8 failed because `SONIVO_TEST_PG` / `SONIVO_RLS_TEST_PG` were unset and the default `sonivo_dev` database lacks reviewed runtime grants. The new test failed explicitly on the missing isolated owner connection. Local `sonivo_rls_reader` role is absent, `localhost:5434` is unavailable, and no database was changed. The integration assertions and mutation sanity check remain unverified against PostgreSQL.
 **Human approval:** APPROVED for this ticket's scope and publication.
-**Git checkpoint:** PENDING. **Commit:** NO. **Push:** NO. **Uncommitted changes:** YES. **Remote:** NOT PUSHED. **CI:** NOT RUN.
-**Next action:** finish diff review, commit, push, open one PR to `develop`, and verify CI against its isolated PostgreSQL service.
+**Git checkpoint:** COMMITTED (`d65cabf`, test and required docs). **Commit:** YES. **Push:** YES. **Uncommitted changes:** NO. **Remote:** PUSHED.
+**PR:** [#383](https://github.com/kevin-esq/sonivo/pull/383), open against `develop`.
+**CI:** RUNNING on `d65cabf` when checked: Backend build & tests, Analyze (C#), SCA gate, and Frontend build were in progress. Recheck after the scratch checkpoint commit.
+**Next action:** record the PR checkpoint, push it, then verify CI against the isolated PostgreSQL service.
 
 ## Proposed multi-client architecture plan
 
