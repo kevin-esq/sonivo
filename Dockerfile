@@ -25,6 +25,7 @@ COPY src/Sonivo.Infrastructure/Sonivo.Infrastructure.csproj src/Sonivo.Infrastru
 COPY src/Sonivo.Api/Sonivo.Api.csproj src/Sonivo.Api/
 RUN dotnet restore src/Sonivo.Api/Sonivo.Api.csproj
 COPY src/ src/
+COPY scripts/db/verify-runtime-principal.sql scripts/db/
 RUN dotnet publish src/Sonivo.Api/Sonivo.Api.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final

@@ -9,12 +9,14 @@ Canonical decisions: **ADR-0067** (Next.js BFF, host-based tenancy, handoff
 session) and **ADR-0069** (production topology). Related: ADR-0035 (R2),
 ADR-0049 (hosts/subdomains), ADR-0068 (email transport), ADR-0020 (CSRF).
 
-## Current operations — 2026-11-21
+## Current operations — 2026-11-22
 
 **FACT:** The owner confirms Render currently hosts production. Render's
 `sonivo` API service tracks `develop`, auto-deploys commits, uses the repository
-`Dockerfile`, and checks `/api/health`. The latest observed live deployment is
-`d6853c0`. The owner reports `SONIVO_MIGRATE_ON_START=false`; `render.yaml`
+`Dockerfile`, and checks `/api/health`. PR #376 (`4f37747`) failed during Docker
+build because the embedded RLS verifier SQL was missing from the image build
+context; the last successful deployment remains PR #375 (`91ad173`). The owner
+reports `SONIVO_MIGRATE_ON_START=false`; `render.yaml`
 matches. Render's service metadata does not expose the database connection
 string, which remains unread and unrecorded. The owner confirms the API uses
 Neon branch `staging` as its current production database.
@@ -34,14 +36,15 @@ active database before the production transaction. That copy and its compute
 endpoint were deleted after the rehearsal. Future schema changes must use the
 separate privileged migration procedure below, not API startup.
 
-**FACT (local branch, not deployed):** `feat/t-4-2-07-startup-verification`
-adds a Production startup check that runs the read-only runtime-principal and
-RLS-policy verifier before the API begins listening. Startup fails closed if
-the connection is not the constrained `sonivo_app` principal, a reviewed RLS
-table lacks forced RLS/policy coverage, or another verifier check fails. This
-check does not apply migrations and does not replace the privileged migration
-procedure. Verify the deployed Render startup after this change is merged and
-deployed; do not treat the local test as proof of production configuration.
+**FACT (merged, not deployed):** PR #376 adds a Production startup check that
+runs the read-only runtime-principal and RLS-policy verifier before the API
+begins listening. Startup fails closed if the connection is not the constrained
+`sonivo_app` principal, a reviewed RLS table lacks forced RLS/policy coverage,
+or another verifier check fails. This check does not apply migrations and does
+not replace the privileged migration procedure. Its first Render build failed
+because the verifier SQL was missing from Docker's build context. The follow-up
+branch `fix/rls-startup-docker-resource` adds the SQL file to the build stage;
+verify a successful deployment and startup before treating the guard as active.
 
 **FACT:** Owner decision on 2026-11-21: keep Render auto-deploying from
 `develop` while the main product is being completed. After the product is ready,
