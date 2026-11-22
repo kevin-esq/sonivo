@@ -41,9 +41,10 @@ scope, policies, isolation tests, and exception flows are complete. The owner
 confirms Render production uses Neon `staging`; a Neon connection as
 `sonivo_app` passed the runtime-role verifier there. The latest migration is
 applied; production readiness returns 200. T-4.2.07 remains active for review
-of the operational checkpoint and migration procedure. The local branch
-`feat/t-4-2-07-startup-verification` now adds a Production startup check that
-runs the verifier before the API listens. It is not merged or deployed.
+of the operational checkpoint and migration procedure. PR #376 merged the
+Production startup check, but its first Render Docker build failed because the
+verifier SQL was outside the image build context. The follow-up branch
+`fix/rls-startup-docker-resource` fixes that copy; the guard is not deployed yet.
 
 - The owner confirms Render is the current production host and SmarterASP.NET
   is a future destination. Render production uses Neon branch `staging`. The
