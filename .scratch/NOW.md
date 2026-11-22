@@ -9,6 +9,19 @@
 **PR:** [#380](https://github.com/kevin-esq/sonivo/pull/380) is open against `develop`; no merge was performed.
 **Next action:** owner reviews PR #380. Do not start Phase 1 until separately authorized.
 
+## T-101 — Document source reconciliation
+
+**Updated:** 2026-11-22. **Worktree:** `P:\repos\sonivo-architecture-plan`. **Branch:** `docs/t-101-doc-source-reconciliation`, based on `docs/architecture-multiclient-plan` at `126931c`.
+**Authorization:** Owner authorized T-101 documentation changes, local commits, one branch push, and one PR. No code changes or merge are authorized.
+**Overlap:** Merged PR #379 (`0357eb1`) already reconciled Phase 4 status in `CONTEXT.md`, `DEPLOYMENT.md`, and the RLS phase specification. This work did not repeat those edits.
+**Implementation:** COMPLETE. Clarified canonical product requirements vs. redesign context and canonical visual direction vs. implementation guide. Updated T-101 and BOARD.md; no file moves, translations, or product-code changes.
+**Validation:** Relative Markdown links in changed files pass; `git diff --check` passes; `dotnet build Sonivo.slnx --no-restore` passes (10 projects, 0 errors, 4 warnings). No tests or UI builds run.
+**Human approval:** APPROVED for this documentation ticket, local commits, push, and PR creation.
+**Git checkpoint:** COMMITTED (`fbc98b1`, `e13810d`, `cd53db6`; follow-up PR checkpoint pending). **Remote:** PUSHED to `origin/docs/t-101-doc-source-reconciliation`.
+**PR:** [#382](https://github.com/kevin-esq/sonivo/pull/382) is open against `develop`. It carries only the T-101 delta from merge base `126931c`; #381 remains merged into the plan branch only.
+**CI:** PENDING; review PR #382 checks.
+**Open question:** `docs/01-product/PRODUCT.md` still says Song/Arrangement/Resource code has not started; assess a separate status correction.
+
 ## Phase 4 closeout status reconciliation
 
 **Updated:** 2026-11-22. **Worktree:** `P:\repos\sonivo-arch`. **Branch:** `docs/phase-4-status-reconciliation`, based on merged PR #378 (`b31f607`).
