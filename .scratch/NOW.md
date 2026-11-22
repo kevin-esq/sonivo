@@ -1,5 +1,18 @@
 # NOW — current work and Git checkpoint
 
+## T-401 — Transaction-pooler RLS regression coverage
+
+**Updated:** 2026-11-22. **Worktree:** `P:\repos\sonivo-t401`. **Branch:** `test/t-401-rls-pooler-coverage`, based on `origin/develop` at `3f92c3e0acaef9584335ed5e84184cbd3dc0a672`.
+**Authorization:** Owner authorized T-401 test and required documentation changes, local commits, one branch push, and one PR. No production-code, database/provider, or merge changes are authorized.
+**Scope:** Added a PostgreSQL RLS test using `EfGroupDatabaseScope` over one open Npgsql connection. It checks constrained runtime role, stable backend PID, sequential Group A/B read/write isolation, context clearing after commit/rollback, fail-closed missing context, and malformed Group context. `TESTING.md` documents the simulation and its limit; T-303 records the proven dependency boundary.
+**Implementation:** COMPLETE locally; isolated PostgreSQL validation and CI remain pending.
+**Validation:** `dotnet restore Sonivo.slnx` passed with existing project references; no package references changed. `dotnet build Sonivo.slnx --no-restore` passed (9 projects, 0 errors, 3 existing NU1510 warnings). The final focused RLS run ended 22 passed, 8 failed because `SONIVO_TEST_PG` / `SONIVO_RLS_TEST_PG` were unset and the default `sonivo_dev` database lacks reviewed runtime grants. The new test failed explicitly on the missing isolated owner connection. Local `sonivo_rls_reader` role is absent, `localhost:5434` is unavailable, and no database was changed. The integration assertions and mutation sanity check remain unverified against PostgreSQL.
+**Human approval:** APPROVED for this ticket's scope and publication.
+**Git checkpoint:** COMMITTED (`d65cabf`, test and required docs). **Commit:** YES. **Push:** YES. **Uncommitted changes:** NO. **Remote:** PUSHED.
+**PR:** [#383](https://github.com/kevin-esq/sonivo/pull/383), open against `develop`.
+**CI:** RUNNING on `d65cabf` when checked: Backend build & tests, Analyze (C#), SCA gate, and Frontend build were in progress. Recheck after the scratch checkpoint commit.
+**Next action:** record the PR checkpoint, push it, then verify CI against the isolated PostgreSQL service.
+
 ## Proposed multi-client architecture plan
 
 **Updated:** 2026-11-22. **Worktree:** `P:\repos\sonivo-architecture-plan`. **Branch:** `docs/architecture-multiclient-plan`, based on current `origin/develop` at `0357eb1a779a5e051e89a97ec6fe05cbc6e1b36c`.
