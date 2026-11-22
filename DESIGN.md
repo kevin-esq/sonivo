@@ -1,6 +1,6 @@
 # DESIGN.md — Sonivo redesign visual world
 
-As-built visual system from ADR-0043 (ACCEPTED; waves W0–W5 shipped 2026-09-30). Current evidence: light/dark shell (`web/apps/app/src/index.css`), sidebar + bottom-tab `GroupWorkspace.tsx`, currentColor `SonivoMark`.
+Canonical visual direction from ADR-0043 (ACCEPTED; waves W0–W5 shipped 2026-09-30). The implementation and usage guide is [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md). Current evidence: light/dark shell (`web/apps/app/src/index.css`), sidebar + bottom-tab `GroupWorkspace.tsx`, currentColor `SonivoMark`.
 
 ---
 

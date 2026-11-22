@@ -1,8 +1,8 @@
 # PRODUCT.md — Sonivo
 
-Product truth for the UI/UX redesign. Complements `docs/00-context/CONTEXT.md` and `docs/01-product/PRODUCT.md`.
+UI/UX redesign context and product framing. The canonical product requirements live in [`docs/01-product/PRODUCT.md`](docs/01-product/PRODUCT.md); this file complements them and does not replace them.
 
-**Status:** follows ADR-0043 (PROPOSED). Binding only for ACCEPTED ADRs.
+**Status:** supplemental UI/UX context governed by ADR-0043 (ACCEPTED); cross-product product requirements remain canonical in `docs/01-product/PRODUCT.md`.
 
 ---
 

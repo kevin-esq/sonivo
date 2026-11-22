@@ -1,14 +1,14 @@
 # T-101 — Reconcile durable phase status and document ownership
 
-**Metadata:** phase 1; status **Backlog**; priority P0; size S; risk low; depends on None; blocks T-102, T-107; suggested owner Kevin.
+**Metadata:** phase 1; status **In review**; priority P0; size S; risk low; depends on None; blocks T-102, T-107; suggested owner Kevin.
 
 ## Context and why
 
-CONTEXT.md has stale Phase 4 wording against merged #378 and DEPLOYMENT.md. Root and docs PRODUCT/DESIGN files differ. See [recommendation verification](../RECOMMENDATIONS-VERIFICATION.md) and [phase 1](../phases/PHASE-1-HYGIENE.md).
+Merged PR #379 (merge commit `0357eb1`) reconciled the Phase 4 status in `CONTEXT.md`, `DEPLOYMENT.md`, and the RLS phase specification. T-101 records that overlap without repeating those changes. Remaining scope is document ownership: `docs/01-product/PRODUCT.md` is canonical product requirements; root `PRODUCT.md` is UI/UX redesign context; root `DESIGN.md` is the canonical visual direction; `docs/design/DESIGN_SYSTEM.md` is the implementation and usage guide. See [recommendation verification](../RECOMMENDATIONS-VERIFICATION.md) and [phase 1](../phases/PHASE-1-HYGIENE.md).
 
 ## Exact scope
 
-Compare status with merged evidence. Diff each pair and map links. Declare canonical source or distinct purpose; update only after review.
+Record the completed Phase 4 overlap from #379. Compare each PRODUCT/DESIGN pair and links, then clarify canonical source or distinct purpose with the smallest wording changes.
 
 ## Out of scope
 
@@ -16,18 +16,19 @@ No unrelated behavior, broad rename, new project, secret/provider mutation, or p
 
 ## Files/paths likely touched
 
-docs/00-context/CONTEXT.md; PRODUCT.md; docs/01-product/PRODUCT.md; DESIGN.md; docs/design/DESIGN_SYSTEM.md; docs/00-context/INDEX.md
+PRODUCT.md; docs/01-product/PRODUCT.md; DESIGN.md; docs/design/DESIGN_SYSTEM.md; docs/04-delivery/BOARD.md; .scratch/NOW.md
 
 ## Implementation plan
 
-1. Confirm source and dependencies on approved branch.
-2. Make smallest change satisfying acceptance criteria.
-3. Update canonical docs, BOARD.md, and .scratch/NOW.md only when status changes.
-4. Report contract, security, or scope questions before proceeding.
+1. Confirm merged PR #379 already reconciles Phase 4; do not repeat its edits.
+2. Confirm document roles from AGENTS.md, accepted ADR references, and existing document purpose.
+3. Make the smallest ownership clarification and record the overlap in BOARD.md.
+4. Update .scratch/NOW.md with the PR checkpoint after opening the PR.
+5. Report contract, security, or scope questions before proceeding.
 
 ## Acceptance criteria
 
-- [ ] Phase status consistent; each pair has declared ownership; links resolve; no requirements deleted.
+- [ ] Phase 4 overlap with #379 is recorded without duplicating its edits; each PRODUCT/DESIGN pair has declared ownership; links resolve; no requirements deleted.
 - [ ] No secret, personal data, localized UI copy, or unrelated file changes.
 - [ ] One small PR using the repository template.
 
@@ -47,7 +48,7 @@ Stop on ADR/phase conflict, public contract/security change, missing evidence, o
 
 ## Suggested branch and commits
 
-- Branch: docs/reconcile-doc-sources
+- Branch: docs/t-101-doc-source-reconciliation
 - Commit: docs(context): reconcile phase status and document ownership
 
 ## Definition of Done
