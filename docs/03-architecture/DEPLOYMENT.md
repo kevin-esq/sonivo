@@ -34,6 +34,15 @@ active database before the production transaction. That copy and its compute
 endpoint were deleted after the rehearsal. Future schema changes must use the
 separate privileged migration procedure below, not API startup.
 
+**FACT (local branch, not deployed):** `feat/t-4-2-07-startup-verification`
+adds a Production startup check that runs the read-only runtime-principal and
+RLS-policy verifier before the API begins listening. Startup fails closed if
+the connection is not the constrained `sonivo_app` principal, a reviewed RLS
+table lacks forced RLS/policy coverage, or another verifier check fails. This
+check does not apply migrations and does not replace the privileged migration
+procedure. Verify the deployed Render startup after this change is merged and
+deployed; do not treat the local test as proof of production configuration.
+
 **FACT:** Owner decision on 2026-11-21: keep Render auto-deploying from
 `develop` while the main product is being completed. After the product is ready,
 move the production release flow to `main` with the required production

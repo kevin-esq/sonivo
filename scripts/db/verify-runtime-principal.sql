@@ -36,6 +36,34 @@ BEGIN
         RAISE EXCEPTION 'Connected principal % has unsafe role attributes', current_user;
     END IF;
 
+    IF EXISTS (
+        SELECT 1
+        FROM unnest(ARRAY[
+            'Groups', 'Memberships', 'GroupSlugHistory', 'GroupBranding',
+            'GroupRoles', 'Invitations', 'GroupAuditLog', 'ResourceGrants',
+            'Songs', 'SongFavorites', 'Arrangements', 'Resources', 'Setlists',
+            'SetlistItems', 'Events', 'EventSetlistItems', 'Rsvps', 'Tasks',
+            'GroupOwnershipTransfers', 'BillingLegacyGroupNotices',
+            'Notifications', 'AccountAudit'
+        ]::text[]) AS required(table_name)
+        LEFT JOIN pg_catalog.pg_namespace AS schema
+            ON schema.nspname = 'public'
+        LEFT JOIN pg_catalog.pg_class AS relation
+            ON relation.relname = required.table_name
+           AND relation.relnamespace = schema.oid
+        WHERE schema.oid IS NULL
+           OR NOT relation.relrowsecurity
+           OR NOT relation.relforcerowsecurity
+           OR NOT EXISTS (
+                SELECT 1
+                FROM pg_catalog.pg_policies AS policy
+                WHERE policy.schemaname = 'public'
+                  AND policy.tablename = required.table_name
+           )
+    ) THEN
+        RAISE EXCEPTION 'Required forced RLS policy coverage is incomplete';
+    END IF;
+
     IF has_schema_privilege(current_user, 'public', 'CREATE') THEN
         RAISE EXCEPTION 'Connected principal % can create objects in public', current_user;
     END IF;
