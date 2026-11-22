@@ -13,6 +13,11 @@ This is the Obsidian entry point for durable project knowledge. It is a navigati
 
 ## Architecture and delivery
 
+- [Proposed multi-client architecture delivery plan](../04-delivery/README.md)
+- [Recommendation verification](../04-delivery/RECOMMENDATIONS-VERIFICATION.md)
+- [Master plan and owner decisions](../04-delivery/MASTER-PLAN.md)
+- [Delivery board](../04-delivery/BOARD.md)
+
 - [Architecture decisions](../03-architecture/DECISIONS.md)
 - [Architecture](../03-architecture/ARCHITECTURE.md)
 - [Deployment and host map](../03-architecture/DEPLOYMENT.md)
