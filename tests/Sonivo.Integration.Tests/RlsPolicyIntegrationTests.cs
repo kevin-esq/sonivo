@@ -226,6 +226,92 @@ public sealed class RlsPolicyIntegrationTests
         await runtimeDb.Database.CloseConnectionAsync();
     }
 
+    [Fact]
+    public async Task Retry_replays_whole_group_transaction_without_duplicate_writes_or_leaking_scope()
+    {
+        var ownerConnectionString = Environment.GetEnvironmentVariable("SONIVO_TEST_PG");
+        var runtimeConnectionString = Environment.GetEnvironmentVariable("SONIVO_RLS_TEST_PG");
+        Assert.False(string.IsNullOrWhiteSpace(ownerConnectionString), "SONIVO_TEST_PG must point to an isolated PostgreSQL test database.");
+        Assert.False(string.IsNullOrWhiteSpace(runtimeConnectionString), "SONIVO_RLS_TEST_PG must point to the constrained runtime login on the isolated PostgreSQL test database.");
+
+        var now = DateTimeOffset.UtcNow;
+        var userId = Guid.NewGuid();
+        var group = Group.Create($"RLS retry {Guid.NewGuid():N}", now);
+        var songId = Guid.NewGuid();
+        var ownerOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(ownerConnectionString)
+            .Options;
+        await using (var ownerDb = new SonivoDbContext(ownerOptions))
+        {
+            await ownerDb.Database.MigrateAsync();
+            ownerDb.Users.Add(User(userId));
+            ownerDb.Groups.Add(group);
+            ownerDb.Memberships.Add(Membership.CreateOwner(group.Id, userId, now));
+            await ownerDb.SaveChangesAsync();
+        }
+
+        var runtimeOptions = new DbContextOptionsBuilder<SonivoDbContext>()
+            .UseNpgsql(runtimeConnectionString, npgsql => npgsql.EnableRetryOnFailure(
+                maxRetryCount: 1,
+                maxRetryDelay: TimeSpan.FromMilliseconds(1),
+                errorCodesToAdd: null))
+            .Options;
+        await using var runtimeDb = new SonivoDbContext(runtimeOptions);
+        await runtimeDb.Database.OpenConnectionAsync();
+        var scope = new EfGroupDatabaseScope(runtimeDb);
+        var operation = new EfGroupDataOperation(runtimeDb, scope);
+        var attempts = 0;
+
+        var result = await operation.ExecuteAsUserAsync(
+            userId,
+            async cancellationToken =>
+            {
+                attempts++;
+                Assert.NotNull(runtimeDb.Database.CurrentTransaction);
+                await scope.SetVerifiedGroupAsync(group.Id, cancellationToken);
+                runtimeDb.Songs.Add(Song.Create(
+                    group.Id,
+                    "Retry boundary song",
+                    SongOriginKinds.Original,
+                    now,
+                    id: songId));
+                await runtimeDb.SaveChangesAsync(cancellationToken);
+
+                if (attempts == 1)
+                {
+                    throw new PostgresException(
+                        "Simulated serialization failure.",
+                        "ERROR",
+                        "ERROR",
+                        PostgresErrorCodes.SerializationFailure);
+                }
+
+                return songId;
+            },
+            CancellationToken.None);
+
+        Assert.Equal(songId, result);
+        Assert.Equal(2, attempts);
+        Assert.Null(runtimeDb.Database.CurrentTransaction);
+
+        await using (var ownerDb = new SonivoDbContext(ownerOptions))
+        {
+            Assert.Equal(1, await ownerDb.Songs.CountAsync(song => song.Id == songId));
+        }
+
+        await using (var command = new NpgsqlCommand(
+            "SELECT current_setting('sonivo.user_id', true), current_setting('sonivo.group_id', true)",
+            (NpgsqlConnection)runtimeDb.Database.GetDbConnection()))
+        await using (var reader = await command.ExecuteReaderAsync())
+        {
+            Assert.True(await reader.ReadAsync());
+            Assert.True(reader.IsDBNull(0) || string.IsNullOrEmpty(reader.GetString(0)));
+            Assert.True(reader.IsDBNull(1) || string.IsNullOrEmpty(reader.GetString(1)));
+        }
+
+        await runtimeDb.Database.CloseConnectionAsync();
+    }
+
     private static async Task<bool> RuntimeRoleIsConstrainedAsync(NpgsqlConnection connection)
     {
         await using var command = new NpgsqlCommand("""
