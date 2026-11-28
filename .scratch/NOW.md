@@ -2,23 +2,23 @@
 
 ## T-202 — Capture reproducible OpenAPI baseline
 
-**Updated:** 2026-11-28. **Worktree:** `P:\repos\sonivo-openapi-baseline`. **Branch:** `test/t-202-openapi-baseline`, based on `origin/develop` at `6f544c5`.
+**Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-readiness`. **Branch:** `docs/architecture-readiness-pr`, based on `origin/develop` at `6f544c5`.
 **Scope:** Added an authenticated Development OpenAPI snapshot test, a sorted JSON baseline, and API contract notes. No production source or dependencies changed.
 **Evidence:** Snapshot declares OpenAPI 3.1.1 and has 136 paths. It includes health, client-error, and signed admin routes; excludes SignalR hubs, the OpenAPI route, and API/SPA fallbacks. OpenAPI currently has no security scheme/requirement declarations and does not consistently declare Problem Details errors; `EndpointInventoryTests` continues to guard authorization/rate-limit metadata.
-**Validation:** Focused OpenAPI + endpoint inventory tests passed 2/2. Full API suite passed 350/350. Release solution build passed: 10 projects, 0 errors, 7 warnings. `git diff --check` passed. No full solution test run.
-**Implementation:** COMPLETE locally. **Human approval:** PENDING. **Git checkpoint:** PENDING. **Commit:** NO. **Push:** NO. **Uncommitted changes:** YES. **CI:** NOT RUN.
-**Next action:** Review this contract baseline and the documented security/error-schema gaps.
+**Validation:** Focused OpenAPI + endpoint inventory tests passed 2/2. Full API suite passed 350/350. Release solution build passed: 9 projects, 0 errors, 4 warnings. `git diff --check` passed. Graphify update failed because NetworkX lacks `louvain_communities`; generated output remains untracked and out of scope. No full solution test run.
+**Implementation:** COMPLETE. **Human approval:** APPROVED for this batch's commit, push, and PR. **Git checkpoint:** COMMITTED (`bea27b7`, `f103748`, `d57f8ff`, plus this checkpoint). **Commit:** YES. **Push:** NO. **Uncommitted changes:** NO after checkpoint commit. **CI:** NOT RUN.
+**Next action:** Push the approved branch, open one PR against `develop`, and report its checks.
 
 ## T-501 — Resolve API host and release topology
 
-**Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-host-decision`. **Branch:** `docs/t-501-api-host-decision`, based on `origin/develop` at `6f544c5`.
+**Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-readiness`. **Branch:** `docs/architecture-readiness-pr`, based on `origin/develop` at `6f544c5`.
 **Scope:** Document current deployment and owner-confirmed Hetzner target; no source, service configuration, provider, DNS, secret, or database changed.
 **FACT:** Render is the current live `develop` deployment using Neon `staging`; the owner says final production release on `main` follows product readiness. The owner reconfirmed Hetzner as the future API host, retaining accepted ADR-0069.
 **FACT:** The repository already has a .NET 10/API + static-export Dockerfile, a PostgreSQL-only development `compose.yaml`, and a Hetzner/Caddy production compose file. Render has separate Node Next.js and Docker API services. SmarterASP was compared as an alternative only; no SmarterASP plan was selected.
 **PROPOSAL:** Keep Render until product readiness and the approved `main` production cutover. Keep the accepted Hetzner + Caddy API and Vercel BFF topology. T-502 must verify the selected Hetzner plan, cost, operations, SignalR, worker, health, migration, data, and rollback behavior before cutover.
 **OPEN QUESTION:** What Hetzner server size and monthly budget should T-502 validate? This does not reopen ADR-0069 or block unrelated product functionality.
-**Implementation:** COMPLETE locally. **Human approval:** APPROVED for the host direction and documentation scope. **Git checkpoint:** PENDING. **Commit:** NO. **Push:** NO. **Uncommitted changes:** YES. **CI:** NOT RUN. No provider or deployment mutation.
-**Next action:** Review the documentation diff; after PR merge, continue independent product tickets while T-502 remains a pre-cutover gate.
+**Implementation:** COMPLETE. **Human approval:** APPROVED for the host direction and documentation scope. **Git checkpoint:** COMMITTED in the architecture-readiness batch. **Commit:** YES. **Push:** NO. **Uncommitted changes:** NO after checkpoint commit. **CI:** NOT RUN. No provider or deployment mutation.
+**Next action:** Publish the batch for review. Keep T-502 as a pre-cutover gate; it does not block unrelated product functionality.
 
 ## T-303 — Prove safe database retry boundaries under RLS
 
