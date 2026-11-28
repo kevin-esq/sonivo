@@ -1,6 +1,6 @@
 # T-102 — Translate context/product documentation
 
-**Metadata:** phase 1; status **Backlog**; priority P2; size M; risk medium; depends on T-101; blocks T-106; suggested owner Kevin.
+**Metadata:** phase 1; status **In review**; priority P2; size M; risk medium; depends on T-101; blocks T-106; suggested owner Kevin.
 
 ## Context and why
 
@@ -9,6 +9,8 @@ Language audit found Spanish design brief and context prose. See [recommendation
 ## Exact scope
 
 Inventory verified prose, then translate in bounded batches. Preserve links, terms, status, locale examples.
+
+**Verified inventory:** `docs/00-context/CONTEXT.md`, `GLOSSARY.md`, `INDEX.md`, and `docs/01-product/PRODUCT.md` use English prose. Their Spanish words are approved product names, UI labels, or domain examples and remain unchanged. `docs/01-product/GATE-B-DESIGN-BRIEF.md` contains Spanish engineering/design prose and is the only file translated in this ticket.
 
 ## Out of scope
 
@@ -27,15 +29,15 @@ docs/00-context/; docs/01-product/GATE-B-DESIGN-BRIEF.md; PROJECT-STRUCTURE.md o
 
 ## Acceptance criteria
 
-- [ ] Identified prose English; links and meaning unchanged; UI copy/fixtures untouched.
-- [ ] No secret, personal data, localized UI copy, or unrelated file changes.
+- [x] Verified English prose in context/product sources; translated the Gate B brief with all 14 headings retained, relative links preserved, and Spanish UI labels untouched.
+- [x] No secret, personal data, locale files, fixtures, or unrelated files changed.
 - [ ] One small PR using the repository template.
 
-## Tests to add or update
-**Commands and expected results:** use the relevant commands in [README.md](../README.md#validation-command-reference). Commands exit 0, focused regression tests pass, and required external infrastructure is available. Report unmet prerequisites; never claim an unrun check.
+## Validation
 
-
-Compare headings/links; review translation; git diff --check.
+- The source and translation retain 14 Markdown headings in the same order; heading text is translated.
+- Relative links resolve; `git diff --check` passes.
+- Documentation-only change; no build or tests run.
 
 ## Rollback plan
 

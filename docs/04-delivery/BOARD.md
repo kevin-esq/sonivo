@@ -7,7 +7,7 @@
 | ID | Phase | Title | Status | Depends on | Risk / size |
 |---|---:|---|---|---|---|
 | [T-101](tickets/T-101-doc-source-reconciliation.md) | 1 | Reconcile phase status and document ownership | Merged (#382) | — | P0 · S · Low |
-| [T-102](tickets/T-102-translate-context-product.md) | 1 | Translate context/product documentation | Backlog | T-101 | P2 · M · Medium |
+| [T-102](tickets/T-102-translate-context-product.md) | 1 | Translate context/product documentation | In review | T-101 | P2 · M · Medium |
 | [T-103](tickets/T-103-translate-domain-architecture.md) | 1 | Translate domain/architecture documentation | Backlog | T-101 | P2 · L · High |
 | [T-104](tickets/T-104-translate-design-tooling.md) | 1 | Translate design/tooling guidance | Backlog | T-101 | P2 · M · Medium |
 | [T-105](tickets/T-105-translate-historical-notes.md) | 1 | Translate or archive historical Spanish notes | Backlog | T-101 | P3 · L · High |
