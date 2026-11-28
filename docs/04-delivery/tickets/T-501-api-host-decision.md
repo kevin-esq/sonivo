@@ -1,14 +1,16 @@
 # T-501 — Resolve API host and release topology
 
-**Metadata:** phase 5; status **Backlog**; priority P0; size S; risk high; depends on T-101; blocks T-301, T-304, T-402, T-403, T-502; suggested owner Kevin.
+**Metadata:** phase 5; status **In review — owner confirmed Hetzner target**; priority P0; size S; risk medium; depends on T-101; blocks T-301, T-304, T-402, T-403, T-502; suggested owner Kevin.
 
 ## Context and why
 
-Render production/develop and future SmarterASP coexist with accepted ADR-0069 target. See [recommendation verification](../RECOMMENDATIONS-VERIFICATION.md) and [phase 5](../phases/PHASE-5-DEPLOYMENT.md).
+Render is the current live `develop` deployment with Neon `staging`; final production release on `main` follows product readiness. On 2026-11-27, the owner reconfirmed Hetzner as the future API host, retaining accepted ADR-0069 without amendment. See [recommendation verification](../RECOMMENDATIONS-VERIFICATION.md), [phase 5](../phases/PHASE-5-DEPLOYMENT.md), and [the deployment proposal](../adr-proposals/ADR-PROPOSAL-02-API-HOST.md).
 
 ## Exact scope
 
-Compare current operation, ADR, owner timeline, exact plan, cost, workers, WebSockets, DB, rollback. No config changes.
+Document the current Render operation and Hetzner target, record the owner's confirmation of ADR-0069, and identify the remaining pre-cutover validation. No config changes.
+
+**Findings:** The repository already contains a Linux .NET 10 API/static-export Docker image and a separate Hetzner/Caddy deployment compose file. Root development `compose.yaml` starts PostgreSQL only. Render currently serves the live `develop` branch with Neon `staging`; its `ASPNETCORE_ENVIRONMENT=Production` value does not establish that the final production launch has occurred. The owner confirmed Hetzner as the future API host, retaining accepted ADR-0069. T-502 must validate exact server size, budget, WebSocket/SignalR behavior, worker lifecycle, networking, migration order, and rollback before cutover. No source, configuration, provider, DNS, or database was changed.
 
 ## Out of scope
 
@@ -16,7 +18,7 @@ No unrelated behavior, broad rename, new project, secret/provider mutation, or p
 
 ## Files/paths likely touched
 
-DECISIONS.md; DEPLOYMENT.md; render.yaml; Dockerfile
+DEPLOYMENT.md; docs/04-delivery/BOARD.md; MASTER-PLAN.md; PHASE-5-DEPLOYMENT.md; T-501; ADR proposal; .scratch/NOW.md
 
 ## Implementation plan
 
@@ -27,23 +29,28 @@ DECISIONS.md; DEPLOYMENT.md; render.yaml; Dockerfile
 
 ## Acceptance criteria
 
-- [ ] Kevin approves target in canonical ADR; existing config/decision stays until then.
-- [ ] No secret, personal data, localized UI copy, or unrelated file changes.
+- [x] Kevin reconfirms the accepted Hetzner target; ADR-0069 remains unchanged.
+- [x] Document Render `develop` as current and keep production cutover on `main` behind product readiness.
+- [x] Record T-502 as the remaining plan-specific verification before cutover.
+- [x] No secret, personal data, localized UI copy, or unrelated file changes.
 - [ ] One small PR using the repository template.
 
-## Tests to add or update
-**Commands and expected results:** use the relevant commands in [README.md](../README.md#validation-command-reference). Commands exit 0, focused regression tests pass, and required external infrastructure is available. Report unmet prerequisites; never claim an unrun check.
+## Validation
+
+- `git diff --check` passes for the documentation changes.
+- Cross-check deployment direction against accepted ADR-0069 and the Render configuration.
+- No build or test applies; no product code or runtime configuration changed.
 
 
 Review topology consistency; no cloud mutation.
 
 ## Rollback plan
 
-Change proposal before acceptance; supersede accepted ADR after.
+Revert the documentation-only status update. No accepted ADR or deployment config changed.
 
 ## Risks and warning signs
 
-Stop on ADR/phase conflict, public contract/security change, missing evidence, or dependency/provider cost. Record conflict; do not infer approval.
+Stop on ADR/phase conflict, public contract/security change, missing evidence, or provider cost. Do not provision a host or change deployment settings in T-501.
 
 ## Suggested branch and commits
 

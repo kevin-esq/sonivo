@@ -9,6 +9,17 @@
 **Implementation:** COMPLETE locally. **Human approval:** PENDING. **Git checkpoint:** PENDING. **Commit:** NO. **Push:** NO. **Uncommitted changes:** YES. **CI:** NOT RUN.
 **Next action:** Review this contract baseline and the documented security/error-schema gaps.
 
+## T-501 — Resolve API host and release topology
+
+**Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-host-decision`. **Branch:** `docs/t-501-api-host-decision`, based on `origin/develop` at `6f544c5`.
+**Scope:** Document current deployment and owner-confirmed Hetzner target; no source, service configuration, provider, DNS, secret, or database changed.
+**FACT:** Render is the current live `develop` deployment using Neon `staging`; the owner says final production release on `main` follows product readiness. The owner reconfirmed Hetzner as the future API host, retaining accepted ADR-0069.
+**FACT:** The repository already has a .NET 10/API + static-export Dockerfile, a PostgreSQL-only development `compose.yaml`, and a Hetzner/Caddy production compose file. Render has separate Node Next.js and Docker API services. SmarterASP was compared as an alternative only; no SmarterASP plan was selected.
+**PROPOSAL:** Keep Render until product readiness and the approved `main` production cutover. Keep the accepted Hetzner + Caddy API and Vercel BFF topology. T-502 must verify the selected Hetzner plan, cost, operations, SignalR, worker, health, migration, data, and rollback behavior before cutover.
+**OPEN QUESTION:** What Hetzner server size and monthly budget should T-502 validate? This does not reopen ADR-0069 or block unrelated product functionality.
+**Implementation:** COMPLETE locally. **Human approval:** APPROVED for the host direction and documentation scope. **Git checkpoint:** PENDING. **Commit:** NO. **Push:** NO. **Uncommitted changes:** YES. **CI:** NOT RUN. No provider or deployment mutation.
+**Next action:** Review the documentation diff; after PR merge, continue independent product tickets while T-502 remains a pre-cutover gate.
+
 ## T-303 — Prove safe database retry boundaries under RLS
 
 **Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-t401`. **Branch:** `feature/t-303-database-retry-rls`, based on `origin/develop` at `9a58dcc5f83778d12469c2cf8f8585c3ba497c9e`.

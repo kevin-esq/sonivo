@@ -1,19 +1,28 @@
 # DEPLOYMENT.md — Sonivo production topology, host map and runbooks
 
 **Status:** the provider map below records the accepted ADR-0069 target. Current
-operations are recorded separately below; the owner confirms Render currently
-hosts production and SmarterASP.NET is the future destination. The Vercel and
-Hetzner target remains unprovisioned.
+operations are recorded separately below. The owner describes Render as the
+current live deployment from `develop`, not the final production release; after
+the product is ready, the release flow will move to `main` with production
+configuration. The owner reconfirmed on 2026-11-27 that Hetzner remains the
+future API host. This aligns with accepted ADR-0069; no superseding host decision
+is needed. Render remains the current live `develop` deployment until the
+product-readiness gate and approved `main` production cutover.
 
 Canonical decisions: **ADR-0067** (Next.js BFF, host-based tenancy, handoff
 session) and **ADR-0069** (production topology). Related: ADR-0035 (R2),
 ADR-0049 (hosts/subdomains), ADR-0068 (email transport), ADR-0020 (CSRF).
 
-## Current operations — 2026-11-22
+## Current operations — 2026-11-27
 
-**FACT:** The owner confirms Render currently hosts production. Render's
-`sonivo` API service tracks `develop`, auto-deploys commits, uses the repository
-`Dockerfile`, and checks `/api/health`. PR #376 (`4f37747`) initially failed
+**FACT:** Render's current live `sonivo` API service tracks `develop`,
+auto-deploys commits, uses the repository `Dockerfile`, and checks
+`/api/health`. The service sets `ASPNETCORE_ENVIRONMENT=Production`, while the
+owner identifies the connected Neon branch as `staging` and says the final
+production release is still pending. After the product is ready, the owner
+plans to move the release flow to `main` and configure production. The ASP.NET
+environment name does not by itself establish that the final production launch
+has happened. PR #376 (`4f37747`) initially failed
 during Docker build because the embedded RLS verifier SQL was missing from the
 image build context. PR #377 (`f3d2183`) fixed the copy; Render reports that
 deployment live, and `/api/health/ready` returned HTTP 200 on 2026-11-22. The
@@ -46,10 +55,11 @@ or another verifier check fails. This check does not apply migrations and does
 not replace the privileged migration procedure. PR #377 fixed the Docker build
 context; the resulting Render deployment is live and readiness returned 200.
 
-**FACT:** Owner decision on 2026-11-21: keep Render auto-deploying from
-`develop` while the main product is being completed. After the product is ready,
-move the production release flow to `main` with the required production
-configuration. This records direction; it does not change Render settings.
+**FACT:** Owner direction, reaffirmed 2026-11-27: keep the current Render
+deployment on `develop` while the main product is being completed. After the
+product is ready, move the final production release flow to `main` with the
+required production configuration. This records direction; it does not change
+Render settings.
 
 **FACT:** No production migration job gates or sequences Render's auto-deploy.
 For the current `develop` release flow, the documented control is manual:
@@ -64,20 +74,36 @@ below and record migration IDs and verifier results. This is an operational
 control, not a production migration job. Complete the `main` production
 configuration when the product is ready for publication.
 
-**FACT:** SmarterASP.NET is the future hosting destination. The backend is
-already containerized in [the root Dockerfile](../../Dockerfile); Render uses
-that image. SmarterASP.NET's official material lists Docker under Linux VPS
-plans, while its Linux shared-hosting deployment guide describes FTPS uploads
-of built output. Confirm the purchased plan before choosing the migration
-deployment mode. [Linux VPS](https://www.smarterasp.net/vps_linux), [Linux
-hosting](https://www.smarterasp.net/linux_hosting), [deployment guide](https://www.smarterasp.net/developers/deployment/).
+**FACT:** The owner confirmed on 2026-11-27 that Hetzner remains the future API
+host, consistent with accepted ADR-0069. The repository already has a
+multi-stage .NET 10 and static-export image in
+[the root Dockerfile](../../Dockerfile). `render.yaml` defines a separate Node
+Next.js service and Docker API service. The development `compose.yaml` starts
+PostgreSQL only; `deploy/docker-compose.yml` runs API plus Caddy and still names
+Hetzner in its topology comments. These files represent different deployment
+paths; none was changed by this status note.
 
-**PROPOSAL:** Keep the Docker image as the portable backend artifact. Do not
-add another container setup. Before moving to SmarterASP.NET, confirm the plan
-supports Docker and validate port binding, persistent storage, health checks,
-secret delivery, database networking, and the separate migration job. If the
-selected plan is shared Linux hosting, prepare and test a non-container publish
-path instead.
+**FACT (provider pages consulted 2026-11-27):** SmarterASP advertises ASP.NET
+Core 10 on its Windows hosting plans, starting at `$2.95/month`. Its Linux VPS
+page advertises Docker and root access; the lowest listed Linux VPS is
+`$49.95/month` (8 GB RAM, 4 CPU cores). The published pages do not identify the
+owner's purchased plan or confirm plan-specific WebSocket, process-recycle,
+health-probe, port, storage, or network guarantees. Sources:
+[ASP.NET Core 10 hosting](https://www.smarterasp.net/asp.net_core_hosting/),
+[Linux VPS plans](https://www.smarterasp.net/vps_linux/),
+[WebSocket support article](https://www.smarterasp.net/support/kb/a1928/how-to-host-web-socket-protocol-application-in-asp_net.aspx).
+
+**PROPOSAL:** Keep Render as the current `develop` deployment until the
+product-readiness gate and approved `main` production cutover. Use the accepted
+Hetzner Cloud VPS + Caddy target for the future API and keep the Next.js BFF on
+Vercel. Before cutover, verify the selected Hetzner plan, .NET 10 startup,
+WebSockets/SignalR, health probes, process restarts, secret delivery,
+persistent Caddy data, Neon/R2 networking, migration ordering, and rollback in
+an isolated environment. Do not change provider settings in this ticket.
+
+**OPEN QUESTION:** What Hetzner server size and monthly infrastructure budget
+should T-502 validate before production cutover? This does not block keeping
+ADR-0069 as the selected host target; no server is provisioned by this document.
 
 ADR-0069 remains the accepted target topology until a superseding decision
 amends it. This current-operations note does not change that ADR.

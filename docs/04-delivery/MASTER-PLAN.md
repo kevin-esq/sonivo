@@ -59,18 +59,26 @@ The diagram is a proposal. Tickets list exact dependencies. No stage implies per
 | Translation changes meaning or agent behavior | Batch by folder; preserve links, quotes, UI copy, fixtures, and skill behavior; review sensitive legal/security text. |
 | Broad structural refactor hides behavior changes | One capability or doc set per PR; no mass rename; snapshot routes/contracts before extraction. |
 
+## Resolved owner decisions
+
+- **API host (2026-11-27):** The owner reconfirmed accepted ADR-0069: Hetzner
+  Cloud for the API, Vercel for the BFF, Neon production, and R2. Render remains
+  the current live `develop` deployment; production release moves to `main`
+  after product readiness. T-502 must verify the selected Hetzner plan, budget,
+  operating owner, production database branch, and rollback procedure before
+  cutover.
+
 ## Blocking pending decisions — owner Kevin
 
 1. **API contract:** approve URL versioning/deprecation policy and whether `/api/v1` aliases or a new base path is acceptable. Existing `/api/...` consumers must keep working until an approved migration.
-2. **API host:** reconcile current Render-on-`develop`, future SmarterASP intent, and accepted ADR-0069 topology. Identify exact SmarterASP plan and verify WebSockets, Docker/runtime, worker lifetime, health probe, network, storage, secrets, and cost.
-3. **Domains:** approve which hosts are current vs target, whether Vercel nameservers are acceptable for wildcard tenant domains, and whether host-only session handoff remains the sole cross-host design.
-4. **OpenAPI clients:** decide artifact ownership and supported generator/runtime after compatibility review. No client generation or generated files are approved by this plan.
-5. **Telemetry:** choose data minimization, retention, access, and vendor only if platform logs are insufficient; avoid adding personal data capture.
-6. **Outbox:** define which emails/notifications require durable delivery and duplicate/ordering semantics. Existing best-effort email ADR remains binding until superseded.
-7. **Data recovery:** define PITR/backup retention, restore rehearsal cadence, and preview-branch cost/lifetime.
-8. **Documentation:** choose whether historical Spanish security/legal documents should be translated in place or retained with English archival summaries. Current policy says preserve meaning; legal review remains owner-controlled.
-9. **Desktop:** define minimum user requirements (multi-monitor, MIDI, local audio device, offline content rights) before selecting PWA, Tauri, or Electron.
-10. **CI/release:** approve platform-specific release ownership, iOS signing boundary, required checks, and tag/version policy.
+2. **Domains:** approve which hosts are current vs target, whether Vercel nameservers are acceptable for wildcard tenant domains, and whether host-only session handoff remains the sole cross-host design.
+3. **OpenAPI clients:** decide artifact ownership and supported generator/runtime after compatibility review. No client generation or generated files are approved by this plan.
+4. **Telemetry:** choose data minimization, retention, access, and vendor only if platform logs are insufficient; avoid adding personal data capture.
+5. **Outbox:** define which emails/notifications require durable delivery and duplicate/ordering semantics. Existing best-effort email ADR remains binding until superseded.
+6. **Data recovery:** define PITR/backup retention, restore rehearsal cadence, and preview-branch cost/lifetime.
+7. **Documentation:** choose whether historical Spanish security/legal documents should be translated in place or retained with English archival summaries. Current policy says preserve meaning; legal review remains owner-controlled.
+8. **Desktop:** define minimum user requirements (multi-monitor, MIDI, local audio device, offline content rights) before selecting PWA, Tauri, or Electron.
+9. **CI/release:** approve platform-specific release ownership, iOS signing boundary, required checks, and tag/version policy.
 
 ## Proposal status
 

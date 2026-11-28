@@ -27,7 +27,7 @@
 | [T-402](tickets/T-402-migration-release-gate.md) | 4 | Add privileged migration release gate | Backlog | T-501 | P1 · M · High |
 | [T-403](tickets/T-403-environment-secret-map.md) | 4 | Document environment and secret ownership | Backlog | T-501 | P2 · S · Medium |
 | [T-404](tickets/T-404-neon-recovery-policy.md) | 4 | Set Neon branch, backup, and restore policy | Backlog | T-501 | P1 · M · High |
-| [T-501](tickets/T-501-api-host-decision.md) | 5 | Resolve API host and release topology | Backlog | T-101 | P0 · S · High |
+| [T-501](tickets/T-501-api-host-decision.md) | 5 | Resolve API host and release topology | In review — owner confirmed Hetzner | T-101 | P0 · S · High |
 | [T-502](tickets/T-502-host-capability-test.md) | 5 | Verify selected host before cutover | Backlog | T-501 | P1 · M · High |
 | [T-503](tickets/T-503-local-compose.md) | 5 | Complete local Compose only for proven gaps | Backlog | T-101 | P2 · M · Medium |
 | [T-601](tickets/T-601-legacy-route-inventory.md) | 6 | Map legacy and App Router route ownership | Backlog | T-101 | P1 · S · Low |
