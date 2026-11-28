@@ -8,8 +8,9 @@
 **Implementation:** COMPLETE locally. Product source and package references unchanged; retry strategy exists only in the test options.
 **Validation:** Release solution build passed (10 projects, 0 errors, 4 warnings). Full Release test run passed: Domain 251/251, Application 254/254, Integration 127/127, API 349/349. Tests used a disposable PostgreSQL 16.6 container provisioned with the CI bootstrap, migrations, grants, and runtime-principal verifier; the container was removed after the run. `git diff --check` passed. `graphify update .` failed because installed NetworkX lacks `community.louvain_communities`; its generated untracked output remains out of ticket scope.
 **Human approval:** APPROVED for this test-only implementation and PR.
-**Git checkpoint:** COMMITTED (`eadb94b`, implementation; scratch checkpoint recorded). **Commit:** YES. **Push:** NO. **Uncommitted changes:** NO. **Remote:** NOT PUSHED. **CI:** NOT RUN.
-**Next action:** Push this branch, open one PR to `develop`, and report CI. Do not merge or enable production retries without separate approval.
+**Git checkpoint:** COMMITTED (`eadb94b` implementation; `7c5b615` checkpoint). **Commit:** YES. **Push:** YES. **Uncommitted changes:** NO. **Remote:** PUSHED. **CI:** NOT RUN locally; PR checks last observed 5 passed, Playwright in progress, Graphify neutral.
+**PR:** [#387](https://github.com/kevin-esq/sonivo/pull/387), open against `develop`.
+**Next action:** Verify final PR checks and owner review. Do not merge or enable production retries without separate approval.
 
 ## T-401 — Transaction-pooler RLS regression coverage
 
