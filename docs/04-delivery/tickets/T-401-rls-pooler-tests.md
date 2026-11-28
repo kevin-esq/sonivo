@@ -1,6 +1,6 @@
 # T-401 — Add transaction-pooler RLS regression coverage
 
-**Metadata:** phase 4; status **Backlog**; priority P0; size M; risk high; depends on None; blocks T-303; suggested owner Kevin.
+**Metadata:** phase 4; status **Merged (#383)**; priority P0; size M; risk high; depends on None; blocks T-303; suggested owner Kevin.
 
 ## Context and why
 

@@ -6,7 +6,7 @@
 
 | ID | Phase | Title | Status | Depends on | Risk / size |
 |---|---:|---|---|---|---|
-| [T-101](tickets/T-101-doc-source-reconciliation.md) | 1 | Reconcile phase status and document ownership | In review | — | P0 · S · Low |
+| [T-101](tickets/T-101-doc-source-reconciliation.md) | 1 | Reconcile phase status and document ownership | Merged (#382) | — | P0 · S · Low |
 | [T-102](tickets/T-102-translate-context-product.md) | 1 | Translate context/product documentation | Backlog | T-101 | P2 · M · Medium |
 | [T-103](tickets/T-103-translate-domain-architecture.md) | 1 | Translate domain/architecture documentation | Backlog | T-101 | P2 · L · High |
 | [T-104](tickets/T-104-translate-design-tooling.md) | 1 | Translate design/tooling guidance | Backlog | T-101 | P2 · M · Medium |
@@ -20,10 +20,10 @@
 | [T-204](tickets/T-204-mobile-version-contract.md) | 2 | Document native minimum-version and auth contract | Backlog | T-202 | P2 · S · Medium |
 | [T-301](tickets/T-301-health-semantics.md) | 3 | Define liveness/readiness semantics | Backlog | T-501 | P1 · S · Medium |
 | [T-302](tickets/T-302-http-resilience.md) | 3 | Apply bounded resilience to approved integrations | Backlog | T-501 | P1 · M · High |
-| [T-303](tickets/T-303-database-retry-rls.md) | 3 | Prove safe database retry boundaries under RLS | In progress | T-401 | P1 · M · High |
+| [T-303](tickets/T-303-database-retry-rls.md) | 3 | Prove safe database retry boundaries under RLS | Merged (#387) | T-401 | P1 · M · High |
 | [T-304](tickets/T-304-worker-lifecycle.md) | 3 | Map worker durability and recycle behavior | Backlog | T-501 | P1 · M · High |
 | [T-305](tickets/T-305-delivery-observability.md) | 3 | Decide durable notifications and operational telemetry | Backlog | — | P2 · M · High |
-| [T-401](tickets/T-401-rls-pooler-tests.md) | 4 | Add transaction-pooler RLS regression coverage | In review | — | P0 · M · High |
+| [T-401](tickets/T-401-rls-pooler-tests.md) | 4 | Add transaction-pooler RLS regression coverage | Merged (#383) | — | P0 · M · High |
 | [T-402](tickets/T-402-migration-release-gate.md) | 4 | Add privileged migration release gate | Backlog | T-501 | P1 · M · High |
 | [T-403](tickets/T-403-environment-secret-map.md) | 4 | Document environment and secret ownership | Backlog | T-501 | P2 · S · Medium |
 | [T-404](tickets/T-404-neon-recovery-policy.md) | 4 | Set Neon branch, backup, and restore policy | Backlog | T-501 | P1 · M · High |

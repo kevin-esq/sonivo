@@ -5,12 +5,13 @@
 **Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-t401`. **Branch:** `feature/t-303-database-retry-rls`, based on `origin/develop` at `9a58dcc5f83778d12469c2cf8f8585c3ba497c9e`.
 **Authorization:** Owner authorized T-303 implementation, one local commit, push of this branch, and one PR. No merge, production retry policy, or database configuration is authorized.
 **Scope:** Added a PostgreSQL integration test with one test-only retry, a simulated serialization failure after a Group-scoped write, retry of the whole transaction, and checks for one persisted row and cleared transaction-local user/Group context. Documented the test's simulation limits.
-**Implementation:** COMPLETE locally. Product source and package references unchanged; retry strategy exists only in the test options.
+**Implementation:** COMPLETE and merged to `develop` as PR #387, merge commit `6f544c5`. Product source and package references unchanged; retry strategy exists only in the test options.
 **Validation:** Release solution build passed (10 projects, 0 errors, 4 warnings). Full Release test run passed: Domain 251/251, Application 254/254, Integration 127/127, API 349/349. Tests used a disposable PostgreSQL 16.6 container provisioned with the CI bootstrap, migrations, grants, and runtime-principal verifier; the container was removed after the run. `git diff --check` passed. `graphify update .` failed because installed NetworkX lacks `community.louvain_communities`; its generated untracked output remains out of ticket scope.
 **Human approval:** APPROVED for this test-only implementation and PR.
-**Git checkpoint:** COMMITTED (`eadb94b` implementation; `7c5b615` checkpoint). **Commit:** YES. **Push:** YES. **Uncommitted changes:** NO. **Remote:** PUSHED. **CI:** NOT RUN locally; PR checks last observed 5 passed, Playwright in progress, Graphify neutral.
-**PR:** [#387](https://github.com/kevin-esq/sonivo/pull/387), open against `develop`.
-**Next action:** Verify final PR checks and owner review. Do not merge or enable production retries without separate approval.
+**Git checkpoint:** COMMITTED (`eadb94b` implementation; `7c5b615` checkpoint; `cbe63fc` PR publication). **Commit:** YES. **Push:** YES. **Uncommitted:** NO in the ticket worktree. **Remote:** MERGED.
+**PR:** [#387](https://github.com/kevin-esq/sonivo/pull/387), merged into `develop` as `6f544c5` on 2026-11-28.
+**CI:** PASSING (6/6): Backend, Frontend, SCA, Analyze, CodeQL, and Playwright E2E.
+**Next action:** Do not enable production retries without separate approval.
 
 ## T-401 — Transaction-pooler RLS regression coverage
 
