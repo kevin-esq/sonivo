@@ -6,8 +6,9 @@
 **Scope:** Added an authenticated Development OpenAPI snapshot test, a sorted JSON baseline, and API contract notes. No production source or dependencies changed.
 **Evidence:** Snapshot declares OpenAPI 3.1.1 and has 136 paths. It includes health, client-error, and signed admin routes; excludes SignalR hubs, the OpenAPI route, and API/SPA fallbacks. OpenAPI currently has no security scheme/requirement declarations and does not consistently declare Problem Details errors; `EndpointInventoryTests` continues to guard authorization/rate-limit metadata.
 **Validation:** Focused OpenAPI + endpoint inventory tests passed 2/2. Full API suite passed 350/350. Release solution build passed: 9 projects, 0 errors, 4 warnings. `git diff --check` passed. Graphify update failed because NetworkX lacks `louvain_communities`; generated output remains untracked and out of scope. No full solution test run.
-**Implementation:** COMPLETE. **Human approval:** APPROVED for this batch's commit, push, and PR. **Git checkpoint:** COMMITTED (`bea27b7`, `f103748`, `d57f8ff`, plus this checkpoint). **Commit:** YES. **Push:** NO. **Uncommitted changes:** NO after checkpoint commit. **CI:** NOT RUN.
-**Next action:** Push the approved branch, open one PR against `develop`, and report its checks.
+**Implementation:** COMPLETE. **Human approval:** APPROVED for this batch's commit, push, and PR. **Git checkpoint:** COMMITTED (`bea27b7`, `f103748`, `d57f8ff`, `cf0c9d0`, plus this publication checkpoint). **Commit:** YES. **Push:** YES after this checkpoint push. **Uncommitted changes:** NO after checkpoint commit. **Remote:** PUSHED. **CI:** 4/6 passing at last query; Playwright E2E and Analyze (C#) in progress.
+**PR:** [#388](https://github.com/kevin-esq/sonivo/pull/388), open against `develop`; no merge authorized or performed.
+**Next action:** Report final PR checks. T-502 remains a pre-cutover validation gate.
 
 ## T-501 — Resolve API host and release topology
 
@@ -17,8 +18,8 @@
 **FACT:** The repository already has a .NET 10/API + static-export Dockerfile, a PostgreSQL-only development `compose.yaml`, and a Hetzner/Caddy production compose file. Render has separate Node Next.js and Docker API services. SmarterASP was compared as an alternative only; no SmarterASP plan was selected.
 **PROPOSAL:** Keep Render until product readiness and the approved `main` production cutover. Keep the accepted Hetzner + Caddy API and Vercel BFF topology. T-502 must verify the selected Hetzner plan, cost, operations, SignalR, worker, health, migration, data, and rollback behavior before cutover.
 **OPEN QUESTION:** What Hetzner server size and monthly budget should T-502 validate? This does not reopen ADR-0069 or block unrelated product functionality.
-**Implementation:** COMPLETE. **Human approval:** APPROVED for the host direction and documentation scope. **Git checkpoint:** COMMITTED in the architecture-readiness batch. **Commit:** YES. **Push:** NO. **Uncommitted changes:** NO after checkpoint commit. **CI:** NOT RUN. No provider or deployment mutation.
-**Next action:** Publish the batch for review. Keep T-502 as a pre-cutover gate; it does not block unrelated product functionality.
+**Implementation:** COMPLETE. **Human approval:** APPROVED for the host direction and documentation scope. **Git checkpoint:** COMMITTED in the architecture-readiness batch. **Commit:** YES. **Push:** YES. **Uncommitted changes:** NO after checkpoint commit. **CI:** tracked on PR #388. No provider or deployment mutation.
+**Next action:** Keep T-502 as a pre-cutover gate; it does not block unrelated product functionality.
 
 ## T-303 — Prove safe database retry boundaries under RLS
 
