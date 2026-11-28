@@ -37,6 +37,15 @@ write denial, and the constrained runtime role. This simulates the backend reuse
 relevant to transaction pooling; it does not run PgBouncer or verify a deployed
 pooler configuration. Run it with the isolated PostgreSQL owner and runtime
 connections used by CI, filtered to the test name above.
+
+`RlsPolicyIntegrationTests.Retry_replays_whole_group_transaction_without_duplicate_writes_or_leaking_scope`
+configures one retry only in the test DbContext, writes a Group-scoped row, then
+throws a simulated PostgreSQL serialization failure before commit. It verifies
+the whole operation runs twice, the row exists once, the transaction-local user
+and Group settings are cleared after commit, and Group scope is applied inside
+each attempt. This does not enable retries in production or simulate a network
+failure, a lost commit acknowledgement, or a real PostgreSQL serialization race.
+Run it with the isolated owner and constrained runtime connections used by CI.
 `RlsHubInvocationIntegrationTests.Group_hub_invocation_uses_runtime_scope_and_rejects_a_nonmember`
 also verifies the SignalR transaction filter sets and clears request scope.
 It does not test two Group hub invocations on the same backend connection.

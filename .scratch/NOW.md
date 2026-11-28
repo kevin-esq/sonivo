@@ -1,17 +1,29 @@
 # NOW — current work and Git checkpoint
 
+## T-303 — Prove safe database retry boundaries under RLS
+
+**Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-t401`. **Branch:** `feature/t-303-database-retry-rls`, based on `origin/develop` at `9a58dcc5f83778d12469c2cf8f8585c3ba497c9e`.
+**Authorization:** Owner authorized T-303 implementation, one local commit, push of this branch, and one PR. No merge, production retry policy, or database configuration is authorized.
+**Scope:** Added a PostgreSQL integration test with one test-only retry, a simulated serialization failure after a Group-scoped write, retry of the whole transaction, and checks for one persisted row and cleared transaction-local user/Group context. Documented the test's simulation limits.
+**Implementation:** COMPLETE locally. Product source and package references unchanged; retry strategy exists only in the test options.
+**Validation:** Release solution build passed (10 projects, 0 errors, 4 warnings). Full Release test run passed: Domain 251/251, Application 254/254, Integration 127/127, API 349/349. Tests used a disposable PostgreSQL 16.6 container provisioned with the CI bootstrap, migrations, grants, and runtime-principal verifier; the container was removed after the run. `git diff --check` passed. `graphify update .` failed because installed NetworkX lacks `community.louvain_communities`; its generated untracked output remains out of ticket scope.
+**Human approval:** APPROVED for this test-only implementation and PR.
+**Git checkpoint:** COMMITTED (`eadb94b` implementation; `7c5b615` checkpoint). **Commit:** YES. **Push:** YES. **Uncommitted changes:** NO. **Remote:** PUSHED. **CI:** NOT RUN locally; PR checks last observed 5 passed, Playwright in progress, Graphify neutral.
+**PR:** [#387](https://github.com/kevin-esq/sonivo/pull/387), open against `develop`.
+**Next action:** Verify final PR checks and owner review. Do not merge or enable production retries without separate approval.
+
 ## T-401 — Transaction-pooler RLS regression coverage
 
 **Updated:** 2026-11-22. **Worktree:** `P:\repos\sonivo-t401`. **Branch:** `test/t-401-rls-pooler-coverage`, based on `origin/develop` at `3f92c3e0acaef9584335ed5e84184cbd3dc0a672`.
 **Authorization:** Owner authorized T-401 test and required documentation changes, local commits, one branch push, and one PR. No production-code, database/provider, or merge changes are authorized.
 **Scope:** Added a PostgreSQL RLS test using `EfGroupDatabaseScope` over one open Npgsql connection. It checks constrained runtime role, stable backend PID, sequential Group A/B read/write isolation, context clearing after commit/rollback, fail-closed missing context, and malformed Group context. `TESTING.md` documents the simulation and its limit; T-303 records the proven dependency boundary.
-**Implementation:** COMPLETE locally; isolated PostgreSQL validation and CI remain pending.
-**Validation:** `dotnet restore Sonivo.slnx` passed with existing project references; no package references changed. `dotnet build Sonivo.slnx --no-restore` passed (9 projects, 0 errors, 3 existing NU1510 warnings). The final focused RLS run ended 22 passed, 8 failed because `SONIVO_TEST_PG` / `SONIVO_RLS_TEST_PG` were unset and the default `sonivo_dev` database lacks reviewed runtime grants. The new test failed explicitly on the missing isolated owner connection. Local `sonivo_rls_reader` role is absent, `localhost:5434` is unavailable, and no database was changed. The integration assertions and mutation sanity check remain unverified against PostgreSQL.
+**Implementation:** COMPLETE and merged through PR #383.
+**Validation:** `dotnet restore Sonivo.slnx` passed with existing project references; no package references changed. `dotnet build Sonivo.slnx --no-restore` passed (9 projects, 0 errors, 3 warnings). Local focused RLS tests could not validate against the isolated fixture because `SONIVO_TEST_PG` / `SONIVO_RLS_TEST_PG` were unset; no database was changed. PR #383 CI passed all six checks, including backend tests, before merge.
 **Human approval:** APPROVED for this ticket's scope and publication.
 **Git checkpoint:** COMMITTED (`d65cabf`, test and required docs). **Commit:** YES. **Push:** YES. **Uncommitted changes:** NO. **Remote:** PUSHED.
-**PR:** [#383](https://github.com/kevin-esq/sonivo/pull/383), open against `develop`.
-**CI:** RUNNING on `d65cabf` when checked: Backend build & tests, Analyze (C#), SCA gate, and Frontend build were in progress. Recheck after the scratch checkpoint commit.
-**Next action:** record the PR checkpoint, push it, then verify CI against the isolated PostgreSQL service.
+**PR:** [#383](https://github.com/kevin-esq/sonivo/pull/383), merged into `develop` as `9a58dcc`.
+**CI:** PASSING (6/6 checks) before merge.
+**Next action:** T-303 test-only retry boundary coverage.
 
 ## Proposed multi-client architecture plan
 

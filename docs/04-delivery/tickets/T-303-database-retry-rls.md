@@ -1,6 +1,6 @@
 # T-303 — Prove safe database retry boundaries under RLS
 
-**Metadata:** phase 3; status **Backlog**; priority P1; size M; risk high; depends on T-401; blocks None; suggested owner Kevin.
+**Metadata:** phase 3; status **In progress**; priority P1; size M; risk high; depends on T-401; blocks None; suggested owner Kevin.
 
 ## Context and why
 
@@ -10,7 +10,7 @@ UseNpgsql lacks EnableRetryOnFailure; RLS uses explicit transaction and transact
 
 ## Exact scope
 
-Test faults; retry whole idempotent unit only. Preserve transaction; do not enable globally.
+Test faults; retry whole idempotent unit only. Preserve transaction; do not enable globally. A test-only retry strategy does not approve enabling production retries; any production retry configuration remains gated by per-integration approval and idempotency review.
 
 ## Out of scope
 
