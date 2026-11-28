@@ -1,5 +1,14 @@
 # NOW — current work and Git checkpoint
 
+## T-202 — Capture reproducible OpenAPI baseline
+
+**Updated:** 2026-11-28. **Worktree:** `P:\repos\sonivo-openapi-baseline`. **Branch:** `test/t-202-openapi-baseline`, based on `origin/develop` at `6f544c5`.
+**Scope:** Added an authenticated Development OpenAPI snapshot test, a sorted JSON baseline, and API contract notes. No production source or dependencies changed.
+**Evidence:** Snapshot declares OpenAPI 3.1.1 and has 136 paths. It includes health, client-error, and signed admin routes; excludes SignalR hubs, the OpenAPI route, and API/SPA fallbacks. OpenAPI currently has no security scheme/requirement declarations and does not consistently declare Problem Details errors; `EndpointInventoryTests` continues to guard authorization/rate-limit metadata.
+**Validation:** Focused OpenAPI + endpoint inventory tests passed 2/2. Full API suite passed 350/350. Release solution build passed: 10 projects, 0 errors, 7 warnings. `git diff --check` passed. No full solution test run.
+**Implementation:** COMPLETE locally. **Human approval:** PENDING. **Git checkpoint:** PENDING. **Commit:** NO. **Push:** NO. **Uncommitted changes:** YES. **CI:** NOT RUN.
+**Next action:** Review this contract baseline and the documented security/error-schema gaps.
+
 ## T-303 — Prove safe database retry boundaries under RLS
 
 **Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-t401`. **Branch:** `feature/t-303-database-retry-rls`, based on `origin/develop` at `9a58dcc5f83778d12469c2cf8f8585c3ba497c9e`.

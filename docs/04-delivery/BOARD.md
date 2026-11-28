@@ -15,7 +15,7 @@
 | [T-107](tickets/T-107-documentation-taxonomy.md) | 1 | Define documentation taxonomy and contributor entry points | Backlog | T-101 | P2 · M · Medium |
 | [T-108](tickets/T-108-ignore-scratch-shots.md) | 1 | Ignore and untrack versioned scratch screenshots | Backlog | T-101 | P2 · S · Medium |
 | [T-201](tickets/T-201-api-version-policy.md) | 2 | Approve API version and deprecation policy | Backlog | T-202 | P0 · S · High |
-| [T-202](tickets/T-202-openapi-baseline.md) | 2 | Capture reproducible OpenAPI baseline | Backlog | — | P1 · S · Low |
+| [T-202](tickets/T-202-openapi-baseline.md) | 2 | Capture reproducible OpenAPI baseline | In review | — | P1 · S · Low |
 | [T-203](tickets/T-203-openapi-drift-gate.md) | 2 | Add OpenAPI drift gate and client-generation decision | Backlog | T-201, T-202 | P1 · M · High |
 | [T-204](tickets/T-204-mobile-version-contract.md) | 2 | Document native minimum-version and auth contract | Backlog | T-202 | P2 · S · Medium |
 | [T-301](tickets/T-301-health-semantics.md) | 3 | Define liveness/readiness semantics | Backlog | T-501 | P1 · S · Medium |
