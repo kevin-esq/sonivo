@@ -8,130 +8,132 @@ If this brief and an ACCEPTED ADR conflict, **the ADR wins**. If this brief and 
 
 ---
 
-Diseña la interfaz y el sistema visual de **Sonivo**, una plataforma SaaS para organizar proyectos musicales.
+Design the interface and visual system for **Sonivo**, a SaaS platform for organizing music projects.
 
-Sonivo NO es Spotify.  
-Sonivo NO es un DAW.  
-Sonivo NO es un software de iglesia.  
-Sonivo NO es un ERP.  
-Sonivo NO es un gestor de tareas genérico.
+- Sonivo is NOT Spotify.
+- Sonivo is NOT a DAW.
+- Sonivo is NOT church-management software.
+- Sonivo is NOT an ERP.
+- Sonivo is NOT a generic task manager.
 
-Sonivo es la capa de organización alrededor de un proyecto musical:
+Sonivo is the organizational layer around a music project:
 
-**Idea → canción → arreglo → ensayo → setlist → evento → interpretación**
+**Idea → Song → Arrangement → Rehearsal → Setlist → Event → Performance**
 
-Puede ser utilizada por bandas, grupos de covers, artistas independientes, coros, ensambles, pequeños grupos musicales, proyectos colaborativos, ministerios musicales y pequeñas orquestas.
+It can serve bands, cover groups, independent artists, choirs, ensembles, small music groups, collaborative projects, music ministries, and small orchestras.
 
-La interfaz debe hacer que el usuario sienta que está entrando a un espacio de trabajo dedicado a su música, no a otro SaaS administrativo genérico.
+The interface should make users feel they are entering a workspace dedicated to their music, not another generic administrative SaaS.
 
 ---
 
-## 1. Principio de diseño
+## 1. Design principle
 
-La regla principal es:
+The primary rule is:
 
 > **Music-first, software-second.**
 
-La aplicación debe sentirse como una herramienta profesional para músicos, pero conservar la claridad, consistencia y ergonomía de un SaaS moderno.
+The application should feel like a professional tool for musicians while retaining the clarity, consistency, and ergonomics of a modern SaaS product.
 
-Debe transmitir: creatividad, organización, colaboración, preparación, confianza, profesionalismo, energía, simplicidad.
+It should convey creativity, organization, collaboration, preparation, confidence, professionalism, energy, and simplicity.
 
-No debe transmitir: software corporativo aburrido, dashboard financiero, CRM, software contable, aplicación excesivamente gamer, landing page llena de efectos, interfaz genérica generada por IA.
+It should not convey boring corporate software, a financial dashboard, a CRM, accounting software, an overly game-like app, an effects-heavy landing page, or a generic AI-generated interface.
 
-El diseño debe ser suficientemente distintivo para que Sonivo tenga identidad propia.
-
----
-
-## 2. Referencias visuales y recursos
-
-### Base del sistema — shadcn/ui
-
-Usar como base conceptual para buttons, inputs, dialogs, dropdowns, cards, tabs, sheets, tooltips, navigation, forms, tables, toasts, empty states, sidebar.
-
-No utilizar shadcn sin personalización. La interfaz final debe sentirse como Sonivo, no como una instalación vanilla de shadcn.
-
-### Iconografía
-
-- **Lucide** — lenguaje principal.
-- **Reicon** — solo si Lucide no alcanza; no mezclar estilos en una misma pantalla.
-- **Morphicons** — selectivo para iconos que cambian de estado (menu↔close, play↔pause). Respuestas físicas, no decoración.
+The design must be distinctive enough to give Sonivo its own identity.
 
 ---
 
-## 3. Animación
+## 2. Visual references and resources
 
-**subtle + useful + musical.** Nunca espectáculo.
+### System foundation — shadcn/ui
 
-Preferencia:
+Use as a conceptual foundation for buttons, inputs, dialogs, dropdowns, cards, tabs, sheets, tooltips, navigation, forms, tables, toasts, empty states, and the sidebar.
 
-1. CSS/Tailwind para microinteracciones simples.
-2. Motion para interacciones React (reorder, layout, drag).
-3. Morphicons para transformación de iconos.
-4. Anime.js **no** se instala en Gate B.
+Do not use shadcn without customization. The final interface must feel like Sonivo, not a vanilla shadcn installation.
 
-Respetar `prefers-reduced-motion`.
+### Iconography
+
+- **Lucide** — primary visual language.
+- **Reicon** — only if Lucide is insufficient; do not mix styles on one screen.
+- **Morphicons** — selectively for state-changing icons (menu↔close, play↔pause). Use tactile responses, not decoration.
+
+---
+
+## 3. Animation
+
+**Subtle + useful + musical.** Never spectacle.
+
+Preferences:
+
+1. CSS/Tailwind for simple micro-interactions.
+2. Motion for React interactions (reorder, layout, drag).
+3. Morphicons for icon transformations.
+4. Do **not** install Anime.js for Gate B.
+
+Respect `prefers-reduced-motion`.
 
 Hover 120–180ms · small 150–250ms · layout/reorder 200–350ms · important 300–450ms.
 
 ---
 
-## 4. Componentes visuales avanzados
+## 4. Advanced visual components
 
-Aceternity, Magic UI, Eldora, Rare UI, 21st.dev, Origin UI: **inspiración puntual**, no dependencias. Si se copia un patrón: adaptarlo al sistema Sonivo (color, radius, type, iconos, a11y) hasta que no parezca un componente copiado.
+Aceternity, Magic UI, Eldora, Rare UI, 21st.dev, and Origin UI are for **selective inspiration**, not dependencies. If a pattern is copied, adapt it to Sonivo's system (color, radius, typography, icons, accessibility) until it no longer looks like a copied component.
 
 ---
 
-## 5. Filosofía visual
+## 5. Visual philosophy
 
 **Dark / musical / modern / elegant / focused.**
 
-No: cyberpunk, neon overload, glassmorphism extremo, gradients en todo, partículas, blobs, 3D, sombras exageradas, cards flotando sin jerarquía.
+Avoid cyberpunk, neon overload, extreme glassmorphism, gradients everywhere, particles, blobs, 3D, exaggerated shadows, and floating cards without hierarchy.
 
-Sí: profundidad sutil, contraste elegante, superficies oscuras, acentos luminosos controlados, cards limpias, whitespace, jerarquía, pequeños detalles musicales.
+Use subtle depth, elegant contrast, dark surfaces, controlled luminous accents, clean cards, whitespace, hierarchy, and small musical details.
 
 ---
 
 ## 6. Color system (board)
 
-Ver tabla hex en el spec. Tokens Tailwind: background azul-negro / charcoal; surface elevado; text primary blanco suave; secondary gris azulado; accent violeta/indigo `#8366F1`. Gradientes excepcionales, no de fondo en cada componente.
+See the hex table in the spec. Tailwind tokens: blue-black / charcoal background; elevated surface; soft-white primary text; blue-gray secondary text; violet/indigo accent `#8366F1`. Use gradients exceptionally, not as every component's background.
 
 ---
 
 ## 7. Branding
 
-Logo: waveform / pulso / sincronización — no una nota musical genérica como marca principal.  
+Logo: waveform / pulse / synchronization — not a generic music note as the primary mark.
+
 Wordmark: **Sonivo**. Tagline: **Plan. Play. Together.**
 
 ---
 
 ## 8. Layout
 
-Desktop: sidebar persistente. Orden del tablero (el tablero gana sobre la lista Inicio→Biblioteca del borrador): **Inicio, Setlists, Eventos, Biblioteca**, luego **Miembros** (desktop) + grupo actual + avatar.  
-Mobile: bottom nav **Inicio, Setlists, Eventos, Biblioteca** + drawer para Miembros/cuenta. Acciones frecuentes fáciles de tocar en ensayo.
+Desktop: persistent sidebar. Board navigation order (the board takes precedence over the draft's Inicio→Biblioteca list): **Inicio, Setlists, Eventos, Biblioteca**, then **Miembros** (desktop), current group, and avatar.
+
+Mobile: bottom navigation **Inicio, Setlists, Eventos, Biblioteca** plus a drawer for **Miembros** and account. Make frequent actions easy to tap during rehearsal.
 
 ---
 
 ## 9–30. Product screens (summary)
 
-- **Inicio:** centro de preparación, no KPIs financieros. Próximo evento, setlists recientes, recuento de biblioteca. Componer APIs existentes.
-- **Biblioteca:** colección musical (título, Original/Cover/Other, nº de arreglos), no tabla admin.
-- **Song → Arrangements → Resources** visible.
-- **Setlist:** numeración, reorder físico, add/save. Plan de Event **no** es una vista viva del Setlist (copy-on-apply).
-- **Apply:** confirmación destructiva si ya hay plan (`confirmReplace`).
-- **Member:** experiencia enfocada de lectura/preparación, no “versión limitada”.
-- Empty states musicales y útiles. Toasts para guardado / 409 humano.
-- Accessibility first-class (teclado, focus, labels, contraste, touch, alternativa a drag).
+- **Inicio:** preparation hub, not financial KPIs. Show the next event, recent setlists, and library count. Compose from existing APIs.
+- **Biblioteca:** music collection (title, Original/Cover/Other, number of Arrangements), not an admin table.
+- Keep **Song → Arrangements → Resources** visible.
+- **Setlist:** numbering, tactile reordering, add/save. An Event plan is **not** a live view of the Setlist (copy-on-apply).
+- **Apply:** show destructive confirmation if a plan already exists (`confirmReplace`).
+- **Member:** focused reading and preparation experience, not a “limited version.”
+- Use musical, helpful empty states. Use toasts for saves and human-readable 409 conflicts.
+- Make accessibility first-class (keyboard, focus, labels, contrast, touch, and an alternative to drag).
 
-Jerarquía: primitives (shadcn restyled) → product components (SongCard, SetlistItem, EventPlanItem, …) → page compositions.
-
----
-
-## 31. MVP vs brief original
-
-El brief largo listaba invite/RSVP como futuro. **En este repositorio ya están shipped.** Gate B los rediseña. File upload, player avanzado, stems, álbumes **no**.
+Hierarchy: primitives (restyled shadcn) → product components (SongCard, SetlistItem, EventPlanItem, …) → page compositions.
 
 ---
 
-## 32. Test de pantalla
+## 31. MVP vs. original brief
 
-Antes de dar una pantalla por cerrada: ¿la entiende un músico sin docs? ¿Acción primaria obvia? ¿Contexto musical? ¿Jerarquía? ¿Velocidad de ensayo? ¿Mobile? ¿Un solo producto? ¿Animación útil? ¿Cards de más? ¿Se ve Sonivo y no un SaaS genérico de IA?
+The long brief listed invites and RSVP as future work. **They have already shipped in this repository.** Gate B redesigns them. File upload, advanced player, stems, and albums are **not included**.
+
+---
+
+## 32. Screen test
+
+Before closing a screen, ask: Can a musician understand it without documentation? Is the primary action obvious? Is the musical context clear? Is the hierarchy clear? Is it fast to use during rehearsal? Does it work on mobile? Does it feel like one product? Is the animation useful? Are there too many cards? Does it look like Sonivo rather than a generic AI SaaS?

@@ -1,5 +1,15 @@
 # NOW — current work and Git checkpoint
 
+## T-102 — Translate context/product documentation
+
+**Updated:** 2026-11-28. **Worktree:** `P:\repos\sonivo-t102-pr`. **Branch:** `docs/t-102-translate-context-product-pr`, based on `origin/develop` at `fde897dd05c93147a96fda90b76cbea7decb79cd`.
+**Scope:** Translate verified Spanish engineering prose in the Gate B design brief. No code, product behavior, locale files, fixtures, or user content changes.
+**FACT:** `docs/00-context/CONTEXT.md`, `GLOSSARY.md`, `INDEX.md`, and `docs/01-product/PRODUCT.md` use English prose. Approved product names and Spanish UI labels remain as-is. `docs/01-product/GATE-B-DESIGN-BRIEF.md` is the only in-scope Spanish prose document.
+**Implementation:** COMPLETE. **Human approval:** APPROVED (owner authorized full T-102 completion). **Git checkpoint:** COMMITTED. **Commit:** YES. **Push:** YES. **Uncommitted changes:** NO. **Remote:** PUSHED. **CI:** RUNNING on PR #389; Frontend build and SCA passed, Backend build & tests and Analyze (C#) are running.
+**Validation:** `GATE-B-DESIGN-BRIEF.md` translation retains all 14 headings in order; relative links resolve; `git diff --check` passes. No local build or tests run.
+**PR:** [#389](https://github.com/kevin-esq/sonivo/pull/389), open against `develop`; no merge authorized or performed.
+**Next action:** Review remaining PR checks. Start T-103 after T-102 is merged.
+
 ## T-202 — Capture reproducible OpenAPI baseline
 
 **Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-readiness`. **Branch:** `docs/architecture-readiness-pr`, based on `origin/develop` at `6f544c5`.
