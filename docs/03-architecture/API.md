@@ -7,6 +7,35 @@ Tenancy: `/api/groups/{groupId}/...` + membership (ADR-0019). **CLIENT-SUPPLIED 
 
 Convention: JSON; Problem Details ([`TECHNICAL-SPEC.md`](TECHNICAL-SPEC.md) §8).
 
+## OpenAPI baseline
+
+**FACT:** `Microsoft.AspNetCore.OpenApi` 10.0.12 serves `/openapi/v1.json` in
+Development only. The captured document declares OpenAPI `3.1.1`; [Microsoft
+documents OpenAPI 3.1 as the .NET 10 default](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/aspnetcore-openapi?view=aspnetcore-10.0).
+The document endpoint requires an authenticated cookie under the fallback
+authorization policy. No Swagger UI or build-time generator is configured.
+
+**FACT:** The reviewed snapshot is
+[`tests/Sonivo.Api.Tests/Snapshots/openapi-v1.json`](../../tests/Sonivo.Api.Tests/Snapshots/openapi-v1.json).
+It includes health and client-error routes, plus the signed internal admin API
+routes. It excludes SignalR hubs, the OpenAPI endpoint itself, and API/SPA
+fallback endpoints. Admin endpoints remain disabled unless their independent
+configuration gates pass; listing them in this Development-only document does
+not enable them.
+
+**FACT:** The generated document currently has no `securitySchemes` or
+operation-level `security` declarations. It also does not describe the
+Problem Details error responses consistently. Cookie authentication,
+antiforgery, endpoint authorization metadata, and stable error behavior remain
+documented by this file and tested by `EndpointInventoryTests` and
+`ProblemDetailsApiTests`; consumers must not treat the OpenAPI snapshot as a
+complete security or error contract yet.
+
+**PROPOSAL:** Extend the contract in a separate ticket before using this
+document to generate clients. Keep the endpoint-inventory snapshot as the
+authorization/rate-limit metadata guard until the OpenAPI document expresses
+those contracts directly.
+
 **Route ownership (ADR-0089):** `/api/*` endpoint paths are owned by the .NET
 API and documented by this contract. Browser page routes are owned by
 `web/apps/app/src/routing/routes.ts`. Do not centralize both in one frontend
@@ -130,5 +159,6 @@ All `...` = `/api/groups/{groupId}`. Soft-deleted Songs/Arrangements excluded (G
 - `POST .../apply-setlist` = **Replace Event Plan from Setlist**; requires `expectedVersion`; if Event already has items, also `confirmReplace: true` else **409** (ADR-0021). Soft-deleted Arrangements in template → fail apply (400/409). Stale version → **409**.  
 - Mutating root updates send `expectedVersion`; success responses include the **new** `version`; stale → **409** (never silent overwrite). See [`PERSISTENCE.md`](PERSISTENCE.md) §6.  
 - CSRF: `X-CSRF-TOKEN` on POST/PUT/PATCH/DELETE; missing/invalid → **400** (ADR-0020).  
-- OpenAPI when implemented. No bulk RPC bags.  
+- The Development OpenAPI baseline and current security/error-schema limits are
+  documented in [OpenAPI baseline](#openapi-baseline). No bulk RPC bags.
 - Chart body format follows Q8; until then opaque string/blob on Arrangement.

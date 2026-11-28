@@ -1,6 +1,6 @@
 # T-101 — Reconcile durable phase status and document ownership
 
-**Metadata:** phase 1; status **In review**; priority P0; size S; risk low; depends on None; blocks T-102, T-107; suggested owner Kevin.
+**Metadata:** phase 1; status **Merged (#382)**; priority P0; size S; risk low; depends on None; blocks T-102, T-107; suggested owner Kevin.
 
 ## Context and why
 

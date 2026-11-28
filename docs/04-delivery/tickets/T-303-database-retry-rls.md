@@ -1,6 +1,6 @@
 # T-303 — Prove safe database retry boundaries under RLS
 
-**Metadata:** phase 3; status **In progress**; priority P1; size M; risk high; depends on T-401; blocks None; suggested owner Kevin.
+**Metadata:** phase 3; status **Merged (#387; CI 6/6 passed)**; priority P1; size M; risk high; depends on T-401; blocks None; suggested owner Kevin.
 
 ## Context and why
 

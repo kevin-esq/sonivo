@@ -1,16 +1,38 @@
 # NOW — current work and Git checkpoint
 
+## T-202 — Capture reproducible OpenAPI baseline
+
+**Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-readiness`. **Branch:** `docs/architecture-readiness-pr`, based on `origin/develop` at `6f544c5`.
+**Scope:** Added an authenticated Development OpenAPI snapshot test, a sorted JSON baseline, and API contract notes. No production source or dependencies changed.
+**Evidence:** Snapshot declares OpenAPI 3.1.1 and has 136 paths. It includes health, client-error, and signed admin routes; excludes SignalR hubs, the OpenAPI route, and API/SPA fallbacks. OpenAPI currently has no security scheme/requirement declarations and does not consistently declare Problem Details errors; `EndpointInventoryTests` continues to guard authorization/rate-limit metadata.
+**Validation:** Focused OpenAPI + endpoint inventory tests passed 2/2. Full API suite passed 350/350. Release solution build passed: 9 projects, 0 errors, 4 warnings. `git diff --check` passed. Graphify update failed because NetworkX lacks `louvain_communities`; generated output remains untracked and out of scope. No full solution test run.
+**Implementation:** COMPLETE. **Human approval:** APPROVED for this batch's commit, push, and PR. **Git checkpoint:** COMMITTED (`bea27b7`, `f103748`, `d57f8ff`, `cf0c9d0`, plus this publication checkpoint). **Commit:** YES. **Push:** YES after this checkpoint push. **Uncommitted changes:** NO after checkpoint commit. **Remote:** PUSHED. **CI:** 4/6 passing at last query; Playwright E2E and Analyze (C#) in progress.
+**PR:** [#388](https://github.com/kevin-esq/sonivo/pull/388), open against `develop`; no merge authorized or performed.
+**Next action:** Report final PR checks. T-502 remains a pre-cutover validation gate.
+
+## T-501 — Resolve API host and release topology
+
+**Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-readiness`. **Branch:** `docs/architecture-readiness-pr`, based on `origin/develop` at `6f544c5`.
+**Scope:** Document current deployment and owner-confirmed Hetzner target; no source, service configuration, provider, DNS, secret, or database changed.
+**FACT:** Render is the current live `develop` deployment using Neon `staging`; the owner says final production release on `main` follows product readiness. The owner reconfirmed Hetzner as the future API host, retaining accepted ADR-0069.
+**FACT:** The repository already has a .NET 10/API + static-export Dockerfile, a PostgreSQL-only development `compose.yaml`, and a Hetzner/Caddy production compose file. Render has separate Node Next.js and Docker API services. SmarterASP was compared as an alternative only; no SmarterASP plan was selected.
+**PROPOSAL:** Keep Render until product readiness and the approved `main` production cutover. Keep the accepted Hetzner + Caddy API and Vercel BFF topology. T-502 must verify the selected Hetzner plan, cost, operations, SignalR, worker, health, migration, data, and rollback behavior before cutover.
+**OPEN QUESTION:** What Hetzner server size and monthly budget should T-502 validate? This does not reopen ADR-0069 or block unrelated product functionality.
+**Implementation:** COMPLETE. **Human approval:** APPROVED for the host direction and documentation scope. **Git checkpoint:** COMMITTED in the architecture-readiness batch. **Commit:** YES. **Push:** YES. **Uncommitted changes:** NO after checkpoint commit. **CI:** tracked on PR #388. No provider or deployment mutation.
+**Next action:** Keep T-502 as a pre-cutover gate; it does not block unrelated product functionality.
+
 ## T-303 — Prove safe database retry boundaries under RLS
 
 **Updated:** 2026-11-27. **Worktree:** `P:\repos\sonivo-t401`. **Branch:** `feature/t-303-database-retry-rls`, based on `origin/develop` at `9a58dcc5f83778d12469c2cf8f8585c3ba497c9e`.
 **Authorization:** Owner authorized T-303 implementation, one local commit, push of this branch, and one PR. No merge, production retry policy, or database configuration is authorized.
 **Scope:** Added a PostgreSQL integration test with one test-only retry, a simulated serialization failure after a Group-scoped write, retry of the whole transaction, and checks for one persisted row and cleared transaction-local user/Group context. Documented the test's simulation limits.
-**Implementation:** COMPLETE locally. Product source and package references unchanged; retry strategy exists only in the test options.
+**Implementation:** COMPLETE and merged to `develop` as PR #387, merge commit `6f544c5`. Product source and package references unchanged; retry strategy exists only in the test options.
 **Validation:** Release solution build passed (10 projects, 0 errors, 4 warnings). Full Release test run passed: Domain 251/251, Application 254/254, Integration 127/127, API 349/349. Tests used a disposable PostgreSQL 16.6 container provisioned with the CI bootstrap, migrations, grants, and runtime-principal verifier; the container was removed after the run. `git diff --check` passed. `graphify update .` failed because installed NetworkX lacks `community.louvain_communities`; its generated untracked output remains out of ticket scope.
 **Human approval:** APPROVED for this test-only implementation and PR.
-**Git checkpoint:** COMMITTED (`eadb94b` implementation; `7c5b615` checkpoint). **Commit:** YES. **Push:** YES. **Uncommitted changes:** NO. **Remote:** PUSHED. **CI:** NOT RUN locally; PR checks last observed 5 passed, Playwright in progress, Graphify neutral.
-**PR:** [#387](https://github.com/kevin-esq/sonivo/pull/387), open against `develop`.
-**Next action:** Verify final PR checks and owner review. Do not merge or enable production retries without separate approval.
+**Git checkpoint:** COMMITTED (`eadb94b` implementation; `7c5b615` checkpoint; `cbe63fc` PR publication). **Commit:** YES. **Push:** YES. **Uncommitted:** NO in the ticket worktree. **Remote:** MERGED.
+**PR:** [#387](https://github.com/kevin-esq/sonivo/pull/387), merged into `develop` as `6f544c5` on 2026-11-28.
+**CI:** PASSING (6/6): Backend, Frontend, SCA, Analyze, CodeQL, and Playwright E2E.
+**Next action:** Do not enable production retries without separate approval.
 
 ## T-401 — Transaction-pooler RLS regression coverage
 

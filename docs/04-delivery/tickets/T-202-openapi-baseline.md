@@ -1,6 +1,6 @@
 # T-202 — Capture reproducible OpenAPI baseline
 
-**Metadata:** phase 2; status **Backlog**; priority P1; size S; risk low; depends on None; blocks T-203; suggested owner Kevin.
+**Metadata:** phase 2; status **In review**; priority P1; size S; risk low; depends on None; blocks T-203; suggested owner Kevin.
 
 ## Context and why
 
@@ -9,6 +9,8 @@ Program.cs uses built-in OpenAPI; no committed artifact found. See [recommendati
 ## Exact scope
 
 Export Development /openapi/v1.json; record auth/errors/exclusions; do not add generator.
+
+**Implementation evidence:** The authenticated Development export is captured in `tests/Sonivo.Api.Tests/Snapshots/openapi-v1.json` and compared after sorting JSON object keys. Its OpenAPI version is `3.1.1` (the .NET 10 default is 3.1). The document lists 136 paths, including health, client-error, and signed admin routes; it excludes hubs, its own route, and API/SPA fallbacks. It has no OpenAPI security schemes or operation security and does not consistently declare Problem Details responses. `EndpointInventoryTests` remains the authorization/rate-limit metadata guard. No generator or package was added.
 
 ## Out of scope
 
@@ -27,15 +29,18 @@ Program.cs/csproj; API tests; API.md
 
 ## Acceptance criteria
 
-- [ ] Deterministic output with explicitly recorded OpenAPI format/version; no unintended internal routes. Confirm whether package 10.0.12 defaults to 3.2 or 3.1 before pinning a contract format.
-- [ ] No secret, personal data, localized UI copy, or unrelated file changes.
+- [x] Authenticated Development export is normalized and compared to a reviewed OpenAPI `3.1.1` snapshot. Microsoft documents OpenAPI 3.1 as the .NET 10 default for the existing `Microsoft.AspNetCore.OpenApi` `10.0.12` reference; no version pin or package change was needed.
+- [x] The inventory documents included health, client-error, and signed admin paths, and excludes hubs, the OpenAPI endpoint, and API/SPA fallbacks. The signed admin path is present in the Development document and remains guarded by its existing signed internal API middleware.
+- [x] No secret, personal data, localized UI copy, or unrelated file changes; no dependency added.
 - [ ] One small PR using the repository template.
 
-## Tests to add or update
-**Commands and expected results:** use the relevant commands in [README.md](../README.md#validation-command-reference). Commands exit 0, focused regression tests pass, and required external infrastructure is available. Report unmet prerequisites; never claim an unrun check.
+## Validation
 
-
-Compare normalized exports; assert routes/security metadata.
+- Focused OpenAPI baseline and endpoint inventory tests passed: 2/2.
+- Full API test suite passed: 350/350.
+- Release solution build passed: 10 projects, 0 errors, 7 existing warnings.
+- `git diff --check` passes after the final documentation edit.
+- No full solution test run. No package or tooling installed.
 
 ## Rollback plan
 
